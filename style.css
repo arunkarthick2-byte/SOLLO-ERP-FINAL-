@@ -1,0 +1,971 @@
+/* ==========================================
+   PREMIUM APP POLISH: "ANTI-WEB" SHIELD
+   ========================================== */
+body {
+    /* Disable pull-to-refresh browser bouncing */
+    overscroll-behavior-y: none;
+    /* Disable text selection on UI elements */
+    user-select: none;
+    -webkit-user-select: none;
+    /* Remove the blue flash when tapping */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Re-enable text selection ONLY for input fields so users can still type and paste */
+input, textarea {
+    user-select: auto;
+    -webkit-user-select: auto;
+}
+/* ==========================================
+   SOLLO ERP - MASTER STYLESHEET (v5.2 Enterprise)
+   ========================================== */
+
+:root {
+    /* Material Design 3 Color Palette */
+    --md-primary: #0061a4; 
+    --md-on-primary: #ffffff;
+    --md-primary-container: #d1e4ff; 
+    --md-on-primary-container: #001d36;
+    --md-secondary: #535f70; 
+    --md-on-secondary: #ffffff;
+    --md-surface: #fdfcff; 
+    --md-background: #f4f6fa;
+    --md-on-surface: #1a1c1e;
+    --md-surface-variant: #dfe2eb; 
+    --md-on-surface-variant: #43474e;
+    --md-outline: #73777f; 
+    --md-outline-variant: #c3c7cf;
+    --md-error: #ba1a1a; 
+    --md-on-error: #ffffff;
+    --md-success: #146c2e; 
+    --md-text-muted: #73777f;
+    
+    --elevation-1: 0px 2px 8px rgba(0, 0, 0, 0.06);
+    --elevation-2: 0px 4px 16px rgba(0, 0, 0, 0.08);
+    --elevation-3: 0px 8px 24px rgba(0, 0, 0, 0.12);
+}
+/* ==========================================
+   BASE RESETS & NATIVE APP TYPOGRAPHY
+   ========================================== */
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent; /* Removes web grey tap highlight */
+    scrollbar-width: none; /* Firefox: Hide scrollbars */
+}
+
+/* Chrome/Safari/Edge: Hide scrollbars globally for native feel */
+::-webkit-scrollbar {
+    display: none;
+    width: 0px;
+    background: transparent;
+}
+
+html, body {
+    background-color: var(--md-background);
+    margin: 0;
+    padding: 0;
+    /* NEW: This physically stretches the background to the absolute bottom, killing the black gap! */
+    width: 100%;
+    height: 100%; 
+    min-height: 100vh;
+    min-height: 100dvh; 
+    
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Segoe UI', sans-serif;
+    font-variant-numeric: tabular-nums; 
+    color: var(--md-on-surface);
+    overflow: hidden; 
+    overscroll-behavior-y: none; 
+    
+    /* Prevent text highlighting, long-press menus, and magnifying glass */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* Re-enable text selection ONLY for inputs so users can type and edit */
+input, textarea, select {
+    -webkit-user-select: auto;
+    user-select: auto;
+}
+
+/* NEW: Force instant clicks, defeating the 300ms mobile browser delay */
+a, button, input, select, textarea, .tap-target, .nav-item, .chip, .list-view li, .m3-card {
+    touch-action: manipulation;
+}
+
+/* ==========================================
+   MATERIAL SYMBOLS LIGATURE FIX
+   ========================================== */
+.material-symbols-outlined {
+    font-family: 'Material Symbols Outlined', sans-serif;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================
+   APP SHELL & LAYOUT
+   ========================================== */
+#app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh; 
+    max-width: 600px;
+    margin: 0 auto;
+    background: var(--md-background);
+    position: relative;
+    /* Box shadow removed to prevent it from leaking onto the bottom gesture bar! */
+}
+
+.app-header {
+    height: 64px;
+    /* Optional: padding-top for phones with notches inside Wrappers */
+    padding-top: env(safe-area-inset-top, 0px);
+    background-color: var(--md-primary);
+    color: var(--md-on-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-left: 16px;
+    padding-right: 16px;
+    z-index: 10;
+    flex-shrink: 0;
+}
+
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    position: relative;
+    background-color: var(--md-background);
+    
+    /* Hardware Acceleration and Native Android Scroll Momentum */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+/* Hide the ghost title text to prevent layout shifts */
+#screen-title {
+    display: none !important;
+}
+
+.screen-section {
+    padding: 16px;
+    /* NEW: Dynamic bottom padding to account for Android Gesture Bars */
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); 
+}
+
+/* ==========================================
+   BOTTOM NAVIGATION & FAB
+   ========================================== */
+.bottom-nav {
+    position: fixed; 
+    bottom: 0; left: 0; right: 0; margin: 0 auto;
+    width: 100%; max-width: 600px;
+    height: calc(72px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    display: flex; justify-content: space-around; align-items: center;
+    border-top: 1px solid rgba(195, 199, 207, 0.3); 
+    z-index: 1000;
+    
+    /* UPGRADE: iOS Style Glassmorphism Bottom Nav */
+    background: rgba(253, 252, 255, 0.85); 
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+body.dark-mode .bottom-nav {
+    background: rgba(26, 28, 30, 0.85);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.nav-item {
+    position: relative; /* UPGRADE 2: Needed for badge positioning */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--md-text-muted);
+    width: 64px;
+    height: 64px;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+/* UPGRADE 2: Bottom Nav Badges */
+.nav-badge {
+    position: absolute;
+    top: 4px;
+    right: 12px;
+    background: var(--md-error);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 12px;
+    border: 2px solid var(--md-surface);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* UPGRADE 1: Swipe-to-Action Gestures */
+.swipe-container {
+    position: relative;
+    border-radius: 16px;
+    margin-bottom: 16px;
+    background: var(--md-error);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    overflow: hidden;
+}
+.swipe-action-btn {
+    position: absolute;
+    right: 0;
+    padding: 0 24px;
+    color: white;
+    display: flex;
+    align-items: center;
+}
+.swipe-card {
+    background: var(--md-surface);
+    width: 100%;
+    border-radius: 16px;
+    padding: 20px;
+    transition: transform 0.2s ease;
+    box-shadow: var(--elevation-1);
+    position: relative;
+    z-index: 2;
+}
+body.dark-mode .swipe-card {
+    border: 1px solid var(--md-outline-variant);
+    box-shadow: none;
+}
+
+/* UPGRADE 4: View Transitions API */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0.3s;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.nav-item span:last-child {
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.nav-item.active {
+    color: var(--md-primary); /* UPGRADE: Changed from black to Primary Blue */
+    font-weight: bold;
+}
+
+.nav-item.active .material-symbols-outlined {
+    background: var(--md-primary-container);
+    color: var(--md-primary); /* UPGRADE: Changed from black to Primary Blue */
+    padding: 4px 20px; 
+    border-radius: 24px; 
+    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Modern Material 3 Floating Action Button */
+.floating-action-button {
+    position: fixed;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px)); 
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px; 
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    border: none;
+    box-shadow: var(--elevation-3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    /* UPGRADE: Smoother transition for sliding off-screen */
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, background 0.2s ease;
+}
+
+/* UPGRADE: Auto-hide FAB class */
+.floating-action-button.fab-hidden {
+    transform: translateY(150px) scale(0.8);
+}
+
+.floating-action-button:active {
+    transform: scale(0.92);
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    box-shadow: var(--elevation-1);
+}
+
+.floating-action-button .material-symbols-outlined {
+    font-size: 28px; 
+}
+
+/* ==========================================
+   UI COMPONENTS (Cards, Buttons, Inputs, Lists)
+   ========================================== */
+.m3-card {
+    background: var(--md-surface);
+    border-radius: 16px; 
+    padding: 16px; /* Tighter, cleaner internal padding */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 10px rgba(0,0,0,0.02); /* Ultra-soft premium shadow */
+    margin-bottom: 8px; /* Tighter grouping for lists */
+    border: 1px solid rgba(195, 199, 207, 0.4); /* Micro-hairline border for crisp edges */
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+/* UPGRADE 3: Advanced Native Android Tap Feedback & Ink Ripple */
+.m3-card.tap-target, .btn-primary, .list-view li {
+    position: relative;
+    overflow: hidden;
+}
+.m3-card.tap-target::after, .btn-primary::after, .list-view li::after {
+    content: "";
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+    border-radius: 50%;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    pointer-events: none;
+}
+body.dark-mode .m3-card.tap-target::after, body.dark-mode .btn-primary::after, body.dark-mode .list-view li::after {
+    background: rgba(255, 255, 255, 0.1);
+}
+.m3-card.tap-target:active::after, .btn-primary:active::after, .list-view li:active::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(2);
+    transition: 0s; /* Instant ripple trigger on tap */
+}
+.m3-card.tap-target:active {
+    background-color: var(--md-surface-variant);
+    transform: scale(0.96); /* Deeper press feel */
+}
+
+.form-group {
+    margin-bottom: 22px; /* Better separation between inputs */
+}
+
+.form-group label {
+    display: block;
+    font-size: 11px; /* Slightly smaller but bolder */
+    margin-bottom: 6px; 
+    color: var(--md-text-muted);
+    font-weight: 600;
+    letter-spacing: 0.5px; /* Premium corporate tracking */
+    text-transform: uppercase;
+}
+
+input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
+    width: 100%;
+    padding: 16px; /* Perfectly square, breathless padding */
+    border: 1px solid var(--md-outline-variant); 
+    border-radius: 12px; 
+    font-size: 16px;
+    background: var(--md-surface);
+    color: var(--md-on-surface);
+    font-family: inherit;
+    transition: all 0.2s ease;
+    box-shadow: none; /* Flatter, cleaner modern look */
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--md-primary);
+    border-width: 2px;
+    padding: 13px 15px; /* Offset the 2px border so text doesn't jump */
+    box-shadow: 0 0 0 4px var(--md-primary-container); /* Native focus glow effect */
+}
+
+.btn-primary {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: var(--elevation-1);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+/* NEW: Native Button Press Animation */
+.btn-primary:active {
+    transform: scale(0.96);
+    box-shadow: none;
+    opacity: 0.9;
+}
+
+.btn-primary-small {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.1s ease;
+}
+
+.btn-primary-small:active {
+    transform: scale(0.94);
+    background: var(--md-outline-variant);
+}
+
+/* Master Lists & Search */
+.list-view {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.list-view li {
+    padding: 16px 12px; /* Taller native-style rows with better breathing room */
+    border-bottom: 1px solid var(--md-surface-variant);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    border-radius: 8px; 
+    transition: background-color 0.2s ease;
+}
+
+/* NEW: List Item Tap Feedback */
+.list-view li:active {
+    background-color: var(--md-surface-variant);
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--md-surface-variant);
+    padding: 8px 16px;
+    border-radius: 24px;
+    margin-bottom: 16px;
+}
+
+.search-bar input {
+    border: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    outline: none;
+    font-size: 16px;
+}
+
+/* ==========================================
+   FILTER CHIPS
+   ========================================== */
+.filter-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: none; 
+}
+
+.chip {
+    padding: 6px 16px;
+    border: 1px solid var(--md-outline);
+    border-radius: 8px;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--md-on-surface-variant);
+    background: transparent;
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+
+.chip:active {
+    transform: scale(0.95);
+    background-color: var(--md-surface-variant);
+}
+
+.chip.active {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    border-color: transparent;
+    font-weight: 500;
+}
+
+/* ==========================================
+   FULL-SCREEN ACTIVITIES & BOTTOM SHEETS
+   ========================================== */
+.drawer-overlay, .sheet-overlay {
+    position: fixed; 
+    inset: 0; 
+    /* PREMIUM UPGRADE: Soft Blur Overlay */
+    background: rgba(0,0,0,0.35); 
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 0; 
+    pointer-events: none; 
+    transition: opacity 0.3s ease;
+}
+
+.drawer-overlay { z-index: 3400; }
+.sheet-overlay { z-index: 2500; } 
+
+.drawer-overlay.open, .sheet-overlay.open { 
+    opacity: 1; 
+    pointer-events: auto; 
+}
+
+/* UPGRADE 4: Full Screen Activities (Smooth iOS/Android Slide Up) */
+.activity-screen { 
+    position: fixed; 
+    top: 0; left: 0; right: 0; bottom: 0; 
+    background-color: var(--md-background) !important; 
+    z-index: 2000; 
+    display: flex; 
+    flex-direction: column; 
+    transform: translateY(100%); /* Slide from bottom */
+    opacity: 0; /* Starts invisible */
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease; 
+    will-change: transform, opacity;
+}
+
+.activity-screen.open { 
+    transform: translateY(0); 
+    opacity: 1;
+}
+
+.activity-header { 
+    display: flex; align-items: center; justify-content: space-between; 
+    padding: 12px 16px; 
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    /* PREMIUM UPGRADE: Translucent Frosted Glass */
+    background-color: rgba(253, 252, 255, 0.85); 
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(195, 199, 207, 0.3); 
+    z-index: 10; 
+}
+body.dark-mode .activity-header {
+    background-color: rgba(26, 28, 30, 0.85); 
+    border-bottom: 1px solid rgba(67, 71, 78, 0.3); 
+}
+
+.activity-content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+
+/* Bottom Sheets (Slide Up) */
+.bottom-sheet { 
+    position: fixed; 
+    bottom: 0; left: 0; right: 0; 
+    background-color: var(--md-surface) !important; 
+    border-radius: 28px 28px 0 0; 
+    z-index: 3000; 
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.4); 
+    display: flex; flex-direction: column; 
+    height: auto;
+    max-height: 85vh; 
+    padding-bottom: env(safe-area-inset-bottom, 0px); 
+    transform: translateY(100%); 
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1); 
+    will-change: transform;
+}
+
+/* UPGRADE: Native Drag Handle Pill */
+.bottom-sheet::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--md-outline-variant);
+    border-radius: 4px;
+    margin: 12px auto 0;
+    flex-shrink: 0;
+}
+
+.bottom-sheet.open { transform: translateY(0); }
+
+.sheet-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px; border-bottom: 1px solid var(--md-surface-variant);
+}
+
+/* ==========================================
+   SIDE DRAWER (Slide Right)
+   ========================================== */
+.side-drawer { 
+    position: fixed; top: 0; left: 0; bottom: 0; width: 280px; 
+    background-color: var(--md-surface) !important; 
+    z-index: 3500; 
+    transform: translateX(-100%); transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1); 
+    display: flex; flex-direction: column; box-shadow: var(--elevation-3); 
+}
+.side-drawer.open { transform: translateX(0); }
+
+.drawer-header {
+    padding: 24px 16px;
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    display: flex;
+    align-items: center;
+}
+
+.drawer-item {
+    padding: 16px 24px;
+    display: flex; gap: 16px; align-items: center;
+    color: var(--md-on-surface-variant);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.drawer-item:active {
+    background-color: var(--md-surface-variant);
+}
+
+/* ==========================================
+   UTILITIES & ANIMATIONS
+   ========================================== */
+.hidden { display: none !important; }
+.tap-target { cursor: pointer; }
+.color-primary { color: var(--md-primary); }
+.large-text { font-size: 16px; font-weight: 500; }
+.mt-2 { margin-top: 8px !important; }
+
+/* UPGRADE 3: Visual Empty States */
+.empty-state { 
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; color: var(--md-text-muted); padding: 40px 20px; 
+}
+
+/* UPGRADE 4: Sticky Date Headers (Like WhatsApp) */
+.date-divider {
+    position: sticky; top: -16px; z-index: 10;
+    display: flex; justify-content: center; margin-bottom: 12px; margin-top: 8px;
+    pointer-events: none;
+}
+.date-divider span {
+    background: var(--md-surface-variant); color: var(--md-on-surface-variant);
+    padding: 4px 14px; border-radius: 12px; font-size: 11px; font-weight: bold;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); pointer-events: auto;
+}
+
+.icon-circle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+}
+
+.splash-screen {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--md-primary);
+    z-index: 9999;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    transition: opacity 0.5s ease;
+}
+
+.logo-circle, .logo-circle-large {
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex; justify-content: center; align-items: center;
+}
+.logo-circle { width: 56px; height: 56px; }
+.logo-circle-large { width: 96px; height: 96px; }
+
+.loader-spinner {
+    width: 40px; height: 40px;
+    border: 4px solid rgba(255,255,255,0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.fade-out { opacity: 0 !important; pointer-events: none; }
+
+/* UPGRADE 5: Skeleton Loader Animation */
+.skeleton {
+    background: #eee;
+    background: linear-gradient(110deg, #ececec 8%, #f5f5f5 18%, #ececec 33%);
+    border-radius: 8px;
+    background-size: 200% 100%;
+    animation: 1.5s shine linear infinite;
+    color: transparent !important; /* Hides text while loading */
+}
+body.dark-mode .skeleton {
+    background: #2a2d31;
+    background: linear-gradient(110deg, #2a2d31 8%, #3a3d42 18%, #2a2d31 33%);
+    background-size: 200% 100%;
+}
+@keyframes shine {
+    to { background-position-x: -200%; }
+}
+
+/* Print Handling & PDF Engine Fix */
+.print-only { 
+    position: absolute !important; 
+    left: -9999px !important; 
+    top: -9999px !important;
+    visibility: hidden;
+    width: 800px; 
+}
+
+@media print {
+    body * { display: none !important; }
+    #print-area, #print-area * { 
+        display: block !important; 
+        visibility: visible !important;
+        position: static !important;
+    }
+}
+/* ========================================== */
+/* NEW CODE: DARK MODE & TOAST NOTIFICATIONS  */
+/* ========================================== */
+
+/* 1. Dark Mode Color Overrides */
+body.dark-mode {
+    --md-primary: #8fcbfb;
+    --md-on-primary: #003355;
+    --md-primary-container: #004a7a;
+    --md-on-primary-container: #cce5ff;
+    --md-surface: #1a1c1e;
+    --md-background: #111315;
+    --md-on-surface: #e2e2e6;
+    --md-surface-variant: #43474e;
+    --md-on-surface-variant: #c3c7cf;
+    --md-text-muted: #8d9199;
+    --md-outline-variant: #43474e;
+    
+    background-color: var(--md-background);
+    color: var(--md-on-surface);
+}
+
+/* Fix card borders and shadows in Dark Mode */
+body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
+    border: 1px solid rgba(195, 199, 207, 0.15); /* Much softer hairline border for dark mode */
+    background: rgba(26, 28, 30, 0.6); /* Slightly translucent dark glass feel */
+    box-shadow: none;
+}
+
+/* 2. Toast Notification Animations (Top-Down Native Style) */
+#toast-container {
+    position: fixed;
+    top: calc(20px + env(safe-area-inset-top, 0px)); /* Safe from mobile notches */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none; 
+}
+
+.toast {
+    background: var(--md-on-surface);
+    color: var(--md-surface);
+    padding: 14px 28px;
+    border-radius: 50px; 
+    font-size: 14px;
+    font-weight: bold;
+    box-shadow: 0px 12px 28px rgba(0,0,0,0.25); 
+    opacity: 0;
+    transform: translateY(-40px) scale(0.9); /* Drops down from above */
+    transition: opacity 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+/* --- NEW: Strict A4 Document Formatting --- */
+.a4-document {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 15mm;
+    background: white;
+    box-sizing: border-box;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+    color: black;
+    font-size: 12px;
+}
+
+@media print {
+    .a4-document {
+        width: 100%;
+        min-height: auto;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+}
+/* UPGRADE 4: Smart Offline Banner */
+.offline-banner {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    background: var(--md-error);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001; /* Stays above headers */
+    transform: translateY(-100%);
+    transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.4s ease;
+}
+
+.offline-banner.show {
+    transform: translateY(0);
+}
+
+.offline-banner.online {
+    background: var(--md-success);
+}
+/* UPGRADE 2: Fintech Success Animation */
+.success-circle {
+    width: 80px; height: 80px; 
+    background: var(--md-success); 
+    border-radius: 50%;
+    display: flex; justify-content: center; align-items: center;
+    transform: scale(0); 
+    animation: popIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    box-shadow: 0 8px 32px rgba(20, 108, 46, 0.4);
+}
+.success-circle .check-mark {
+    color: white; font-size: 48px; opacity: 0;
+    animation: checkShow 0.3s ease 0.3s forwards;
+}
+@keyframes popIn { 
+    0% { transform: scale(0); } 
+    80% { transform: scale(1.1); } 
+    100% { transform: scale(1); } 
+}
+@keyframes checkShow { to { opacity: 1; } }
+/* ==========================================
+   FINAL PREMIUM NATIVE UX UPGRADES
+   ========================================== */
+
+/* UPGRADE 1: Material Design Ripple */
+.tap-target {
+    overflow: hidden;
+}
+/* Prevent overriding the fixed FAB */
+.tap-target:not(.floating-action-button) {
+    position: relative;
+}
+.ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple-anim 0.6s linear forwards;
+    background: rgba(150, 150, 150, 0.3);
+    pointer-events: none;
+    z-index: 10;
+}
+@keyframes ripple-anim {
+    to { transform: scale(4); opacity: 0; }
+}
+
+/* UPGRADE 2: Sticky Date Headers */
+.date-divider {
+    position: sticky !important;
+    top: 0;
+    z-index: 5;
+    background: rgba(253, 252, 255, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    margin: 0 -16px;
+    padding: 8px 16px;
+}
+body.dark-mode .date-divider {
+    background: rgba(26, 28, 30, 0.85);
+}
+
+/* UPGRADE 3: Skeleton Loading Screens */
+.skeleton-card {
+    height: 68px; 
+    background: var(--md-surface-variant);
+    border-radius: 12px; 
+    margin-bottom: 8px;
+    animation: pulse-bg 1.5s infinite ease-in-out;
+}
+@keyframes pulse-bg {
+    0% { opacity: 0.6; } 
+    50% { opacity: 0.3; } 
+    100% { opacity: 0.6; }
+}
+/* ==========================================
+   PREMIUM NATIVE UI/UX UPGRADES 
+   ========================================== */
+/* 1. The "Squish" Effect (Physical Weight) */
+.m3-card, .btn-primary, .btn-primary-small, .list-view li, .tap-target {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease !important;
+}
+.m3-card:active, .btn-primary:active, .btn-primary-small:active, .list-view li:active {
+    transform: scale(0.97) !important;
+}
+
+/* 2. iOS-Style Glassmorphism (Sticky Blur Headers) */
+.activity-header, .date-divider {
+    background: rgba(253, 252, 255, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+.dark-mode .activity-header, .dark-mode .date-divider {
+    background: rgba(17, 19, 21, 0.85) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+}
+/* UPGRADE: Premium Native Animated Checkboxes */
+input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: transparent;
+    margin: 0;
+    font: inherit;
+    color: currentColor;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--md-outline-variant);
+    border-radius: 50%; /* Makes them circular */
+    display: grid;
+    place-content: center;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+input[type="checkbox"]::before {
+    content: "";
+    width: 12px;
+    height: 12px;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    transform: scale(0);
+    transform-origin: bottom left;
+    transition: 120ms transform ease-in-out;
+    box-shadow: inset 1em 1em white;
+    background-color: white;
+}
+input[type="checkbox"]:checked {
+    background-color: var(--md-primary);
+    border-color: var(--md-primary);
+}
+input[type="checkbox"]:checked::before {
+    transform: scale(1);
+}
