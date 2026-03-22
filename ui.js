@@ -969,32 +969,35 @@ const UI = {
                     
                     // UPGRADE: Extract and safely display the linked Invoice/PO Number!
                     let displayLink = '';
-                    const refData = t.invoiceRef || t.linkedInvoice; // FIX: Now successfully catches Expenses too!
+                    const refData = t.invoiceRef || t.linkedInvoice;
                     if (refData) {
                         const links = String(refData).split(',').map(x => x.trim()).filter(x => x);
                         const displayNames = links.map(linkId => {
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
-                            if (sDoc) return sDoc.orderNo || sDoc.invoiceNo || sDoc.id.slice(-4).toUpperCase();
-                            if (pDoc) return pDoc.orderNo || pDoc.poNo || pDoc.invoiceNo || pDoc.id.slice(-4).toUpperCase();
+                            
+                            // UX FIX: Force missing documents to have proper 'INV-' or 'PO-' prefixes instead of naked numbers!
+                            if (sDoc) return sDoc.invoiceNo || sDoc.orderNo || 'INV-' + sDoc.id.slice(-4).toUpperCase();
+                            if (pDoc) return pDoc.invoiceNo || pDoc.poNo || pDoc.orderNo || 'PO-' + pDoc.id.slice(-4).toUpperCase();
+                            if (linkId.includes('sales')) return 'INV-' + linkId.slice(-4).toUpperCase();
+                            if (linkId.includes('purchase')) return 'PO-' + linkId.slice(-4).toUpperCase();
                             return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : linkId;
                         });
                         displayLink = [...new Set(displayNames)].join(', ');
                     }
 
-                    // UPGRADE: Inject Sticky Date Header if the date has changed
-                    let dateHeader = '';
-                    if (t.date !== lastDate) {
-                        dateHeader = `<div style="position: sticky; top: 8px; z-index: 10; text-align: center; margin: 16px 0 8px 0; pointer-events: none;"><span style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; box-shadow: var(--elevation-1); border: 1px solid var(--md-outline-variant);">${t.date || 'Unknown Date'}</span></div>`;
-                        lastDate = t.date;
-                    }
+                    // UX FIX: Remove the redundant "Internal Expense" text, but keep the inside date!
+                    const isExpense = t.mode === 'Expense' || t.ledgerName === 'Internal Expense';
+                    const thirdLine = isExpense 
+                        ? '' // Leave it completely clean for expenses
+                        : `<br><small>Party: <strong style="color:var(--md-primary)">${t.ledgerName || 'N/A'}</strong> | Mode: ${t.mode || 'Cash'}</small>`;
 
-                    return dateHeader + `
+                    // NO STICKY HEADERS - Just a clean, compact card!
+                    return `
                     <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:center;" onclick="app.openReceipt('${t.id}', '${t.type}')">
                         <div>
                             <strong class="large-text">${t.receiptNo ? t.receiptNo + ' - ' : ''}${t.desc || 'Transaction'}</strong><br>
-                            <small>${t.date || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small><br>
-                            <small>Party: <strong style="color:var(--md-primary)">${t.ledgerName || 'N/A'}</strong> | Mode: ${t.mode || 'Cash'}</small>
+                            <small>${t.date || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>${thirdLine}
                         </div>
                         <strong style="font-size:16px; color:${t.type === 'in' ? 'var(--md-success)' : 'var(--md-error)'};">
                             ${t.type === 'in' ? '+' : '-'}\u20B9${(parseFloat(t.amount) || 0).toFixed(2)}
@@ -1063,15 +1066,9 @@ const UI = {
                         displayLink = [...new Set(displayNames)].join(', ');
                     }
 
-                    // UPGRADE: Inject Sticky Date Header if the date has changed
-                    let dateHeader = '';
-                    if (t.date !== lastDate) {
-                        dateHeader = `<div style="position: sticky; top: 8px; z-index: 10; text-align: center; margin: 16px 0 8px 0; pointer-events: none;"><span style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; box-shadow: var(--elevation-1); border: 1px solid var(--md-outline-variant);">${t.date || 'Unknown Date'}</span></div>`;
-                        lastDate = t.date;
-                    }
-
+                    // NO STICKY HEADERS - Clean timeline view
                     if (t.hasOwnProperty('isInvoice')) {
-                        return dateHeader + `
+                        return `
                         <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
                             <div>
                                 <strong class="large-text">${t.desc || 'Document'}</strong><br>
