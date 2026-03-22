@@ -969,8 +969,9 @@ const UI = {
                     
                     // UPGRADE: Extract and safely display the linked Invoice/PO Number!
                     let displayLink = '';
-                    if (t.invoiceRef) {
-                        const links = String(t.invoiceRef).split(',').map(x => x.trim()).filter(x => x);
+                    const refData = t.invoiceRef || t.linkedInvoice; // FIX: Now successfully catches Expenses too!
+                    if (refData) {
+                        const links = String(refData).split(',').map(x => x.trim()).filter(x => x);
                         const displayNames = links.map(linkId => {
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
