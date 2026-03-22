@@ -964,6 +964,7 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
+                let lastDate = ''; // UPGRADE: Tracker for Google Pay style sticky headers
                 container.innerHTML = data.length ? data.map((t, index) => {
                     
                     // UPGRADE: Extract and safely display the linked Invoice/PO Number!
@@ -980,7 +981,14 @@ const UI = {
                         displayLink = [...new Set(displayNames)].join(', ');
                     }
 
-                    return `
+                    // UPGRADE: Inject Sticky Date Header if the date has changed
+                    let dateHeader = '';
+                    if (t.date !== lastDate) {
+                        dateHeader = `<div style="position: sticky; top: 8px; z-index: 10; text-align: center; margin: 16px 0 8px 0; pointer-events: none;"><span style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; box-shadow: var(--elevation-1); border: 1px solid var(--md-outline-variant);">${t.date || 'Unknown Date'}</span></div>`;
+                        lastDate = t.date;
+                    }
+
+                    return dateHeader + `
                     <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:center;" onclick="app.openReceipt('${t.id}', '${t.type}')">
                         <div>
                             <strong class="large-text">${t.receiptNo ? t.receiptNo + ' - ' : ''}${t.desc || 'Transaction'}</strong><br>
@@ -1036,11 +1044,38 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
+                let lastDate = ''; // UPGRADE: Tracker for Google Pay style sticky headers
                 container.innerHTML = data.length ? data.map(t => {
+                    
+                    // UPGRADE: Extract and safely display the linked Invoice/PO Number in the Statement Viewer!
+                    let displayLink = '';
+                    const refData = t.invoiceRef || t.linkedInvoice;
+                    if (refData) {
+                        const links = String(refData).split(',').map(x => x.trim()).filter(x => x);
+                        const displayNames = links.map(linkId => {
+                            const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
+                            const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
+                            if (sDoc) return sDoc.orderNo || sDoc.invoiceNo || sDoc.id.slice(-4).toUpperCase();
+                            if (pDoc) return pDoc.orderNo || pDoc.poNo || pDoc.invoiceNo || pDoc.id.slice(-4).toUpperCase();
+                            return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : linkId;
+                        });
+                        displayLink = [...new Set(displayNames)].join(', ');
+                    }
+
+                    // UPGRADE: Inject Sticky Date Header if the date has changed
+                    let dateHeader = '';
+                    if (t.date !== lastDate) {
+                        dateHeader = `<div style="position: sticky; top: 8px; z-index: 10; text-align: center; margin: 16px 0 8px 0; pointer-events: none;"><span style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; box-shadow: var(--elevation-1); border: 1px solid var(--md-outline-variant);">${t.date || 'Unknown Date'}</span></div>`;
+                        lastDate = t.date;
+                    }
+
                     if (t.hasOwnProperty('isInvoice')) {
-                        return `
+                        return dateHeader + `
                         <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
-                            <div><strong class="large-text">${t.desc || 'Document'}</strong><br><small>${t.date}</small></div>
+                            <div>
+                                <strong class="large-text">${t.desc || 'Document'}</strong><br>
+                                <small>${t.date} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>
+                            </div>
                             <div style="text-align:right;">
                                 <strong style="color:${t.isInvoice ? 'var(--md-error)' : 'var(--md-success)'};">\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
                                 <small>Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
