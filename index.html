@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=7">
     <link rel="manifest" href="/manifest.json">
 </head>
 
@@ -308,11 +308,17 @@
 
     <div id="activity-sales-form" class="activity-screen hidden">
         <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-sales-form')">close</span>
-            <span id="form-title-sales" style="font-size: 18px; font-weight: 500;">New Sales Invoice</span>
-            <div style="display: flex; gap: 16px; margin-left: auto;">
-                <span class="material-symbols-outlined tap-target hidden" id="btn-delete-sales" onclick="app.deleteRecord('sales')" style="color: var(--md-error);">delete</span>
-                <span class="tap-target" onclick="app.generatePDF('sales')" style="display:flex; align-items:center; gap:4px; color:var(--md-primary); font-size:14px; font-weight:500;"><span class="material-symbols-outlined">share</span> Print / Share</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-sales-form')" style="padding: 4px;">close</span>
+                <span id="form-title-sales" style="font-size: 18px; font-weight: 500;">New Sales Invoice</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-sales" class="icon-circle tap-target hidden" onclick="app.deleteRecord('sales')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+                <div class="icon-circle tap-target" onclick="app.generatePDF('sales')" style="width: 36px; height: 36px; background: var(--md-primary-container); color: var(--md-primary);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">ios_share</span>
+                </div>
             </div>
         </div>
         <div class="activity-content">
@@ -333,10 +339,10 @@
                     </select>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px;">
-<div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Invoice No</label><input type="text" id="sales-invoice-no"></div>
-<div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Date</label><input type="date" id="sales-date"></div>
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;">
+                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Invoice No</label><input type="text" id="sales-invoice-no"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Date</label><input type="date" id="sales-date"></div>
+                    <div class="form-group" style="margin-bottom: 0;">
                         <label>Status</label>
                         <select id="sales-order-status" onchange="UI.toggleDates('sales')">
                             <option value="Open">Draft / Open</option>
@@ -344,14 +350,14 @@
                             <option value="Completed" selected>Completed</option>
                         </select>
                     </div>
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Tax Type</label><select id="sales-invoice-type" onchange="UI.calcSalesTotals()"><option value="B2B">B2B (GST)</option><option value="B2C">B2C (GST)</option><option value="Non-GST">Bill of Supply (No GST)</option></select></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="sales-invoice-type" onchange="UI.calcSalesTotals()"><option value="B2B">B2B (GST)</option><option value="B2C">B2C (GST)</option><option value="Non-GST">Bill of Supply (No GST)</option></select></div>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px;">
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Order Ref</label><input type="text" id="sales-order-no"></div>
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Order Date</label><input type="date" id="sales-order-date"></div>
-                    <div class="form-group hidden" id="sales-shipped-date-group" style="min-width: 140px; margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="sales-shipped-date"></div>
-                    <div class="form-group hidden" id="sales-completed-date-group" style="min-width: 140px; margin-bottom: 0;"><label>Completed Date</label><input type="date" id="sales-completed-date"></div>
+                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Order Ref</label><input type="text" id="sales-order-no"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Order Date</label><input type="date" id="sales-order-date"></div>
+                    <div class="form-group hidden" id="sales-shipped-date-group" style="margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="sales-shipped-date"></div>
+                    <div class="form-group hidden" id="sales-completed-date-group" style="margin-bottom: 0;"><label>Completed Date</label><input type="date" id="sales-completed-date"></div>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
@@ -420,11 +426,17 @@
 
     <div id="activity-purchase-form" class="activity-screen hidden">
         <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-purchase-form')">close</span>
-            <span id="form-title-purchase" style="font-size: 18px; font-weight: 500;">New Purchase Bill</span>
-            <div style="display: flex; gap: 16px; margin-left: auto;">
-                <span class="material-symbols-outlined tap-target hidden" id="btn-delete-purchase" onclick="app.deleteRecord('purchase')" style="color: var(--md-error);">delete</span>
-                <span class="tap-target" onclick="app.generatePDF('purchase')" style="display:flex; align-items:center; gap:4px; color:var(--md-primary); font-size:14px; font-weight:500;"><span class="material-symbols-outlined">share</span> Print / Share</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-purchase-form')" style="padding: 4px;">close</span>
+                <span id="form-title-purchase" style="font-size: 18px; font-weight: 500;">New Purchase Bill</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-purchase" class="icon-circle tap-target hidden" onclick="app.deleteRecord('purchase')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+                <div class="icon-circle tap-target" onclick="app.generatePDF('purchase')" style="width: 36px; height: 36px; background: var(--md-primary-container); color: var(--md-primary);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">ios_share</span>
+                </div>
             </div>
         </div>
         <div class="activity-content">
@@ -445,10 +457,10 @@
                     </select>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px;">
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Bill / PO No</label><input type="text" id="purchase-po-no"></div>
-<div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Bill Date</label><input type="date" id="purchase-date"></div>
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;">
+                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Bill / PO No</label><input type="text" id="purchase-po-no"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Bill Date</label><input type="date" id="purchase-date"></div>
+                    <div class="form-group" style="margin-bottom: 0;">
                         <label>Status</label>
                         <select id="purchase-order-status" onchange="UI.toggleDates('purchase')">
                             <option value="Open">Draft PO</option>
@@ -456,14 +468,14 @@
                             <option value="Completed" selected>Received</option>
                         </select>
                     </div>
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Tax Type</label><select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()"><option value="B2B">B2B (ITC Claimable)</option><option value="Non-GST">Non-GST / Exempt</option></select></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()"><option value="B2B">B2B (ITC Claimable)</option><option value="Non-GST">Non-GST / Exempt</option></select></div>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px;">
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Our PO No</label><input type="text" id="purchase-order-no"></div>
-                    <div class="form-group" style="min-width: 140px; margin-bottom: 0;"><label>Order Date</label><input type="date" id="purchase-order-date"></div>
-                    <div class="form-group hidden" id="purchase-shipped-date-group" style="min-width: 140px; margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="purchase-shipped-date"></div>
-                    <div class="form-group hidden" id="purchase-completed-date-group" style="min-width: 140px; margin-bottom: 0;"><label>Completed Date</label><input type="date" id="purchase-completed-date"></div>
+                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div class="form-group" style="margin-bottom: 0;"><label>Our PO No</label><input type="text" id="purchase-order-no"></div>
+                    <div class="form-group" style="margin-bottom: 0;"><label>Order Date</label><input type="date" id="purchase-order-date"></div>
+                    <div class="form-group hidden" id="purchase-shipped-date-group" style="margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="purchase-shipped-date"></div>
+                    <div class="form-group hidden" id="purchase-completed-date-group" style="margin-bottom: 0;"><label>Completed Date</label><input type="date" id="purchase-completed-date"></div>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
@@ -532,9 +544,15 @@
 
     <div id="activity-expense-form" class="activity-screen hidden">
         <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-form')">close</span>
-            <span style="font-size: 18px; font-weight: 500;">Log Expense</span>
-            <span class="material-symbols-outlined tap-target hidden" id="btn-delete-expense" onclick="app.deleteRecord('expense')" style="color: var(--md-error); margin-left: auto;">delete</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-form')" style="padding: 4px;">close</span>
+                <span style="font-size: 18px; font-weight: 500;">Log Expense</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-expense" class="icon-circle tap-target hidden" onclick="app.deleteRecord('expense')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+            </div>
         </div>
         <div class="activity-content">
             <form id="form-expense">
@@ -584,9 +602,15 @@
 
     <div id="activity-product-form" class="activity-screen hidden">
         <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-product-form')">close</span>
-            <span style="font-size: 18px; font-weight: 500;">Product Details</span>
-            <span class="material-symbols-outlined tap-target hidden" id="btn-delete-product" onclick="app.deleteRecord('product')" style="color: var(--md-error); margin-left: auto;">delete</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-product-form')" style="padding: 4px;">close</span>
+                <span style="font-size: 18px; font-weight: 500;">Product Details</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-product" class="icon-circle tap-target hidden" onclick="app.deleteRecord('product')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+            </div>
         </div>
         <div class="activity-content">
             <form id="form-product">
@@ -624,9 +648,15 @@
 
     <div id="activity-ledger-form" class="activity-screen hidden">
         <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-ledger-form')">close</span>
-            <span style="font-size: 18px; font-weight: 500;">Party Details</span>
-            <span class="material-symbols-outlined tap-target hidden" id="btn-delete-ledger" onclick="app.deleteRecord('ledger')" style="color: var(--md-error); margin-left: auto;">delete</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-ledger-form')" style="padding: 4px;">close</span>
+                <span style="font-size: 18px; font-weight: 500;">Party Details</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-ledger" class="icon-circle tap-target hidden" onclick="app.deleteRecord('ledger')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+            </div>
         </div>
         <div class="activity-content">
             <form id="form-ledger">
@@ -662,9 +692,15 @@
 
     <div id="activity-account-form" class="activity-screen hidden">
         <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-account-form')">arrow_back</span>
-            <span id="form-title-account" style="font-size: 18px; font-weight: 500;">New Bank/Cash Account</span>
-            <span class="material-symbols-outlined tap-target hidden" id="btn-delete-account" onclick="app.deleteRecord('account')" style="color: var(--md-error); margin-left: auto;">delete</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-account-form')" style="padding: 4px;">arrow_back</span>
+                <span id="form-title-account" style="font-size: 18px; font-weight: 500;">New Bank/Cash Account</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-account" class="icon-circle tap-target hidden" onclick="app.deleteRecord('account')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+            </div>
         </div>
         <div class="activity-content">
             <form id="form-account">
@@ -1103,14 +1139,19 @@
         </div>
     </div>
 
-
     <div id="sheet-payment-in" class="bottom-sheet">
         <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Payment Received In</span>
-            <div style="display: flex; gap: 16px; margin-left: auto; align-items: center;">
-                <span class="material-symbols-outlined tap-target hidden" id="btn-delete-receipt-in" onclick="app.deleteRecord('receipt-in')" style="color: var(--md-error);">delete</span>
-                <span class="tap-target" onclick="Utils.generateReceiptPDF(app.state.currentReceiptId)" style="display:flex; align-items:center; gap:4px; color:var(--md-primary); font-size:14px; font-weight:500;"><span class="material-symbols-outlined">share</span> Share</span>
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')">close</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')" style="padding: 4px;">close</span>
+                <span style="font-size: 18px; font-weight: 500;">Payment Received In</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-receipt-in" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-in')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+                <div class="icon-circle tap-target" onclick="Utils.generateReceiptPDF(app.state.currentReceiptId)" style="width: 36px; height: 36px; background: var(--md-primary-container); color: var(--md-primary);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">ios_share</span>
+                </div>
             </div>
         </div>
         <div style="padding: 16px; overflow-y: auto; max-height: 70vh;">
@@ -1161,11 +1202,17 @@
 
     <div id="sheet-payment-out" class="bottom-sheet">
         <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Payment Made Out</span>
-            <div style="display: flex; gap: 16px; margin-left: auto; align-items: center;">
-                <span class="material-symbols-outlined tap-target hidden" id="btn-delete-receipt-out" onclick="app.deleteRecord('receipt-out')" style="color: var(--md-error);">delete</span>
-                <span class="tap-target" onclick="Utils.generateReceiptPDF(app.state.currentReceiptId)" style="display:flex; align-items:center; gap:4px; color:var(--md-primary); font-size:14px; font-weight:500;"><span class="material-symbols-outlined">share</span> Share</span>
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')">close</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')" style="padding: 4px;">close</span>
+                <span style="font-size: 18px; font-weight: 500;">Payment Made Out</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-receipt-out" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-out')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+                <div class="icon-circle tap-target" onclick="Utils.generateReceiptPDF(app.state.currentReceiptId)" style="width: 36px; height: 36px; background: var(--md-primary-container); color: var(--md-primary);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">ios_share</span>
+                </div>
             </div>
         </div>
         <div style="padding: 16px; overflow-y: auto; max-height: 70vh;">
@@ -1445,9 +1492,9 @@
     
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-    <script src="cloud.js?v=3"></script>
+    <script src="cloud.js?v=7"></script>
 
-    <script type="module" src="app.js?v=3"></script>
+<script type="module" src="app.js?v=8"></script>
     <script>
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;

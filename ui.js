@@ -2004,48 +2004,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // UPGRADE: iOS-Style Haptic Touch Engine (Long Press)
-    let pressTimer;
-    let isLongPress = false;
-    let startY = 0;
-
-    document.addEventListener('touchstart', (e) => {
-        const card = e.target.closest('.m3-card.tap-target');
-        if (!card) return;
-        
-        // Only trigger on items that open forms or receipts
-        const clickAction = card.getAttribute('onclick');
-        if (!clickAction || (!clickAction.includes('app.openForm') && !clickAction.includes('app.openReceipt'))) return;
-
-        isLongPress = false;
-        startY = e.touches[0].clientY;
-
-        pressTimer = setTimeout(() => {
-            isLongPress = true;
-            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([40, 50, 40]); // Heavy haptic bump
-            UI.showContextMenu(clickAction); // Open the menu!
-        }, 550); // 550ms hold time
-    }, { passive: true });
-
-    // Cancel the long-press if the user starts scrolling the screen
-    document.addEventListener('touchmove', (e) => {
-        if (!pressTimer) return;
-        if (Math.abs(e.touches[0].clientY - startY) > 15) {
-            clearTimeout(pressTimer); 
-        }
-    }, { passive: true });
-
-    document.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
-
-    // Intercept and stop the normal click if a long press just happened
-    document.addEventListener('click', (e) => {
-        if (isLongPress) {
-            e.preventDefault();
-            e.stopPropagation();
-            isLongPress = false;
-        }
-    }, true);
-
     // UPGRADE 3: Smart Keyboard Scroll-into-View Engine (Now supports Dropdowns)
     document.addEventListener('focusin', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {

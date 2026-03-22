@@ -9,7 +9,7 @@ import {
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
 } from './db.js?v=3';
 import Utils from './utils.js?v=3';
-import UI from './ui.js?v=3';
+import UI from './ui.js?v=final-fix-2';
 // --- END OF NEW CODE ---
 
 const app = {

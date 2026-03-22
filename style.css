@@ -573,13 +573,13 @@ body.dark-mode .activity-header {
     background-color: var(--md-surface) !important; 
     border-radius: 28px 28px 0 0; 
     z-index: 3000; 
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.4); 
+    box-shadow: none; /* FIX: Removes the bleeding shadow smudge! */
     display: flex; flex-direction: column; 
     height: auto;
     max-height: 85vh; 
     padding-bottom: env(safe-area-inset-bottom, 0px); 
     transform: translateY(100%); 
-    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1); 
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease; 
     will-change: transform;
 }
 
@@ -595,7 +595,10 @@ body.dark-mode .activity-header {
     flex-shrink: 0;
 }
 
-.bottom-sheet.open { transform: translateY(0); }
+.bottom-sheet.open { 
+    transform: translateY(0); 
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.4); /* FIX: Shadow only turns on when menu is open */
+}
 
 .sheet-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -968,4 +971,54 @@ input[type="checkbox"]:checked {
 }
 input[type="checkbox"]:checked::before {
     transform: scale(1);
+}
+/* ==========================================
+   ELITE UI UPGRADES (WATERFALL & FROSTED GLASS)
+   ========================================== */
+
+/* OPTION 2: Waterfall Cascade Animation */
+@keyframes waterfallFadeSlide {
+    0% { opacity: 0; transform: translateY(25px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Apply the animation to all cards when their screen becomes active */
+.active-screen .m3-card,
+.activity-content .m3-card,
+#timeline-list .m3-card {
+    animation: waterfallFadeSlide 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+/* Stagger the delays so they flow in beautifully one by one */
+.active-screen .m3-card:nth-child(1), .activity-content .m3-card:nth-child(1) { animation-delay: 0.00s; }
+.active-screen .m3-card:nth-child(2), .activity-content .m3-card:nth-child(2) { animation-delay: 0.05s; }
+.active-screen .m3-card:nth-child(3), .activity-content .m3-card:nth-child(3) { animation-delay: 0.10s; }
+.active-screen .m3-card:nth-child(4), .activity-content .m3-card:nth-child(4) { animation-delay: 0.15s; }
+.active-screen .m3-card:nth-child(5), .activity-content .m3-card:nth-child(5) { animation-delay: 0.20s; }
+.active-screen .m3-card:nth-child(6), .activity-content .m3-card:nth-child(6) { animation-delay: 0.25s; }
+.active-screen .m3-card:nth-child(7), .activity-content .m3-card:nth-child(7) { animation-delay: 0.30s; }
+.active-screen .m3-card:nth-child(8), .activity-content .m3-card:nth-child(8) { animation-delay: 0.35s; }
+.active-screen .m3-card:nth-child(9), .activity-content .m3-card:nth-child(9) { animation-delay: 0.40s; }
+.active-screen .m3-card:nth-child(n+10), .activity-content .m3-card:nth-child(n+10) { animation-delay: 0.45s; }
+
+/* OPTION 3: Frosted Glass Sticky Search Bars */
+.search-bar {
+    position: sticky !important;
+    top: env(safe-area-inset-top, 8px) !important; 
+    z-index: 100 !important;
+    
+    /* The Glassmorphism Magic */
+    background: rgba(223, 226, 235, 0.7) !important; 
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06) !important;
+    border: 1px solid rgba(255,255,255,0.4) !important;
+    transition: all 0.3s ease;
+}
+
+/* Adjust the frosted glass for Dark Mode automatically */
+body.dark-mode .search-bar {
+    background: rgba(67, 71, 78, 0.7) !important;
+    border: 1px solid rgba(0,0,0,0.2) !important;
 }
