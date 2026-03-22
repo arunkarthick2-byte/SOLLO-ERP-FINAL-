@@ -976,18 +976,28 @@ const UI = {
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
                             
-                            // UX FIX: Force missing documents to have proper 'INV-' or 'PO-' prefixes instead of naked numbers!
-                            if (sDoc) return sDoc.invoiceNo || sDoc.orderNo || 'INV-' + sDoc.id.slice(-4).toUpperCase();
-                            if (pDoc) return pDoc.invoiceNo || pDoc.poNo || pDoc.orderNo || 'PO-' + pDoc.id.slice(-4).toUpperCase();
+                            // UX FIX: Force prefixes if the user only typed numbers (e.g., '0873' becomes 'INV-0873')
+                            if (sDoc) {
+                                let ref = sDoc.invoiceNo || sDoc.orderNo || sDoc.id.slice(-4).toUpperCase();
+                                return /^\d+$/.test(ref) ? 'INV-' + ref : ref;
+                            }
+                            if (pDoc) {
+                                let ref = pDoc.invoiceNo || pDoc.poNo || pDoc.orderNo || pDoc.id.slice(-4).toUpperCase();
+                                return /^\d+$/.test(ref) ? 'PO-' + ref : ref;
+                            }
                             if (linkId.includes('sales')) return 'INV-' + linkId.slice(-4).toUpperCase();
                             if (linkId.includes('purchase')) return 'PO-' + linkId.slice(-4).toUpperCase();
-                            return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : linkId;
+                            
+                            return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : (/^\d+$/.test(linkId) ? 'DOC-' + linkId : linkId);
                         });
                         displayLink = [...new Set(displayNames)].join(', ');
                     }
 
-                    // UX FIX: Remove the redundant "Internal Expense" text, but keep the inside date!
-                    const isExpense = t.mode === 'Expense' || t.ledgerName === 'Internal Expense';
+                    // UX FIX: Bulletproof case-insensitive check to kill the redundant text!
+                    const safeMode = String(t.mode || '').toLowerCase();
+                    const safeLedger = String(t.ledgerName || '').toLowerCase();
+                    const isExpense = safeMode.includes('expense') || safeLedger.includes('expense');
+                    
                     const thirdLine = isExpense 
                         ? '' // Leave it completely clean for expenses
                         : `<br><small>Party: <strong style="color:var(--md-primary)">${t.ledgerName || 'N/A'}</strong> | Mode: ${t.mode || 'Cash'}</small>`;
