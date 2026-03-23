@@ -14,12 +14,42 @@ const UI = {
         }
     },
 
-    toggleTheme: () => {
-        document.body.classList.toggle('dark-mode');
-        const isDark = document.body.classList.contains('dark-mode');
-        localStorage.setItem('sollo_theme', isDark ? 'dark' : 'light');
-        UI.resetStatusBarColor();
-        if (window.Utils) window.Utils.showToast(isDark ? "Dark Mode Enabled 🌙" : "Light Mode Enabled ☀️");
+    toggleTheme: (event) => {
+        const applyTheme = () => {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('sollo_theme', isDark ? 'dark' : 'light');
+            UI.resetStatusBarColor();
+            if (window.Utils) window.Utils.showToast(isDark ? "Dark Mode Enabled 🌙" : "Light Mode Enabled ☀️");
+        };
+
+        if (!document.startViewTransition || !event || !event.clientX) { applyTheme(); return; }
+
+        const x = event.clientX;
+        const y = event.clientY;
+        const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+        const isDark = !document.body.classList.contains('dark-mode');
+
+        const transition = document.startViewTransition(() => applyTheme());
+
+        transition.ready.then(() => {
+            const clipPath = [ `circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)` ];
+            document.documentElement.animate(
+                { clipPath: isDark ? clipPath : [...clipPath].reverse() },
+                { duration: 600, easing: "ease-out", pseudoElement: isDark ? "::view-transition-new(root)" : "::view-transition-old(root)" }
+            );
+        });
+    },
+
+    triggerError: (elementId) => {
+        const el = document.getElementById(elementId);
+        if (el) {
+            el.classList.remove('shake-error');
+            void el.offsetWidth; 
+            el.classList.add('shake-error');
+            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([40, 50, 40]); 
+            setTimeout(() => el.classList.remove('shake-error'), 500);
+        }
     },
 
     resetStatusBarColor: () => {
@@ -114,10 +144,13 @@ const UI = {
         const el = document.getElementById('success-animation');
         if(el) {
             el.classList.remove('hidden');
-            const circle = el.querySelector('.success-circle');
-            if(circle) { circle.style.animation = 'none'; circle.offsetHeight; circle.style.animation = null; } // Reset animation
-            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]); // Haptic buzz
-            setTimeout(() => el.classList.add('hidden'), 1200);
+            const svg = el.querySelector('.checkmark-svg');
+            if (svg) {
+                const newSvg = svg.cloneNode(true);
+                svg.parentNode.replaceChild(newSvg, svg);
+            }
+            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]); 
+            setTimeout(() => el.classList.add('hidden'), 1500); 
         }
     },
 

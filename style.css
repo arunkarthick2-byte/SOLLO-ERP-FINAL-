@@ -1082,3 +1082,70 @@ input:focus, select:focus, textarea:focus {
 body.dark-mode input:focus, body.dark-mode select:focus {
     box-shadow: 0 0 0 3px rgba(209, 228, 255, 0.1) !important;
 }
+/* ==========================================
+   ELITE EMOTIONAL UX: ANIMATIONS & TRANSITIONS
+   ========================================== */
+
+/* 1. The Passcode Shake (Error State) */
+@keyframes shake-error {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+.shake-error {
+    animation: shake-error 0.4s cubic-bezier(.36,.07,.19,.97) both !important;
+    border-color: var(--md-error) !important;
+    background-color: #fff0f2 !important;
+    color: var(--md-error) !important;
+}
+
+/* 2. The Victory Draw (Success Checkmark) */
+.checkmark-circle {
+    stroke: var(--md-success);
+    stroke-width: 3;
+    stroke-dasharray: 166;
+    stroke-dashoffset: 166;
+    animation: stroke-circle 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+.checkmark-check {
+    stroke: var(--md-success);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+    animation: stroke-check 0.4s cubic-bezier(0.65, 0, 0.45, 1) 0.4s forwards;
+}
+@keyframes stroke-circle { 100% { stroke-dashoffset: 0; } }
+@keyframes stroke-check { 100% { stroke-dashoffset: 0; } }
+
+body.dark-mode #success-animation { background: rgba(17, 19, 21, 0.85) !important; }
+
+/* 3. The Eclipse Dark Mode (View Transitions API) */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+/* ==========================================
+   ELITE UI: STICKY FORM TOTALS
+   ========================================== */
+.sticky-totals {
+    position: sticky;
+    bottom: env(safe-area-inset-bottom, 12px);
+    z-index: 90;
+    /* Frosted Glass Effect */
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    /* Floating Shadow */
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.1) !important;
+    border: 1px solid var(--md-primary-container) !important;
+    transition: all 0.3s ease;
+}
+
+body.dark-mode .sticky-totals {
+    background: rgba(26, 28, 30, 0.85) !important;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.5) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}

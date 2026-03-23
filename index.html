@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=7">
+    <link rel="stylesheet" href="style.css?v=12">
     <link rel="manifest" href="/manifest.json">
 </head>
 
@@ -70,7 +70,7 @@
             <input type="file" id="import-file" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
 
             <div style="padding: 16px 24px 8px 24px; font-size: 12px; font-weight: bold; color: var(--md-primary); text-transform: uppercase; letter-spacing: 1px;">Settings</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.toggleTheme()"><span class="material-symbols-outlined">dark_mode</span>Toggle Dark Mode</div>
+            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.toggleTheme(event)"><span class="material-symbols-outlined">dark_mode</span>Toggle Dark Mode</div>
         </div>
     </div>
     <div id="app-shell">
@@ -385,7 +385,7 @@
                     <div id="sales-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px;">
+                <div class="m3-card sticky-totals" style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Subtotal:</span><strong id="sales-subtotal">&#8377;0.00</strong></div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span>Discount:</span>
@@ -402,7 +402,6 @@
                     <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="sales-grand-total">&#8377;0.00</strong></div>
                 </div>
-
 
                 <div id="sales-payment-history-card" class="m3-card hidden" style="margin-bottom: 24px; border: 1px solid var(--md-outline-variant);">
                     <strong style="display: block; margin-bottom: 12px; color: var(--md-primary);">Linked Payments & Receipts</strong>
@@ -503,7 +502,7 @@
                     <div id="purchase-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px;">
+                <div class="m3-card sticky-totals" style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Subtotal:</span><strong id="purchase-subtotal">&#8377;0.00</strong></div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span>Discount:</span>
@@ -520,7 +519,6 @@
                     <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="purchase-grand-total">&#8377;0.00</strong></div>
                 </div>
-
 
                 <div id="purchase-payment-history-card" class="m3-card hidden" style="margin-bottom: 24px; border: 1px solid var(--md-outline-variant);">
                     <strong style="display: block; margin-bottom: 12px; color: var(--md-primary);">Linked Payments & Vouchers</strong>
@@ -1431,10 +1429,11 @@
 
     <div id="print-area" class="print-only"></div>
     
-    <div id="success-animation" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9999; display:flex; justify-content:center; align-items:center;">
-        <div class="success-circle">
-            <span class="material-symbols-outlined check-mark">check</span>
-        </div>
+    <div id="success-animation" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255,255,255,0.85); z-index: 99999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+        <svg class="checkmark-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" style="width: 120px; height: 120px; filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.1));">
+            <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none" />
+            <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+        </svg>
     </div>
 
     <div id="sheet-master-actions" class="bottom-sheet hidden">
@@ -1492,9 +1491,9 @@
     
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-    <script src="cloud.js?v=7"></script>
+    <script src="cloud.js?v=12"></script>
 
-<script type="module" src="app.js?v=8"></script>
+    <script type="module" src="app.js?v=12"></script>
     <script>
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
