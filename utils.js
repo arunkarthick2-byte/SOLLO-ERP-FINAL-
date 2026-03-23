@@ -323,65 +323,61 @@ const Utils = {
         const safeDocNo = doc.invoiceNo || doc.poNo || 'DRAFT';
 
         const html = `
-            <div id="pdf-invoice-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden;">
+            <div id="pdf-invoice-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden; color: #2d3748;">
                 
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; z-index: 0; width: 70%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
                 <style>
                     #pdf-invoice-wrapper * { position: relative; z-index: 1; }
-                    #pdf-invoice-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px; page-break-inside: auto; }
-                    #pdf-invoice-wrapper th { background-color: #f8f9fa; color: #1a1c1e; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-top: 2px solid #1a1c1e; border-bottom: 2px solid #1a1c1e; padding: 12px 8px; }
-                    #pdf-invoice-wrapper td { border-bottom: 1px solid #e0e0e0; padding: 10px 8px; }
+                    #pdf-invoice-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; page-break-inside: auto; }
+                    #pdf-invoice-wrapper th { background-color: #f0f4f8; color: #0061a4; text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; border-bottom: 2px solid #0061a4; padding: 10px 8px; }
+                    #pdf-invoice-wrapper td { border-bottom: 1px solid #e2e8f0; padding: 10px 8px; color: #2d3748; }
                     #pdf-invoice-wrapper tr { page-break-inside: avoid; page-break-after: auto; break-inside: avoid; }
                     #pdf-invoice-wrapper thead { display: table-header-group; }
                 </style>
 
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 3px solid #1a1c1e;">
-                    <div style="max-width: 60%;">
-                        <h1 style="margin: 0 0 8px 0; font-size: 26px; color: #1a1c1e; text-transform: uppercase; letter-spacing: 1px;">${biz.name || 'Company Name'}</h1>
-                        <p style="margin: 4px 0; font-size: 12px; color: #43474e;">${biz.address || ''}</p>
-                        <p style="margin: 4px 0; font-size: 12px; color: #43474e;">Phone: ${biz.phone || ''}</p>
-                        <p style="margin: 4px 0; font-size: 12px; font-weight: bold; color: #1a1c1e;">GSTIN: ${bizGst}</p>
-                    </div>
-                    <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; margin-bottom: 10px; border-radius: 4px;" />` : ''}
-                        <div style="background: #f8f9fa; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; display: inline-block;">
-                            <h2 style="margin: 0; font-size: 18px; color: #1a1c1e; letter-spacing: 2px; text-transform: uppercase;">${title}</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 25px; border-bottom: 4px solid #f0f4f8;">
+                    <div style="display: flex; align-items: center; gap: 15px; max-width: 60%;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; border-radius: 4px;" />` : ''}
+                        <div>
+                            <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #1a202c; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
+                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">${biz.address || ''}</p>
+                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">Ph: ${biz.phone || ''} &nbsp;|&nbsp; <strong style="color:#0061a4;">GSTIN: ${bizGst}</strong></p>
                         </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <h2 style="margin: 0 0 5px 0; font-size: 28px; color: #0061a4; letter-spacing: 2px; text-transform: uppercase; font-weight: 300;">${title}</h2>
+                        <p style="margin: 0; font-size: 13px; font-weight: bold; color: #4a5568;"># ${safeDocNo}</p>
                     </div>
                 </div>
                 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-                    <div style="width: 48%;">
-                        <p style="margin: 0 0 6px 0; font-size: 11px; color: #73777f; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Billed To</p>
-                        <div style="border-left: 3px solid #1a1c1e; padding-left: 12px;">
-                            <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: bold; color: #1a1c1e;">${partyName}</p>
-                            ${partyAddress ? `<p style="margin: 0 0 4px 0; font-size: 12px; color: #43474e; white-space: pre-wrap; line-height: 1.4;">${partyAddress}</p>` : ''}
-                            ${!isNonGST && partyGst ? `<p style="margin: 6px 0 0 0; font-size: 12px; font-weight: bold; color: #1a1c1e;">GSTIN: ${partyGst}</p>` : ''}
-                        </div>
+                    <div style="width: 48%; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #0061a4;">
+                        <p style="margin: 0 0 8px 0; font-size: 10px; color: #718096; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Billed To</p>
+                        <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: bold; color: #1a202c;">${partyName}</p>
+                        ${partyAddress ? `<p style="margin: 0 0 4px 0; font-size: 11px; color: #4a5568; white-space: pre-wrap; line-height: 1.4;">${partyAddress}</p>` : ''}
+                        ${!isNonGST && partyGst ? `<p style="margin: 6px 0 0 0; font-size: 11px; font-weight: bold; color: #0061a4;">GSTIN: ${partyGst}</p>` : ''}
                     </div>
                     <div style="width: 45%;">
-                        <table style="width: 100%; font-size: 12px; margin-bottom:0; border: none;">
-                            <tr><td style="color: #73777f; padding: 4px 0; border:none; text-transform: uppercase; font-size: 10px; font-weight: bold;">Document No:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a1c1e;">${safeDocNo}</td></tr>
-                            <tr><td style="color: #73777f; padding: 4px 0; border:none; text-transform: uppercase; font-size: 10px; font-weight: bold;">Invoice Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a1c1e;">${doc.date}</td></tr>
-                            ${doc.orderNo ? `<tr><td style="color: #73777f; padding: 4px 0; border:none; text-transform: uppercase; font-size: 10px; font-weight: bold;">Order Ref:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a1c1e;">${doc.orderNo}</td></tr>` : ''}
-                            ${doc.shippedDate ? `<tr><td style="color: #73777f; padding: 4px 0; border:none; text-transform: uppercase; font-size: 10px; font-weight: bold;">Shipped Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a1c1e;">${doc.shippedDate}</td></tr>` : ''}
-                            ${doc.completedDate ? `<tr><td style="color: #73777f; padding: 4px 0; border:none; text-transform: uppercase; font-size: 10px; font-weight: bold;">Completed Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a1c1e;">${doc.completedDate}</td></tr>` : ''}
-                            <tr><td style="color: #73777f; padding: 4px 0; border:none; text-transform: uppercase; font-size: 10px; font-weight: bold;">Status:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #0061a4;">${doc.status}</td></tr>
+                        <table style="width: 100%; font-size: 11px; margin-bottom:0; border: none;">
+                            <tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Invoice Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${doc.date}</td></tr>
+                            ${doc.orderNo ? `<tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Order Ref:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${doc.orderNo}</td></tr>` : ''}
+                            ${doc.shippedDate ? `<tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Dispatch Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${doc.shippedDate}</td></tr>` : ''}
+                            <tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Status:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #0061a4;">${doc.status}</td></tr>
                         </table>
                     </div>
                 </div>
 
-                <table style="border-bottom: 2px solid #1a1c1e;">
+                <table>
                     <thead>
                         <tr>
-                            <th style="text-align:center; width: 5%;">#</th>
+                            <th style="text-align:center; width: 5%; border-top-left-radius: 4px;">#</th>
                             <th style="text-align:left; width: 35%;">Item Description</th>
                             ${!isNonGST ? `<th style="text-align:center; width: 10%;">HSN</th>` : ''}
                             <th style="text-align:center; width: 10%;">Qty</th>
                             <th style="text-align:right; width: 15%;">Rate</th>
                             ${!isNonGST ? `<th style="text-align:center; width: 10%;">GST</th>` : ''}
-                            <th style="text-align:right; width: 15%;">Total</th>
+                            <th style="text-align:right; width: 15%; border-top-right-radius: 4px;">Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -389,58 +385,52 @@ const Utils = {
                     </tbody>
                 </table>
 
-                <div class="avoid-break" style="display: flex; justify-content: flex-end; page-break-inside: avoid; margin-top: 15px;">
-                    <table style="width: 55%; border: none; font-size: 13px;">
-                        <tr><td style="padding: 6px 0; color: #73777f; border:none;">Subtotal:</td><td style="padding: 6px 0; text-align:right; font-weight:bold; color:#1a1c1e; border:none;">&#8377;${rawSubtotal.toFixed(2)}</td></tr>
-                        ${discountAmt > 0 ? `<tr><td style="padding: 6px 0; color: #73777f; border:none;">Discount:</td><td style="padding: 6px 0; text-align:right; font-weight:bold; color:var(--md-error); border:none;">-&#8377;${discountAmt.toFixed(2)}</td></tr>
-                        <tr><td style="padding: 6px 0; color: #73777f; border:none;">Taxable Value:</td><td style="padding: 6px 0; text-align:right; font-weight:bold; color:#1a1c1e; border:none;">&#8377;${(rawSubtotal - discountAmt).toFixed(2)}</td></tr>` : ''}
-                        ${!isNonGST ? `<tr><td style="padding: 6px 0; color: #73777f; border:none;">Total GST:</td><td style="padding: 6px 0; text-align:right; font-weight:bold; color:#1a1c1e; border:none;">&#8377;${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
-                        ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 6px 0; color: #73777f; border:none;">Freight / Shipping:</td><td style="padding: 6px 0; text-align:right; font-weight:bold; color:#1a1c1e; border:none;">&#8377;${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
-                        
-                        <tr style="background-color: #f8f9fa;"><td style="padding: 12px 10px; font-weight:bold; font-size: 14px; color: #1a1c1e; border-top: 2px solid #1a1c1e; border-bottom: 2px solid #1a1c1e; text-transform: uppercase;">Grand Total:</td><td style="padding: 12px 10px; text-align:right; font-size: 16px; font-weight:bold; color: #1a1c1e; border-top: 2px solid #1a1c1e; border-bottom: 2px solid #1a1c1e;">&#8377;${(parseFloat(doc.grandTotal) || 0).toFixed(2)}</td></tr>
-                        
-                        ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
-                            <tr>
-                                <td style="padding: 6px 0; color: #146c2e; border:none; font-size: 11px;">
-                                    Payment (${r.receiptNo || 'Auto'} | ${r.date}):
-                                </td>
-                                <td style="padding: 6px 0; text-align:right; font-weight:bold; color:#146c2e; border:none; font-size: 12px;">
-                                    -&#8377;${parseFloat(r.amount).toFixed(2)}
-                                </td>
-                            </tr>
-                        `).join('') : ''}
-                        
-                        ${((parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)) > 0.01 ? `
-                        <tr><td style="padding: 10px 0; font-weight:bold; font-size: 13px; color: #ba1a1a; border-top: 1px dashed #c3c7cf; border-bottom: none;">Balance Due:</td><td style="padding: 10px 0; text-align:right; font-size: 14px; font-weight:bold; color: #ba1a1a; border-top: 1px dashed #c3c7cf; border-bottom: none;">&#8377;${Math.max(0, (parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)).toFixed(2)}</td></tr>
-                        ` : `
-                        <tr><td style="padding: 10px 0; font-weight:bold; font-size: 13px; color: #146c2e; border-top: 1px dashed #c3c7cf; border-bottom: none;">Balance Due:</td><td style="padding: 10px 0; text-align:right; font-size: 14px; font-weight:bold; color: #146c2e; border-top: 1px dashed #c3c7cf; border-bottom: none;">&#8377;0.00 (PAID)</td></tr>
-                        `}
-                    </table>
-                </div>
-                
-                <div class="avoid-break" style="margin-top: 30px; display: flex; justify-content: space-between; align-items: stretch; page-break-inside: avoid;">
-                    <div style="width: 55%; font-size: 11px; color: #43474e; display: flex; flex-direction: column; justify-content: space-between;">
+                <div class="avoid-break" style="display: flex; justify-content: space-between; align-items: flex-start; page-break-inside: avoid; margin-top: 15px;">
+                    <div style="width: 45%; font-size: 10px; color: #718096; line-height: 1.5;">
                         ${biz.bankDetails ? `
-                        <div style="border: 1px solid #e0e0e0; padding: 12px; border-radius: 4px; margin-bottom: 12px; background: #f8f9fa;">
-                            <strong style="color: #1a1c1e; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Bank Details</strong><br>
-                            <span style="white-space: pre-wrap; line-height: 1.5;">${biz.bankDetails}</span>
-                        </div>` : '<div></div>'}
-                        
-                        <div style="padding-top: 10px;">
-                            <strong style="color: #1a1c1e;">Terms & Conditions:</strong><br>
-                            <span style="white-space: pre-wrap; line-height: 1.4;">${biz.terms ? biz.terms : '1. Subject to local jurisdiction.\\n2. This is a computer-generated document.'}</span>
+                        <div style="margin-bottom: 15px;">
+                            <strong style="color: #2d3748; font-size: 11px; text-transform: uppercase;">Bank Details</strong><br>
+                            <span style="white-space: pre-wrap;">${biz.bankDetails}</span>
+                        </div>` : ''}
+                        <div>
+                            <strong style="color: #2d3748; text-transform: uppercase;">Terms & Conditions:</strong><br>
+                            <span style="white-space: pre-wrap;">${biz.terms ? biz.terms : '1. Subject to local jurisdiction.\\n2. This is a computer-generated document.'}</span>
                         </div>
                     </div>
-                    
-                    <div style="width: 38%; text-align: center; border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-height: 130px; background: #ffffff;">
-                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 15px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 15px;"></div>'}
-                        <div style="border-top: 1px solid #1a1c1e; width: 90%; padding-top: 8px; font-weight: bold; font-size: 12px; color: #1a1c1e;">Authorized Signatory</div>
-                        <div style="font-size: 10px; color: #73777f; margin-top: 4px; font-weight: bold;">For ${biz.name || 'Company'}</div>
+
+                    <div style="width: 50%;">
+                        <table style="width: 100%; border: none; font-size: 12px;">
+                            <tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Subtotal:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${rawSubtotal.toFixed(2)}</td></tr>
+                            ${discountAmt > 0 ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Discount:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#e53e3e; border:none;">-&#8377;${discountAmt.toFixed(2)}</td></tr>` : ''}
+                            ${!isNonGST ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Total GST:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
+                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Freight / Extra:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
+                            
+                            <tr><td colspan="2" style="padding: 0; border: none;"><div style="background-color: #0061a4; color: white; border-radius: 6px; margin-top: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight:bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Grand Total</span>
+                                <span style="font-size: 18px; font-weight:bold;">&#8377;${(parseFloat(doc.grandTotal) || 0).toFixed(2)}</span>
+                            </div></td></tr>
+                            
+                            ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
+                                <tr>
+                                    <td style="padding: 8px 8px 4px; color: #2f855a; border:none; font-size: 11px;">Paid (${r.date}):</td>
+                                    <td style="padding: 8px 8px 4px; text-align:right; font-weight:bold; color:#2f855a; border:none; font-size: 12px;">-&#8377;${parseFloat(r.amount).toFixed(2)}</td>
+                                </tr>
+                            `).join('') : ''}
+                            
+                            ${((parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)) > 0.01 ? `
+                            <tr><td style="padding: 8px 8px; font-weight:bold; font-size: 12px; color: #e53e3e; border:none;">Balance Due:</td><td style="padding: 8px 8px; text-align:right; font-size: 14px; font-weight:bold; color: #e53e3e; border:none;">&#8377;${Math.max(0, (parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)).toFixed(2)}</td></tr>
+                            ` : `
+                            <tr><td style="padding: 8px 8px; font-weight:bold; font-size: 12px; color: #2f855a; border:none;">Balance Due:</td><td style="padding: 8px 8px; text-align:right; font-size: 14px; font-weight:bold; color: #2f855a; border:none;">&#8377;0.00 (PAID)</td></tr>
+                            `}
+                        </table>
                     </div>
                 </div>
 
-                <div class="avoid-break" style="margin-top: 20px; font-size: 12px; text-align: center; color: #0061a4; font-weight: bold; page-break-inside: avoid;">
-                    Thank you for your business!
+                <div class="avoid-break" style="margin-top: 30px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
+                    <div style="width: 200px; text-align: center;">
+                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 5px;"></div>'}
+                        <div style="border-top: 1px solid #cbd5e0; padding-top: 5px; font-weight: bold; font-size: 11px; color: #2d3748;">Authorized Signatory</div>
+                    </div>
                 </div>
             </div>
         `;
@@ -583,78 +573,68 @@ const Utils = {
         const balSuffix = isAccount ? 'Available' : (finalBal > 0 ? (party.type === 'Customer' ? 'Dr (Due)' : 'Cr (To Pay)') : (party.type === 'Customer' ? 'Cr (Advance)' : 'Dr (Advance)'));
 
         const html = `
-            <div id="pdf-statement-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden;">
+            <div id="pdf-statement-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden; color: #2d3748;">
                 
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; z-index: 0; width: 70%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
                 <style>
                     #pdf-statement-wrapper * { position: relative; z-index: 1; }
-                    #pdf-statement-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px; page-break-inside: auto; }
-                    #pdf-statement-wrapper th { background-color: #f8f9fa; color: #1a1c1e; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-top: 2px solid #1a1c1e; border-bottom: 2px solid #1a1c1e; padding: 12px 8px; }
-                    #pdf-statement-wrapper td { border-bottom: 1px solid #e0e0e0; padding: 10px 8px; }
+                    #pdf-statement-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; page-break-inside: auto; }
+                    #pdf-statement-wrapper th { background-color: #f0f4f8; color: #0061a4; text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; border-bottom: 2px solid #0061a4; padding: 10px 8px; }
+                    #pdf-statement-wrapper td { border-bottom: 1px solid #e2e8f0; padding: 10px 8px; color: #2d3748; }
                     #pdf-statement-wrapper tr { page-break-inside: avoid; page-break-after: auto; break-inside: avoid; }
                     #pdf-statement-wrapper thead { display: table-header-group; }
                 </style>
 
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 3px solid #1a1c1e;">
-                    <div style="max-width: 60%;">
-                        <h1 style="margin: 0 0 8px 0; font-size: 26px; color: #1a1c1e; text-transform: uppercase; letter-spacing: 1px;">${biz.name || 'Company Name'}</h1>
-                        <p style="margin: 4px 0; font-size: 12px; color: #43474e;">${biz.address || ''}</p>
-                        <p style="margin: 4px 0; font-size: 12px; color: #43474e;">Phone: ${biz.phone || ''}</p>
-                        <p style="margin: 4px 0; font-size: 12px; font-weight: bold; color: #1a1c1e;">GSTIN: ${biz.gst ? biz.gst.toUpperCase() : 'N/A'}</p>
-                    </div>
-                    <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; margin-bottom: 10px; border-radius: 4px;" />` : ''}
-                        <div style="background: #f8f9fa; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; display: inline-block;">
-                            <h2 style="margin: 0; font-size: 18px; color: #1a1c1e; letter-spacing: 2px; text-transform: uppercase;">${isAccount ? 'Account Statement' : 'Ledger Statement'}</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 25px; border-bottom: 4px solid #f0f4f8;">
+                    <div style="display: flex; align-items: center; gap: 15px; max-width: 60%;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; border-radius: 4px;" />` : ''}
+                        <div>
+                            <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #1a202c; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
+                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">${biz.address || ''}</p>
+                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">Ph: ${biz.phone || ''}</p>
                         </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <h2 style="margin: 0 0 5px 0; font-size: 24px; color: #0061a4; letter-spacing: 1px; text-transform: uppercase; font-weight: 300;">${isAccount ? 'Account Statement' : 'Ledger Statement'}</h2>
+                        <p style="margin: 0; font-size: 12px; font-weight: bold; color: #4a5568;">Date: ${Utils.getLocalDate()}</p>
                     </div>
                 </div>
                 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-                    <div style="width: 48%;">
-                        <p style="margin: 0 0 6px 0; font-size: 11px; color: #73777f; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">${isAccount ? 'Account Details' : 'Party Details'}</p>
-                        <div style="border-left: 3px solid #1a1c1e; padding-left: 12px;">
-                            <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: bold; color: #1a1c1e;">${party.name}</p>
-                            ${party.phone ? `<p style="margin: 0 0 4px 0; font-size: 12px; color: #43474e;">Ph: ${party.phone}</p>` : ''}
-                            ${party.gst ? `<p style="margin: 0 0 4px 0; font-size: 12px; font-weight: bold; color: #1a1c1e;">GSTIN: ${party.gst.toUpperCase()}</p>` : ''}
-                            ${party.address ? `<p style="margin: 6px 0 0 0; font-size: 12px; color: #43474e; white-space: pre-wrap; line-height: 1.4;">${party.address}</p>` : ''}
-                        </div>
+                    <div style="width: 48%; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #0061a4;">
+                        <p style="margin: 0 0 8px 0; font-size: 10px; color: #718096; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">${isAccount ? 'Account Details' : 'Party Details'}</p>
+                        <p style="margin: 0 0 4px 0; font-size: 15px; font-weight: bold; color: #1a202c;">${party.name}</p>
+                        ${party.phone ? `<p style="margin: 0 0 4px 0; font-size: 11px; color: #4a5568;">Ph: ${party.phone}</p>` : ''}
+                        ${party.gst ? `<p style="margin: 0 0 4px 0; font-size: 11px; font-weight: bold; color: #0061a4;">GSTIN: ${party.gst.toUpperCase()}</p>` : ''}
                     </div>
-                    <div style="width: 45%;">
-                        <table style="width: 100%; font-size: 12px; margin-bottom:0; border: none;">
-                            <tr><td style="color: #73777f; padding: 4px 0; border:none; text-transform: uppercase; font-size: 10px; font-weight: bold;">Generated On:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a1c1e;">${Utils.getLocalDate()}</td></tr>
-                            <tr><td style="color: #73777f; padding: 4px 0; border:none; text-transform: uppercase; font-size: 10px; font-weight: bold;">Opening Balance:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a1c1e;">\u20B9${Math.abs(openingBal).toFixed(2)}</td></tr>
-                            <tr><td style="color: #73777f; padding: 8px 0 4px 0; border:none; text-transform: uppercase; font-size: 11px; font-weight: bold;">Closing Balance:</td><td style="font-weight: bold; text-align:right; padding: 8px 0 4px 0; border:none; color: ${isAccount ? (finalBal >= 0 ? '#146c2e' : '#ba1a1a') : (finalBal > 0 ? '#ba1a1a' : '#146c2e')}; font-size: 16px;">\u20B9${Math.abs(finalBal).toFixed(2)} <span style="font-size:11px;">${balSuffix}</span></td></tr>
-                        </table>
+                    <div style="width: 45%; display: flex; flex-direction: column; justify-content: center;">
+                        <div style="background: ${isAccount ? (finalBal >= 0 ? '#f0fdf4' : '#fff5f5') : (finalBal > 0 ? '#fff5f5' : '#f0fdf4')}; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid ${isAccount ? (finalBal >= 0 ? '#c6f6d5' : '#fed7d7') : (finalBal > 0 ? '#fed7d7' : '#c6f6d5')};">
+                            <p style="margin: 0 0 5px 0; font-size: 11px; color: #718096; text-transform: uppercase; font-weight: bold;">Closing Balance</p>
+                            <h3 style="margin: 0; font-size: 24px; color: ${isAccount ? (finalBal >= 0 ? '#2f855a' : '#e53e3e') : (finalBal > 0 ? '#e53e3e' : '#2f855a')};">\u20B9${Math.abs(finalBal).toFixed(2)} <span style="font-size:12px; font-weight: normal;">${balSuffix}</span></h3>
+                        </div>
                     </div>
                 </div>
 
-                <table style="border-bottom: 2px solid #1a1c1e;">
+                <table>
                     <thead>
                         <tr>
-                            <th style="text-align:center; width: 15%;">Date</th>
-                            <th style="text-align:left; width: 40%;">Particulars / Voucher Type</th>
-                            <th style="text-align:right; width: 15%;">Money Out (Dr)</th>
-                            <th style="text-align:right; width: 15%;">Money In (Cr)</th>
-                            <th style="text-align:right; width: 15%;">Balance</th>
+                            <th style="text-align:center; width: 12%; border-top-left-radius: 4px;">Date</th>
+                            <th style="text-align:left; width: 43%;">Particulars / Voucher Type</th>
+                            <th style="text-align:right; width: 15%;">Debit (Dr)</th>
+                            <th style="text-align:right; width: 15%;">Credit (Cr)</th>
+                            <th style="text-align:right; width: 15%; border-top-right-radius: 4px;">Balance</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${tableRows.length > 0 ? tableRows : '<tr><td colspan="5" style="padding:20px; text-align:center; color:#73777f; border:none;">No transactions found.</td></tr>'}
+                        ${tableRows.length > 0 ? tableRows : '<tr><td colspan="5" style="padding:20px; text-align:center; color:#718096; border:none;">No transactions found.</td></tr>'}
                     </tbody>
                 </table>
                 
-                <div class="avoid-break" style="margin-top: 30px; display: flex; justify-content: space-between; align-items: stretch; page-break-inside: avoid;">
-                    <div style="width: 55%; font-size: 11px; color: #43474e; display: flex; flex-direction: column; justify-content: flex-end;">
-                        <p style="margin: 0 0 4px 0;">This is a computer-generated account statement.</p>
-                        <p style="margin: 0;">Errors and omissions expected (E&OE).</p>
-                    </div>
-                    
-                    <div style="width: 38%; text-align: center; border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-height: 130px; background: #ffffff;">
-                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 15px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 15px;"></div>'}
-                        <div style="border-top: 1px solid #1a1c1e; width: 90%; padding-top: 8px; font-weight: bold; font-size: 12px; color: #1a1c1e;">Authorized Signatory</div>
-                        <div style="font-size: 10px; color: #73777f; margin-top: 4px; font-weight: bold;">For ${biz.name || 'Company'}</div>
+                <div class="avoid-break" style="margin-top: 40px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
+                    <div style="width: 200px; text-align: center;">
+                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 5px;"></div>'}
+                        <div style="border-top: 1px solid #cbd5e0; padding-top: 5px; font-weight: bold; font-size: 11px; color: #2d3748;">Authorized Signatory</div>
                     </div>
                 </div>
             </div>
@@ -709,42 +689,48 @@ const Utils = {
         }
 
         const html = `
-            <div id="pdf-receipt-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden;">
+            <div id="pdf-receipt-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden; color: #2d3748;">
                 
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; z-index: 0; width: 70%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 3px solid #1a1c1e; position: relative; z-index: 1;">
-                    <div style="max-width: 60%;">
-                        <h1 style="margin: 0 0 8px 0; font-size: 26px; color: #1a1c1e; text-transform: uppercase; letter-spacing: 1px;">${biz.name || 'Company Name'}</h1>
-                        <p style="margin: 4px 0; font-size: 12px; color: #43474e;">${biz.address || ''}</p>
-                        <p style="margin: 4px 0; font-size: 12px; color: #43474e;">Phone: ${biz.phone || ''}</p>
-                    </div>
-                    <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; margin-bottom: 10px; border-radius: 4px;" />` : ''}
-                        <div style="background: #f8f9fa; padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 4px; display: inline-block;">
-                            <h2 style="margin: 0; font-size: 18px; color: #1a1c1e; letter-spacing: 2px; text-transform: uppercase;">${title}</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 30px; border-bottom: 4px solid #f0f4f8; position: relative; z-index: 1;">
+                    <div style="display: flex; align-items: center; gap: 15px; max-width: 60%;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; border-radius: 4px;" />` : ''}
+                        <div>
+                            <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #1a202c; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
+                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">${biz.address || ''}</p>
+                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">Ph: ${biz.phone || ''}</p>
                         </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <h2 style="margin: 0 0 5px 0; font-size: 26px; color: #0061a4; letter-spacing: 1px; text-transform: uppercase; font-weight: 300;">${title}</h2>
+                        <p style="margin: 0; font-size: 13px; font-weight: bold; color: #4a5568;"># ${safeDocNo}</p>
                     </div>
                 </div>
                 
-                <div style="border: 2px solid #1a1c1e; border-radius: 4px; padding: 25px; background: rgba(255,255,255,0.8); margin-bottom: 30px; position: relative; z-index: 1;">
-                    <table style="width: 100%; font-size: 14px; border-collapse: collapse; border: none;">
-                        <tr><td style="padding: 12px 0; color: #73777f; border-bottom: 1px solid #e0e0e0; width: 35%; text-transform: uppercase; font-size: 11px; font-weight: bold;">Receipt No:</td><td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #e0e0e0; color: #1a1c1e;">${safeDocNo}</td></tr>
-                        <tr><td style="padding: 12px 0; color: #73777f; border-bottom: 1px solid #e0e0e0; text-transform: uppercase; font-size: 11px; font-weight: bold;">Date:</td><td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #e0e0e0; color: #1a1c1e;">${receipt.date}</td></tr>
-                        <tr><td style="padding: 12px 0; color: #73777f; border-bottom: 1px solid #e0e0e0; text-transform: uppercase; font-size: 11px; font-weight: bold;">${isMoneyIn ? 'Received From:' : 'Paid To:'}</td><td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #e0e0e0; color: #1a1c1e; font-size: 16px;">${receipt.ledgerName}</td></tr>
-                        <tr><td style="padding: 12px 0; color: #73777f; border-bottom: 1px solid #e0e0e0; text-transform: uppercase; font-size: 11px; font-weight: bold;">Amount:</td><td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #e0e0e0; color: ${isMoneyIn ? '#146c2e' : '#ba1a1a'}; font-size: 22px;">\u20B9${parseFloat(receipt.amount).toFixed(2)}</td></tr>
-                        <tr><td style="padding: 12px 0; color: #73777f; border-bottom: 1px solid #e0e0e0; text-transform: uppercase; font-size: 11px; font-weight: bold;">Mode:</td><td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: 1px solid #e0e0e0; color: #1a1c1e;">${receipt.mode || 'Cash'} ${receipt.ref ? `(Ref: ${receipt.ref})` : ''}</td></tr>
-                        ${invoiceRefDisplay ? `<tr><td style="padding: 12px 0; color: #73777f; border-bottom: none; text-transform: uppercase; font-size: 11px; font-weight: bold;">Settle Invoice(s):</td><td style="padding: 12px 0; font-weight: bold; text-align: right; border-bottom: none; color: #1a1c1e;">${invoiceRefDisplay}</td></tr>` : ''}
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin-bottom: 30px; position: relative; z-index: 1; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <p style="margin: 0 0 5px 0; font-size: 12px; color: #718096; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Amount ${isMoneyIn ? 'Received' : 'Paid'}</p>
+                        <h1 style="margin: 0; font-size: 42px; color: ${isMoneyIn ? '#2f855a' : '#e53e3e'}; font-weight: 800;">\u20B9${parseFloat(receipt.amount).toFixed(2)}</h1>
+                    </div>
+
+                    <table style="width: 100%; font-size: 13px; border-collapse: collapse; border: none;">
+                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; width: 35%; font-weight: bold;">Date:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.date}</td></tr>
+                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">${isMoneyIn ? 'Received From:' : 'Paid To:'}</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #0061a4; font-size: 15px;">${receipt.ledgerName}</td></tr>
+                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">Payment Mode:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.mode || 'Cash'} ${receipt.ref ? `(Ref: ${receipt.ref})` : ''}</td></tr>
+                        ${invoiceRefDisplay ? `<tr><td style="padding: 12px 10px; color: #718096; border-bottom: none; font-weight: bold;">Settled Invoice(s):</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: none; color: #1a202c;">${invoiceRefDisplay}</td></tr>` : ''}
                     </table>
                 </div>
                 
                 <div style="text-align: center; position: relative; z-index: 1;">${balanceText}</div>
                 
-                <div class="avoid-break" style="margin-top: 40px; display: flex; justify-content: flex-end; page-break-inside: avoid; position: relative; z-index: 1;">
-                    <div style="width: 38%; text-align: center; border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-height: 120px; background: #ffffff;">
-                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 15px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 15px;"></div>'}
-                        <div style="border-top: 1px solid #1a1c1e; width: 90%; padding-top: 8px; font-weight: bold; font-size: 12px; color: #1a1c1e;">Authorized Signatory</div>
-                        <div style="font-size: 10px; color: #73777f; margin-top: 4px; font-weight: bold;">For ${biz.name || 'Company'}</div>
+                <div class="avoid-break" style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid; position: relative; z-index: 1;">
+                    <div style="font-size: 11px; color: #718096;">
+                        <p style="margin:0;">* This is a computer generated receipt.</p>
+                    </div>
+                    <div style="width: 200px; text-align: center;">
+                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 5px;"></div>'}
+                        <div style="border-top: 1px solid #cbd5e0; padding-top: 5px; font-weight: bold; font-size: 11px; color: #2d3748;">Authorized Signatory</div>
                     </div>
                 </div>
             </div>
