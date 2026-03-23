@@ -28,51 +28,6 @@
         <p style="color: rgba(255,255,255,0.8); margin-top: 8px;">Loading Database...</p>
         <div class="loader-spinner" style="margin-top: 32px;"></div>
     </div>
-    <div id="side-drawer-overlay" class="drawer-overlay hidden" onclick="UI.toggleDrawer()"></div>
-    <div id="side-drawer" class="side-drawer">
-        <div class="drawer-header">
-            <div class="logo-circle"><span class="material-symbols-outlined" style="color: white; font-size: 32px;">domain</span></div>
-            <div style="margin-left: 16px;">
-                <div style="color: white; font-weight: bold; font-size: 18px;">SOLLO ERP</div>
-                <div style="color: rgba(255,255,255,0.8); font-size: 14px;">Enterprise Edition</div>
-            </div>
-        </div>
-        <div style="padding: 16px 0; flex: 1; overflow-y: auto;">
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.openActivity('activity-business-profile')"><span class="material-symbols-outlined">storefront</span>Business Profile</div>
-            
-            <div class="drawer-item" onclick="UI.toggleDrawer(); app.openGSTReport()"><span class="material-symbols-outlined">request_quote</span>GST Reports</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.openActivity('activity-advanced-reports'); UI.renderDayBook();"><span class="material-symbols-outlined">analytics</span>Advanced Reports</div>
-            
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.switchTab('tab-dashboard', 'Dashboard', document.getElementById('nav-dash'))"><span class="material-symbols-outlined">dashboard</span>Dashboard</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.openMasterView('products', 'Inventory Master')"><span class="material-symbols-outlined">inventory_2</span>Products / Inventory</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.openMasterView('customers', 'Customer Master')"><span class="material-symbols-outlined">groups</span>Customers / Receivables</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.openMasterView('suppliers', 'Supplier Master')"><span class="material-symbols-outlined">local_shipping</span>Suppliers / Payables</div>
-            
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.switchTab('tab-expenses', 'Expense Ledger', null)"><span class="material-symbols-outlined">receipt</span>Expense Ledger</div>
-            
-            <div style="height: 1px; background: var(--md-surface-variant); margin: 16px 0;"></div>
-            
-            <div class="drawer-item" onclick="UI.toggleDrawer(); app.refreshAll()"><span class="material-symbols-outlined" style="color: var(--md-primary);">refresh</span>Refresh Data</div>
-            
-            <div style="padding: 16px 24px 8px 24px; font-size: 12px; font-weight: bold; color: var(--md-primary); text-transform: uppercase; letter-spacing: 1px;">Data Management</div>
-            
-            <div style="padding: 8px 24px 8px 24px; font-size: 11px; font-weight: bold; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 1px;" id="cloud-status">Loading Cloud...</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); Cloud.backup()"><span class="material-symbols-outlined" style="color: var(--md-primary);">cloud_upload</span>Backup to Drive</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); Cloud.restore()"><span class="material-symbols-outlined" style="color: var(--md-error);">cloud_download</span>Restore from Drive</div>
-
-            <hr style="border: 0; border-top: 1px solid var(--md-outline-variant); margin: 8px 0;">
-            
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.openMasterView('trash', 'Recycle Bin')"><span class="material-symbols-outlined" style="color: var(--md-error);">delete</span>Recycle Bin</div>
-
-            <div class="drawer-item" onclick="UI.toggleDrawer(); window.Utils.exportData()"><span class="material-symbols-outlined">security</span>Manual Export (Local)</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); document.getElementById('import-file').click()"><span class="material-symbols-outlined">restore</span>Manual Restore (Local)</div>
-            
-            <input type="file" id="import-file" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
-
-            <div style="padding: 16px 24px 8px 24px; font-size: 12px; font-weight: bold; color: var(--md-primary); text-transform: uppercase; letter-spacing: 1px;">Settings</div>
-            <div class="drawer-item" onclick="UI.toggleDrawer(); UI.toggleTheme(event)"><span class="material-symbols-outlined">dark_mode</span>Toggle Dark Mode</div>
-        </div>
-    </div>
     <div id="app-shell">
         <div id="offline-banner" class="offline-banner">
             <span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">wifi_off</span>
@@ -172,6 +127,12 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 0;" onclick="UI.openActivity('activity-expense-ledger')">
+                        <div class="icon-circle" style="background: #f3e5f5; color: #6a1b9a; width: 48px; height: 48px; flex-shrink: 0;"><span class="material-symbols-outlined">receipt_long</span></div>
+                        <div style="flex: 1;"><strong class="large-text">Expense Ledger</strong><br><small style="color: var(--md-text-muted);">Track your business costs</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 0;" onclick="if(window.app) window.app.openForm('account')">
                         <div class="icon-circle" style="background: #e0f7fa; color: #006064; width: 48px; height: 48px; flex-shrink: 0;"><span class="material-symbols-outlined">account_balance</span></div>
                         <div style="flex: 1;"><strong class="large-text">Bank & Cash Accounts</strong><br><small style="color: var(--md-text-muted);">Add new payment modes</small></div>
@@ -240,24 +201,98 @@
                 <div id="cashbook-container"></div>
             </div>
 
-            <div id="tab-expenses" class="screen-section hidden">
+    <div id="activity-expense-ledger" class="activity-screen hidden">
+        <div class="activity-header">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger')">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 500;">Expense Ledger</span>
+        </div>
+        <div class="activity-content">
+            <div class="search-bar" style="padding-right: 8px; margin-bottom: 16px;">
+                <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
+                <input type="text" id="search-expenses" placeholder="Search expenses or categories..." style="flex: 1; min-width: 0;">
                 
-                <div class="search-bar" style="padding-right: 8px; margin-bottom: 16px;">
-                    <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                    <input type="text" id="search-expenses" placeholder="Search expenses or categories..." style="flex: 1; min-width: 0;">
-                    
-                    <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
-                    
-                    <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-expenses-sort')">sort</span>
+                <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
+                
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-expenses-sort')">sort</span>
+            </div>
+            
+            <input type="hidden" id="sort-expenses" value="date-desc">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px;">
+                <small style="color:var(--md-text-muted);">Total Expenses: <strong id="sum-expenses" style="color:var(--md-error);">&#8377;0.00</strong></small>
+            </div>
+            <div id="expense-history-container"></div>
+        </div>
+    </div>
+            
+            <div id="tab-menu" class="screen-section hidden">
+                
+                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 20px;" onclick="UI.openActivity('activity-business-profile')">
+                    <div class="icon-circle" style="background: var(--md-primary); color: white; width: 56px; height: 56px; flex-shrink: 0;"><span class="material-symbols-outlined" style="font-size: 28px;">domain</span></div>
+                    <div style="flex: 1;">
+                        <strong class="large-text" style="font-size: 18px;">Business Profile</strong>
+                        <small style="display:block; color: var(--md-text-muted); margin-top: 4px;">Edit Company Details & Logo</small>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                 </div>
-                
-                <input type="hidden" id="sort-expenses" value="date-desc">
-                
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px;">
-                    <small style="color:var(--md-text-muted);">Total Expenses: <strong id="sum-expenses" style="color:var(--md-error);">&#8377;0.00</strong></small>
+
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Reports & Sync</strong>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="app.openGSTReport()">
+                        <span class="material-symbols-outlined" style="color: #0061a4;">request_quote</span>
+                        <div style="flex: 1;"><strong style="font-size:15px;">Monthly GST Reports</strong></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openActivity('activity-advanced-reports'); UI.renderDayBook();">
+                        <span class="material-symbols-outlined" style="color: #2e7d32;">analytics</span>
+                        <div style="flex: 1;"><strong style="font-size:15px;">Advanced Reports (PnL)</strong></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="app.refreshAll()">
+                        <span class="material-symbols-outlined" style="color: #f57f17;">sync</span>
+                        <div style="flex: 1;"><strong style="font-size:15px;">Force Sync / Refresh Data</strong></div>
+                    </div>
                 </div>
-                
-                <div id="expense-history-container"></div>
+
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Cloud Backup & Storage</strong>
+                <div style="text-align: center; margin-bottom: 12px; font-size: 12px; color: var(--md-text-muted);" id="cloud-status-tab">Checking Google Drive...</div>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #e3f2fd;" onclick="Cloud.backup()">
+                        <span class="material-symbols-outlined" style="color: #0061a4;">cloud_upload</span>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: #0061a4;">Backup to Google Drive</strong></div>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #fff0f2;" onclick="Cloud.restore()">
+                        <span class="material-symbols-outlined" style="color: #ba1a1a;">cloud_download</span>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: #ba1a1a;">Restore from Drive</strong></div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="window.Utils.exportData()">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">save</span> <span style="font-size: 13px; font-weight: bold;">Manual Backup</span>
+                        </div>
+                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="document.getElementById('import-file-tab').click()">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">restore_page</span> <span style="font-size: 13px; font-weight: bold;">Manual Restore</span>
+                        </div>
+                        <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
+                    </div>
+                </div>
+
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">System</strong>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin: 0;" onclick="UI.toggleTheme(event)">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <span class="material-symbols-outlined">dark_mode</span>
+                            <strong style="font-size:15px;">Dark Mode</strong>
+                        </div>
+                        <div style="width: 40px; height: 24px; background: var(--md-surface-variant); border-radius: 12px; position: relative;">
+                            <div style="width: 20px; height: 20px; background: var(--md-outline); border-radius: 50%; position: absolute; top: 2px; left: 2px;"></div>
+                        </div>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('trash', 'Recycle Bin')">
+                        <span class="material-symbols-outlined" style="color: var(--md-error);">delete</span>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-error);">Recycle Bin</strong></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
             </div>
             
             <div style="height: 80px;"></div>
@@ -277,7 +312,7 @@
             </div>
             
             <div id="nav-cashbook" class="nav-item" onclick="UI.switchTab('tab-cashbook', 'Cashbook', this)"><span class="material-symbols-outlined">account_balance_wallet</span><span>Bank</span></div>
-            <div class="nav-item" onclick="UI.toggleDrawer()"><span class="material-symbols-outlined">menu</span><span>Menu</span></div>
+            <div id="nav-menu" class="nav-item" onclick="UI.switchTab('tab-menu', 'Settings', this)"><span class="material-symbols-outlined">menu</span><span>Menu</span></div>
         </nav>
     </div>
 
@@ -725,17 +760,16 @@
         </div>
         <div class="activity-content">
             <form id="form-business-profile">
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label>Business Logo</label>
-                        <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('profile-logo-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
-                        <img id="profile-logo-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>Authorized Signature</label>
-                        <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('profile-signature-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
-                        <img id="profile-signature-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
-                    </div>
+                <div class="form-group">
+                    <label>Business Logo</label>
+                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('profile-logo-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
+                    <img id="profile-logo-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
+                </div>
+                
+                <div class="form-group">
+                    <label>Authorized Signature</label>
+                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('profile-signature-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
+                    <img id="profile-signature-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
                 <div class="form-group"><label>Business Name *</label><input type="text" id="profile-name" required></div>
