@@ -560,7 +560,20 @@ const app = {
                         if (p) return p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
                         
                         const e = UI.state.rawData.expenses.find(doc => doc.id === ref || doc.expenseNo === ref);
-                        if (e) return e.expenseNo || String(e.id).slice(-4).toUpperCase();
+                        if (e) {
+                            if (e.linkedInvoice) {
+                                const eLinks = String(e.linkedInvoice).split(',').map(x => x.trim());
+                                const eNames = eLinks.map(el => {
+                                    const s = UI.state.rawData.sales.find(doc => doc.id === el || doc.invoiceNo === el || doc.orderNo === el);
+                                    if (s) return s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
+                                    const p = UI.state.rawData.purchases.find(doc => doc.id === el || doc.invoiceNo === el || doc.poNo === el || doc.orderNo === el);
+                                    if (p) return p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
+                                    return el.startsWith('sollo-') ? el.slice(-4).toUpperCase() : el;
+                                });
+                                return (e.expenseNo || String(e.id).slice(-4).toUpperCase()) + ' (🔗 ' + eNames.join(', ') + ')';
+                            }
+                            return e.expenseNo || String(e.id).slice(-4).toUpperCase();
+                        }
                         
                         return ref.startsWith('sollo-') ? ref.slice(-4).toUpperCase() : ref;
                     });
@@ -1923,6 +1936,24 @@ const app = {
             localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
             
             if (window.Utils) window.Utils.showToast("Record Restored Successfully! ♻️");
+            app.refreshAll();
+        } else {
+            alert("Error: Could not find the record in the Recycle Bin.");
+        }
+    },
+
+    permanentlyDeleteRecord: (id) => {
+        if (!confirm("Are you sure you want to permanently delete this item? This action cannot be undone.")) return;
+
+        let trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
+        const recordIndex = trashBin.findIndex(t => t.id === id);
+        
+        if (recordIndex > -1) {
+            // Remove it from the Trash Vault permanently
+            trashBin.splice(recordIndex, 1);
+            localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
+            
+            if (window.Utils) window.Utils.showToast("Record Permanently Deleted! 🗑️");
             app.refreshAll();
         } else {
             alert("Error: Could not find the record in the Recycle Bin.");

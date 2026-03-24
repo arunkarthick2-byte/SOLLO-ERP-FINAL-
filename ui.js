@@ -659,6 +659,7 @@ const UI = {
             if(sortOption === 'date-desc') data.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
             if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
+            if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
 
             const container = document.getElementById(containerId);
             if (container) {
@@ -863,17 +864,26 @@ const UI = {
             // UPGRADE: Recycle Bin Render Logic
             else if (activeTab === 'trash') {
                 const trashData = UI.state.rawData.trash || [];
-                data = trashData.filter(t => (t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || '').toLowerCase().includes(searchTerm));
+                // ENHANCED SEARCH: Now perfectly checks amounts, party names, categories, and IDs!
+                data = trashData.filter(t => (t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.customerName || t.supplierName || t.category || t.amount || '').toString().toLowerCase().includes(searchTerm));
                 
-                html.push(...data.map(t => UI.renderRowWiseItem(
-                    t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || 'Deleted Item', 
-                    `Original Module: ${t._module}`, 
-                    `<span style="color:var(--md-primary); font-weight:bold;">Restore</span>`, 
-                    t.date || 'Unknown Date', 
-                    'restore_from_trash', 
-                    'var(--md-error)', 
-                    `app.restoreRecord('${t.id}', '${t._module}')`
-                )));
+                html.push(...data.map(t => {
+                    const displayTitle = t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.category || 'Deleted Item';
+                    return `
+                    <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: #fff0f2; color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                        </div>
+                        <div style="flex: 1; min-width: 0; overflow: hidden;">
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(displayTitle, searchTerm)}</strong>
+                            <small style="color: var(--md-text-muted); display: block;">${t.date || 'Unknown Date'} | Mod: ${t._module}</small>
+                        </div>
+                        <div style="text-align: right; flex-shrink: 0; display: flex; gap: 8px;">
+                            <button class="btn-primary-small tap-target" style="padding: 6px 12px; font-size: 12px;" onclick="app.restoreRecord('${t.id}', '${t._module}')">Restore</button>
+                            <button class="btn-primary-small tap-target" style="padding: 6px 12px; font-size: 12px; background: transparent; color: var(--md-error); border: 1px solid var(--md-error);" onclick="app.permanentlyDeleteRecord('${t.id}')">Delete</button>
+                        </div>
+                    </div>`;
+                }));
             }
 
             const container = document.getElementById(containerId);
@@ -984,6 +994,20 @@ const UI = {
                     if (refData) {
                         const links = String(refData).split(',').map(x => x.trim()).filter(x => x);
                         const displayNames = links.map(linkId => {
+                            // NEW: Check if this is an Expense first!
+                            const eDoc = UI.state.rawData.expenses.find(e => e.id === linkId || e.expenseNo === linkId);
+                            if (eDoc && eDoc.linkedInvoice) {
+                                const eLinks = String(eDoc.linkedInvoice).split(',').map(x => x.trim());
+                                const eNames = eLinks.map(el => {
+                                    const s = UI.state.rawData.sales.find(doc => doc.id === el || doc.invoiceNo === el || doc.orderNo === el);
+                                    if (s) return s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
+                                    const p = UI.state.rawData.purchases.find(doc => doc.id === el || doc.invoiceNo === el || doc.poNo === el || doc.orderNo === el);
+                                    if (p) return p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
+                                    return el.startsWith('sollo-') ? el.slice(-4).toUpperCase() : el;
+                                });
+                                return (eDoc.expenseNo || 'EXP') + ' (🔗 ' + eNames.join(', ') + ')';
+                            }
+
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
                             
@@ -996,6 +1020,8 @@ const UI = {
                                 let ref = pDoc.invoiceNo || pDoc.poNo || pDoc.orderNo || pDoc.id.slice(-4).toUpperCase();
                                 return /^\d+$/.test(ref) ? 'PO-' + ref : ref;
                             }
+                            if (eDoc) return eDoc.expenseNo || 'EXP';
+
                             if (linkId.includes('sales')) return 'INV-' + linkId.slice(-4).toUpperCase();
                             if (linkId.includes('purchase')) return 'PO-' + linkId.slice(-4).toUpperCase();
                             
@@ -1407,9 +1433,14 @@ const UI = {
         if (sheetId === 'sheet-master-sort') {
             const filterSelect = document.getElementById('filter-master-view');
             const sortSelect = document.getElementById('sort-master-view');
-            
+
             if (filterSelect) {
                 const tab = UI.state.activeMasterTab;
+                
+                // --- FIX: SAVE PREVIOUS SELECTIONS ---
+                const savedFilter = filterSelect.value;
+                const savedSort = sortSelect ? sortSelect.value : null;
+
                 // NEW: Unified Filtering & Sorting for all Ledger types!
                 if (tab === 'customers' || tab === 'suppliers' || tab === 'contacts') {
                     filterSelect.innerHTML = `
@@ -1438,6 +1469,11 @@ const UI = {
                     filterSelect.innerHTML = `<option value="All">All Products</option><option value="In Stock">Stock Available</option>`;
                     if(sortSelect) sortSelect.innerHTML = `<option value="name-asc">A to Z</option><option value="stock-asc">Lowest Stock First</option>`;
                 }
+
+                // --- FIX: RESTORE PREVIOUS SELECTIONS ---
+                // Re-apply the user's choices to the newly drawn menu
+                if (savedFilter) filterSelect.value = savedFilter;
+                if (savedSort && sortSelect) sortSelect.value = savedSort;
             }
         }
 
