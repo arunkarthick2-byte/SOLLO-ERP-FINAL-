@@ -2,6 +2,8 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v5.2 Enterprise)
 // ==========================================
 
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=3';
+
 const Utils = {
     // ==========================================
     // 1. CORE UTILITIES & STRICT MATH
@@ -664,8 +666,7 @@ const Utils = {
         if (receipt.invoiceRef) {
             const refs = String(receipt.invoiceRef).split(',').map(r => r.trim());
             const store = isMoneyIn ? 'sales' : 'purchases';
-            let allDocs = [];
-            if (typeof getAllRecords === 'function') allDocs = await getAllRecords(store);
+            const allDocs = await getAllRecords(store);
             
             const displayNames = refs.map(ref => {
                 // FIX: Check ALL cross-linked ID references (including orderNo) so the PDF can translate them!
@@ -764,7 +765,7 @@ const Utils = {
             csvContent += "DETAILED B2B SALES FOR CA PORTAL UPLOAD\n";
             csvContent += "Date,Invoice No,Customer Name,Customer GSTIN,Taxable Value,GST Amount,Total Invoice Value\n";
             
-                        const ledgers = await window.getAllRecords('ledgers');
+                        const ledgers = await getAllRecords('ledgers');
             
             reportData.rawSales.forEach(s => {
                 // NEW: Skip Bill of Supply (Non-GST) from the detailed CA export

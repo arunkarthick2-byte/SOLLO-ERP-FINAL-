@@ -127,7 +127,7 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 0;" onclick="UI.openActivity('activity-expense-ledger'); document.querySelector('nav').style.display='none';">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 0;" onclick="UI.openActivity('activity-expense-ledger')">
                         <div class="icon-circle" style="background: #f3e5f5; color: #6a1b9a; width: 48px; height: 48px; flex-shrink: 0;"><span class="material-symbols-outlined">receipt_long</span></div>
                         <div style="flex: 1;"><strong class="large-text">Expense Ledger</strong><br><small style="color: var(--md-text-muted);">Track your business costs</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
@@ -730,7 +730,7 @@
     </div>
         <div id="activity-expense-ledger" class="activity-screen hidden">
         <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger'); document.querySelector('nav').style.display='flex';">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger')">arrow_back</span>
             <span style="font-size: 18px; font-weight: 500;">Expense Ledger</span>
         </div>
         <div class="activity-content">
@@ -933,13 +933,13 @@
         <div style="padding: 16px;">
             <div class="form-group">
                 <label>Filter By Status</label>
-                <select id="filter-master-view" onchange="UI.applyFilters('masters')">
+                <select id="filter-master-view" onchange="UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');">
                     <option value="All">All Records</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Sort By</label>
-                <select id="sort-master-view" onchange="UI.applyFilters('masters')">
+                <select id="sort-master-view" onchange="UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');">
                     <option value="name-asc">A to Z</option>
                     <option value="stock-asc">Lowest Stock First</option>
                 </select>
@@ -1591,7 +1591,8 @@
             const dateInputs = [
                 'sales-date', 'sales-order-date', 'sales-shipped-date', 'sales-completed-date', 
                 'purchase-date', 'purchase-order-date', 'purchase-shipped-date', 'purchase-completed-date', 
-                'expense-date', 'pay-in-date', 'pay-out-date', 'adj-date'
+                'expense-date', 'pay-in-date', 'pay-out-date', 'adj-date',
+                'report-daybook-date', 'report-pnl-start', 'report-pnl-end', 'timeline-start-date', 'timeline-end-date'
             ];
             dateInputs.forEach(id => {
                 const el = document.getElementById(id);

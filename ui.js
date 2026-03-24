@@ -173,28 +173,6 @@ const UI = {
         }, 600); // Wait for the splash screen to finish fading before opening
     },
 
-    toggleDrawer: () => {
-        const drawer = document.getElementById('side-drawer');
-        const overlay = document.getElementById('side-drawer-overlay');
-        const isOpening = !drawer.classList.contains('open');
-        
-        drawer.classList.toggle('open');
-        
-        if (isOpening) {
-            overlay.classList.remove('hidden');
-            requestAnimationFrame(() => overlay.classList.add('open'));
-            history.pushState({ modalOpen: true }, '');
-        } else {
-            overlay.classList.remove('open');
-            setTimeout(() => overlay.classList.add('hidden'), 300);
-            
-            if (history.state && history.state.modalOpen) {
-                window._ignoreNextPop = true;
-                history.back();
-            }
-        }
-    },
-
     switchTab: (tabId, title, navElement) => {
         const doSwitch = () => {
             document.querySelectorAll('.screen-section').forEach(el => {
@@ -1553,7 +1531,7 @@ const UI = {
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.id = 'haptic-overlay';
-            overlay.className = 'drawer-overlay hidden'; // Reuses your premium blur effect!
+            overlay.className = 'sheet-overlay hidden'; // Reuses your premium blur effect!
             overlay.style.zIndex = '4500';
             
             overlay.innerHTML = `
@@ -2115,8 +2093,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const touchEndX = e.changedTouches[0].screenX;
             const touchEndY = e.changedTouches[0].screenY;
             
-            // Block 1: Don't swipe if a menu, drawer, or modal is open
-            if (document.querySelector('.bottom-sheet.open') || document.querySelector('.activity-screen.open') || document.getElementById('side-drawer').classList.contains('open')) return;
+            // Block 1: Don't swipe if a menu or modal is open
+            if (document.querySelector('.bottom-sheet.open') || document.querySelector('.activity-screen.open')) return;
 
             // Block 2: Don't swipe if the user is scrolling horizontally on a table
             if (e.target.closest('table') || e.target.closest('.filter-chips')) return;
@@ -2134,7 +2112,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 { id: 'tab-dashboard', title: 'Dashboard', navId: 'nav-dash' },
                 { id: 'tab-masters', title: 'Master Data', navId: 'nav-masters' },
                 { id: 'tab-documents', title: 'Documents', navId: 'nav-docs' },
-                { id: 'tab-cashbook', title: 'Cashbook', navId: 'nav-cashbook' }
+                { id: 'tab-cashbook', title: 'Cashbook', navId: 'nav-cashbook' },
+                { id: 'tab-menu', title: 'Settings', navId: 'nav-menu' }
             ];
 
             const currentIndex = tabs.findIndex(t => document.getElementById(t.id) && document.getElementById(t.id).classList.contains('active-screen'));
@@ -2194,18 +2173,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let handled = false;
-        
-        // 1. Check if Side Drawer is open
-        const drawer = document.getElementById('side-drawer');
-        if (drawer && drawer.classList.contains('open')) {
-            drawer.classList.remove('open');
-            const overlay = document.getElementById('side-drawer-overlay');
-            if (overlay) {
-                overlay.classList.remove('open');
-                setTimeout(() => overlay.classList.add('hidden'), 300);
-            }
-            handled = true;
-        }
         
         // 2. Check if Bottom Sheets are open
         if (!handled) {
