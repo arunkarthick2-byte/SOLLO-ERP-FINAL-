@@ -201,30 +201,6 @@
                 <div id="cashbook-container"></div>
             </div>
 
-    <div id="activity-expense-ledger" class="activity-screen hidden" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; height: 100vh !important; height: 100dvh !important; z-index: 999999 !important; background-color: var(--md-surface) !important; display: flex; flex-direction: column;">
-        <div class="activity-header" style="flex-shrink: 0;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger'); document.querySelector('nav').style.display='flex';">arrow_back</span>
-            <span style="font-size: 18px; font-weight: 500;">Expense Ledger</span>
-        </div>
-        <div class="activity-content" style="flex: 1; overflow-y: auto;">
-            <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
-                <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                <input type="text" id="search-expenses" placeholder="Search expenses or categories..." style="flex: 1; min-width: 0;">
-                
-                <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
-                
-                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-expenses-sort')">sort</span>
-            </div>
-            
-            <input type="hidden" id="sort-expenses" value="date-desc">
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px;">
-                <small style="color:var(--md-text-muted);">Total Expenses: <strong id="sum-expenses" style="color:var(--md-error);">&#8377;0.00</strong></small>
-            </div>
-            <div id="expense-history-container"></div>
-        </div>
-    </div>
-            
             <div id="tab-menu" class="screen-section hidden">
                 
                 <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 20px;" onclick="UI.openActivity('activity-business-profile')">
