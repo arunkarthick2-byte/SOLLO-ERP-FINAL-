@@ -32,7 +32,7 @@ window.gisLoaded = () => {
 
 const maybeEnableButtons = () => {
     if (gapiInited && gisInited) {
-        const statusEl = document.getElementById('cloud-status');
+        const statusEl = document.getElementById('cloud-status-tab');
         if(statusEl) {
             statusEl.innerText = 'Google Drive Sync Ready';
             statusEl.style.color = 'var(--md-success)';
@@ -72,7 +72,8 @@ const Cloud = {
         if (!lastBackup || (now - parseInt(lastBackup)) > 86400000) {
             console.log("Triggering silent background auto-backup...");
             try {
-                const data = await window.exportDatabase(); 
+                const data = await window.app.db.exportDatabase(); 
+
                 const fileContent = JSON.stringify(data);
                 const file = new Blob([fileContent], { type: 'application/json' });
                 const metadata = { 'name': 'SOLLO_ERP_Backup.json', 'mimeType': 'application/json' };
@@ -115,7 +116,8 @@ const Cloud = {
             window.Utils.showToast("Preparing Backup...");
             try {
                 // Get the database dump using the globally mapped function from db.js
-                const data = await window.exportDatabase(); 
+                const data = await window.app.db.exportDatabase(); 
+
                 const fileContent = JSON.stringify(data);
                 const file = new Blob([fileContent], { type: 'application/json' });
                 const metadata = {
@@ -200,7 +202,7 @@ const Cloud = {
                     window.Utils.showToast("Installing Data...");
                     
                     // Route the downloaded JSON directly into your database engine
-                    await window.importDatabase(jsonData); 
+                    await window.app.db.importDatabase(jsonData); 
                     
                     window.Utils.showToast("✅ Restore Successful! Reloading...");
                     setTimeout(() => location.reload(), 1500);
