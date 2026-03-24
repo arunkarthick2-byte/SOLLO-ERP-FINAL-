@@ -244,9 +244,9 @@ const saveInvoiceTransaction = async (storeName, data) => {
 };
 
 // ==========================================
-// SMART AUTO-NUMBERING ENGINE (WITH FINANCIAL YEAR)
+// SMART AUTO-NUMBERING ENGINE (Template Driven)
 // ==========================================
-const getNextDocumentNumber = async (storeName, prefix, targetField = null) => {
+const getNextDocumentNumber = async (storeName, docType, targetField = null) => {
     const records = await getAllRecords(storeName);
     const firmId = typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1';
     const firmRecords = records.filter(r => r.firmId === firmId);
@@ -256,12 +256,34 @@ const getNextDocumentNumber = async (storeName, prefix, targetField = null) => {
     const month = today.getMonth() + 1;
     const year = today.getFullYear();
     const startYear = month >= 4 ? year : year - 1;
-    const endYear = (startYear + 1).toString().slice(-2);
-    const fyString = `${startYear.toString().slice(-2)}${endYear}`; // e.g., "2526"
+    const fyString = `${startYear.toString().slice(-2)}-${(startYear + 1).toString().slice(-2)}`; // Output: "25-26"
     
-    // 2. Create the New Prefix (e.g., 'INV-2526')
-    const fyPrefix = `${prefix}-${fyString}`;
+    // 2. ⚙️ CUSTOM NUMBERING CONFIGURATION ⚙️
+    const defaultFormats = {
+        'INV': '{NUM}/{FY}',         
+        'ORD': 'ORD {NUM}/{FY}',     
+        'PO': 'PO {NUM}/{FY}',       
+        'CN': 'CN {NUM}/{FY}',       
+        'EXP': 'EXP {NUM}/{FY}',     
+        'REC': 'REC {NUM}/{FY}',     
+        'VOU': 'VOU {NUM}/{FY}'      
+    };
     
+    // Read the user's custom settings from the device memory
+    const savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}');
+    const formatSettings = { ...defaultFormats, ...savedFormats };
+
+    const template = formatSettings[docType] || `${docType} {NUM}/{FY}`;
+    const padLength = docType === 'INV' ? 3 : 4; // 3 digits for Invoices (001), 4 for others (0001)
+
+    // 3. Create a strict search pattern for the CURRENT financial year
+    const currentYearTemplate = template.replace('{FY}', fyString);
+    
+    // Convert the template into a Regex to safely extract the {NUM}
+    const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regexPattern = '^' + escapeRegex(currentYearTemplate).replace('\\{NUM\\}', '(\\d+)') + '$';
+    const searchRegex = new RegExp(regexPattern);
+
     let maxNumber = 0;
 
     firmRecords.forEach(record => {
@@ -272,22 +294,21 @@ const getNextDocumentNumber = async (storeName, prefix, targetField = null) => {
             docNo = (storeName === 'sales' ? record.invoiceNo : (record.poNo || record.invoiceNo)) || ''; 
         }
         
-        // 3. Only look for numbers matching THIS financial year
-        if (docNo.startsWith(fyPrefix + '-')) {
-            const numPart = docNo.replace(fyPrefix + '-', '');
-            const parsedNum = parseInt(numPart, 10);
-            
+        // If the document number matches our exact template structure for this year
+        const match = docNo.match(searchRegex);
+        if (match && match[1]) {
+            const parsedNum = parseInt(match[1], 10);
             if (!isNaN(parsedNum) && parsedNum > maxNumber) {
                 maxNumber = parsedNum;
             }
         }
     });
 
-    // 4. Reset counter to 0001 for a new year, or increment current year
+    // 4. Generate the next number and inject it into the template
     const nextNumber = maxNumber + 1;
-    const paddedNumber = String(nextNumber).padStart(4, '0');
+    const paddedNumber = String(nextNumber).padStart(padLength, '0');
     
-    return `${fyPrefix}-${paddedNumber}`;
+    return currentYearTemplate.replace('{NUM}', paddedNumber);
 };
 
 // ==========================================

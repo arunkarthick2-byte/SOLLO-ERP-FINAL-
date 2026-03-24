@@ -25,6 +25,9 @@ const app = {
             
             // NEW: Load our dynamic dropdowns
             app.loadDropdowns();
+            
+            // NEW: Load Document Formatting Settings
+            app.loadDocumentSettings();
             // --- END OF NEW CODE ---
 
             // (Service Worker registration moved to index.html for PWABuilder)
@@ -1652,30 +1655,13 @@ const app = {
                 if (dateInput._flatpickr) dateInput._flatpickr.setDate(Utils.getLocalDate());
             }
 
-            // NEW: Auto-Increment Engine specifically for Receipts & Vouchers (With FY Support)
+            // NEW: Unified Template Engine connection for Receipts & Vouchers
             const prefix = type === 'in' ? 'REC' : 'VOU';
-            const receipts = await getAllRecords('receipts');
-            const firmRecords = receipts.filter(r => r.firmId === app.state.firmId);
-            
-            // Calculate Current Financial Year
-            const today = new Date();
-            const month = today.getMonth() + 1;
-            const year = today.getFullYear();
-            const startYear = month >= 4 ? year : year - 1;
-            const fyString = `${startYear.toString().slice(-2)}${(startYear + 1).toString().slice(-2)}`;
-            const fyPrefix = `${prefix}-${fyString}`;
-
-            let maxNum = 0;
-            firmRecords.forEach(r => {
-                const rNo = r.receiptNo || '';
-                if (rNo.startsWith(fyPrefix + '-')) {
-                    const num = parseInt(rNo.replace(fyPrefix + '-', ''), 10);
-                    if (!isNaN(num) && num > maxNum) maxNum = num;
-                }
-            });
-            const nextNo = `${fyPrefix}-${String(maxNum + 1).padStart(4, '0')}`;
-            const noInput = document.getElementById(`pay-${type}-no`);
-            if (noInput) noInput.value = nextNo;
+            if (typeof getNextDocumentNumber === 'function') {
+                const nextNo = await getNextDocumentNumber('receipts', prefix, 'receiptNo');
+                const noInput = document.getElementById(`pay-${type}-no`);
+                if (noInput) noInput.value = nextNo;
+            }
         }
         UI.toggleDeleteButton(`receipt-${type}`, false);
         UI.openBottomSheet(`sheet-payment-${type}`);
@@ -2215,6 +2201,54 @@ const app = {
             li.style.display = text.includes(lowerTerm) ? 'flex' : 'none';
         });
     },
+
+    // ==========================================
+    // DOCUMENT SETTINGS ENGINE
+    // ==========================================
+    loadDocumentSettings: () => {
+        const savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}');
+        
+        // This splits the saved template (e.g. "INV-{NUM}/{FY}") into the prefix and suffix boxes
+        const applyToUI = (key, defaultFormat, idPrefix) => {
+            const template = savedFormats[key] || defaultFormat;
+            const parts = template.split('{NUM}');
+            if (document.getElementById(`${idPrefix}-prefix`)) {
+                document.getElementById(`${idPrefix}-prefix`).value = parts[0] || '';
+                document.getElementById(`${idPrefix}-suffix`).value = parts.length > 1 ? parts[1] : '';
+            }
+        };
+
+        applyToUI('INV', '{NUM}/{FY}', 'format-inv');
+        applyToUI('ORD', 'ORD {NUM}/{FY}', 'format-ord');
+        applyToUI('PO', 'PO {NUM}/{FY}', 'format-po');
+        applyToUI('CN', 'CN {NUM}/{FY}', 'format-cn');
+        applyToUI('EXP', 'EXP {NUM}/{FY}', 'format-exp');
+        applyToUI('REC', 'REC {NUM}/{FY}', 'format-rec');
+        applyToUI('VOU', 'VOU {NUM}/{FY}', 'format-vou');
+    },
+
+    saveDocumentSettings: () => {
+        // This stitches the user's inputs back together around the {NUM} tag securely
+        const buildFormat = (idPrefix) => {
+            const pre = document.getElementById(`${idPrefix}-prefix`).value || '';
+            const suf = document.getElementById(`${idPrefix}-suffix`).value || '';
+            return `${pre}{NUM}${suf}`;
+        };
+
+        const formats = {
+            'INV': buildFormat('format-inv'),
+            'ORD': buildFormat('format-ord'),
+            'PO': buildFormat('format-po'),
+            'CN': buildFormat('format-cn'),
+            'EXP': buildFormat('format-exp'),
+            'REC': buildFormat('format-rec'),
+            'VOU': buildFormat('format-vou')
+        };
+        
+        localStorage.setItem('sollo_doc_formats', JSON.stringify(formats));
+        if (window.Utils) window.Utils.showToast("Document Formats Saved! ✅");
+        if (window.UI) window.UI.closeBottomSheet('sheet-document-formats');
+    }
 
 }; // <--- THIS IS THE CRITICAL CLOSING BRACKET FOR THE APP OBJECT
 

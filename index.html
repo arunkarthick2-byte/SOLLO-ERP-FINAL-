@@ -269,8 +269,14 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
                 </div>
+
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-document-formats')">
+                        <span class="material-symbols-outlined" style="color: var(--md-primary);">receipt_long</span>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-primary);">Document Formats</strong></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+
             </div>
-            
             <div style="height: 80px;"></div>
         </main>
         
@@ -820,7 +826,80 @@
 
     <div id="sheet-overlay" class="sheet-overlay hidden" onclick="UI.closeAllBottomSheets()"></div>
     
-        <div id="sheet-expenses-sort" class="bottom-sheet">
+    <div id="sheet-document-formats" class="bottom-sheet">
+        <div class="sheet-header">
+            <span style="font-size: 18px; font-weight: 500;">Document Formats</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-document-formats')">close</span>
+        </div>
+        <div style="padding: 16px; overflow-y: auto; max-height: 80vh;">
+            <p style="margin: 0 0 16px 0; font-size: 12px; color: var(--md-text-muted); line-height: 1.5;">Type your Prefix and Suffix. Use <b style="color:var(--md-primary);">{FY}</b> for the Financial Year. The counter will auto-generate in the middle.</p>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Sales Invoice</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="text" id="format-inv-prefix" class="m3-input" placeholder="Prefix (e.g., INV/)" style="flex: 1; text-align: right;">
+                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="text" id="format-inv-suffix" class="m3-input" placeholder="Suffix (e.g., /{FY})" style="flex: 1;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Sales Order</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="text" id="format-ord-prefix" class="m3-input" placeholder="ORD " style="flex: 1; text-align: right;">
+                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="text" id="format-ord-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Purchase Order</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="text" id="format-po-prefix" class="m3-input" placeholder="PO " style="flex: 1; text-align: right;">
+                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="text" id="format-po-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
+                </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Credit Note (Sales Return)</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="text" id="format-cn-prefix" class="m3-input" placeholder="CN " style="flex: 1; text-align: right;">
+                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="text" id="format-cn-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Business Expense</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="text" id="format-exp-prefix" class="m3-input" placeholder="EXP " style="flex: 1; text-align: right;">
+                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="text" id="format-exp-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Payment In (Receipt)</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="text" id="format-rec-prefix" class="m3-input" placeholder="REC " style="flex: 1; text-align: right;">
+                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="text" id="format-rec-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
+                </div>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Payment Out (Voucher)</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="text" id="format-vou-prefix" class="m3-input" placeholder="VOU " style="flex: 1; text-align: right;">
+                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="text" id="format-vou-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
+                </div>
+            </div>
+            
+            <button class="btn-primary" onclick="app.saveDocumentSettings()" style="width: 100%;">Save Formats</button>
+        </div>
+    </div>
+    <div id="sheet-expenses-sort" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Sort Expenses</span>
             <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-expenses-sort')">close</span>
