@@ -462,9 +462,25 @@ const app = {
                 const iconBg = t.id === 'open-bal' ? '#e3f2fd' : (isPayment ? '#e8f5e9' : '#fff0f2');
                 const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPayment ? '#2e7d32' : '#ba1a1a');
                 const amtColor = t.isInvoice ? 'var(--md-error)' : 'var(--md-success)';
+                
+                // NEW: Dynamically build the exact onclick command based on the record type
+                let clickAction = '';
+                let tapClass = '';
+                if (t.id !== 'open-bal') {
+                    tapClass = 'tap-target';
+                    if (isPayment) {
+                        const type = (partyType === 'Customer') ? (t.impact < 0 ? 'in' : 'out') : (t.impact > 0 ? 'in' : 'out');
+                        clickAction = `onclick="app.openReceipt('${t.id}', '${type}')"`;
+                    } else {
+                        const doc = partyType === 'Customer' ? UI.state.rawData.sales.find(s => s.id === t.id) : UI.state.rawData.purchases.find(p => p.id === t.id);
+                        const docType = doc ? doc.documentType : 'invoice';
+                        const formType = partyType === 'Customer' ? 'sales' : 'purchase';
+                        clickAction = `onclick="app.openForm('${formType}', '${t.id}', '${docType}')"`;
+                    }
+                }
 
                 return `
-                <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
+                <div class="m3-card ${tapClass}" ${clickAction} style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
                     <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                         <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
                     </div>
@@ -632,9 +648,18 @@ const app = {
                 const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPaymentOut ? '#ba1a1a' : '#2e7d32');
                 const amtColor = isPaymentOut ? 'var(--md-error)' : 'var(--md-success)';
                 const sign = isPaymentOut ? '-' : '+';
+                
+                // NEW: Add tap actions so users can open the payment receipt!
+                let clickAction = '';
+                let tapClass = '';
+                if (t.id !== 'open-bal') {
+                    tapClass = 'tap-target';
+                    const type = isPaymentOut ? 'out' : 'in';
+                    clickAction = `onclick="app.openReceipt('${t.id}', '${type}')"`;
+                }
 
                 return `
-                <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
+                <div class="m3-card ${tapClass}" ${clickAction} style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
                     <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                         <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
                     </div>
@@ -1627,19 +1652,28 @@ const app = {
                 if (dateInput._flatpickr) dateInput._flatpickr.setDate(Utils.getLocalDate());
             }
 
-            // NEW: Auto-Increment Engine specifically for Receipts & Vouchers
+            // NEW: Auto-Increment Engine specifically for Receipts & Vouchers (With FY Support)
             const prefix = type === 'in' ? 'REC' : 'VOU';
             const receipts = await getAllRecords('receipts');
             const firmRecords = receipts.filter(r => r.firmId === app.state.firmId);
+            
+            // Calculate Current Financial Year
+            const today = new Date();
+            const month = today.getMonth() + 1;
+            const year = today.getFullYear();
+            const startYear = month >= 4 ? year : year - 1;
+            const fyString = `${startYear.toString().slice(-2)}${(startYear + 1).toString().slice(-2)}`;
+            const fyPrefix = `${prefix}-${fyString}`;
+
             let maxNum = 0;
             firmRecords.forEach(r => {
                 const rNo = r.receiptNo || '';
-                if (rNo.startsWith(prefix + '-')) {
-                    const num = parseInt(rNo.replace(prefix + '-', ''), 10);
+                if (rNo.startsWith(fyPrefix + '-')) {
+                    const num = parseInt(rNo.replace(fyPrefix + '-', ''), 10);
                     if (!isNaN(num) && num > maxNum) maxNum = num;
                 }
             });
-            const nextNo = `${prefix}-${String(maxNum + 1).padStart(4, '0')}`;
+            const nextNo = `${fyPrefix}-${String(maxNum + 1).padStart(4, '0')}`;
             const noInput = document.getElementById(`pay-${type}-no`);
             if (noInput) noInput.value = nextNo;
         }

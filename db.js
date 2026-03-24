@@ -244,14 +244,23 @@ const saveInvoiceTransaction = async (storeName, data) => {
 };
 
 // ==========================================
-// SMART AUTO-NUMBERING ENGINE
+// SMART AUTO-NUMBERING ENGINE (WITH FINANCIAL YEAR)
 // ==========================================
-// NEW: Added targetField parameter to allow Order Ref incrementing
 const getNextDocumentNumber = async (storeName, prefix, targetField = null) => {
-    // NEW: Removed hardcoding so it can accept 'expenses' as a valid database store
     const records = await getAllRecords(storeName);
     const firmId = typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1';
     const firmRecords = records.filter(r => r.firmId === firmId);
+    
+    // 1. Calculate Current Financial Year (April 1st to March 31st)
+    const today = new Date();
+    const month = today.getMonth() + 1;
+    const year = today.getFullYear();
+    const startYear = month >= 4 ? year : year - 1;
+    const endYear = (startYear + 1).toString().slice(-2);
+    const fyString = `${startYear.toString().slice(-2)}${endYear}`; // e.g., "2526"
+    
+    // 2. Create the New Prefix (e.g., 'INV-2526')
+    const fyPrefix = `${prefix}-${fyString}`;
     
     let maxNumber = 0;
 
@@ -260,12 +269,12 @@ const getNextDocumentNumber = async (storeName, prefix, targetField = null) => {
         if (targetField) {
             docNo = record[targetField] || '';
         } else {
-            // FIX: Changed 'type' to 'storeName' so the engine knows what to search for
             docNo = (storeName === 'sales' ? record.invoiceNo : (record.poNo || record.invoiceNo)) || ''; 
         }
         
-        if (docNo.startsWith(prefix + '-')) {
-            const numPart = docNo.replace(prefix + '-', '');
+        // 3. Only look for numbers matching THIS financial year
+        if (docNo.startsWith(fyPrefix + '-')) {
+            const numPart = docNo.replace(fyPrefix + '-', '');
             const parsedNum = parseInt(numPart, 10);
             
             if (!isNaN(parsedNum) && parsedNum > maxNumber) {
@@ -274,9 +283,11 @@ const getNextDocumentNumber = async (storeName, prefix, targetField = null) => {
         }
     });
 
+    // 4. Reset counter to 0001 for a new year, or increment current year
     const nextNumber = maxNumber + 1;
     const paddedNumber = String(nextNumber).padStart(4, '0');
-    return `${prefix}-${paddedNumber}`;
+    
+    return `${fyPrefix}-${paddedNumber}`;
 };
 
 // ==========================================

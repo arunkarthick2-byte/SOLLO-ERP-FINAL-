@@ -215,6 +215,17 @@ const UI = {
         const a = document.getElementById(activityId);
         if(a) {
             history.pushState({ modalOpen: true }, ''); // Native Back Gesture hook
+            
+            // --- FIX: DYNAMIC Z-INDEX BUMP ---
+            // If another activity is already open, force this new one to open ON TOP of it!
+            let highestZ = 4000;
+            document.querySelectorAll('.activity-screen.open').forEach(el => {
+                const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+                if (!isNaN(z) && z > highestZ) highestZ = z;
+            });
+            a.style.zIndex = highestZ + 10;
+            // ---------------------------------
+
             a.classList.remove('hidden'); 
             requestAnimationFrame(() => { a.classList.add('open'); });
             
@@ -230,7 +241,10 @@ const UI = {
         const a = document.getElementById(activityId);
         if(a) {
             a.classList.remove('open'); 
-            setTimeout(() => a.classList.add('hidden'), 300); 
+            setTimeout(() => { 
+                a.classList.add('hidden');
+                a.style.zIndex = ''; // Reset z-index when closed to keep the DOM clean
+            }, 300); 
             
             if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = null;
