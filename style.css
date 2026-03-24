@@ -1245,3 +1245,12 @@ body.dark-mode .theme-toggle-knob {
     transform: translateX(16px);
     background: var(--md-on-primary) !important;
 }
+/* ==========================================
+   BUG FIX: BOTTOM SHEETS OVER ACTIVITIES
+   ========================================== */
+.sheet-overlay {
+    z-index: 5000 !important;
+}
+.bottom-sheet {
+    z-index: 5100 !important;
+}
