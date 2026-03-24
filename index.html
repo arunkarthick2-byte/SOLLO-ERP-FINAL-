@@ -12,7 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=13">
+    <link rel="stylesheet" href="style.css?v=14">
     <link rel="manifest" href="/manifest.json">
 </head>
 
@@ -127,7 +127,7 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 0;" onclick="UI.openActivity('activity-expense-ledger')">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 0;" onclick="UI.openActivity('activity-expense-ledger'); document.querySelector('nav').style.display='none';">
                         <div class="icon-circle" style="background: #f3e5f5; color: #6a1b9a; width: 48px; height: 48px; flex-shrink: 0;"><span class="material-symbols-outlined">receipt_long</span></div>
                         <div style="flex: 1;"><strong class="large-text">Expense Ledger</strong><br><small style="color: var(--md-text-muted);">Track your business costs</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
@@ -152,7 +152,7 @@
                 </div>
 
                 <div id="doc-sales-view" style="padding-bottom: 80px;">
-                    <div class="search-bar" style="padding-right: 8px; margin-bottom: 16px;">
+                    <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
                         <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                         <input type="text" id="search-sales" placeholder="Search Invoices..." style="flex: 1; min-width: 0;">
                         
@@ -168,7 +168,7 @@
                 </div>
 
                 <div id="doc-purchase-view" class="hidden" style="padding-bottom: 80px;">
-                    <div class="search-bar" style="padding-right: 8px; margin-bottom: 16px;">
+                    <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
                         <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                         <input type="text" id="search-purchases" placeholder="Search POs..." style="flex: 1; min-width: 0;">
                         
@@ -185,7 +185,7 @@
             </div>
             <div id="tab-cashbook" class="screen-section hidden">
                 
-                <div class="search-bar" style="padding-right: 8px; margin-bottom: 16px;">
+                <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
                     <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                     <input type="text" id="search-cashbook" placeholder="Search transactions..." style="flex: 1; min-width: 0;">
                     
@@ -201,13 +201,13 @@
                 <div id="cashbook-container"></div>
             </div>
 
-    <div id="activity-expense-ledger" class="activity-screen hidden">
-        <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger')">arrow_back</span>
+    <div id="activity-expense-ledger" class="activity-screen hidden" style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; height: 100vh !important; height: 100dvh !important; z-index: 999999 !important; background-color: var(--md-surface) !important; display: flex; flex-direction: column;">
+        <div class="activity-header" style="flex-shrink: 0;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger'); document.querySelector('nav').style.display='flex';">arrow_back</span>
             <span style="font-size: 18px; font-weight: 500;">Expense Ledger</span>
         </div>
-        <div class="activity-content">
-            <div class="search-bar" style="padding-right: 8px; margin-bottom: 16px;">
+        <div class="activity-content" style="flex: 1; overflow-y: auto;">
+            <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
                 <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                 <input type="text" id="search-expenses" placeholder="Search expenses or categories..." style="flex: 1; min-width: 0;">
                 
@@ -283,8 +283,8 @@
                             <span class="material-symbols-outlined">dark_mode</span>
                             <strong style="font-size:15px;">Dark Mode</strong>
                         </div>
-                        <div style="width: 40px; height: 24px; background: var(--md-surface-variant); border-radius: 12px; position: relative;">
-                            <div style="width: 20px; height: 20px; background: var(--md-outline); border-radius: 50%; position: absolute; top: 2px; left: 2px;"></div>
+                        <div class="theme-toggle-track" style="width: 40px; height: 24px; background: var(--md-surface-variant); border-radius: 12px; position: relative; transition: background 0.3s ease;">
+                            <div class="theme-toggle-knob" style="width: 20px; height: 20px; background: var(--md-outline); border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;"></div>
                         </div>
                     </div>
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('trash', 'Recycle Bin')">
@@ -750,6 +750,29 @@
                 <div class="form-group"><label>Opening Balance (&#8377;)</label><input type="number" inputmode="decimal" id="account-opening-balance" name="openingBalance" step="any" value="0"></div>
                 <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">Save Account</button>
             </form>
+        </div>
+    </div>
+        <div id="activity-expense-ledger" class="activity-screen hidden">
+        <div class="activity-header">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger'); document.querySelector('nav').style.display='flex';">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 500;">Expense Ledger</span>
+        </div>
+        <div class="activity-content">
+            <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
+                <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
+                <input type="text" id="search-expenses" placeholder="Search expenses or categories..." style="flex: 1; min-width: 0;">
+                
+                <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
+                
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-expenses-sort')">sort</span>
+            </div>
+            
+            <input type="hidden" id="sort-expenses" value="date-desc">
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px;">
+                <small style="color:var(--md-text-muted);">Total Expenses: <strong id="sum-expenses" style="color:var(--md-error);">&#8377;0.00</strong></small>
+            </div>
+            <div id="expense-history-container"></div>
         </div>
     </div>
 
@@ -1499,7 +1522,7 @@
         </div>
     </div>
     
-    <div id="update-banner" class="hidden" style="position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--md-surface-variant); color: var(--md-on-surface); padding: 12px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; display: flex; align-items: center; gap: 16px; min-width: 320px; justify-content: space-between;">
+    <div id="update-banner" class="hidden" style="position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: var(--md-surface-variant); color: var(--md-on-surface); padding: 12px 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; display: flex; align-items: center; gap: 16px; min-width: 320px; justify-content: space-between;">
         <div style="display:flex; align-items:center; gap:8px;">
             <span class="material-symbols-outlined" style="color: var(--md-primary);">system_update</span>
             <div>
@@ -1525,9 +1548,9 @@
     
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-    <script src="cloud.js?v=13"></script>
+    <script src="cloud.js?v=14"></script>
 
-    <script type="module" src="app.js?v=13"></script>
+    <script type="module" src="app.js?v=14"></script>
     <script>
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;

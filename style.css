@@ -509,7 +509,7 @@ input:focus, select:focus, textarea:focus {
 /* ==========================================
    FULL-SCREEN ACTIVITIES & BOTTOM SHEETS
    ========================================== */
-.drawer-overlay, .sheet-overlay {
+.sheet-overlay { 
     position: fixed; 
     inset: 0; 
     /* PREMIUM UPGRADE: Soft Blur Overlay */
@@ -521,10 +521,9 @@ input:focus, select:focus, textarea:focus {
     transition: opacity 0.3s ease;
 }
 
-.drawer-overlay { z-index: 3400; }
 .sheet-overlay { z-index: 2500; } 
 
-.drawer-overlay.open, .sheet-overlay.open { 
+.sheet-overlay.open { 
     opacity: 1; 
     pointer-events: auto; 
 }
@@ -534,7 +533,7 @@ input:focus, select:focus, textarea:focus {
     position: fixed; 
     top: 0; left: 0; right: 0; bottom: 0; 
     background-color: var(--md-background) !important; 
-    z-index: 2000; 
+    z-index: 4000; 
     display: flex; 
     flex-direction: column; 
     transform: translateY(100%); /* Slide from bottom */
@@ -1146,7 +1145,7 @@ body.dark-mode .m3-card:focus-within {
 /* 3. The "Ink-Saver" Print Stylesheet */
 @media print {
     /* Hide all app UI elements */
-    #side-drawer, .bottom-nav, #main-fab, .activity-header, .search-bar, 
+    .bottom-nav, #main-fab, .activity-header, .search-bar, 
     .bottom-sheet, .sheet-overlay, .floating-action-button, #update-banner {
         display: none !important;
     }
@@ -1235,4 +1234,14 @@ body.dark-mode .bottom-nav {
         padding-bottom: env(safe-area-inset-bottom, 0px) !important;
         height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
     }
+}
+/* ==========================================
+   DARK MODE TOGGLE ANIMATION
+   ========================================== */
+body.dark-mode .theme-toggle-track {
+    background: var(--md-primary) !important;
+}
+body.dark-mode .theme-toggle-knob {
+    transform: translateX(16px);
+    background: var(--md-on-primary) !important;
 }
