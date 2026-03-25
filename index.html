@@ -276,6 +276,15 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px; background: #e8f5e9; border: 1px solid #c8e6c9;" onclick="if(window.app) window.app.closeFinancialYear()">
+                        <span class="material-symbols-outlined" style="color: #146c2e;">menu_book</span>
+                        <div style="flex: 1;">
+                            <strong style="font-size:15px; color: #146c2e;">Close Financial Year</strong>
+                            <small style="display:block; color: #146c2e; opacity: 0.8; margin-top: 2px;">Generate CA Balances Report</small>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: #146c2e;">download</span>
+                    </div>
+
             </div>
             <div style="height: 80px;"></div>
         </main>
@@ -1601,6 +1610,11 @@
     </div>
     <div id="toast-container"></div>
     
+    <div id="update-snackbar" style="display: none; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--md-primary); color: var(--md-on-primary); padding: 12px 16px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); align-items: center; justify-content: space-between; gap: 16px; width: max-content; max-width: 90vw;">
+        <span style="font-size: 14px; font-weight: 500;">New app version available!</span>
+        <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
+    </div>
+
     <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
     <script src="cloud.js?v=14"></script>

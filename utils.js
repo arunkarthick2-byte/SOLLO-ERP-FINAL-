@@ -10,12 +10,84 @@ const Utils = {
     // ==========================================
     generateId: () => typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'sollo-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
 
+    // --- ENTERPRISE UPGRADE: OFFLINE IMAGE COMPRESSOR ---
+    compressImage: (file, maxWidth = 800, quality = 0.7) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+            };
+        });
+    },
+
     getLocalDate: () => {
         const d = new Date();
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    },
+
+    // --- ENTERPRISE UPGRADE: PROFESSIONAL DATE DISPLAY ---
+    formatDateDisplay: (dateString) => {
+        if (!dateString) return '';
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return dateString; 
+        // Converts "2026-03-25" into "25 Mar 2026"
+        return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    },
+
+    // --- ENTERPRISE UPGRADE: PERFORMANCE DEBOUNCE ---
+    debounce: (func, delay) => {
+        let timeoutId;
+        return function (...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                func.apply(this, args);
+            }, delay);
+        };
+    },
+
+    // --- ENTERPRISE FORMATTING ENGINES ---
+    formatCurrency: (amount) => {
+        // Formats 100000.00 to 1,00,000.00 automatically
+        return new Intl.NumberFormat('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount || 0);
+    },
+
+    numberToWords: (num) => {
+        const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+        const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+        const numStr = Math.floor(num).toString();
+        if (numStr.length > 9) return 'Amount too large';
+        const n = ('000000000' + numStr).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+        if (!n) return '';
+        let str = '';
+        str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
+        str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
+        str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
+        str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
+        str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+        return str.trim() ? str.trim() + ' Rupees Only' : 'Zero Rupees Only';
     },
 
     // --- NEW CODE: TOAST ENGINE ---
@@ -38,10 +110,50 @@ const Utils = {
     },
     // --- END OF NEW CODE ---
 
+    // --- ENTERPRISE UPGRADE: BULLETPROOF MATH PARSER ---
+    safeNumber: (val) => {
+        if (typeof val === 'number') return isNaN(val) ? 0 : val;
+        if (!val) return 0;
+        // Strips out commas, spaces, currency symbols, and letters so math never crashes
+        const cleaned = String(val).replace(/[^0-9.-]+/g, '');
+        const parsed = parseFloat(cleaned);
+        return isNaN(parsed) ? 0 : parsed;
+    },
+
+    // --- ENTERPRISE UPGRADE: STRICT GSTIN VALIDATOR ---
+    validateGSTIN: (gstin) => {
+        if (!gstin) return false;
+        // Official Indian Govt Regex for GST
+        const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+        return gstRegex.test(String(gstin).trim().toUpperCase());
+    },
+
     calculateRowTotal: (qty, rate, gstPercent) => {
-        let baseAmount = Math.round(((parseFloat(qty) || 0) * (parseFloat(rate) || 0)) * 100) / 100;
-        let gstAmount = Math.round((baseAmount * ((parseFloat(gstPercent) || 0) / 100)) * 100) / 100;
+        // UPGRADE: Replaced basic parseFloat with safeNumber to prevent NaN crashes
+        let baseAmount = Math.round((Utils.safeNumber(qty) * Utils.safeNumber(rate)) * 100) / 100;
+        let gstAmount = Math.round((baseAmount * (Utils.safeNumber(gstPercent) / 100)) * 100) / 100;
         let finalTotal = Math.round((baseAmount + gstAmount) * 100) / 100;
+        return { baseAmount, gstAmount, finalTotal };
+    },
+
+    // --- ENTERPRISE UPGRADE: REVERSE GST (INCLUSIVE TAX) ---
+    calculateReverseGST: (mrp, gstPercent) => {
+        // UPGRADE: Replaced basic parseFloat with safeNumber
+        let finalTotal = Utils.safeNumber(mrp);
+        let taxRate = Utils.safeNumber(gstPercent);
+        // Formula: Base = Total / (1 + (GST / 100))
+        let baseAmount = Math.round((finalTotal / (1 + (taxRate / 100))) * 100) / 100;
+        let gstAmount = Math.round((finalTotal - baseAmount) * 100) / 100;
+        return { baseAmount, gstAmount, finalTotal };
+    },
+
+    // --- ENTERPRISE UPGRADE: REVERSE GST (INCLUSIVE TAX) ---
+    calculateReverseGST: (mrp, gstPercent) => {
+        let finalTotal = parseFloat(mrp) || 0;
+        let taxRate = parseFloat(gstPercent) || 0;
+        // Formula: Base = Total / (1 + (GST / 100))
+        let baseAmount = Math.round((finalTotal / (1 + (taxRate / 100))) * 100) / 100;
+        let gstAmount = Math.round((finalTotal - baseAmount) * 100) / 100;
         return { baseAmount, gstAmount, finalTotal };
     },
 
@@ -215,7 +327,8 @@ const Utils = {
                 }
             });
             
-            const imgSrc = canvas.toDataURL('image/jpeg', 1.0);
+            // UPGRADE: Use PNG for crystal clear text when sharing via WhatsApp
+            const imgSrc = canvas.toDataURL('image/png');
 
             const viewer = document.createElement('div');
             viewer.id = 'in-app-pdf-viewer';
@@ -260,7 +373,8 @@ const Utils = {
                     if (navigator.share) {
                         const response = await fetch(imgSrc);
                         const blob = await response.blob();
-                        const file = new File([blob], filename.replace('.pdf', '.jpg'), { type: 'image/jpeg' });
+                        // UPGRADE: Match the PNG format for lossless sharing
+                        const file = new File([blob], filename.replace('.pdf', '.png'), { type: 'image/png' });
                         await navigator.share({
                             title: filename,
                             files: [file]
@@ -362,9 +476,9 @@ const Utils = {
                     </div>
                     <div style="width: 45%;">
                         <table style="width: 100%; font-size: 11px; margin-bottom:0; border: none;">
-                            <tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Invoice Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${doc.date}</td></tr>
+                            <tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Invoice Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${Utils.formatDateDisplay(doc.date)}</td></tr>
                             ${doc.orderNo ? `<tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Order Ref:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${doc.orderNo}</td></tr>` : ''}
-                            ${doc.shippedDate ? `<tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Dispatch Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${doc.shippedDate}</td></tr>` : ''}
+                            ${doc.shippedDate ? `<tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Dispatch Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${Utils.formatDateDisplay(doc.shippedDate)}</td></tr>` : ''}
                             <tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Status:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #0061a4;">${doc.status}</td></tr>
                         </table>
                     </div>
@@ -409,7 +523,7 @@ const Utils = {
                             
                             <tr><td colspan="2" style="padding: 0; border: none;"><div style="background-color: #0061a4; color: white; border-radius: 6px; margin-top: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-weight:bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Grand Total</span>
-                                <span style="font-size: 18px; font-weight:bold;">&#8377;${(parseFloat(doc.grandTotal) || 0).toFixed(2)}</span>
+                                <span style="font-size: 18px; font-weight:bold;">&#8377;${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</span>
                             </div></td></tr>
                             
                             ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
@@ -426,6 +540,10 @@ const Utils = {
                             `}
                         </table>
                     </div>
+                </div>
+
+                <div class="avoid-break" style="margin-top: 15px; border-top: 1px dashed #cbd5e0; padding-top: 15px; page-break-inside: avoid;">
+                    <p style="margin: 0; font-size: 11px; color: #4a5568;"><strong>Amount in Words:</strong> <span style="text-transform: capitalize; color: #1a202c;">${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span></p>
                 </div>
 
                 <div class="avoid-break" style="margin-top: 30px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
@@ -809,6 +927,34 @@ const Utils = {
         } catch (e) {
             console.error(e);
             alert("Export failed.");
+        }
+    },
+
+    // --- ENTERPRISE UPGRADE: UNIVERSAL EXCEL/CSV EXPORTER ---
+    exportArrayToCSV: async (dataArray, filename) => {
+        if (!dataArray || !dataArray.length) return Utils.showToast("No data to export!");
+        
+        // Extract headers automatically from the database keys
+        const headers = Object.keys(dataArray[0]);
+        let csvContent = headers.join(',') + '\n';
+
+        dataArray.forEach(row => {
+            let rowValues = headers.map(header => {
+                let val = row[header];
+                if (val === null || val === undefined) val = '';
+                // Escape quotes and wrap in quotes to safely handle commas inside product names
+                return `"${String(val).replace(/"/g, '""')}"`;
+            });
+            csvContent += rowValues.join(',') + '\n';
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const file = new File([blob], `${filename}.csv`, { type: 'text/csv' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ title: filename, files: [file] });
+        } else {
+            Utils.downloadFile(csvContent, `${filename}.csv`, 'text/csv;charset=utf-8;');
         }
     }
 };

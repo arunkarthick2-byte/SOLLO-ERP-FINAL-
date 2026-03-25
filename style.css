@@ -445,6 +445,17 @@ input:focus, select:focus, textarea:focus {
     cursor: pointer;
     border-radius: 8px; 
     transition: background-color 0.2s ease;
+    /* UPGRADE: Prevent long text from breaking the layout */
+    gap: 12px;
+    overflow: hidden;
+}
+
+/* UPGRADE: Smart text truncation for long item/party names */
+.list-view li span:first-child, .list-view li div:first-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1; /* Pushes the price cleanly to the far right */
 }
 
 /* NEW: List Item Tap Feedback */
@@ -726,9 +737,11 @@ body.dark-mode {
 
 /* Fix card borders and shadows in Dark Mode */
 body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
-    border: 1px solid rgba(195, 199, 207, 0.15); /* Much softer hairline border for dark mode */
-    background: rgba(26, 28, 30, 0.6); /* Slightly translucent dark glass feel */
-    box-shadow: none;
+    /* UPGRADE: Apple-style inner highlight and deep shadow edge */
+    border: 1px solid rgba(255, 255, 255, 0.08); 
+    border-bottom: 1px solid rgba(0, 0, 0, 0.5); 
+    background: linear-gradient(180deg, rgba(35, 38, 41, 0.8) 0%, rgba(26, 28, 30, 0.8) 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 /* 2. Toast Notification Animations (Top-Down Native Style) */
@@ -940,6 +953,15 @@ input[type="checkbox"]:checked::before {
 /* ==========================================
    ELITE UI UPGRADES (WATERFALL & FROSTED GLASS)
    ========================================== */
+
+/* 1. Smooth Native Tab Fade-In */
+.active-screen {
+    animation: screenFadeIn 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes screenFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 
 /* OPTION 2: Waterfall Cascade Animation */
 @keyframes waterfallFadeSlide {
@@ -1175,6 +1197,12 @@ body.dark-mode .m3-card:focus-within {
     * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+    }
+    
+    /* PREVENT PRINTER FROM SLICING INVOICE ROWS IN HALF */
+    tr, .invoice-row, .m3-card, li {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
     }
 }
 /* ==========================================

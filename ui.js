@@ -2095,12 +2095,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ['sales', 'purchases', 'expenses', 'cashbook', 'timeline'].forEach(tab => {
         const searchInput = document.getElementById(`search-${tab}`);
-        if(searchInput) searchInput.addEventListener('input', () => UI.applyFilters(tab));
+        // UPGRADE: 300ms Debounce prevents keyboard lag when typing fast
+        if(searchInput) searchInput.addEventListener('input', window.Utils.debounce(() => UI.applyFilters(tab), 300));
     });
     
     // Master View Hook
     const searchMasterView = document.getElementById('search-master-view');
-    if(searchMasterView) searchMasterView.addEventListener('input', () => UI.applyFilters('masters'));
+    // UPGRADE: 300ms Debounce for the massive Master List
+    if(searchMasterView) searchMasterView.addEventListener('input', window.Utils.debounce(() => UI.applyFilters('masters'), 300));
 
     // UPGRADE 5: Smart Search Clear Buttons (Flagship UI)
     // Automatically injects a clear 'X' into every search bar in the entire app
@@ -2202,12 +2204,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Bottom Sheet Searches
     ['customers', 'suppliers', 'products'].forEach(type => {
         const input = document.getElementById(`search-${type}`);
-        if(input) input.addEventListener('input', (e) => {
+        if(input) input.addEventListener('input', window.Utils.debounce((e) => {
             const term = (e.target.value || '').toLowerCase();
             document.querySelectorAll(`#list-${type} li`).forEach(li => {
                 li.style.display = (li.innerText || '').toLowerCase().includes(term) ? '' : 'none';
             });
-        });
+        }, 300)); // UPGRADE: 300ms Debounce for instant bottom sheet typing
     });
 
     // (Swipe Gesture Engine Removed to prevent accidental deletions)

@@ -129,3 +129,12 @@ self.addEventListener('fetch', (event) => {
         );
     }
 });
+// ==========================================
+// NEW: LISTEN FOR UPDATE COMMAND FROM APP
+// ==========================================
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        // This forces the waiting service worker to become the active one immediately
+        self.skipWaiting(); 
+    }
+});

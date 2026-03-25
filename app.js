@@ -2,6 +2,91 @@
 // SOLLO ERP - MAIN APPLICATION CONTROLLER (v5.2 Enterprise)
 // ==========================================
 
+// --- ENTERPRISE UPGRADE: GLOBAL ERROR SHIELD ---
+window.addEventListener('error', (event) => {
+    console.error("Global Error Caught:", event.error);
+    if (window.Utils && typeof window.Utils.showToast === 'function') {
+        window.Utils.showToast("Something went wrong. Please try again.");
+    }
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    console.error("Unhandled Promise Caught:", event.reason);
+    if (window.Utils && typeof window.Utils.showToast === 'function') {
+        window.Utils.showToast("Network or Database error occurred.");
+    }
+});
+
+// --- ENTERPRISE UPGRADE: POS WAKE LOCK (Keep Screen On) ---
+let wakeLock = null;
+const requestWakeLock = async () => {
+    try {
+        if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            wakeLock.addEventListener('release', () => console.log('Screen Wake Lock released'));
+        }
+    } catch (err) { console.warn(`Wake Lock error: ${err.name}, ${err.message}`); }
+};
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+});
+requestWakeLock(); // Request immediately on boot
+
+// --- ENTERPRISE UPGRADE: "ANTI-SWIPE" DATA LOSS PREVENTER ---
+window.addEventListener('beforeunload', (event) => {
+    // If an activity form is currently open on the screen, warn the user before closing!
+    const openForms = document.querySelectorAll('.activity-screen.open');
+    if (openForms.length > 0) {
+        event.preventDefault();
+        event.returnValue = "You have unsaved changes. Are you sure you want to leave?";
+        return event.returnValue;
+    }
+});
+
+// --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT ---
+window.addEventListener('offline', () => {
+    if (window.Utils && typeof window.Utils.showToast === 'function') {
+        window.Utils.showToast("⚠️ You are offline. Working locally.");
+    }
+});
+window.addEventListener('online', () => {
+    if (window.Utils && typeof window.Utils.showToast === 'function') {
+        window.Utils.showToast("✅ Back online. Sync ready.");
+    }
+});
+
+// --- ENTERPRISE UPGRADE: BANKING APP PRIVACY SHIELD ---
+document.addEventListener('visibilitychange', () => {
+    // Blurs the entire app screen when the user minimizes it or opens the app switcher
+    if (document.hidden) {
+        document.body.style.filter = 'blur(15px)';
+        document.body.style.transition = 'filter 0.2s ease';
+    } else {
+        document.body.style.filter = 'none';
+    }
+});
+
+// --- ENTERPRISE UPGRADE: NATIVE BACK BUTTON FIX ---
+// Force the browser to register a history state so the physical back button works
+history.pushState(null, document.title, window.location.href);
+window.addEventListener('popstate', (event) => {
+    const openSheets = document.querySelectorAll('.bottom-sheet.open');
+    const openActivities = document.querySelectorAll('.activity-screen.open');
+    
+    // If a modal or full-screen form is open, close it instead of exiting the app!
+    if (openSheets.length > 0 || openActivities.length > 0) {
+        if (window.UI) {
+            if (openSheets.length > 0) {
+                window.UI.closeBottomSheet(openSheets[openSheets.length - 1].id);
+            } else if (openActivities.length > 0) {
+                window.UI.closeActivity(openActivities[openActivities.length - 1].id);
+            }
+        }
+        // Re-trap the back button so the user stays in the app
+        history.pushState(null, document.title, window.location.href);
+    }
+});
+
 // --- NEW CODE: Import all our modules ---
 import { 
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
@@ -31,6 +116,26 @@ const app = {
             // --- END OF NEW CODE ---
 
             // (Service Worker registration moved to index.html for PWABuilder)
+            
+            // --- ENTERPRISE UPGRADE: SMART PWA UPDATER ---
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            // If a new update is downloaded from the server and ready...
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('New update available!');
+                                if (window.Utils && typeof window.Utils.showToast === 'function') {
+                                    window.Utils.showToast("New update available! Refreshing app...");
+                                }
+                                // Safely reload to apply the new files
+                                setTimeout(() => window.location.reload(), 2500);
+                            }
+                        });
+                    });
+                });
+            }
 
             // --- NEW CODE: Request Persistent Storage ---
             if (navigator.storage && navigator.storage.persist) {
@@ -2248,6 +2353,77 @@ const app = {
         localStorage.setItem('sollo_doc_formats', JSON.stringify(formats));
         if (window.Utils) window.Utils.showToast("Document Formats Saved! ✅");
         if (window.UI) window.UI.closeBottomSheet('sheet-document-formats');
+    },
+
+    // ==========================================
+    // 10. FINANCIAL YEAR-END ENGINE (NON-DESTRUCTIVE)
+    // ==========================================
+    closeFinancialYear: async () => {
+        if (!confirm("Generate Financial Year-End Closing Report? This will calculate all final Ledger and Bank balances for your CA, without deleting any historical data.")) return;
+        
+        try {
+            if (window.Utils) window.Utils.showToast("Calculating Year-End Balances...");
+            
+            const ledgers = await getAllRecords('ledgers');
+            const accounts = await getAllRecords('accounts');
+            
+            let csvContent = "SOLLO ERP - FINANCIAL YEAR CLOSING BALANCES\n\n";
+            csvContent += `Generated on: ${new Date().toLocaleDateString('en-IN')}\n\n`;
+            
+            csvContent += "1. CUSTOMER & SUPPLIER LEDGERS\n";
+            csvContent += "Party Name,Type,Phone,Closing Balance,Status\n";
+            
+            // Aggregate all Customer & Supplier Balances using your strict Khata Engine
+            for (const party of ledgers) {
+                if (party.firmId !== app.state.firmId) continue;
+                const statement = await getKhataStatement(party.id, party.type);
+                const bal = statement.finalBalance;
+                
+                let status = '';
+                if (party.type === 'Customer') status = bal > 0.01 ? 'To Receive' : (bal < -0.01 ? 'Advance' : 'Settled');
+                else status = bal > 0.01 ? 'To Pay' : (bal < -0.01 ? 'Advance' : 'Settled');
+                
+                csvContent += `"${party.name.replace(/"/g, '""')}","${party.type}","${party.phone || ''}",${Math.abs(bal).toFixed(2)},"${status}"\n`;
+            }
+            
+            csvContent += "\n2. BANK & CASH ACCOUNTS\n";
+            csvContent += "Account Name,Closing Balance\n";
+            
+            const allReceipts = await getAllRecords('receipts');
+            
+            // Compute Main Cash Drawer
+            let cashBal = 0;
+            allReceipts.filter(r => r.firmId === app.state.firmId && (r.accountId === 'cash' || !r.accountId)).forEach(r => {
+                cashBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
+            });
+            csvContent += `"Default Cash Drawer",${cashBal.toFixed(2)}\n`;
+            
+            // Compute Custom Bank Accounts
+            for (const acc of accounts) {
+                if (acc.firmId !== app.state.firmId) continue;
+                let accBal = parseFloat(acc.openingBalance) || 0;
+                allReceipts.filter(r => r.firmId === app.state.firmId && r.accountId === acc.id).forEach(r => {
+                    accBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
+                });
+                csvContent += `"${acc.name.replace(/"/g, '""')}",${accBal.toFixed(2)}\n`;
+            }
+            
+            // Download the Non-Destructive Report
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const file = new File([blob], `FY_Closing_Report_${new Date().getFullYear()}.csv`, { type: 'text/csv' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: "Year End Report", files: [file] });
+            } else if (window.Utils) {
+                window.Utils.downloadFile(csvContent, file.name, 'text/csv;charset=utf-8;');
+            }
+            
+            if (window.Utils) window.Utils.showToast("Year-End Books Generated Successfully! ✅");
+            
+        } catch (error) {
+            console.error("Year End Engine Error:", error);
+            alert("An error occurred while closing the books.");
+        }
     }
 
 }; // <--- THIS IS THE CRITICAL CLOSING BRACKET FOR THE APP OBJECT
