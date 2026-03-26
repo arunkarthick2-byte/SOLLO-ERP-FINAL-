@@ -11,10 +11,9 @@ window.addEventListener('error', (event) => {
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-    console.error("Unhandled Promise Caught:", event.reason);
-    if (window.Utils && typeof window.Utils.showToast === 'function') {
-        window.Utils.showToast("Network or Database error occurred.");
-    }
+    // Log the event for developers, but do NOT show a scary toast to the user.
+    // This prevents false alarms from missing Service Workers or AdBlockers blocking Google Drive.
+    console.warn("Silent background promise rejected:", event.reason);
 });
 
 // --- ENTERPRISE UPGRADE: POS WAKE LOCK (Keep Screen On) ---
@@ -107,9 +106,6 @@ const app = {
         try {
             // --- NEW CODE: Apply theme immediately on boot ---
             UI.initTheme();
-            
-            // NEW: Load our dynamic dropdowns
-            app.loadDropdowns();
             
             // NEW: Load Document Formatting Settings
             app.loadDocumentSettings();
@@ -248,7 +244,7 @@ const app = {
         UI.state.rawData.trash = localTrash.filter(t => t.firmId === app.state.firmId);
 
         // Refresh our new dynamic dropdowns
-        app.loadDropdowns();
+        await app.loadDropdowns();
 
         // Dynamic Account Dropdown Hydration
         const accountDropdowns = ['sales-account-id', 'purchase-account-id', 'expense-account-id', 'pay-in-account', 'pay-out-account'];
