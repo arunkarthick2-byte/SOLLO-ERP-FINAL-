@@ -744,36 +744,6 @@ body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-/* 2. Toast Notification Animations (Top-Down Native Style) */
-#toast-container {
-    position: fixed;
-    top: calc(20px + env(safe-area-inset-top, 0px)); /* Safe from mobile notches */
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10000;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    pointer-events: none; 
-}
-
-.toast {
-    background: var(--md-on-surface);
-    color: var(--md-surface);
-    padding: 14px 28px;
-    border-radius: 50px; 
-    font-size: 14px;
-    font-weight: bold;
-    box-shadow: 0px 12px 28px rgba(0,0,0,0.25); 
-    opacity: 0;
-    transform: translateY(-40px) scale(0.9); /* Drops down from above */
-    transition: opacity 0.3s cubic-bezier(0.2, 0, 0, 1), transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.toast.show {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-}
 /* --- NEW: Strict A4 Document Formatting --- */
 .a4-document {
     width: 210mm;
@@ -1016,11 +986,17 @@ body.dark-mode .search-bar {
 /* 1. Dynamic Glass Toast Notifications (Apple/Material 3 Hybrid) */
 #toast-container {
     position: fixed;
-    top: env(safe-area-inset-top, 20px); 
-    left: 0; right: 0;
-    display: flex; flex-direction: column; align-items: center;
-    pointer-events: none; z-index: 9999;
+    top: calc(20px + env(safe-area-inset-top, 0px)); 
+    left: 50%;
+    transform: translateX(-50%); /* Bulletproof absolute centering */
+    display: flex; 
+    flex-direction: column; 
+    align-items: center;
+    pointer-events: none; 
+    z-index: 99999;
     gap: 10px;
+    width: 90%; /* Stops it from touching the screen edges */
+    max-width: 400px;
 }
 .toast {
     background: rgba(26, 28, 30, 0.85) !important;
@@ -1035,7 +1011,8 @@ body.dark-mode .search-bar {
     box-shadow: 0 12px 32px rgba(0,0,0,0.2);
     transform: translateY(-50px) scale(0.9);
     opacity: 0;
-    /* Spring physics bounce animation */
+    text-align: center;
+    word-wrap: break-word; /* Prevents text cutoff */
     transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
 }
 .toast.show {
@@ -1118,23 +1095,25 @@ body.dark-mode #success-animation { background: rgba(17, 19, 21, 0.85) !importan
    ELITE UI: STICKY FORM TOTALS
    ========================================== */
 .sticky-totals {
-    position: sticky;
-    bottom: env(safe-area-inset-bottom, 12px);
-    z-index: 90;
-    /* Frosted Glass Effect */
+    position: relative; /* FIX: Stops the box from aggressively floating over the keyboard */
+    z-index: 10;
+    margin-top: 16px; /* Gives some breathing room from the items table */
+    
+    /* Kept the premium glass look */
     background: rgba(255, 255, 255, 0.85) !important;
     backdrop-filter: blur(12px) saturate(180%);
     -webkit-backdrop-filter: blur(12px) saturate(180%);
-    /* Floating Shadow */
-    box-shadow: 0 -8px 24px rgba(0,0,0,0.1) !important;
-    border: 1px solid var(--md-primary-container) !important;
+    
+    /* Standardized the shadow so it blends with the other cards */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    border: 1px solid var(--md-outline-variant) !important;
     transition: all 0.3s ease;
 }
 
 body.dark-mode .sticky-totals {
-    background: rgba(26, 28, 30, 0.85) !important;
-    box-shadow: 0 -8px 24px rgba(0,0,0,0.5) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
+    background: rgba(35, 38, 41, 0.85) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
 }
 /* ==========================================
    ELITE CSS: TACTILE, FOCUS, & PRINT
@@ -1281,4 +1260,120 @@ body.dark-mode .theme-toggle-knob {
 }
 .bottom-sheet {
     z-index: 5100 !important;
+}
+/* ==========================================
+   ENTERPRISE UPGRADE: VIRTUAL KEYBOARD SHIELD
+   ========================================== */
+/* Automatically hides the bottom UI when the mobile keyboard pops up,
+   preventing the nav bar from squishing into the middle of the screen. */
+
+@media (max-width: 768px) {
+    body:has(input:focus, textarea:focus) .bottom-nav,
+    body:has(input:focus, textarea:focus) .floating-action-button,
+    body:has(input:focus, textarea:focus) #update-banner {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translateY(100px) !important;
+        transition: none !important; /* Instant hide so it doesn't lag */
+    }
+    
+    /* Give the active screen a little extra breathing room at the bottom so they can scroll to the 'Save' button while the keyboard is open */
+    body:has(input:focus, textarea:focus) .activity-content,
+    body:has(input:focus, textarea:focus) .main-content {
+        padding-bottom: 50vh !important; 
+    }
+}
+/* ==========================================
+   ENTERPRISE UPGRADE: NATIVE FILE UPLOADERS
+   ========================================== */
+/* Hijacks the ugly default browser file input and turns it into a premium dropzone */
+
+input[type="file"] {
+    padding: 10px;
+    background: var(--md-surface-variant);
+    border: 2px dashed var(--md-outline-variant);
+    border-radius: 12px;
+    color: var(--md-on-surface-variant);
+    font-size: 13px;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+/* Styles the actual "Choose File" button inside the input */
+input[type="file"]::file-selector-button {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px; /* Pill shape matching your primary buttons */
+    font-weight: 500;
+    font-size: 13px;
+    margin-right: 12px;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
+    box-shadow: var(--elevation-1);
+}
+
+/* Add the physical squish to the inner upload button */
+input[type="file"]::file-selector-button:active {
+    transform: scale(0.95);
+    box-shadow: none;
+}
+
+input[type="file"]:focus {
+    border-color: var(--md-primary);
+    background: rgba(0, 97, 164, 0.05); /* Very subtle primary tint */
+}
+
+body.dark-mode input[type="file"] {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.2);
+}
+/* ==========================================
+   ENTERPRISE UPGRADE: DATA TABLE MASTERY
+   ========================================== */
+
+/* 1. Sticky Table Headers */
+table {
+    position: relative;
+    border-collapse: collapse; /* Required for sticky borders */
+}
+
+table th {
+    position: sticky;
+    top: 0;
+    /* Must have a solid background so scrolling text doesn't bleed through */
+    background: var(--md-surface-variant) !important; 
+    z-index: 5; /* Floats above the scrolling table rows */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Casts a tiny shadow onto the scrolling data */
+}
+
+/* Fix for Dark Mode Sticky Headers */
+body.dark-mode table th {
+    background: #2a2d31 !important; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+/* 2. Enterprise Zebra Striping (Subtle Alternating Rows) */
+tbody tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02); /* Extremely faint tint */
+}
+
+body.dark-mode tbody tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 3. Row Hover / Tap Highlight */
+/* When a user taps a row, it highlights slightly so they know they selected it */
+tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+tbody tr:active {
+    background-color: rgba(0, 97, 164, 0.08) !important; /* Soft Primary Blue highlight */
+}
+
+body.dark-mode tbody tr:active {
+    background-color: rgba(143, 203, 251, 0.15) !important;
 }

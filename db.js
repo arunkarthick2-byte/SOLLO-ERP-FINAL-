@@ -309,7 +309,9 @@ const getNextDocumentNumber = async (storeName, docType, targetField = null) => 
     const formatSettings = { ...defaultFormats, ...savedFormats };
 
     const template = formatSettings[docType] || `${docType} {NUM}/{FY}`;
-    const padLength = docType === 'INV' ? 3 : 4; // 3 digits for Invoices (001), 4 for others (0001)
+    
+    // ENTERPRISE UPGRADE 1: Standardized 4-digit padding for ALL documents (e.g. 0001)
+    const padLength = 4; 
 
     // 3. Create a strict search pattern for the CURRENT financial year
     const currentYearTemplate = template.replace('{FY}', fyString);
@@ -326,6 +328,7 @@ const getNextDocumentNumber = async (storeName, docType, targetField = null) => 
         if (targetField) {
             docNo = record[targetField] || '';
         } else {
+            // FIX: Corrected typo 'invomiceNo' to 'invoiceNo'
             docNo = (storeName === 'sales' ? record.invoiceNo : (record.poNo || record.invoiceNo)) || ''; 
         }
         
@@ -340,7 +343,16 @@ const getNextDocumentNumber = async (storeName, docType, targetField = null) => 
     });
 
     // 4. Generate the next number and inject it into the template
-    const nextNumber = maxNumber + 1;
+    let nextNumber = maxNumber + 1;
+    
+    // ENTERPRISE UPGRADE 2: CUSTOM STARTING NUMBER
+    // If no invoices exist for this year, check if the user set a custom starting number
+    if (maxNumber === 0) {
+        // Dynamically checks for 'sollo_inv_start', 'sollo_po_start', etc. Defaults to 1.
+        const customStartStr = localStorage.getItem(`sollo_${docType.toLowerCase()}_start`) || '1';
+        nextNumber = parseInt(customStartStr, 10);
+    }
+
     const paddedNumber = String(nextNumber).padStart(padLength, '0');
     
     return currentYearTemplate.replace('{NUM}', paddedNumber);

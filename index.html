@@ -847,7 +847,7 @@
                 <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Sales Invoice</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="text" id="format-inv-prefix" class="m3-input" placeholder="Prefix (e.g., INV/)" style="flex: 1; text-align: right;">
-                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="number" id="format-inv-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
                     <input type="text" id="format-inv-suffix" class="m3-input" placeholder="Suffix (e.g., /{FY})" style="flex: 1;">
                 </div>
             </div>
@@ -856,7 +856,7 @@
                 <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Sales Order</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="text" id="format-ord-prefix" class="m3-input" placeholder="ORD " style="flex: 1; text-align: right;">
-                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="number" id="format-ord-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
                     <input type="text" id="format-ord-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
                 </div>
             </div>
@@ -865,7 +865,7 @@
                 <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Purchase Order</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="text" id="format-po-prefix" class="m3-input" placeholder="PO " style="flex: 1; text-align: right;">
-                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="number" id="format-po-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
                     <input type="text" id="format-po-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
                 </div>
             </div>
@@ -873,7 +873,7 @@
                 <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Credit Note (Sales Return)</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="text" id="format-cn-prefix" class="m3-input" placeholder="CN " style="flex: 1; text-align: right;">
-                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="number" id="format-cn-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
                     <input type="text" id="format-cn-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
                 </div>
             </div>
@@ -882,7 +882,7 @@
                 <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Business Expense</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="text" id="format-exp-prefix" class="m3-input" placeholder="EXP " style="flex: 1; text-align: right;">
-                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="number" id="format-exp-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
                     <input type="text" id="format-exp-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
                 </div>
             </div>
@@ -891,7 +891,7 @@
                 <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Payment In (Receipt)</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="text" id="format-rec-prefix" class="m3-input" placeholder="REC " style="flex: 1; text-align: right;">
-                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="number" id="format-rec-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
                     <input type="text" id="format-rec-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
                 </div>
             </div>
@@ -900,7 +900,7 @@
                 <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Payment Out (Voucher)</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <input type="text" id="format-vou-prefix" class="m3-input" placeholder="VOU " style="flex: 1; text-align: right;">
-                    <strong style="color:var(--md-primary); font-family: monospace; font-size: 16px;">0001</strong>
+                    <input type="number" id="format-vou-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
                     <input type="text" id="format-vou-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
                 </div>
             </div>
@@ -1692,9 +1692,11 @@
                 if (el) {
                     if (!el.value) el.value = today;
                     
-                    // Initialize the Custom Date Picker
+                    // Initialize the Custom Date Picker (Indian Format)
                     flatpickr(el, {
-                        dateFormat: "Y-m-d",
+                        dateFormat: "Y-m-d", // Keeps database sorting perfectly unbroken
+                        altInput: true,      // Creates a visual clone for the user
+                        altFormat: "d/m/Y",  // Displays as DD/MM/YYYY (Indian Standard)
                         defaultDate: el.value || today,
                         disableMobile: "true" 
                     });

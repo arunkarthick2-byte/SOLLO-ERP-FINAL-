@@ -2309,7 +2309,6 @@ const app = {
     loadDocumentSettings: () => {
         const savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}');
         
-        // This splits the saved template (e.g. "INV-{NUM}/{FY}") into the prefix and suffix boxes
         const applyToUI = (key, defaultFormat, idPrefix) => {
             const template = savedFormats[key] || defaultFormat;
             const parts = template.split('{NUM}');
@@ -2326,10 +2325,16 @@ const app = {
         applyToUI('EXP', 'EXP {NUM}/{FY}', 'format-exp');
         applyToUI('REC', 'REC {NUM}/{FY}', 'format-rec');
         applyToUI('VOU', 'VOU {NUM}/{FY}', 'format-vou');
+
+        // Load custom starting numbers into ALL the middle boxes
+        const types = ['inv', 'ord', 'po', 'cn', 'exp', 'rec', 'vou'];
+        types.forEach(type => {
+            const el = document.getElementById(`format-${type}-start`);
+            if (el) el.value = localStorage.getItem(`sollo_${type}_start`) || '';
+        });
     },
 
     saveDocumentSettings: () => {
-        // This stitches the user's inputs back together around the {NUM} tag securely
         const buildFormat = (idPrefix) => {
             const pre = document.getElementById(`${idPrefix}-prefix`).value || '';
             const suf = document.getElementById(`${idPrefix}-suffix`).value || '';
@@ -2347,6 +2352,14 @@ const app = {
         };
         
         localStorage.setItem('sollo_doc_formats', JSON.stringify(formats));
+
+        // Save custom starting numbers from ALL the middle boxes
+        const types = ['inv', 'ord', 'po', 'cn', 'exp', 'rec', 'vou'];
+        types.forEach(type => {
+            const el = document.getElementById(`format-${type}-start`);
+            if (el && el.value) localStorage.setItem(`sollo_${type}_start`, el.value);
+        });
+
         if (window.Utils) window.Utils.showToast("Document Formats Saved! ✅");
         if (window.UI) window.UI.closeBottomSheet('sheet-document-formats');
     },
