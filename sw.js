@@ -3,7 +3,7 @@
 // ==========================================
 
 // --- NEW CODE: Bump the version to 5.6 to clear the cache! ---
-const CACHE_NAME = 'sollo-erp-v5.6-enterprise';
+const CACHE_NAME = 'sollo-erp-v5.8-enterprise';
 // --- END OF NEW CODE ---
 
 const TIMEOUT_MS = 3000; // 3-second timeout to defeat Lie-Fi
@@ -23,6 +23,9 @@ const ASSETS_TO_CACHE = [
     './manifest.json',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js', /* NEW: Enterprise AI Engine */
+ /* FIX: Added Excel Engine to Offline Cache */
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js'
 ];
@@ -68,7 +71,8 @@ self.addEventListener('fetch', (event) => {
         // STRATEGY 1: CACHE-FIRST (For CSS, JS, Fonts, Images)
         // Instantly loads from hardware. Updates cache silently in the background.
         event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
+            // FIX: Added { ignoreSearch: true } so ?v=15 tags don't break offline caching!
+            caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
                 const fetchPromise = fetch(event.request).then((networkResponse) => {
                     if (networkResponse && networkResponse.status === 200) {
                         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse.clone()));
@@ -88,7 +92,8 @@ self.addEventListener('fetch', (event) => {
 
                 const timeoutId = setTimeout(() => {
                     if (!isResolved) {
-                        caches.match(event.request).then((cachedResponse) => {
+                        // FIX 1: Ignore ?v=15 search tags in the timeout fallback
+                        caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
                             if (cachedResponse) {
                                 isResolved = true;
                                 resolve(cachedResponse);
@@ -110,7 +115,8 @@ self.addEventListener('fetch', (event) => {
                 }).catch(() => {
                     clearTimeout(timeoutId);
                     if (!isResolved) {
-                        caches.match(event.request).then((cachedResponse) => {
+                        // FIX 2: Ignore ?v=15 search tags in the network failure fallback
+                        caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
                             if (cachedResponse) {
                                 resolve(cachedResponse);
                             } else {

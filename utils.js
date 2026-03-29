@@ -147,16 +147,6 @@ const Utils = {
         return { baseAmount, gstAmount, finalTotal };
     },
 
-    // --- ENTERPRISE UPGRADE: REVERSE GST (INCLUSIVE TAX) ---
-    calculateReverseGST: (mrp, gstPercent) => {
-        let finalTotal = parseFloat(mrp) || 0;
-        let taxRate = parseFloat(gstPercent) || 0;
-        // Formula: Base = Total / (1 + (GST / 100))
-        let baseAmount = Math.round((finalTotal / (1 + (taxRate / 100))) * 100) / 100;
-        let gstAmount = Math.round((finalTotal - baseAmount) * 100) / 100;
-        return { baseAmount, gstAmount, finalTotal };
-    },
-
     downloadFile: (content, filename, contentType) => {
         const a = document.createElement("a");
         const file = new Blob([content], { type: contentType });
@@ -864,100 +854,187 @@ const Utils = {
         }
     },
 
-    exportGSTCSV: async (reportData) => {
+    // --- ENTERPRISE UPGRADE: TRUE EXCEL (.XLSX) EXPORTER ---
+    exportGSTExcel: async (reportData) => {
         try {
-            let csvContent = "SOLLO ERP - MONTHLY GST REPORT\n";
-            csvContent += `Month: ${reportData.month}\n\n`;
+            if (typeof XLSX === 'undefined') return alert("Excel Engine loading... Please try again in 2 seconds.");
 
-            csvContent += "GSTR-3B SUMMARY\n";
-            csvContent += "Description,Taxable Value,Tax Amount\n";
-            csvContent += `Total Sales (Output Tax),${reportData.gstr1.totalTaxable.toFixed(2)},${reportData.gstr1.totalTax.toFixed(2)}\n`;
-            csvContent += `Total Purchases (Input Tax / ITC),${reportData.gstr2.totalTaxable.toFixed(2)},${reportData.gstr2.totalTax.toFixed(2)}\n`;
-            csvContent += `NET GST PAYABLE TO GOVT,,${reportData.gstr3b.netPayable.toFixed(2)}\n\n`;
+            const wb = XLSX.utils.book_new();
 
-            csvContent += "GSTR-1 (SALES) BREAKDOWN\n";
-            csvContent += "Category,Taxable Value,Tax Amount\n";
-            csvContent += `B2B Sales (Registered),${reportData.gstr1.b2bTaxable.toFixed(2)},${reportData.gstr1.b2bTax.toFixed(2)}\n`;
-            csvContent += `B2C Sales (Unregistered),${reportData.gstr1.b2cTaxable.toFixed(2)},${reportData.gstr1.b2cTax.toFixed(2)}\n\n`;
+            // SHEET 1: Summary Data
+            const summaryData = [
+                ["SOLLO ERP - MONTHLY GST REPORT"],
+                ["Month", reportData.month],
+                [],
+                ["GSTR-3B SUMMARY"],
+                ["Description", "Taxable Value", "Tax Amount"],
+                ["Total Sales (Output Tax)", reportData.gstr1.totalTaxable, reportData.gstr1.totalTax],
+                ["Total Purchases (Input Tax / ITC)", reportData.gstr2.totalTaxable, reportData.gstr2.totalTax],
+                ["NET GST PAYABLE TO GOVT", "", reportData.gstr3b.netPayable],
+                [],
+                ["GSTR-1 (SALES) BREAKDOWN"],
+                ["Category", "Taxable Value", "Tax Amount"],
+                ["B2B Sales (Registered)", reportData.gstr1.b2bTaxable, reportData.gstr1.b2bTax],
+                ["B2C Sales (Unregistered)", reportData.gstr1.b2cTaxable, reportData.gstr1.b2cTax]
+            ];
+            const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+            XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
-            csvContent += "DETAILED B2B SALES FOR CA PORTAL UPLOAD\n";
-            csvContent += "Date,Invoice No,Customer Name,Customer GSTIN,Taxable Value,GST Amount,Total Invoice Value\n";
+            // SHEET 2: B2B Detailed Sales for CA Portal
+            const b2bData = [
+                ["Date", "Invoice No", "Customer Name", "Customer GSTIN", "Taxable Value", "GST Amount", "Total Invoice Value"]
+            ];
             
-                        const ledgers = await getAllRecords('ledgers');
-            
+            const ledgers = await getAllRecords('ledgers');
             reportData.rawSales.forEach(s => {
-                // NEW: Skip Bill of Supply (Non-GST) from the detailed CA export
                 if (s.invoiceType === 'Non-GST') return;
-
                 let cust = ledgers.find(l => l.id === s.customerId);
                 let gstin = cust ? cust.gst : '';
                 if (gstin && gstin.trim() !== '') {
                     let taxable = parseFloat(s.subtotal) * (s.documentType === 'return' ? -1 : 1);
                     let tax = parseFloat(s.totalGst) * (s.documentType === 'return' ? -1 : 1);
                     let total = parseFloat(s.grandTotal) * (s.documentType === 'return' ? -1 : 1);
-                    
-                    // Fixed the CSV Quote Escaping Bug (replaces internal " with "")
-                    const safeName = (s.customerName || '').replace(/"/g, '""');
-                    csvContent += `${s.date},${s.invoiceNo},"${safeName}",${gstin.toUpperCase()},${taxable.toFixed(2)},${tax.toFixed(2)},${total.toFixed(2)}\n`;
+                    b2bData.push([s.date, s.invoiceNo, s.customerName || '', gstin.toUpperCase(), taxable, tax, total]);
                 }
             });
+            const wsB2B = XLSX.utils.aoa_to_sheet(b2bData);
+            XLSX.utils.book_append_sheet(wb, wsB2B, "B2B Sales");
 
-            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-            const file = new File([blob], `GST_Report_${new Date().toISOString().split('T')[0]}.csv`, { type: "text/csv" });
+            // Generate and Download Excel File
+            const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const file = new File([blob], `GST_Report_${reportData.month}.xlsx`, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    title: "SOLLO GST Report",
-                    text: "Here is your GST Report for the accountant.",
-                    files: [file]
-                });
+                await navigator.share({ title: "SOLLO GST Excel", text: "Here is your Excel GST Report.", files: [file] });
             } else {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
-                a.style.display = "none";
                 a.href = url;
                 a.download = file.name;
-                document.body.appendChild(a);
                 a.click();
                 URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                alert("✅ GST Report downloaded successfully!");
             }
-
+            if (window.Utils) window.Utils.showToast("✅ Excel Report Generated!");
         } catch (e) {
             console.error(e);
-            alert("Export failed.");
+            alert("Excel Export failed.");
         }
     },
 
-    // --- ENTERPRISE UPGRADE: UNIVERSAL EXCEL/CSV EXPORTER ---
-    exportArrayToCSV: async (dataArray, filename) => {
+    exportArrayToExcel: async (dataArray, filename) => {
         if (!dataArray || !dataArray.length) return Utils.showToast("No data to export!");
-        
-        // Extract headers automatically from the database keys
-        const headers = Object.keys(dataArray[0]);
-        let csvContent = headers.join(',') + '\n';
+        if (typeof XLSX === 'undefined') return alert("Excel Engine loading... Please try again.");
 
-        dataArray.forEach(row => {
-            let rowValues = headers.map(header => {
-                let val = row[header];
-                if (val === null || val === undefined) val = '';
-                // Escape quotes and wrap in quotes to safely handle commas inside product names
-                return `"${String(val).replace(/"/g, '""')}"`;
-            });
-            csvContent += rowValues.join(',') + '\n';
-        });
+        // Convert JSON to Excel Sheet
+        const ws = XLSX.utils.json_to_sheet(dataArray);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Data");
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const file = new File([blob], `${filename}.csv`, { type: 'text/csv' });
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const file = new File([blob], `${filename}.xlsx`, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ title: filename, files: [file] });
         } else {
-            Utils.downloadFile(csvContent, `${filename}.csv`, 'text/csv;charset=utf-8;');
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = file.name;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    },
+
+    // --- LEGACY BRIDGES (Prevents your existing HTML buttons from breaking!) ---
+    exportGSTCSV: (data) => Utils.exportGSTExcel(data),
+    exportArrayToCSV: (data, name) => Utils.exportArrayToExcel(data, name), // <--- ADDED COMMA HERE
+
+    // ==========================================
+    // ENTERPRISE AI: UNIVERSAL DOCUMENT SCANNER
+    // ==========================================
+    startAIScanner: async (moduleType) => {
+        if (typeof Tesseract === 'undefined') {
+            return alert("AI Engine is loading. Please check your internet connection.");
+        }
+
+        // 1. Create an invisible file input that triggers Camera or Gallery!
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'environment'; // Suggests camera, but allows gallery
+
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (window.Utils) window.Utils.showToast("🤖 AI is reading the document... Please wait.");
+
+            try {
+                // Compress image to make AI processing much faster
+                const compressedImage = await Utils.compressImage(file, 1200, 0.7);
+
+                // Run the OCR Engine
+                const result = await Tesseract.recognize(compressedImage, 'eng', {
+                    logger: m => console.log("AI Progress:", m)
+                });
+
+                const text = result.data.text;
+                Utils.processAIText(text, moduleType);
+
+            } catch (err) {
+                console.error("AI Scan Failed:", err);
+                alert("AI Engine failed to read the image. Please try a clearer photo.");
+            }
+        };
+        
+        input.click(); // Open the camera/gallery
+    },
+
+    processAIText: (text, moduleType) => {
+        // 2. Regex Pattern Matching to hunt down Enterprise Data
+        const gstinMatch = text.match(/\b([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})\b/i);
+        const amountMatch = text.match(/(?:total|amount|grand|net|payable|pay|sum)[\s:.-]*([₹$€£]?\s*[\d,]+\.\d{2})/i);
+        const invMatch = text.match(/(?:inv|invoice|bill|receipt|ref|no|po)[\s:.-]*([A-Z0-9-/]+)/i);
+        const dateMatch = text.match(/\b(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\b/);
+
+        const extracted = {
+            gstin: gstinMatch ? gstinMatch[1].toUpperCase() : '',
+            amount: amountMatch ? amountMatch[1].replace(/[^0-9.]/g, '') : '',
+            invNo: invMatch ? invMatch[1].toUpperCase() : '',
+            date: dateMatch ? dateMatch[1].replace(/\./g, '-') : ''
+        };
+
+        // 3. THE REVIEW STEP: Alert the user with what the AI found
+        let msg = "🤖 AI Scan Complete! Please verify:\n\n";
+        if (extracted.invNo) msg += `Document No: ${extracted.invNo}\n`;
+        if (extracted.amount) msg += `Total Amount: ₹${extracted.amount}\n`;
+        if (extracted.gstin) msg += `GSTIN: ${extracted.gstin}\n`;
+        if (extracted.date) msg += `Date Found: ${extracted.date}\n`;
+        msg += "\n(The app will now auto-fill these values into the form.)";
+
+        alert(msg);
+
+        // 4. Safe Auto-Fill Logic
+        try {
+            if (moduleType === 'expense') {
+                if (extracted.amount && document.getElementById('expense-amount')) document.getElementById('expense-amount').value = extracted.amount;
+                if (extracted.invNo && document.getElementById('expense-ref')) document.getElementById('expense-ref').value = extracted.invNo;
+            } 
+            else if (moduleType === 'purchase' || moduleType === 'sales') {
+                if (extracted.invNo && document.getElementById('invoice-no')) document.getElementById('invoice-no').value = extracted.invNo;
+                if (extracted.invNo && document.getElementById('po-no')) document.getElementById('po-no').value = extracted.invNo;
+            }
+            else if (moduleType === 'product') {
+                if (extracted.amount && document.getElementById('item-mrp')) document.getElementById('item-mrp').value = extracted.amount;
+            }
+            if (window.Utils) window.Utils.showToast("✅ Auto-Fill Applied! Please verify data before saving.");
+        } catch (e) {
+            console.log("Auto-fill safely skipped.");
         }
     }
-};
+}; // <--- THIS CLOSES THE UTILS OBJECT
 
 // ==========================================
 // NEW CODE: ES MODULE EXPORT & GLOBAL MAP

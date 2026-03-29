@@ -66,22 +66,21 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // --- ENTERPRISE UPGRADE: NATIVE BACK BUTTON FIX ---
-// Force the browser to register a history state so the physical back button works
 history.pushState(null, document.title, window.location.href);
 window.addEventListener('popstate', (event) => {
     const openSheets = document.querySelectorAll('.bottom-sheet.open');
-    const openActivities = document.querySelectorAll('.activity-screen.open');
-    
-    // If a modal or full-screen form is open, close it instead of exiting the app!
-    if (openSheets.length > 0 || openActivities.length > 0) {
-        if (window.UI) {
-            if (openSheets.length > 0) {
-                window.UI.closeBottomSheet(openSheets[openSheets.length - 1].id);
-            } else if (openActivities.length > 0) {
-                window.UI.closeActivity(openActivities[openActivities.length - 1].id);
-            }
+    if (openSheets.length > 0) {
+        if (window.UI) window.UI.closeBottomSheet(openSheets[openSheets.length - 1].id);
+        history.pushState(null, document.title, window.location.href);
+    } else if (window.activityStack && window.activityStack.length > 0) {
+        // CLOSE ONLY THE TOPMOST FORM IN THE STACK!
+        const topActivityId = window.activityStack.pop();
+        const el = document.getElementById(topActivityId);
+        if (el) {
+            el.classList.remove('open');
+            // FIX: Wait for the slide-down animation to finish before turning the invisible shield back on
+            setTimeout(() => el.classList.add('hidden'), 350); 
         }
-        // Re-trap the back button so the user stays in the app
         history.pushState(null, document.title, window.location.href);
     }
 });
@@ -95,6 +94,68 @@ import {
 import Utils from './utils.js?v=3';
 import UI from './ui.js?v=final-fix-2';
 // --- END OF NEW CODE ---
+
+// --- ENTERPRISE UPGRADE: NESTED FORM ROUTING SHIELD ---
+if (UI) {
+    window.activityStack = [];
+    
+    UI.openActivity = (id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.remove('hidden'); 
+            setTimeout(() => {
+                el.classList.add('open');
+                window.activityStack = window.activityStack.filter(x => x !== id);
+                window.activityStack.push(id);
+                el.style.zIndex = 100 + window.activityStack.length; 
+            }, 10);
+        }
+    };
+    
+    UI.closeActivity = (id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.classList.remove('open');
+            setTimeout(() => el.classList.add('hidden'), 350); 
+        }
+        window.activityStack = window.activityStack.filter(x => x !== id);
+    };
+
+    // NEW: Shield Bottom Sheets so they don't aggressively wipe activities!
+    UI.openBottomSheet = (id) => {
+        const overlay = document.getElementById('sheet-overlay');
+        const sheet = document.getElementById(id);
+        if (overlay) { overlay.classList.remove('hidden'); setTimeout(()=> overlay.classList.add('open'), 10); }
+        if (sheet) sheet.classList.add('open');
+    };
+
+    UI.closeBottomSheet = (id) => {
+        const sheet = document.getElementById(id);
+        if (sheet) sheet.classList.remove('open');
+        setTimeout(() => {
+            const openSheets = document.querySelectorAll('.bottom-sheet.open');
+            if (openSheets.length === 0) {
+                const overlay = document.getElementById('sheet-overlay');
+                if (overlay) {
+                    overlay.classList.remove('open');
+                    setTimeout(() => overlay.classList.add('hidden'), 300);
+                }
+            }
+        }, 50);
+    };
+
+    UI.closeAllBottomSheets = () => {
+        document.querySelectorAll('.bottom-sheet.open').forEach(el => el.classList.remove('open'));
+        const overlay = document.getElementById('sheet-overlay');
+        if (overlay) {
+            overlay.classList.remove('open');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+    };
+
+    // FORCE these onto window so HTML onclicks are perfectly shielded!
+    window.UI = UI;
+}
 
 const app = {
     state: { currentEditId: null, currentReceiptId: null, currentDocType: 'invoice', firmId: 'firm1' },
@@ -166,7 +227,8 @@ const app = {
             if (action === 'new_sale') {
                 setTimeout(() => app.openForm('sales', null, 'invoice'), 300);
             } else if (action === 'cashbook') {
-                setTimeout(() => { if(window.UI) window.UI.switchTab('cashbook'); }, 300);
+                // FIX: Pass the correct tab ID and Screen Title
+                setTimeout(() => { if(window.UI) window.UI.switchTab('tab-cashbook', 'Cashbook & Banking'); }, 300);
             }
 
         } catch (e) { 
@@ -404,6 +466,7 @@ const app = {
                 
                 // FIX: Fetch existing database records ONCE outside the loop to prevent massive freezing!
                 const existingItems = type === 'products' ? await getAllRecords('items') : [];
+                const existingLedgers = (type === 'customers' || type === 'suppliers') ? await getAllRecords('ledgers') : [];
                 
                 for (let i = 1; i < rows.length; i++) {
                     const cols = parseCSVRow(rows[i]);
@@ -464,8 +527,13 @@ const app = {
                         if (balTypeRaw.includes('pay') || balTypeRaw.includes('credit')) balType = 'To Pay / Credit';
                         else if (balTypeRaw.includes('receive') || balTypeRaw.includes('debit')) balType = 'To Receive / Debit';
 
+                        // FIX: Search the pre-loaded memory array instead of querying the database on every single row!
+                        const match = existingLedgers.find(l => l.firmId === app.state.firmId && l.type === pType && 
+                            (l.name.toLowerCase() === cols[nameIdx].toLowerCase() || (cols[phoneIdx] && l.phone === cols[phoneIdx]))
+                        );
+
                         const data = {
-                            id: Utils.generateId(),
+                            id: match ? match.id : Utils.generateId(), // Re-use ID if they already exist
                             firmId: app.state.firmId,
                             name: cols[nameIdx],
                             type: pType,
@@ -478,6 +546,11 @@ const app = {
                             balanceType: balType
                         };
                         await saveRecord('ledgers', data);
+                        
+                        // FIX: Push the new party into memory so if the CSV has the same name twice, it doesn't duplicate!
+                        if (!match) existingLedgers.push(data);
+                        else Object.assign(match, data);
+
                         successCount++;
                     }
                 }
@@ -944,99 +1017,115 @@ const app = {
     // 4. FORM INITIALIZATION & ROUTING
     // ==========================================
     openForm: async (type, id = null, docType = 'invoice') => {
-        UI.closeAllBottomSheets();
-        app.state.currentEditId = id;
-        app.state.currentDocType = docType;
-        
-        const form = document.getElementById(`form-${type}`);
-        if(form) {
-            form.reset();
-            // Wipe ghost images from previous sessions
-            form.querySelectorAll('img').forEach(img => {
-                img.src = '';
-                img.classList.add('hidden');
-            });
-        }
-        
-        // Hide delete buttons for new records
-        UI.toggleDeleteButton(type, !!id);
-
-        if (type === 'sales' || type === 'purchase') {
-            document.getElementById(`${type}-items-body`).innerHTML = '';
-            document.getElementById(`${type}-subtotal`).innerText = '\u20B90.00';
-            document.getElementById(`${type}-gst-total`).innerText = '\u20B90.00';
-            document.getElementById(`${type}-grand-total`).innerText = '\u20B90.00';
-            document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).innerText = `Select ${type === 'sales' ? 'Customer' : 'Supplier'}...`;
-            document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).style.color = 'var(--md-text-muted)';
+        try {
+            UI.closeAllBottomSheets();
             
-            // NEW: Hide payment history when creating a brand new record
-            const historyCard = document.getElementById(`${type}-payment-history-card`);
-            if (historyCard) historyCard.classList.add('hidden');
-            const expenseCard = document.getElementById(`${type}-expense-history-card`);
-            if (expenseCard) expenseCard.classList.add('hidden');
-            const titleEl = document.getElementById(`form-title-${type}`);
-            const btnEl = document.getElementById(`btn-save-${type}`);
-            const headerEl = document.getElementById(`activity-${type}-form`).querySelector('.activity-header');
+            // --- ENTERPRISE UPGRADE: NESTED MEMORY SHIELD ---
+            // Do NOT overwrite memory if we are opening a Master form on top of an active invoice!
+            const salesOpen = document.getElementById('activity-sales-form')?.classList.contains('open');
+            const purchOpen = document.getElementById('activity-purchase-form')?.classList.contains('open');
+            const isMaster = (type === 'ledger' || type === 'product' || type === 'account');
+            
+            if (!(isMaster && (salesOpen || purchOpen))) {
+                app.state.currentEditId = id;
+                app.state.currentDocType = docType;
+            }
+            // ------------------------------------------------
+            
+            const form = document.getElementById(`form-${type}`);
+            if(form) {
+                form.reset();
+                // Wipe ghost images from previous sessions
+                form.querySelectorAll('img').forEach(img => {
+                    img.src = '';
+                    img.classList.add('hidden');
+                });
+            }
+            
+            // Hide delete buttons for new records
+            UI.toggleDeleteButton(type, !!id);
 
-            if (docType === 'return') {
-                if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Credit Note' : 'Debit Note'}` : `New ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
-                if (btnEl) btnEl.innerText = `Save ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
-                if (headerEl) headerEl.style.backgroundColor = type === 'sales' ? '#fff0f2' : '#e8f5e9';
+            if (type === 'sales' || type === 'purchase') {
+                document.getElementById(`${type}-items-body`).innerHTML = '';
+                document.getElementById(`${type}-subtotal`).innerText = '\u20B90.00';
+                document.getElementById(`${type}-gst-total`).innerText = '\u20B90.00';
+                document.getElementById(`${type}-grand-total`).innerText = '\u20B90.00';
+                document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).innerText = `Select ${type === 'sales' ? 'Customer' : 'Supplier'}...`;
+                document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).style.color = 'var(--md-text-muted)';
                 
-                const refGroup = document.getElementById(`${type}-return-ref-group`);
-                if (refGroup) refGroup.classList.remove('hidden');
+                // NEW: Hide payment history when creating a brand new record
+                const historyCard = document.getElementById(`${type}-payment-history-card`);
+                if (historyCard) historyCard.classList.add('hidden');
+                const expenseCard = document.getElementById(`${type}-expense-history-card`);
+                if (expenseCard) expenseCard.classList.add('hidden');
+                const titleEl = document.getElementById(`form-title-${type}`);
+                const btnEl = document.getElementById(`btn-save-${type}`);
+                const headerEl = document.getElementById(`activity-${type}-form`).querySelector('.activity-header');
+
+                if (docType === 'return') {
+                    if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Credit Note' : 'Debit Note'}` : `New ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
+                    if (btnEl) btnEl.innerText = `Save ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
+                    if (headerEl) headerEl.style.backgroundColor = type === 'sales' ? '#fff0f2' : '#e8f5e9';
+                    
+                    const refGroup = document.getElementById(`${type}-return-ref-group`);
+                    if (refGroup) refGroup.classList.remove('hidden');
+                } else {
+                    if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}` : `New ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}`;
+                    if (btnEl) btnEl.innerText = `Save ${type === 'sales' ? 'Invoice' : 'Purchase'}`;
+                    if (headerEl) headerEl.style.backgroundColor = 'var(--md-surface)';
+                    
+                    const refGroup = document.getElementById(`${type}-return-ref-group`);
+                    if (refGroup) refGroup.classList.add('hidden');
+                }
+                
+                UI.toggleDates(type);
+            }
+
+            if (id) {
+                await app.populateEditForm(type, id);
             } else {
-                if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}` : `New ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}`;
-                if (btnEl) btnEl.innerText = `Save ${type === 'sales' ? 'Invoice' : 'Purchase'}`;
-                if (headerEl) headerEl.style.backgroundColor = 'var(--md-surface)';
+                const dateInput = document.getElementById(`${type}-date`);
+                if(dateInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
+                    dateInput.value = Utils.getLocalDate();
+                    if (dateInput._flatpickr) dateInput._flatpickr.setDate(Utils.getLocalDate()); // FIX: Sync Flatpickr
+                }
                 
-                const refGroup = document.getElementById(`${type}-return-ref-group`);
-                if (refGroup) refGroup.classList.add('hidden');
+                // Injecting the Editable Auto-Numbering Engine
+                if (type === 'sales' && typeof getNextDocumentNumber === 'function') {
+                    const prefix = docType === 'return' ? 'CN' : 'INV';
+                    document.getElementById('sales-invoice-no').value = await getNextDocumentNumber('sales', prefix);
+                    // NEW: Auto increment Order Ref No as well
+                    document.getElementById('sales-order-no').value = await getNextDocumentNumber('sales', 'ORD', 'orderNo');
+                } else if (type === 'purchase' && typeof getNextDocumentNumber === 'function') {
+                    document.getElementById('purchase-po-no').value = ''; // Keep Supplier Bill blank
+                    // NEW: Auto-increment Our PO No instead!
+                    document.getElementById('purchase-order-no').value = await getNextDocumentNumber('purchases', 'PO', 'orderNo');
+                }
             }
             
-            UI.toggleDates(type);
+            // NEW: Expense form specific logic
+            if (type === 'expense') {
+                if (!id && typeof getNextDocumentNumber === 'function') {
+                    document.getElementById('expense-no').value = await getNextDocumentNumber('expenses', 'EXP', 'expenseNo');
+                }
+                
+                // Reset the display label
+                const displayEl = document.getElementById('expense-linked-display');
+                if (displayEl) {
+                    displayEl.innerText = '-- No Link (General Expense) --';
+                    displayEl.style.color = 'var(--md-text-muted)';
+                }
+                
+                // Build the new search screen
+                if (typeof app.loadLinkedDocsList === 'function') app.loadLinkedDocsList();
+            }
+            
+            UI.openActivity(`activity-${type}-form`);
+            
+        } catch (error) {
+            console.error("CRITICAL ROUTING ERROR:", error);
+            alert("Error opening form: " + error.message);
         }
-
-        if (id) {
-            await app.populateEditForm(type, id);
-        } else {
-            const dateInput = document.getElementById(`${type}-date`);
-            if(dateInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
-                dateInput.value = Utils.getLocalDate();
-                if (dateInput._flatpickr) dateInput._flatpickr.setDate(Utils.getLocalDate()); // FIX: Sync Flatpickr
-            }
-            
-            // Injecting the Editable Auto-Numbering Engine
-            if (type === 'sales' && typeof getNextDocumentNumber === 'function') {
-                const prefix = docType === 'return' ? 'CN' : 'INV';
-                document.getElementById('sales-invoice-no').value = await getNextDocumentNumber('sales', prefix);
-                // NEW: Auto increment Order Ref No as well
-                document.getElementById('sales-order-no').value = await getNextDocumentNumber('sales', 'ORD', 'orderNo');
-            } else if (type === 'purchase' && typeof getNextDocumentNumber === 'function') {
-                document.getElementById('purchase-po-no').value = ''; // Keep Supplier Bill blank
-                // NEW: Auto-increment Our PO No instead!
-                document.getElementById('purchase-order-no').value = await getNextDocumentNumber('purchases', 'PO', 'orderNo');
-            }
-        }
-        
-        // NEW: Expense form specific logic
-        if (type === 'expense') {
-            if (!id && typeof getNextDocumentNumber === 'function') {
-                document.getElementById('expense-no').value = await getNextDocumentNumber('expenses', 'EXP', 'expenseNo');
-            }
-            
-            // Reset the display label
-            const displayEl = document.getElementById('expense-linked-display');
-            if (displayEl) {
-                displayEl.innerText = '-- No Link (General Expense) --';
-                displayEl.style.color = 'var(--md-text-muted)';
-            }
-            
-            // Build the new search screen
-            if (typeof app.loadLinkedDocsList === 'function') app.loadLinkedDocsList();
-        }
-        
-        UI.openActivity(`activity-${type}-form`);
     },
 
     // ==========================================
@@ -1481,6 +1570,44 @@ const app = {
                 }
 
                 await saveRecord(storeName, data);
+
+                // --- ENTERPRISE UPGRADE: SMART AUTO-SELECT FOR NESTED FORMS ---
+                // If the user was in the middle of an invoice, automatically drop the new item/party in!
+                const salesOpen = document.getElementById('activity-sales-form')?.classList.contains('open');
+                const purchOpen = document.getElementById('activity-purchase-form')?.classList.contains('open');
+                
+                if (salesOpen || purchOpen) {
+                    const prefix = salesOpen ? 'sales' : 'purchase';
+                    
+                    if (type === 'ledger') {
+                        const partyKey = salesOpen ? 'customer' : 'supplier';
+                        const idEl = document.getElementById(`${prefix}-${partyKey}-id`);
+                        const displayEl = document.getElementById(`${prefix}-${partyKey}-display`);
+                        if (idEl) idEl.value = data.id;
+                        if (displayEl) {
+                            displayEl.innerText = data.name;
+                            displayEl.style.color = 'var(--md-on-surface)';
+                        }
+                        if (window.Utils) window.Utils.showToast("Party Saved & Auto-Selected! ✅");
+                    } 
+                    else if (type === 'product') {
+                        if (!UI.state.rawData.items) UI.state.rawData.items = [];
+                        UI.state.rawData.items.push(data); // Inject into memory
+                        
+                        const list = document.getElementById('list-products');
+                        if (list) {
+                            const li = document.createElement('li');
+                            li.innerHTML = `
+                                <div><strong>${data.name}</strong><br><small style="color:var(--md-text-muted);">Stock: ${data.stock} ${data.uom} | ₹${data.sellPrice.toFixed(2)}</small></div>
+                                <input type="checkbox" value="${data.id}" style="width: 24px; height: 24px;">
+                            `;
+                            list.insertBefore(li, list.firstChild);
+                        }
+                        if (window.Utils) window.Utils.showToast("Product Saved & Added to List! ✅");
+                        setTimeout(() => { if(window.UI) window.UI.openBottomSheet('sheet-products'); }, 300);
+                    }
+                }
+                // --------------------------------------------------------------
 
                 // Automatically log Expenses as "Money Out" in the Cashbook
                 if (type === 'expense') {

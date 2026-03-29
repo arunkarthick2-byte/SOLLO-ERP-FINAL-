@@ -2,8 +2,8 @@
    PREMIUM APP POLISH: "ANTI-WEB" SHIELD
    ========================================== */
 body {
-    /* Disable pull-to-refresh browser bouncing */
-    overscroll-behavior-y: none;
+    /* FIX: Changed to 'contain' to enable the native Android 12+ "Stretch" overscroll effect while still preventing page-reloads */
+    overscroll-behavior-y: contain;
     /* Disable text selection on UI elements */
     user-select: none;
     -webkit-user-select: none;
@@ -70,7 +70,8 @@ html, body {
     min-height: 100vh;
     min-height: 100dvh; 
     
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Segoe UI', sans-serif;
+    /* FIX: Stripped Apple fonts, using true Android native font stack */
+    font-family: system-ui, 'Roboto', sans-serif; 
     font-variant-numeric: tabular-nums; 
     color: var(--md-on-surface);
     overflow: hidden; 
@@ -149,7 +150,7 @@ a, button, input, select, textarea, .tap-target, .nav-item, .chip, .list-view li
     background-color: var(--md-background);
     
     /* Hardware Acceleration and Native Android Scroll Momentum */
-    -webkit-overflow-scrolling: touch;
+    /* FIX: Removed heavy iOS webkit scrolling hack */
     overscroll-behavior-y: contain;
     transform: translateZ(0);
     will-change: transform;
@@ -179,10 +180,13 @@ a, button, input, select, textarea, .tap-target, .nav-item, .chip, .list-view li
     border-top: 1px solid rgba(195, 199, 207, 0.3); 
     z-index: 1000;
     
-    /* UPGRADE: iOS Style Glassmorphism Bottom Nav */
+    /* UPGRADE: Native Android Glassmorphism Bottom Nav */
     background: rgba(253, 252, 255, 0.85); 
     backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    
+    /* FIX: Smooth slide transition for scroll-hide feature */
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s ease;
+    will-change: transform;
 }
 body.dark-mode .bottom-nav {
     background: rgba(26, 28, 30, 0.85);
@@ -558,6 +562,14 @@ input:focus, select:focus, textarea:focus {
     opacity: 1;
 }
 
+/* FIX: Completely hide the bottom menu and FAB when a full-screen form/document is open */
+body:has(.activity-screen.open) .bottom-nav,
+body:has(.activity-screen.open) .floating-action-button {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(100px) !important; /* Slides them down off the screen seamlessly */
+}
+
 .activity-header { 
     display: flex; align-items: center; justify-content: space-between; 
     padding: 12px 16px; 
@@ -626,8 +638,20 @@ body.dark-mode .activity-header {
 
 /* UPGRADE 3: Visual Empty States */
 .empty-state { 
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; color: var(--md-text-muted); padding: 40px 20px; 
+    display: flex !important; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; color: var(--md-text-muted) !important; padding: 40px 20px !important; 
+    font-weight: 500;
+}
+
+/* INJECT: Beautiful grey icon into basic empty states (ignores the ones that already have custom SVGs!) */
+.empty-state:not(:has(svg))::before {
+    content: "\eb93"; /* Material Symbol: text_snippet */
+    font-family: 'Material Symbols Outlined';
+    font-size: 56px;
+    color: var(--md-outline-variant);
+    margin-bottom: 12px;
+    opacity: 0.5;
+    font-weight: normal;
 }
 
 /* UPGRADE 4: Sticky Date Headers (Like WhatsApp) */
@@ -779,7 +803,7 @@ body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1001; /* Stays above headers */
+    z-index: 6000; /* FIX: Must be higher than activity-screen (4000) and bottom-sheets (5100) */
     transform: translateY(-100%);
     transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.4s ease;
 }
@@ -961,8 +985,9 @@ input[type="checkbox"]:checked::before {
 /* OPTION 3: Frosted Glass Sticky Search Bars */
 .search-bar {
     position: sticky !important;
-    top: env(safe-area-inset-top, 8px) !important; 
-    z-index: 100 !important;
+    /* FIX: Removed 'env()' to fix Android WebView misalignment */
+    top: -1px !important; 
+    z-index: 45 !important; /* FIX: Kept high enough to float over lists, but well below sheets/overlays */
     
     /* The Glassmorphism Magic */
     background: rgba(223, 226, 235, 0.7) !important; 
@@ -1045,6 +1070,14 @@ input:focus, select:focus, textarea:focus {
 }
 body.dark-mode input:focus, body.dark-mode select:focus {
     box-shadow: 0 0 0 3px rgba(209, 228, 255, 0.1) !important;
+}
+
+/* --- NEW: FIX UGLY SEARCH BAR FOCUS CLASH --- */
+.search-bar input:focus {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
 }
 /* ==========================================
    ELITE EMOTIONAL UX: ANIMATIONS & TRANSITIONS
@@ -1280,7 +1313,9 @@ body.dark-mode .theme-toggle-knob {
     /* Give the active screen a little extra breathing room at the bottom so they can scroll to the 'Save' button while the keyboard is open */
     body:has(input:focus, textarea:focus) .activity-content,
     body:has(input:focus, textarea:focus) .main-content {
-        padding-bottom: 50vh !important; 
+        /* FIX: Changed from 50vh to a static pixel amount, and added a transition so it doesn't violently break the scroll position */
+        padding-bottom: 250px !important; 
+        transition: padding-bottom 0.3s ease-out;
     }
 }
 /* ==========================================

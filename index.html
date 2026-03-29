@@ -5,15 +5,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" id="meta-theme-color" content="#0061a4">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <title>SOLLO ERP</title>
     
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert("CRASH DETECTED!\n\nFile: " + source + "\nLine: " + lineno + "\nError: " + message);
+        };
+        window.addEventListener("unhandledrejection", function(event) {
+            alert("BACKGROUND CRASH!\n\nError: " + (event.reason ? event.reason.message || event.reason : "Unknown Error"));
+        });
+    </script>
+
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <link rel="stylesheet" href="style.css?v=14">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="./manifest.json"> 
 </head>
 
 <body>
@@ -349,6 +367,11 @@
         </div>
         <div class="activity-content">
             <form id="form-sales">
+                <button type="button" class="btn-primary-small tap-target" onclick="Utils.startAIScanner('sales')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">document_scanner</span> 
+                    AI Auto-Fill from Document
+                </button>
+
                 <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="UI.openBottomSheet('sheet-customers')">
                     <div>
                         <small style="color: var(--md-text-muted);">Billed To *</small>
@@ -466,6 +489,11 @@
         </div>
         <div class="activity-content">
             <form id="form-purchase">
+                <button type="button" class="btn-primary-small tap-target" onclick="Utils.startAIScanner('purchase')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">document_scanner</span> 
+                    AI Scan Purchase Bill
+                </button>
+
                 <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="UI.openBottomSheet('sheet-suppliers')">
                     <div>
                         <small style="color: var(--md-text-muted);">Purchased From *</small>
@@ -580,6 +608,11 @@
         </div>
         <div class="activity-content">
             <form id="form-expense">
+                <button type="button" class="btn-primary-small tap-target" onclick="Utils.startAIScanner('expense')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">receipt_long</span> 
+                    AI Scan Expense Receipt
+                </button>
+
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Expense No *</label><input type="text" id="expense-no" name="expenseNo" required></div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="expense-date" name="date" required></div>
@@ -638,6 +671,11 @@
         </div>
         <div class="activity-content">
             <form id="form-product">
+                <button type="button" class="btn-primary-small tap-target" onclick="Utils.startAIScanner('product')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">qr_code_scanner</span> 
+                    AI Scan Price Tag / Box
+                </button>
+
                 <div class="form-group"><label>Product Name *</label><input type="text" name="name" required></div>
                 
                 <div class="form-group">
@@ -971,11 +1009,11 @@
             <div class="tap-target" onclick="app.openForm('sales', null, 'return')"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff0f2; color: #ba1a1a;"><span class="material-symbols-outlined">assignment_return</span></div><small>Credit Note</small></div>
             <div class="tap-target" onclick="app.openForm('purchase', null, 'return')"><div class="icon-circle" style="margin: 0 auto 8px; background: #e8f5e9; color: #2e7d32;"><span class="material-symbols-outlined">assignment_returned</span></div><small>Debit Note</small></div>
             
-            <div class="tap-target" onclick="app.openForm('product')"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
-            <div class="tap-target" onclick="app.openForm('ledger')"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('product'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('ledger'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
             
-            <div class="tap-target" onclick="UI.openBottomSheet('sheet-stock-adjustment')"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined">build</span></div><small>Adj Stock</small></div>
-            <div class="tap-target" onclick="app.openForm('account')"><div class="icon-circle" style="margin: 0 auto 8px; background: #e0f7fa; color: #006064;"><span class="material-symbols-outlined">account_balance</span></div><small>Bank A/c</small></div>
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => UI.openBottomSheet('sheet-stock-adjustment'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined">build</span></div><small>Adj Stock</small></div>
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('account'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #e0f7fa; color: #006064;"><span class="material-symbols-outlined">account_balance</span></div><small>Bank A/c</small></div>
         </div>
     </div>
 
@@ -1385,7 +1423,7 @@
         <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
             <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-customers" placeholder="Search customers..."></div>
             <ul class="list-view" id="list-customers" style="flex: 1; overflow-y: auto;"></ul>
-            <button class="btn-primary-small mt-2" style="width: 100%;" onclick="UI.closeBottomSheet('sheet-customers'); app.openForm('ledger')">+ New Customer</button>
+            <button class="btn-primary-small mt-2" style="width: 100%;" onclick="UI.closeBottomSheet('sheet-customers'); setTimeout(() => { if(window.app) window.app.openForm('ledger'); }, 200);">+ New Customer</button>
         </div>
     </div>
 
@@ -1394,7 +1432,7 @@
         <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
             <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-suppliers" placeholder="Search suppliers..."></div>
             <ul class="list-view" id="list-suppliers" style="flex: 1; overflow-y: auto;"></ul>
-            <button class="btn-primary-small mt-2" style="width: 100%;" onclick="UI.closeBottomSheet('sheet-suppliers'); app.openForm('ledger')">+ New Supplier</button>
+            <button class="btn-primary-small mt-2" style="width: 100%;" onclick="UI.closeBottomSheet('sheet-suppliers'); setTimeout(() => { if(window.app) window.app.openForm('ledger'); }, 200);">+ New Supplier</button>
         </div>
     </div>
 
@@ -1404,12 +1442,13 @@
             <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-products" placeholder="Search products..."></div>
             <ul class="list-view" id="list-products" style="flex: 1; overflow-y: auto;"></ul>
             <div style="display: flex; gap: 8px; margin-top: 12px;">
-                <button class="btn-primary-small" style="flex: 1; background: var(--md-surface-variant); color: var(--md-on-surface);" onclick="UI.closeBottomSheet('sheet-products'); app.openForm('product')">+ New Product</button>
+                <button class="btn-primary-small" style="flex: 1; background: var(--md-surface-variant); color: var(--md-on-surface);" onclick="UI.closeBottomSheet('sheet-products'); setTimeout(() => { if(window.app) window.app.openForm('product'); }, 200);">+ New Product</button>
                 <button class="btn-primary" style="flex: 2;" onclick="UI.confirmProducts()">Add Selected</button>
             </div>
         </div>
     </div>
-        <div id="sheet-linked-docs" class="bottom-sheet" style="height: 85vh;">
+
+    <div id="sheet-linked-docs" class="bottom-sheet" style="height: 85vh;">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Link to Document(s)</span>
             <div style="display: flex; gap: 16px; align-items: center;">
@@ -1557,12 +1596,12 @@
         </svg>
     </div>
 
-    <div id="sheet-master-actions" class="bottom-sheet hidden">
-        <div class="sheet-content">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0;">Advanced Actions</h3>
-                <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-master-actions')">close</span>
-            </div>
+    <div id="sheet-master-actions" class="bottom-sheet">
+        <div class="sheet-header">
+            <span style="font-size: 18px; font-weight: 500;">Bulk Data Options</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-master-actions')">close</span>
+        </div>
+        <div style="padding: 16px;">
             
             <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-master-actions'); if(window.app) window.app.downloadCSVTemplate();">
                 <div style="background: #e3f2fd; color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
@@ -1583,6 +1622,7 @@
                     <small style="color:var(--md-text-muted);">Upload your filled template</small>
                 </div>
             </div>
+            
         </div>
     </div>
     
@@ -1615,12 +1655,13 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-    <script src="cloud.js?v=14"></script>
+    <script src="cloud.js?v=15"></script>
 
-    <script type="module" src="app.js?v=14"></script>
-    <script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+
+    <script type="module" src="app.js?v=15"></script>
+    <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {

@@ -56,8 +56,8 @@ const Cloud = {
         } else {
             // Already logged in
             callback();
-            // Trigger auto-backup since we know we have a fresh, valid token right now
-            if (Cloud.autoBackup) Cloud.autoBackup();
+            // FIX: Removed Cloud.autoBackup() from here to prevent a massive Race Condition!
+            // Running a manual backup and an auto-backup at the exact same millisecond causes Drive API crashes.
         }
     },
 
@@ -72,7 +72,8 @@ const Cloud = {
         if (!lastBackup || (now - parseInt(lastBackup)) > 86400000) {
             console.log("Triggering silent background auto-backup...");
             try {
-                const data = await window.app.db.exportDatabase(); 
+                // FIX: Call the globally mapped export function directly
+                const data = await window.exportDatabase(); 
 
                 const fileContent = JSON.stringify(data);
                 const file = new Blob([fileContent], { type: 'application/json' });
@@ -115,8 +116,8 @@ const Cloud = {
         Cloud.authenticate(async () => {
             window.Utils.showToast("Preparing Backup...");
             try {
-                // Get the database dump using the globally mapped function from db.js
-                const data = await window.app.db.exportDatabase(); 
+                // FIX: Call the globally mapped export function directly
+                const data = await window.exportDatabase(); 
 
                 const fileContent = JSON.stringify(data);
                 const file = new Blob([fileContent], { type: 'application/json' });
@@ -201,8 +202,8 @@ const Cloud = {
                     let jsonData = await fileRes.json();
                     window.Utils.showToast("Installing Data...");
                     
-                    // Route the downloaded JSON directly into your database engine
-                    await window.app.db.importDatabase(jsonData); 
+                    // FIX: Call the globally mapped import function directly
+                    await window.importDatabase(jsonData); 
                     
                     window.Utils.showToast("✅ Restore Successful! Reloading...");
                     setTimeout(() => location.reload(), 1500);

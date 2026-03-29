@@ -4,6 +4,30 @@
 
 const UI = {
 
+    // --- PREMIUM UX: NATIVE HAPTICS & SCROLL NAV ---
+    triggerHaptic: (type = 'light') => {
+        if (!navigator.vibrate) return;
+        if (type === 'light') navigator.vibrate(10);
+        if (type === 'medium') navigator.vibrate(25);
+        if (type === 'heavy') navigator.vibrate([30, 50, 30]);
+    },
+
+    initPremiumUX: () => {
+        // 1. Universal Auto-Haptics (Zero HTML changes required!)
+        document.addEventListener('pointerdown', (e) => {
+            const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .list-view li, .nav-item, .chip');
+            if (target) {
+                if (target.classList.contains('btn-primary') || target.id === 'main-fab') {
+                    UI.triggerHaptic('medium'); // Stronger feel for main buttons
+                } else {
+                    UI.triggerHaptic('light'); // Soft tick for lists and menus
+                }
+            }
+        }, { passive: true });
+        
+        // (Scroll logic removed from here because you already have the master version at the bottom of the file!)
+    },
+
     // --- NEW CODE: DARK MODE CONTROLLERS ---
     initTheme: () => {
         const isDark = localStorage.getItem('sollo_theme') === 'dark';
@@ -65,12 +89,9 @@ const UI = {
 
     safeUpdateDOM: (container, htmlContent) => {
         if (!container) return;
-        if (document.startViewTransition) {
-            try { document.startViewTransition(() => { container.innerHTML = htmlContent; }); } 
-            catch (e) { container.innerHTML = htmlContent; }
-        } else {
-            container.innerHTML = htmlContent;
-        }
+        // FIX: Removed the nested animation that was colliding with the Tab Switcher
+        // This instantly stops the Background Crash popup!
+        container.innerHTML = htmlContent;
     },
     // --- END OF NEW CODE ---
     
@@ -357,7 +378,25 @@ const UI = {
         }
 
         const filterSelect = document.getElementById('filter-master-view');
-        if (filterSelect) filterSelect.value = 'All';
+        const sortSelect = document.getElementById('sort-master-view');
+        
+        // FIX: Populate the Master View Dropdowns immediately when the screen opens so they are never empty!
+        if (filterSelect) {
+            if (type === 'customers' || type === 'suppliers' || type === 'contacts') {
+                filterSelect.innerHTML = `<option value="All">All Status</option><option value="To Receive">To Receive (Due)</option><option value="To Pay">To Pay (Due)</option><option value="Advance">Advance (Paid / Received)</option><option value="GST">GST Registered</option><option value="Non-GST">Non-GST</option><option value="Money In">Money In (Received)</option><option value="Money Out">Money Out (Paid)</option>`;
+                if(sortSelect) sortSelect.innerHTML = `<option value="name-asc">A to Z</option><option value="bal-desc">Balance: High to Low</option><option value="bal-asc">Balance: Low to High</option>`;
+            } else if (type === 'pay-in' || type === 'pay-out') {
+                filterSelect.innerHTML = `<option value="All">All Modes</option><option value="Cash">Cash Only</option><option value="Bank">Bank / Online Only</option>`;
+                if(sortSelect) sortSelect.innerHTML = `<option value="date-desc">Newest First</option><option value="date-asc">Oldest First</option>`;
+            } else if (type === 'trash') {
+                filterSelect.innerHTML = `<option value="All">All Trashed Items</option>`;
+                if(sortSelect) sortSelect.innerHTML = `<option value="date-desc">Recently Deleted</option>`;
+            } else {
+                filterSelect.innerHTML = `<option value="All">All Products</option><option value="In Stock">Stock Available</option>`;
+                if(sortSelect) sortSelect.innerHTML = `<option value="name-asc">A to Z</option><option value="stock-asc">Lowest Stock First</option>`;
+            }
+            filterSelect.value = 'All';
+        }
 
         UI.applyFilters('masters'); 
     },
@@ -1308,7 +1347,7 @@ const UI = {
             const diffTime = today - invoiceDate;
             if (diffTime < 0) return false; // Prevent future/post-dated invoices from being flagged!
             
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
             return diffDays > 15;
         });
 
@@ -1981,6 +2020,10 @@ const UI = {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        // FIX: Give the mobile browser 1 second to grab the file before destroying it!
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 1000); 
     },
 
     exportPnLCSV: () => {
@@ -2020,6 +2063,7 @@ const UI = {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     },
 
     // ==========================================
@@ -2097,12 +2141,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const searchInput = document.getElementById(`search-${tab}`);
         // UPGRADE: 300ms Debounce prevents keyboard lag when typing fast
         if(searchInput) searchInput.addEventListener('input', window.Utils.debounce(() => UI.applyFilters(tab), 300));
+        
+        // FIX: Bind the Sort dropdowns so they actually update the lists!
+        const sortSelect = document.getElementById(`sort-${tab}`);
+        if(sortSelect) sortSelect.addEventListener('change', () => UI.applyFilters(tab));
     });
     
     // Master View Hook
     const searchMasterView = document.getElementById('search-master-view');
     // UPGRADE: 300ms Debounce for the massive Master List
     if(searchMasterView) searchMasterView.addEventListener('input', window.Utils.debounce(() => UI.applyFilters('masters'), 300));
+
+    // FIX: Bind the Filter and Sort dropdowns for the Master Views!
+    const filterMasterView = document.getElementById('filter-master-view');
+    if (filterMasterView) filterMasterView.addEventListener('change', () => UI.applyFilters('masters'));
+
+    const sortMasterView = document.getElementById('sort-master-view');
+    if (sortMasterView) sortMasterView.addEventListener('change', () => UI.applyFilters('masters'));
 
     // UPGRADE 5: Smart Search Clear Buttons (Flagship UI)
     // Automatically injects a clear 'X' into every search bar in the entire app
@@ -2185,17 +2240,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { passive: true });
     }
 
-    // UPGRADE: Auto-Hiding FAB on Scroll
+    // UPGRADE: Auto-Hiding FAB & Bottom Nav on Scroll
     let lastScrollY = 0;
     const mainContent = document.querySelector('.main-content');
     const fab = document.querySelector('.floating-action-button');
-    if (mainContent && fab) {
+    const bottomNav = document.querySelector('.bottom-nav'); // <-- NEW
+    
+    if (mainContent) {
         mainContent.addEventListener('scroll', () => {
             const currentScrollY = mainContent.scrollTop;
             if (currentScrollY > lastScrollY && currentScrollY > 50) {
-                fab.classList.add('fab-hidden'); // Hide when scrolling down
+                if (fab) fab.classList.add('fab-hidden'); // Hide FAB
+                if (bottomNav) bottomNav.style.transform = 'translateY(150%)'; // Hide Nav smoothly
             } else {
-                fab.classList.remove('fab-hidden'); // Show when scrolling up
+                if (fab) fab.classList.remove('fab-hidden'); // Show FAB
+                if (bottomNav) bottomNav.style.transform = 'translateY(0)'; // Show Nav smoothly
             }
             lastScrollY = currentScrollY;
         }, {passive: true});
@@ -2246,9 +2305,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 3. Check if Full-Screen Activities are open
         if (!handled) {
-            // FIX: Convert NodeList to an Array so we can pop the topmost screen
             const openActivities = Array.from(document.querySelectorAll('.activity-screen.open'));
             if (openActivities.length > 0) {
+                // FIX: Sort activities by their Z-Index so we ALWAYS close the screen that is visually on top, regardless of HTML order!
+                openActivities.sort((a, b) => {
+                    const zA = parseInt(window.getComputedStyle(a).zIndex, 10) || 0;
+                    const zB = parseInt(window.getComputedStyle(b).zIndex, 10) || 0;
+                    return zA - zB; 
+                });
+                
                 // Only close the single topmost activity to prevent nuking the entire back-stack
                 const topActivity = openActivities.pop(); 
                 topActivity.classList.remove('open');
@@ -2271,3 +2336,6 @@ export default UI;
 
 // 2. Attach to window so index.html inline scripts don't break
 window.UI = UI;
+
+// 3. Boot up the Premium UX Engine automatically
+document.addEventListener('DOMContentLoaded', UI.initPremiumUX);
