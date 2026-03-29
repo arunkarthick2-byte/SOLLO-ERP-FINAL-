@@ -2,7 +2,7 @@
 // SOLLO ERP - OFFLINE SERVICE WORKER (v5.2 Enterprise)
 // ==========================================
 
-// --- NEW CODE: Bump the version to 5.6 to clear the cache! ---
+// --- NEW CODE: Bump the version to 5.9 to clear the cache! ---
 const CACHE_NAME = 'sollo-erp-v5.8-enterprise';
 // --- END OF NEW CODE ---
 
