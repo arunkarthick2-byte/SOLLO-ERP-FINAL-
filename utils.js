@@ -963,7 +963,7 @@ const Utils = {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
-        input.capture = 'environment'; // Suggests camera, but allows gallery
+        // FIX: Removed the 'capture' attribute so Chrome is forced to show the "Camera vs Gallery" menu!
 
         input.onchange = async (e) => {
             const file = e.target.files[0];
