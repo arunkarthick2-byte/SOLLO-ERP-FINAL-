@@ -1614,3 +1614,121 @@ input:-webkit-autofill:active{
     -webkit-box-shadow: 0 0 0 30px var(--md-surface) inset !important;
     -webkit-text-fill-color: var(--md-on-surface) !important;
 }
+/* ========================================== */
+/* ENTERPRISE UPGRADE: MATERIAL TOUCH RIPPLE  */
+/* ========================================== */
+.ripple-span {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple-animation 600ms linear;
+    background-color: rgba(255, 255, 255, 0.4); /* Soft white glow */
+    pointer-events: none; /* Prevents the ripple from blocking double-taps */
+}
+
+/* For lighter buttons, use a dark ripple instead */
+body.light-mode .btn-secondary .ripple-span,
+.btn-outline .ripple-span {
+    background-color: rgba(0, 0, 0, 0.1); 
+}
+
+@keyframes ripple-animation {
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: HD TYPOGRAPHY          */
+/* ========================================== */
+body, input, button, select, textarea {
+    /* Forces the mobile graphics engine to draw fonts with maximum crispness */
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+/* ========================================== */
+/* ENTERPRISE UPGRADE: INVISIBLE SCROLLBARS   */
+/* ========================================== */
+/* Slim down the global scrollbars */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--md-outline-variant);
+    border-radius: 4px;
+}
+
+/* Completely hide the scrollbar on your main app screens to make it look like a native app */
+.activity-screen::-webkit-scrollbar,
+.list-container::-webkit-scrollbar {
+    display: none;
+}
+.activity-screen,
+.list-container {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* ========================================== */
+/* ENTERPRISE UPGRADE: STICKY HEADERS         */
+/* ========================================== */
+/* Makes table headers and list headers stick to the top when scrolling */
+th {
+    position: sticky !important;
+    top: 0 !important;
+    /* Frosted glass effect so you can see the data sliding underneath */
+    background: rgba(255, 255, 255, 0.9) !important; 
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    z-index: 10 !important;
+    box-shadow: 0 1px 0 0 var(--md-outline-variant) !important; /* Clean bottom separator line */
+}
+
+/* Automatically switch the frosted glass to dark mode */
+body.dark-mode th {
+    background: rgba(26, 28, 30, 0.9) !important;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: EDGE-TO-EDGE SAFE AREA */
+/* ========================================== */
+
+/* 1. Protect the App Header from the physical Camera Notch */
+header, .header, .top-bar {
+    padding-top: calc(16px + env(safe-area-inset-top)) !important;
+}
+
+/* 2. Protect Floating Buttons and Toasts from the physical Home Bar */
+.fab, .btn-floating, #update-snackbar, #toast-container {
+    /* Push them up by their normal amount PLUS the height of the phone's home bar */
+    margin-bottom: env(safe-area-inset-bottom) !important;
+}
+
+/* 3. Add deep padding to the bottom of all scrollable screens */
+/* This ensures the very last product or invoice in your list doesn't get trapped completely under the swipe-up home bar */
+.activity-screen, .list-container, main {
+    padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important;
+    padding-left: env(safe-area-inset-left) !important;
+    padding-right: env(safe-area-inset-right) !important;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: VIRTUALIZED LISTS      */
+/* ========================================== */
+
+/* Apply this to the individual rows/cards inside your Master Lists */
+.virtual-item {
+    /* Tells the browser NOT to render this element if it is off-screen */
+    content-visibility: auto;
+    
+    /* You must tell the browser roughly how tall the item is so the scrollbar calculates correctly */
+    /* Adjust this number based on how tall your product/party cards usually are (e.g., 60px, 80px) */
+    contain-intrinsic-size: 80px; 
+    
+    /* Hardware acceleration lock */
+    will-change: transform, opacity;
+}

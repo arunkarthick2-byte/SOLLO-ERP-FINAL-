@@ -1969,17 +1969,17 @@
             // ENTERPRISE UPGRADE: NATIVE SWIPE-BACK TRAP
             // ==========================================
             
+            let currentOpenScreen = null; // The History Lock
+
             // 1. Intercept the physical Android/iOS Swipe Back gesture
             window.addEventListener('popstate', function(e) {
-                // Find all screens that are currently open (not hidden)
                 const openScreens = Array.from(document.querySelectorAll('.activity-screen')).filter(s => !s.classList.contains('hidden'));
                 
                 if (openScreens.length > 0) {
-                    // Grab the topmost screen the user is looking at
                     const topScreen = openScreens[openScreens.length - 1];
                     
-                    // Push a dummy state back into history so the app doesn't close on the NEXT swipe
-                    history.pushState(null, document.title, window.location.href);
+                    // The user swiped back, so we clear the lock to prevent history bugs
+                    currentOpenScreen = null; 
                     
                     // Close the screen safely
                     if (window.UI && typeof window.UI.closeActivity === 'function') {
@@ -1990,14 +1990,22 @@
                 }
             });
 
-            // 2. Secretly push a history state whenever a user opens a new screen
+            // 2. Secretly push a history state ONLY ONCE per screen opening
             const observer = new MutationObserver((mutations) => {
                 mutations.forEach((mutation) => {
                     if (mutation.attributeName === 'class') {
                         const target = mutation.target;
-                        if (!target.classList.contains('hidden') && target.classList.contains('activity-screen')) {
-                            // The user just opened a screen, add a layer to the back button!
-                            history.pushState(null, document.title, window.location.href);
+                        const isVisible = !target.classList.contains('hidden');
+                        
+                        if (isVisible && target.classList.contains('activity-screen')) {
+                            // Only push to history if this is a NEW screen opening
+                            if (currentOpenScreen !== target.id) {
+                                history.pushState({ screenOpen: true }, '', window.location.href);
+                                currentOpenScreen = target.id; // Engage the lock
+                            }
+                        } else if (!isVisible && currentOpenScreen === target.id) {
+                            // If the user taps an 'X' button instead of swiping, release the lock
+                            currentOpenScreen = null;
                         }
                     }
                 });
@@ -2006,6 +2014,40 @@
             // Attach the watcher to all UI screens
             document.querySelectorAll('.activity-screen').forEach(screen => {
                 observer.observe(screen, { attributes: true });
+            });
+
+            // ==========================================
+            // ENTERPRISE UPGRADE: MATERIAL TOUCH RIPPLE
+            // ==========================================
+            document.addEventListener('mousedown', function(e) { // mousedown reacts faster than click
+                const target = e.target.closest('button, .btn'); // Catch all buttons and custom .btn classes
+                if (!target) return;
+
+                // Ensure the button can contain the absolutely positioned ripple
+                if (window.getComputedStyle(target).position === 'static') {
+                    target.style.position = 'relative';
+                }
+                target.style.overflow = 'hidden';
+
+                const rect = target.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const circle = document.createElement('span');
+                circle.classList.add('ripple-span');
+                
+                // Calculate the diameter to ensure the circle covers the whole button
+                const diameter = Math.max(target.clientWidth, target.clientHeight);
+                circle.style.width = circle.style.height = `${diameter}px`;
+                circle.style.left = `${x - diameter / 2}px`;
+                circle.style.top = `${y - diameter / 2}px`;
+
+                target.appendChild(circle);
+
+                // Clean up the DOM after the animation finishes
+                setTimeout(() => {
+                    circle.remove();
+                }, 600);
             });
 
         }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK

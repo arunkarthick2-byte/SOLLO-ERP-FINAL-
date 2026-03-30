@@ -218,34 +218,43 @@ const Utils = {
     // ==========================================
     exportData: async () => {
         try {
-            if (typeof exportDatabase !== 'function') return alert("Database export not ready.");
-            const data = await exportDatabase();
+            if (typeof window.exportDatabase !== 'function') return alert("Database export not ready.");
+            if (window.Utils) window.Utils.showToast("Preparing Backup...");
+            
+            const data = await window.exportDatabase();
             const json = JSON.stringify(data); 
 
+            const fileName = `SOLLO_Backup_${new Date().toISOString().split('T')[0]}.json`;
             const blob = new Blob([json], { type: "application/json" });
-            const file = new File([blob], `SOLLO_Backup_${new Date().toISOString().split('T')[0]}.json`, { type: "application/json" });
+            const file = new File([blob], fileName, { type: "application/json" });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
+                // By removing 'await' and using .then/.catch, we prevent the app from crashing if the user hits 'Cancel'
+                navigator.share({
                     title: "SOLLO ERP Backup",
                     text: "Here is your complete database backup.",
                     files: [file]
+                }).then(() => {
+                    if (window.Utils) window.Utils.showToast("✅ Backup Shared/Saved Successfully!");
+                }).catch(err => {
+                    console.log("Share sheet closed or failed:", err);
+                    // Silently ignore if the user simply closed the share menu!
                 });
             } else {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.style.display = "none";
                 a.href = url;
-                a.download = file.name;
+                a.download = fileName;
                 document.body.appendChild(a);
                 a.click();
                 URL.revokeObjectURL(url);
                 document.body.removeChild(a);
-                alert("✅ Backup downloaded successfully!");
+                if (window.Utils) window.Utils.showToast("✅ Backup downloaded successfully!");
             }
         } catch (e) {
-            console.error(e);
-            alert("Export failed. Please check your storage permissions.");
+            console.error("Database Export Error:", e);
+            alert("Database Error: Could not generate export file.");
         }
     },
 
@@ -256,8 +265,8 @@ const Utils = {
             reader.onload = async (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (typeof importDatabase === 'function') {
-                        await importDatabase(data);
+                    if (typeof window.importDatabase === 'function') {
+                        await window.importDatabase(data);
                         alert("Database imported successfully! Reloading app...");
                         window.location.reload();
                     }
@@ -275,8 +284,8 @@ const Utils = {
         if (jsonStr) {
             try {
                 const data = JSON.parse(jsonStr);
-                if (typeof importDatabase === 'function') {
-                    await importDatabase(data);
+                if (typeof window.importDatabase === 'function') {
+                    await window.importDatabase(data);
                     alert("✅ Database restored successfully! Reloading app...");
                     window.location.reload();
                 }
