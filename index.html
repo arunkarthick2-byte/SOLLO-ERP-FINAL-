@@ -1965,7 +1965,50 @@
                 }
             });
 
-        });
+            // ==========================================
+            // ENTERPRISE UPGRADE: NATIVE SWIPE-BACK TRAP
+            // ==========================================
+            
+            // 1. Intercept the physical Android/iOS Swipe Back gesture
+            window.addEventListener('popstate', function(e) {
+                // Find all screens that are currently open (not hidden)
+                const openScreens = Array.from(document.querySelectorAll('.activity-screen')).filter(s => !s.classList.contains('hidden'));
+                
+                if (openScreens.length > 0) {
+                    // Grab the topmost screen the user is looking at
+                    const topScreen = openScreens[openScreens.length - 1];
+                    
+                    // Push a dummy state back into history so the app doesn't close on the NEXT swipe
+                    history.pushState(null, document.title, window.location.href);
+                    
+                    // Close the screen safely
+                    if (window.UI && typeof window.UI.closeActivity === 'function') {
+                        window.UI.closeActivity(topScreen.id);
+                    } else {
+                        topScreen.classList.add('hidden');
+                    }
+                }
+            });
+
+            // 2. Secretly push a history state whenever a user opens a new screen
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === 'class') {
+                        const target = mutation.target;
+                        if (!target.classList.contains('hidden') && target.classList.contains('activity-screen')) {
+                            // The user just opened a screen, add a layer to the back button!
+                            history.pushState(null, document.title, window.location.href);
+                        }
+                    }
+                });
+            });
+
+            // Attach the watcher to all UI screens
+            document.querySelectorAll('.activity-screen').forEach(screen => {
+                observer.observe(screen, { attributes: true });
+            });
+
+        }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK
     </script>
 </body>
 </html>
