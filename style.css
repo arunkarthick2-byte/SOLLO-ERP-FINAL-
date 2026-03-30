@@ -1594,3 +1594,23 @@ select:focus {
     box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
     border-color: var(--md-primary) !important;
 }
+/* ========================================== */
+/* ENTERPRISE UPGRADE: FORCE NATIVE SEARCH BAR */
+/* ========================================== */
+/* Prevents Chrome/Safari from injecting ugly white backgrounds into inputs on live servers */
+.search-container input,
+.search-bar input,
+input[type="text"],
+input[type="search"] {
+    background-color: transparent !important;
+    color: var(--md-on-surface) !important;
+}
+
+/* Fixes Chrome's aggressive yellow/blue autofill background that ruins dark mode */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active{
+    -webkit-box-shadow: 0 0 0 30px var(--md-surface) inset !important;
+    -webkit-text-fill-color: var(--md-on-surface) !important;
+}
