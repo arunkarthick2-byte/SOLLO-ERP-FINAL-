@@ -645,7 +645,7 @@ body.dark-mode .activity-header {
 
 /* INJECT: Beautiful grey icon into basic empty states (ignores the ones that already have custom SVGs!) */
 .empty-state:not(:has(svg))::before {
-    content: "\eb93"; /* Material Symbol: text_snippet */
+    content: "receipt_long"; 
     font-family: 'Material Symbols Outlined';
     font-size: 56px;
     color: var(--md-outline-variant);
@@ -1411,4 +1411,186 @@ tbody tr:active {
 
 body.dark-mode tbody tr:active {
     background-color: rgba(143, 203, 251, 0.15) !important;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: FROSTED GLASS UI       */
+/* ========================================== */
+
+/* Target the Top Headers and Bottom Navigation */
+.bottom-nav, 
+.activity-header, 
+.screen-header,
+.sheet-header {
+    /* 1. Make the background 85% solid so the text remains readable */
+    background: color-mix(in srgb, var(--md-surface) 85%, transparent) !important;
+    
+    /* 2. Apply the Apple iOS style heavy blur to whatever is underneath */
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important; 
+}
+
+/* 3. Add a microscopic translucent border to define the edges of the glass */
+.activity-header, 
+.screen-header,
+.sheet-header {
+    border-bottom: 1px solid rgba(128, 128, 128, 0.15) !important;
+}
+
+.bottom-nav {
+    border-top: 1px solid rgba(128, 128, 128, 0.15) !important;
+    box-shadow: none !important; /* Remove harsh solid shadows to let the glass shine */
+}
+
+/* 4. Fix the specific Report Viewer header so it gets a tinted glass effect */
+#activity-report-viewer .activity-header {
+    background: color-mix(in srgb, var(--md-primary-container) 85%, transparent) !important;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: CINEMATIC FOCUS MODE   */
+/* ========================================== */
+
+/* 1. Give all form groups a smooth animation timer */
+.form-group {
+    transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+/* 2. THE MAGIC: If a form has a focused input, dim all other form groups by 65% */
+form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:focus, textarea:focus, select:focus)) {
+    opacity: 0.35 !important;
+}
+
+/* 3. Slightly magnify the active form group to bring it closer to the user */
+.form-group:has(input:focus, textarea:focus, select:focus) {
+    transform: scale(1.02);
+}
+
+/* 4. Add a premium glow and elevate the actual text box above the dimmed background */
+.form-group input:focus, 
+.form-group textarea:focus, 
+.form-group select:focus {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12) !important;
+    border-color: var(--md-primary) !important;
+    background-color: var(--md-surface) !important;
+    z-index: 10;
+    position: relative;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: THUMB ZONE ACTION BAR  */
+/* ========================================== */
+
+.thumb-action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 12px 16px;
+    /* Frosted glass effect so scrolling content looks beautiful behind it */
+    background: color-mix(in srgb, var(--md-surface) 85%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(128, 128, 128, 0.15);
+    display: flex;
+    gap: 12px;
+    z-index: 1000; /* Keeps it above all your form inputs */
+    
+    /* Magic trick: Adds extra padding for iPhones and Androids with gesture swipe bars */
+    padding-bottom: calc(12px + env(safe-area-inset-bottom)); 
+}
+
+/* Make the buttons stretch perfectly across the thumb zone */
+.thumb-action-bar button {
+    flex: 1;
+    margin: 0 !important; 
+    height: 48px; /* Taller, more ergonomic touch target */
+    border-radius: 24px; /* Pill-shaped native look */
+    font-weight: bold;
+}
+
+/* Add an empty spacer to the bottom of your forms so the floating bar doesn't cover the last input field */
+.form-bottom-spacer {
+    height: 90px;
+    width: 100%;
+}
+
+/* ========================================== */
+/* ENTERPRISE UPGRADE: FLAT SEARCH BAR DESIGN */
+/* ========================================== */
+.search-bar {
+    border-radius: 4px !important; /* Flat design, removes pill shape */
+    background: #f1f3f4 !important; /* Clean, flat light grey */
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important; /* Removes frosted glass */
+    -webkit-backdrop-filter: none !important;
+}
+
+body.dark-mode .search-bar {
+    background: #2a2d31 !important; /* Clean dark grey for dark mode */
+    border: none !important;
+}
+
+/* Fixes the ugly inner box outline when tapping */
+.search-bar input,
+.search-bar input:focus {
+    border: none !important;
+    background: transparent !important;
+    outline: none !important; /* This specifically kills the tap rectangle */
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: ANTI-DOUBLE-SUBMIT     */
+/* ========================================== */
+.btn-loading {
+    opacity: 0.7 !important;
+    pointer-events: none !important; /* Physically blocks double-taps */
+    position: relative !important;
+    color: transparent !important; /* Hides the original text */
+}
+
+.btn-loading::after {
+    content: "Saving...";
+    position: absolute;
+    top: 50%; 
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: ULTRA-MINIMAL SEARCH   */
+/* ========================================== */
+/* Hides only the magnifying glass icon (the first icon) in the search bar */
+.search-bar > span.material-symbols-outlined:first-child {
+    display: none !important;
+}
+
+/* Adds a little breathing room to the left since the icon is gone */
+.search-bar input {
+    padding-left: 4px !important;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: PREMIUM NATIVE SELECTS */
+/* ========================================== */
+select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2373777f'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 16px center !important; 
+    background-size: 24px !important;
+    padding-right: 48px !important; 
+    cursor: pointer;
+}
+
+body.dark-mode select {
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c3c7cf'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") !important;
+}
+
+select:focus {
+    box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
+    border-color: var(--md-primary) !important;
 }

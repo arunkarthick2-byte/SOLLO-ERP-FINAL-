@@ -545,9 +545,22 @@ const Utils = {
             </div>
         `;
         
+        // --- ENTERPRISE UPGRADE: PREMIUM PDF THEMES ---
+        let themedHtml = html;
+        const theme = localStorage.getItem('sollo_invoice_theme') || 'modern';
+        
+        if (theme === 'classic') {
+            // Classic Black & White
+            themedHtml = themedHtml.replace(/#0061a4/g, '#000000').replace(/#f0f4f8/g, '#f2f2f2').replace(/#f8fafc/g, '#ffffff');
+        } else if (theme === 'elegant') {
+            // Dark Slate & Minimalist
+            themedHtml = themedHtml.replace(/#0061a4/g, '#2c3e50').replace(/#f0f4f8/g, '#ecf0f1').replace(/#f8fafc/g, '#fdfdfd');
+        }
+        // --- END OF THEME ENGINE ---
+
         const printArea = document.getElementById('print-area');
         if (printArea) {
-            printArea.innerHTML = html;
+            printArea.innerHTML = themedHtml; // FIX: Pushing the themed HTML instead of the default!
             setTimeout(() => {
                 const safeFilenameDocNo = String(safeDocNo).replace(/[^a-zA-Z0-9_.-]/g, '-');
                 Utils.processPDFExport('pdf-invoice-wrapper', `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`);

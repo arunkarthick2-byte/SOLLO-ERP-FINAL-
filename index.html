@@ -10,6 +10,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <title>SOLLO ERP</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://apis.google.com">
+    <link rel="dns-prefetch" href="https://accounts.google.com">
     
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
@@ -32,6 +38,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <link rel="stylesheet" href="style.css?v=14">
     <link rel="manifest" href="./manifest.json"> 
+
+    <style>
+        .search-bar input {
+            border: none !important;
+            background: transparent !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+        .search-bar input:focus {
+            outline: none !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -212,6 +230,8 @@
                     <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-cashbook-sort')">sort</span>
                     
                     <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 6px; border-radius: 50%; margin-left: 2px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-cashbook-filter')">more_vert</span>
+
+                    <span class="material-symbols-outlined tap-target" style="background: var(--md-primary); color: var(--md-on-primary); padding: 6px; border-radius: 50%; margin-left: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="if(window.app) window.app.openForm('account')">add</span>
                 </div>
                 
                 <input type="hidden" id="sort-cashbook" value="date-desc">
@@ -307,8 +327,8 @@
             <div style="height: 80px;"></div>
         </main>
         
-        <button id="main-fab" class="floating-action-button tap-target" onclick="UI.handleFabClick()">
-            <span class="material-symbols-outlined">add</span>
+        <button id="main-fab" class="floating-action-button tap-target" onclick="handleSmartFab()">
+            <span id="smart-fab-icon" class="material-symbols-outlined" style="transition: transform 0.2s ease-in-out;">add</span>
         </button>
 
         <nav class="bottom-nav">
@@ -326,10 +346,10 @@
     </div>
 
     <div id="activity-master-view" class="activity-screen hidden">
-        <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-master-view')">arrow_back</span>
-            <span id="master-view-title" style="font-size: 18px; font-weight: 500;">Master List</span>
-            <span id="btn-master-action" class="tap-target hidden" style="color: var(--md-primary); font-weight: 500; margin-left: auto;">Action</span>
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-master-view')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span id="master-view-title" style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Master List</span>
+            <span id="btn-master-action" class="tap-target hidden" style="color: var(--md-primary); font-weight: 500; position: absolute; right: 16px;">Action</span>
         </div>
         <div class="activity-content" style="padding: 16px;">
             
@@ -342,6 +362,14 @@
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="UI.openBottomSheet('sheet-master-sort')">tune</span>
                 
                 <span id="master-more-options" class="material-symbols-outlined tap-target hidden" style="color: var(--md-on-surface-variant); padding: 6px; border-radius: 50%; margin-left: 2px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-master-actions')">more_vert</span>
+                
+                <span class="material-symbols-outlined tap-target" style="background: var(--md-primary); color: var(--md-on-primary); padding: 6px; border-radius: 50%; margin-left: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" 
+                      onclick="if(window.app) { 
+                          const title = document.getElementById('master-view-title').innerText; 
+                          if(title.includes('Inventory')) window.app.openForm('product'); 
+                          else if(title.includes('Customer') || title.includes('Supplier') || title.includes('Address')) window.app.openForm('ledger'); 
+                          else if(title.includes('Stock') && window.UI) window.UI.openBottomSheet('sheet-stock-adjustment');
+                      }">add</span>
             </div>
             
             <input type="file" id="csv-import-file" accept=".csv" class="hidden" onchange="if(window.app) window.app.handleCSVImport(event)">
@@ -467,7 +495,12 @@
                     <textarea id="sales-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 8px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
                 </div>
 
-                <button type="submit" id="btn-save-sales" class="btn-primary" style="width: 100%; margin-bottom: 40px;">Save Invoice</button>
+                <div class="form-bottom-spacer"></div>
+
+                <div class="thumb-action-bar">
+                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-sales-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
+                    <button type="submit" id="btn-save-sales" class="btn-primary">Save Invoice</button>
+                </div>
             </form>
         </div>
     </div>
@@ -589,7 +622,12 @@
                     <textarea id="purchase-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 8px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
                 </div>
 
-                <button type="submit" id="btn-save-purchase" class="btn-primary" style="width: 100%; margin-bottom: 40px;">Save Purchase</button>
+                <div class="form-bottom-spacer"></div>
+
+                <div class="thumb-action-bar">
+                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-purchase-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
+                    <button type="submit" id="btn-save-purchase" class="btn-primary">Save Purchase</button>
+                </div>
             </form>
         </div>
     </div>
@@ -619,7 +657,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Category *</label>
+                    <label for="expense-category-select">Category *</label>
                     <div style="display: flex; gap: 8px;">
                         <select name="category" id="expense-category-select" style="flex: 1;" required>
                             <option value="">Loading...</option>
@@ -627,7 +665,7 @@
                         <button type="button" class="btn-primary-small" style="padding: 0 12px; border-radius: 8px;" onclick="app.manageSimpleMaster('expenseCategories', 'Expense Categories')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
                     </div>
                 </div>
-                <div class="form-group"><label>Amount (&#8377;) *</label><input type="number" inputmode="decimal" name="amount" min="0" step="any" required></div>
+                <div class="form-group"><label for="exp-amount">Amount (&#8377;) *</label><input type="number" id="exp-amount" inputmode="decimal" name="amount" min="0" step="0.01" required></div>
                 
                 <div class="form-group">
                     <label>Paid From Account *</label>
@@ -676,20 +714,20 @@
                     AI Scan Price Tag / Box
                 </button>
 
-                <div class="form-group"><label>Product Name *</label><input type="text" name="name" required></div>
+                <div class="form-group"><label for="prod-name">Product Name *</label><input type="text" id="prod-name" name="name" required></div>
                 
                 <div class="form-group">
-                    <label>Product Image</label>
-                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('product-image-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
+                    <label for="prod-img">Product Image</label>
+                    <input type="file" id="prod-img" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('product-image-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
                     <img id="product-image-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
                 <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label>Sell Price (&#8377;) *</label><input type="number" inputmode="decimal" name="sellPrice" min="0" step="any" required></div>
-                    <div class="form-group" style="flex: 1;"><label>Buy Price (&#8377;)</label><input type="number" inputmode="decimal" name="buyPrice" min="0" step="any"></div>
+                    <div class="form-group" style="flex: 1;"><label for="prod-sell">Sell Price (&#8377;) *</label><input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="0.01" required></div>
+                    <div class="form-group" style="flex: 1;"><label for="prod-buy">Buy Price (&#8377;)</label><input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="0.01"></div>
                 </div>
                 <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label>Opening Stock</label><input type="number" inputmode="decimal" name="stock" value="0" step="any"></div>
+                    <div class="form-group" style="flex: 1;"><label for="prod-stock">Opening Stock</label><input type="number" id="prod-stock" inputmode="decimal" name="stock" value="0" step="0.01"></div>
                     <div class="form-group" style="flex: 1;">
                         <label>Unit (UOM) *</label>
                         <div style="display: flex; gap: 8px;">
@@ -703,7 +741,13 @@
                     <div class="form-group" style="flex: 1;"><label>GST %</label><input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any"></div>
                 </div>
                 <div class="form-group"><label>HSN / SAC Code</label><input type="text" name="hsn"></div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">Save Product</button>
+                
+                <div class="form-bottom-spacer"></div>
+
+                <div class="thumb-action-bar">
+                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-product-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Product</button>
+                </div>
             </form>
         </div>
     </div>
@@ -747,7 +791,13 @@
                         </div>
                     </div>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">Save Party</button>
+                
+                <div class="form-bottom-spacer"></div>
+
+                <div class="thumb-action-bar">
+                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-ledger-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Party</button>
+                </div>
             </form>
         </div>
     </div>
@@ -794,6 +844,8 @@
                 <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
                 
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-expenses-sort')">sort</span>
+
+                <span class="material-symbols-outlined tap-target" style="background: var(--md-primary); color: var(--md-on-primary); padding: 6px; border-radius: 50%; margin-left: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="if(window.app) window.app.openForm('expense')">add</span>
             </div>
             
             <input type="hidden" id="sort-expenses" value="date-desc">
@@ -806,9 +858,9 @@
     </div>
 
     <div id="activity-business-profile" class="activity-screen hidden">
-        <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-business-profile')">arrow_back</span>
-            <span style="font-size: 18px; font-weight: 500;">Business Settings</span>
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-business-profile')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Business Settings</span>
         </div>
         <div class="activity-content">
             <form id="form-business-profile">
@@ -838,22 +890,39 @@
                 
                 <div class="form-group"><label>Bank Details (For Invoices)</label><textarea id="profile-bank" rows="2" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px;"></textarea></div>
                 <div class="form-group"><label>Terms & Conditions</label><textarea id="profile-terms" rows="2" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px;"></textarea></div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">Save Settings</button>
+                
+                <div class="form-group">
+                    <label>Invoice PDF Theme</label>
+                    <select id="profile-invoice-theme" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; background: var(--md-surface);">
+                        <option value="modern">Modern Blue (Default)</option>
+                        <option value="classic">Classic (Black & White)</option>
+                        <option value="elegant">Elegant (Dark Slate)</option>
+                    </select>
+                </div>
+
+                <div class="form-bottom-spacer"></div>
+
+                <div class="thumb-action-bar">
+                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-business-profile')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
+                    <button type="submit" class="btn-primary" onclick="localStorage.setItem('sollo_invoice_theme', document.getElementById('profile-invoice-theme').value)">Save Settings</button>
+                </div>
             </form>
         </div>
     </div>
 
     <div id="activity-report-viewer" class="activity-screen hidden">
-        <div class="activity-header" style="background: var(--md-primary-container); color: var(--md-on-primary-container);">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-report-viewer')">arrow_back</span>
-            <div style="flex: 1;">
-                <div id="report-party-name" style="font-size: 16px; font-weight: 500;">Party Name</div>
-                <div id="report-party-balance" style="font-size: 14px; color: var(--md-text-muted);">Closing Balance: &#8377;0.00</div>
+        <div class="activity-header" style="background: var(--md-primary-container); color: var(--md-on-primary-container); justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-report-viewer')" style="position: absolute; left: 16px;">arrow_back</span>
+            
+            <div style="text-align: center; max-width: 55%;">
+                <div id="report-party-name" style="font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Party Name</div>
+                <div id="report-party-balance" style="font-size: 12px; opacity: 0.85; margin-top: 2px;">Closing Balance: &#8377;0.00</div>
             </div>
             
-            <span id="btn-edit-ledger" class="material-symbols-outlined tap-target" style="margin-right: 12px;">edit</span>
-            
-            <span class="tap-target" onclick="Utils.downloadStatementPDF()" style="display:flex; align-items:center; gap:4px; font-size:14px; font-weight:500;"><span class="material-symbols-outlined">share</span> Share</span>
+            <div style="display: flex; gap: 16px; position: absolute; right: 16px; align-items: center;">
+                <span id="btn-edit-ledger" class="material-symbols-outlined tap-target">edit</span>
+                <span class="material-symbols-outlined tap-target" onclick="Utils.downloadStatementPDF()">share</span>
+            </div>
         </div>
         <div class="activity-content" style="background: var(--md-background); padding: 12px;">
             
@@ -1463,10 +1532,10 @@
         </div>
     </div>
     <div id="activity-gst-report" class="activity-screen hidden">
-        <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-gst-report')">arrow_back</span>
-            <span style="font-size: 18px; font-weight: 500;">Monthly GST Report</span>
-            <div style="display: flex; gap: 16px; margin-left: auto; align-items: center;">
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-gst-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Monthly GST Report</span>
+            <div style="display: flex; gap: 16px; position: absolute; right: 16px; align-items: center;">
                 <span class="tap-target" id="btn-export-gst" style="display:flex; align-items:center; gap:4px; color:var(--md-primary); font-size:14px; font-weight:500;">
                     <span class="material-symbols-outlined">download</span> Export CSV
                 </span>
@@ -1515,9 +1584,9 @@
     </div>
 
     <div id="activity-advanced-reports" class="activity-screen hidden">
-        <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-advanced-reports')">arrow_back</span>
-            <span style="font-size: 18px; font-weight: 500;">Advanced Reports</span>
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-advanced-reports')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Advanced Reports</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             
@@ -1649,6 +1718,19 @@
         </div>
     </div>
     <div id="toast-container"></div>
+
+    <div id="enterprise-dialog" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 999999; display: flex; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.2s ease;">
+        <div id="enterprise-dialog-card" style="background: var(--md-surface); width: 85%; max-width: 320px; border-radius: 24px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <span id="enterprise-dialog-icon" class="material-symbols-outlined" style="color: var(--md-primary); font-size: 28px;">info</span>
+                <h3 id="enterprise-dialog-title" style="margin: 0; font-size: 18px; color: var(--md-on-surface);">Notice</h3>
+            </div>
+            <p id="enterprise-dialog-msg" style="margin: 0 0 24px 0; color: var(--md-text-muted); font-size: 15px; line-height: 1.5;">Message</p>
+            <div style="text-align: right;">
+                <button type="button" onclick="document.getElementById('enterprise-dialog').style.opacity='0'; document.getElementById('enterprise-dialog-card').style.transform='scale(0.9)'; setTimeout(()=>document.getElementById('enterprise-dialog').classList.add('hidden'), 200);" class="btn-primary" style="padding: 10px 24px; border-radius: 20px;">OK</button>
+            </div>
+        </div>
+    </div>
     
     <div id="update-snackbar" style="display: none; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--md-primary); color: var(--md-on-primary); padding: 12px 16px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); align-items: center; justify-content: space-between; gap: 16px; width: max-content; max-width: 90vw;">
         <span style="font-size: 14px; font-weight: 500;">New app version available!</span>
@@ -1713,7 +1795,63 @@
             setTimeout(() => window.location.reload(), 500); 
         };
 
+        // ==========================================
+        // ENTERPRISE UPGRADE: SMART MORPHING FAB
+        // ==========================================
+        window.handleSmartFab = () => {
+            const activeTab = document.querySelector('.screen-section.active-screen').id;
+            
+            // If on the Documents tab, intelligently open the exact form you need!
+            if (activeTab === 'tab-documents') {
+                const isPurchase = !document.getElementById('doc-purchase-view').classList.contains('hidden');
+                if (isPurchase && window.app) window.app.openForm('purchase', null, 'invoice');
+                else if (window.app) window.app.openForm('sales', null, 'invoice');
+            } 
+            // For all other tabs, open the main menu but with a contextual icon
+            else {
+                if (window.UI) window.UI.openBottomSheet('sheet-fab-menu');
+            }
+        };
+
+        const updateFabMorph = () => {
+            setTimeout(() => {
+                const activeTab = document.querySelector('.screen-section.active-screen').id;
+                const icon = document.getElementById('smart-fab-icon');
+                if (!icon) return;
+                
+                icon.style.transform = 'scale(0) rotate(90deg)'; // Spin out animation
+                
+                setTimeout(() => {
+                    if (activeTab === 'tab-documents') {
+                        const isPurchase = !document.getElementById('doc-purchase-view').classList.contains('hidden');
+                        icon.innerText = isPurchase ? 'local_shipping' : 'receipt_long';
+                    } else if (activeTab === 'tab-cashbook') {
+                        icon.innerText = 'payments';
+                    } else {
+                        icon.innerText = 'add';
+                    }
+                    icon.style.transform = 'scale(1) rotate(0deg)'; // Spin in animation
+                }, 200);
+            }, 50);
+        };
+        // ==========================================
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Attach Morph logic to Bottom Nav and Document Toggles
+            const bottomNav = document.querySelector('.bottom-nav');
+            if (bottomNav) bottomNav.addEventListener('click', updateFabMorph);
+            
+            const btnSales = document.getElementById('btn-toggle-sales');
+            const btnPurch = document.getElementById('btn-toggle-purchases');
+            if (btnSales) btnSales.addEventListener('click', updateFabMorph);
+            if (btnPurch) btnPurch.addEventListener('click', updateFabMorph);
+
+            // ENTERPRISE UPGRADE: Load saved PDF Theme
+            const savedTheme = localStorage.getItem('sollo_invoice_theme');
+            if (savedTheme && document.getElementById('profile-invoice-theme')) {
+                document.getElementById('profile-invoice-theme').value = savedTheme;
+            }
+
             // UPGRADE: Trigger Silent Background Backup Check on Boot
             setTimeout(() => {
                 if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
@@ -1721,27 +1859,20 @@
                 }
             }, 5000); // Wait 5 seconds so it doesn't slow down the app startup
 
+            // ENTERPRISE UPGRADE: Dynamic DatePicker Initialization
             const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-            const dateInputs = [
-                'sales-date', 'sales-order-date', 'sales-shipped-date', 'sales-completed-date', 
-                'purchase-date', 'purchase-order-date', 'purchase-shipped-date', 'purchase-completed-date', 
-                'expense-date', 'pay-in-date', 'pay-out-date', 'adj-date',
-                'report-daybook-date', 'report-pnl-start', 'report-pnl-end', 'timeline-start-date', 'timeline-end-date'
-            ];
-            dateInputs.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                    if (!el.value) el.value = today;
-                    
-                    // Initialize the Custom Date Picker (Indian Format)
-                    flatpickr(el, {
-                        dateFormat: "Y-m-d", // Keeps database sorting perfectly unbroken
-                        altInput: true,      // Creates a visual clone for the user
-                        altFormat: "d/m/Y",  // Displays as DD/MM/YYYY (Indian Standard)
-                        defaultDate: el.value || today,
-                        disableMobile: "true" 
-                    });
-                }
+            
+            document.querySelectorAll('input[type="date"]').forEach(el => {
+                if (!el.value) el.value = today;
+                
+                // Initialize the Custom Date Picker (Indian Format)
+                flatpickr(el, {
+                    dateFormat: "Y-m-d", // Keeps database sorting perfectly unbroken
+                    altInput: true,      // Creates a visual clone for the user
+                    altFormat: "d/m/Y",  // Displays as DD/MM/YYYY (Indian Standard)
+                    defaultDate: el.value || today,
+                    disableMobile: "true" 
+                });
             });
 
             // UPGRADE 4: Smart Offline / Online Listener
@@ -1752,15 +1883,85 @@
                 banner.classList.add('show');
             });
             window.addEventListener('online', () => {
-                banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">wifi</span>Back Online - Syncing available';
+                banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">sync</span>Back Online - Auto-Syncing to Cloud...';
                 banner.classList.add('online');
-                setTimeout(() => banner.classList.remove('show'), 3000); // Hide after 3 seconds
+                
+                // ENTERPRISE UPGRADE: Aggressive Offline Auto-Sync
+                setTimeout(() => {
+                    // Trigger the background backup the moment the network stabilizes
+                    if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
+                        window.Cloud.autoBackup(); 
+                    }
+                    
+                    banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">cloud_done</span>Cloud Sync Complete';
+                    
+                    // Hide the banner after showing success
+                    setTimeout(() => banner.classList.remove('show'), 2500);
+                }, 1500); // 1.5 second delay prevents errors if the network is still connecting
             });
 
             // Check initial state
             if (!navigator.onLine) {
                 banner.classList.add('show');
             }
+
+            // ENTERPRISE UPGRADE: Global Anti-Double-Submit Shield
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    // Only lock the button if the form is fully filled out and valid
+                    if (this.checkValidity()) {
+                        const submitBtn = this.querySelector('button[type="submit"]');
+                        if (submitBtn) {
+                            submitBtn.classList.add('btn-loading');
+                            // Failsafe: Unlock button after 3 seconds just in case the network hangs
+                            setTimeout(() => submitBtn.classList.remove('btn-loading'), 3000);
+                        }
+                    }
+                });
+            });
+
+            // ==========================================
+            // ENTERPRISE UPGRADE: CUSTOM ALERT OVERRIDE
+            // ==========================================
+            window.alert = function(message) {
+                const dialog = document.getElementById('enterprise-dialog');
+                const msgEl = document.getElementById('enterprise-dialog-msg');
+                const iconEl = document.getElementById('enterprise-dialog-icon');
+                const titleEl = document.getElementById('enterprise-dialog-title');
+                
+                msgEl.innerText = message;
+                
+                // Auto-detect errors to change color to red
+                if (String(message).toLowerCase().includes('error') || String(message).toLowerCase().includes('fail') || String(message).toLowerCase().includes('please')) {
+                    iconEl.innerText = 'error';
+                    iconEl.style.color = 'var(--md-error)';
+                    titleEl.innerText = 'Alert';
+                } else {
+                    iconEl.innerText = 'info';
+                    iconEl.style.color = 'var(--md-primary)';
+                    titleEl.innerText = 'Notice';
+                }
+
+                dialog.classList.remove('hidden');
+                // Tiny delay to allow CSS transitions to trigger
+                setTimeout(() => {
+                    dialog.style.opacity = '1';
+                    document.getElementById('enterprise-dialog-card').style.transform = 'scale(1)';
+                }, 10);
+            };
+
+            // ==========================================
+            // ENTERPRISE UPGRADE: SMOOTH KEYBOARD SCROLL
+            // ==========================================
+            document.addEventListener('focusin', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                    // Wait 300ms for the mobile keyboard to physically slide up first
+                    setTimeout(() => {
+                        e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300); 
+                }
+            });
+
         });
     </script>
 </body>
