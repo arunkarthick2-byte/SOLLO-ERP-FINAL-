@@ -1038,22 +1038,32 @@ const Utils = {
 
         alert(msg);
 
-        // 4. Safe Auto-Fill Logic
+        // 4. Safe Auto-Fill Logic (With Event Dispatchers)
         try {
+            // Helper function to inject value AND trigger the app's calculation listeners
+            const triggerInput = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.value = val;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            };
+
             if (moduleType === 'expense') {
-                if (extracted.amount && document.getElementById('expense-amount')) document.getElementById('expense-amount').value = extracted.amount;
-                if (extracted.invNo && document.getElementById('expense-ref')) document.getElementById('expense-ref').value = extracted.invNo;
+                if (extracted.amount) triggerInput('expense-amount', extracted.amount);
+                if (extracted.invNo) triggerInput('expense-ref', extracted.invNo);
             } 
             else if (moduleType === 'purchase' || moduleType === 'sales') {
-                if (extracted.invNo && document.getElementById('invoice-no')) document.getElementById('invoice-no').value = extracted.invNo;
-                if (extracted.invNo && document.getElementById('po-no')) document.getElementById('po-no').value = extracted.invNo;
+                if (extracted.invNo) triggerInput('invoice-no', extracted.invNo);
+                if (extracted.invNo) triggerInput('po-no', extracted.invNo);
             }
             else if (moduleType === 'product') {
-                if (extracted.amount && document.getElementById('item-mrp')) document.getElementById('item-mrp').value = extracted.amount;
+                if (extracted.amount) triggerInput('item-mrp', extracted.amount);
             }
             if (window.Utils) window.Utils.showToast("✅ Auto-Fill Applied! Please verify data before saving.");
         } catch (e) {
-            console.log("Auto-fill safely skipped.");
+            console.log("Auto-fill safely skipped.", e);
         }
     }
 }; // <--- THIS CLOSES THE UTILS OBJECT

@@ -1988,6 +1988,31 @@
                         topScreen.classList.add('hidden');
                     }
                 }
+
+                // ==========================================
+                // ENTERPRISE FIX: GLOBAL UI RESCUE
+                // ==========================================
+                // 1. Force the keyboard to drop if they swipe back while typing in a search bar
+                if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+                    document.activeElement.blur();
+                }
+
+                // 2. If we are back on the main Master List (no activity screens open), resurrect the Bottom Nav and FAB!
+                setTimeout(() => {
+                    const remainingScreens = Array.from(document.querySelectorAll('.activity-screen')).filter(s => !s.classList.contains('hidden'));
+                    if (remainingScreens.length === 0) {
+                        // Unhide the FAB
+                        document.querySelectorAll('.fab, .btn-floating').forEach(btn => {
+                            btn.style.display = ''; 
+                            btn.classList.remove('hidden');
+                        });
+                        // Unhide the Bottom Menu
+                        document.querySelectorAll('.bottom-nav, #bottom-nav, footer').forEach(nav => {
+                            nav.style.display = '';
+                            nav.classList.remove('hidden');
+                        });
+                    }
+                }, 100); // Tiny 100ms delay ensures the screen has finished closing first
             });
 
             // 2. Secretly push a history state ONLY ONCE per screen opening
