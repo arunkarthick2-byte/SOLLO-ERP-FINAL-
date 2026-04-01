@@ -1754,18 +1754,18 @@ const UI = {
                     ${prefix === 'sales' ? `
                     <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
                         <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="number" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
+                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
                     </div>
                     <small class="live-margin" style="font-size:10px; display:block; margin-top:4px;"></small>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
                     <input type="hidden" class="row-item-id" value="${p.id}">
                     <input type="hidden" class="row-item-name" value="${(p.name || '').replace(/"/g, '&quot;')}">
                 </td>
-                <td><input type="text" class="row-hsn" value="${p.hsn}" readonly style="width:60px; text-align:center; padding:4px;"></td>
-                <td><input type="number" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:60px; padding:4px;"></td>
-                <td><input type="text" class="row-uom" value="${p.uom}" readonly style="width:50px; padding:4px;"></td>
-                <td><input type="number" class="row-rate" value="${p.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:80px; padding:4px;"></td>
-                <td><input type="number" class="row-gst" value="${p.gst}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
+                <td><input type="text" class="row-hsn" value="${p.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
+                <td><input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:60px; padding:4px;"></td>
+                <td><input type="text" class="row-uom" value="${p.uom || ''}" readonly style="width:50px; padding:4px;"></td>
+                <td><input type="number" inputmode="decimal" class="row-rate" value="${p.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:80px; padding:4px;"></td>
+                <td><input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
                 <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
                 <td style="text-align:center;">
                     <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:20px;" onclick="this.closest('tr').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">cancel</span>

@@ -1050,16 +1050,19 @@ const Utils = {
                 }
             };
 
+            // ENTERPRISE FIX: Mapped the AI outputs to your exact index.html form IDs!
             if (moduleType === 'expense') {
-                if (extracted.amount) triggerInput('expense-amount', extracted.amount);
-                if (extracted.invNo) triggerInput('expense-ref', extracted.invNo);
+                if (extracted.amount) triggerInput('exp-amount', extracted.amount);
+                if (extracted.invNo) triggerInput('expense-no', extracted.invNo);
             } 
-            else if (moduleType === 'purchase' || moduleType === 'sales') {
-                if (extracted.invNo) triggerInput('invoice-no', extracted.invNo);
-                if (extracted.invNo) triggerInput('po-no', extracted.invNo);
+            else if (moduleType === 'purchase') {
+                if (extracted.invNo) triggerInput('purchase-po-no', extracted.invNo);
+            }
+            else if (moduleType === 'sales') {
+                if (extracted.invNo) triggerInput('sales-invoice-no', extracted.invNo);
             }
             else if (moduleType === 'product') {
-                if (extracted.amount) triggerInput('item-mrp', extracted.amount);
+                if (extracted.amount) triggerInput('prod-sell', extracted.amount);
             }
             if (window.Utils) window.Utils.showToast("✅ Auto-Fill Applied! Please verify data before saving.");
         } catch (e) {

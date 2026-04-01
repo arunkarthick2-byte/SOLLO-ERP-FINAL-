@@ -110,6 +110,13 @@ if (UI) {
                 el.style.zIndex = 100 + window.activityStack.length; 
             }, 10);
         }
+
+        // ENTERPRISE FIX: Restore the active form tracker!
+        if (id === 'activity-sales-form') {
+            UI.state.activeActivity = 'sales';
+        } else if (id === 'activity-purchase-form') {
+            UI.state.activeActivity = 'purchase';
+        }
     };
     
     UI.closeActivity = (id) => {
@@ -119,6 +126,11 @@ if (UI) {
             setTimeout(() => el.classList.add('hidden'), 350); 
         }
         window.activityStack = window.activityStack.filter(x => x !== id);
+
+        // ENTERPRISE FIX: Clear the tracker when closing forms
+        if (id === 'activity-sales-form' || id === 'activity-purchase-form') {
+            UI.state.activeActivity = null;
+        }
     };
 
     // NEW: Shield Bottom Sheets so they don't aggressively wipe activities!
@@ -184,8 +196,12 @@ const app = {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 console.log('New update available!');
                                 if (window.Utils && typeof window.Utils.showToast === 'function') {
-                                    window.Utils.showToast("New update available! Refreshing app...");
+                                    window.Utils.showToast("New update available! Installing...");
                                 }
+                                
+                                // ENTERPRISE FIX: Force the new Service Worker to take over immediately!
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                
                                 // Safely reload to apply the new files
                                 setTimeout(() => window.location.reload(), 2500);
                             }

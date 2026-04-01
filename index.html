@@ -403,7 +403,7 @@
                     AI Auto-Fill from Document
                 </button>
 
-                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="UI.openBottomSheet('sheet-customers')">
+                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) window.UI.state.currentPrefix = 'sales'; UI.openBottomSheet('sheet-customers')">
                     <div>
                         <small style="color: var(--md-text-muted);">Billed To *</small>
                         <div id="sales-customer-display" class="large-text" style="color: var(--md-text-muted);">Select Customer...</div>
@@ -530,7 +530,7 @@
                     AI Scan Purchase Bill
                 </button>
 
-                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="UI.openBottomSheet('sheet-suppliers')">
+                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) window.UI.state.currentPrefix = 'purchase'; UI.openBottomSheet('sheet-suppliers')">
                     <div>
                         <small style="color: var(--md-text-muted);">Purchased From *</small>
                         <div id="purchase-supplier-display" class="large-text" style="color: var(--md-text-muted);">Select Supplier...</div>
