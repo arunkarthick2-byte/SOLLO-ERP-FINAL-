@@ -274,11 +274,11 @@
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Cloud Backup & Storage</strong>
                 <div style="text-align: center; margin-bottom: 12px; font-size: 12px; color: var(--md-text-muted);" id="cloud-status-tab">Checking Google Drive...</div>
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #e3f2fd;" onclick="Cloud.backup()">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #e3f2fd;" onclick="if(window.Cloud) window.Cloud.backup()">
                         <span class="material-symbols-outlined" style="color: #0061a4;">cloud_upload</span>
                         <div style="flex: 1;"><strong style="font-size:15px; color: #0061a4;">Backup to Google Drive</strong></div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #fff0f2;" onclick="Cloud.restore()">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #fff0f2;" onclick="if(window.Cloud) window.Cloud.restore()">
                         <span class="material-symbols-outlined" style="color: #ba1a1a;">cloud_download</span>
                         <div style="flex: 1;"><strong style="font-size:15px; color: #ba1a1a;">Restore from Drive</strong></div>
                     </div>
@@ -398,12 +398,12 @@
         </div>
         <div class="activity-content">
             <form id="form-sales">
-                <button type="button" class="btn-primary-small tap-target" onclick="Utils.startAIScanner('sales')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
+                <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('sales')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">document_scanner</span> 
                     AI Auto-Fill from Document
                 </button>
 
-                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) window.UI.state.currentPrefix = 'sales'; UI.openBottomSheet('sheet-customers')">
+                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) { window.UI.state.currentPrefix = 'sales'; window.UI.openBottomSheet('sheet-customers'); }">
                     <div>
                         <small style="color: var(--md-text-muted);">Billed To *</small>
                         <div id="sales-customer-display" class="large-text" style="color: var(--md-text-muted);">Select Customer...</div>
@@ -443,7 +443,7 @@
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
                     <div style="padding: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-surface-variant);">
                         <strong class="large-text">Items</strong>
-                        <button type="button" class="btn-primary-small" onclick="UI.openBottomSheet('sheet-products')">+ Add Item</button>
+                        <button type="button" class="btn-primary-small" onclick="if(window.UI) window.UI.openBottomSheet('sheet-products')">+ Add Item</button>
                     </div>
                     <div style="overflow-x: auto;">
                         <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
@@ -525,12 +525,12 @@
         </div>
         <div class="activity-content">
             <form id="form-purchase">
-                <button type="button" class="btn-primary-small tap-target" onclick="Utils.startAIScanner('purchase')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
+                <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('purchase')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">document_scanner</span> 
                     AI Scan Purchase Bill
                 </button>
 
-                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) window.UI.state.currentPrefix = 'purchase'; UI.openBottomSheet('sheet-suppliers')">
+                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) { window.UI.state.currentPrefix = 'purchase'; window.UI.openBottomSheet('sheet-suppliers'); }">
                     <div>
                         <small style="color: var(--md-text-muted);">Purchased From *</small>
                         <div id="purchase-supplier-display" class="large-text" style="color: var(--md-text-muted);">Select Supplier...</div>
@@ -570,7 +570,7 @@
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
                     <div style="padding: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-surface-variant);">
                         <strong class="large-text">Items Received</strong>
-                        <button type="button" class="btn-primary-small" onclick="UI.openBottomSheet('sheet-products')">+ Add Item</button>
+                        <button type="button" class="btn-primary-small" onclick="if(window.UI) window.UI.openBottomSheet('sheet-products')">+ Add Item</button>
                     </div>
                     <div style="overflow-x: auto;">
                         <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
@@ -649,7 +649,7 @@
         </div>
         <div class="activity-content">
             <form id="form-expense">
-                <button type="button" class="btn-primary-small tap-target" onclick="Utils.startAIScanner('expense')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
+                <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('expense')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">receipt_long</span> 
                     AI Scan Expense Receipt
                 </button>
@@ -677,7 +677,7 @@
                     </select>
                 </div>
 
-                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="UI.openBottomSheet('sheet-linked-docs')">
+                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-linked-docs')">
                     <div>
                         <small style="color: var(--md-text-muted);">Link to Invoice / PO (Optional)</small>
                         <div id="expense-linked-display" class="large-text" style="color: var(--md-text-muted);">-- No Link (General Expense) --</div>
@@ -689,7 +689,7 @@
                 
                 <div class="form-group">
                     <label>Attach Bill / Receipt</label>
-                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('expense-attachment-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
+                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('expense-attachment-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
                     <img id="expense-attachment-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
@@ -712,7 +712,7 @@
         </div>
         <div class="activity-content">
             <form id="form-product">
-                <button type="button" class="btn-primary-small tap-target" onclick="Utils.startAIScanner('product')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
+                <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('product')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">qr_code_scanner</span> 
                     AI Scan Price Tag / Box
                 </button>
@@ -721,7 +721,7 @@
                 
                 <div class="form-group">
                     <label for="prod-img">Product Image</label>
-                    <input type="file" id="prod-img" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('product-image-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
+                    <input type="file" id="prod-img" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('product-image-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
                     <img id="product-image-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
@@ -869,13 +869,13 @@
             <form id="form-business-profile">
                 <div class="form-group">
                     <label>Business Logo</label>
-                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('profile-logo-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
+                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-logo-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
                     <img id="profile-logo-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
                 
                 <div class="form-group">
                     <label>Authorized Signature</label>
-                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file){ const reader = new FileReader(); reader.onload = function(e){ const img = document.getElementById('profile-signature-preview'); img.src = e.target.result; img.classList.remove('hidden'); }; reader.readAsDataURL(file); }">
+                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-signature-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
                     <img id="profile-signature-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
@@ -1515,7 +1515,7 @@
             <ul class="list-view" id="list-products" style="flex: 1; overflow-y: auto;"></ul>
             <div style="display: flex; gap: 8px; margin-top: 12px;">
                 <button class="btn-primary-small" style="flex: 1; background: var(--md-surface-variant); color: var(--md-on-surface);" onclick="UI.closeBottomSheet('sheet-products'); setTimeout(() => { if(window.app) window.app.openForm('product'); }, 200);">+ New Product</button>
-                <button class="btn-primary" style="flex: 2;" onclick="UI.confirmProducts()">Add Selected</button>
+                <button class="btn-primary" style="flex: 2;" onclick="if(window.UI) window.UI.confirmProducts()">Add Selected</button>
             </div>
         </div>
     </div>
@@ -1524,13 +1524,13 @@
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Link to Document(s)</span>
             <div style="display: flex; gap: 16px; align-items: center;">
-                <button class="btn-primary-small" onclick="UI.closeBottomSheet('sheet-linked-docs')">Done</button>
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-linked-docs')">close</span>
+                <button class="btn-primary-small" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">Done</button>
+                <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">close</span>
             </div>
         </div>
         <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
-            <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-linked-docs" placeholder="Search Order No or Inv No..." oninput="app.filterLinkedDocs(this.value)"></div>
-            <div class="tap-target m3-card" style="background: var(--md-surface-variant); text-align: center; font-weight: 500; color: var(--md-primary);" onclick="app.selectLinkedDoc('', '-- No Link (General Expense) --')">Clear Link / General Expense</div>
+            <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-linked-docs" placeholder="Search Order No or Inv No..." oninput="if(window.app) window.app.filterLinkedDocs(this.value)"></div>
+            <div class="tap-target m3-card" style="background: var(--md-surface-variant); text-align: center; font-weight: 500; color: var(--md-primary);" onclick="if(window.app) window.app.selectLinkedDoc('', '-- No Link (General Expense) --')">Clear Link / General Expense</div>
             <ul class="list-view" id="list-linked-docs" style="flex: 1; overflow-y: auto;"></ul>
         </div>
     </div>
@@ -1875,6 +1875,16 @@
                     altFormat: "d/m/Y",  // Displays as DD/MM/YYYY (Indian Standard)
                     defaultDate: el.value || today,
                     disableMobile: "true" 
+                });
+
+                // ENTERPRISE FIX: Intercept JS value assignments to perfectly sync the Calendar UI!
+                const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+                Object.defineProperty(el, 'value', {
+                    get: function() { return originalDescriptor.get.call(this); },
+                    set: function(val) {
+                        originalDescriptor.set.call(this, val);
+                        if (this._flatpickr) this._flatpickr.setDate(val, false);
+                    }
                 });
             });
 
