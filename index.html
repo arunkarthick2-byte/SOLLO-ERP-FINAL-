@@ -1879,11 +1879,16 @@
 
                 // ENTERPRISE FIX: Intercept JS value assignments to perfectly sync the Calendar UI!
                 const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+                let isUpdating = false; // Anti-Loop Lock
                 Object.defineProperty(el, 'value', {
                     get: function() { return originalDescriptor.get.call(this); },
                     set: function(val) {
                         originalDescriptor.set.call(this, val);
-                        if (this._flatpickr) this._flatpickr.setDate(val, false);
+                        if (this._flatpickr && !isUpdating) {
+                            isUpdating = true; // Lock the engine
+                            this._flatpickr.setDate(val, false); // Update calendar safely
+                            isUpdating = false; // Unlock the engine
+                        }
                     }
                 });
             });
