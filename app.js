@@ -313,6 +313,54 @@ const app = {
     },
 
     // ==========================================
+    // ENTERPRISE UPGRADE: STOCK ADJUSTMENT ENGINE
+    // ==========================================
+    openAdjustmentSheet: async () => {
+        try {
+            // FIX: Removed 'window.' so it correctly uses your imported database engine!
+            const items = await getAllRecords('items');
+            const select = document.getElementById('adj-product-id');
+            
+            if (!items || items.length === 0) {
+                alert("Please add at least one Product in Inventory first!");
+                return;
+            }
+
+            // Populate the dropdown with actual products and their current stock
+            let html = '<option value="">Select Product...</option>';
+            items.forEach(i => {
+                // Ensure we only show items for the current active business/firm
+                if (i.firmId === app.state.firmId) {
+                    html += `<option value="${i.id}">${i.name} (Cur Stock: ${parseFloat(i.stock || 0).toFixed(2)})</option>`;
+                }
+            });
+            select.innerHTML = html;
+            
+            if (!items || items.length === 0) {
+                alert("Please add at least one Product in Inventory first!");
+                return;
+            }
+
+            // Populate the dropdown with actual products and their current stock
+            let html = '<option value="">Select Product...</option>';
+            items.forEach(i => {
+                html += `<option value="${i.id}">${i.name} (Cur Stock: ${parseFloat(i.stock || 0).toFixed(2)})</option>`;
+            });
+            select.innerHTML = html;
+            
+            // Reset the form fields safely
+            document.getElementById('adj-qty').value = '';
+            document.getElementById('adj-notes').value = '';
+            document.getElementById('adj-date').value = window.Utils ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+
+            // Safely open the sheet
+            if (window.UI) window.UI.openBottomSheet('sheet-stock-adjustment');
+        } catch (error) {
+            console.error("Error opening adjustment sheet:", error);
+        }
+    },
+
+    // ==========================================
     // NEW: SIMPLE MASTER CRUD ENGINE
     // ==========================================
     loadDropdowns: async () => {

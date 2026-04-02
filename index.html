@@ -191,7 +191,7 @@
                 </div>
 
                 <div id="doc-sales-view" style="padding-bottom: 80px;">
-                    <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
+                    <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
                         <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                         <input type="text" id="search-sales" placeholder="Search Invoices..." style="flex: 1; min-width: 0;">
                         
@@ -207,7 +207,7 @@
                 </div>
 
                 <div id="doc-purchase-view" class="hidden" style="padding-bottom: 80px;">
-                    <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
+                    <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
                         <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                         <input type="text" id="search-purchases" placeholder="Search POs..." style="flex: 1; min-width: 0;">
                         
@@ -224,7 +224,7 @@
             </div>
             <div id="tab-cashbook" class="screen-section hidden">
                 
-                <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
+                <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
                     <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                     <input type="text" id="search-cashbook" placeholder="Search transactions..." style="flex: 1; min-width: 0;">
                     
@@ -354,9 +354,9 @@
             <span id="master-view-title" style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Master List</span>
             <span id="btn-master-action" class="tap-target hidden" style="color: var(--md-primary); font-weight: 500; position: absolute; right: 16px;">Action</span>
         </div>
-        <div class="activity-content" style="padding: 16px;">
+        <div class="activity-content" style="padding: 0px 16px 16px 16px;">
             
-            <div class="search-bar" style="margin-top: -16px; padding-right: 8px;">
+            <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
                 <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                 <input type="text" id="search-master-view" placeholder="Search..." style="flex: 1; min-width: 0;">
                 
@@ -371,7 +371,7 @@
                           const title = document.getElementById('master-view-title').innerText; 
                           if(title.includes('Inventory')) window.app.openForm('product'); 
                           else if(title.includes('Customer') || title.includes('Supplier') || title.includes('Address')) window.app.openForm('ledger'); 
-                          else if(title.includes('Stock') && window.UI) window.UI.openBottomSheet('sheet-stock-adjustment');
+                          else if(title.includes('Stock') && window.app) window.app.openAdjustmentSheet();
                       }">add</span>
             </div>
             
@@ -839,8 +839,8 @@
             <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger')">arrow_back</span>
             <span style="font-size: 18px; font-weight: 500;">Expense Ledger</span>
         </div>
-        <div class="activity-content">
-            <div class="search-bar" style="margin-top: -8px; padding-right: 8px; margin-bottom: 16px;">
+        <div class="activity-content" style="padding-top: 0px;">
+            <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
                 <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                 <input type="text" id="search-expenses" placeholder="Search expenses or categories..." style="flex: 1; min-width: 0;">
                 
@@ -927,9 +927,9 @@
                 <span class="material-symbols-outlined tap-target" onclick="Utils.downloadStatementPDF()">share</span>
             </div>
         </div>
-        <div class="activity-content" style="background: var(--md-background); padding: 12px;">
+        <div class="activity-content" style="background: var(--md-background); padding: 0px 12px 12px 12px;">
             
-            <div class="search-bar" style="margin-top: -16px; margin-bottom: 16px;">
+            <div class="search-bar" style="margin-bottom: 16px;">
                 <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                 <input type="text" id="search-timeline" placeholder="Search transactions..." style="flex: 1; min-width: 0;">
                 
@@ -1084,7 +1084,7 @@
             <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('product'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
             <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('ledger'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
             
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => UI.openBottomSheet('sheet-stock-adjustment'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined">build</span></div><small>Adj Stock</small></div>
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => { if(window.app) window.app.openAdjustmentSheet(); }, 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined">build</span></div><small>Adj Stock</small></div>
             <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('account'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #e0f7fa; color: #006064;"><span class="material-symbols-outlined">account_balance</span></div><small>Bank A/c</small></div>
         </div>
     </div>
@@ -1740,12 +1740,12 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script src="cloud.js?v=23"></script>
+    <script src="cloud.js?v=26"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
-    <script type="module" src="app.js?v=23"></script>
+    <script type="module" src="app.js?v=27"></script>
     <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
