@@ -43,7 +43,22 @@ input, textarea {
     --elevation-1: 0px 2px 8px rgba(0, 0, 0, 0.06);
     --elevation-2: 0px 4px 16px rgba(0, 0, 0, 0.08);
     --elevation-3: 0px 8px 24px rgba(0, 0, 0, 0.12);
+
+    /* ENTERPRISE UPGRADE: Z-INDEX DICTIONARY */
+    --z-base: 10;
+    --z-header: 100;
+    --z-bottom-nav: 1000;
+    --z-fab: 1500;
+    --z-bottom-sheet: 3000;
+    --z-activity-screen: 4000;
+    --z-overlay: 5000;
+    --z-toast: 6000;
+    --z-dialog: 9999;
+    
+    /* ENTERPRISE UPGRADE: REUSABLE GLASSMORPHISM */
+    --glass-blur: blur(16px) saturate(180%);
 }
+
 /* ==========================================
    BASE RESETS & NATIVE APP TYPOGRAPHY
    ========================================== */
@@ -130,7 +145,6 @@ a, button, input, select, textarea, .tap-target, .nav-item, .chip, .list-view li
 
 .app-header {
     height: 64px;
-    /* Optional: padding-top for phones with notches inside Wrappers */
     padding-top: env(safe-area-inset-top, 0px);
     background-color: var(--md-primary);
     color: var(--md-on-primary);
@@ -139,9 +153,10 @@ a, button, input, select, textarea, .tap-target, .nav-item, .chip, .list-view li
     justify-content: space-between;
     padding-left: 16px;
     padding-right: 16px;
-    z-index: 10;
+    z-index: var(--z-header, 100); /* FIX: Upgraded from 10 */
     flex-shrink: 0;
 }
+
 
 .main-content {
     flex: 1;
@@ -163,6 +178,8 @@ a, button, input, select, textarea, .tap-target, .nav-item, .chip, .list-view li
 
 .screen-section {
     padding: 16px;
+    /* ENTERPRISE FIX: Protects content from the physical Camera Notch! */
+    padding-top: calc(16px + env(safe-area-inset-top, 0px)) !important;
     /* NEW: Dynamic bottom padding to account for Android Gesture Bars */
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); 
 }
@@ -576,11 +593,12 @@ body:has(.activity-screen.open) .floating-action-button {
     padding-top: calc(12px + env(safe-area-inset-top, 0px));
     /* PREMIUM UPGRADE: Translucent Frosted Glass */
     background-color: rgba(253, 252, 255, 0.85); 
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: var(--glass-blur, blur(16px) saturate(180%));
+    -webkit-backdrop-filter: var(--glass-blur, blur(16px) saturate(180%));
     border-bottom: 1px solid rgba(195, 199, 207, 0.3); 
-    z-index: 10; 
+    z-index: var(--z-header, 100); /* FIX: Upgraded from 10 to block search bars */
 }
+
 body.dark-mode .activity-header {
     background-color: rgba(26, 28, 30, 0.85); 
     border-bottom: 1px solid rgba(67, 71, 78, 0.3); 
@@ -757,6 +775,7 @@ body.dark-mode {
     
     background-color: var(--md-background);
     color: var(--md-on-surface);
+    color-scheme: dark; /* NATIVE BROWSER DARK MODE TIE-IN */
 }
 
 /* Fix card borders and shadows in Dark Mode */
@@ -1711,7 +1730,7 @@ header, .header, .top-bar {
 
 /* 3. Add deep padding to the bottom of all scrollable screens */
 /* This ensures the very last product or invoice in your list doesn't get trapped completely under the swipe-up home bar */
-.activity-screen, .list-container, main {
+.activity-content, .list-container, .main-content {
     padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important;
     padding-left: env(safe-area-inset-left) !important;
     padding-right: env(safe-area-inset-right) !important;
@@ -1731,4 +1750,34 @@ header, .header, .top-bar {
     
     /* Hardware acceleration lock */
     will-change: transform, opacity;
+}
+/* ==========================================
+   ENTERPRISE UPGRADE: DESKTOP SIMULATOR
+   ========================================== */
+@media (min-width: 601px) {
+    #app-shell {
+        margin-top: 2vh;
+        height: 96vh !important; /* Prevents it from touching the top/bottom */
+        border-radius: 24px;
+        border: 8px solid var(--md-surface-variant);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
+        overflow: hidden; 
+    }
+}
+
+/* ==========================================
+   ENTERPRISE UPGRADE: ACCESSIBILITY SHIELD
+   ========================================== */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    .activity-screen, .bottom-sheet {
+        /* Disables sliding animations for users with motion sickness */
+        transform: translateY(0) !important; 
+    }
 }
