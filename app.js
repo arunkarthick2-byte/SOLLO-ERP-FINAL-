@@ -72,7 +72,7 @@ import {
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
 } from './db.js?v=4';
 import Utils from './utils.js?v=4';
-import UI from './ui.js?v=999';
+import UI from './ui.js?v=1000';
 // --- END OF NEW CODE ---
 
 // --- ENTERPRISE UPGRADE: NESTED FORM ROUTING SHIELD ---
@@ -317,7 +317,6 @@ const app = {
     // ==========================================
     openAdjustmentSheet: async () => {
         try {
-            // FIX: Removed 'window.' so it correctly uses your imported database engine!
             const items = await getAllRecords('items');
             const select = document.getElementById('adj-product-id');
             
@@ -329,22 +328,9 @@ const app = {
             // Populate the dropdown with actual products and their current stock
             let html = '<option value="">Select Product...</option>';
             items.forEach(i => {
-                // Ensure we only show items for the current active business/firm
                 if (i.firmId === app.state.firmId) {
                     html += `<option value="${i.id}">${i.name} (Cur Stock: ${parseFloat(i.stock || 0).toFixed(2)})</option>`;
                 }
-            });
-            select.innerHTML = html;
-            
-            if (!items || items.length === 0) {
-                alert("Please add at least one Product in Inventory first!");
-                return;
-            }
-
-            // Populate the dropdown with actual products and their current stock
-            let html = '<option value="">Select Product...</option>';
-            items.forEach(i => {
-                html += `<option value="${i.id}">${i.name} (Cur Stock: ${parseFloat(i.stock || 0).toFixed(2)})</option>`;
             });
             select.innerHTML = html;
             

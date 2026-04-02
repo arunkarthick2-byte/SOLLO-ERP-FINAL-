@@ -2,6 +2,9 @@
 // SOLLO ERP - UI & ANIMATION CONTROLLER (v5.2 Enterprise)
 // ==========================================
 
+// ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
+import { getAllRecords, getRecordById, getKhataStatement } from './db.js?v=4';
+
 const UI = {
 
     // --- PREMIUM UX: NATIVE HAPTICS & SCROLL NAV ---
