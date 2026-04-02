@@ -1406,6 +1406,13 @@ const UI = {
     updateChart: (salesAmt, purchaseAmt, expenseAmt) => {
         const canvas = document.getElementById('dashboard-chart');
         if (!canvas) return;
+        
+        // ENTERPRISE FIX: Prevent a fatal white-screen crash if the app is launched offline and Chart.js is unreachable!
+        if (typeof Chart === 'undefined') {
+            console.warn('Chart.js is offline. Skipping graph rendering to protect Dashboard.');
+            return;
+        }
+
         const ctx = canvas.getContext('2d');
 
         // Destroy the old chart before drawing a new one
@@ -1466,6 +1473,9 @@ const UI = {
         const sheet = document.getElementById(sheetId);
         const overlay = document.getElementById('sheet-overlay');
         
+        // ENTERPRISE FIX: Prevent aggressive double-taps from permanently trapping the Android Back Button!
+        if (sheet && sheet.classList.contains('open')) return; 
+
         history.pushState({ modalOpen: true }, ''); // Native Back Gesture hook
 
         if (overlay) {
@@ -1533,13 +1543,17 @@ const UI = {
         if (sheetId === 'sheet-customers') {
             const searchBox = document.getElementById('search-customers');
             if (searchBox) { searchBox.value = ''; setTimeout(() => searchBox.focus(), 350); } // UPGRADE: Auto-focus keyboard!
-            UI.renderLedgerList('list-customers', UI.state.rawData.ledgers.filter(l => l.type === 'Customer'), UI.state.currentPrefix || 'sales');
+            // ENTERPRISE FIX: Case-insensitive match to prevent database casing bugs
+            const customers = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'customer');
+            UI.renderLedgerList('list-customers', customers, UI.state.currentPrefix || 'sales');
             document.querySelectorAll('#list-customers li').forEach(li => li.style.display = ''); // Force list to be visible
         }
         else if (sheetId === 'sheet-suppliers') {
             const searchBox = document.getElementById('search-suppliers');
             if (searchBox) { searchBox.value = ''; setTimeout(() => searchBox.focus(), 350); } // UPGRADE: Auto-focus keyboard!
-            UI.renderLedgerList('list-suppliers', UI.state.rawData.ledgers.filter(l => l.type === 'Supplier'), UI.state.currentPrefix || 'purchase');
+            // ENTERPRISE FIX: Case-insensitive match to prevent database casing bugs
+            const suppliers = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'supplier');
+            UI.renderLedgerList('list-suppliers', suppliers, UI.state.currentPrefix || 'purchase');
             document.querySelectorAll('#list-suppliers li').forEach(li => li.style.display = ''); // Force list to be visible
         }
         else if (sheetId === 'sheet-products') {
@@ -1673,8 +1687,15 @@ const UI = {
     renderLedgerList: (containerId, ledgers, prefix) => {
         const container = document.getElementById(containerId);
         if(!container) return;
+        
+        // ENTERPRISE FIX: Guard against empty databases
+        if (!ledgers || ledgers.length === 0) {
+            container.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No records found. Please add one first!</div>`;
+            return;
+        }
+
         container.innerHTML = ledgers.map(l => `
-            <li class="virtual-item" onclick="UI.selectLedger('${l.id}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${prefix}')">
+            <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.selectLedger('${l.id}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${prefix}')">
                 <div><div class="large-text">${l.name || 'Unnamed'}</div><small class="color-primary">${l.phone || 'No Phone'}</small></div>
             </li>
         `).join('');
@@ -1709,15 +1730,22 @@ const UI = {
         const container = document.getElementById('list-products');
         if(!container) return;
         
+        // ENTERPRISE FIX: Guard against empty databases
+        if (!items || items.length === 0) {
+            container.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found. Please add one first!</div>`;
+            return;
+        }
+
         container.innerHTML = items.map(item => {
-            const price = isPurchase ? (item.buyPrice || 0) : (item.sellPrice || 0);
+            // ENTERPRISE FIX: Mathematically force strings into Numbers so .toFixed NEVER crashes!
+            const price = parseFloat(isPurchase ? (item.buyPrice || 0) : (item.sellPrice || 0)) || 0;
             
             const currentStock = parseFloat(item.stock) || 0;
             const minStock = parseFloat(item.minStock) || 0;
             const isLowStock = minStock > 0 && currentStock <= minStock;
             
             return `
-            <li class="virtual-item" onclick="UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
+            <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
                 <div>
                     <div class="large-text">${item.name || 'Unnamed Product'}</div>
                     <small>

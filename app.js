@@ -90,9 +90,9 @@ import {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=3';
-import Utils from './utils.js?v=3';
-import UI from './ui.js?v=final-fix-2';
+} from './db.js?v=4';
+import Utils from './utils.js?v=4';
+import UI from './ui.js?v=999';
 // --- END OF NEW CODE ---
 
 // --- ENTERPRISE UPGRADE: NESTED FORM ROUTING SHIELD ---
@@ -130,38 +130,6 @@ if (UI) {
         // ENTERPRISE FIX: Clear the tracker when closing forms
         if (id === 'activity-sales-form' || id === 'activity-purchase-form') {
             UI.state.activeActivity = null;
-        }
-    };
-
-    // NEW: Shield Bottom Sheets so they don't aggressively wipe activities!
-    UI.openBottomSheet = (id) => {
-        const overlay = document.getElementById('sheet-overlay');
-        const sheet = document.getElementById(id);
-        if (overlay) { overlay.classList.remove('hidden'); setTimeout(()=> overlay.classList.add('open'), 10); }
-        if (sheet) sheet.classList.add('open');
-    };
-
-    UI.closeBottomSheet = (id) => {
-        const sheet = document.getElementById(id);
-        if (sheet) sheet.classList.remove('open');
-        setTimeout(() => {
-            const openSheets = document.querySelectorAll('.bottom-sheet.open');
-            if (openSheets.length === 0) {
-                const overlay = document.getElementById('sheet-overlay');
-                if (overlay) {
-                    overlay.classList.remove('open');
-                    setTimeout(() => overlay.classList.add('hidden'), 300);
-                }
-            }
-        }, 50);
-    };
-
-    UI.closeAllBottomSheets = () => {
-        document.querySelectorAll('.bottom-sheet.open').forEach(el => el.classList.remove('open'));
-        const overlay = document.getElementById('sheet-overlay');
-        if (overlay) {
-            overlay.classList.remove('open');
-            setTimeout(() => overlay.classList.add('hidden'), 300);
         }
     };
 
