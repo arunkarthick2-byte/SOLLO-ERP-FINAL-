@@ -65,26 +65,6 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// --- ENTERPRISE UPGRADE: NATIVE BACK BUTTON FIX ---
-history.pushState(null, document.title, window.location.href);
-window.addEventListener('popstate', (event) => {
-    const openSheets = document.querySelectorAll('.bottom-sheet.open');
-    if (openSheets.length > 0) {
-        if (window.UI) window.UI.closeBottomSheet(openSheets[openSheets.length - 1].id);
-        history.pushState(null, document.title, window.location.href);
-    } else if (window.activityStack && window.activityStack.length > 0) {
-        // CLOSE ONLY THE TOPMOST FORM IN THE STACK!
-        const topActivityId = window.activityStack.pop();
-        const el = document.getElementById(topActivityId);
-        if (el) {
-            el.classList.remove('open');
-            // FIX: Wait for the slide-down animation to finish before turning the invisible shield back on
-            setTimeout(() => el.classList.add('hidden'), 350); 
-        }
-        history.pushState(null, document.title, window.location.href);
-    }
-});
-
 // --- NEW CODE: Import all our modules ---
 import { 
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 

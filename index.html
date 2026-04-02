@@ -1740,12 +1740,12 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script src="cloud.js?v=18"></script>
+    <script src="cloud.js?v=21"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
-    <script type="module" src="app.js?v=18"></script>
+    <script type="module" src="app.js?v=21"></script>
     <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
@@ -1980,81 +1980,6 @@
                 }
             });
 
-            // ==========================================
-            // ENTERPRISE UPGRADE: NATIVE SWIPE-BACK TRAP
-            // ==========================================
-            
-            let currentOpenScreen = null; // The History Lock
-
-            // 1. Intercept the physical Android/iOS Swipe Back gesture
-            window.addEventListener('popstate', function(e) {
-                const openScreens = Array.from(document.querySelectorAll('.activity-screen')).filter(s => !s.classList.contains('hidden'));
-                
-                if (openScreens.length > 0) {
-                    const topScreen = openScreens[openScreens.length - 1];
-                    
-                    // The user swiped back, so we clear the lock to prevent history bugs
-                    currentOpenScreen = null; 
-                    
-                    // Close the screen safely
-                    if (window.UI && typeof window.UI.closeActivity === 'function') {
-                        window.UI.closeActivity(topScreen.id);
-                    } else {
-                        topScreen.classList.add('hidden');
-                    }
-                }
-
-                // ==========================================
-                // ENTERPRISE FIX: GLOBAL UI RESCUE
-                // ==========================================
-                // 1. Force the keyboard to drop if they swipe back while typing in a search bar
-                if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
-                    document.activeElement.blur();
-                }
-
-                // 2. If we are back on the main Master List (no activity screens open), resurrect the Bottom Nav and FAB!
-                setTimeout(() => {
-                    const remainingScreens = Array.from(document.querySelectorAll('.activity-screen')).filter(s => !s.classList.contains('hidden'));
-                    if (remainingScreens.length === 0) {
-                        // Unhide the FAB
-                        document.querySelectorAll('.fab, .btn-floating').forEach(btn => {
-                            btn.style.display = ''; 
-                            btn.classList.remove('hidden');
-                        });
-                        // Unhide the Bottom Menu
-                        document.querySelectorAll('.bottom-nav, #bottom-nav, footer').forEach(nav => {
-                            nav.style.display = '';
-                            nav.classList.remove('hidden');
-                        });
-                    }
-                }, 100); // Tiny 100ms delay ensures the screen has finished closing first
-            });
-
-            // 2. Secretly push a history state ONLY ONCE per screen opening
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    if (mutation.attributeName === 'class') {
-                        const target = mutation.target;
-                        const isVisible = !target.classList.contains('hidden');
-                        
-                        if (isVisible && target.classList.contains('activity-screen')) {
-                            // Only push to history if this is a NEW screen opening
-                            if (currentOpenScreen !== target.id) {
-                                history.pushState({ screenOpen: true }, '', window.location.href);
-                                currentOpenScreen = target.id; // Engage the lock
-                            }
-                        } else if (!isVisible && currentOpenScreen === target.id) {
-                            // If the user taps an 'X' button instead of swiping, release the lock
-                            currentOpenScreen = null;
-                        }
-                    }
-                });
-            });
-
-            // Attach the watcher to all UI screens
-            document.querySelectorAll('.activity-screen').forEach(screen => {
-                observer.observe(screen, { attributes: true });
-            });
 
             // ==========================================
             // ENTERPRISE UPGRADE: MATERIAL TOUCH RIPPLE
