@@ -623,7 +623,7 @@ async function generateGSTReport(yearMonth, firmId) {
 export {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById,
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber,
-    getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport, triggerAutoBackup
+    getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport
 };
 
 // 2. Map to window so inline HTML and older files don't break during the transition

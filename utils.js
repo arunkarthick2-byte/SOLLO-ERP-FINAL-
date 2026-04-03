@@ -2,7 +2,7 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v5.2 Enterprise)
 // ==========================================
 
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=3';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=4';
 
 const Utils = {
     // ==========================================
@@ -369,21 +369,23 @@ const Utils = {
             // NEW: Native OS Web Share API (WhatsApp, Telegram, Gmail, etc.)
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
-                    if (navigator.share) {
-                        const response = await fetch(imgSrc);
-                        const blob = await response.blob();
-                        // UPGRADE: Match the PNG format for lossless sharing
-                        const file = new File([blob], filename.replace('.pdf', '.png'), { type: 'image/png' });
+                    const response = await fetch(imgSrc);
+                    const blob = await response.blob();
+                    const file = new File([blob], filename.replace('.pdf', '.png'), { type: 'image/png' });
+
+                    // ENTERPRISE FIX: Strict capability check specifically for FILE sharing!
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
                             title: filename,
                             files: [file]
                         });
                     } else {
-                        // Fallback if testing on an outdated browser or locked-down wrapper
-                        alert("Native sharing is blocked by your current browser. Please LONG-PRESS the image below to Share or Save it.");
+                        // Fallback if Android WebView rejects files
+                        alert("Native sharing is blocked by this device. Please LONG-PRESS the image below to Share or Save it.");
                     }
                 } catch (err) {
                     console.log("Share cancelled or failed", err);
+                    alert("Sharing was cancelled or is unsupported on this device.");
                 }
             };
         } catch (err) {
