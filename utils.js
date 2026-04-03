@@ -296,21 +296,30 @@ const Utils = {
     },
 
     // ==========================================
-    // 4. IN-APP INVOICE VIEWER (WEBINTOAPP SAFE)
+    // 4. IN-APP INVOICE VIEWER (TRUE PDF UPGRADE)
     // ==========================================
     processPDFExport: async (elementId, filename) => {
         const element = document.getElementById(elementId);
         if (!element) return;
 
-        if (typeof html2canvas === 'undefined') {
-            alert("Installing Image Engine for the first time... Please wait 2 seconds and tap Print again.");
-            const script = document.createElement('script');
-            script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-            document.head.appendChild(script);
+        // Load BOTH the preview engine and the true PDF engine
+        if (typeof html2canvas === 'undefined' || typeof html2pdf === 'undefined') {
+            alert("Installing True PDF Engine... Please wait 3 seconds and tap Print again.");
+            if (typeof html2canvas === 'undefined') {
+                const s1 = document.createElement('script');
+                s1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                document.head.appendChild(s1);
+            }
+            if (typeof html2pdf === 'undefined') {
+                const s2 = document.createElement('script');
+                s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+                document.head.appendChild(s2);
+            }
             return;
         }
         
         try {
+            // Keep html2canvas for the visual on-screen preview
             const canvas = await html2canvas(element, { 
                 scale: 4, 
                 useCORS: true,
@@ -326,7 +335,6 @@ const Utils = {
                 }
             });
             
-            // UPGRADE: Use PNG for crystal clear text when sharing via WhatsApp
             const imgSrc = canvas.toDataURL('image/png');
 
             const viewer = document.createElement('div');
@@ -345,7 +353,7 @@ const Utils = {
                 <div style="background:#0061a4; color:white; padding:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.2); flex-shrink:0;">
                     <div>
                         <div style="font-weight:bold; font-size:18px;">Document Preview</div>
-                        <div style="font-size:12px; opacity:0.9; margin-top:2px;">Share directly or Print</div>
+                        <div style="font-size:12px; opacity:0.9; margin-top:2px;">Share PDF or Print</div>
                     </div>
                     <div style="display: flex; gap: 20px; align-items: center;">
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-print-preview">print</span>
@@ -359,32 +367,51 @@ const Utils = {
             `;
             document.body.appendChild(viewer);
 
-            // NEW: Native OS Print Engine (PDF Export / Hardware Printing)
+            // Print Button
             document.getElementById('btn-print-preview').onclick = () => {
-                document.getElementById('in-app-pdf-viewer').style.display = 'none'; // Temporarily hide viewer
+                document.getElementById('in-app-pdf-viewer').style.display = 'none';
                 window.print();
                 setTimeout(() => { document.getElementById('in-app-pdf-viewer').style.display = 'flex'; }, 500);
             };
             
-            // NEW: Native OS Web Share API (WhatsApp, Telegram, Gmail, etc.)
+            // NEW: TRUE PDF SHARE ENGINE
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
-                    const response = await fetch(imgSrc);
-                    const blob = await response.blob();
-                    const file = new File([blob], filename.replace('.pdf', '.png'), { type: 'image/png' });
+                    if (window.Utils) window.Utils.showToast("Generating PDF File...");
+                    
+                    // We generate the PDF directly from the invisible #print-area
+                    const printArea = document.getElementById('print-area');
+                    if (!printArea) return alert("Document data lost. Please close and tap print again.");
 
-                    // ENTERPRISE FIX: Strict capability check specifically for FILE sharing!
+                    const opt = {
+                        margin:       0,
+                        filename:     filename,
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 3, useCORS: true },
+                        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    // Convert HTML to a true PDF Blob
+                    const pdfBlob = await html2pdf().set(opt).from(printArea).output('blob');
+                    const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
                             title: filename,
                             files: [file]
                         });
                     } else {
-                        // Fallback if Android WebView rejects files
-                        alert("Native sharing is blocked by this device. Please LONG-PRESS the image below to Share or Save it.");
+                        // Fallback: Force Download if sharing is blocked
+                        const url = URL.createObjectURL(pdfBlob);
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.download = filename;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                        alert("Native sharing is blocked by this device. The PDF has been downloaded to your files instead.");
                     }
                 } catch (err) {
-                    console.log("Share cancelled or failed", err);
+                    console.log("PDF Share cancelled or failed", err);
                     alert("Sharing was cancelled or is unsupported on this device.");
                 }
             };
@@ -392,8 +419,7 @@ const Utils = {
             console.error("Preview Generation Failed", err);
             alert("Failed to generate preview.");
         } finally {
-            const printArea = document.getElementById('print-area');
-            if (printArea) printArea.innerHTML = ''; 
+            // Do NOT clear the print-area here anymore, because html2pdf needs it when the user clicks share!
         }
     },
 

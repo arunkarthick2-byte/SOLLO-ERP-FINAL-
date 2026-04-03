@@ -602,20 +602,58 @@ const UI = {
 
         // Cashbook Map logic for True Balances (WITH REFUND & COLLISION FIX)
         const paymentMap = {};
+        const ledgerTotalPaid = {}; 
+        const ledgerExplicitlyLinked = {}; 
+
         if (tab === 'sales' || tab === 'purchases') {
             UI.state.rawData.cashbook.forEach(c => {
-                if (c.invoiceRef && c.ledgerId) {
+                if (c.ledgerId) {
                     let amt = parseFloat(c.amount) || 0;
                     if (tab === 'sales') amt = c.type === 'in' ? amt : -amt;
                     if (tab === 'purchases') amt = c.type === 'out' ? amt : -amt;
                     
-                    // NEW: Split the payment map logic across all referenced invoices
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                    let splitAmt = amt / (refs.length || 1);
-                    refs.forEach(r => {
-                        const key = `${c.ledgerId}_${r}`;
-                        paymentMap[key] = (paymentMap[key] || 0) + splitAmt;
-                    });
+                    ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
+
+                    if (c.invoiceRef) {
+                        const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                        let splitAmt = amt / (refs.length || 1);
+                        refs.forEach(r => {
+                            const key = `${c.ledgerId}_${r}`;
+                            paymentMap[key] = (paymentMap[key] || 0) + splitAmt;
+                            ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + splitAmt;
+                        });
+                    }
+                }
+            });
+
+            // --- ENTERPRISE UPGRADE: AUTO-KNOCKOFF (FIFO) FOR ADVANCE PAYMENTS ---
+            const advancePool = {};
+            Object.keys(ledgerTotalPaid).forEach(ledgerId => {
+                const totalPaid = ledgerTotalPaid[ledgerId] || 0;
+                const explicitlyLinked = ledgerExplicitlyLinked[ledgerId] || 0;
+                if (totalPaid > explicitlyLinked) advancePool[ledgerId] = totalPaid - explicitlyLinked;
+                else advancePool[ledgerId] = 0;
+            });
+
+            const docsToProcess = tab === 'sales' ? [...UI.state.rawData.sales] : [...UI.state.rawData.purchases];
+            // Sort Oldest First for true chronological FIFO allocation
+            docsToProcess.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+            docsToProcess.forEach(doc => {
+                if (doc.status !== 'Open' && doc.documentType !== 'return') {
+                    const partyId = tab === 'sales' ? doc.customerId : doc.supplierId;
+                    if (advancePool[partyId] > 0.01) {
+                        const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
+                        const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${partyId}_${ref}`] || 0), 0);
+                        const due = (parseFloat(doc.grandTotal) || 0) - explicitPaid;
+                        
+                        // If invoice is due, consume the advance pool to pay it off automatically
+                        if (due > 0.01) {
+                            const allocated = Math.min(due, advancePool[partyId]);
+                            advancePool[partyId] -= allocated;
+                            paymentMap[`${partyId}_${doc.id}`] = (paymentMap[`${partyId}_${doc.id}`] || 0) + allocated;
+                        }
+                    }
                 }
             });
         }
@@ -1227,16 +1265,49 @@ const UI = {
 
         // CRITICAL FIX: Dashboard Payment Map Math & Collision Guard
         const paymentMap = {};
+        const ledgerTotalPaid = {}; 
+        const ledgerExplicitlyLinked = {}; 
+
         UI.state.rawData.cashbook.forEach(c => {
-            if (c.invoiceRef && c.ledgerId) {
+            if (c.ledgerId) {
                 let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
-                // FIX: Split by comma to properly distribute payments covering multiple invoices!
-                const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                let splitAmt = amt / (refs.length || 1);
-                refs.forEach(r => {
-                    const key = `${c.ledgerId}_${r}`;
-                    paymentMap[key] = (paymentMap[key] || 0) + splitAmt;
-                });
+                ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
+
+                if (c.invoiceRef) {
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                    let splitAmt = amt / (refs.length || 1);
+                    refs.forEach(r => {
+                        const key = `${c.ledgerId}_${r}`;
+                        paymentMap[key] = (paymentMap[key] || 0) + splitAmt;
+                        ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + splitAmt;
+                    });
+                }
+            }
+        });
+
+        // --- ENTERPRISE UPGRADE: DASHBOARD FIFO KNOCKOFF FOR OVERDUE SALES ---
+        const advancePool = {};
+        Object.keys(ledgerTotalPaid).forEach(ledgerId => {
+            const totalPaid = ledgerTotalPaid[ledgerId] || 0;
+            const explicitlyLinked = ledgerExplicitlyLinked[ledgerId] || 0;
+            if (totalPaid > explicitlyLinked) advancePool[ledgerId] = totalPaid - explicitlyLinked;
+            else advancePool[ledgerId] = 0;
+        });
+
+        const sortedSales = [...sales].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+        sortedSales.forEach(doc => {
+            if (doc.status !== 'Open' && doc.documentType !== 'return') {
+                if (advancePool[doc.customerId] > 0.01) {
+                    const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
+                    const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
+                    const due = (parseFloat(doc.grandTotal) || 0) - explicitPaid;
+                    
+                    if (due > 0.01) {
+                        const allocated = Math.min(due, advancePool[doc.customerId]);
+                        advancePool[doc.customerId] -= allocated;
+                        paymentMap[`${doc.customerId}_${doc.id}`] = (paymentMap[`${doc.customerId}_${doc.id}`] || 0) + allocated;
+                    }
+                }
             }
         });
 

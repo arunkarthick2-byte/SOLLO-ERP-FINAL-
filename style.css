@@ -340,11 +340,12 @@ body.dark-mode .swipe-card {
    ========================================== */
 .m3-card {
     background: var(--md-surface);
-    border-radius: 16px; 
-    padding: 16px; /* Tighter, cleaner internal padding */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 10px rgba(0,0,0,0.02); /* Ultra-soft premium shadow */
-    margin-bottom: 8px; /* Tighter grouping for lists */
-    border: 1px solid rgba(195, 199, 207, 0.4); /* Micro-hairline border for crisp edges */
+    /* UPGRADE: Native Android 14 Card Geometry (Rounder and roomier) */
+    border-radius: 24px; 
+    padding: 20px; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 10px rgba(0,0,0,0.02); 
+    margin-bottom: 12px; /* Better separation between form sections */
+    border: 1px solid rgba(195, 199, 207, 0.4); 
     transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
 }
 
@@ -379,48 +380,64 @@ body.dark-mode .m3-card.tap-target::after, body.dark-mode .btn-primary::after, b
 }
 
 .form-group {
-    margin-bottom: 22px; /* Better separation between inputs */
+    margin-bottom: 26px; 
+    position: relative; /* UPGRADE: Anchor for the magnetic label animation */
 }
 
 .form-group label {
-    display: block;
-    font-size: 11px; /* Slightly smaller but bolder */
+    display: inline-block; /* UPGRADE: Required for fluid transform animations */
+    font-size: 13px; 
     margin-bottom: 6px; 
     color: var(--md-text-muted);
-    font-weight: 600;
-    letter-spacing: 0.5px; /* Premium corporate tracking */
-    text-transform: uppercase;
+    font-weight: 500; 
+    letter-spacing: 0.2px; 
+    text-transform: none; 
+    transform-origin: left bottom; /* Anchors the animation to the corner */
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); /* MD3 Elastic Easing */
+}
+
+/* THE MAGIC: Material 3 Magnetic Focus Glow */
+.form-group:focus-within label {
+    color: var(--md-primary); /* Snaps to your brand blue */
+    font-weight: 600; /* Bolds the text to show active state */
+    transform: translateY(-2px) scale(1.05); /* Physically floats up and magnifies */
 }
 
 input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
     width: 100%;
-    padding: 16px; /* Perfectly square, breathless padding */
+    padding: 14px 16px; /* UPGRADE: Perfect rectangular thumb-target */
     border: 1px solid var(--md-outline-variant); 
-    border-radius: 12px; 
+    border-radius: 12px; /* Material 3 standard curve */
     font-size: 16px;
+    line-height: 1.5;
     background: var(--md-surface);
     color: var(--md-on-surface);
     font-family: inherit;
-    transition: all 0.2s ease;
-    box-shadow: none; /* Flatter, cleaner modern look */
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02) inset; /* Elite microscopic inner shadow */
 }
 
 input:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--md-primary);
-    border-width: 2px;
-    padding: 13px 15px; /* Offset the 2px border so text doesn't jump */
-    box-shadow: 0 0 0 4px var(--md-primary-container); /* Native focus glow effect */
+    /* UPGRADE: Removed the hacky border-width padding shift! 
+       The layout will no longer "jitter" when you tap a text box. */
 }
 
 .btn-primary {
     background: var(--md-primary);
     color: var(--md-on-primary);
     border: none;
-    padding: 12px 24px;
-    border-radius: 20px;
-    font-size: 14px;
-    font-weight: 500;
+    /* UPGRADE: 56px Tall Ergonomic Standard */
+    min-height: 56px; 
+    padding: 0 32px;
+    border-radius: 28px; /* Perfectly half of 56px for a true pill shape */
+    font-size: 15px; /* Slightly larger text for the bigger button */
+    font-weight: 600; /* Bolder call-to-action */
+    letter-spacing: 0.3px;
+    display: inline-flex; /* Ensures text stays perfectly centered */
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     box-shadow: var(--elevation-1);
     transition: transform 0.1s ease, box-shadow 0.1s ease;
@@ -560,7 +577,7 @@ input:focus, select:focus, textarea:focus {
     pointer-events: auto; 
 }
 
-/* UPGRADE 4: Full Screen Activities (Smooth iOS/Android Slide Up) */
+/* UPGRADE 4: Full Screen Activities (Native iOS/Android Horizontal Slide) */
 .activity-screen { 
     position: fixed; 
     top: 0; left: 0; right: 0; bottom: 0; 
@@ -568,14 +585,16 @@ input:focus, select:focus, textarea:focus {
     z-index: 4000; 
     display: flex; 
     flex-direction: column; 
-    transform: translateY(100%); /* Slide from bottom */
-    opacity: 0; /* Starts invisible */
-    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease; 
+    /* CHANGED: Now slides in from the right edge of the screen */
+    transform: translateX(100%); 
+    opacity: 0; 
+    /* Slightly faster transition to match native swipe speeds */
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease; 
     will-change: transform, opacity;
 }
 
 .activity-screen.open { 
-    transform: translateY(0); 
+    transform: translateX(0); 
     opacity: 1;
 }
 

@@ -922,8 +922,8 @@ const app = {
                     <td><input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
                     <td><input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:60px; padding:4px; border-color:var(--md-error);"></td>
                     <td><input type="text" class="row-uom" value="${item.uom || ''}" readonly style="width:50px; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly style="width:80px; padding:4px; background:var(--md-surface-variant);"></td>
-                    <td><input type="number" inputmode="decimal" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
+                    <td><input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly style="width:80px; padding:4px; background:var(--md-surface-variant);"></td>
+                    <td><input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
                     <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
                     <td style="text-align:center;"><span class="material-symbols-outlined tap-target" style="color:var(--md-error);" onclick="this.closest('tr').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span></td>
                 `;
@@ -1210,7 +1210,7 @@ const app = {
                         ${type === 'sales' && record.documentType !== 'return' ? `
                         <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
                             <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
-                            <input type="number" inputmode="decimal" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
+                            <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
                         </div>
                         <small class="live-margin" style="font-size:10px; display:block; margin-top:4px;"></small>
                         ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
@@ -1220,8 +1220,8 @@ const app = {
                     <td><input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
                     <td><input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:60px; padding:4px; ${record.documentType === 'return' ? 'border-color:var(--md-error);' : ''}"></td>
                     <td><input type="text" class="row-uom" value="${item.uom || ''}" readonly style="width:50px; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:80px; padding:4px; ${record.documentType === 'return' ? 'background:var(--md-surface-variant);' : ''}"></td>
-                    <td><input type="number" inputmode="decimal" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
+                    <td><input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:80px; padding:4px; ${record.documentType === 'return' ? 'background:var(--md-surface-variant);' : ''}"></td>
+                    <td><input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
                     <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
                     <td style="text-align:center;"><span class="material-symbols-outlined tap-target" style="color:var(--md-error);" onclick="this.closest('tr').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span></td>
                 `;
@@ -2115,6 +2115,22 @@ const app = {
             const linkedTransactions = allReceipts.filter(r => r.accountId === id);
             if (linkedTransactions.length > 0) {
                 return alert(`Cannot delete this account. It has ${linkedTransactions.length} transaction(s) linked to it in the Cashbook.`);
+            }
+        }
+
+        // ENTERPRISE FIX: Prevent Ledger (Party) Deletion if they have active history!
+        if (type === 'ledger') {
+            const allSales = await getAllRecords('sales');
+            const allPurchases = await getAllRecords('purchases');
+            const allReceipts = await getAllRecords('receipts');
+            
+            const linkedSales = allSales.filter(s => s.customerId === id);
+            const linkedPurchases = allPurchases.filter(p => p.supplierId === id);
+            const linkedReceipts = allReceipts.filter(r => r.ledgerId === id);
+            
+            const totalLinked = linkedSales.length + linkedPurchases.length + linkedReceipts.length;
+            if (totalLinked > 0) {
+                return alert(`Cannot delete this party. They have ${totalLinked} document(s) linked to them. To protect your financial reports, please delete their documents first, or just edit the party and rename them to "Inactive".`);
             }
         }
 
