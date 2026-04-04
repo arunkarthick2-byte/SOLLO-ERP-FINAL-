@@ -2000,7 +2000,11 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="email"]
 
 /* 5. TIGHTER SCREEN PADDING */
 .activity-content {
-    padding: 12px 8px !important; /* HIGH DENSITY: Wider screen area for data tables */
+    padding-top: 12px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    /* CRITICAL FIX: Restores the huge bottom spacer so the floating action bar doesn't hide the last item */
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important; 
 }
 
 /* KILL THE GAP: Force zero top-padding on screens where the Search Bar needs to touch the header */
@@ -2191,4 +2195,143 @@ body.dark-mode .sheet-overlay {
 .toast[style*="background: var(--md-error)"] {
     background: var(--md-error) !important;
     box-shadow: 0 20px 40px rgba(186, 26, 26, 0.4), 0 0 0 1px rgba(255,255,255,0.2) !important;
+}
+/* ==========================================
+   ELITE DESIGN 1: TACTILE SQUISH MICRO-INTERACTIONS
+   ========================================== */
+/* Targets all buttons, floating actions, menu icons, and list cards */
+button, 
+.btn, 
+.floating-action-button, 
+.icon-circle,
+.list-card,
+.timeline-item {
+    /* Adds a physical spring curve to the press release */
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease, background-color 0.2s ease !important;
+    will-change: transform; 
+}
+
+/* THE MAGIC: When the user presses their thumb down, shrink it physically */
+button:active, 
+.btn:active, 
+.floating-action-button:active, 
+.icon-circle:active,
+.list-card:active {
+    transform: scale(0.95) !important;
+}
+
+/* ==========================================
+   ELITE DESIGN 2: CASCADING WATERFALL LISTS
+   ========================================== */
+/* The animation engine: start transparent and slightly down, then slide up to visible */
+@keyframes waterfall-fade-in {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Apply the engine to the cards inside your lists */
+.activity-content .list-card,
+.activity-content .timeline-item {
+    /* 'backwards' ensures they stay invisible before their delay starts */
+    animation: waterfall-fade-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+/* THE MAGIC: Stagger the animation delay for the first 10 items to create the cascade */
+.activity-content .list-card:nth-child(1), .activity-content .timeline-item:nth-child(1) { animation-delay: 0.05s; }
+.activity-content .list-card:nth-child(2), .activity-content .timeline-item:nth-child(2) { animation-delay: 0.10s; }
+.activity-content .list-card:nth-child(3), .activity-content .timeline-item:nth-child(3) { animation-delay: 0.15s; }
+.activity-content .list-card:nth-child(4), .activity-content .timeline-item:nth-child(4) { animation-delay: 0.20s; }
+.activity-content .list-card:nth-child(5), .activity-content .timeline-item:nth-child(5) { animation-delay: 0.25s; }
+.activity-content .list-card:nth-child(6), .activity-content .timeline-item:nth-child(6) { animation-delay: 0.30s; }
+.activity-content .list-card:nth-child(7), .activity-content .timeline-item:nth-child(7) { animation-delay: 0.35s; }
+.activity-content .list-card:nth-child(8), .activity-content .timeline-item:nth-child(8) { animation-delay: 0.40s; }
+.activity-content .list-card:nth-child(9), .activity-content .timeline-item:nth-child(9) { animation-delay: 0.45s; }
+.activity-content .list-card:nth-child(10), .activity-content .timeline-item:nth-child(10) { animation-delay: 0.50s; }
+.activity-content .list-card:nth-child(n+11), .activity-content .timeline-item:nth-child(n+11) { animation-delay: 0.55s; }
+/* ==========================================
+   ELITE DESIGN 3: IOS GLASSMORPHISM NAVIGATION
+   ========================================== */
+/* Targets your main bottom tab bar */
+.bottom-nav {
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.02);
+}
+
+/* ==========================================
+   ELITE DESIGN 4: PREMIUM FORM INTERACTIONS
+   ========================================== */
+/* Smooth transitions for all form inputs */
+.form-group input, .form-group select, .form-group textarea {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* When the user taps the input, it glows and lifts slightly off the screen */
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    border-color: var(--md-primary, #0061a4) !important;
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.15) !important;
+    transform: translateY(-2px);
+    outline: none;
+}
+
+/* Make the label text pop and change color when the user is typing in that box */
+.form-group:focus-within label {
+    color: var(--md-primary, #0061a4);
+    font-weight: 700;
+    transform: scale(1.02);
+    transform-origin: left center;
+    transition: all 0.3s ease;
+}
+
+/* ==========================================
+   ELITE DESIGN 5: 3D STATUS RIBBONS
+   ========================================== */
+/* Ensure the list cards let the ribbon poke outside the box */
+.list-card, .timeline-item {
+    position: relative;
+    overflow: visible !important; 
+}
+
+/* The base design for the corner ribbon */
+.status-ribbon {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    padding: 4px 12px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: white;
+    border-radius: 4px 4px 4px 0;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    z-index: 10;
+}
+
+/* The 3D fold effect on the bottom left of the ribbon */
+.status-ribbon::before {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    border-top: 6px solid #000; /* Shadow color overridden below */
+    border-left: 6px solid transparent;
+}
+
+/* Green "PAID" Ribbon */
+.status-ribbon.paid {
+    background: linear-gradient(135deg, #2f855a, #146c2e);
+}
+.status-ribbon.paid::before {
+    border-top-color: #0f5122; /* Dark green 3D shadow */
+}
+
+/* Red "OVERDUE" Ribbon */
+.status-ribbon.overdue {
+    background: linear-gradient(135deg, #e53e3e, #ba1a1a);
+}
+.status-ribbon.overdue::before {
+    border-top-color: #8c1313; /* Dark red 3D shadow */
 }

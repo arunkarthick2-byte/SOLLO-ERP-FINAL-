@@ -715,9 +715,20 @@ const UI = {
                     const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid);
                     const statusText = s.status === 'Open' ? 'Draft' : (balance > 0 && !isReturn ? `Due: \u20B9${balance.toFixed(2)}` : 'Paid');
                     const statusColor = s.status === 'Open' ? 'var(--md-text-muted)' : (balance > 0 && !isReturn ? 'var(--md-error)' : 'var(--md-success)');
+                    
+                    // ELITE DESIGN ENGINE: Dynamically calculate the 3D Ribbon
+                    let ribbonHTML = '';
+                    if (s.status !== 'Open' && !isReturn) {
+                        if (balance <= 0) {
+                            ribbonHTML = '<div class="status-ribbon paid">PAID</div>';
+                        } else {
+                            ribbonHTML = '<div class="status-ribbon overdue">DUE</div>';
+                        }
+                    }
 
                     return `
-                    <div class="m3-card tap-target" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
+                    <div class="m3-card tap-target list-card" style="position: relative; overflow: visible !important; ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
+                        ${ribbonHTML}
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <div>
                                 <div class="large-text">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>

@@ -348,8 +348,10 @@ const Utils = {
         try {
             // Keep html2canvas for the visual on-screen preview
             const canvas = await html2canvas(element, { 
-                scale: 4, 
+                // CRITICAL FIX: Lowered scale from 4 to 2 (Retina Display quality, massive CPU boost)
+                scale: 2, 
                 useCORS: true,
+                logging: false, // Prevents background console lag
                 backgroundColor: '#ffffff',
                 onclone: (clonedDoc) => {
                     const printArea = clonedDoc.getElementById('print-area');
@@ -413,10 +415,13 @@ const Utils = {
                     const opt = {
                         margin:       0,
                         filename:     filename,
-                        image:        { type: 'jpeg', quality: 0.98 },
+                        // Lowered JPEG quality from 0.98 to 0.92 for faster generation
+                        image:        { type: 'jpeg', quality: 0.92 },
                         html2canvas:  { 
-                            scale: 3, 
+                            // CRITICAL FIX: Lowered scale from 3 to 2 for instant PDF compiling
+                            scale: 2, 
                             useCORS: true,
+                            logging: false, // Silences the compiler
                             onclone: (clonedDoc) => {
                                 // CRITICAL FIX: Unhide the print area inside the PDF compiler memory
                                 const pa = clonedDoc.getElementById('print-area');

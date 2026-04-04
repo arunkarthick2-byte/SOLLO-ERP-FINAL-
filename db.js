@@ -179,11 +179,15 @@ const reverseStockImpact = async (storeName, record) => {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            // Reverse the math
+            
+            // CRITICAL FIX: Force current stock to be a safe number, preventing NaN corruption
+            let currentStock = parseFloat(dbItem.stock) || 0;
+            
+            // Reverse the math safely
             if (storeName === 'sales') {
-                dbItem.stock = Math.round((dbItem.stock + (isReturn ? -qty : qty)) * 100) / 100;
+                dbItem.stock = Math.round((currentStock + (isReturn ? -qty : qty)) * 100) / 100;
             } else if (storeName === 'purchases') {
-                dbItem.stock = Math.round((dbItem.stock + (isReturn ? qty : -qty)) * 100) / 100;
+                dbItem.stock = Math.round((currentStock + (isReturn ? qty : -qty)) * 100) / 100;
             }
             await saveRecord('items', dbItem);
         }
@@ -199,11 +203,14 @@ const applyStockImpact = async (storeName, record) => {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            // Apply the math
+            // CRITICAL FIX: Force current stock to be a safe number, preventing NaN corruption
+            let currentStock = parseFloat(dbItem.stock) || 0; 
+            
+            // Apply the math safely
             if (storeName === 'sales') {
-                dbItem.stock = Math.round((dbItem.stock + (isReturn ? qty : -qty)) * 100) / 100; 
+                dbItem.stock = Math.round((currentStock + (isReturn ? qty : -qty)) * 100) / 100; 
             } else if (storeName === 'purchases') {
-                dbItem.stock = Math.round((dbItem.stock + (isReturn ? -qty : qty)) * 100) / 100; 
+                dbItem.stock = Math.round((currentStock + (isReturn ? -qty : qty)) * 100) / 100; 
                 
                 // Automatically update buy price to the latest rate (factoring in discounts!)
                 if (!isReturn && row.rate > 0) {
@@ -279,9 +286,9 @@ const saveInvoiceTransaction = async (storeName, data) => {
 // SMART AUTO-NUMBERING ENGINE (Template Driven)
 // ==========================================
 const getNextDocumentNumber = async (storeName, docType, targetField = null) => {
-    const records = await getAllRecords(storeName);
     const firmId = typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1';
-    const firmRecords = records.filter(r => r.firmId === firmId);
+    // ENTERPRISE FIX: Use the native IndexedDB index to fetch ONLY this firm's records. Saves massive RAM!
+    const firmRecords = await getAllRecords(storeName, 'firmId', firmId);
     
     // 1. Calculate Current Financial Year (April 1st to March 31st)
     const today = new Date();
