@@ -26,6 +26,7 @@
         });
     </script>
 
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -36,7 +37,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=15">
+    <link rel="stylesheet" href="style.css?v=16">
     <link rel="manifest" href="./manifest.json"> 
 
     <style>
@@ -110,16 +111,16 @@
                     <strong style="display:flex; align-items:center; gap:8px; margin-bottom:16px; font-size: 16px; color: var(--md-primary);">
                         <span class="material-symbols-outlined">local_shipping</span> Order Fulfillment
                     </strong>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 12px; margin-bottom: 12px;">
-                        <span style="color: var(--md-text-muted);">Open (Pending)</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 12px; margin-bottom: 12px; align-items: center;">
+                        <span style="color: var(--md-text-muted); display: flex; align-items: center;"><span class="status-dot status-open"></span> Open (Pending)</span>
                         <span id="dash-orders-open" style="font-size: 14px; color: var(--md-text-muted);">0 Orders <strong style="color:var(--md-error);">&#8377;0.00</strong></span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 12px; margin-bottom: 12px;">
-                        <span style="color: var(--md-text-muted);">Shipped (In Transit)</span>
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 12px; margin-bottom: 12px; align-items: center;">
+                        <span style="color: var(--md-text-muted); display: flex; align-items: center;"><span class="status-dot status-shipped"></span> Shipped (In Transit)</span>
                         <span id="dash-orders-shipped" style="font-size: 14px; color: var(--md-text-muted);">0 Orders <strong style="color:#f57f17;">&#8377;0.00</strong></span>
                     </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: var(--md-text-muted);">Completed</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--md-text-muted); display: flex; align-items: center;"><span class="status-dot status-completed"></span> Completed</span>
                         <span id="dash-orders-completed" style="font-size: 14px; color: var(--md-text-muted);">0 Orders <strong style="color:var(--md-success);">&#8377;0.00</strong></span>
                     </div>
                 </div>
@@ -479,6 +480,10 @@
                         <span>Freight:</span>
                         <input type="number" inputmode="decimal" id="sales-freight" value="0" step="any" oninput="UI.calcSalesTotals()" style="width: 100px; text-align: right;">
                     </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--md-text-muted); font-size: 14px;">
+                        <span>Round Off:</span>
+                        <strong id="sales-round-off">0.00</strong>
+                    </div>
                     <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="sales-grand-total">&#8377;0.00</strong></div>
                 </div>
@@ -605,6 +610,10 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span>Freight / Extra Charges:</span>
                         <input type="number" inputmode="decimal" id="purchase-freight" value="0" step="any" oninput="UI.calcPurchaseTotals()" style="width: 100px; text-align: right;">
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--md-text-muted); font-size: 14px;">
+                        <span>Round Off:</span>
+                        <strong id="purchase-round-off">0.00</strong>
                     </div>
                     <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="purchase-grand-total">&#8377;0.00</strong></div>
@@ -769,13 +778,20 @@
         </div>
         <div class="activity-content">
             <form id="form-ledger">
-                <div class="form-group"><label>Party Name *</label><input type="text" name="name" required></div>
+                <div class="form-group"><label>Party Name *</label><input type="text" name="name" id="ledger-name" required></div>
                 <div class="form-group">
                     <label>Type *</label>
                     <select name="type" required><option value="Customer">Customer</option><option value="Supplier">Supplier</option></select>
                 </div>
                 <div class="form-group"><label>Phone Number</label><input type="tel" name="phone"></div>
-                <div class="form-group"><label>GSTIN</label><input type="text" name="gst" style="text-transform: uppercase;"></div>
+                <div class="form-group">
+                    <label>GSTIN (Optional)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" name="gst" id="ledger-gst" style="text-transform: uppercase; flex: 1; margin-bottom: 0;">
+                        <button type="button" id="btn-verify-gst" onclick="window.verifyGSTIN()" style="background: var(--md-secondary); color: white; border: none; border-radius: 8px; padding: 0 16px; font-weight: bold; cursor: pointer;">Verify</button>
+                    </div>
+                    <small id="gst-status" style="color: var(--md-text-muted); font-size: 11px; margin-top: 4px; display: block;">Tap verify to auto-fill details</small>
+                </div>
                 
                 <div style="display: flex; gap: 12px;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Pincode</label><input type="number" inputmode="decimal" name="pincode" id="ledger-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'ledger')"></div>
@@ -1740,12 +1756,12 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script src="cloud.js?v=37"></script>
+    <script src="cloud.js?v=38"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
-    <script type="module" src="app.js?v=38"></script>
+    <script type="module" src="app.js?v=39"></script>
     <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
@@ -1796,6 +1812,70 @@
         window.applyAppUpdate = () => {
             if (newWorker) newWorker.postMessage({ type: 'SKIP_WAITING' });
             setTimeout(() => window.location.reload(), 500); 
+        };
+
+        // ==========================================
+        // ENTERPRISE UPGRADE: SMART GSTIN AUTO-FILL
+        // ==========================================
+        window.verifyGSTIN = async () => {
+            const gstinInput = document.getElementById('ledger-gst').value.trim().toUpperCase();
+            const statusText = document.getElementById('gst-status');
+            const btn = document.getElementById('btn-verify-gst');
+
+            if (!gstinInput) return alert("Please type a GSTIN first.");
+            if (gstinInput.length !== 15) return alert("GSTIN must be exactly 15 characters.");
+
+            btn.innerText = "⏳...";
+            btn.disabled = true;
+            statusText.innerText = "Pinging GST Network...";
+            statusText.style.color = "var(--md-primary)";
+
+            try {
+                // To activate: Replace the URL and API Key with a Free Tier account from Masters India or RapidAPI
+                const apiUrl = `https://api.mastersindia.co/tie/v2/gstin/?gstin=${gstinInput}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer YOUR_FREE_API_KEY', // <-- Paste your free key here later
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error("Network request failed.");
+                const data = await response.json();
+
+                if (data && !data.error) {
+                    // Auto-fill Legal Business Name
+                    const businessName = data.tradeNam || data.lgnm;
+                    if (businessName) document.getElementById('ledger-name').value = businessName;
+
+                    // Auto-fill Full Address, Pincode, City, and State!
+                    if (data.pradr && data.pradr.addr) {
+                        const adr = data.pradr.addr;
+                        if (adr.pncd) document.getElementById('ledger-pincode').value = adr.pncd;
+                        if (adr.dst || adr.loc) document.getElementById('ledger-city').value = adr.dst || adr.loc;
+                        if (adr.stcd) document.getElementById('ledger-state').value = adr.stcd;
+                        
+                        const fullAddress = `${adr.bno || ''} ${adr.st || ''}, ${adr.loc || ''}`.replace(/ ,/g, '').trim();
+                        document.getElementById('ledger-address').value = fullAddress;
+                    }
+
+                    statusText.innerText = "✅ Verified & Auto-Filled!";
+                    statusText.style.color = "var(--md-success)";
+                    if (window.Utils) window.Utils.showToast("GST Details Fetched Successfully!");
+                } else {
+                    throw new Error("Invalid GSTIN");
+                }
+
+            } catch (err) {
+                console.error("GST Fetch Error:", err);
+                statusText.innerText = "❌ Could not auto-fetch. Please type address manually.";
+                statusText.style.color = "var(--md-error)";
+            } finally {
+                btn.innerText = "Verify";
+                btn.disabled = false;
+            }
         };
 
         // ==========================================

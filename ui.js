@@ -506,11 +506,19 @@ const UI = {
         });
 
         const freight = parseFloat(document.getElementById('sales-freight').value) || 0;
-        const grandTotal = finalSubtotal + totalGst + freight;
+        const exactTotal = finalSubtotal + totalGst + freight;
+        const roundedTotal = Math.round(exactTotal);
+        const roundOff = roundedTotal - exactTotal;
 
         document.getElementById('sales-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
         document.getElementById('sales-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
-        document.getElementById('sales-grand-total').innerText = `\u20B9${grandTotal.toFixed(2)}`;
+        
+        const roundOffEl = document.getElementById('sales-round-off');
+        if (roundOffEl) {
+            roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
+        }
+        
+        document.getElementById('sales-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
     },
 
     calcPurchaseTotals: () => {
@@ -559,11 +567,19 @@ const UI = {
         });
 
         const freight = parseFloat(document.getElementById('purchase-freight').value) || 0;
-        const grandTotal = finalSubtotal + totalGst + freight;
+        const exactTotal = finalSubtotal + totalGst + freight;
+        const roundedTotal = Math.round(exactTotal);
+        const roundOff = roundedTotal - exactTotal;
 
         document.getElementById('purchase-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
         document.getElementById('purchase-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
-        document.getElementById('purchase-grand-total').innerText = `\u20B9${grandTotal.toFixed(2)}`;
+        
+        const roundOffEl = document.getElementById('purchase-round-off');
+        if (roundOffEl) {
+            roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
+        }
+        
+        document.getElementById('purchase-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
     },
 
     // ==========================================

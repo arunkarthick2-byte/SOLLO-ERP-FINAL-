@@ -75,8 +75,18 @@ const Cloud = {
                 // FIX: Call the globally mapped export function directly
                 const data = await window.exportDatabase(); 
 
-                const fileContent = JSON.stringify(data);
-                const file = new Blob([fileContent], { type: 'application/json' });
+                // ENTERPRISE FIX: Stream the JSON into the Blob in chunks to prevent mobile RAM crashes!
+                const blobParts = [];
+                blobParts.push('{"businessProfile":' + JSON.stringify(data.businessProfile || {}));
+                blobParts.push(',"ledgers":' + JSON.stringify(data.ledgers || []));
+                blobParts.push(',"products":' + JSON.stringify(data.products || []));
+                blobParts.push(',"sales":' + JSON.stringify(data.sales || []));
+                blobParts.push(',"purchases":' + JSON.stringify(data.purchases || []));
+                blobParts.push(',"receipts":' + JSON.stringify(data.receipts || []));
+                blobParts.push(',"accounts":' + JSON.stringify(data.accounts || []));
+                blobParts.push(',"timeline":' + JSON.stringify(data.timeline || []) + '}');
+
+                const file = new Blob(blobParts, { type: 'application/json' });
                 const metadata = { 'name': 'SOLLO_ERP_Backup.json', 'mimeType': 'application/json' };
 
                 let response = await gapi.client.drive.files.list({
@@ -119,8 +129,18 @@ const Cloud = {
                 // FIX: Call the globally mapped export function directly
                 const data = await window.exportDatabase(); 
 
-                const fileContent = JSON.stringify(data);
-                const file = new Blob([fileContent], { type: 'application/json' });
+                // ENTERPRISE FIX: Stream the JSON into the Blob in chunks to prevent mobile RAM crashes!
+                const blobParts = [];
+                blobParts.push('{"businessProfile":' + JSON.stringify(data.businessProfile || {}));
+                blobParts.push(',"ledgers":' + JSON.stringify(data.ledgers || []));
+                blobParts.push(',"products":' + JSON.stringify(data.products || []));
+                blobParts.push(',"sales":' + JSON.stringify(data.sales || []));
+                blobParts.push(',"purchases":' + JSON.stringify(data.purchases || []));
+                blobParts.push(',"receipts":' + JSON.stringify(data.receipts || []));
+                blobParts.push(',"accounts":' + JSON.stringify(data.accounts || []));
+                blobParts.push(',"timeline":' + JSON.stringify(data.timeline || []) + '}');
+
+                const file = new Blob(blobParts, { type: 'application/json' });
                 const metadata = {
                     'name': 'SOLLO_ERP_Backup.json',
                     'mimeType': 'application/json'
@@ -225,3 +245,15 @@ const Cloud = {
 };
 
 window.Cloud = Cloud;
+
+// ==========================================
+// ENTERPRISE UPGRADE: SILENT BACKGROUND SYNC
+// ==========================================
+// Exactly 15 seconds after the app opens, it checks if 24 hours have passed since the last backup.
+// If yes, it quietly zips the database and sends it to Google Drive without interrupting the user.
+setTimeout(() => {
+    if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
+        window.Cloud.autoBackup();
+    }
+}, 15000);
+

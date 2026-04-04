@@ -77,17 +77,30 @@ const Utils = {
     numberToWords: (num) => {
         const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
         const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-        const numStr = Math.floor(num).toString();
-        if (numStr.length > 9) return 'Amount too large';
-        const n = ('000000000' + numStr).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-        if (!n) return '';
-        let str = '';
-        str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
-        str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
-        str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
-        str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
-        str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
-        return str.trim() ? str.trim() + ' Rupees Only' : 'Zero Rupees Only';
+        
+        const convertGroup = (nStr) => {
+            if (nStr.length > 9) return 'Amount too large';
+            const n = ('000000000' + nStr).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            if (!n) return '';
+            let str = '';
+            str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
+            str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
+            str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
+            str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
+            str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+            return str.trim();
+        };
+
+        const safeNum = parseFloat(num) || 0;
+        const rupees = Math.floor(safeNum);
+        const paise = Math.round((safeNum - rupees) * 100);
+
+        let result = rupees === 0 ? 'Zero Rupees' : convertGroup(rupees.toString()) + ' Rupees';
+        
+        if (paise > 0) {
+            result += ' and ' + convertGroup(paise.toString()) + ' Paise';
+        }
+        return result + ' Only';
     },
 
     // --- NEW CODE: TOAST ENGINE ---
@@ -128,12 +141,16 @@ const Utils = {
         return gstRegex.test(String(gstin).trim().toUpperCase());
     },
 
-    calculateRowTotal: (qty, rate, gstPercent) => {
-        // UPGRADE: Replaced basic parseFloat with safeNumber to prevent NaN crashes
-        let baseAmount = Math.round((Utils.safeNumber(qty) * Utils.safeNumber(rate)) * 100) / 100;
+    calculateRowTotal: (qty, rate, gstPercent, discountPercent = 0) => {
+        // ENTERPRISE UPGRADE: Safe Numbers + Item-Level Discount processing BEFORE taxes
+        let grossAmount = Math.round((Utils.safeNumber(qty) * Utils.safeNumber(rate)) * 100) / 100;
+        let discountAmount = Math.round((grossAmount * (Utils.safeNumber(discountPercent) / 100)) * 100) / 100;
+        
+        let baseAmount = grossAmount - discountAmount;
         let gstAmount = Math.round((baseAmount * (Utils.safeNumber(gstPercent) / 100)) * 100) / 100;
         let finalTotal = Math.round((baseAmount + gstAmount) * 100) / 100;
-        return { baseAmount, gstAmount, finalTotal };
+        
+        return { baseAmount, gstAmount, finalTotal, discountAmount, grossAmount };
     },
 
     // --- ENTERPRISE UPGRADE: REVERSE GST (INCLUSIVE TAX) ---
@@ -222,10 +239,20 @@ const Utils = {
             if (window.Utils) window.Utils.showToast("Preparing Backup...");
             
             const data = await window.exportDatabase();
-            const json = JSON.stringify(data); 
+            
+            // ENTERPRISE FIX: Stream the JSON into the Blob in chunks to prevent mobile V8 RAM crashes!
+            const blobParts = [];
+            blobParts.push('{"businessProfile":' + JSON.stringify(data.businessProfile || {}));
+            blobParts.push(',"ledgers":' + JSON.stringify(data.ledgers || []));
+            blobParts.push(',"products":' + JSON.stringify(data.products || []));
+            blobParts.push(',"sales":' + JSON.stringify(data.sales || []));
+            blobParts.push(',"purchases":' + JSON.stringify(data.purchases || []));
+            blobParts.push(',"receipts":' + JSON.stringify(data.receipts || []));
+            blobParts.push(',"accounts":' + JSON.stringify(data.accounts || []));
+            blobParts.push(',"timeline":' + JSON.stringify(data.timeline || []) + '}');
 
             const fileName = `SOLLO_Backup_${new Date().toISOString().split('T')[0]}.json`;
-            const blob = new Blob([json], { type: "application/json" });
+            const blob = new Blob(blobParts, { type: "application/json" });
             const file = new File([blob], fileName, { type: "application/json" });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -387,12 +414,24 @@ const Utils = {
                         margin:       0,
                         filename:     filename,
                         image:        { type: 'jpeg', quality: 0.98 },
-                        html2canvas:  { scale: 3, useCORS: true },
+                        html2canvas:  { 
+                            scale: 3, 
+                            useCORS: true,
+                            onclone: (clonedDoc) => {
+                                // CRITICAL FIX: Unhide the print area inside the PDF compiler memory
+                                const pa = clonedDoc.getElementById('print-area');
+                                if (pa) {
+                                    pa.style.display = 'block';
+                                    pa.style.position = 'relative';
+                                    pa.style.visibility = 'visible';
+                                }
+                            }
+                        },
                         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
                     };
 
-                    // Convert HTML to a true PDF Blob
-                    const pdfBlob = await html2pdf().set(opt).from(printArea).output('blob');
+                    // CRITICAL FIX: Use 'element' instead of 'printArea', and use outputPdf('blob')
+                    const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
                     const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
