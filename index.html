@@ -290,7 +290,7 @@
                         <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="document.getElementById('import-file-tab').click()">
                             <span class="material-symbols-outlined" style="font-size: 20px;">restore_page</span> <span style="font-size: 13px; font-weight: bold;">Manual Restore</span>
                         </div>
-                        <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
+                        <input type="file" id="import-file-tab" style="display:none;" accept=".json,application/json,text/*,*/*" onchange="window.Utils.importData(event)">
                     </div>
                 </div>
 
