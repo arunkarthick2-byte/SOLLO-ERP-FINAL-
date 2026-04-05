@@ -2,7 +2,7 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v5.2 Enterprise)
 // ==========================================
 
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=4';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=41';
 
 const Utils = {
     // ==========================================
@@ -119,7 +119,7 @@ const Utils = {
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        }, 1000);
     },
     // --- END OF NEW CODE ---
 
@@ -255,30 +255,22 @@ const Utils = {
             const blob = new Blob(blobParts, { type: "application/json" });
             const file = new File([blob], fileName, { type: "application/json" });
 
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                // By removing 'await' and using .then/.catch, we prevent the app from crashing if the user hits 'Cancel'
-                navigator.share({
-                    title: "SOLLO ERP Backup",
-                    text: "Here is your complete database backup.",
-                    files: [file]
-                }).then(() => {
-                    if (window.Utils) window.Utils.showToast("✅ Backup Shared/Saved Successfully!");
-                }).catch(err => {
-                    console.log("Share sheet closed or failed:", err);
-                    // Silently ignore if the user simply closed the share menu!
-                });
-            } else {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.style.display = "none";
-                a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
+            // ENTERPRISE FIX: Force direct download to the "Downloads" folder to prevent Share Menu crashes
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up memory
+            setTimeout(() => {
                 URL.revokeObjectURL(url);
                 document.body.removeChild(a);
-                if (window.Utils) window.Utils.showToast("✅ Backup downloaded successfully!");
-            }
+            }, 1000);
+            
+            if (window.Utils) window.Utils.showToast("✅ Backup successfully saved to Downloads!");
         } catch (e) {
             console.error("Database Export Error:", e);
             alert("Database Error: Could not generate export file.");
@@ -1151,3 +1143,14 @@ export default Utils;
 
 // 2. Attach to window so index.html onclick="Utils..." buttons don't break!
 window.Utils = Utils; 
+// ==========================================
+// ENTERPRISE UPGRADE: DEBOUNCE ENGINE
+// Prevents keyboard lag during live search
+// ==========================================
+window.Utils.debounce = (func, delay) => {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func(...args), delay);
+    };
+};

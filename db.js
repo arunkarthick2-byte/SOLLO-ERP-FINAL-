@@ -395,70 +395,57 @@ const getKhataStatement = async (partyId, partyType) => {
         });
     }
 
-    const sales = (await getAllRecords('sales')).filter(s => s.firmId === firmId && s.customerId === partyId && s.status !== 'Open');
-    const purchases = (await getAllRecords('purchases')).filter(p => p.firmId === firmId && p.supplierId === partyId && p.status !== 'Open');
-    const receipts = (await getAllRecords('receipts')).filter(r => r.firmId === firmId && r.ledgerId === partyId);
-
-    // Build Sales timeline
-    sales.forEach(s => {
-        const isReturn = s.documentType === 'return';
-        const isNonGST = s.invoiceType === 'Non-GST';
-        // FIX: Dynamically label Bill of Supply vs Tax Invoice
-        const docLabel = isReturn ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
-        // FIX: Bulletproof ID fallback so it never prints ()
-        const docNo = s.invoiceNo || s.orderNo || String(s.id).slice(-4).toUpperCase();
-        
-        timeline.push({
-            id: s.id,
-            date: s.date,
-            desc: `${docLabel} (${docNo})`,
-            amount: s.grandTotal,
-            isInvoice: !isReturn, 
-            impact: isReturn ? -s.grandTotal : s.grandTotal
-        });
-    });
-
-    // Build Purchase timeline
-    purchases.forEach(p => {
-        const isReturn = p.documentType === 'return';
-        const isNonGST = p.invoiceType === 'Non-GST';
-        // FIX: Dynamically label Bill of Supply vs Tax Invoice
-        const docLabel = isReturn ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
-        // FIX: Bulletproof ID fallback
-        const docNo = p.poNo || p.invoiceNo || p.orderNo || String(p.id).slice(-4).toUpperCase();
-        
-        timeline.push({
-            id: p.id,
-            date: p.date,
-            desc: `${docLabel} (${docNo})`,
-            amount: p.grandTotal,
-            isInvoice: !isReturn,
-            impact: isReturn ? -p.grandTotal : p.grandTotal // CRITICAL FIX: Purchase increases debt to supplier
-        });
-    });
-
-    // Build Receipts timeline
-    receipts.forEach(r => {
-        const isMoneyIn = r.type === 'in';
-        let impact = 0;
-        
-        // CRITICAL FIX: Math accurately reflects debt depending on party type
-        if (isCustomer) {
-            impact = isMoneyIn ? -r.amount : r.amount;
-        } else {
-            impact = isMoneyIn ? r.amount : -r.amount; 
+    // ENTERPRISE FIX: Sequential Processing & Garbage Collection to save RAM
+    
+    // 1. Process Sales, then wipe from memory
+    const rawSales = await getAllRecords('sales');
+    rawSales.forEach(s => {
+        if (s.firmId === firmId && s.customerId === partyId && s.status !== 'Open') {
+            const isReturn = s.documentType === 'return';
+            const isNonGST = s.invoiceType === 'Non-GST';
+            const docLabel = isReturn ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
+            const docNo = s.invoiceNo || s.orderNo || String(s.id).slice(-4).toUpperCase();
+            
+            timeline.push({
+                id: s.id, date: s.date, desc: `${docLabel} (${docNo})`, 
+                amount: s.grandTotal, isInvoice: !isReturn, impact: isReturn ? -s.grandTotal : s.grandTotal
+            });
         }
-        
-        timeline.push({
-            id: r.id,
-            date: r.date,
-            // FIX: Prepend the custom Receipt/Voucher Number to the description
-            desc: (r.receiptNo ? r.receiptNo + ' - ' : '') + (r.desc || (isMoneyIn ? 'Payment Received' : 'Payment Made')),
-            amount: r.amount,
-            isInvoice: false,
-            impact: impact 
-        });
     });
+    rawSales.length = 0; // Force Garbage Collection
+
+    // 2. Process Purchases, then wipe from memory
+    const rawPurchases = await getAllRecords('purchases');
+    rawPurchases.forEach(p => {
+        if (p.firmId === firmId && p.supplierId === partyId && p.status !== 'Open') {
+            const isReturn = p.documentType === 'return';
+            const isNonGST = p.invoiceType === 'Non-GST';
+            const docLabel = isReturn ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
+            const docNo = p.poNo || p.invoiceNo || p.orderNo || String(p.id).slice(-4).toUpperCase();
+            
+            timeline.push({
+                id: p.id, date: p.date, desc: `${docLabel} (${docNo})`, 
+                amount: p.grandTotal, isInvoice: !isReturn, impact: isReturn ? -p.grandTotal : p.grandTotal
+            });
+        }
+    });
+    rawPurchases.length = 0; // Force Garbage Collection
+
+    // 3. Process Receipts, then wipe from memory
+    const rawReceipts = await getAllRecords('receipts');
+    rawReceipts.forEach(r => {
+        if (r.firmId === firmId && r.ledgerId === partyId) {
+            const isMoneyIn = r.type === 'in';
+            let impact = isCustomer ? (isMoneyIn ? -r.amount : r.amount) : (isMoneyIn ? r.amount : -r.amount);
+            
+            timeline.push({
+                id: r.id, date: r.date, 
+                desc: (r.receiptNo ? r.receiptNo + ' - ' : '') + (r.desc || (isMoneyIn ? 'Payment Received' : 'Payment Made')),
+                amount: r.amount, isInvoice: false, impact: impact 
+            });
+        }
+    });
+    rawReceipts.length = 0; // Force Garbage Collection
 
     // Sort chronologically
     timeline.sort((a, b) => {
@@ -482,28 +469,44 @@ const getKhataStatement = async (partyId, partyType) => {
 
 const getGlobalTimeline = async (firmId) => {
     let timeline = [];
-    const sales = (await getAllRecords('sales')).filter(r => r.firmId === firmId && r.status !== 'Open');
-    const purchases = (await getAllRecords('purchases')).filter(r => r.firmId === firmId && r.status !== 'Open');
-    const receipts = (await getAllRecords('receipts')).filter(r => r.firmId === firmId);
-    const expenses = (await getAllRecords('expenses')).filter(r => r.firmId === firmId);
 
-    sales.forEach(s => {
-        const isReturn = s.documentType === 'return';
-        timeline.push({ id: s.id, date: s.date, type: isReturn ? 'IN' : 'OUT', party: s.customerName, ref: s.invoiceNo, qty: `${isReturn ? '+' : ''}${(s.items || []).length} items`, amount: s.grandTotal, mode: 'Credit', desc: `${isReturn ? 'Return from' : 'Sale to'} ${s.customerName}` });
+    // 1. Process Sales & Wipe RAM
+    const rawSales = await getAllRecords('sales');
+    rawSales.forEach(s => {
+        if (s.firmId === firmId && s.status !== 'Open') {
+            const isReturn = s.documentType === 'return';
+            timeline.push({ id: s.id, date: s.date, type: isReturn ? 'IN' : 'OUT', party: s.customerName, ref: s.invoiceNo, qty: `${isReturn ? '+' : ''}${(s.items || []).length} items`, amount: s.grandTotal, mode: 'Credit', desc: `${isReturn ? 'Return from' : 'Sale to'} ${s.customerName}` });
+        }
     });
+    rawSales.length = 0;
 
-    purchases.forEach(p => {
-        const isReturn = p.documentType === 'return';
-        timeline.push({ id: p.id, date: p.date, type: isReturn ? 'OUT' : 'IN', party: p.supplierName, ref: p.poNo || p.invoiceNo, qty: `${isReturn ? '-' : ''}${(p.items || []).length} items`, amount: p.grandTotal, mode: 'Credit', desc: `${isReturn ? 'Return to' : 'Purchase from'} ${p.supplierName}` });
+    // 2. Process Purchases & Wipe RAM
+    const rawPurchases = await getAllRecords('purchases');
+    rawPurchases.forEach(p => {
+        if (p.firmId === firmId && p.status !== 'Open') {
+            const isReturn = p.documentType === 'return';
+            timeline.push({ id: p.id, date: p.date, type: isReturn ? 'OUT' : 'IN', party: p.supplierName, ref: p.poNo || p.invoiceNo, qty: `${isReturn ? '-' : ''}${(p.items || []).length} items`, amount: p.grandTotal, mode: 'Credit', desc: `${isReturn ? 'Return to' : 'Purchase from'} ${p.supplierName}` });
+        }
     });
+    rawPurchases.length = 0;
 
-    receipts.forEach(r => {
-        timeline.push({ id: r.id, date: r.date, type: r.type, amount: r.amount, mode: r.mode, desc: `Party: ${r.ledgerName}` });
+    // 3. Process Receipts & Wipe RAM
+    const rawReceipts = await getAllRecords('receipts');
+    rawReceipts.forEach(r => {
+        if (r.firmId === firmId) {
+            timeline.push({ id: r.id, date: r.date, type: r.type, amount: r.amount, mode: r.mode, desc: `Party: ${r.ledgerName}` });
+        }
     });
+    rawReceipts.length = 0;
 
-    expenses.forEach(e => {
-        timeline.push({ id: e.id, date: e.date, type: 'out', amount: parseFloat(e.amount), mode: 'Cash', desc: `Expense: ${e.category}` });
+    // 4. Process Expenses & Wipe RAM
+    const rawExpenses = await getAllRecords('expenses');
+    rawExpenses.forEach(e => {
+        if (e.firmId === firmId) {
+            timeline.push({ id: e.id, date: e.date, type: 'out', amount: parseFloat(e.amount), mode: 'Cash', desc: `Expense: ${e.category}` });
+        }
     });
+    rawExpenses.length = 0;
 
     return timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
 };

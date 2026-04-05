@@ -805,16 +805,17 @@ body.dark-mode .skeleton {
 /* 1. Dark Mode Color Overrides */
 body.dark-mode {
     --md-primary: #8fcbfb;
-    --md-on-primary: #003355;
+    --md-on-primary: #000000;
     --md-primary-container: #004a7a;
     --md-on-primary-container: #cce5ff;
-    --md-surface: #1a1c1e;
-    --md-background: #111315;
+    /* TRUE BLACK AMOLED FIX */
+    --md-surface: #0c0c0c; 
+    --md-background: #000000; 
     --md-on-surface: #e2e2e6;
-    --md-surface-variant: #43474e;
+    --md-surface-variant: #1c1c1e;
     --md-on-surface-variant: #c3c7cf;
     --md-text-muted: #8d9199;
-    --md-outline-variant: #43474e;
+    --md-outline-variant: #2c2c2e;
     
     background-color: var(--md-background);
     color: var(--md-on-surface);
@@ -823,11 +824,11 @@ body.dark-mode {
 
 /* Fix card borders and shadows in Dark Mode */
 body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
-    /* UPGRADE: Apple-style inner highlight and deep shadow edge */
-    border: 1px solid rgba(255, 255, 255, 0.08); 
-    border-bottom: 1px solid rgba(0, 0, 0, 0.5); 
-    background: linear-gradient(180deg, rgba(35, 38, 41, 0.8) 0%, rgba(26, 28, 30, 0.8) 100%);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.08) !important; 
+    border-bottom: 1px solid rgba(0, 0, 0, 1) !important; 
+    /* TRUE BLACK AMOLED SHADOWS */
+    background: #0c0c0c !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8) !important;
 }
 
 /* --- NEW: Strict A4 Document Formatting --- */
@@ -2334,4 +2335,52 @@ button:active,
 }
 .status-ribbon.overdue::before {
     border-top-color: #8c1313; /* Dark red 3D shadow */
+}
+/* ==========================================
+   PERFORMANCE MODE: STATIC AURORA & SOLID CARDS
+   ========================================== */
+body, #app-shell, .main-content {
+    background-color: var(--md-background);
+    /* Colors kept, but ANIMATION REMOVED for massive performance boost */
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(0, 97, 164, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(20, 108, 46, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(186, 26, 26, 0.05) 0px, transparent 50%),
+        radial-gradient(at 0% 100%, rgba(0, 97, 164, 0.08) 0px, transparent 50%);
+    background-size: 200% 200%;
+    
+    /* Hardware Acceleration: Forces the GPU to handle rendering */
+    transform: translateZ(0);
+}
+
+body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(143, 203, 251, 0.08) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(74, 222, 128, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(251, 113, 133, 0.05) 0px, transparent 50%);
+}
+
+/* CARDS RESTORED TO SOLID COLORS (Kills the blur lag and glare math) */
+.m3-card {
+    background: var(--md-surface) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+/* ==========================================
+   ENTERPRISE UPGRADE: FLUID iOS SLIDE ROUTING
+   ========================================== */
+.activity-screen {
+    /* Start the screen completely off to the right side */
+    transform: translateX(100%) !important;
+    opacity: 0 !important;
+    
+    /* The Apple-style "spring" easing curve */
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease !important;
+    will-change: transform, opacity;
+}
+
+.activity-screen.open {
+    /* Slide it smoothly into the center of the screen */
+    transform: translateX(0) !important;
+    opacity: 1 !important;
 }

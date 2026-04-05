@@ -70,10 +70,29 @@ import {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=4';
-import Utils from './utils.js?v=4';
-import UI from './ui.js?v=1000';
+} from './db.js?v=60';
+import Utils from './utils.js?v=60';
+import UI from './ui.js?v=60';
 // --- END OF NEW CODE ---
+
+// --- ENTERPRISE UPGRADE: IMAGE COMPRESSION ENGINE ---
+window.compressImage = async (base64Str) => {
+    return new Promise((resolve) => {
+        if (!base64Str || !base64Str.startsWith('data:image')) return resolve(base64Str);
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; // Shrinks 4K photos down to safe ERP size
+            let width = img.width, height = img.height;
+            if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/webp', 0.6)); // 60% WebP = 95% file size reduction!
+        };
+        img.src = base64Str;
+    });
+};
 
 // --- ENTERPRISE UPGRADE: NESTED FORM ROUTING SHIELD ---
 if (UI) {
@@ -252,18 +271,27 @@ const app = {
     // 2. DATA HYDRATION & STATE MANAGEMENT
     // ==========================================
     loadAllData: async () => {
-        // Load core data specifically for the active firml
+        // ENTERPRISE FIX: Moved RAM Cache safely inside the function!
+        window.AppCache = window.AppCache || { items: null, ledgers: null, accounts: null }; 
+
         const stripBloat = (arr) => arr.map(r => { const c = {...r}; delete c.image; delete c.attachment; return c; });
+        
+        // 1. Dynamic Data (Always fetch fresh from Database)
         UI.state.rawData.sales = (await getAllRecords('sales')).filter(r => r.firmId === app.state.firmId);
         UI.state.rawData.purchases = (await getAllRecords('purchases')).filter(r => r.firmId === app.state.firmId);
-        UI.state.rawData.items = stripBloat((await getAllRecords('items')).filter(r => r.firmId === app.state.firmId));
-        UI.state.rawData.ledgers = (await getAllRecords('ledgers')).filter(r => r.firmId === app.state.firmId);
         UI.state.rawData.expenses = stripBloat((await getAllRecords('expenses')).filter(r => r.firmId === app.state.firmId));
         UI.state.rawData.cashbook = (await getAllRecords('receipts')).filter(r => r.firmId === app.state.firmId);
         UI.state.rawData.timeline = typeof getGlobalTimeline === 'function' ? await getGlobalTimeline(app.state.firmId) : [];
         
-        // Load Bank Accounts
-        UI.state.rawData.accounts = (await getAllRecords('accounts')).filter(r => r.firmId === app.state.firmId);
+        // 2. RAM CACHE: Static Master Data (Instant Load 0ms)
+        if (!window.AppCache.items) window.AppCache.items = stripBloat((await getAllRecords('items')).filter(r => r.firmId === app.state.firmId));
+        UI.state.rawData.items = window.AppCache.items;
+
+        if (!window.AppCache.ledgers) window.AppCache.ledgers = (await getAllRecords('ledgers')).filter(r => r.firmId === app.state.firmId);
+        UI.state.rawData.ledgers = window.AppCache.ledgers;
+
+        if (!window.AppCache.accounts) window.AppCache.accounts = (await getAllRecords('accounts')).filter(r => r.firmId === app.state.firmId);
+        UI.state.rawData.accounts = window.AppCache.accounts;
 
         // UPGRADE 1: Load Recycle Bin from LocalStorage
         const localTrash = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
@@ -332,17 +360,25 @@ const app = {
                     html += `<option value="${i.id}">${i.name} (Cur Stock: ${parseFloat(i.stock || 0).toFixed(2)})</option>`;
                 }
             });
-            select.innerHTML = html;
             
-            // Reset the form fields safely
-            document.getElementById('adj-qty').value = '';
-            document.getElementById('adj-notes').value = '';
-            document.getElementById('adj-date').value = window.Utils ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+            // CRASH-PROOF SHIELD: Only update elements if they actually exist in the HTML!
+            if (select) select.innerHTML = html;
+            
+            const qtyEl = document.getElementById('adj-qty');
+            if (qtyEl) qtyEl.value = '';
+            
+            const notesEl = document.getElementById('adj-notes');
+            if (notesEl) notesEl.value = '';
+            
+            const dateEl = document.getElementById('adj-date');
+            if (dateEl) dateEl.value = window.Utils ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
 
             // Safely open the sheet
             if (window.UI) window.UI.openBottomSheet('sheet-stock-adjustment');
         } catch (error) {
+            // LOUD ERROR SCANNER: Forces the app to tell you EXACTLY what crashed!
             console.error("Error opening adjustment sheet:", error);
+            alert("CRASH DETAILS: " + error.message);
         }
     },
 
@@ -1550,7 +1586,8 @@ const app = {
                     data.minStock = parseFloat(data.minStock) || 0;
                     data.gst = parseFloat(data.gst) || 0;
                     const img = document.getElementById('product-image-preview');
-                    if (img && !img.classList.contains('hidden')) data.image = img.src;
+                    // ENTERPRISE FIX: Compress the product image!
+                    if (img && !img.classList.contains('hidden')) data.image = await window.compressImage(img.src);
                 } 
                 else if (type === 'ledger') {
                     data.openingBalance = parseFloat(data.openingBalance) || 0;
@@ -1560,7 +1597,8 @@ const app = {
                     const accEl = document.getElementById('expense-account-id');
                     data.accountId = accEl ? accEl.value : 'cash';
                     const img = document.getElementById('expense-attachment-preview');
-                    if (img && !img.classList.contains('hidden')) data.attachment = img.src;
+                    // ENTERPRISE FIX: Compress the expense receipt!
+                    if (img && !img.classList.contains('hidden')) data.attachment = await window.compressImage(img.src);
                 }
                 else if (type === 'account') {
                     storeName = 'accounts';
@@ -1568,6 +1606,13 @@ const app = {
                 }
 
                 await saveRecord(storeName, data);
+
+                // ENTERPRISE FIX: WIPE RAM CACHE ON SAVE SO IT REFRESHES!
+                if (window.AppCache) {
+                    if (type === 'product') window.AppCache.items = null;
+                    if (type === 'ledger') window.AppCache.ledgers = null;
+                    if (type === 'account') window.AppCache.accounts = null;
+                }
 
                 // --- ENTERPRISE UPGRADE: SMART AUTO-SELECT FOR NESTED FORMS ---
                 // If the user was in the middle of an invoice, automatically drop the new item/party in!
@@ -1688,7 +1733,9 @@ const app = {
                         notes: document.getElementById('adj-notes').value
                     };
                     
-                    item.stock += type === 'add' ? qty : -qty;
+                    // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift in inventory!
+                    const rawNewStock = currentStock + (type === 'add' ? qty : -qty);
+                    item.stock = Math.round(rawNewStock * 100) / 100;
                     
                     await saveRecord('adjustments', adjData);
                     await saveRecord('items', item);
@@ -1726,10 +1773,10 @@ const app = {
                 };
 
                 const logoImg = document.getElementById('profile-logo-preview');
-                if (logoImg && !logoImg.classList.contains('hidden')) data.logo = logoImg.src;
+                if (logoImg && !logoImg.classList.contains('hidden')) data.logo = await window.compressImage(logoImg.src);
 
                 const sigImg = document.getElementById('profile-signature-preview');
-                if (sigImg && !sigImg.classList.contains('hidden')) data.signature = sigImg.src;
+                if (sigImg && !sigImg.classList.contains('hidden')) data.signature = await window.compressImage(sigImg.src);
 
                 await saveRecord('businessProfile', data);
                 

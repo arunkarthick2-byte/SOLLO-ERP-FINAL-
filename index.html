@@ -37,7 +37,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=17">
+    <link rel="stylesheet" href="style.css?v=52">
     <link rel="manifest" href="./manifest.json"> 
 
     <style>
@@ -290,7 +290,7 @@
                         <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="document.getElementById('import-file-tab').click()">
                             <span class="material-symbols-outlined" style="font-size: 20px;">restore_page</span> <span style="font-size: 13px; font-weight: bold;">Manual Restore</span>
                         </div>
-                        <input type="file" id="import-file-tab" style="display:none;" accept=".json,application/json,text/*,*/*" onchange="window.Utils.importData(event)">
+                        <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
                     </div>
                 </div>
 
@@ -1756,12 +1756,23 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script src="cloud.js?v=39"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                    console.log("Service Worker forcefully unregistered!");
+                }
+            });
+        }
+    </script>
+
+    <script src="cloud.js?v=60"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
-    <script type="module" src="app.js?v=40"></script>
+    <script type="module" src="app.js?v=60"></script>
     <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
@@ -1786,7 +1797,8 @@
         let newWorker;
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').then(reg => {
+                // ENTERPRISE FIX: Adding ?v=44 here forces the phone to bypass the locked cache immediately!
+                navigator.serviceWorker.register('sw.js?v=44').then(reg => {
                     // Listen for updates from Netlify
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;

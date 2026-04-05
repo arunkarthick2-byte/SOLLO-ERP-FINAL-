@@ -3,7 +3,7 @@
 // ==========================================
 
 // ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getAllRecords, getRecordById, getKhataStatement } from './db.js?v=4';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=60';
 
 const UI = {
 
@@ -238,19 +238,21 @@ const UI = {
     openActivity: (activityId) => {
         const a = document.getElementById(activityId);
         if(a) {
-            history.pushState({ modalOpen: true }, ''); // Native Back Gesture hook
+            history.pushState({ modalOpen: true }, ''); 
             
-            // --- FIX: DYNAMIC Z-INDEX BUMP ---
-            // If another activity is already open, force this new one to open ON TOP of it!
             let highestZ = 4000;
             document.querySelectorAll('.activity-screen.open').forEach(el => {
                 const z = parseInt(window.getComputedStyle(el).zIndex, 10);
                 if (!isNaN(z) && z > highestZ) highestZ = z;
             });
             a.style.zIndex = highestZ + 10;
-            // ---------------------------------
 
+            // EXTREME PERFORMANCE FIX: Hardware GPU Pre-Fetching
             a.classList.remove('hidden'); 
+            a.style.display = 'block'; 
+            a.style.willChange = 'transform, opacity'; // Tell GPU to allocate memory instantly!
+            void a.offsetWidth; // Force an immediate hardware paint before sliding
+            
             requestAnimationFrame(() => { a.classList.add('open'); });
             
             if (activityId === 'activity-sales-form') {
@@ -265,16 +267,17 @@ const UI = {
         const a = document.getElementById(activityId);
         if(a) {
             a.classList.remove('open'); 
+            a.style.willChange = 'auto'; // Free up GPU memory to save battery
             setTimeout(() => { 
                 a.classList.add('hidden');
-                a.style.zIndex = ''; // Reset z-index when closed to keep the DOM clean
+                a.style.display = '';
+                a.style.zIndex = ''; 
             }, 300); 
             
             if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = null;
             }
             
-            // FIXED: Added an ignore flag to prevent double-closing
             if (history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); } 
         }
     },
@@ -459,13 +462,18 @@ const UI = {
         rows.forEach(tr => {
             const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
             const rate = parseFloat(tr.querySelector('.row-rate').value) || 0;
-            rawSubtotal += (qty * rate);
+            // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift
+            const lineTotal = qty * rate;
+            rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
         const discountInput = parseFloat(document.getElementById('sales-discount').value) || 0;
         const discountTypeEl = document.getElementById('sales-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
-        let discountAmt = discountType === '%' ? (rawSubtotal * (discountInput / 100)) : discountInput;
+        // ENTERPRISE FIX: Strict rounding on percentage discounts
+        let discountAmt = discountType === '%' 
+            ? Math.round((rawSubtotal * (discountInput / 100)) * 100) / 100 
+            : discountInput;
         
         // FIX: Prevent negative invoices by capping the discount at the subtotal maximum
         if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
@@ -531,13 +539,18 @@ const UI = {
         rows.forEach(tr => {
             const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
             const rate = parseFloat(tr.querySelector('.row-rate').value) || 0;
-            rawSubtotal += (qty * rate);
+            // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift
+            const lineTotal = qty * rate;
+            rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
         const discountInput = parseFloat(document.getElementById('purchase-discount').value) || 0;
         const discountTypeEl = document.getElementById('purchase-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
-        let discountAmt = discountType === '%' ? (rawSubtotal * (discountInput / 100)) : discountInput;
+        // ENTERPRISE FIX: Strict rounding on percentage discounts
+        let discountAmt = discountType === '%' 
+            ? Math.round((rawSubtotal * (discountInput / 100)) * 100) / 100 
+            : discountInput;
         
         // FIX: Prevent negative invoices by capping the discount at the subtotal maximum
         if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
@@ -1570,22 +1583,26 @@ const UI = {
     // ==========================================
     // 6. BOTTOM SHEETS & PRODUCT CRUD
     // ==========================================
-        openBottomSheet: (sheetId) => {
+    openBottomSheet: (sheetId) => {
         const sheet = document.getElementById(sheetId);
         const overlay = document.getElementById('sheet-overlay');
         
-        // ENTERPRISE FIX: Prevent aggressive double-taps from permanently trapping the Android Back Button!
         if (sheet && sheet.classList.contains('open')) return; 
 
-        history.pushState({ modalOpen: true }, ''); // Native Back Gesture hook
+        history.pushState({ modalOpen: true }, ''); 
 
         if (overlay) {
             overlay.classList.remove('hidden');
+            overlay.style.display = 'block';
+            void overlay.offsetWidth; // GPU Paint
             requestAnimationFrame(() => overlay.classList.add('open'));
         }
 
         if (sheet) {
             sheet.classList.remove('hidden'); 
+            sheet.style.display = 'block';
+            sheet.style.willChange = 'transform'; // Prep GPU memory
+            void sheet.offsetWidth; // GPU Paint
             requestAnimationFrame(() => { sheet.classList.add('open'); });
         }
         
