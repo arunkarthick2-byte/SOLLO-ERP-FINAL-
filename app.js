@@ -629,19 +629,15 @@ const app = {
             // Move state assignment ABOVE the early return to clear previous memory!
             UI.state.rawData.timeline = statement.timeline;
 
-            if (statement.timeline.length === 0) {
-                timelineContainer.innerHTML = '<p class="empty-state">No transactions found for this party.</p>';
-                return;
-            }
+            const emptyHTML = '<p class="empty-state">No transactions found for this party.</p>';
             
-            timelineContainer.innerHTML = statement.timeline.map(t => {
+            UI.renderVirtualList(timelineContainer, statement.timeline, (t) => {
                 const isPayment = !t.isInvoice && t.id !== 'open-bal';
                 const icon = t.id === 'open-bal' ? 'account_balance' : (isPayment ? 'payments' : 'receipt_long');
                 const iconBg = t.id === 'open-bal' ? '#e3f2fd' : (isPayment ? '#e8f5e9' : '#fff0f2');
                 const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPayment ? '#2e7d32' : '#ba1a1a');
                 const amtColor = t.isInvoice ? 'var(--md-error)' : 'var(--md-success)';
                 
-                // NEW: Dynamically build the exact onclick command based on the record type
                 let clickAction = '';
                 let tapClass = '';
                 if (t.id !== 'open-bal') {
@@ -671,7 +667,7 @@ const app = {
                         <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
                     </div>
                 </div>`;
-            }).join('');
+            }, emptyHTML);
 
             const chips = document.querySelectorAll('#activity-report-viewer .filter-chips .chip');
             if(chips.length > 0) {
@@ -813,13 +809,9 @@ const app = {
             // Move state assignment ABOVE the early return!
             UI.state.rawData.timeline = timeline; // Hooks into your existing PDF generator!
 
-            if (timeline.length === 0) {
-                timelineContainer.innerHTML = '<p class="empty-state">No transactions found for this account.</p>';
-                return;
-            }
+            const emptyHTML = '<p class="empty-state">No transactions found for this account.</p>';
             
-            // Render the timeline
-            timelineContainer.innerHTML = timeline.map(t => {
+            UI.renderVirtualList(timelineContainer, timeline, (t) => {
                 const isPaymentOut = t.impact < 0;
                 const icon = t.id === 'open-bal' ? 'account_balance' : (isPaymentOut ? 'arrow_upward' : 'arrow_downward');
                 const iconBg = t.id === 'open-bal' ? '#e3f2fd' : (isPaymentOut ? '#fff0f2' : '#e8f5e9');
@@ -827,7 +819,6 @@ const app = {
                 const amtColor = isPaymentOut ? 'var(--md-error)' : 'var(--md-success)';
                 const sign = isPaymentOut ? '-' : '+';
                 
-                // NEW: Add tap actions so users can open the payment receipt!
                 let clickAction = '';
                 let tapClass = '';
                 if (t.id !== 'open-bal') {
@@ -850,7 +841,7 @@ const app = {
                         <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
                     </div>
                 </div>`;
-            }).join('');
+            }, emptyHTML);
 
             // Reset filters
             const chips = document.querySelectorAll('#activity-report-viewer .filter-chips .chip');

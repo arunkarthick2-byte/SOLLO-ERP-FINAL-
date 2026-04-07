@@ -399,41 +399,38 @@ const UI = {
         
         // Handle Stock Adjustments Audit Trail
         if (type === 'adjustments') {
-            // FIX: Hide the search bar so users don't trigger the crash
             const searchInput = document.getElementById('search-master-view');
             if (searchInput && searchInput.parentElement) searchInput.parentElement.style.display = 'none';
 
             const records = await getAllRecords('adjustments');
             const products = await getAllRecords('items');
-            if (records.length === 0) {
-                container.innerHTML = '<p class="empty-state">No stock adjustments logged yet.</p>';
-                const actionBtn = document.getElementById('btn-master-action');
-                if (actionBtn) actionBtn.classList.add('hidden');
-                return;
-            }
-            let html = '<ul class="list-view">';
-            // BULLETPROOF SORTING: Prevents WebView crash in Stock Adjustments!
-            records.sort((a,b) => String(b.date || '').localeCompare(String(a.date || ''))).forEach(adj => {
+            
+            const actionBtn = document.getElementById('btn-master-action');
+            if (actionBtn) actionBtn.classList.add('hidden');
+
+            const emptyHTML = '<p class="empty-state">No stock adjustments logged yet.</p>';
+            
+            // Sort chronologically before feeding to Virtual Engine
+            records.sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')));
+
+            UI.renderVirtualList(container, records, (adj) => {
                 const prod = products.find(p => p.id === adj.itemId);
                 const prodName = prod ? prod.name : 'Deleted Product';
                 const sign = adj.type === 'add' ? '+' : '-';
                 const color = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
-                html += `
-                    <li style="flex-direction: column; align-items: flex-start; cursor: default;">
+                return `
+                    <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
                         <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <strong>${prodName}</strong>
-                            <strong style="color: ${color};">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
+                            <strong style="font-size: 14px;">${prodName}</strong>
+                            <strong style="font-size: 16px; color: ${color};">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
                         </div>
                         <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 4px; font-size: 12px; color: var(--md-text-muted);">
                             <span>${adj.date}</span>
                             <span>${adj.notes || 'No Reason Provided'}</span>
                         </div>
-                    </li>
+                    </div>
                 `;
-            });
-            container.innerHTML = html + '</ul>';
-            const actionBtn = document.getElementById('btn-master-action');
-            if (actionBtn) actionBtn.classList.add('hidden');
+            }, emptyHTML);
             return; 
         }
 
@@ -927,7 +924,18 @@ const UI = {
             const activeTab = UI.state.activeMasterTab || 'products';
             const filterSelect = document.getElementById('filter-master-view');
             const activeMasterFilter = filterSelect ? filterSelect.value : 'All';
-            const html = [];
+
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const emptyHTML = `
+            <div class="empty-state" style="text-align: center; padding: 40px 20px;">
+                <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
+                    <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <strong style="font-size: 18px; color: var(--md-on-surface); display:block;">No records found</strong>
+                <p style="margin: 8px 0 0 0; color: var(--md-text-muted);">Try adjusting your search or filters.</p>
+            </div>`;
 
             const getBal = (id, type) => {
                 let bal = 0;
@@ -937,34 +945,23 @@ const UI = {
                 if (ledger) {
                     let ob = parseFloat(ledger.openingBalance) || 0;
                     const balType = (ledger.balanceType || '').toLowerCase();
-                    // FIX: Bulletproof string matching ignores spaces and case formatting
                     if (isCustomer) bal += (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
                     else bal += (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
                 }
                 
                 if (isCustomer) {
                     UI.state.rawData.sales.forEach(s => { 
-                        if (s.customerId === id && s.status !== 'Open') {
-                            bal += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
-                        }
+                        if (s.customerId === id && s.status !== 'Open') bal += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
                     });
                     UI.state.rawData.cashbook.forEach(c => { 
-                        if (c.ledgerId === id) {
-                            const amt = parseFloat(c.amount) || 0;
-                            bal += (c.type === 'in' ? -amt : amt);
-                        }
+                        if (c.ledgerId === id) bal += (c.type === 'in' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0));
                     });
                 } else {
                     UI.state.rawData.purchases.forEach(p => { 
-                        if (p.supplierId === id && p.status !== 'Open') {
-                            bal += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0)); 
-                        }
+                        if (p.supplierId === id && p.status !== 'Open') bal += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0)); 
                     });
                     UI.state.rawData.cashbook.forEach(c => { 
-                        if (c.ledgerId === id) {
-                            const amt = parseFloat(c.amount) || 0;
-                            bal += (c.type === 'out' ? -amt : amt); 
-                        }
+                        if (c.ledgerId === id) bal += (c.type === 'out' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0)); 
                     });
                 }
                 return bal;
@@ -974,20 +971,16 @@ const UI = {
                 data = UI.state.rawData.items.filter(i => {
                     const matchSearch = (i.name || '').toLowerCase().includes(searchTerm) || (i.sku || '').toLowerCase().includes(searchTerm);
                     let matchFilter = true;
-                    // NEW: Check if stock is greater than 0
-                    if (activeMasterFilter === 'In Stock') {
-                        matchFilter = (parseFloat(i.stock) || 0) > 0;
-                    }
+                    if (activeMasterFilter === 'In Stock') matchFilter = (parseFloat(i.stock) || 0) > 0;
                     return matchSearch && matchFilter;
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
                 if(sortOption === 'stock-asc') data.sort((a,b) => (a.stock || 0) - (b.stock || 0));
 
-                html.push(...data.map(i => {
+                UI.renderVirtualList(container, data, (i) => {
                     const currentStock = parseFloat(i.stock) || 0;
                     const minStock = parseFloat(i.minStock) || 0;
-                    // Check if stock is at or below the minimum threshold (and ensure minStock is actually set)
                     const isLowStock = minStock > 0 && currentStock <= minStock;
                     
                     const stockLabel = isLowStock 
@@ -1000,56 +993,40 @@ const UI = {
                         `\u20B9${(i.sellPrice || 0).toFixed(2)}`, 
                         `Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}`, 
                         'inventory_2', 
-                        isLowStock ? 'var(--md-error)' : 'var(--md-primary)', // Changes icon color to red if low
+                        isLowStock ? 'var(--md-error)' : 'var(--md-primary)', 
                         `app.openForm('product', '${i.id}')`
                     );
-                }));
+                }, emptyHTML);
             } 
             else if (activeTab === 'customers' || activeTab === 'suppliers' || activeTab === 'contacts') {
                 const typeFilter = activeTab === 'customers' ? 'Customer' : (activeTab === 'suppliers' ? 'Supplier' : 'All');
-                const icon = activeTab === 'customers' ? 'person' : 'storefront';
-                const color = activeTab === 'customers' ? '#0061a4' : '#ba1a1a';
 
                 data = UI.state.rawData.ledgers.filter(l => {
-                    // FIX: Pass actual ledger type for accurate math, allow 'All' to bypass type check
                     const matchSearch = (typeFilter === 'All' || l.type === typeFilter) && ((l.name || '').toLowerCase().includes(searchTerm) || (l.phone || '').toLowerCase().includes(searchTerm));
                     let matchFilter = true;
-                    
-                    // FIX: Pass the actual ledger type (l.type) instead of typeFilter to calculate correct math
                     const bal = getBal(l.id, l.type);
 
-                    // NEW: Separating standard Dues from Advances perfectly!
-                    if (activeMasterFilter === 'To Receive') {
-                        matchFilter = l.type === 'Customer' && bal > 0.01;
-                    } else if (activeMasterFilter === 'To Pay') {
-                        matchFilter = l.type === 'Supplier' && bal > 0.01;
-                    } else if (activeMasterFilter === 'Advance') {
-                        matchFilter = bal < -0.01; // Any negative balance is an advance
-                    } else if (activeMasterFilter === 'GST') {
-                        matchFilter = l.gst && l.gst.trim() !== '';
-                    } else if (activeMasterFilter === 'Non-GST') {
-                        matchFilter = !l.gst || l.gst.trim() === '';
-                    } else if (activeMasterFilter === 'Money In') {
-                        matchFilter = UI.state.rawData.cashbook.some(c => c.ledgerId === l.id && c.type === 'in');
-                    } else if (activeMasterFilter === 'Money Out') {
-                        matchFilter = UI.state.rawData.cashbook.some(c => c.ledgerId === l.id && c.type === 'out');
-                    }
+                    if (activeMasterFilter === 'To Receive') matchFilter = l.type === 'Customer' && bal > 0.01;
+                    else if (activeMasterFilter === 'To Pay') matchFilter = l.type === 'Supplier' && bal > 0.01;
+                    else if (activeMasterFilter === 'Advance') matchFilter = bal < -0.01; 
+                    else if (activeMasterFilter === 'GST') matchFilter = l.gst && l.gst.trim() !== '';
+                    else if (activeMasterFilter === 'Non-GST') matchFilter = !l.gst || l.gst.trim() === '';
+                    else if (activeMasterFilter === 'Money In') matchFilter = UI.state.rawData.cashbook.some(c => c.ledgerId === l.id && c.type === 'in');
+                    else if (activeMasterFilter === 'Money Out') matchFilter = UI.state.rawData.cashbook.some(c => c.ledgerId === l.id && c.type === 'out');
                     
                     return matchSearch && matchFilter;
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
-                // NEW: Sort by Balance dynamically using your existing math engine
                 if(sortOption === 'bal-desc') data.sort((a,b) => getBal(b.id, b.type) - getBal(a.id, a.type));
                 if(sortOption === 'bal-asc') data.sort((a,b) => getBal(a.id, a.type) - getBal(b.id, b.type));
 
-                html.push(...data.map(l => {
+                UI.renderVirtualList(container, data, (l) => {
                     const isCustomer = String(l.type).toLowerCase() === 'customer';
                     let bal = getBal(l.id, l.type);
                     let balText = '';
                     let balColor = 'var(--md-text-muted)';
                     
-                    // FIX: Case-insensitive evaluation!
                     if (isCustomer) {
                         if (bal > 0.01) { balText = `\u20B9${bal.toFixed(2)} (Receive)`; balColor = 'var(--md-error)'; }
                         else if (bal < -0.01) { balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
@@ -1064,10 +1041,15 @@ const UI = {
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
 
                     return UI.renderRowWiseItem(
-    UI.highlightText(l.name || 'Unnamed Party', searchTerm), UI.highlightText(l.phone || 'No Phone', searchTerm), `<span style="color:${balColor}; font-weight:500;">${balText}</span>`, 'View Ledger >', rowIcon, rowColor, `app.openPartyLedger('${l.id}', '${l.type}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}')`
-);
-
-                }));
+                        UI.highlightText(l.name || 'Unnamed Party', searchTerm), 
+                        UI.highlightText(l.phone || 'No Phone', searchTerm), 
+                        `<span style="color:${balColor}; font-weight:500;">${balText}</span>`, 
+                        'View Ledger >', 
+                        rowIcon, 
+                        rowColor, 
+                        `app.openPartyLedger('${l.id}', '${l.type}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}')`
+                    );
+                }, emptyHTML);
             }
             else if (activeTab === 'pay-in' || activeTab === 'pay-out') {
                 const targetType = activeTab === 'pay-in' ? 'in' : 'out';
@@ -1079,18 +1061,23 @@ const UI = {
                     return matchSearch && matchFilter && !(c.desc || '').startsWith('Expense');
                 });
 
-                html.push(...data.map(c => UI.renderRowWiseItem(
-                    c.desc || 'Transaction', `${c.date} | ${c.mode || 'Cash'}`, `${targetType === 'in' ? '+' : '-'}\u20B9${(parseFloat(c.amount) || 0).toFixed(2)}`, targetType === 'in' ? 'Received' : 'Paid', targetType === 'in' ? 'arrow_downward' : 'arrow_upward', targetType === 'in' ? 'var(--md-success)' : 'var(--md-error)', `app.openReceipt('${c.id}', '${targetType}')`
-                )));
+                UI.renderVirtualList(container, data, (c) => {
+                    return UI.renderRowWiseItem(
+                        c.desc || 'Transaction', 
+                        `${c.date} | ${c.mode || 'Cash'}`, 
+                        `${targetType === 'in' ? '+' : '-'}\u20B9${(parseFloat(c.amount) || 0).toFixed(2)}`, 
+                        targetType === 'in' ? 'Received' : 'Paid', 
+                        targetType === 'in' ? 'arrow_downward' : 'arrow_upward', 
+                        targetType === 'in' ? 'var(--md-success)' : 'var(--md-error)', 
+                        `app.openReceipt('${c.id}', '${targetType}')`
+                    );
+                }, emptyHTML);
             }
-            
-            // UPGRADE: Recycle Bin Render Logic
             else if (activeTab === 'trash') {
                 const trashData = UI.state.rawData.trash || [];
-                // ENHANCED SEARCH: Now perfectly checks amounts, party names, categories, and IDs!
                 data = trashData.filter(t => (t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.customerName || t.supplierName || t.category || t.amount || '').toString().toLowerCase().includes(searchTerm));
                 
-                html.push(...data.map(t => {
+                UI.renderVirtualList(container, data, (t) => {
                     const displayTitle = t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.category || 'Deleted Item';
                     return `
                     <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
@@ -1106,22 +1093,7 @@ const UI = {
                             <button class="btn-primary-small tap-target" style="padding: 6px 12px; font-size: 12px; background: transparent; color: var(--md-error); border: 1px solid var(--md-error);" onclick="app.permanentlyDeleteRecord('${t.id}')">Delete</button>
                         </div>
                     </div>`;
-                }));
-            }
-
-            const container = document.getElementById(containerId);
-            if (container) {
-                const emptyHTML = `
-                <div class="empty-state" style="text-align: center; padding: 40px 20px;">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
-                        <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <strong style="font-size: 18px; color: var(--md-on-surface); display:block;">No records found</strong>
-                    <p style="margin: 8px 0 0 0; color: var(--md-text-muted);">Try adjusting your search or filters.</p>
-                </div>`;
-                
-                // Smart Trick: Feed the pre-rendered HTML string array directly into the Virtual Engine!
-                UI.renderVirtualList(container, html, (str) => str, emptyHTML);
+                }, emptyHTML);
             }
         }
 
@@ -1913,17 +1885,15 @@ const UI = {
         const container = document.getElementById(containerId);
         if(!container) return;
         
-        // ENTERPRISE FIX: Guard against empty databases
-        if (!ledgers || ledgers.length === 0) {
-            container.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No records found. Please add one first!</div>`;
-            return;
-        }
+        const emptyHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No records found. Please add one first!</div>`;
 
-        container.innerHTML = ledgers.map(l => `
+        // ENTERPRISE FIX: Route the bottom sheet lists through the Virtualizer so they never freeze!
+        UI.renderVirtualList(container, ledgers, (l) => {
+            return `
             <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.selectLedger('${l.id}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${prefix}')">
                 <div><div class="large-text">${l.name || 'Unnamed'}</div><small class="color-primary">${l.phone || 'No Phone'}</small></div>
-            </li>
-        `).join('');
+            </li>`;
+        }, emptyHTML);
     },
 
     selectLedger: async (id, name, prefix) => {
@@ -1955,16 +1925,11 @@ const UI = {
         const container = document.getElementById('list-products');
         if(!container) return;
         
-        // ENTERPRISE FIX: Guard against empty databases
-        if (!items || items.length === 0) {
-            container.innerHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found. Please add one first!</div>`;
-            return;
-        }
+        const emptyHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found. Please add one first!</div>`;
 
-        container.innerHTML = items.map(item => {
-            // ENTERPRISE FIX: Mathematically force strings into Numbers so .toFixed NEVER crashes!
+        // ENTERPRISE FIX: Route the products bottom sheet through the Virtualizer so it never freezes!
+        UI.renderVirtualList(container, items, (item) => {
             const price = parseFloat(isPurchase ? (item.buyPrice || 0) : (item.sellPrice || 0)) || 0;
-            
             const currentStock = parseFloat(item.stock) || 0;
             const minStock = parseFloat(item.minStock) || 0;
             const isLowStock = minStock > 0 && currentStock <= minStock;
@@ -1979,8 +1944,8 @@ const UI = {
                     </small>
                 </div>
                 <input type="checkbox" style="width: 20px; height: 20px; pointer-events: none;">
-            </li>
-        `}).join('');
+            </li>`;
+        }, emptyHTML);
     },
 
     toggleProductSelection: (li, id, name, price, gst, uom, hsn, buyPrice) => {
