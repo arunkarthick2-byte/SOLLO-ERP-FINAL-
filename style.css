@@ -2,8 +2,7 @@
    PREMIUM APP POLISH: "ANTI-WEB" SHIELD
    ========================================== */
 body {
-    /* FIX: Changed to 'contain' to enable the native Android 12+ "Stretch" overscroll effect while still preventing page-reloads */
-    overscroll-behavior-y: contain;
+    /* REMOVED overscroll-behavior-y to prevent scroll trapping */
     /* Disable text selection on UI elements */
     user-select: none;
     -webkit-user-select: none;
@@ -104,8 +103,8 @@ input, textarea, select {
     user-select: auto;
 }
 
-/* NEW: Force instant clicks, defeating the 300ms mobile browser delay */
-a, button, input, select, textarea, .tap-target, .nav-item, .chip, .list-view li, .m3-card {
+/* NEW: Force instant clicks ONLY on interactive elements to preserve scrolling */
+a, button, input, select, textarea, .nav-item, .chip {
     touch-action: manipulation;
 }
 
@@ -176,10 +175,8 @@ body:has(.bottom-sheet.open) #app-shell {
     background-color: var(--md-background);
     
     /* Hardware Acceleration and Native Android Scroll Momentum */
-    /* FIX: Removed heavy iOS webkit scrolling hack */
     overscroll-behavior-y: contain;
-    transform: translateZ(0);
-    will-change: transform;
+    -webkit-overflow-scrolling: touch; /* RESTORED: Vital for smooth iOS momentum scrolling */
 }
 
 /* Hide the ghost title text to prevent layout shifts */
@@ -599,7 +596,7 @@ input:focus, select:focus, textarea:focus {
     opacity: 0; 
     /* Slightly faster transition to match native swipe speeds */
     transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease; 
-    will-change: transform, opacity;
+    /* REMOVED will-change to unlock inner scrolling */
 }
 
 .activity-screen.open { 
@@ -632,7 +629,13 @@ body.dark-mode .activity-header {
     border-bottom: 1px solid rgba(67, 71, 78, 0.3); 
 }
 
-.activity-content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+.activity-content { 
+    flex: 1; 
+    overflow-y: auto; 
+    padding: 16px; 
+    padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); 
+    -webkit-overflow-scrolling: touch; /* ADDED for smooth scrolling */
+}
 
 /* Bottom Sheets (Slide Up) */
 .bottom-sheet { 
@@ -648,7 +651,7 @@ body.dark-mode .activity-header {
     padding-bottom: env(safe-area-inset-bottom, 0px); 
     transform: translateY(100%); 
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease; 
-    will-change: transform;
+    /* REMOVED will-change to unlock inner scrolling */
 }
 
 /* UPGRADE: Native Drag Handle Pill */
@@ -2334,16 +2337,13 @@ button:active,
    ========================================== */
 body, #app-shell, .main-content {
     background-color: var(--md-background);
-    /* Colors kept, but ANIMATION REMOVED for massive performance boost */
     background-image: 
         radial-gradient(at 0% 0%, rgba(0, 97, 164, 0.08) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(20, 108, 46, 0.05) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(186, 26, 26, 0.05) 0px, transparent 50%),
+        /* ... gradients ... */
         radial-gradient(at 0% 100%, rgba(0, 97, 164, 0.08) 0px, transparent 50%);
     background-size: 200% 200%;
     
-    /* Hardware Acceleration: Forces the GPU to handle rendering */
-    transform: translateZ(0);
+    /* FIX: Removed transform: translateZ(0) to unfreeze mobile scrolling */
 }
 
 body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
@@ -2369,7 +2369,7 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
     
     /* The Apple-style "spring" easing curve */
     transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease !important;
-    will-change: transform, opacity;
+    /* FIX: Removed will-change to unlock inner scrolling */
 }
 
 .activity-screen.open {
@@ -2430,4 +2430,10 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
 @keyframes islandDrop {
     0% { transform: translateY(-40px) scale(0.8); opacity: 0; }
     100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+/* FIX: Restores native scroll physics across all devices */
+.main-content, .activity-content, .list-view {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important; /* Vital for iOS Safari */
+    overscroll-behavior-y: contain !important;
 }

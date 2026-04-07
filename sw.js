@@ -2,8 +2,8 @@
 // SOLLO ERP - OFFLINE SERVICE WORKER (v5.2 Enterprise)
 // ==========================================
 
-// --- NEW CODE: Bump the version to 7.2 to clear the cache! ---
-const CACHE_NAME = 'sollo-erp-v7.2-enterprise';
+// --- NEW CODE: Bump the version to 7.6 to clear the cache! ---
+const CACHE_NAME = 'sollo-erp-v7.6-enterprise';
 // --- END OF NEW CODE ---
 
 const TIMEOUT_MS = 3000; // 3-second timeout to defeat Lie-Fi

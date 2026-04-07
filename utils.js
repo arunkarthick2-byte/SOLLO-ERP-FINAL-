@@ -2,7 +2,7 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v5.2 Enterprise)
 // ==========================================
 
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=72';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=76';
 
 const Utils = {
     // ==========================================
@@ -186,7 +186,7 @@ const Utils = {
             }
 
             // 1. Convert the HTML element (like an invoice) into an image
-            const canvas = await html2canvas(element, { scale: 4, useCORS: true }); // UPGRADE: Changed 2 to 4
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true }); // FIX: Lowered back to 2 to prevent Mobile Out-Of-Memory crashes!
             
             canvas.toBlob(async (blob) => {
                 const file = new File([blob], `${documentTitle}.png`, { type: 'image/png' });

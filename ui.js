@@ -3,7 +3,7 @@
 // ==========================================
 
 // ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=72';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=76';
 
 const UI = {
 
@@ -108,7 +108,7 @@ const UI = {
         container.innerHTML = htmlContent;
     },
 
-    // --- ENTERPRISE UPGRADE: BULLETPROOF WEBVIEW VIRTUALIZATION ---
+    // --- NATIVE SCROLLING (NO VIRTUALIZATION BUGS) ---
     renderVirtualList: (container, dataArray, renderRowFn, emptyStateHTML) => {
         if (!container) return;
         if (!dataArray || dataArray.length === 0) {
@@ -116,59 +116,9 @@ const UI = {
             return;
         }
         
-        container.innerHTML = ''; 
-        let currentIndex = 0;
-        const chunkSize = 40; // UPGRADE 1: Increased chunk size to cover tall screens
-
-        const scrollContainer = container.closest('.activity-content') || container.closest('.main-content') || window;
-
-        const loadMore = () => {
-            if (currentIndex >= dataArray.length) return;
-            
-            const chunk = dataArray.slice(currentIndex, currentIndex + chunkSize);
-            const htmlStr = chunk.map(item => renderRowFn(item)).join('');
-            
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlStr;
-            
-            while (tempDiv.firstChild) {
-                container.appendChild(tempDiv.firstChild);
-            }
-            currentIndex += chunkSize;
-
-            // UPGRADE 2: "Tall Phone" Auto-Filler!
-            // If the items didn't create a scrollbar, the user can't scroll.
-            // We must force-load another chunk instantly to trigger the scrollbar!
-            setTimeout(() => {
-                if (currentIndex < dataArray.length) {
-                    let sHeight = scrollContainer.scrollHeight || 0;
-                    let cHeight = scrollContainer.clientHeight || 0;
-                    if (sHeight <= cHeight + 200) {
-                        loadMore();
-                    }
-                }
-            }, 50);
-        };
-
-        loadMore();
-
-        // UPGRADE 3: Bulletproof Scroll Math
-        if (container._scrollHandler) scrollContainer.removeEventListener('scroll', container._scrollHandler);
-        
-        container._scrollHandler = () => {
-            if (currentIndex >= dataArray.length) return;
-            
-            let sTop = scrollContainer.scrollTop || 0; 
-            let cHeight = scrollContainer.clientHeight || 0;
-            let sHeight = scrollContainer.scrollHeight || 0;
-            
-            // Trigger 800px before reaching the bottom for buttery smooth, invisible loading
-            if (sHeight - (sTop + cHeight) < 800) {
-                loadMore();
-            }
-        };
-        
-        scrollContainer.addEventListener('scroll', container._scrollHandler, { passive: true });
+        // Because the database math is now lightning fast, we can rip out the buggy scroll listeners entirely.
+        // We just hand the raw HTML to the browser and let native Android scrolling take over!
+        container.innerHTML = dataArray.map(item => renderRowFn(item)).join('');
     },
     // --- END OF NEW CODE ---
     
@@ -321,11 +271,10 @@ const UI = {
             });
             a.style.zIndex = highestZ + 10;
 
-            // EXTREME PERFORMANCE FIX: Hardware GPU Pre-Fetching
             a.classList.remove('hidden'); 
-            a.style.display = 'block'; 
-            a.style.willChange = 'transform, opacity'; // Tell GPU to allocate memory instantly!
-            void a.offsetWidth; // Force an immediate hardware paint before sliding
+            a.style.display = 'flex'; /* FIX: Changed to flex so scrolling content doesn't stretch infinitely */
+            // FIX: Removed 'willChange' which was locking Android WebView scrolling!
+            void a.offsetWidth; 
             
             requestAnimationFrame(() => { a.classList.add('open'); });
             
@@ -341,7 +290,6 @@ const UI = {
         const a = document.getElementById(activityId);
         if(a) {
             a.classList.remove('open'); 
-            a.style.willChange = 'auto'; // Free up GPU memory to save battery
             setTimeout(() => { 
                 a.classList.add('hidden');
                 a.style.display = '';
@@ -937,35 +885,41 @@ const UI = {
                 <p style="margin: 8px 0 0 0; color: var(--md-text-muted);">Try adjusting your search or filters.</p>
             </div>`;
 
-            const getBal = (id, type) => {
+            // 🚀 ENTERPRISE UPGRADE: O(1) HASH MAP BALANCE ENGINE
+            // Prevents 600+ Million loop iterations from freezing the phone!
+            const balanceCache = {};
+            const isCustCache = {};
+            
+            UI.state.rawData.ledgers.forEach(l => {
+                const isCustomer = String(l.type).toLowerCase() === 'customer';
+                isCustCache[l.id] = isCustomer;
+                let ob = parseFloat(l.openingBalance) || 0;
+                const balType = (l.balanceType || '').toLowerCase();
                 let bal = 0;
-                const isCustomer = String(type).toLowerCase() === 'customer';
-                const ledger = UI.state.rawData.ledgers.find(l => l.id === id);
-                
-                if (ledger) {
-                    let ob = parseFloat(ledger.openingBalance) || 0;
-                    const balType = (ledger.balanceType || '').toLowerCase();
-                    if (isCustomer) bal += (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-                    else bal += (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+                if (isCustomer) bal += (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+                else bal += (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+                balanceCache[l.id] = bal;
+            });
+
+            UI.state.rawData.sales.forEach(s => { 
+                if (s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
+                    balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
                 }
-                
-                if (isCustomer) {
-                    UI.state.rawData.sales.forEach(s => { 
-                        if (s.customerId === id && s.status !== 'Open') bal += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
-                    });
-                    UI.state.rawData.cashbook.forEach(c => { 
-                        if (c.ledgerId === id) bal += (c.type === 'in' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0));
-                    });
-                } else {
-                    UI.state.rawData.purchases.forEach(p => { 
-                        if (p.supplierId === id && p.status !== 'Open') bal += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0)); 
-                    });
-                    UI.state.rawData.cashbook.forEach(c => { 
-                        if (c.ledgerId === id) bal += (c.type === 'out' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0)); 
-                    });
+            });
+            UI.state.rawData.purchases.forEach(p => { 
+                if (p.status !== 'Open' && balanceCache[p.supplierId] !== undefined) {
+                    balanceCache[p.supplierId] += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0)); 
                 }
-                return bal;
-            };
+            });
+            UI.state.rawData.cashbook.forEach(c => { 
+                if (c.ledgerId && balanceCache[c.ledgerId] !== undefined) {
+                    let amt = parseFloat(c.amount || 0);
+                    if (isCustCache[c.ledgerId]) balanceCache[c.ledgerId] += (c.type === 'in' ? -amt : amt);
+                    else balanceCache[c.ledgerId] += (c.type === 'out' ? -amt : amt);
+                }
+            });
+
+            const getBal = (id, type) => balanceCache[id] || 0;
 
             if (activeTab === 'products') {
                 data = UI.state.rawData.items.filter(i => {
@@ -1673,15 +1627,15 @@ const UI = {
         if (overlay) {
             overlay.classList.remove('hidden');
             overlay.style.display = 'block';
-            void overlay.offsetWidth; // GPU Paint
+            void overlay.offsetWidth; 
             requestAnimationFrame(() => overlay.classList.add('open'));
         }
 
         if (sheet) {
             sheet.classList.remove('hidden'); 
-            sheet.style.display = 'block';
-            sheet.style.willChange = 'transform'; // Prep GPU memory
-            void sheet.offsetWidth; // GPU Paint
+            sheet.style.display = 'flex'; /* FIX: Restores bottom-sheet flex layout */
+            // FIX: Removed 'willChange' which was locking Android WebView scrolling!
+            void sheet.offsetWidth; 
             requestAnimationFrame(() => { sheet.classList.add('open'); });
         }
         

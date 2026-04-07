@@ -70,9 +70,9 @@ import {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=72';
-import Utils from './utils.js?v=72';
-import UI from './ui.js?v=72';
+} from './db.js?v=76';
+import Utils from './utils.js?v=76';
+import UI from './ui.js?v=76';
 // --- END OF NEW CODE ---
 
 // --- ENTERPRISE UPGRADE: IMAGE COMPRESSION ENGINE ---
@@ -253,9 +253,9 @@ const app = {
         if (!window.AppCache.accounts) window.AppCache.accounts = (await getAllRecords('accounts')).filter(r => r.firmId === app.state.firmId);
         UI.state.rawData.accounts = window.AppCache.accounts;
 
-        // UPGRADE 1: Load Recycle Bin from LocalStorage
-        const localTrash = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
-        UI.state.rawData.trash = localTrash.filter(t => t.firmId === app.state.firmId);
+        // UPGRADE 1: Load Recycle Bin from IndexedDB (Fixes the LocalStorage mismatch bug!)
+        const dbTrash = await getAllRecords('trash');
+        UI.state.rawData.trash = dbTrash.filter(t => t.firmId === app.state.firmId);
 
         // Refresh our new dynamic dropdowns
         await app.loadDropdowns();

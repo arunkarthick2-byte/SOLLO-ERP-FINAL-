@@ -231,8 +231,9 @@ const applyStockImpact = async (storeName, record) => {
 };
 
 const saveInvoiceTransaction = async (storeName, data) => {
-    // ENTERPRISE UPGRADE: Take a snapshot of current stock for safety rollback
-    const itemsSnapshot = await getAllRecords('items');
+    // ENTERPRISE UPGRADE: Take a snapshot ONLY of the specific items in this transaction to prevent massive Lag/Freezing
+    const allItems = await getAllRecords('items');
+    const itemsSnapshot = allItems.filter(i => (data.items || []).some(row => row.itemId === i.id));
     const existingRecord = await getRecordById(storeName, data.id);
 
     try {
