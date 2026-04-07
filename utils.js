@@ -2,7 +2,7 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v5.2 Enterprise)
 // ==========================================
 
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=41';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=72';
 
 const Utils = {
     // ==========================================
@@ -48,7 +48,9 @@ const Utils = {
     // --- ENTERPRISE UPGRADE: PROFESSIONAL DATE DISPLAY ---
     formatDateDisplay: (dateString) => {
         if (!dateString) return '';
-        const d = new Date(dateString);
+        // Neutralize Timezone Shift by forcing evaluation at High Noon (12:00:00)
+        const safeString = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
+        const d = new Date(safeString);
         if (isNaN(d.getTime())) return dateString; 
         // Converts "2026-03-25" into "25 Mar 2026"
         return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -240,16 +242,22 @@ const Utils = {
             
             const data = await window.exportDatabase();
             
-            // ENTERPRISE FIX: Stream the JSON into the Blob in chunks to prevent mobile V8 RAM crashes!
-            const blobParts = [];
-            blobParts.push('{"businessProfile":' + JSON.stringify(data.businessProfile || {}));
-            blobParts.push(',"ledgers":' + JSON.stringify(data.ledgers || []));
-            blobParts.push(',"products":' + JSON.stringify(data.products || []));
-            blobParts.push(',"sales":' + JSON.stringify(data.sales || []));
-            blobParts.push(',"purchases":' + JSON.stringify(data.purchases || []));
-            blobParts.push(',"receipts":' + JSON.stringify(data.receipts || []));
-            blobParts.push(',"accounts":' + JSON.stringify(data.accounts || []));
-            blobParts.push(',"timeline":' + JSON.stringify(data.timeline || []) + '}');
+            // ENTERPRISE FIX: Dynamically stream ALL database tables safely without missing any schemas!
+            const blobParts = ['{'];
+            const keys = Object.keys(data);
+            
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                blobParts.push(`"${key}":[`);
+                const arr = data[key] || [];
+                for (let j = 0; j < arr.length; j++) {
+                    blobParts.push(JSON.stringify(arr[j]));
+                    if (j < arr.length - 1) blobParts.push(',');
+                }
+                blobParts.push(']');
+                if (i < keys.length - 1) blobParts.push(',');
+            }
+            blobParts.push('}');
 
             const fileName = `SOLLO_Backup_${new Date().toISOString().split('T')[0]}.json`;
             const blob = new Blob(blobParts, { type: "application/json" });

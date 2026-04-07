@@ -37,7 +37,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=52">
+    <link rel="stylesheet" href="style.css?v=72">
     <link rel="manifest" href="./manifest.json"> 
 
     <style>
@@ -186,21 +186,21 @@
             </div>
 
             <div id="tab-documents" class="screen-section hidden">
-                <div style="display: flex; gap: 8px; margin-bottom: 16px; background: var(--md-surface-variant); padding: 4px; border-radius: 8px;">
-                    <div id="btn-toggle-sales" class="tap-target" style="flex: 1; text-align: center; padding: 8px; background: var(--md-surface); border-radius: 6px; font-weight: bold; box-shadow: var(--elevation-1);" onclick="document.getElementById('doc-sales-view').classList.remove('hidden'); document.getElementById('doc-purchase-view').classList.add('hidden'); this.style.background='var(--md-surface)'; this.style.boxShadow='var(--elevation-1)'; document.getElementById('btn-toggle-purchases').style.background='transparent'; document.getElementById('btn-toggle-purchases').style.boxShadow='none';">Sales</div>
-                    <div id="btn-toggle-purchases" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold;" onclick="document.getElementById('doc-purchase-view').classList.remove('hidden'); document.getElementById('doc-sales-view').classList.add('hidden'); this.style.background='var(--md-surface)'; this.style.boxShadow='var(--elevation-1)'; document.getElementById('btn-toggle-sales').style.background='transparent'; document.getElementById('btn-toggle-sales').style.boxShadow='none';">Purchases</div>
-                </div>
-
+                
                 <div id="doc-sales-view" style="padding-bottom: 80px;">
-                    <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
-                        <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                        <input type="text" id="search-sales" placeholder="Search Invoices..." style="flex: 1; min-width: 0;">
-                        
-                        <div id="sum-sales" style="background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
-                        
-                        <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
-                        <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-sort')">sort</span>
-                        <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 6px; border-radius: 50%; margin-left: 2px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-filter')">more_vert</span>
+                    <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center; position: sticky; top: 0; z-index: 10; background: rgba(244, 246, 250, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 8px 0; margin-top: -8px;">
+                        <div class="tap-target" onclick="document.getElementById('doc-purchase-view').classList.remove('hidden'); document.getElementById('doc-sales-view').classList.add('hidden');" style="display: flex; align-items: center; gap: 4px; background: #e3f2fd; color: #0061a4; padding: 8px 12px; border-radius: 12px; font-weight: bold; font-size: 14px; flex-shrink: 0; box-shadow: var(--elevation-1);">
+                            Sales <span class="material-symbols-outlined" style="font-size: 18px;">swap_horiz</span>
+                        </div>
+                        <div class="search-bar" style="flex: 1; margin-bottom: 0; padding-right: 8px; display: flex; align-items: center; height: 44px;">
+                            <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                            <input type="text" id="search-sales" placeholder="Search..." style="flex: 1; min-width: 0; font-size: 14px;">
+                            
+                            <div id="sum-sales" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
+                            
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-sort')">sort</span>
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-filter')">more_vert</span>
+                        </div>
                     </div>
                     
                     <input type="hidden" id="sort-sales" value="date-desc">
@@ -208,15 +208,19 @@
                 </div>
 
                 <div id="doc-purchase-view" class="hidden" style="padding-bottom: 80px;">
-                    <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
-                        <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                        <input type="text" id="search-purchases" placeholder="Search POs..." style="flex: 1; min-width: 0;">
-                        
-                        <div id="sum-purchases" style="background: #fff8e1; color: #f57f17; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
-                        
-                        <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
-                        <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-sort')">sort</span>
-                        <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 6px; border-radius: 50%; margin-left: 2px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-filter')">more_vert</span>
+                    <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
+                        <div class="tap-target" onclick="document.getElementById('doc-sales-view').classList.remove('hidden'); document.getElementById('doc-purchase-view').classList.add('hidden');" style="display: flex; align-items: center; gap: 4px; background: #fff0f2; color: #ba1a1a; padding: 8px 12px; border-radius: 12px; font-weight: bold; font-size: 14px; flex-shrink: 0; box-shadow: var(--elevation-1);">
+                            Purchases <span class="material-symbols-outlined" style="font-size: 18px;">swap_horiz</span>
+                        </div>
+                        <div class="search-bar" style="flex: 1; margin-bottom: 0; padding-right: 8px; display: flex; align-items: center; height: 44px;">
+                            <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                            <input type="text" id="search-purchases" placeholder="Search..." style="flex: 1; min-width: 0; font-size: 14px;">
+                            
+                            <div id="sum-purchases" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
+                            
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-sort')">sort</span>
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-filter')">more_vert</span>
+                        </div>
                     </div>
                     
                     <input type="hidden" id="sort-purchases" value="date-desc">
@@ -699,7 +703,7 @@
                 <div class="form-group">
                     <label>Attach Bill / Receipt</label>
                     <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('expense-attachment-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                    <img id="expense-attachment-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
+                    <img id="expense-attachment-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
                 <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">Save Expense</button>
@@ -731,7 +735,7 @@
                 <div class="form-group">
                     <label for="prod-img">Product Image</label>
                     <input type="file" id="prod-img" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('product-image-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                    <img id="product-image-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
+                    <img id="product-image-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
                 <div style="display: flex; gap: 12px;">
@@ -851,9 +855,9 @@
         </div>
     </div>
         <div id="activity-expense-ledger" class="activity-screen hidden">
-        <div class="activity-header">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger')">arrow_back</span>
-            <span style="font-size: 18px; font-weight: 500;">Expense Ledger</span>
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px; position: absolute; left: 0; width: 100%; text-align: center; margin: 0; pointer-events: none;">Expense Ledger</span>
         </div>
         <div class="activity-content" style="padding-top: 0px;">
             <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
@@ -886,13 +890,13 @@
                 <div class="form-group">
                     <label>Business Logo</label>
                     <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-logo-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                    <img id="profile-logo-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
+                    <img id="profile-logo-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
                 
                 <div class="form-group">
                     <label>Authorized Signature</label>
                     <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-signature-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                    <img id="profile-signature-preview" class="hidden" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
+                    <img id="profile-signature-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
                 <div class="form-group"><label>Business Name *</label><input type="text" id="profile-name" required></div>
@@ -1088,14 +1092,14 @@
             <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-fab-menu')">close</span>
         </div>
         <div style="padding: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center;">
-            <div class="tap-target" onclick="app.openForm('sales', null, 'invoice')"><div class="icon-circle" style="margin: 0 auto 8px; background: #e3f2fd; color: #0061a4;"><span class="material-symbols-outlined">receipt_long</span></div><small>Sale Inv</small></div>
-            <div class="tap-target" onclick="app.openNewPayment('in')"><div class="icon-circle" style="margin: 0 auto 8px; background: #e8f5e9; color: #2e7d32;"><span class="material-symbols-outlined">payments</span></div><small>Payment In</small></div>
-            <div class="tap-target" onclick="app.openForm('purchase', null, 'invoice')"><div class="icon-circle" style="margin: 0 auto 8px; background: #fbe9e7; color: #d84315;"><span class="material-symbols-outlined">local_shipping</span></div><small>Purchase</small></div>
-            <div class="tap-target" onclick="app.openNewPayment('out')"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff0f2; color: #ba1a1a;"><span class="material-symbols-outlined">outbox</span></div><small>Payment Out</small></div>
-            <div class="tap-target" onclick="app.openForm('expense')"><div class="icon-circle" style="margin: 0 auto 8px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined">account_balance_wallet</span></div><small>Expense</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'invoice'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #e3f2fd; color: #0061a4;"><span class="material-symbols-outlined">receipt_long</span></div><small>Sale Inv</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('in'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #e8f5e9; color: #2e7d32;"><span class="material-symbols-outlined">payments</span></div><small>Payment In</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'invoice'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #fbe9e7; color: #d84315;"><span class="material-symbols-outlined">local_shipping</span></div><small>Purchase</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('out'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff0f2; color: #ba1a1a;"><span class="material-symbols-outlined">outbox</span></div><small>Payment Out</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('expense'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined">account_balance_wallet</span></div><small>Expense</small></div>
             
-            <div class="tap-target" onclick="app.openForm('sales', null, 'return')"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff0f2; color: #ba1a1a;"><span class="material-symbols-outlined">assignment_return</span></div><small>Credit Note</small></div>
-            <div class="tap-target" onclick="app.openForm('purchase', null, 'return')"><div class="icon-circle" style="margin: 0 auto 8px; background: #e8f5e9; color: #2e7d32;"><span class="material-symbols-outlined">assignment_returned</span></div><small>Debit Note</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'return'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff0f2; color: #ba1a1a;"><span class="material-symbols-outlined">assignment_return</span></div><small>Credit Note</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'return'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #e8f5e9; color: #2e7d32;"><span class="material-symbols-outlined">assignment_returned</span></div><small>Debit Note</small></div>
             
             <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('product'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
             <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('ledger'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
@@ -1756,23 +1760,12 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                    console.log("Service Worker forcefully unregistered!");
-                }
-            });
-        }
-    </script>
-
-    <script src="cloud.js?v=60"></script>
+    <script src="cloud.js?v=72"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
-    <script type="module" src="app.js?v=60"></script>
+    <script type="module" src="app.js?v=72"></script>
     <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
@@ -1797,8 +1790,8 @@
         let newWorker;
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // ENTERPRISE FIX: Adding ?v=44 here forces the phone to bypass the locked cache immediately!
-                navigator.serviceWorker.register('sw.js?v=44').then(reg => {
+                // ENTERPRISE FIX: Adding ?v=72 here forces the phone to bypass the locked cache immediately!
+                navigator.serviceWorker.register('sw.js?v=72').then(reg => {
                     // Listen for updates from Netlify
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;
@@ -1891,43 +1884,19 @@
         };
 
         // ==========================================
-        // ENTERPRISE UPGRADE: SMART MORPHING FAB
+        // ENTERPRISE UPGRADE: STATIC UNIVERSAL FAB
         // ==========================================
         window.handleSmartFab = () => {
-            const activeTab = document.querySelector('.screen-section.active-screen').id;
-            
-            // If on the Documents tab, intelligently open the exact form you need!
-            if (activeTab === 'tab-documents') {
-                const isPurchase = !document.getElementById('doc-purchase-view').classList.contains('hidden');
-                if (isPurchase && window.app) window.app.openForm('purchase', null, 'invoice');
-                else if (window.app) window.app.openForm('sales', null, 'invoice');
-            } 
-            // For all other tabs, open the main menu but with a contextual icon
-            else {
-                if (window.UI) window.UI.openBottomSheet('sheet-fab-menu');
-            }
+            // Always open the "Create New" menu for better user muscle memory!
+            if (window.UI) window.UI.openBottomSheet('sheet-fab-menu');
         };
 
+        // We keep this function blank so it safely absorbs the tab-switch events without doing anything!
         const updateFabMorph = () => {
-            setTimeout(() => {
-                const activeTab = document.querySelector('.screen-section.active-screen').id;
-                const icon = document.getElementById('smart-fab-icon');
-                if (!icon) return;
-                
-                icon.style.transform = 'scale(0) rotate(90deg)'; // Spin out animation
-                
-                setTimeout(() => {
-                    if (activeTab === 'tab-documents') {
-                        const isPurchase = !document.getElementById('doc-purchase-view').classList.contains('hidden');
-                        icon.innerText = isPurchase ? 'local_shipping' : 'receipt_long';
-                    } else if (activeTab === 'tab-cashbook') {
-                        icon.innerText = 'payments';
-                    } else {
-                        icon.innerText = 'add';
-                    }
-                    icon.style.transform = 'scale(1) rotate(0deg)'; // Spin in animation
-                }, 200);
-            }, 50);
+            const icon = document.getElementById('smart-fab-icon');
+            if (icon && icon.innerText !== 'add') {
+                icon.innerText = 'add';
+            }
         };
         // ==========================================
 

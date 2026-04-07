@@ -215,8 +215,12 @@ const applyStockImpact = async (storeName, record) => {
                 // Automatically update buy price to the latest rate (factoring in discounts!)
                 if (!isReturn && row.rate > 0) {
                     let discountRatio = 0;
-                    if (record.discount > 0 && record.subtotal > 0) {
-                        discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / record.subtotal);
+                    
+                    // ENTERPRISE FIX: Calculate true subtotal natively to prevent DOM payload failures
+                    const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
+                    
+                    if (record.discount > 0 && trueSubtotal > 0) {
+                        discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
                     }
                     dbItem.buyPrice = row.rate * (1 - discountRatio);
                 }
@@ -570,9 +574,9 @@ async function generateGSTReport(yearMonth, firmId) {
     const purchases = await getAllRecords('purchases');
     const ledgers = await getAllRecords('ledgers');
 
-    // Filter by firm and specific month, and EXCLUDE DRAFTS
-    const monthSales = sales.filter(s => s.firmId === firmId && s.date.startsWith(yearMonth) && s.status !== 'Open');
-    const monthPurchases = purchases.filter(p => p.firmId === firmId && p.date.startsWith(yearMonth) && p.status !== 'Open');
+    // Filter by firm and specific month, and EXCLUDE DRAFTS (With Blank-Date Crash Protection)
+    const monthSales = sales.filter(s => s.firmId === firmId && (s.date || '').startsWith(yearMonth) && s.status !== 'Open');
+    const monthPurchases = purchases.filter(p => p.firmId === firmId && (p.date || '').startsWith(yearMonth) && p.status !== 'Open');
 
     let gstr1 = { b2bTaxable: 0, b2bTax: 0, b2cTaxable: 0, b2cTax: 0, totalTaxable: 0, totalTax: 0 };
     let gstr2 = { totalTaxable: 0, totalTax: 0 }; 

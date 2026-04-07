@@ -70,9 +70,9 @@ import {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=60';
-import Utils from './utils.js?v=60';
-import UI from './ui.js?v=60';
+} from './db.js?v=72';
+import Utils from './utils.js?v=72';
+import UI from './ui.js?v=72';
 // --- END OF NEW CODE ---
 
 // --- ENTERPRISE UPGRADE: IMAGE COMPRESSION ENGINE ---
@@ -93,48 +93,6 @@ window.compressImage = async (base64Str) => {
         img.src = base64Str;
     });
 };
-
-// --- ENTERPRISE UPGRADE: NESTED FORM ROUTING SHIELD ---
-if (UI) {
-    window.activityStack = [];
-    
-    UI.openActivity = (id) => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.classList.remove('hidden'); 
-            setTimeout(() => {
-                el.classList.add('open');
-                window.activityStack = window.activityStack.filter(x => x !== id);
-                window.activityStack.push(id);
-                el.style.zIndex = 100 + window.activityStack.length; 
-            }, 10);
-        }
-
-        // ENTERPRISE FIX: Restore the active form tracker!
-        if (id === 'activity-sales-form') {
-            UI.state.activeActivity = 'sales';
-        } else if (id === 'activity-purchase-form') {
-            UI.state.activeActivity = 'purchase';
-        }
-    };
-    
-    UI.closeActivity = (id) => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.classList.remove('open');
-            setTimeout(() => el.classList.add('hidden'), 350); 
-        }
-        window.activityStack = window.activityStack.filter(x => x !== id);
-
-        // ENTERPRISE FIX: Clear the tracker when closing forms
-        if (id === 'activity-sales-form' || id === 'activity-purchase-form') {
-            UI.state.activeActivity = null;
-        }
-    };
-
-    // FORCE these onto window so HTML onclicks are perfectly shielded!
-    window.UI = UI;
-}
 
 const app = {
     state: { currentEditId: null, currentReceiptId: null, currentDocType: 'invoice', firmId: 'firm1' },
@@ -169,8 +127,10 @@ const app = {
                                 // ENTERPRISE FIX: Force the new Service Worker to take over immediately!
                                 newWorker.postMessage({ type: 'SKIP_WAITING' });
                                 
-                                // Safely reload to apply the new files
-                                setTimeout(() => window.location.reload(), 2500);
+                                // Safely reload ONLY when the new worker has actually taken control
+                                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                                    window.location.reload();
+                                });
                             }
                         });
                     });
@@ -591,6 +551,13 @@ const app = {
                 
                 alert(`✅ Successfully imported ${successCount} records!`);
                 event.target.value = ''; // Reset file input
+                
+                // ENTERPRISE FIX: Wipe RAM Cache so the newly imported CSV data appears instantly!
+                if (window.AppCache) {
+                    window.AppCache.items = null;
+                    window.AppCache.ledgers = null;
+                }
+                
                 app.refreshAll();
             } catch (err) {
                 console.error(err);
@@ -2194,6 +2161,13 @@ const app = {
         // Delete from main database
         await deleteRecordById(storeName, id);
 
+        // ENTERPRISE FIX: Wipe RAM Cache so the deleted item instantly disappears from the UI!
+        if (window.AppCache) {
+            window.AppCache.items = null;
+            window.AppCache.ledgers = null;
+            window.AppCache.accounts = null;
+        }
+
         if (type === 'sales' || type === 'purchase') UI.closeActivity(`activity-${type}-form`);
         else if (type === 'receipt-in' || type === 'receipt-out') UI.closeBottomSheet(`sheet-payment-${type.split('-')[1]}`);
         else UI.closeActivity(`activity-${type}-form`);
@@ -2243,6 +2217,13 @@ const app = {
             // Remove it from the Trash Vault
             trashBin.splice(recordIndex, 1);
             localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
+            
+            // ENTERPRISE FIX: Wipe RAM Cache so the restored item instantly reappears!
+            if (window.AppCache) {
+                window.AppCache.items = null;
+                window.AppCache.ledgers = null;
+                window.AppCache.accounts = null;
+            }
             
             if (window.Utils) window.Utils.showToast("Record Restored Successfully! ♻️");
             app.refreshAll();

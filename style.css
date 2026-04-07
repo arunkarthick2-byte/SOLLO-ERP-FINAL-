@@ -1793,14 +1793,7 @@ header, .header, .top-bar {
 
 /* Apply this to the individual rows/cards inside your Master Lists */
 .virtual-item {
-    /* Tells the browser NOT to render this element if it is off-screen */
-    content-visibility: auto;
-    
-    /* You must tell the browser roughly how tall the item is so the scrollbar calculates correctly */
-    /* Adjust this number based on how tall your product/party cards usually are (e.g., 60px, 80px) */
-    contain-intrinsic-size: 80px; 
-    
-    /* Hardware acceleration lock */
+    /* Hardware acceleration lock for smooth sliding */
     will-change: transform, opacity;
 }
 /* ==========================================
@@ -2383,4 +2376,58 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
     /* Slide it smoothly into the center of the screen */
     transform: translateX(0) !important;
     opacity: 1 !important;
+}
+
+/* ==========================================
+   ENTERPRISE FIX: GESTURE BAR PEEKING FIX 
+   ========================================== */
+.bottom-sheet {
+    /* Ensures visibility transitions smoothly with the slide animation */
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease, visibility 0s 0.3s !important;
+}
+
+.bottom-sheet.open {
+    /* Cancels the visibility delay when sliding up */
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease, visibility 0s !important;
+    visibility: visible;
+}
+
+.bottom-sheet:not(.open) {
+    /* Pushes the hidden sheet completely below the mobile safe-area bezel */
+    transform: translateY(calc(100% + 60px)) !important;
+    visibility: hidden;
+}
+
+/* Ensure completely closed activity forms don't leave artifacts */
+.activity-screen.hidden {
+    display: none !important;
+}
+/* ==========================================
+   ENTERPRISE UI: DYNAMIC ISLAND TOASTS
+   ========================================== */
+#toast-container {
+    top: 24px !important; /* Move to the top */
+    bottom: auto !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    align-items: center !important;
+    width: 100%;
+    pointer-events: none;
+}
+
+.toast {
+    background: rgba(26, 28, 30, 0.85) !important; /* Translucent Dark */
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    color: white !important;
+    border-radius: 40px !important; /* Perfect Pill Shape */
+    padding: 12px 24px !important;
+    font-weight: 500 !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+    animation: islandDrop 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+}
+
+@keyframes islandDrop {
+    0% { transform: translateY(-40px) scale(0.8); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
 }

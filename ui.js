@@ -3,7 +3,7 @@
 // ==========================================
 
 // ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=60';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=72';
 
 const UI = {
 
@@ -42,6 +42,9 @@ const UI = {
     },
 
     toggleTheme: (event) => {
+        // ENTERPRISE FIX: Prevent rapid-tap crashes by locking the animation state
+        if (UI.isAnimatingTheme) return; 
+        
         const applyTheme = () => {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
@@ -52,6 +55,8 @@ const UI = {
 
         if (!document.startViewTransition || !event || !event.clientX) { applyTheme(); return; }
 
+        UI.isAnimatingTheme = true; // Lock the animation
+
         const x = event.clientX;
         const y = event.clientY;
         const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
@@ -61,10 +66,16 @@ const UI = {
 
         transition.ready.then(() => {
             const clipPath = [ `circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)` ];
-            document.documentElement.animate(
+            const animation = document.documentElement.animate(
                 { clipPath: isDark ? clipPath : [...clipPath].reverse() },
                 { duration: 600, easing: "ease-out", pseudoElement: isDark ? "::view-transition-new(root)" : "::view-transition-old(root)" }
             );
+            
+            // Unlock safely when the cinematic transition completely finishes
+            animation.onfinish = () => { UI.isAnimatingTheme = false; };
+        }).catch(() => {
+            // Failsafe unlock if the browser forcibly aborts the transition
+            UI.isAnimatingTheme = false; 
         });
     },
 
@@ -95,6 +106,69 @@ const UI = {
         // FIX: Removed the nested animation that was colliding with the Tab Switcher
         // This instantly stops the Background Crash popup!
         container.innerHTML = htmlContent;
+    },
+
+    // --- ENTERPRISE UPGRADE: BULLETPROOF WEBVIEW VIRTUALIZATION ---
+    renderVirtualList: (container, dataArray, renderRowFn, emptyStateHTML) => {
+        if (!container) return;
+        if (!dataArray || dataArray.length === 0) {
+            container.innerHTML = emptyStateHTML;
+            return;
+        }
+        
+        container.innerHTML = ''; 
+        let currentIndex = 0;
+        const chunkSize = 40; // UPGRADE 1: Increased chunk size to cover tall screens
+
+        const scrollContainer = container.closest('.activity-content') || container.closest('.main-content') || window;
+
+        const loadMore = () => {
+            if (currentIndex >= dataArray.length) return;
+            
+            const chunk = dataArray.slice(currentIndex, currentIndex + chunkSize);
+            const htmlStr = chunk.map(item => renderRowFn(item)).join('');
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlStr;
+            
+            while (tempDiv.firstChild) {
+                container.appendChild(tempDiv.firstChild);
+            }
+            currentIndex += chunkSize;
+
+            // UPGRADE 2: "Tall Phone" Auto-Filler!
+            // If the items didn't create a scrollbar, the user can't scroll.
+            // We must force-load another chunk instantly to trigger the scrollbar!
+            setTimeout(() => {
+                if (currentIndex < dataArray.length) {
+                    let sHeight = scrollContainer.scrollHeight || 0;
+                    let cHeight = scrollContainer.clientHeight || 0;
+                    if (sHeight <= cHeight + 200) {
+                        loadMore();
+                    }
+                }
+            }, 50);
+        };
+
+        loadMore();
+
+        // UPGRADE 3: Bulletproof Scroll Math
+        if (container._scrollHandler) scrollContainer.removeEventListener('scroll', container._scrollHandler);
+        
+        container._scrollHandler = () => {
+            if (currentIndex >= dataArray.length) return;
+            
+            let sTop = scrollContainer.scrollTop || 0; 
+            let cHeight = scrollContainer.clientHeight || 0;
+            let sHeight = scrollContainer.scrollHeight || 0;
+            
+            // Trigger 800px before reaching the bottom for buttery smooth, invisible loading
+            if (sHeight - (sTop + cHeight) < 800) {
+                loadMore();
+            }
+        };
+        
+        scrollContainer.addEventListener('scroll', container._scrollHandler, { passive: true });
     },
     // --- END OF NEW CODE ---
     
@@ -645,11 +719,30 @@ const UI = {
 
                     if (c.invoiceRef) {
                         const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                        let splitAmt = amt / (refs.length || 1);
-                        refs.forEach(r => {
-                            const key = `${c.ledgerId}_${r}`;
-                            paymentMap[key] = (paymentMap[key] || 0) + splitAmt;
-                            ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + splitAmt;
+                        let remainingAmt = amt;
+                        
+                        // Waterfall Allocation (FIFO)
+                        const matchedDocs = refs.map(ref => {
+                            return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
+                                   UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
+                                   { id: ref, grandTotal: Infinity, date: '1970-01-01' };
+                        });
+                        
+                        matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+                        
+                        matchedDocs.forEach(doc => {
+                            if (remainingAmt <= 0) return;
+                            const key = `${c.ledgerId}_${doc.id}`;
+                            const currentPaid = paymentMap[key] || 0;
+                            const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
+                            
+                            const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                            
+                            if (allocation > 0) {
+                                paymentMap[key] = currentPaid + allocation;
+                                ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
+                                remainingAmt -= allocation;
+                            }
                         });
                     }
                 }
@@ -720,23 +813,28 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
-                const newHTML = data.length ? data.map(s => {
+                const emptyHTML = `
+                <div class="empty-state">
+                    <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <p style="margin: 0 0 16px 0; font-size: 16px;">No sales invoices match your filters.</p>
+                    <button class="btn-primary" onclick="app.openForm('sales', null, 'invoice')">+ Create Sales Invoice</button>
+                </div>`;
+
+                UI.renderVirtualList(container, data, (s) => {
                     const isReturn = s.documentType === 'return';
-                    // FIX: Update the visual display to match the new cross-linked math!
                     const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid);
                     const statusText = s.status === 'Open' ? 'Draft' : (balance > 0 && !isReturn ? `Due: \u20B9${balance.toFixed(2)}` : 'Paid');
                     const statusColor = s.status === 'Open' ? 'var(--md-text-muted)' : (balance > 0 && !isReturn ? 'var(--md-error)' : 'var(--md-success)');
                     
-                    // ELITE DESIGN ENGINE: Dynamically calculate the 3D Ribbon
                     let ribbonHTML = '';
                     if (s.status !== 'Open' && !isReturn) {
-                        if (balance <= 0) {
-                            ribbonHTML = '<div class="status-ribbon paid">PAID</div>';
-                        } else {
-                            ribbonHTML = '<div class="status-ribbon overdue">DUE</div>';
-                        }
+                        if (balance <= 0) ribbonHTML = '<div class="status-ribbon paid">PAID</div>';
+                        else ribbonHTML = '<div class="status-ribbon overdue">DUE</div>';
                     }
 
                     return `
@@ -753,16 +851,7 @@ const UI = {
                             </div>
                         </div>
                     </div>`;
-                }).join('') : `
-                <div class="empty-state">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                    <p style="margin: 0 0 16px 0; font-size: 16px;">No sales invoices match your filters.</p>
-                    <button class="btn-primary" onclick="app.openForm('sales', null, 'invoice')">+ Create Sales Invoice</button>
-                </div>`;
-                UI.safeUpdateDOM(container, newHTML);
+                }, emptyHTML);
             }
         }
 
@@ -797,9 +886,18 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
-                const newHTML = data.length ? data.map(p => {
+                const emptyHTML = `
+                <div class="empty-state">
+                    <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    <p style="margin: 0 0 16px 0; font-size: 16px;">No purchase bills match your filters.</p>
+                    <button class="btn-primary" onclick="app.openForm('purchase', null, 'invoice')">+ Create Purchase Bill</button>
+                </div>`;
+
+                UI.renderVirtualList(container, data, (p) => {
                     const isReturn = p.documentType === 'return';
-                    // FIX: Update the visual display to match the new cross-linked math!
                     const uniqueRefs = [...new Set([p.orderNo, p.poNo, p.invoiceNo, p.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid);
@@ -819,16 +917,7 @@ const UI = {
                             </div>
                         </div>
                     </div>`;
-                }).join('') : `
-                <div class="empty-state">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    <p style="margin: 0 0 16px 0; font-size: 16px;">No purchase bills match your filters.</p>
-                    <button class="btn-primary" onclick="app.openForm('purchase', null, 'invoice')">+ Create Purchase Bill</button>
-                </div>`;
-                UI.safeUpdateDOM(container, newHTML);
+                }, emptyHTML);
             }
         }
 
@@ -1022,7 +1111,7 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
-                const newHTML = html.length ? html.join('') : `
+                const emptyHTML = `
                 <div class="empty-state" style="text-align: center; padding: 40px 20px;">
                     <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
                         <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -1030,7 +1119,9 @@ const UI = {
                     <strong style="font-size: 18px; color: var(--md-on-surface); display:block;">No records found</strong>
                     <p style="margin: 8px 0 0 0; color: var(--md-text-muted);">Try adjusting your search or filters.</p>
                 </div>`;
-                UI.safeUpdateDOM(container, newHTML);
+                
+                // Smart Trick: Feed the pre-rendered HTML string array directly into the Virtual Engine!
+                UI.renderVirtualList(container, html, (str) => str, emptyHTML);
             }
         }
 
@@ -1056,25 +1147,24 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
-                container.innerHTML = data.length ? data.map((e, index) => {
-                    // UPGRADE: Strictly prioritize and display the PO or Order Number!
+                const emptyHTML = `
+                <div class="empty-state">
+                    <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-surface-variant);">account_balance_wallet</span>
+                    <p style="margin: 12px 0;">No expenses match your filters.</p>
+                    <button class="btn-primary" onclick="app.openForm('expense')">+ Log New Expense</button>
+                </div>`;
+
+                UI.renderVirtualList(container, data, (e) => {
                     let displayLink = e.linkedInvoice;
                     if (displayLink) {
                         const links = displayLink.split(',').map(x => x.trim()).filter(x => x);
                         const displayNames = links.map(linkId => {
-                            // SELF-HEALING: Catch broken fragments like '8965' or '0778'
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
-                            
-                            // Return STRICTLY the Order, PO, or Invoice No. NO prefixes!
                             if (sDoc) return sDoc.orderNo || sDoc.invoiceNo || sDoc.id.slice(-4).toUpperCase();
                             if (pDoc) return pDoc.orderNo || pDoc.poNo || pDoc.invoiceNo || pDoc.id.slice(-4).toUpperCase();
-                            
-                            // Absolute Fail-safe for missing documents
                             return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : linkId;
                         });
-                        
-                        // SELF-HEALING: Removes duplicates so "ORD-0003, ORD-0003" becomes just "ORD-0003"!
                         displayLink = [...new Set(displayNames)].join(', ');
                     }
                     
@@ -1086,12 +1176,7 @@ const UI = {
                         </div>
                         <strong style="color:var(--md-error);">\u20B9${(parseFloat(e.amount) || 0).toFixed(2)}</strong>
                     </div>`;
-                }).join('') : `
-                <div class="empty-state">
-                    <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-surface-variant);">account_balance_wallet</span>
-                    <p style="margin: 12px 0;">No expenses match your filters.</p>
-                    <button class="btn-primary" onclick="app.openForm('expense')">+ Log New Expense</button>
-                </div>`;
+                }, emptyHTML);
             }
         }
 
@@ -1119,16 +1204,18 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
-                let lastDate = ''; // UPGRADE: Tracker for Google Pay style sticky headers
-                container.innerHTML = data.length ? data.map((t, index) => {
-                    
-                    // UPGRADE: Extract and safely display the linked Invoice/PO Number!
+                const emptyHTML = `
+                <div class="empty-state">
+                    <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-surface-variant);">account_balance</span>
+                    <p style="margin: 12px 0;">No bank transactions match your filters.</p>
+                </div>`;
+
+                UI.renderVirtualList(container, data, (t) => {
                     let displayLink = '';
                     const refData = t.invoiceRef || t.linkedInvoice;
                     if (refData) {
                         const links = String(refData).split(',').map(x => x.trim()).filter(x => x);
                         const displayNames = links.map(linkId => {
-                            // NEW: Check if this is an Expense first!
                             const eDoc = UI.state.rawData.expenses.find(e => e.id === linkId || e.expenseNo === linkId);
                             if (eDoc && eDoc.linkedInvoice) {
                                 const eLinks = String(eDoc.linkedInvoice).split(',').map(x => x.trim());
@@ -1145,7 +1232,6 @@ const UI = {
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
                             
-                            // UX FIX: Force prefixes if the user only typed numbers (e.g., '0873' becomes 'INV-0873')
                             if (sDoc) {
                                 let ref = sDoc.invoiceNo || sDoc.orderNo || sDoc.id.slice(-4).toUpperCase();
                                 return /^\d+$/.test(ref) ? 'INV-' + ref : ref;
@@ -1164,16 +1250,14 @@ const UI = {
                         displayLink = [...new Set(displayNames)].join(', ');
                     }
 
-                    // UX FIX: Bulletproof case-insensitive check to kill the redundant text!
                     const safeMode = String(t.mode || '').toLowerCase();
                     const safeLedger = String(t.ledgerName || '').toLowerCase();
                     const isExpense = safeMode.includes('expense') || safeLedger.includes('expense');
                     
                     const thirdLine = isExpense 
-                        ? '' // Leave it completely clean for expenses
+                        ? '' 
                         : `<br><small>Party: <strong style="color:var(--md-primary)">${t.ledgerName || 'N/A'}</strong> | Mode: ${t.mode || 'Cash'}</small>`;
 
-                    // NO STICKY HEADERS - Just a clean, compact card!
                     return `
                     <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:center;" onclick="app.openReceipt('${t.id}', '${t.type}')">
                         <div>
@@ -1184,11 +1268,7 @@ const UI = {
                             ${t.type === 'in' ? '+' : '-'}\u20B9${(parseFloat(t.amount) || 0).toFixed(2)}
                         </strong>
                     </div>`;
-                }).join('') : `
-                <div class="empty-state">
-                    <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-surface-variant);">account_balance</span>
-                    <p style="margin: 12px 0;">No bank transactions match your filters.</p>
-                </div>`;
+                }, emptyHTML);
             }
         }
 
@@ -1229,10 +1309,9 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
-                let lastDate = ''; // UPGRADE: Tracker for Google Pay style sticky headers
-                container.innerHTML = data.length ? data.map(t => {
-                    
-                    // UPGRADE: Extract and safely display the linked Invoice/PO Number in the Statement Viewer!
+                const emptyHTML = '<p class="empty-state">No records match your filters.</p>';
+
+                UI.renderVirtualList(container, data, (t) => {
                     let displayLink = '';
                     const refData = t.invoiceRef || t.linkedInvoice;
                     if (refData) {
@@ -1247,7 +1326,6 @@ const UI = {
                         displayLink = [...new Set(displayNames)].join(', ');
                     }
 
-                    // NO STICKY HEADERS - Clean timeline view
                     if (t.hasOwnProperty('isInvoice')) {
                         return `
                         <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
@@ -1267,7 +1345,7 @@ const UI = {
                             <strong style="font-size:16px; color:${t.type === 'IN' ? 'var(--md-success)' : 'var(--md-error)'};">${t.type === 'IN' ? '+' : '-'}${t.qty}</strong>
                         </div>`;
                     }
-                }).join('') : '<p class="empty-state">No records match your filters.</p>';
+                }, emptyHTML);
             }
         }
     },
@@ -1278,27 +1356,33 @@ const UI = {
     renderDashboard: () => {
         const filterEl = document.getElementById('dashboard-date-filter');
         const dateFilter = filterEl ? filterEl.value : 'all';
-        const today = new Date();
-        const todayStr = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : today.toISOString().split('T')[0];
+        const todayStr = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
         
+        // ENTERPRISE FIX: Absolute Timezone-Safe Date Math
+        const currentYear = parseInt(todayStr.split('-')[0], 10);
+        const currentMonth = parseInt(todayStr.split('-')[1], 10) - 1;
+
         const isDateInRange = (dateStr) => {
             if (dateFilter === 'all') return true;
             if (!dateStr) return false;
             if (dateFilter === 'today') return dateStr === todayStr;
             
-            // FIXED: Manually split the string to bypass the UTC Timezone shift bug
             const [yearStr, monthStr, dayStr] = dateStr.split('-');
             const itemYear = parseInt(yearStr, 10);
-            const itemMonth = parseInt(monthStr, 10) - 1; // JS months are 0-indexed
+            const itemMonth = parseInt(monthStr, 10) - 1;
             
-            if (dateFilter === 'month') return itemMonth === today.getMonth() && itemYear === today.getFullYear();
-            if (dateFilter === 'year') return itemYear === today.getFullYear();
+            if (dateFilter === 'month') return itemMonth === currentMonth && itemYear === currentYear;
+            if (dateFilter === 'year') return itemYear === currentYear;
             return true;
         };
 
-        const sales = UI.state.rawData.sales;
-        const purchases = UI.state.rawData.purchases;
-        const expenses = UI.state.rawData.expenses;
+        // ENTERPRISE FIX: Secure Data Isolation (Prevent Multi-Firm Data Leaks)
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+
+        const sales = UI.state.rawData.sales.filter(s => !activeFirmId || s.firmId === activeFirmId);
+        const purchases = UI.state.rawData.purchases.filter(p => !activeFirmId || p.firmId === activeFirmId);
+        const expenses = UI.state.rawData.expenses.filter(e => !activeFirmId || e.firmId === activeFirmId);
+        const cashbook = UI.state.rawData.cashbook.filter(c => !activeFirmId || c.firmId === activeFirmId);
 
         let totalSales = 0, outputGst = 0, totalPurchases = 0, inputGst = 0, totalExpenses = 0;
         let cogs = 0; 
@@ -1308,18 +1392,37 @@ const UI = {
         const ledgerTotalPaid = {}; 
         const ledgerExplicitlyLinked = {}; 
 
-        UI.state.rawData.cashbook.forEach(c => {
+        cashbook.forEach(c => {
             if (c.ledgerId) {
                 let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
                 ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
 
                 if (c.invoiceRef) {
                     const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                    let splitAmt = amt / (refs.length || 1);
-                    refs.forEach(r => {
-                        const key = `${c.ledgerId}_${r}`;
-                        paymentMap[key] = (paymentMap[key] || 0) + splitAmt;
-                        ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + splitAmt;
+                    let remainingAmt = amt;
+                    
+                    // Waterfall Allocation (FIFO)
+                    const matchedDocs = refs.map(ref => {
+                        return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
+                               UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
+                               { id: ref, grandTotal: Infinity, date: '1970-01-01' };
+                    });
+                    
+                    matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+                    
+                    matchedDocs.forEach(doc => {
+                        if (remainingAmt <= 0) return;
+                        const key = `${c.ledgerId}_${doc.id}`;
+                        const currentPaid = paymentMap[key] || 0;
+                        const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
+                        
+                        const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                        
+                        if (allocation > 0) {
+                            paymentMap[key] = currentPaid + allocation;
+                            ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
+                            remainingAmt -= allocation;
+                        }
                     });
                 }
             }
@@ -1458,7 +1561,11 @@ const UI = {
             const parts = s.date.split('-'); 
             const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
             
-            const diffTime = today - invoiceDate;
+            // ENTERPRISE FIX: Safely recreate 'today' using the timezone-safe string!
+            const tParts = todayStr.split('-');
+            const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
+            
+            const diffTime = todayDate - invoiceDate;
             if (diffTime < 0) return false; // Prevent future/post-dated invoices from being flagged!
             
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
@@ -1819,7 +1926,7 @@ const UI = {
         `).join('');
     },
 
-    selectLedger: (id, name, prefix) => {
+    selectLedger: async (id, name, prefix) => {
         const inputId = document.getElementById(`${prefix}-customer-id`) || document.getElementById(`${prefix}-supplier-id`) || document.getElementById(`${prefix}-customer`) || document.getElementById(`${prefix}-supplier`);
         if (inputId) inputId.value = id;
         
@@ -1833,9 +1940,9 @@ const UI = {
             if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
                 app.loadOriginalDocuments(id, prefix);
             } else if (prefix === 'pay-in' && typeof app.loadPendingInvoices === 'function') {
-                app.loadPendingInvoices(id, 'in');
+                await app.loadPendingInvoices(id, 'in'); // ENTERPRISE FIX: Added await!
             } else if (prefix === 'pay-out' && typeof app.loadPendingInvoices === 'function') {
-                app.loadPendingInvoices(id, 'out');
+                await app.loadPendingInvoices(id, 'out'); // ENTERPRISE FIX: Added await!
             }
         }
 
@@ -2057,11 +2164,14 @@ const UI = {
         const endDate = endEl.value;
         const container = document.getElementById('pnl-container');
 
+        // ENTERPRISE FIX: Multi-Company Data Isolation for PnL
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
 
         // 1. Calculate Accrual Revenue & COGS
         UI.state.rawData.sales.forEach(s => {
-            if (s.date >= startDate && s.date <= endDate && s.status !== 'Open') {
+            if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= startDate && s.date <= endDate && s.status !== 'Open') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
                 const netSales = (parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0); // Profit excludes tax
                 totalRevenue += netSales * modifier;
@@ -2075,7 +2185,7 @@ const UI = {
 
         // 2. Calculate Expenses
         UI.state.rawData.expenses.forEach(e => {
-            if (e.date >= startDate && e.date <= endDate) {
+            if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= startDate && e.date <= endDate) {
                 totalExpenses += parseFloat(e.amount) || 0;
             }
         });
@@ -2423,52 +2533,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // HARDWARE BACK BUTTON GESTURE INTERCEPTOR
     // ==========================================
     window.addEventListener('popstate', () => {
-        // FIXED: If this was a manual button click, ignore the back gesture completely
         if (window._ignoreNextPop) {
             window._ignoreNextPop = false;
             return;
         }
 
-        let handled = false;
-        
-        // 2. Check if Bottom Sheets are open
-        if (!handled) {
-            const openSheets = document.querySelectorAll('.bottom-sheet.open');
-            if (openSheets.length > 0) {
-                openSheets.forEach(sheet => {
-                    sheet.classList.remove('open');
-                    setTimeout(() => sheet.classList.add('hidden'), 300);
-                });
-                const overlay = document.getElementById('sheet-overlay');
-                if (overlay) {
-                    overlay.classList.remove('open');
-                    setTimeout(() => overlay.classList.add('hidden'), 300);
+        // ENTERPRISE FIX: Unified Z-Index Back Stack Manager
+        // Grabs every open layer (sheets AND activities) and kills ONLY the absolute top one
+        const openSheets = Array.from(document.querySelectorAll('.bottom-sheet.open'));
+        const openActivities = Array.from(document.querySelectorAll('.activity-screen.open'));
+        const allOpenLayers = [...openSheets, ...openActivities];
+
+        if (allOpenLayers.length > 0) {
+            // Sort by absolute Z-Index so we always kill what the user is currently looking at
+            allOpenLayers.sort((a, b) => {
+                const zA = parseInt(window.getComputedStyle(a).zIndex, 10) || 0;
+                const zB = parseInt(window.getComputedStyle(b).zIndex, 10) || 0;
+                return zA - zB; 
+            });
+            
+            // Pop only the topmost layer
+            const topLayer = allOpenLayers.pop(); 
+            topLayer.classList.remove('open');
+            setTimeout(() => topLayer.classList.add('hidden'), 300);
+            
+            // If we closed a bottom sheet, check if we need to drop the dark overlay
+            if (topLayer.classList.contains('bottom-sheet')) {
+                const remainingSheets = openSheets.filter(s => s !== topLayer && s.classList.contains('open'));
+                if (remainingSheets.length === 0) {
+                    const overlay = document.getElementById('sheet-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('open');
+                        setTimeout(() => overlay.classList.add('hidden'), 300);
+                    }
                 }
-                if(typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
-                handled = true;
+                if (typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
             }
-        }
-        
-        // 3. Check if Full-Screen Activities are open
-        if (!handled) {
-            const openActivities = Array.from(document.querySelectorAll('.activity-screen.open'));
-            if (openActivities.length > 0) {
-                // FIX: Sort activities by their Z-Index so we ALWAYS close the screen that is visually on top, regardless of HTML order!
-                openActivities.sort((a, b) => {
-                    const zA = parseInt(window.getComputedStyle(a).zIndex, 10) || 0;
-                    const zB = parseInt(window.getComputedStyle(b).zIndex, 10) || 0;
-                    return zA - zB; 
-                });
-                
-                // Only close the single topmost activity to prevent nuking the entire back-stack
-                const topActivity = openActivities.pop(); 
-                topActivity.classList.remove('open');
-                setTimeout(() => topActivity.classList.add('hidden'), 300);
-                
-                // If we just closed a main form, wipe the active form tracker
-                if (topActivity.id === 'activity-sales-form' || topActivity.id === 'activity-purchase-form') {
-                    UI.state.activeActivity = null;
-                }
+            
+            // If we closed a main form activity, clear the UI active state tracker
+            if (topLayer.id === 'activity-sales-form' || topLayer.id === 'activity-purchase-form') {
+                UI.state.activeActivity = null;
             }
         }
     });
