@@ -37,7 +37,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=76">
+    <link rel="stylesheet" href="style.css?v=81">
     <link rel="manifest" href="./manifest.json"> 
 
     <style>
@@ -90,12 +90,16 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
                     <div class="m3-card">
                         <small style="color: var(--md-text-muted);">Total Sales</small>
-                        <div class="large-text color-primary" id="dash-total-sales" style="font-size: 20px; margin-top: 4px;">&#8377;0.00</div>
+                        <div class="large-text color-primary" id="dash-total-sales" style="font-size: 20px; margin-top: 4px; min-height: 24px;">
+                            <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px;"></div>
+                        </div>
                     </div>
                     <div class="m3-card">
                         <small style="color: var(--md-text-muted);">True Net Profit</small>
-                        <div class="large-text" id="dash-net-profit" style="font-size: 20px; margin-top: 4px; color: var(--md-success);">&#8377;0.00</div>
-                        <small id="profit-breakdown" style="font-size: 10px; color: var(--md-text-muted); display: block; margin-top: 4px;"></small>
+                        <div class="large-text" id="dash-net-profit" style="font-size: 20px; margin-top: 4px; color: var(--md-success); min-height: 24px;">
+                            <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px; animation-delay: 0.1s;"></div>
+                        </div>
+                        <small id="profit-breakdown" style="font-size: 10px; color: var(--md-text-muted); display: block; margin-top: 4px; min-height: 12px;"></small>
                     </div>
                 </div>
 
@@ -106,22 +110,32 @@
                     <canvas id="dashboard-chart" style="width: 100%; max-height: 200px;"></canvas>
                 </div>
 
+                <div id="expense-ledger-container"></div>
 
                 <div class="m3-card" style="margin-bottom: 24px;">
                     <strong style="display:flex; align-items:center; gap:8px; margin-bottom:16px; font-size: 16px; color: var(--md-primary);">
                         <span class="material-symbols-outlined">local_shipping</span> Order Fulfillment
                     </strong>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 12px; margin-bottom: 12px; align-items: center;">
-                        <span style="color: var(--md-text-muted); display: flex; align-items: center;"><span class="status-dot status-open"></span> Open (Pending)</span>
-                        <span id="dash-orders-open" style="font-size: 14px; color: var(--md-text-muted);">0 Orders <strong style="color:var(--md-error);">&#8377;0.00</strong></span>
+                    
+                    <div style="background: #fff0f2; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--md-error);">
+                        <span style="color: var(--md-error); font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">pending_actions</span> Open</span>
+                        <span id="dash-orders-open" style="font-size: 14px; color: var(--md-error); font-weight: 500;">
+                            <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.2s;"></div>
+                        </span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 12px; margin-bottom: 12px; align-items: center;">
-                        <span style="color: var(--md-text-muted); display: flex; align-items: center;"><span class="status-dot status-shipped"></span> Shipped (In Transit)</span>
-                        <span id="dash-orders-shipped" style="font-size: 14px; color: var(--md-text-muted);">0 Orders <strong style="color:#f57f17;">&#8377;0.00</strong></span>
+                    
+                    <div style="background: #fff8e1; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #f57f17;">
+                        <span style="color: #d84315; font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">flight_takeoff</span> Shipped</span>
+                        <span id="dash-orders-shipped" style="font-size: 14px; color: #d84315; font-weight: 500;">
+                            <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.3s;"></div>
+                        </span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: var(--md-text-muted); display: flex; align-items: center;"><span class="status-dot status-completed"></span> Completed</span>
-                        <span id="dash-orders-completed" style="font-size: 14px; color: var(--md-text-muted);">0 Orders <strong style="color:var(--md-success);">&#8377;0.00</strong></span>
+                    
+                    <div style="background: #e8f5e9; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--md-success);">
+                        <span style="color: #146c2e; font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">task_alt</span> Completed</span>
+                        <span id="dash-orders-completed" style="font-size: 14px; color: #146c2e; font-weight: 500;">
+                            <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.4s;"></div>
+                        </span>
                     </div>
                 </div>
                 <div id="overdue-reminders-container" class="m3-card hidden" style="border-left: 4px solid var(--md-error); margin-bottom: 16px;">
@@ -450,23 +464,7 @@
                         <strong class="large-text">Items</strong>
                         <button type="button" class="btn-primary-small" onclick="if(window.UI) window.UI.openBottomSheet('sheet-products')">+ Add Item</button>
                     </div>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: var(--md-surface-variant); text-align: left;">
-                                    <th style="padding: 8px;">Product</th>
-                                    <th style="padding: 8px; width: 60px;">HSN</th>
-                                    <th style="padding: 8px; width: 60px;">Qty</th>
-                                    <th style="padding: 8px; width: 50px;">UOM</th>
-                                    <th style="padding: 8px; width: 80px;">Rate</th>
-                                    <th style="padding: 8px; width: 50px;">GST%</th>
-                                    <th style="padding: 8px; text-align: right;">Total</th>
-                                    <th style="padding: 8px; width: 40px; text-align: center;">Act</th>
-                                </tr>
-                            </thead>
-                            <tbody id="sales-items-body"></tbody>
-                        </table>
-                    </div>
+                    <div id="sales-items-body" style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--md-background);"></div>
                     <div id="sales-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
                 </div>
 
@@ -581,23 +579,7 @@
                         <strong class="large-text">Items Received</strong>
                         <button type="button" class="btn-primary-small" onclick="if(window.UI) window.UI.openBottomSheet('sheet-products')">+ Add Item</button>
                     </div>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; min-width: 600px; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: var(--md-surface-variant); text-align: left;">
-                                    <th style="padding: 8px;">Product</th>
-                                    <th style="padding: 8px; width: 60px;">HSN</th>
-                                    <th style="padding: 8px; width: 60px;">Qty</th>
-                                    <th style="padding: 8px; width: 50px;">UOM</th>
-                                    <th style="padding: 8px; width: 80px;">Buy Rate</th>
-                                    <th style="padding: 8px; width: 50px;">GST%</th>
-                                    <th style="padding: 8px; text-align: right;">Total</th>
-                                    <th style="padding: 8px; width: 40px; text-align: center;">Act</th>
-                                </tr>
-                            </thead>
-                            <tbody id="purchase-items-body"></tbody>
-                        </table>
-                    </div>
+                    <div id="purchase-items-body" style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--md-background);"></div>
                     <div id="purchase-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
                 </div>
 
@@ -857,7 +839,7 @@
         <div id="activity-expense-ledger" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger')" style="position: absolute; left: 16px;">arrow_back</span>
-            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px; position: absolute; left: 0; width: 100%; text-align: center; margin: 0; pointer-events: none;">Expense Ledger</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Ledger</span>
         </div>
         <div class="activity-content" style="padding-top: 0px;">
             <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
@@ -934,17 +916,21 @@
     </div>
 
     <div id="activity-report-viewer" class="activity-screen hidden">
-        <div class="activity-header" style="background: var(--md-primary-container); color: var(--md-on-primary-container); justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-report-viewer')" style="position: absolute; left: 16px;">arrow_back</span>
+        <div class="activity-header" style="background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-report-viewer')" style="padding: 4px; flex-shrink: 0; margin-left: -4px;">arrow_back</span>
             
-            <div style="text-align: center; max-width: 55%;">
-                <div id="report-party-name" style="font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Party Name</div>
-                <div id="report-party-balance" style="font-size: 12px; opacity: 0.85; margin-top: 2px;">Closing Balance: &#8377;0.00</div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                <div id="report-party-name" style="font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">Party Name</div>
+                <div id="report-party-balance" style="font-size: 13px; opacity: 0.9; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Closing Balance: &#8377;0.00</div>
             </div>
             
-            <div style="display: flex; gap: 16px; position: absolute; right: 16px; align-items: center;">
-                <span id="btn-edit-ledger" class="material-symbols-outlined tap-target">edit</span>
-                <span class="material-symbols-outlined tap-target" onclick="Utils.downloadStatementPDF()">share</span>
+            <div style="display: flex; gap: 8px; flex-shrink: 0; align-items: center;">
+                <div id="btn-edit-ledger" class="icon-circle tap-target" style="width: 36px; height: 36px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">edit</span>
+                </div>
+                <div class="icon-circle tap-target" onclick="if(window.Utils) window.Utils.downloadStatementPDF()" style="width: 36px; height: 36px; background: var(--md-primary); color: white; box-shadow: 0 4px 8px rgba(0,97,164,0.3);">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">ios_share</span>
+                </div>
             </div>
         </div>
         <div class="activity-content" style="background: var(--md-background); padding: 0px 12px 12px 12px;">
@@ -971,71 +957,96 @@
             <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-document-formats')">close</span>
         </div>
         <div style="padding: 16px; overflow-y: auto; max-height: 80vh;">
-            <p style="margin: 0 0 16px 0; font-size: 12px; color: var(--md-text-muted); line-height: 1.5;">Type your Prefix and Suffix. Use <b style="color:var(--md-primary);">{FY}</b> for the Financial Year. The counter will auto-generate in the middle.</p>
-            
-            <div style="margin-bottom: 16px;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Sales Invoice</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="format-inv-prefix" class="m3-input" placeholder="Prefix (e.g., INV/)" style="flex: 1; text-align: right;">
-                    <input type="number" id="format-inv-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
-                    <input type="text" id="format-inv-suffix" class="m3-input" placeholder="Suffix (e.g., /{FY})" style="flex: 1;">
-                </div>
-            </div>
-
-            <div style="margin-bottom: 16px;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Sales Order</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="format-ord-prefix" class="m3-input" placeholder="ORD " style="flex: 1; text-align: right;">
-                    <input type="number" id="format-ord-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
-                    <input type="text" id="format-ord-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
-                </div>
-            </div>
-
-            <div style="margin-bottom: 16px;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Purchase Order</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="format-po-prefix" class="m3-input" placeholder="PO " style="flex: 1; text-align: right;">
-                    <input type="number" id="format-po-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
-                    <input type="text" id="format-po-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
-                </div>
-            </div>
-            <div style="margin-bottom: 16px;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Credit Note (Sales Return)</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="format-cn-prefix" class="m3-input" placeholder="CN " style="flex: 1; text-align: right;">
-                    <input type="number" id="format-cn-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
-                    <input type="text" id="format-cn-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
-                </div>
-            </div>
-
-            <div style="margin-bottom: 16px;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Business Expense</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="format-exp-prefix" class="m3-input" placeholder="EXP " style="flex: 1; text-align: right;">
-                    <input type="number" id="format-exp-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
-                    <input type="text" id="format-exp-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
-                </div>
-            </div>
-
-            <div style="margin-bottom: 16px;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Payment In (Receipt)</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="format-rec-prefix" class="m3-input" placeholder="REC " style="flex: 1; text-align: right;">
-                    <input type="number" id="format-rec-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
-                    <input type="text" id="format-rec-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
-                </div>
-            </div>
-
-            <div style="margin-bottom: 24px;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 4px; display: block;">Payment Out (Voucher)</label>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="text" id="format-vou-prefix" class="m3-input" placeholder="VOU " style="flex: 1; text-align: right;">
-                    <input type="number" id="format-vou-start" class="m3-input" placeholder="0001" title="Start Number" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 16px; font-family: monospace; border: 1px solid var(--md-primary-container); border-radius: 6px; background: var(--md-surface);">
-                    <input type="text" id="format-vou-suffix" class="m3-input" placeholder="/{FY}" style="flex: 1;">
-                </div>
+            <div style="background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px; border-radius: 8px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
+                <span class="material-symbols-outlined">info</span>
+                <p style="margin: 0; font-size: 12px; line-height: 1.5;">Type your Prefix and Suffix. Use <strong>{FY}</strong> for the Financial Year. The counter will auto-generate in the middle.</p>
             </div>
             
-            <button class="btn-primary" onclick="app.saveDocumentSettings()" style="width: 100%;">Save Formats</button>
+            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--md-primary);">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #e3f2fd; color: #0061a4;"><span class="material-symbols-outlined" style="font-size: 18px;">receipt_long</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">Sales Invoice</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
+                    <input type="text" id="format-inv-prefix" placeholder="INV/" style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                    <input type="number" id="format-inv-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid var(--md-primary-container); border-radius: 6px; padding: 6px 4px; outline: none;">
+                    <input type="text" id="format-inv-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                </div>
+            </div>
+
+            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--md-primary);">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #e3f2fd; color: #0061a4;"><span class="material-symbols-outlined" style="font-size: 18px;">shopping_cart</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">Sales Order</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
+                    <input type="text" id="format-ord-prefix" placeholder="ORD " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                    <input type="number" id="format-ord-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid var(--md-primary-container); border-radius: 6px; padding: 6px 4px; outline: none;">
+                    <input type="text" id="format-ord-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                </div>
+            </div>
+
+            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid #f57f17;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined" style="font-size: 18px;">local_shipping</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">Purchase Order</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
+                    <input type="text" id="format-po-prefix" placeholder="PO " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                    <input type="number" id="format-po-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: #f57f17; font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #ffe0b2; border-radius: 6px; padding: 6px 4px; outline: none;">
+                    <input type="text" id="format-po-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                </div>
+            </div>
+
+            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--md-error);">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #fff0f2; color: #ba1a1a;"><span class="material-symbols-outlined" style="font-size: 18px;">assignment_return</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">Credit Note (Return)</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
+                    <input type="text" id="format-cn-prefix" placeholder="CN " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                    <input type="number" id="format-cn-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-error); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #ffcdd2; border-radius: 6px; padding: 6px 4px; outline: none;">
+                    <input type="text" id="format-cn-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                </div>
+            </div>
+
+            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid #6a1b9a;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined" style="font-size: 18px;">account_balance_wallet</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">Business Expense</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
+                    <input type="text" id="format-exp-prefix" placeholder="EXP " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                    <input type="number" id="format-exp-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: #6a1b9a; font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #e1bee7; border-radius: 6px; padding: 6px 4px; outline: none;">
+                    <input type="text" id="format-exp-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                </div>
+            </div>
+
+            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--md-success);">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #e8f5e9; color: #146c2e;"><span class="material-symbols-outlined" style="font-size: 18px;">arrow_downward</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">Payment In (Receipt)</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
+                    <input type="text" id="format-rec-prefix" placeholder="REC " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                    <input type="number" id="format-rec-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-success); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #c8e6c9; border-radius: 6px; padding: 6px 4px; outline: none;">
+                    <input type="text" id="format-rec-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                </div>
+            </div>
+
+            <div class="m3-card" style="padding: 12px; margin-bottom: 24px; border-left: 4px solid var(--md-error);">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #fff0f2; color: #ba1a1a;"><span class="material-symbols-outlined" style="font-size: 18px;">arrow_upward</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">Payment Out (Voucher)</strong>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
+                    <input type="text" id="format-vou-prefix" placeholder="VOU " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                    <input type="number" id="format-vou-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-error); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #ffcdd2; border-radius: 6px; padding: 6px 4px; outline: none;">
+                    <input type="text" id="format-vou-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                </div>
+            </div>
+            
+            <button class="btn-primary" onclick="app.saveDocumentSettings()" style="width: 100%; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save Formats</button>
         </div>
     </div>
     <div id="sheet-expenses-sort" class="bottom-sheet">
@@ -1760,12 +1771,12 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script src="cloud.js?v=76"></script>
+    <script src="cloud.js?v=81"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
-    <script type="module" src="app.js?v=76"></script>
+    <script type="module" src="app.js?v=81"></script>
     <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
@@ -2077,6 +2088,122 @@
             });
 
         }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK
+    </script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        function upgradePaymentUI(selectId, amountInputId, themeColor) {
+            const selectEl = document.getElementById(selectId);
+            if (!selectEl) return;
+
+            // Create the beautiful container
+            let smartContainer = document.getElementById(selectId + '-smart');
+            if (!smartContainer) {
+                smartContainer = document.createElement('div');
+                smartContainer.id = selectId + '-smart';
+                smartContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 220px; overflow-y: auto; padding-right: 4px;';
+                selectEl.parentNode.insertBefore(smartContainer, selectEl.nextSibling);
+                
+                // Hide the ugly original box and the "Hold Ctrl" text
+                selectEl.style.display = 'none'; 
+                const smallText = selectEl.parentNode.querySelector('small');
+                if (smallText) smallText.style.display = 'none';
+            }
+
+            // Function to generate the premium checkboxes
+            const renderSmartList = () => {
+                smartContainer.innerHTML = ''; 
+                const options = Array.from(selectEl.options);
+
+                // Show an elegant empty state if no bills are pending
+                if (options.length <= 1) {
+                    smartContainer.innerHTML = '<div style="padding: 16px; text-align: center; background: white; border-radius: 12px; color: var(--md-text-muted); font-size: 13px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">No pending bills found. (Advance Payment)</div>';
+                    return;
+                }
+
+                // Generate a premium row for every pending invoice
+                options.forEach(opt => {
+                    if (!opt.value) return; 
+
+                    // AI Math: Extract the pending amount from the text
+                    let pendingAmt = 0;
+                    const match = opt.text.match(/(?:₹|Rs\.?)\s*([\d,.]+)/i);
+                    if (match) pendingAmt = parseFloat(match[1].replace(/,/g, ''));
+
+                    const row = document.createElement('div');
+                    row.className = 'tap-target';
+                    row.style.cssText = `display: flex; justify-content: space-between; align-items: center; background: white; padding: 14px 12px; border-radius: 12px; border: 2px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);`;
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.style.cssText = `width: 20px; height: 20px; accent-color: ${themeColor}; margin-right: 12px; pointer-events: none; flex-shrink: 0;`;
+                    checkbox.checked = opt.selected;
+
+                    const labelDiv = document.createElement('div');
+                    labelDiv.style.flex = '1';
+                    labelDiv.style.minWidth = '0';
+                    const mainText = opt.text.split('(')[0].split('- ₹')[0].trim(); 
+                    labelDiv.innerHTML = `<strong style="font-size: 14px; display: block; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${mainText}</strong>`;
+
+                    const amtDiv = document.createElement('div');
+                    if (pendingAmt > 0) {
+                        amtDiv.innerHTML = `<span style="color: ${themeColor}; font-weight: bold; font-size: 15px;">₹${pendingAmt.toFixed(2)}</span>`;
+                    }
+
+                    if (opt.selected) {
+                        row.style.border = `2px solid ${themeColor}`;
+                        row.style.background = `${themeColor}15`; 
+                    }
+
+                    // The Magic Click Event (Auto-Sums the math!)
+                    row.onclick = () => {
+                        checkbox.checked = !checkbox.checked;
+                        opt.selected = checkbox.checked; 
+
+                        if (checkbox.checked) {
+                            row.style.border = `2px solid ${themeColor}`;
+                            row.style.background = `${themeColor}15`; 
+                        } else {
+                            row.style.border = `2px solid transparent`;
+                            row.style.background = `white`;
+                        }
+
+                        let total = 0;
+                        Array.from(selectEl.options).forEach(o => {
+                            if (o.selected && o.value) {
+                                const m = o.text.match(/(?:₹|Rs\.?)\s*([\d,.]+)/i);
+                                if (m) total += parseFloat(m[1].replace(/,/g, ''));
+                            }
+                        });
+                        
+                        const amtInput = document.getElementById(amountInputId);
+                        if (total > 0) {
+                            amtInput.value = total.toFixed(2);
+                            amtInput.style.backgroundColor = `${themeColor}30`;
+                            setTimeout(() => amtInput.style.backgroundColor = '', 300);
+                        } else {
+                            amtInput.value = '';
+                        }
+                    };
+
+                    row.appendChild(checkbox);
+                    row.appendChild(labelDiv);
+                    row.appendChild(amtDiv);
+                    smartContainer.appendChild(row);
+                });
+            };
+
+            // Command the app to secretly watch the old box for changes
+            const observer = new MutationObserver(renderSmartList);
+            observer.observe(selectEl, { childList: true });
+        }
+
+        // Boot up the engine (Green for Money In, Red for Money Out)
+        setTimeout(() => {
+            upgradePaymentUI('pay-in-invoice-ref', 'pay-in-amount', '#146c2e'); 
+            upgradePaymentUI('pay-out-invoice-ref', 'pay-out-amount', '#ba1a1a'); 
+        }, 1000);
+    });
     </script>
 </body>
 </html>

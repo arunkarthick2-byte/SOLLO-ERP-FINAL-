@@ -2,6 +2,23 @@
 // SOLLO ERP - MAIN APPLICATION CONTROLLER (v5.2 Enterprise)
 // ==========================================
 
+// --- ENTERPRISE UPGRADE: KILL UGLY BROWSER ALERTS ---
+// This secretly intercepts every standard alert() in the entire app and turns them into M3 Toasts!
+window.alert = function(message) {
+    if (window.Utils && typeof window.Utils.showToast === 'function') {
+        let icon = "💬";
+        const msgLower = message.toLowerCase();
+        
+        // Smart Engine: Auto-assigns emojis based on the text context!
+        if (msgLower.includes("error") || msgLower.includes("fail") || msgLower.includes("invalid") || msgLower.includes("please") || msgLower.includes("cannot")) icon = "⚠️";
+        if (msgLower.includes("success") || msgLower.includes("converted") || msgLower.includes("added")) icon = "✅";
+        
+        window.Utils.showToast(`${icon} ${message}`);
+    } else {
+        console.warn("Alert Intercepted:", message);
+    }
+};
+
 // --- ENTERPRISE UPGRADE: GLOBAL ERROR SHIELD ---
 window.addEventListener('error', (event) => {
     console.error("Global Error Caught:", event.error);
@@ -42,17 +59,34 @@ window.addEventListener('beforeunload', (event) => {
     }
 });
 
-// --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT ---
-window.addEventListener('offline', () => {
-    if (window.Utils && typeof window.Utils.showToast === 'function') {
-        window.Utils.showToast("⚠️ You are offline. Working locally.");
+// --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT BANNER ---
+const updateNetworkStatus = () => {
+    let banner = document.getElementById('offline-banner');
+    // Dynamically inject the banner into the HTML if it doesn't exist yet
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'offline-banner';
+        banner.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; text-align: center; padding: 6px; font-size: 12px; font-weight: 600; color: white; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); transform: translateY(-100%); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);';
+        document.body.appendChild(banner);
     }
-});
-window.addEventListener('online', () => {
-    if (window.Utils && typeof window.Utils.showToast === 'function') {
-        window.Utils.showToast("✅ Back online. Sync ready.");
+    
+    if (!navigator.onLine) {
+        // Drop down the red warning banner
+        banner.style.backgroundColor = 'var(--md-error, #ba1a1a)';
+        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">cloud_off</span> You are offline. Working locally.';
+        banner.style.transform = 'translateY(0)';
+    } else {
+        // Turn it green, tell them they are connected, then slide it away after 3 seconds
+        banner.style.backgroundColor = 'var(--md-success, #146c2e)';
+        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">cloud_done</span> Back online. Sync ready.';
+        setTimeout(() => { banner.style.transform = 'translateY(-100%)'; }, 3000);
     }
-});
+};
+
+window.addEventListener('offline', updateNetworkStatus);
+window.addEventListener('online', updateNetworkStatus);
+// Run once on boot just in case they open the app while already offline
+if (!navigator.onLine) updateNetworkStatus();
 
 // --- ENTERPRISE UPGRADE: BANKING APP PRIVACY SHIELD ---
 document.addEventListener('visibilitychange', () => {
@@ -70,9 +104,9 @@ import {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=76';
-import Utils from './utils.js?v=76';
-import UI from './ui.js?v=76';
+} from './db.js?v=81';
+import Utils from './utils.js?v=81';
+import UI from './ui.js?v=81';
 // --- END OF NEW CODE ---
 
 // --- ENTERPRISE UPGRADE: IMAGE COMPRESSION ENGINE ---
@@ -151,6 +185,7 @@ const app = {
             await app.loadFirms();
             
             await app.loadAllData(); 
+            await app.cleanupDuplicates(); // <-- ENTERPRISE FIX: Scans and merges duplicates on boot!
             app.setupForms();
             
             // 3. Render the UI
@@ -284,19 +319,113 @@ const app = {
         }
     },
 
+    // ==========================================
+    // CORE UI REFRESH ENGINE (Restored)
+    // ==========================================
     refreshAll: async () => {
         await app.loadAllData();
-        UI.applyFilters('sales');
-        UI.applyFilters('purchases');
-        UI.applyFilters('masters');
-        UI.applyFilters('expenses');
-        UI.applyFilters('cashbook');
-        UI.applyFilters('timeline');
-        UI.renderDashboard();
+        if (window.UI) {
+            window.UI.applyFilters('sales');
+            window.UI.applyFilters('purchases');
+            window.UI.applyFilters('masters');
+            window.UI.applyFilters('expenses');
+            window.UI.applyFilters('cashbook');
+            window.UI.applyFilters('timeline');
+            window.UI.renderDashboard();
+        }
         
-        // NEW: Check if we should run a silent background backup!
+        // Trigger silent background backup if active
         if (typeof Cloud !== 'undefined' && Cloud.autoBackup) {
             Cloud.autoBackup();
+        }
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: DATA DEDUPLICATION ENGINE
+    // ==========================================
+    cleanupDuplicates: async () => {
+        try {
+            let cleaned = false;
+            const ledgers = await getAllRecords('ledgers');
+            const accounts = await getAllRecords('accounts');
+            const sales = await getAllRecords('sales');
+            const purchases = await getAllRecords('purchases');
+            const receipts = await getAllRecords('receipts');
+
+            // 1. Merge Duplicate Customers & Suppliers
+            const ledgerMap = {};
+            for (const l of ledgers) {
+                if (l.firmId !== app.state.firmId) continue;
+                const key = `${(l.name || '').trim().toLowerCase()}_${l.type}`;
+                
+                if (!ledgerMap[key]) {
+                    ledgerMap[key] = l;
+                } else {
+                    const master = ledgerMap[key];
+                    // Mathematically combine opening balances so no money is lost
+                    master.openingBalance = (parseFloat(master.openingBalance) || 0) + (parseFloat(l.openingBalance) || 0);
+                    await saveRecord('ledgers', master);
+
+                    // Safely remap all connected documents to the master ID
+                    for (const s of sales) { if (s.customerId === l.id) { s.customerId = master.id; await saveRecord('sales', s); } }
+                    for (const p of purchases) { if (p.supplierId === l.id) { p.supplierId = master.id; await saveRecord('purchases', p); } }
+                    for (const r of receipts) { if (r.ledgerId === l.id) { r.ledgerId = master.id; await saveRecord('receipts', r); } }
+                    
+                    // Delete the ghost copy
+                    await deleteRecordById('ledgers', l.id);
+                    cleaned = true;
+                }
+            }
+
+            // 2. Merge Duplicate Bank Accounts & Enforce Official Cash Drawer
+            const accMap = {};
+            let realCash = accounts.find(a => a.id === 'cash' && a.firmId === app.state.firmId);
+
+            for (const a of accounts) {
+                if (a.firmId !== app.state.firmId) continue;
+                const key = (a.name || '').trim().toLowerCase();
+                
+                // --- ENTERPRISE FIX: DESTROY FAKE CASH DRAWERS ---
+                // If the backup contains a manually created "Cash Drawer", merge it into the System 'cash' ID
+                if ((key === 'cash drawer' || key === 'cash' || key === 'default cash drawer') && a.id !== 'cash') {
+                    if (!realCash) {
+                        realCash = { id: 'cash', firmId: app.state.firmId, name: 'Cash Drawer', openingBalance: 0 };
+                    }
+                    // Mathematically transfer the money to prevent data loss
+                    realCash.openingBalance = (parseFloat(realCash.openingBalance) || 0) + (parseFloat(a.openingBalance) || 0);
+                    await saveRecord('accounts', realCash);
+
+                    // Safely remap all transactions to the official cash drawer
+                    for (const r of receipts) { if (r.accountId === a.id) { r.accountId = 'cash'; await saveRecord('receipts', r); } }
+                    
+                    // Delete the ghost copy
+                    await deleteRecordById('accounts', a.id);
+                    cleaned = true;
+                    continue; // Skip the rest of the loop for this fake record
+                }
+
+                if (a.id === 'cash') continue; // Now safely skip the real one
+                
+                if (!accMap[key]) {
+                    accMap[key] = a;
+                } else {
+                    const master = accMap[key];
+                    master.openingBalance = (parseFloat(master.openingBalance) || 0) + (parseFloat(a.openingBalance) || 0);
+                    await saveRecord('accounts', master);
+
+                    for (const r of receipts) { if (r.accountId === a.id) { r.accountId = master.id; await saveRecord('receipts', r); } }
+                    
+                    await deleteRecordById('accounts', a.id);
+                    cleaned = true;
+                }
+            }
+
+            if (cleaned) {
+                if (window.Utils) window.Utils.showToast("Database optimized: Duplicates merged! 🧹");
+                await app.loadAllData(); // Reload clean data into RAM
+            }
+        } catch (e) {
+            console.error("Cleanup failed:", e);
         }
     },
 
@@ -1371,7 +1500,7 @@ const app = {
                     if (!partyId) return alert(`Please select a ${partyKey}.`);
 
                     const items = [];
-                    const rows = document.querySelectorAll(`#${type}-items-body tr`);
+                    const rows = document.querySelectorAll(`#${type}-items-body .item-entry-card`);
                     if (rows.length === 0) return alert("Please add at least one item.");
 
                     rows.forEach(tr => {
@@ -1481,6 +1610,13 @@ const app = {
                         const storeName = type === 'sales' ? 'sales' : 'purchases';
                         await saveInvoiceTransaction(storeName, data);
                         
+                        // --- ENTERPRISE FIX: 5ms MEMORY INJECTION ---
+                        // Inject the new data directly into RAM to avoid a heavy database reload!
+                        const ramData = storeName === 'sales' ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;
+                        const existIdx = ramData.findIndex(r => r.id === data.id);
+                        if (existIdx > -1) ramData[existIdx] = data;
+                        else ramData.push(data);
+                        
                         // NEW: Auto-Complete Advance Payments Engine
                         if (typeof app.autoCompleteInvoices === 'function') {
                             await app.autoCompleteInvoices(partyId, type);
@@ -1488,7 +1624,10 @@ const app = {
                         
                         UI.showSuccess(); // UPGRADE: Trigger GPay Animation!
                         UI.closeActivity(`activity-${type}-form`);
-                        app.refreshAll();
+                        
+                        // Fast UI update instead of hitting the hard drive!
+                        window.UI.applyFilters(storeName);
+                        window.UI.renderDashboard();
                     } catch (error) {
                         console.error("Save failed:", error);
                         alert("An error occurred while saving. Please try again.");

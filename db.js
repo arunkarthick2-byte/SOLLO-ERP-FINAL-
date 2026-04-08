@@ -538,17 +538,35 @@ const triggerAutoBackup = async () => {
 };
 
 const exportDatabase = async () => {
+    // ENTERPRISE FIX: Capture the phone's current active Firm ID
+    const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+    
     // FIX: Added 'trash' to the export array so the recycle bin is safely backed up to the cloud
     const stores = ['firms', 'businessProfile', 'counters', 'items', 'ledgers', 'sales', 'purchases', 'receipts', 'expenses', 'accounts', 'adjustments', 'units', 'expenseCategories', 'trash'];
     const backupData = {};
+    
     for (const store of stores) {
-        backupData[store] = await getAllRecords(store);
+        const allRecords = await getAllRecords(store);
+        
+        // --- ENTERPRISE FIX: STRICT DATA ISOLATION ---
+        // Only export global settings OR records that belong exactly to the active business!
+        if (store === 'counters' || store === 'units' || store === 'expenseCategories') {
+            backupData[store] = allRecords; // Global dropdowns and settings
+        } else {
+            // Filter out any data that belongs to other businesses (if multi-firm is used)
+            backupData[store] = allRecords.filter(record => record.firmId === activeFirmId || record.id === activeFirmId);
+        }
     }
+    
     return backupData;
 };
 
 const importDatabase = async (parsedData) => {
     const stores = Object.keys(parsedData);
+    
+    // ENTERPRISE FIX: Capture the phone's current active Firm ID
+    const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+
     return new Promise((resolve, reject) => {
         // Filter out obsolete stores to prevent transaction crashes
         const validStores = stores.filter(store => db.objectStoreNames.contains(store));
@@ -560,10 +578,38 @@ const importDatabase = async (parsedData) => {
             const store = transaction.objectStore(storeName);
             store.clear(); 
             parsedData[storeName].forEach(record => {
+                
+                // --- ENTERPRISE FIX: INVISIBLE NAME TAG OVERRIDE ---
+                if (storeName === 'firms') {
+                    record.id = activeFirmId; // Force the firm profile to match the phone
+                } else if (storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
+                    // Global settings, leave them as is
+                } else {
+                    // Force all Invoices, Products, Customers, and Cashbook data to belong to this phone!
+                    record.firmId = activeFirmId;
+                }
+                // ---------------------------------------------------
+                
                 store.put(record);
             });
         });
-        transaction.oncomplete = () => resolve();
+        
+        transaction.oncomplete = () => {
+            // --- ENTERPRISE FIX: WIPE RAM & AUTO-REFRESH ---
+            // Clear the memory so the app doesn't show old ghost data
+            if (window.AppCache) {
+                window.AppCache.items = null;
+                window.AppCache.ledgers = null;
+                window.AppCache.accounts = null;
+            }
+            
+            // Give the database a split second to settle, then instantly reload the screen!
+            if (window.app && typeof window.app.refreshAll === 'function') {
+                setTimeout(() => window.app.refreshAll(), 50);
+            }
+            resolve();
+        };
+        
         transaction.onerror = () => reject(transaction.error);
     });
 };

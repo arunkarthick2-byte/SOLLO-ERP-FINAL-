@@ -3,7 +3,7 @@
 // ==========================================
 
 // ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=76';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=81';
 
 const UI = {
 
@@ -28,7 +28,43 @@ const UI = {
             }
         }, { passive: true });
         
-        // (Scroll logic removed from here because you already have the master version at the bottom of the file!)
+        // --- ENTERPRISE FIX: SMART MOBILE KEYBOARDS ---
+        // Automatically forces native Number Pads and "Next" buttons across the entire app
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.setAttribute('inputmode', 'decimal');
+            input.setAttribute('enterkeyhint', 'next');
+        });
+        
+        // Forces the pure phone dialer keyboard for all phone number inputs
+        document.querySelectorAll('input[id*="phone"], input[name*="phone"]').forEach(input => {
+            input.setAttribute('type', 'tel');
+            input.setAttribute('inputmode', 'tel');
+            input.setAttribute('enterkeyhint', 'next');
+        });
+        
+        // Changes the default mobile "Go/Search" button to a smooth "Next" button
+        document.querySelectorAll('input[type="text"], input[type="date"]').forEach(input => {
+            if(!input.getAttribute('enterkeyhint')) input.setAttribute('enterkeyhint', 'next');
+        });
+        
+        // --- ENTERPRISE FIX: PREMIUM EMPTY STATES ---
+        // Dynamically upgrades all boring blank text into beautiful M3 graphic cards!
+        const emptyStyle = document.createElement('style');
+        emptyStyle.innerHTML = `
+            .empty-state {
+                display: flex !important; flex-direction: column !important; align-items: center !important; 
+                justify-content: center !important; padding: 48px 20px !important; text-align: center !important; 
+                background: var(--md-surface) !important; border-radius: 16px !important; 
+                border: 2px dashed var(--md-outline-variant) !important; margin: 16px 0 !important; 
+                color: var(--md-on-surface) !important; font-weight: 500 !important; font-size: 15px !important;
+            }
+            .empty-state::before {
+                content: 'inbox'; font-family: 'Material Symbols Outlined';
+                font-size: 48px; color: var(--md-primary); margin-bottom: 16px;
+                background: var(--md-primary-container); padding: 16px; border-radius: 50%;
+            }
+        `;
+        document.head.appendChild(emptyStyle);
     },
 
     // --- NEW CODE: DARK MODE CONTROLLERS ---
@@ -242,11 +278,15 @@ const UI = {
                 navElement.classList.add('active');
             }
 
-            if (tabId === 'tab-dashboard') UI.renderDashboard();
-            else if (tabId === 'tab-documents') { UI.applyFilters('sales'); UI.applyFilters('purchases'); }
-            else if (tabId === 'tab-cashbook') UI.applyFilters('cashbook');
-            else if (tabId === 'tab-expenses') UI.applyFilters('expenses');
-            else if (tabId === 'tab-masters') UI.applyFilters('masters');
+            // --- ENTERPRISE FIX: THREAD YIELDING ---
+            // 20ms delay lets the browser paint the button animation FIRST before doing heavy math!
+            setTimeout(() => {
+                if (tabId === 'tab-dashboard') UI.renderDashboard();
+                else if (tabId === 'tab-documents') { UI.applyFilters('sales'); UI.applyFilters('purchases'); }
+                else if (tabId === 'tab-cashbook') UI.applyFilters('cashbook');
+                else if (tabId === 'tab-expenses') UI.applyFilters('expenses');
+                else if (tabId === 'tab-masters') UI.applyFilters('masters');
+            }, 20); 
         };
 
         // UPGRADE 4: Cinematic View Transitions
@@ -476,7 +516,7 @@ const UI = {
         const typeEl = document.getElementById('sales-invoice-type');
         const isGST = typeEl ? typeEl.value !== 'Non-GST' : true;
 
-        const rows = document.querySelectorAll('#sales-items-body tr');
+        const rows = document.querySelectorAll('#sales-items-body .item-entry-card');
         
         rows.forEach(tr => {
             const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
@@ -553,7 +593,7 @@ const UI = {
         const typeEl = document.getElementById('purchase-invoice-type');
         const isGST = typeEl ? typeEl.value !== 'Non-GST' : true;
 
-        const rows = document.querySelectorAll('#purchase-items-body tr');
+        const rows = document.querySelectorAll('#purchase-items-body .item-entry-card');
         
         rows.forEach(tr => {
             const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
@@ -1405,14 +1445,44 @@ const UI = {
             } 
         });
         
+        // --- CLEAN DASHBOARD: CALCULATE TOTAL EXPENSES (Hidden from UI) ---
         expenses.forEach(e => { 
-            if(isDateInRange(e.date)) totalExpenses += (parseFloat(e.amount) || 0); 
+            if(isDateInRange(e.date)) {
+                totalExpenses += parseFloat(e.amount) || 0; 
+            }
+        });
+        
+        // Ensure the old expense container is completely hidden to keep the UI clean
+        const expenseContainer = document.getElementById('expense-ledger-container');
+        if (expenseContainer) expenseContainer.style.display = 'none';
+
+        // --- ENTERPRISE UPGRADE: CATCHING INDIRECT INCOME & STOCK LOSS ---
+        let indirectIncome = 0;
+        cashbook.forEach(c => {
+            if (isDateInRange(c.date) && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+                // Safely catches miscellaneous income (like Bank Interest) not linked to customers
+                const ledgerName = (c.ledgerName || '').toLowerCase();
+                if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                    indirectIncome += parseFloat(c.amount) || 0;
+                }
+            }
         });
 
-        // TRUE ACCRUAL PROFIT MATH
-        const netRevenue = totalSales - outputGst; // FIXED: Re-added the missing calculation!
+        // Optional: If you sync adjustments to UI.state.rawData, deduct lost stock here
+        let stockLoss = 0;
+        if (UI.state.rawData.adjustments) {
+            UI.state.rawData.adjustments.forEach(adj => {
+                if (adj.type === 'remove' && isDateInRange(adj.date)) {
+                    const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
+                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                }
+            });
+        }
+
+        // TRUE ACCRUAL PROFIT MATH (Upgraded)
+        const netRevenue = (totalSales - outputGst) + indirectIncome; 
         const grossMargin = netRevenue - cogs;
-        const trueNetProfit = grossMargin - totalExpenses;
+        const trueNetProfit = grossMargin - (totalExpenses + stockLoss); 
 
         // UPGRADE 1: Count-Up Animation Engine
         const animateValue = (id, start, end, duration) => {
@@ -1567,29 +1637,28 @@ const UI = {
             UI.chartInstance.destroy();
         }
 
-        // UPGRADE: Premium Vertical Gradients
-        const salesGrad = ctx.createLinearGradient(0, 0, 0, 300);
-        salesGrad.addColorStop(0, '#4ade80'); // Light Green
-        salesGrad.addColorStop(1, '#146c2e'); // Deep Green
-
-        const purchGrad = ctx.createLinearGradient(0, 0, 0, 300);
-        purchGrad.addColorStop(0, '#facc15'); // Light Orange/Yellow
-        purchGrad.addColorStop(1, '#f57f17'); // Deep Orange
-
-        const expGrad = ctx.createLinearGradient(0, 0, 0, 300);
-        expGrad.addColorStop(0, '#fb7185'); // Light Red
-        expGrad.addColorStop(1, '#ba1a1a'); // Deep Red
+        // Create the premium fade-out gradient under the line
+        const fluidGradient = ctx.createLinearGradient(0, 0, 0, 300);
+        fluidGradient.addColorStop(0, 'rgba(0, 97, 164, 0.4)'); // Darker blue at top
+        fluidGradient.addColorStop(1, 'rgba(0, 97, 164, 0.0)'); // Fades to transparent at bottom
 
         UI.chartInstance = new Chart(ctx, {
-            type: 'bar',
+            type: 'line', // CHANGED: Fluid Line Chart
             data: {
                 labels: ['Sales', 'Purchases', 'Expenses'],
                 datasets: [{
                     label: 'Amount (₹)',
                     data: [salesAmt, purchaseAmt, expenseAmt],
-                    backgroundColor: [salesGrad, purchGrad, expGrad],
-                    borderRadius: 6, // Rounds the top of the bars
-                    borderSkipped: false
+                    borderColor: 'var(--md-primary)', // Deep Blue Line
+                    backgroundColor: fluidGradient, // Fluid transparency
+                    borderWidth: 3,
+                    tension: 0.4, // Creates the smooth Apple-style curves
+                    fill: true, // Fills the area under the curve
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: 'var(--md-primary)',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
                 }]
             },
             options: {
@@ -1599,8 +1668,12 @@ const UI = {
                     legend: { display: false } // Hides the legend since our labels are self-explanatory
                 },
                 scales: {
+                    x: { 
+                        grid: { display: false } // Hides vertical grid lines for a cleaner look
+                    },
                     y: { 
                         beginAtZero: true,
+                        grid: { borderDash: [4, 4], color: 'var(--md-surface-variant)' }, // Soft dashed horizontal lines
                         ticks: {
                             callback: function(value) { return '₹' + value; }
                         }
@@ -1744,17 +1817,23 @@ const UI = {
 
         closeBottomSheet: (sheetId) => {
         const sheet = document.getElementById(sheetId);
+        if (sheet) sheet.classList.remove('open');
+
+        // --- ENTERPRISE FIX: MULTI-LAYER OVERLAY PROTECTOR ---
+        // Only close the dark overlay if NO OTHER bottom sheets are currently open
+        const remainingSheets = Array.from(document.querySelectorAll('.bottom-sheet.open')).filter(s => s.id !== sheetId);
         const overlay = document.getElementById('sheet-overlay');
 
-        if (sheet) sheet.classList.remove('open');
-        if (overlay) overlay.classList.remove('open');
+        if (remainingSheets.length === 0 && overlay) {
+            overlay.classList.remove('open');
+            UI.resetStatusBarColor(); // Only reset the status bar if ALL sheets are gone
+        }
 
         setTimeout(() => { 
             if (sheet) sheet.classList.add('hidden');
-            if (overlay) overlay.classList.add('hidden'); 
+            if (remainingSheets.length === 0 && overlay) overlay.classList.add('hidden'); 
         }, 300);
 
-        UI.resetStatusBarColor(); // Reset phone status bar back to normal
         if(typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
         // FIXED: Added an ignore flag to prevent double-closing
         if (history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); }
@@ -1915,36 +1994,67 @@ const UI = {
 
     confirmProducts: () => {
         const prefix = UI.state.activeActivity;
-        const tbody = document.getElementById(`${prefix}-items-body`);
-        if(!tbody) return;
+        const container = document.getElementById(`${prefix}-items-body`);
+        if(!container) return;
         
         UI.state.selectedProducts.forEach(p => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>
-                    <div style="font-weight:500;">${p.name}</div>
-                    ${prefix === 'sales' ? `
-                    <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
-                        <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
-                    </div>
-                    <small class="live-margin" style="font-size:10px; display:block; margin-top:4px;"></small>
-                    ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
-                    <input type="hidden" class="row-item-id" value="${p.id}">
-                    <input type="hidden" class="row-item-name" value="${(p.name || '').replace(/"/g, '&quot;')}">
-                </td>
-                <td><input type="text" class="row-hsn" value="${p.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
-                <td><input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:60px; padding:4px;"></td>
-                <td><input type="text" class="row-uom" value="${p.uom || ''}" readonly style="width:50px; padding:4px;"></td>
-                <td><input type="number" inputmode="decimal" class="row-rate" value="${p.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:80px; padding:4px;"></td>
-                <td><input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
-                <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
-                <td style="text-align:center;">
-                    <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:20px;" onclick="this.closest('tr').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">cancel</span>
-                </td>
+            const itemCard = document.createElement('div');
+            itemCard.className = 'item-entry-card m3-card';
+            itemCard.style.padding = '14px';
+            itemCard.style.marginBottom = '0';
+            itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
+            
+            const hiddenInputs = `
+                <input type="hidden" class="row-item-id" value="${p.id}">
+                <input type="hidden" class="row-item-name" value="${(p.name || '').replace(/"/g, '&quot;')}">
+                <input type="hidden" class="row-uom" value="${p.uom || ''}">
             `;
-            tbody.appendChild(tr);
+
+            itemCard.innerHTML = `
+                ${hiddenInputs}
+                
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                    <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
+                        ${p.name}
+                        <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                    </div>
+                    <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                    <div>
+                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
+                        <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                    </div>
+                    <div>
+                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
+                        <input type="number" inputmode="decimal" class="row-rate" value="${p.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                    </div>
+                    <div>
+                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                        <input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
+                    <div style="display:flex; gap:8px;">
+                        ${prefix === 'sales' ? `
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
+                            <input type="number" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                        </div>
+                        ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
+                    </div>
+                    <div style="text-align:right;">
+                        <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
+                        <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                    </div>
+                </div>
+                ${prefix === 'sales' ? `<small class="live-margin" style="font-size:10px; display:block; margin-top:8px; text-align:right;"></small>` : ''}
+            `;
+            container.appendChild(itemCard);
         });
+        
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         UI.closeBottomSheet('sheet-products');
     },
@@ -2109,8 +2219,29 @@ const UI = {
             }
         });
 
-        const grossProfit = totalRevenue - totalCOGS;
-        const netProfit = grossProfit - totalExpenses;
+        let indirectIncome = 0;
+        let stockLoss = 0;
+        
+        UI.state.rawData.cashbook.forEach(c => {
+            if (c.date >= startDate && c.date <= endDate && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+                const ledgerName = (c.ledgerName || '').toLowerCase();
+                if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                    indirectIncome += parseFloat(c.amount) || 0;
+                }
+            }
+        });
+
+        if (UI.state.rawData.adjustments) {
+            UI.state.rawData.adjustments.forEach(adj => {
+                if (adj.type === 'remove' && adj.date >= startDate && adj.date <= endDate) {
+                    const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
+                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                }
+            });
+        }
+
+        const grossProfit = (totalRevenue + indirectIncome) - totalCOGS;
+        const netProfit = grossProfit - (totalExpenses + stockLoss);
         const isProfitable = netProfit >= 0;
 
         container.innerHTML = `
@@ -2150,23 +2281,26 @@ const UI = {
         const dateInput = document.getElementById('report-daybook-date').value;
         const dailyActivity = [];
         
-        UI.state.rawData.sales.filter(s => s.date === dateInput && s.status !== 'Open').forEach(s => {
+        // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+        
+        UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open').forEach(s => {
             const isRet = s.documentType === 'return';
             const isNonGST = s.invoiceType === 'Non-GST';
             const docLabel = isRet ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
             dailyActivity.push({ time: s.id, type: docLabel, desc: s.customerName, amount: s.grandTotal, sign: isRet ? '-' : '+' });
         });
-        UI.state.rawData.purchases.filter(p => p.date === dateInput && p.status !== 'Open').forEach(p => {
+        UI.state.rawData.purchases.filter(p => (!activeFirmId || p.firmId === activeFirmId) && p.date === dateInput && p.status !== 'Open').forEach(p => {
             const isRet = p.documentType === 'return';
             const isNonGST = p.invoiceType === 'Non-GST';
             const docLabel = isRet ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
             dailyActivity.push({ time: p.id, type: docLabel, desc: p.supplierName, amount: p.grandTotal, sign: isRet ? '+' : '-' });
         });
-        UI.state.rawData.cashbook.filter(c => c.date === dateInput && !c.isAutoGenerated).forEach(c => {
+        UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === dateInput && !c.isAutoGenerated).forEach(c => {
             const isIn = c.type === 'in';
             dailyActivity.push({ time: c.id, type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: parseFloat(c.amount), sign: isIn ? '+' : '-' });
         });
-        UI.state.rawData.expenses.filter(e => e.date === dateInput).forEach(e => {
+        UI.state.rawData.expenses.filter(e => (!activeFirmId || e.firmId === activeFirmId) && e.date === dateInput).forEach(e => {
             dailyActivity.push({ time: e.id, type: 'Expense', desc: e.category, amount: parseFloat(e.amount), sign: '-' });
         });
 
@@ -2205,17 +2339,20 @@ const UI = {
         const start = document.getElementById('report-pnl-start').value;
         const end = document.getElementById('report-pnl-end').value;
         
+        // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+        
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
 
         UI.state.rawData.sales.forEach(s => {
-            if (s.date >= start && s.date <= end && s.status !== 'Open') {
+            if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
                 totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
                 (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
             }
         });
         UI.state.rawData.expenses.forEach(e => {
-            if (e.date >= start && e.date <= end) totalExpenses += parseFloat(e.amount) || 0;
+            if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= start && e.date <= end) totalExpenses += parseFloat(e.amount) || 0;
         });
 
         const grossProfit = totalRevenue - totalCOGS;
@@ -2284,14 +2421,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // UPGRADE 3: Smart Keyboard Scroll-into-View Engine (Now supports Dropdowns)
-    document.addEventListener('focusin', (e) => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
-            setTimeout(() => {
-                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 350); // 350ms delay ensures the physical keyboard fully slides up first
-        }
-    });
+    // UPGRADE 3: Smart Visual Viewport Keyboard Engine
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            const activeSheet = document.querySelector('.bottom-sheet.open');
+            const activeScreen = document.querySelector('.activity-screen.open .activity-content');
+            
+            // Calculate how much the keyboard squeezed the screen
+            const keyboardHeight = window.innerHeight - window.visualViewport.height;
+            
+            if (keyboardHeight > 100) {
+                // Keyboard is open! Safely stretch the padding to lift the content above the keyboard
+                if (activeSheet) activeSheet.style.paddingBottom = `${keyboardHeight}px`;
+                if (activeScreen) activeScreen.style.paddingBottom = `${keyboardHeight + 40}px`;
+                
+                // Keep the active input perfectly centered
+                if (document.activeElement) {
+                    setTimeout(() => {
+                        document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 50);
+                }
+            } else {
+                // Keyboard is closed! Snap the padding back to normal instantly
+                if (activeSheet) activeSheet.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+                if (activeScreen) activeScreen.style.paddingBottom = 'calc(40px + env(safe-area-inset-bottom, 0px))';
+            }
+        });
+    } else {
+        // Fallback for very old devices
+        document.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+                setTimeout(() => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 350);
+            }
+        });
+    }
 
     // UPGRADE 4: Enter-to-Next Data Entry Engine
     document.addEventListener('keydown', (e) => {

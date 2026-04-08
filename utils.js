@@ -2,7 +2,7 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v5.2 Enterprise)
 // ==========================================
 
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=76';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=81';
 
 const Utils = {
     // ==========================================
@@ -413,17 +413,20 @@ const Utils = {
                     if (!printArea) return alert("Document data lost. Please close and tap print again.");
 
                     const opt = {
-                        margin:       0,
+                        /* ENTERPRISE FIX: Added physical 0.4-inch margins so text never touches the paper edge! */
+                        margin:       [0.4, 0.4, 0.4, 0.4], 
                         filename:     filename,
-                        // Lowered JPEG quality from 0.98 to 0.92 for faster generation
-                        image:        { type: 'jpeg', quality: 0.92 },
+                        /* UPGRADE: Max image quality for crisp logos */
+                        image:        { type: 'jpeg', quality: 1.0 }, 
+                        /* ENTERPRISE FIX: Forces the PDF to jump to Page 2 instead of slicing rows in half! */
+                        pagebreak:    { mode: ['css', 'legacy'] }, 
                         html2canvas:  { 
-                            // CRITICAL FIX: Lowered scale from 3 to 2 for instant PDF compiling
-                            scale: 2, 
+                            /* UPGRADE: Increased scale to 3 for Retina-quality crispness */
+                            scale: 3, 
                             useCORS: true,
-                            logging: false, // Silences the compiler
+                            letterRendering: true, /* Smoothes out small fonts */
+                            logging: false, 
                             onclone: (clonedDoc) => {
-                                // CRITICAL FIX: Unhide the print area inside the PDF compiler memory
                                 const pa = clonedDoc.getElementById('print-area');
                                 if (pa) {
                                     pa.style.display = 'block';
@@ -519,7 +522,8 @@ const Utils = {
                     #pdf-invoice-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; page-break-inside: auto; }
                     #pdf-invoice-wrapper th { background-color: #f0f4f8; color: #0061a4; text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; border-bottom: 2px solid #0061a4; padding: 10px 8px; }
                     #pdf-invoice-wrapper td { border-bottom: 1px solid #e2e8f0; padding: 10px 8px; color: #2d3748; }
-                    #pdf-invoice-wrapper tr { page-break-inside: avoid; page-break-after: auto; break-inside: avoid; }
+                    /* ENTERPRISE FIX: Added !important tags to physically block rows from cutting in half */
+                    #pdf-invoice-wrapper tr { page-break-inside: avoid !important; break-inside: avoid !important; }
                     #pdf-invoice-wrapper thead { display: table-header-group; }
                 </style>
 
@@ -1066,11 +1070,46 @@ const Utils = {
             if (window.Utils) window.Utils.showToast("🤖 AI is reading the document... Please wait.");
 
             try {
-                // Compress image to make AI processing much faster
+                // 1. Compress image to make AI processing much faster
                 const compressedImage = await Utils.compressImage(file, 1200, 0.7);
 
-                // Run the OCR Engine
-                const result = await Tesseract.recognize(compressedImage, 'eng', {
+                // 2. ENTERPRISE FIX: Apply OCR Pre-Processing (High-Contrast Grayscale)
+                if (window.Utils) window.Utils.showToast("Enhancing document clarity...");
+                const enhancedImage = await new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        
+                        ctx.drawImage(img, 0, 0);
+                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const data = imageData.data;
+                        
+                        // Boost contrast by 50% to make faded receipt text completely black
+                        const contrast = 1.5; 
+                        const intercept = 128 * (1 - contrast);
+                        
+                        for (let i = 0; i < data.length; i += 4) {
+                            // Convert to Grayscale
+                            const grayscale = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+                            // Apply Contrast
+                            let finalColor = (grayscale * contrast) + intercept;
+                            if (finalColor > 255) finalColor = 255;
+                            if (finalColor < 0) finalColor = 0;
+                            // Set R, G, B to the new high-contrast pixel
+                            data[i] = data[i+1] = data[i+2] = finalColor; 
+                        }
+                        
+                        ctx.putImageData(imageData, 0, 0);
+                        resolve(canvas.toDataURL('image/jpeg', 0.9));
+                    };
+                    img.src = compressedImage;
+                });
+
+                // 3. Run the OCR Engine on the crystal clear image!
+                const result = await Tesseract.recognize(enhancedImage, 'eng', {
                     logger: m => console.log("AI Progress:", m)
                 });
 
