@@ -1751,6 +1751,9 @@ const app = {
                         const storeName = type === 'sales' ? 'sales' : 'purchases';
                         await saveInvoiceTransaction(storeName, data);
                         
+                        // --- ENTERPRISE FIX: WIPE RAM CACHE SO INVENTORY UPDATES INSTANTLY ---
+                        if (window.AppCache) window.AppCache.items = null;
+                        
                         // --- ENTERPRISE FIX: 5ms MEMORY INJECTION ---
                         // Inject the new data directly into RAM to avoid a heavy database reload!
                         const ramData = storeName === 'sales' ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;

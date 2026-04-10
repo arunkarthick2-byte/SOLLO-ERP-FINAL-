@@ -1019,8 +1019,8 @@ const UI = {
                     if (isNaN(rawGstStock)) rawGstStock = currentStock - unAccStock;
                     
                     if (activeMasterFilter === 'In Stock') matchFilter = currentStock > 0;
-                    else if (activeMasterFilter === 'GST') matchFilter = Number(rawGstStock.toFixed(2)) > 0; // Only show if GST stock is available
-                    else if (activeMasterFilter === 'Non-GST') matchFilter = Number(unAccStock.toFixed(2)) > 0; // Only show if UnAccount stock is available
+                    else if (activeMasterFilter === 'GST') matchFilter = Number(rawGstStock.toFixed(2)) > 0 || gstPercent > 0; 
+                    else if (activeMasterFilter === 'Non-GST') matchFilter = Number(unAccStock.toFixed(2)) > 0 || gstPercent === 0; 
                     
                     return matchSearch && matchFilter;
                 });

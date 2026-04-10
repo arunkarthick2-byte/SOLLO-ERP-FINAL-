@@ -172,7 +172,6 @@ const getAllFirms = () => getAllRecords('firms');
 const reverseStockImpact = async (storeName, record) => {
     if (record.status === 'Open') return; 
     const isReturn = record.documentType === 'return';
-    // DUAL-STOCK: Check if this invoice is GST or Non-GST
     const isGSTInvoice = record.invoiceType !== 'Non-GST'; 
     const items = await getAllRecords('items');
     
@@ -180,14 +179,17 @@ const reverseStockImpact = async (storeName, record) => {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            // Choose the correct bucket!
+            
+            // BULLETPROOF MIGRATION MATH
+            let currentTotal = parseFloat(dbItem.stock) || 0;
+            let unacc = parseFloat(dbItem.unaccountStock) || parseFloat(dbItem.unAccountStock) || 0;
+            let gst = parseFloat(dbItem.gstStock);
+            if (isNaN(gst)) gst = currentTotal - unacc;
+            
+            dbItem.gstStock = gst;
+            dbItem.unaccountStock = unacc;
+            
             let bucket = isGSTInvoice ? 'gstStock' : 'unaccountStock';
-            
-            // Legacy Migration: If old product doesn't have buckets yet, migrate the old stock into the correct bucket
-            if (dbItem.gstStock === undefined && dbItem.unaccountStock === undefined) {
-                dbItem[bucket] = parseFloat(dbItem.stock) || 0;
-            }
-            
             let currentBucketStock = parseFloat(dbItem[bucket]) || 0;
             
             if (storeName === 'sales') {
@@ -196,11 +198,7 @@ const reverseStockImpact = async (storeName, record) => {
                 dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? qty : -qty)) * 100) / 100;
             }
             
-            // Recalculate combined Total Stock just to be safe
-            dbItem.gstStock = parseFloat(dbItem.gstStock) || 0;
-            dbItem.unaccountStock = parseFloat(dbItem.unaccountStock) || 0;
             dbItem.stock = Math.round((dbItem.gstStock + dbItem.unaccountStock) * 100) / 100;
-
             await saveRecord('items', dbItem);
         }
     }
@@ -209,7 +207,6 @@ const reverseStockImpact = async (storeName, record) => {
 const applyStockImpact = async (storeName, record) => {
     if (record.status === 'Open') return; 
     const isReturn = record.documentType === 'return';
-    // DUAL-STOCK: Check if this invoice is GST or Non-GST
     const isGSTInvoice = record.invoiceType !== 'Non-GST'; 
     const items = await getAllRecords('items');
     
@@ -217,14 +214,17 @@ const applyStockImpact = async (storeName, record) => {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            // Choose the correct bucket!
+            
+            // BULLETPROOF MIGRATION MATH
+            let currentTotal = parseFloat(dbItem.stock) || 0;
+            let unacc = parseFloat(dbItem.unaccountStock) || parseFloat(dbItem.unAccountStock) || 0;
+            let gst = parseFloat(dbItem.gstStock);
+            if (isNaN(gst)) gst = currentTotal - unacc;
+            
+            dbItem.gstStock = gst;
+            dbItem.unaccountStock = unacc;
+            
             let bucket = isGSTInvoice ? 'gstStock' : 'unaccountStock';
-            
-            // Legacy Migration
-            if (dbItem.gstStock === undefined && dbItem.unaccountStock === undefined) {
-                dbItem[bucket] = parseFloat(dbItem.stock) || 0;
-            }
-            
             let currentBucketStock = parseFloat(dbItem[bucket]) || 0;
             
             if (storeName === 'sales') {
@@ -235,7 +235,6 @@ const applyStockImpact = async (storeName, record) => {
                 if (!isReturn && row.rate > 0) {
                     let discountRatio = 0;
                     const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
-                    
                     if (record.discount > 0 && trueSubtotal > 0) {
                         discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
                     }
@@ -243,11 +242,7 @@ const applyStockImpact = async (storeName, record) => {
                 }
             }
             
-            // Recalculate combined Total Stock just to be safe
-            dbItem.gstStock = parseFloat(dbItem.gstStock) || 0;
-            dbItem.unaccountStock = parseFloat(dbItem.unaccountStock) || 0;
             dbItem.stock = Math.round((dbItem.gstStock + dbItem.unaccountStock) * 100) / 100;
-
             await saveRecord('items', dbItem);
         }
     }
