@@ -78,7 +78,15 @@
             
             <div id="tab-dashboard" class="screen-section active-screen">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <strong style="font-size: 18px;">Business Overview</strong>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <strong style="font-size: 18px;">Business Overview</strong>
+                        
+                        <div id="cloud-sync-indicator" style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--md-surface-variant); border-radius: 12px; color: var(--md-text-muted); font-size: 10px; font-weight: bold; transition: all 0.3s ease;">
+                            <span class="material-symbols-outlined" id="cloud-sync-icon" style="font-size: 14px;">cloud_off</span>
+                            <span id="cloud-sync-text">Cloud Standby</span>
+                        </div>
+                        
+                    </div>
                     <select id="dashboard-date-filter" style="width: auto; padding: 4px 8px; font-size: 14px; border:none; background:var(--md-surface-variant); border-radius:16px;" onchange="UI.renderDashboard()">
                         <option value="today">Today</option>
                         <option value="month" selected>This Month</option>
@@ -301,14 +309,18 @@
                         <span class="material-symbols-outlined" style="color: #ba1a1a;">cloud_download</span>
                         <div style="flex: 1;"><strong style="font-size:15px; color: #ba1a1a;">Restore from Drive</strong></div>
                     </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin-bottom: 8px; background: var(--md-primary-container); color: var(--md-on-primary-container);" onclick="app.upgradeOldData()">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">upgrade</span> <span style="font-size: 13px; font-weight: bold;">Run Data Upgrader</span>
+                    </div>
+
                     <div style="display: flex; gap: 8px;">
-                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="window.Utils.exportData()">
+                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="app.downloadManualBackup()">
                             <span class="material-symbols-outlined" style="font-size: 20px;">save</span> <span style="font-size: 13px; font-weight: bold;">Manual Backup</span>
                         </div>
                         <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="document.getElementById('import-file-tab').click()">
                             <span class="material-symbols-outlined" style="font-size: 20px;">restore_page</span> <span style="font-size: 13px; font-weight: bold;">Manual Restore</span>
                         </div>
-                        <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
+                        <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="app.handleManualRestore(event)">
                     </div>
                 </div>
 
@@ -724,8 +736,21 @@
                     <div class="form-group" style="flex: 1;"><label for="prod-sell">Sell Price (&#8377;) *</label><input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="0.01" required></div>
                     <div class="form-group" style="flex: 1;"><label for="prod-buy">Buy Price (&#8377;)</label><input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="0.01"></div>
                 </div>
+
+                <div class="m3-card" style="margin-bottom: 12px; padding: 12px; border: 1px solid var(--md-outline-variant); background: #fdfcff;">
+                    <strong style="display:block; margin-bottom:12px; font-size:14px; color:var(--md-on-surface);">Opening Quantities</strong>
+                    <div style="display: flex; gap: 12px;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label style="color:var(--md-primary); font-weight:bold;">GST Stock</label>
+                            <input type="number" id="prod-gst-stock" inputmode="decimal" name="gstStock" value="0" step="0.01" style="border: 1px solid #d1e4ff; background: #f4f8ff;">
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                            <label style="color:#d84315; font-weight:bold;">UnAccount Stock</label>
+                            <input type="number" id="prod-unaccount-stock" inputmode="decimal" name="unaccountStock" value="0" step="0.01" style="border: 1px solid #ffe0b2; background: #fff8e1;">
+                        </div>
+                    </div>
+                </div>
                 <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label for="prod-stock">Opening Stock</label><input type="number" id="prod-stock" inputmode="decimal" name="stock" value="0" step="0.01"></div>
                     <div class="form-group" style="flex: 1;">
                         <label>Unit (UOM) *</label>
                         <div style="display: flex; gap: 8px;">
@@ -733,12 +758,13 @@
                             <button type="button" class="btn-primary-small" style="padding: 0 8px; border-radius: 8px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
                         </div>
                     </div>
-                </div>
-                <div style="display: flex; gap: 12px;">
                     <div class="form-group" style="flex: 1;"><label>Low Stock Alert</label><input type="number" inputmode="decimal" name="minStock" value="5" step="any"></div>
-                    <div class="form-group" style="flex: 1;"><label>GST %</label><input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any"></div>
                 </div>
-                <div class="form-group"><label>HSN / SAC Code</label><input type="text" name="hsn"></div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-group" style="flex: 1;"><label>GST %</label><input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any"></div>
+                    <div class="form-group" style="flex: 1;"><label>HSN / SAC Code</label><input type="text" name="hsn"></div>
+                </div>
                 
                 <div class="form-bottom-spacer"></div>
 
@@ -951,6 +977,20 @@
 
     <div id="sheet-overlay" class="sheet-overlay hidden" onclick="UI.closeAllBottomSheets()"></div>
     
+    <div id="sheet-simple-master" class="bottom-sheet">
+        <div class="sheet-header">
+            <span id="simple-master-title" style="font-size: 18px; font-weight: 500;">Manage List</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-simple-master')">close</span>
+        </div>
+        <div style="padding: 16px; max-height: 70vh; overflow-y: auto;">
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <input type="text" id="simple-master-input" placeholder="Type new name here..." style="flex: 1; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px;" enterkeyhint="done">
+                <button class="btn-primary" onclick="app.saveNewSimpleMaster()">Add</button>
+            </div>
+            <div id="simple-master-list" style="display: flex; flex-direction: column; gap: 8px;">
+                </div>
+        </div>
+    </div>
     <div id="sheet-document-formats" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Document Formats</span>
@@ -2205,5 +2245,22 @@
         }, 1000);
     });
     </script>
+    <div id="custom-confirm-overlay" class="sheet-overlay hidden" style="z-index: 5000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
+        <div class="m3-card" style="width: 320px; padding: 24px; background: var(--md-surface); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin: 20px;">
+            <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                <div class="icon-circle" id="confirm-icon-bg" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <span class="material-symbols-outlined" id="confirm-icon" style="font-size: 24px;">warning</span>
+                </div>
+                <div style="flex: 1;">
+                    <strong id="confirm-title" style="font-size: 18px; color: var(--md-on-surface); display: block; margin-bottom: 6px; line-height: 1.2;">Are you sure?</strong>
+                    <span id="confirm-msg" style="color: var(--md-text-muted); font-size: 14px; line-height: 1.4; display: block;">This action cannot be undone.</span>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button class="btn-primary-small tap-target" style="background: transparent; color: var(--md-on-surface-variant); border: none; font-weight: 600; padding: 8px 16px;" onclick="if(window.UI && window.UI.resolveConfirm) window.UI.resolveConfirm(false)">Cancel</button>
+                <button id="confirm-yes-btn" class="btn-primary-small tap-target" style="border: none; font-weight: 600; padding: 8px 16px; border-radius: 20px;" onclick="if(window.UI && window.UI.resolveConfirm) window.UI.resolveConfirm(true)">Confirm</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

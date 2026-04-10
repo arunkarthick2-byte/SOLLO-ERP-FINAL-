@@ -512,6 +512,10 @@ const Utils = {
         if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
         const safeDocNo = doc.invoiceNo || doc.poNo || 'DRAFT';
 
+        // NEW: Calculate CGST and SGST split beautifully
+        const totalGstValue = parseFloat(doc.totalGst) || 0;
+        const halfGstValue = (totalGstValue / 2).toFixed(2);
+
         const html = `
             <div id="pdf-invoice-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden; color: #2d3748;">
                 
@@ -593,7 +597,12 @@ const Utils = {
                         <table style="width: 100%; border: none; font-size: 12px;">
                             <tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Subtotal:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${rawSubtotal.toFixed(2)}</td></tr>
                             ${discountAmt > 0 ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Discount:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#e53e3e; border:none;">-&#8377;${discountAmt.toFixed(2)}</td></tr>` : ''}
-                            ${!isNonGST ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Total GST:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
+                            
+                            ${!isNonGST && totalGstValue > 0 ? `
+                                <tr><td style="padding: 4px 8px; color: #4a5568; border:none; font-size: 10px;">CGST:</td><td style="padding: 4px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none; font-size: 10px;">&#8377;${halfGstValue}</td></tr>
+                                <tr><td style="padding: 4px 8px; color: #4a5568; border:none; font-size: 10px;">SGST:</td><td style="padding: 4px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none; font-size: 10px;">&#8377;${halfGstValue}</td></tr>
+                            ` : ''}
+                            
                             ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Freight / Extra:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
                             
                             <tr><td colspan="2" style="padding: 0; border: none;"><div style="background-color: #0061a4; color: white; border-radius: 6px; margin-top: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
@@ -918,22 +927,26 @@ const Utils = {
                 <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin-bottom: 30px; position: relative; z-index: 1; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
                     <div style="text-align: center; margin-bottom: 25px;">
                         <p style="margin: 0 0 5px 0; font-size: 12px; color: #718096; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Amount ${isMoneyIn ? 'Received' : 'Paid'}</p>
-                        <h1 style="margin: 0; font-size: 42px; color: ${isMoneyIn ? '#2f855a' : '#e53e3e'}; font-weight: 800;">\u20B9${parseFloat(receipt.amount).toFixed(2)}</h1>
+                        <div style="background-color: #0061a4; color: white; display: inline-block; padding: 10px 24px; border-radius: 8px; margin-bottom: 10px;">
+                            <h1 style="margin: 0; font-size: 36px; font-weight: 800;">\u20B9${Utils.formatCurrency(parseFloat(receipt.amount) || 0)}</h1>
+                        </div>
+                        <p style="margin: 0; font-size: 12px; color: #4a5568;"><strong>In Words:</strong> <span style="text-transform: capitalize;">${Utils.numberToWords(parseFloat(receipt.amount) || 0)}</span></p>
                     </div>
 
                     <table style="width: 100%; font-size: 13px; border-collapse: collapse; border: none;">
-                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; width: 35%; font-weight: bold;">Date:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.date}</td></tr>
+                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; width: 35%; font-weight: bold;">Date:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${Utils.formatDateDisplay(receipt.date)}</td></tr>
                         <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">${isMoneyIn ? 'Received From:' : 'Paid To:'}</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #0061a4; font-size: 15px;">${receipt.ledgerName}</td></tr>
                         <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">Payment Mode:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.mode || 'Cash'} ${receipt.ref ? `(Ref: ${receipt.ref})` : ''}</td></tr>
+                        ${receipt.desc ? `<tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">Particulars:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.desc}</td></tr>` : ''}
                         ${invoiceRefDisplay ? `<tr><td style="padding: 12px 10px; color: #718096; border-bottom: none; font-weight: bold;">Settled Invoice(s):</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: none; color: #1a202c;">${invoiceRefDisplay}</td></tr>` : ''}
                     </table>
                 </div>
                 
-                <div style="text-align: center; position: relative; z-index: 1;">${balanceText}</div>
+                <div style="text-align: center; position: relative; z-index: 1; margin-bottom: 30px;">${balanceText}</div>
                 
-                <div class="avoid-break" style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid; position: relative; z-index: 1;">
+                <div class="avoid-break" style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid; position: relative; z-index: 1;">
                     <div style="font-size: 11px; color: #718096;">
-                        <p style="margin:0;">* This is a computer generated receipt.</p>
+                        <p style="margin:0;">* This is a computer generated document.</p>
                     </div>
                     <div style="width: 200px; text-align: center;">
                         ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 5px;"></div>'}
@@ -943,11 +956,25 @@ const Utils = {
             </div>
         `;
         
+        // --- ENTERPRISE UPGRADE: PREMIUM PDF THEMES ---
+        let themedHtml = html;
+        const theme = localStorage.getItem('sollo_invoice_theme') || 'modern';
+        
+        if (theme === 'classic') {
+            // Classic Black & White
+            themedHtml = themedHtml.replace(/#0061a4/g, '#000000').replace(/#f0f4f8/g, '#f2f2f2').replace(/#f8fafc/g, '#ffffff');
+        } else if (theme === 'elegant') {
+            // Dark Slate & Minimalist
+            themedHtml = themedHtml.replace(/#0061a4/g, '#2c3e50').replace(/#f0f4f8/g, '#ecf0f1').replace(/#f8fafc/g, '#fdfdfd');
+        }
+        // --- END OF THEME ENGINE ---
+
         const printArea = document.getElementById('print-area');
         if (printArea) {
-            printArea.innerHTML = html;
+            printArea.innerHTML = themedHtml; // FIX: Push themed HTML!
             setTimeout(() => {
-                Utils.processPDFExport('pdf-receipt-wrapper', `${title.replace(/ /g, '_')}_${safeDocNo}.pdf`);
+                const safeFilenameDocNo = String(safeDocNo).replace(/[^a-zA-Z0-9_.-]/g, '-');
+                Utils.processPDFExport('pdf-receipt-wrapper', `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`);
             }, 100);
         }
     },
@@ -1179,7 +1206,58 @@ const Utils = {
         } catch (e) {
             console.log("Auto-fill safely skipped.", e);
         }
+    },
+
+    // ==========================================
+    // 6. GST EXPORT ENGINE (For the Accountant)
+    // ==========================================
+    exportGSTCSV: (report) => {
+        let csvContent = "SOLLO ERP - MONTHLY GST REPORT\n\n";
+        csvContent += `Report Month:,${report.month}\n\n`;
+
+        csvContent += "--- GSTR-3B (NET SUMMARY) ---\n";
+        csvContent += `Total Output Tax (Sales),Rs. ${parseFloat(report.gstr3b.outputTax).toFixed(2)}\n`;
+        csvContent += `Total Input Tax (Purchases),Rs. ${parseFloat(report.gstr3b.inputTax).toFixed(2)}\n`;
+        csvContent += `Net Payable to Govt,Rs. ${parseFloat(report.gstr3b.netPayable).toFixed(2)}\n\n`;
+
+        csvContent += "--- GSTR-1 (SALES BREAKDOWN) ---\n";
+        csvContent += "Type,Taxable Value,Tax Amount\n";
+        csvContent += `B2B (Registered),${parseFloat(report.gstr1.b2bTaxable).toFixed(2)},${parseFloat(report.gstr1.b2bTax).toFixed(2)}\n`;
+        csvContent += `B2C (Unregistered),${parseFloat(report.gstr1.b2cTaxable).toFixed(2)},${parseFloat(report.gstr1.b2cTax).toFixed(2)}\n\n`;
+
+        csvContent += "--- B2B SALES INVOICE REGISTER ---\n";
+        csvContent += "Date,Invoice No,Customer Name,GSTIN,Taxable Value,CGST,SGST,Total Invoice Value\n";
+        
+        if (report.rawSales) {
+            report.rawSales.forEach(inv => {
+                // Ignore Drafts and strictly ignore "Non-GST" (UnAccount) bills!
+                if (inv.invoiceType === 'B2B' && inv.status !== 'Open') {
+                    const totalValue = parseFloat(inv.grandTotal) || 0;
+                    const totalTax = parseFloat(inv.totalGst) || 0;
+                    const taxable = (totalValue - totalTax).toFixed(2);
+                    const halfGst = (totalTax / 2).toFixed(2);
+                    
+                    const customer = window.UI && window.UI.state && window.UI.state.rawData ? window.UI.state.rawData.ledgers.find(l => l.id === inv.customerId) : null;
+                    const gstin = customer && customer.gst ? customer.gst : 'N/A';
+                    
+                    csvContent += `"${inv.date}","${inv.invoiceNo}","${inv.customerName}","${gstin}",${taxable},${halfGst},${halfGst},${totalValue.toFixed(2)}\n`;
+                }
+            });
+        }
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const file = new File([blob], `GST_Report_${report.month}.csv`, { type: 'text/csv' });
+
+        // If on mobile, open the native Share menu (WhatsApp, Email, etc.)
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({ title: `GST Report - ${report.month}`, files: [file] }).catch(err => console.log("Share skipped", err));
+        } else {
+            // If on PC, automatically download the file
+            Utils.downloadFile(csvContent, file.name, 'text/csv;charset=utf-8;');
+        }
+        Utils.showToast("GST Report Exported! 📊");
     }
+
 }; // <--- THIS CLOSES THE UTILS OBJECT
 
 // ==========================================

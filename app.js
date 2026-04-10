@@ -137,10 +137,10 @@ const app = {
     init: async () => {
         try {
             // --- NEW CODE: Apply theme immediately on boot ---
-            UI.initTheme();
+            if (window.UI && typeof window.UI.initTheme === 'function') window.UI.initTheme();
             
-            // NEW: Load Document Formatting Settings
-            app.loadDocumentSettings();
+            // NEW: Load Document Formatting Settings safely
+            if (typeof app.loadDocumentSettings === 'function') app.loadDocumentSettings();
             // --- END OF NEW CODE ---
 
             // (Service Worker registration moved to index.html for PWABuilder)
@@ -497,34 +497,164 @@ const app = {
     },
 
     manageSimpleMaster: async (storeName, title) => {
+        app.state.currentMasterStore = storeName; 
+        
+        document.getElementById('simple-master-title').innerText = `Manage ${title}`;
+        document.getElementById('simple-master-input').value = '';
+        
+        await app.renderSimpleMasterList();
+        
+        if (window.UI) window.UI.openBottomSheet('sheet-simple-master');
+    },
+
+    renderSimpleMasterList: async () => {
+        const storeName = app.state.currentMasterStore;
         const records = await getAllRecords(storeName);
-        let listText = records.map((r, i) => `${i + 1}. ${r.name}`).join('\n');
+        const container = document.getElementById('simple-master-list');
         
-        let action = prompt(`=== Manage ${title} ===\n\nCurrent List:\n${listText}\n\nType 'ADD' to create a new one, or 'DELETE' to remove one. (Leave blank to cancel)`);
-        
-        if (!action) return;
-        
-        if (action.toUpperCase() === 'ADD') {
-            let newName = prompt(`Enter new ${title} name:`);
-            if (newName && newName.trim()) {
-                await saveRecord(storeName, { id: Utils.generateId(), name: newName.trim() });
-                Utils.showToast("Added successfully! ✅");
-                app.loadDropdowns(); // Refresh the UI instantly
-            }
-        } else if (action.toUpperCase() === 'DELETE') {
-            let delName = prompt(`Enter the exact name to delete:\n\n${listText}`);
-            if (!delName) return;
-            let match = records.find(r => r.name.toLowerCase() === delName.toLowerCase().trim());
-            if (match) {
-                await deleteRecordById(storeName, match.id);
-                Utils.showToast("Deleted successfully! 🗑️");
-                app.loadDropdowns(); // Refresh the UI instantly
-            } else {
-                alert("Name not found. Please check the spelling.");
-            }
-        } else {
-            alert("Invalid action. Please type ADD or DELETE.");
+        if (records.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:var(--md-text-muted); padding: 12px;">No items found.</div>';
+            return;
         }
+
+        container.innerHTML = records.map(r => `
+            <div class="m3-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; margin: 0; box-shadow: none; border: 1px solid var(--md-surface-variant);">
+                <span style="font-weight: 500;">${r.name}</span>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-error); font-size: 20px;" onclick="app.deleteSimpleMaster('${r.id}')">delete</span>
+            </div>
+        `).join('');
+    },
+
+    saveNewSimpleMaster: async () => {
+        const input = document.getElementById('simple-master-input');
+        const newName = input.value.trim();
+        if (!newName) return;
+        
+        const storeName = app.state.currentMasterStore;
+        await saveRecord(storeName, { id: window.Utils.generateId(), name: newName });
+        
+        input.value = ''; 
+        await app.renderSimpleMasterList(); 
+        app.loadDropdowns(); 
+        
+        if (window.Utils) window.Utils.showToast("Added successfully! ✅");
+    },
+
+    deleteSimpleMaster: async (id) => {
+        const storeName = app.state.currentMasterStore;
+        await deleteRecordById(storeName, id);
+        
+        await app.renderSimpleMasterList(); 
+        app.loadDropdowns(); 
+        
+        if (window.Utils) window.Utils.showToast("Deleted successfully! 🗑️");
+    },
+
+    // ==========================================
+    // TEMPORARY DATA UPGRADER SCRIPT
+    // ==========================================
+    upgradeOldData: async () => {
+        try {
+            if (window.Utils) window.Utils.showToast("Scanning old products...");
+            const allItems = await window.getAllRecords('items');
+            let updatedCount = 0;
+
+            for (let item of allItems) {
+                let needsUpdate = false;
+                
+                // Add GST if it is missing
+                if (typeof item.gstPercent === 'undefined') {
+                    item.gstPercent = 0;
+                    needsUpdate = true;
+                }
+                
+                // Add UnAccount Stock if it is missing
+                if (typeof item.unAccountStock === 'undefined') {
+                    item.unAccountStock = 0;
+                    needsUpdate = true;
+                }
+
+                // If we fixed something, save it quietly back to the database
+                if (needsUpdate) {
+                    await window.saveRecord('items', item);
+                    updatedCount++;
+                }
+            }
+
+            // Wipe the RAM cache so changes appear instantly on your screen
+            if (window.AppCache) window.AppCache.items = null;
+            
+            alert(`✅ Database Upgraded! Successfully fixed ${updatedCount} old products.`);
+        } catch (err) {
+            console.error(err);
+            alert("Upgrade Error: " + err.message);
+        }
+    },
+
+    // ==========================================
+    // MANUAL JSON BACKUP & RESTORE ENGINE
+    // ==========================================
+    downloadManualBackup: async () => {
+        try {
+            if (window.Utils) window.Utils.showToast("Preparing Backup...");
+            
+            const data = await window.exportDatabase(); 
+            const jsonStr = JSON.stringify(data);
+            const fileName = `SOLLO_Backup_${new Date().toISOString().split('T')[0]}.json`;
+
+            // 1. Force a Direct Download (Bypasses WebView 'Share' Crash)
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }, 1000);
+
+            if (window.Utils) window.Utils.showToast("✅ Backup Saved to Downloads!");
+
+        } catch (e) {
+            console.error("Download blocked:", e);
+            // 2. WEBINTOAPP FAILSAFE: Copy to clipboard if files are blocked
+            try {
+                const data = await window.exportDatabase();
+                await navigator.clipboard.writeText(JSON.stringify(data));
+                alert("✅ Backup copied to clipboard!\n\nYour app wrapper blocked the file download, so we copied the backup text instead. Please paste it into a secure Note or Email to keep it safe.");
+            } catch (err2) {
+                alert("Backup failed. Please check your app permissions.");
+            }
+        }
+    },
+
+    handleManualRestore: async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                if (window.Utils) window.Utils.showToast("Installing Data...");
+                const jsonData = JSON.parse(e.target.result);
+                
+                // FIX: Added 'window.' to securely bridge to the global database engine!
+                await window.importDatabase(jsonData); 
+                
+                if (window.Utils) window.Utils.showToast("✅ Restore Successful! Reloading...");
+                setTimeout(() => location.reload(), 1500);
+            } catch (err) {
+                console.error("Restore failed:", err);
+                alert("Restore Failed: Invalid Backup File or Corrupt Data.");
+            } finally {
+                event.target.value = ''; // Reset the file input
+            }
+        };
+        reader.readAsText(file);
     },
 
     // ==========================================
@@ -1554,10 +1684,20 @@ const app = {
                             existingInvoice = await getRecordById(type === 'sales' ? 'sales' : 'purchases', app.state.currentEditId);
                         }
                         
+                        const invTypeEl = document.getElementById(`${type}-invoice-type`);
+                        const isGSTInvoice = invTypeEl ? invTypeEl.value !== 'Non-GST' : true;
+
                         for (const row of items) {
                             const dbItem = allItems.find(i => i.id === row.itemId);
                             if (dbItem) {
-                                let effectiveStock = parseFloat(dbItem.stock) || 0;
+                                // NEW DUAL-STOCK CHECK
+                                let effectiveStock = isGSTInvoice ? (parseFloat(dbItem.gstStock) || 0) : (parseFloat(dbItem.unaccountStock) || 0);
+                                
+                                // Legacy Fallback for old items
+                                if (dbItem.gstStock === undefined && dbItem.unaccountStock === undefined) {
+                                    effectiveStock = parseFloat(dbItem.stock) || 0;
+                                }
+
                                 // If editing an already-completed invoice, temporarily add the old qty back to the pool
                                 if (existingInvoice && existingInvoice.status !== 'Open') {
                                     const oldItem = existingInvoice.items.find(i => i.itemId === row.itemId);
@@ -1565,7 +1705,8 @@ const app = {
                                 }
                                 
                                 if (effectiveStock < parseFloat(row.qty)) {
-                                    if (!confirm(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective stock is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`)) {
+                                    const bucket = isGSTInvoice ? "GST Stock" : "UnAccount Stock";
+                                    if (!confirm(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective ${bucket} is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`)) {
                                         return; 
                                     }
                                 }
@@ -1679,7 +1820,12 @@ const app = {
                 if (type === 'product') {
                     data.sellPrice = parseFloat(data.sellPrice) || 0;
                     data.buyPrice = parseFloat(data.buyPrice) || 0;
-                    data.stock = parseFloat(data.stock) || 0;
+                    
+                    // NEW DUAL-STOCK ENGINE
+                    data.gstStock = parseFloat(data.gstStock) || 0;
+                    data.unaccountStock = parseFloat(data.unaccountStock) || 0;
+                    data.stock = data.gstStock + data.unaccountStock; // Keep overall combined stock for compatibility
+                    
                     data.minStock = parseFloat(data.minStock) || 0;
                     data.gst = parseFloat(data.gst) || 0;
                     const img = document.getElementById('product-image-preview');
@@ -2278,17 +2424,7 @@ const app = {
             }
         }
 
-        record.deletedAt = new Date().toLocaleString();
-        
-        // FIX: Delete heavy base64 images before saving to LocalStorage to prevent 5MB Quota crashes!
-        if (record.image) delete record.image;
-        if (record.attachment) delete record.attachment;
-        
-        const trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
-        trashBin.push(record);
-        localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
-
-        // Delete from main database
+        // Delete from main database (db.js handles the safe transfer to the IndexedDB Trash Bin automatically!)
         await deleteRecordById(storeName, id);
 
         // ENTERPRISE FIX: Wipe RAM Cache so the deleted item instantly disappears from the UI!
@@ -2309,17 +2445,16 @@ const app = {
     // UPGRADE: RECYCLE BIN RESTORE ENGINE
     // ==========================================
     restoreRecord: async (id, storeName) => {
-        if (!confirm("Are you sure you want to restore this item?")) return;
+        const isConfirmed = await window.UI.confirmAction("Restore Item", "Are you sure you want to restore this item back to your active list?", false, "Restore");
+        if (!isConfirmed) return;
 
-        let trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
-        const recordIndex = trashBin.findIndex(t => t.id === id);
+        // Fetch securely from the IndexedDB Trash Vault
+        const record = await getRecordById('trash', id);
         
-        if (recordIndex > -1) {
-            const record = trashBin[recordIndex];
-            
+        if (record) {
             // Remove the trash tags
             delete record._module;
-            delete record.deletedAt;
+            delete record._deletedAt;
             
             // Save it back to the active IndexedDB
             await saveRecord(storeName, record); 
@@ -2344,9 +2479,8 @@ const app = {
                 await saveRecord('receipts', expenseReceipt);
             }
             
-            // Remove it from the Trash Vault
-            trashBin.splice(recordIndex, 1);
-            localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
+            // Remove it from the Trash Vault safely
+            await deleteRecordById('trash', id);
             
             // ENTERPRISE FIX: Wipe RAM Cache so the restored item instantly reappears!
             if (window.AppCache) {
@@ -2362,16 +2496,15 @@ const app = {
         }
     },
 
-    permanentlyDeleteRecord: (id) => {
-        if (!confirm("Are you sure you want to permanently delete this item? This action cannot be undone.")) return;
+    permanentlyDeleteRecord: async (id) => {
+        const isConfirmed = await window.UI.confirmAction("Delete Forever", "Are you sure you want to permanently delete this item? This action cannot be undone.", true, "Delete");
+        if (!isConfirmed) return;
 
-        let trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
-        const recordIndex = trashBin.findIndex(t => t.id === id);
+        const record = await getRecordById('trash', id);
         
-        if (recordIndex > -1) {
+        if (record) {
             // Remove it from the Trash Vault permanently
-            trashBin.splice(recordIndex, 1);
-            localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
+            await deleteRecordById('trash', id);
             
             if (window.Utils) window.Utils.showToast("Record Permanently Deleted! 🗑️");
             app.refreshAll();

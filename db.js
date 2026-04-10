@@ -170,53 +170,70 @@ const getAllFirms = () => getAllRecords('firms');
 // STRICT INVENTORY & INVOICE ENGINE
 // ==========================================
 const reverseStockImpact = async (storeName, record) => {
-    if (record.status === 'Open') return; // Drafts do not reverse Stock
+    if (record.status === 'Open') return; 
     const isReturn = record.documentType === 'return';
+    // DUAL-STOCK: Check if this invoice is GST or Non-GST
+    const isGSTInvoice = record.invoiceType !== 'Non-GST'; 
     const items = await getAllRecords('items');
     
-    // CRITICAL FIX: Fallback to empty array if record items are missing (corrupted data)
     for (const row of (record.items || [])) {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
+            // Choose the correct bucket!
+            let bucket = isGSTInvoice ? 'gstStock' : 'unaccountStock';
             
-            // CRITICAL FIX: Force current stock to be a safe number, preventing NaN corruption
-            let currentStock = parseFloat(dbItem.stock) || 0;
-            
-            // Reverse the math safely
-            if (storeName === 'sales') {
-                dbItem.stock = Math.round((currentStock + (isReturn ? -qty : qty)) * 100) / 100;
-            } else if (storeName === 'purchases') {
-                dbItem.stock = Math.round((currentStock + (isReturn ? qty : -qty)) * 100) / 100;
+            // Legacy Migration: If old product doesn't have buckets yet, migrate the old stock into the correct bucket
+            if (dbItem.gstStock === undefined && dbItem.unaccountStock === undefined) {
+                dbItem[bucket] = parseFloat(dbItem.stock) || 0;
             }
+            
+            let currentBucketStock = parseFloat(dbItem[bucket]) || 0;
+            
+            if (storeName === 'sales') {
+                dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? -qty : qty)) * 100) / 100;
+            } else if (storeName === 'purchases') {
+                dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? qty : -qty)) * 100) / 100;
+            }
+            
+            // Recalculate combined Total Stock just to be safe
+            dbItem.gstStock = parseFloat(dbItem.gstStock) || 0;
+            dbItem.unaccountStock = parseFloat(dbItem.unaccountStock) || 0;
+            dbItem.stock = Math.round((dbItem.gstStock + dbItem.unaccountStock) * 100) / 100;
+
             await saveRecord('items', dbItem);
         }
     }
 };
 
 const applyStockImpact = async (storeName, record) => {
-    if (record.status === 'Open') return; // Drafts do not apply Stock
+    if (record.status === 'Open') return; 
     const isReturn = record.documentType === 'return';
+    // DUAL-STOCK: Check if this invoice is GST or Non-GST
+    const isGSTInvoice = record.invoiceType !== 'Non-GST'; 
     const items = await getAllRecords('items');
     
     for (const row of (record.items || [])) {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            // CRITICAL FIX: Force current stock to be a safe number, preventing NaN corruption
-            let currentStock = parseFloat(dbItem.stock) || 0; 
+            // Choose the correct bucket!
+            let bucket = isGSTInvoice ? 'gstStock' : 'unaccountStock';
             
-            // Apply the math safely
+            // Legacy Migration
+            if (dbItem.gstStock === undefined && dbItem.unaccountStock === undefined) {
+                dbItem[bucket] = parseFloat(dbItem.stock) || 0;
+            }
+            
+            let currentBucketStock = parseFloat(dbItem[bucket]) || 0;
+            
             if (storeName === 'sales') {
-                dbItem.stock = Math.round((currentStock + (isReturn ? qty : -qty)) * 100) / 100; 
+                dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? qty : -qty)) * 100) / 100; 
             } else if (storeName === 'purchases') {
-                dbItem.stock = Math.round((currentStock + (isReturn ? -qty : qty)) * 100) / 100; 
+                dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? -qty : qty)) * 100) / 100; 
                 
-                // Automatically update buy price to the latest rate (factoring in discounts!)
                 if (!isReturn && row.rate > 0) {
                     let discountRatio = 0;
-                    
-                    // ENTERPRISE FIX: Calculate true subtotal natively to prevent DOM payload failures
                     const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
                     
                     if (record.discount > 0 && trueSubtotal > 0) {
@@ -225,6 +242,12 @@ const applyStockImpact = async (storeName, record) => {
                     dbItem.buyPrice = row.rate * (1 - discountRatio);
                 }
             }
+            
+            // Recalculate combined Total Stock just to be safe
+            dbItem.gstStock = parseFloat(dbItem.gstStock) || 0;
+            dbItem.unaccountStock = parseFloat(dbItem.unaccountStock) || 0;
+            dbItem.stock = Math.round((dbItem.gstStock + dbItem.unaccountStock) * 100) / 100;
+
             await saveRecord('items', dbItem);
         }
     }

@@ -224,6 +224,51 @@ const UI = {
     // ==========================================
     // 1. SPLASH SCREEN & INSTANT NAVIGATION
     // ==========================================
+    confirmAction: (title, message, isDanger = false, confirmText = "Confirm") => {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('custom-confirm-overlay');
+            if (!overlay) { resolve(confirm(`${title}\n\n${message}`)); return; } // Fallback
+
+            document.getElementById('confirm-title').innerText = title;
+            document.getElementById('confirm-msg').innerText = message;
+            
+            const iconBg = document.getElementById('confirm-icon-bg');
+            const icon = document.getElementById('confirm-icon');
+            const yesBtn = document.getElementById('confirm-yes-btn');
+            
+            if (isDanger) {
+                iconBg.style.background = '#fff0f2'; iconBg.style.color = 'var(--md-error)';
+                icon.innerText = 'delete_forever'; yesBtn.style.background = 'var(--md-error)';
+            } else {
+                iconBg.style.background = 'var(--md-primary-container)'; iconBg.style.color = 'var(--md-primary)';
+                icon.innerText = 'settings_backup_restore'; yesBtn.style.background = 'var(--md-primary)';
+            }
+            yesBtn.innerText = confirmText;
+
+            window.UI.resolveConfirm = (result) => {
+                overlay.style.opacity = '0';
+                overlay.classList.remove('open');
+                setTimeout(() => { 
+                    overlay.style.display = 'none'; 
+                    overlay.classList.add('hidden'); 
+                    overlay.style.pointerEvents = 'none'; // Relock when hidden
+                    resolve(result); 
+                }, 200);
+            };
+
+            overlay.classList.remove('hidden'); 
+            overlay.classList.add('open');
+            overlay.style.display = 'flex';
+            overlay.style.pointerEvents = 'auto'; // CRITICAL FIX: Unlock screen touches!
+            overlay.style.opacity = '0'; 
+            void overlay.offsetWidth;
+            overlay.style.transition = 'opacity 0.2s ease'; 
+            overlay.style.opacity = '1';
+            
+            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(15);
+        });
+    },
+
     showSuccess: () => {
         const el = document.getElementById('success-animation');
         if(el) {
@@ -457,7 +502,7 @@ const UI = {
                 filterSelect.innerHTML = `<option value="All">All Trashed Items</option>`;
                 if(sortSelect) sortSelect.innerHTML = `<option value="date-desc">Recently Deleted</option>`;
             } else {
-                filterSelect.innerHTML = `<option value="All">All Products</option><option value="In Stock">Stock Available</option>`;
+                filterSelect.innerHTML = `<option value="All">All Products</option><option value="In Stock">Stock Available</option><option value="GST">GST Products</option><option value="Non-GST">Non-GST</option>`;
                 if(sortSelect) sortSelect.innerHTML = `<option value="name-asc">A to Z</option><option value="stock-asc">Lowest Stock First</option>`;
             }
             filterSelect.value = 'All';
@@ -965,24 +1010,53 @@ const UI = {
                 data = UI.state.rawData.items.filter(i => {
                     const matchSearch = (i.name || '').toLowerCase().includes(searchTerm) || (i.sku || '').toLowerCase().includes(searchTerm);
                     let matchFilter = true;
-                    if (activeMasterFilter === 'In Stock') matchFilter = (parseFloat(i.stock) || 0) > 0;
+                    
+                    // BULLETPROOF FILTER MATH: Filter by actual Stock Buckets, not just Tax Rate!
+                    const currentStock = parseFloat(i.stock) || 0;
+                    const unAccStock = parseFloat(i.unaccountStock) || parseFloat(i.unAccountStock) || 0;
+                    
+                    let rawGstStock = parseFloat(i.gstStock);
+                    if (isNaN(rawGstStock)) rawGstStock = currentStock - unAccStock;
+                    
+                    if (activeMasterFilter === 'In Stock') matchFilter = currentStock > 0;
+                    else if (activeMasterFilter === 'GST') matchFilter = Number(rawGstStock.toFixed(2)) > 0; // Only show if GST stock is available
+                    else if (activeMasterFilter === 'Non-GST') matchFilter = Number(unAccStock.toFixed(2)) > 0; // Only show if UnAccount stock is available
+                    
                     return matchSearch && matchFilter;
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
                 if(sortOption === 'stock-asc') data.sort((a,b) => (a.stock || 0) - (b.stock || 0));
 
-                UI.renderVirtualList(container, data, (i) => {
+                const listHTML = data.length > 0 ? data.map(i => {
                     const currentStock = parseFloat(i.stock) || 0;
                     const minStock = parseFloat(i.minStock) || 0;
                     const isLowStock = minStock > 0 && currentStock <= minStock;
                     
+                    // BULLETPROOF MATH: Read DB first, fallback to safe calculation
+                    const gstPercent = parseFloat(i.gstPercent) || parseFloat(i.gst) || 0;
+                    const unAccStock = parseFloat(i.unaccountStock) || parseFloat(i.unAccountStock) || 0;
+                    
+                    let rawGstStock = parseFloat(i.gstStock);
+                    if (isNaN(rawGstStock)) rawGstStock = currentStock - unAccStock;
+                    
+                    const cleanGst = Number(rawGstStock.toFixed(2));
+                    const cleanNonGst = Number(unAccStock.toFixed(2));
+                    const cleanCurrent = Number(currentStock.toFixed(2));
+                    const uom = i.uom || 'Unit';
+                    
                     const stockLabel = isLowStock 
-                        ? `<span style="color:var(--md-error); font-weight:bold;">Stock: ${currentStock} ${i.uom || ''} ⚠️ Low</span>` 
-                        : `Stock: ${currentStock} ${i.uom || ''}`;
+                        ? `<span style="color:var(--md-error); font-weight:bold;">Stock: ${cleanCurrent} ${uom} <small>(G:${cleanGst} | NG:${cleanNonGst})</small> ⚠️</span>` 
+                        : `<span style="color:var(--md-text-muted);">Stock: <strong style="color:var(--md-on-surface)">${cleanCurrent} ${uom}</strong> <small>(G:${cleanGst} | NG:${cleanNonGst})</small></span>`;
+
+                    const gstBadge = gstPercent > 0 
+                        ? `<span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 4px; border-radius:4px; font-size:10px; font-weight:bold; margin-left:6px;">GST ${gstPercent}%</span>`
+                        : `<span style="background:var(--md-surface-variant); color:var(--md-text-muted); padding:2px 4px; border-radius:4px; font-size:10px; font-weight:bold; margin-left:6px;">Non-GST</span>`;
+
+                    const nameHTML = UI.highlightText(i.name || 'Unnamed Product', searchTerm) + gstBadge;
 
                     return UI.renderRowWiseItem(
-                        UI.highlightText(i.name || 'Unnamed Product', searchTerm), 
+                        nameHTML, 
                         stockLabel, 
                         `\u20B9${(i.sellPrice || 0).toFixed(2)}`, 
                         `Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}`, 
@@ -990,7 +1064,9 @@ const UI = {
                         isLowStock ? 'var(--md-error)' : 'var(--md-primary)', 
                         `app.openForm('product', '${i.id}')`
                     );
-                }, emptyHTML);
+                }).join('') : emptyHTML;
+
+                container.innerHTML = listHTML;
             } 
             else if (activeTab === 'customers' || activeTab === 'suppliers' || activeTab === 'contacts') {
                 const typeFilter = activeTab === 'customers' ? 'Customer' : (activeTab === 'suppliers' ? 'Supplier' : 'All');
@@ -1075,8 +1151,8 @@ const UI = {
                     const displayTitle = t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.category || 'Deleted Item';
                     return `
                     <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: #fff0f2; color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-text-muted); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">archive</span>
                         </div>
                         <div style="flex: 1; min-width: 0; overflow: hidden;">
                             <strong style="font-size: 14px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(displayTitle, searchTerm)}</strong>
@@ -1752,8 +1828,8 @@ const UI = {
                     filterSelect.innerHTML = `<option value="All">All Trashed Items</option>`;
                     if(sortSelect) sortSelect.innerHTML = `<option value="date-desc">Recently Deleted</option>`;
                 } else {
-                    // NEW: Products gets the 'Stock Available' filter, but keeps its original sorting
-                    filterSelect.innerHTML = `<option value="All">All Products</option><option value="In Stock">Stock Available</option>`;
+                    // NEW: Products gets the 'Stock Available' filter, plus GST filters
+                    filterSelect.innerHTML = `<option value="All">All Products</option><option value="In Stock">Stock Available</option><option value="GST">GST Products</option><option value="Non-GST">Non-GST</option>`;
                     if(sortSelect) sortSelect.innerHTML = `<option value="name-asc">A to Z</option><option value="stock-asc">Lowest Stock First</option>`;
                 }
 
@@ -1967,12 +2043,24 @@ const UI = {
             const minStock = parseFloat(item.minStock) || 0;
             const isLowStock = minStock > 0 && currentStock <= minStock;
             
+            // BULLETPROOF MATH
+            const gstPercent = parseFloat(item.gstPercent) || parseFloat(item.gst) || 0;
+            const unAccStock = parseFloat(item.unaccountStock) || parseFloat(item.unAccountStock) || 0;
+            
+            let rawGstStock = parseFloat(item.gstStock);
+            if (isNaN(rawGstStock)) rawGstStock = currentStock - unAccStock;
+            
+            const cleanGst = Number(rawGstStock.toFixed(2));
+            const cleanNonGst = Number(unAccStock.toFixed(2));
+            const cleanCurrent = Number(currentStock.toFixed(2));
+            const uom = item.uom || 'Unit';
+            
             return `
-            <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
+            <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${gstPercent}, '${uom.replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
                 <div>
                     <div class="large-text">${item.name || 'Unnamed Product'}</div>
                     <small>
-                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Stock: ${currentStock} ${item.uom || ''} ${isLowStock ? '⚠️' : ''}</span> 
+                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : 'color:var(--md-text-muted);'}">Stock: <strong>${cleanCurrent} ${uom}</strong> <small>(G:${cleanGst} | NG:${cleanNonGst})</small> ${isLowStock ? '⚠️' : ''}</span> 
                         | Rate: \u20B9${price.toFixed(2)}
                     </small>
                 </div>
