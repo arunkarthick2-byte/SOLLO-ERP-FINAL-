@@ -104,9 +104,9 @@ import {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=82';
-import Utils from './utils.js?v=82';
-import UI from './ui.js?v=82';
+} from './db.js?v=83';
+import Utils from './utils.js?v=83';
+import UI from './ui.js?v=83';
 // --- END OF NEW CODE ---
 
 // --- ENTERPRISE UPGRADE: IMAGE COMPRESSION ENGINE ---

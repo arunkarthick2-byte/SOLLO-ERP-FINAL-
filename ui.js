@@ -3,7 +3,7 @@
 // ==========================================
 
 // ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=82';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=83';
 
 const UI = {
 

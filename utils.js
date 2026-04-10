@@ -2,7 +2,7 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v5.2 Enterprise)
 // ==========================================
 
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=82';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=83';
 
 const Utils = {
     // ==========================================
