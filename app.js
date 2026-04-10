@@ -1164,23 +1164,54 @@ const app = {
             const maxAllowable = parseFloat(item.qty) - previouslyReturned;
 
             if (maxAllowable > 0) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <div style="font-weight:500;">${item.name}</div>
-                        <small style="color:var(--md-text-muted);">Max Return: ${maxAllowable}</small>
-                        <input type="hidden" class="row-item-id" value="${item.itemId}">
-                        <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">                        <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
-                    </td>
-                    <td><input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:60px; padding:4px; border-color:var(--md-error);"></td>
-                    <td><input type="text" class="row-uom" value="${item.uom || ''}" readonly style="width:50px; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly style="width:80px; padding:4px; background:var(--md-surface-variant);"></td>
-                    <td><input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
-                    <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
-                    <td style="text-align:center;"><span class="material-symbols-outlined tap-target" style="color:var(--md-error);" onclick="this.closest('tr').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span></td>
+                const itemCard = document.createElement('div');
+                itemCard.className = 'item-entry-card m3-card';
+                itemCard.style.padding = '14px';
+                itemCard.style.marginBottom = '0';
+                itemCard.style.borderLeft = '4px solid var(--md-error)';
+                
+                const hiddenInputs = `
+                    <input type="hidden" class="row-item-id" value="${item.itemId}">
+                    <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                    <input type="hidden" class="row-uom" value="${item.uom || ''}">
+                    <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
                 `;
-                tbody.appendChild(tr);
+
+                itemCard.innerHTML = `
+                    ${hiddenInputs}
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
+                            ${item.name}
+                            <br><small style="color:var(--md-error); font-size:11px;">Max Return: ${maxAllowable}</small>
+                            <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${item.hsn || ''}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                        </div>
+                        <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Return Qty (${item.uom || 'Unit'})</small>
+                            <input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-error); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
+                            <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface-variant); font-size:14px;">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                            <input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
+                        <div style="text-align:right;">
+                            <small style="color:var(--md-text-muted); font-size:11px;">Refund Total (₹)</small><br>
+                            <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                        </div>
+                    </div>
+                `;
+                tbody.appendChild(itemCard);
             }
         });
         
@@ -1455,30 +1486,61 @@ const app = {
                     }
                 }
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <div style="font-weight:500;">${item.name}</div>
-                        ${maxLabel}
-                        ${type === 'sales' && record.documentType !== 'return' ? `
-                        <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
-                            <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
-                            <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
-                        </div>
-                        <small class="live-margin" style="font-size:10px; display:block; margin-top:4px;"></small>
-                        ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
-                        <input type="hidden" class="row-item-id" value="${item.itemId}">
-                        <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
-                    </td>
-                    <td><input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:60px; padding:4px; ${record.documentType === 'return' ? 'border-color:var(--md-error);' : ''}"></td>
-                    <td><input type="text" class="row-uom" value="${item.uom || ''}" readonly style="width:50px; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:80px; padding:4px; ${record.documentType === 'return' ? 'background:var(--md-surface-variant);' : ''}"></td>
-                    <td><input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
-                    <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
-                    <td style="text-align:center;"><span class="material-symbols-outlined tap-target" style="color:var(--md-error);" onclick="this.closest('tr').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span></td>
+                const itemCard = document.createElement('div');
+                itemCard.className = 'item-entry-card m3-card';
+                itemCard.style.padding = '14px';
+                itemCard.style.marginBottom = '0';
+                itemCard.style.borderLeft = type === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
+                
+                const hiddenInputs = `
+                    <input type="hidden" class="row-item-id" value="${item.itemId}">
+                    <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                    <input type="hidden" class="row-uom" value="${item.uom || ''}">
                 `;
-                tbody.appendChild(tr);
+
+                itemCard.innerHTML = `
+                    ${hiddenInputs}
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
+                            ${item.name} ${maxLabel}
+                            <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${item.hsn || ''}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                        </div>
+                        <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${item.uom || 'Unit'})</small>
+                            <input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px; ${record.documentType === 'return' ? 'border-color:var(--md-error);' : ''}">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
+                            <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:${record.documentType === 'return' ? 'var(--md-surface-variant)' : 'var(--md-surface)'}; font-size:14px;">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                            <input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
+                        <div style="display:flex; gap:8px;">
+                            ${type === 'sales' && record.documentType !== 'return' ? `
+                            <div>
+                                <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
+                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                            </div>
+                            ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
+                        </div>
+                        <div style="text-align:right;">
+                            <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
+                            <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                        </div>
+                    </div>
+                    ${type === 'sales' && record.documentType !== 'return' ? `<small class="live-margin" style="font-size:10px; display:block; margin-top:8px; text-align:right;"></small>` : ''}
+                `;
+                tbody.appendChild(itemCard);
             });
             if (record.documentType === 'return') {
                 const refEl = document.getElementById(`${type}-original-ref`);
@@ -1554,6 +1616,20 @@ const app = {
         } else {
             const form = document.getElementById(`form-${type}`);
             if(!form) return;
+
+            // BULLETPROOF FORM HYDRATION: Fix legacy stock splits before the form reads them!
+            if (type === 'product') {
+                const currentStock = parseFloat(record.stock) || 0;
+                const unAccStock = parseFloat(record.unaccountStock) || parseFloat(record.unAccountStock) || 0;
+                let rawGstStock = parseFloat(record.gstStock);
+                if (isNaN(rawGstStock)) rawGstStock = currentStock - unAccStock;
+
+                // Inject the perfect math back into the record so the form reads it correctly
+                record.gstStock = Number(rawGstStock.toFixed(2));
+                record.unaccountStock = Number(unAccStock.toFixed(2));
+                record.stock = Number(currentStock.toFixed(2));
+            }
+
             const elements = form.elements;
             for (let i = 0; i < elements.length; i++) {
                 const el = elements[i];

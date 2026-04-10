@@ -1014,6 +1014,7 @@ const UI = {
                     // BULLETPROOF FILTER MATH: Filter by actual Stock Buckets, not just Tax Rate!
                     const currentStock = parseFloat(i.stock) || 0;
                     const unAccStock = parseFloat(i.unaccountStock) || parseFloat(i.unAccountStock) || 0;
+                    const gstPercent = parseFloat(i.gstPercent) || parseFloat(i.gst) || 0; // FIX: Added the missing definition!
                     
                     let rawGstStock = parseFloat(i.gstStock);
                     if (isNaN(rawGstStock)) rawGstStock = currentStock - unAccStock;
@@ -1045,9 +1046,17 @@ const UI = {
                     const cleanCurrent = Number(currentStock.toFixed(2));
                     const uom = i.uom || 'Unit';
                     
-                    const stockLabel = isLowStock 
-                        ? `<span style="color:var(--md-error); font-weight:bold;">Stock: ${cleanCurrent} ${uom} <small>(G:${cleanGst} | NG:${cleanNonGst})</small> ⚠️</span>` 
-                        : `<span style="color:var(--md-text-muted);">Stock: <strong style="color:var(--md-on-surface)">${cleanCurrent} ${uom}</strong> <small>(G:${cleanGst} | NG:${cleanNonGst})</small></span>`;
+                    // SMART DYNAMIC DISPLAY: Change what is shown based on the active filter!
+                    let stockLabel = '';
+                    if (activeMasterFilter === 'GST') {
+                        stockLabel = `<span style="color:var(--md-text-muted);">Stock: <strong style="color:var(--md-on-surface)">${cleanGst} ${uom}</strong> <small style="color:var(--md-primary); font-weight:bold;">(GST Only)</small></span>`;
+                    } else if (activeMasterFilter === 'Non-GST') {
+                        stockLabel = `<span style="color:var(--md-text-muted);">Stock: <strong style="color:var(--md-on-surface)">${cleanNonGst} ${uom}</strong> <small style="color:var(--md-error); font-weight:bold;">(Non-GST Only)</small></span>`;
+                    } else {
+                        stockLabel = isLowStock 
+                            ? `<span style="color:var(--md-error); font-weight:bold;">Stock: ${cleanCurrent} ${uom} <small>(G:${cleanGst} | NG:${cleanNonGst})</small> ⚠️</span>` 
+                            : `<span style="color:var(--md-text-muted);">Stock: <strong style="color:var(--md-on-surface)">${cleanCurrent} ${uom}</strong> <small>(G:${cleanGst} | NG:${cleanNonGst})</small></span>`;
+                    }
 
                     const gstBadge = gstPercent > 0 
                         ? `<span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 4px; border-radius:4px; font-size:10px; font-weight:bold; margin-left:6px;">GST ${gstPercent}%</span>`
