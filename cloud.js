@@ -30,41 +30,6 @@ window.gisLoaded = () => {
     maybeEnableButtons();
 };
 
-// --- NEW CLOUD BADGE HELPER ---
-window.updateSyncBadge = (state, textOverride) => {
-    const indicator = document.getElementById('cloud-sync-indicator');
-    const icon = document.getElementById('cloud-sync-icon');
-    const text = document.getElementById('cloud-sync-text');
-    
-    if (!indicator || !icon || !text) return;
-
-    if (state === 'syncing') {
-        indicator.style.background = '#e3f2fd';
-        indicator.style.color = '#0061a4';
-        icon.innerText = 'sync';
-        text.innerText = textOverride || 'Syncing...';
-    } else if (state === 'success') {
-        indicator.style.background = '#e8f5e9';
-        indicator.style.color = '#146c2e';
-        icon.innerText = 'cloud_done';
-        text.innerText = textOverride || 'Synced just now';
-        
-        // Revert back to ready after 5 seconds so it doesn't stay green forever
-        setTimeout(() => window.updateSyncBadge('ready', 'Cloud Ready'), 5000);
-    } else if (state === 'error') {
-        indicator.style.background = '#fff0f2';
-        indicator.style.color = '#ba1a1a';
-        icon.innerText = 'cloud_off';
-        text.innerText = textOverride || 'Sync Failed';
-    } else {
-        // Standby / Ready Mode
-        indicator.style.background = 'var(--md-surface-variant)';
-        indicator.style.color = 'var(--md-text-muted)';
-        icon.innerText = 'cloud_queue';
-        text.innerText = textOverride || 'Cloud Ready';
-    }
-};
-
 const maybeEnableButtons = () => {
     if (gapiInited && gisInited) {
         const statusEl = document.getElementById('cloud-status-tab');
@@ -72,7 +37,6 @@ const maybeEnableButtons = () => {
             statusEl.innerText = 'Google Drive Sync Ready';
             statusEl.style.color = 'var(--md-success)';
         }
-        window.updateSyncBadge('ready', 'Cloud Ready');
     }
 };
 
@@ -83,31 +47,38 @@ const Cloud = {
             return;
         }
         if (gapi.client.getToken() === null) {
+            // Prompt the user to log in
             tokenClient.callback = async (resp) => {
                 if (resp.error !== undefined) throw (resp);
                 callback();
             };
             tokenClient.requestAccessToken({ prompt: 'consent' });
         } else {
+            // Already logged in
             callback();
+            // FIX: Removed Cloud.autoBackup() from here to prevent a massive Race Condition!
+            // Running a manual backup and an auto-backup at the exact same millisecond causes Drive API crashes.
         }
     },
 
     autoBackup: async () => {
+        // Only run if Google API is loaded and token is actively authorized
         if (!gapiInited || !gisInited || gapi.client.getToken() === null) return;
         
         const lastBackup = localStorage.getItem('sollo_last_backup');
         const now = Date.now();
         
+        // 86400000 ms = 24 hours. Trigger if no backup in the last 24hrs
         if (!lastBackup || (now - parseInt(lastBackup)) > 86400000) {
             console.log("Triggering silent background auto-backup...");
-            if (window.updateSyncBadge) window.updateSyncBadge('syncing', 'Auto-Syncing...');
-            
             try {
+                // FIX: Call the globally mapped export function directly
                 const data = await window.exportDatabase(); 
 
+                // ENTERPRISE FIX: Dynamically stream ALL database tables safely without missing any schemas!
                 const blobParts = ['{'];
                 const keys = Object.keys(data);
+                
                 for (let i = 0; i < keys.length; i++) {
                     const key = keys[i];
                     blobParts.push(`"${key}":[`);
@@ -147,15 +118,12 @@ const Cloud = {
                 if (uploadRes.ok) {
                     localStorage.setItem('sollo_last_backup', now.toString());
                     if (window.Utils) window.Utils.showToast("☁️ Auto-Backup Completed in Background!");
-                    if (window.updateSyncBadge) window.updateSyncBadge('success', 'Synced just now');
                 } else if (uploadRes.status === 401) {
                     gapi.client.setToken(null);
                     if (window.Utils) window.Utils.showToast("⚠️ Cloud Auto-Sync Paused (Session Expired). Please open Data Management to reconnect.");
-                    if (window.updateSyncBadge) window.updateSyncBadge('error', 'Session Expired');
                 }
             } catch (e) {
                 console.error("Auto backup failed quietly", e);
-                if (window.updateSyncBadge) window.updateSyncBadge('error', 'Sync Failed');
             }
         }
     },
@@ -163,13 +131,14 @@ const Cloud = {
     backup: async () => {
         Cloud.authenticate(async () => {
             window.Utils.showToast("Preparing Backup...");
-            if (window.updateSyncBadge) window.updateSyncBadge('syncing', 'Manual Sync...');
-            
             try {
+                // FIX: Call the globally mapped export function directly
                 const data = await window.exportDatabase(); 
 
+                // ENTERPRISE FIX: Dynamically stream ALL database tables safely without missing any schemas!
                 const blobParts = ['{'];
                 const keys = Object.keys(data);
+                
                 for (let i = 0; i < keys.length; i++) {
                     const key = keys[i];
                     blobParts.push(`"${key}":[`);
@@ -189,6 +158,7 @@ const Cloud = {
                     'mimeType': 'application/json'
                 };
 
+                // Search for existing backup file to overwrite
                 let response = await gapi.client.drive.files.list({
                     q: "name='SOLLO_ERP_Backup.json' and trashed=false",
                     spaces: 'drive',
@@ -214,13 +184,12 @@ const Cloud = {
                 });
 
                 if (uploadRes.ok) {
+                    // NEW: Save the timestamp of this successful backup
                     localStorage.setItem('sollo_last_backup', Date.now().toString());
                     window.Utils.showToast("✅ Cloud Backup Successful!");
-                    if (window.updateSyncBadge) window.updateSyncBadge('success', 'Synced just now');
                 } else {
                     if (uploadRes.status === 401) {
-                        gapi.client.setToken(null); 
-                        if (window.updateSyncBadge) window.updateSyncBadge('error', 'Auth Error');
+                        gapi.client.setToken(null); // Clear expired token to force re-auth
                         alert("Cloud session expired. Please click Backup again to re-authenticate.");
                         return;
                     }
@@ -228,7 +197,6 @@ const Cloud = {
                 }
             } catch (e) {
                 console.error(e);
-                if (window.updateSyncBadge) window.updateSyncBadge('error', 'Sync Failed');
                 alert("Cloud Backup Failed: " + (e.message || "Connection Error"));
             }
         });
@@ -266,11 +234,13 @@ const Cloud = {
                     let jsonData = await fileRes.json();
                     window.Utils.showToast("Installing Data...");
                     
+                    // FIX: Call the globally mapped import function directly
                     await window.importDatabase(jsonData); 
                     
                     window.Utils.showToast("✅ Restore Successful! Reloading...");
                     setTimeout(() => location.reload(), 1500);
                 } else {
+                    // FIX: Catch expired tokens during Restore to prevent silent failures
                     if (fileRes.status === 401) {
                         gapi.client.setToken(null);
                         alert("Cloud session expired. Please click Restore again to re-authenticate.");
@@ -293,9 +263,15 @@ window.Cloud = Cloud;
 // ==========================================
 // Exactly 15 seconds after the app opens, it checks if 24 hours have passed since the last backup.
 // If yes, it quietly zips the database and sends it to Google Drive without interrupting the user.
-setTimeout(() => {
+setTimeout(async () => {
     if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
-        window.Cloud.autoBackup();
+        // STRICT ERP LOGIC: Prevent uploading an empty database if local storage was cleared!
+        const firms = await window.getAllRecords('firms');
+        if (firms && firms.length > 0) {
+            window.Cloud.autoBackup();
+        } else {
+            console.warn("Local database is empty. Auto-backup aborted to protect Google Drive data.");
+        }
     }
 }, 15000);
 

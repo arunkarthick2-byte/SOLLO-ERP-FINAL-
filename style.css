@@ -16,7 +16,7 @@ input, textarea {
     -webkit-user-select: auto;
 }
 /* ==========================================
-   SOLLO ERP - MASTER STYLESHEET (v5.2 Enterprise)
+   SOLLO ERP - MASTER STYLESHEET (v6.1 Enterprise)
    ========================================== */
 
 :root {
@@ -644,14 +644,19 @@ body.dark-mode .activity-header {
     background-color: var(--md-surface) !important; 
     border-radius: 28px 28px 0 0; 
     z-index: 3000; 
-    box-shadow: none; /* FIX: Removes the bleeding shadow smudge! */
+    box-shadow: none; 
     display: flex; flex-direction: column; 
     height: auto;
     max-height: 85vh; 
     padding-bottom: env(safe-area-inset-bottom, 0px); 
-    transform: translateY(100%); 
+    
+    /* 🚀 ENTERPRISE UPGRADE: GPU HARDWARE ACCELERATION */
+    transform: translateY(100%) translateZ(0); 
+    will-change: transform;
+    backface-visibility: hidden;
+    perspective: 1000px;
+    
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease; 
-    /* REMOVED will-change to unlock inner scrolling */
 }
 
 /* UPGRADE: Native Drag Handle Pill */
@@ -667,8 +672,9 @@ body.dark-mode .activity-header {
 }
 
 .bottom-sheet.open { 
-    transform: translateY(0); 
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.4); /* FIX: Shadow only turns on when menu is open */
+    /* Maintains GPU 3D lock while open */
+    transform: translateY(0) translateZ(0); 
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.4); 
 }
 
 .sheet-header {
@@ -930,14 +936,13 @@ body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
 .date-divider {
     position: sticky !important;
     top: 0;
-    z-index: 90 !important; /* CRITICAL FIX: Stops lists from scrolling over the date */
+    z-index: 5;
     background: rgba(253, 252, 255, 0.85);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     margin: 0 -16px;
     padding: 8px 16px;
 }
-
 body.dark-mode .date-divider {
     background: rgba(26, 28, 30, 0.85);
 }
@@ -1796,9 +1801,14 @@ header, .header, .top-bar {
 /* ========================================== */
 
 /* Apply this to the individual rows/cards inside your Master Lists */
-.virtual-item {
+.virtual-item, .list-card, #master-list-container .m3-card {
     /* Hardware acceleration lock for smooth sliding */
     will-change: transform, opacity;
+    
+    /* 🚀 OFF-SCREEN RENDERING SHIELD (Peak Performance) */
+    /* Tells the phone's CPU to completely ignore elements until you scroll to them */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 80px; /* Predicts the height to keep the scrollbar perfectly stable */
 }
 /* ==========================================
    ENTERPRISE UPGRADE: DESKTOP SIMULATOR
@@ -2395,7 +2405,8 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
 
 .bottom-sheet:not(.open) {
     /* Pushes the hidden sheet completely below the mobile safe-area bezel */
-    transform: translateY(calc(100% + 60px)) !important;
+    /* 🚀 Maintains GPU lock while hidden */
+    transform: translateY(calc(100% + 60px)) translateZ(0) !important;
     visibility: hidden;
 }
 
@@ -2438,53 +2449,216 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
     -webkit-overflow-scrolling: touch !important; /* Vital for iOS Safari */
     overscroll-behavior-y: contain !important;
 }
-/* ==========================================
-   ENTERPRISE UPGRADE: DARK MODE DEEP POLISH
-   ========================================== */
+/* ========================================== */
+/* PREMIUM UPGRADE: ULTIMATE VISUAL POLISH    */
+/* ========================================== */
 
-/* 1. Deep Dark Dropdown Menus (<option> tags) */
-body.dark-mode select option {
-    background-color: #1c1c1e !important;
-    color: #e2e2e6 !important;
-    font-size: 15px !important;
+/* 1. COMPACT MODE */
+.m3-card { padding: 12px !important; margin-bottom: 10px !important; }
+
+/* The List Items (Seamless Flush List) */
+.list-view li { 
+    padding: 10px 12px !important; 
+    margin-bottom: 0px !important; /* GAP REMOVED */
+    display: flex !important; 
+    align-items: center !important; 
+    justify-content: space-between !important; 
+    gap: 12px !important; 
+    border-radius: 0px !important; /* Removes round corners so they touch perfectly */
+    border-bottom: 1px solid rgba(150, 150, 150, 0.15) !important; /* Subtle separator line */
 }
 
-/* 2. Fix the Native Date Picker Calendar Icon (Makes it visible at night) */
-body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator {
-    /* Inverts the black calendar icon to a soft white/blue so it glows in dark mode */
-    filter: invert(0.8) brightness(1.2) hue-rotate(180deg) !important;
-    cursor: pointer;
-    opacity: 0.8;
-    transition: opacity 0.2s ease;
+.list-view li > div:last-child {
+    text-align: right !important;
+    flex-shrink: 0 !important; 
+    min-width: 90px !important;
 }
 
-body.dark-mode input[type="date"]:focus::-webkit-calendar-picker-indicator {
-    opacity: 1;
+.list-view li strong { 
+    font-size: 14.5px !important; 
+    line-height: 1.2 !important; 
+    display: block !important; 
+    margin-bottom: 2px !important; 
+}
+.list-view li small { font-size: 12px !important; display: block !important; }
+
+.icon-circle { 
+    width: 36px !important; 
+    height: 36px !important; 
+    display: flex !important; 
+    align-items: center !important; 
+    justify-content: center !important; 
+    flex-shrink: 0 !important; 
+}
+.icon-circle .material-symbols-outlined { 
+    font-size: 18px !important; 
+    margin: 0 !important; 
+    padding: 0 !important; 
 }
 
-/* 3. Bottom Sheet & Overlays Deep Polish */
-body.dark-mode .bottom-sheet {
-    /* Elevates the bottom sheet slightly off the true-black background so it doesn't blend in */
-    background-color: #111315 !important; 
-    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8) !important;
+.bottom-sheet .sheet-header { padding: 12px 16px !important; align-items: center !important; }
+.bottom-sheet .m3-card { padding: 10px 12px !important; margin-bottom: 8px !important; }
+
+/* 2. GLASSMORPHISM & PREMIUM SHADOWS */
+/* Removed .list-view li from this section so lists don't get thick borders */
+.m3-card {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02) !important;
+    background: var(--md-surface) !important; /* Protected for Dark Mode */
+    border: 1px solid rgba(150, 150, 150, 0.2) !important;
+    border-radius: 12px !important;
+}
+.bottom-sheet {
+    box-shadow: 0 -10px 30px rgba(0,0,0,0.1) !important;
+    border-top-left-radius: 24px !important;
+    border-top-right-radius: 24px !important;
 }
 
-body.dark-mode .sheet-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-    background: rgba(17, 19, 21, 0.85) !important;
+/* 3. SMOOTH SCREEN TRANSITIONS */
+.activity-screen {
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease !important;
+}
+.bottom-sheet {
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
 }
 
-/* 4. Fix Empty State Illustrations & Text in Dark Mode */
-body.dark-mode .empty-state::before {
-    /* Softens the big empty icons so they aren't blindingly bright */
-    color: rgba(255, 255, 255, 0.15) !important;
+/* 4. INTERACTIVE TAP RIPPLES */
+.tap-target:active, .list-view li:active, .btn-primary:active, .btn-secondary:active {
+    transform: scale(0.98) !important;
+    transition: transform 0.1s ease !important;
+    opacity: 0.85 !important;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: STRICT DATA GRID       */
+/* ========================================== */
+
+/* 1. STRICT DATA GRID (Zebra Striping & Hidden Icons) */
+.list-view {
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-bottom: none !important;
+    border-radius: 4px !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
 }
 
-body.dark-mode .empty-state {
-    /* Adjusts the silver shimmer text animation for dark screens */
-    background: linear-gradient(110deg, #535f70 35%, #e2e2e6 50%, #535f70 65%) !important;
-    background-size: 200% auto !important;
-    -webkit-background-clip: text !important;
-    background-clip: text !important;
+.list-view li { 
+    padding: 10px 12px !important; 
+    margin-bottom: 0px !important; 
+    display: flex !important; 
+    align-items: center !important; 
+    justify-content: space-between !important; 
+    gap: 12px !important; 
+    border-radius: 0px !important; 
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15) !important; 
+    background: #ffffff !important;
+}
+
+/* Zebra Striping for high-speed reading */
+.list-view li:nth-child(even) {
+    background: #f4f6f8 !important;
+}
+
+/* HIDE BULKY ICONS TO CREATE A TRUE SPREADSHEET LOOK */
+.list-view li .icon-circle {
+    display: none !important; 
+}
+
+/* 2. PERFECT ROW ALIGNMENT & TARGET PILL UI */
+.list-view li {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important; 
+    gap: 12px !important; 
+}
+
+/* LEFT SIDE (Truncates long text safely) */
+.list-view li > div:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important; 
+}
+
+.list-view li > div:first-child strong {
+    font-size: 13.5px !important; 
+    font-weight: 700 !important;
+    line-height: 1.2 !important; 
+    color: #1a1c1e !important;
+    display: block !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important; 
+}
+
+.list-view li > div:first-child small { 
+    font-size: 11px !important; 
+    display: block !important; 
+    color: #5f6368 !important;
+}
+
+/* RIGHT SIDE (Amount & Pill Stack) */
+.list-view li > div:last-child {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important; /* Locks BOTH the amount and pill to the extreme right edge */
+    justify-content: center !important;
+    flex: 0 0 auto !important; 
+    min-width: max-content !important; 
+    text-align: right !important;
+    font-variant-numeric: tabular-nums !important; 
+    letter-spacing: -0.2px !important;
+    white-space: nowrap !important;
+}
+
+/* RIGHT SIDE AMOUNT TEXT */
+.list-view li > div:last-child strong {
+    font-size: 13.5px !important; 
+    font-weight: 700 !important;
+    line-height: 1.2 !important; 
+    display: block !important; 
+    color: #1a1c1e !important;
+}
+
+/* EXACT TARGET PILL UI FOR DUE/PAID */
+.status-badge,
+.list-view li > div:last-child small {
+    display: inline-block !important;
+    width: max-content !important; 
+    padding: 3px 6px !important;
+    border-radius: 4px !important; 
+    margin-top: 4px !important;
+    font-size: 10px !important; 
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    line-height: 1.2 !important;
+    /* The magic code that generates the soft translucent color based on the text color */
+    background: color-mix(in srgb, currentColor 15%, transparent) !important; 
+    border: none !important;
+}
+
+/* 3. CRISP CARDS & HEADERS */
+.m3-card { 
+    padding: 12px !important; 
+    margin-bottom: 12px !important; 
+    border-radius: 4px !important; 
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    box-shadow: none !important; 
+    background: var(--md-surface) !important;
+}
+
+.activity-header, .sheet-header, .sticky-totals {
+    background: var(--md-surface) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+/* 4. CLEAN BUTTONS & DROPDOWNS */
+select, .btn-primary, .btn-secondary, .chip {
+    border-radius: 4px !important; 
+    font-weight: 600 !important;
+}
+
+select {
+    padding: 8px 12px !important;
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    background-color: #f8fafc !important;
 }

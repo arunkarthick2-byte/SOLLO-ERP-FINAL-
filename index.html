@@ -21,9 +21,8 @@
         window.onerror = function(message, source, lineno, colno, error) {
             alert("CRASH DETECTED!\n\nFile: " + source + "\nLine: " + lineno + "\nError: " + message);
         };
-        window.addEventListener("unhandledrejection", function(event) {
-            alert("BACKGROUND CRASH!\n\nError: " + (event.reason ? event.reason.message || event.reason : "Unknown Error"));
-        });
+        // STRICT ERP LOGIC: Removed the unhandledrejection alert that was causing fake "Background Crash" popups!
+        // app.js now safely and silently handles background promise rejections.
     </script>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -37,7 +36,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=83">
+    <link rel="stylesheet" href="style.css?v=6.1">
     <link rel="manifest" href="./manifest.json"> 
 
     <style>
@@ -54,6 +53,8 @@
 
     <script async defer src="https://apis.google.com/js/api.js"></script>
     <script async defer src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 
 <body>
@@ -78,15 +79,7 @@
             
             <div id="tab-dashboard" class="screen-section active-screen">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <strong style="font-size: 18px;">Business Overview</strong>
-                        
-                        <div id="cloud-sync-indicator" style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: var(--md-surface-variant); border-radius: 12px; color: var(--md-text-muted); font-size: 10px; font-weight: bold; transition: all 0.3s ease;">
-                            <span class="material-symbols-outlined" id="cloud-sync-icon" style="font-size: 14px;">cloud_off</span>
-                            <span id="cloud-sync-text">Cloud Standby</span>
-                        </div>
-                        
-                    </div>
+                    <strong style="font-size: 18px;">Business Overview</strong>
                     <select id="dashboard-date-filter" style="width: auto; padding: 4px 8px; font-size: 14px; border:none; background:var(--md-surface-variant); border-radius:16px;" onchange="UI.renderDashboard()">
                         <option value="today">Today</option>
                         <option value="month" selected>This Month</option>
@@ -108,6 +101,28 @@
                             <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px; animation-delay: 0.1s;"></div>
                         </div>
                         <small id="profit-breakdown" style="font-size: 10px; color: var(--md-text-muted); display: block; margin-top: 4px; min-height: 12px;"></small>
+                    </div>
+                </div>
+
+                <div class="m3-card" style="margin-bottom: 24px; padding: 0; overflow: hidden; border: 1px solid var(--md-outline-variant);">
+                    <div style="padding: 20px; background: linear-gradient(135deg, #fdfcff 0%, #e3f2fd 100%);">
+                        <strong style="display:flex; align-items:center; gap:8px; font-size: 16px; color: var(--md-primary);">
+                            <span class="material-symbols-outlined">inventory</span> Warehouse Capital
+                        </strong>
+                        <div style="margin-top: 16px;">
+                            <small style="color: var(--md-text-muted);">Total Value Locked in Stock</small>
+                            <div class="large-text" id="dash-inventory-value" style="font-size: 26px; font-weight: 700; color: var(--md-primary); margin-top: 4px;">
+                                <div class="skeleton-card" style="height: 24px; width: 50%; margin: 0; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tap-target" id="dash-low-stock-btn" onclick="UI.switchTab('tab-masters', 'Master Data', document.getElementById('nav-masters')); setTimeout(() => { UI.openMasterView('products', 'Inventory Master'); setTimeout(() => { document.getElementById('filter-master-view').value = 'Low Stock'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--md-surface-variant); background: var(--md-surface);">
+                        <span style="font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                            <span class="material-symbols-outlined" id="dash-low-stock-icon" style="font-size: 20px;">check_circle</span>
+                            <span id="dash-low-stock-text">Stock Levels Optimal</span>
+                        </span>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
                 </div>
 
@@ -301,6 +316,7 @@
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Cloud Backup & Storage</strong>
                 <div style="text-align: center; margin-bottom: 12px; font-size: 12px; color: var(--md-text-muted);" id="cloud-status-tab">Checking Google Drive...</div>
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
+
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #e3f2fd;" onclick="if(window.Cloud) window.Cloud.backup()">
                         <span class="material-symbols-outlined" style="color: #0061a4;">cloud_upload</span>
                         <div style="flex: 1;"><strong style="font-size:15px; color: #0061a4;">Backup to Google Drive</strong></div>
@@ -309,18 +325,20 @@
                         <span class="material-symbols-outlined" style="color: #ba1a1a;">cloud_download</span>
                         <div style="flex: 1;"><strong style="font-size:15px; color: #ba1a1a;">Restore from Drive</strong></div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin-bottom: 8px; background: var(--md-primary-container); color: var(--md-on-primary-container);" onclick="app.upgradeOldData()">
-                        <span class="material-symbols-outlined" style="font-size: 20px;">upgrade</span> <span style="font-size: 13px; font-weight: bold;">Run Data Upgrader</span>
+                    
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #e8f5e9;" onclick="if(navigator.serviceWorker) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.update())); } if(window.Utils) window.Utils.showToast('Checking for updates... 🔄'); setTimeout(() => window.location.reload(true), 1200);">
+                        <span class="material-symbols-outlined" style="color: #146c2e;">system_update</span>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: #146c2e;">Run Update Manager</strong></div>
                     </div>
 
                     <div style="display: flex; gap: 8px;">
-                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="app.downloadManualBackup()">
+                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="window.Utils.exportData()">
                             <span class="material-symbols-outlined" style="font-size: 20px;">save</span> <span style="font-size: 13px; font-weight: bold;">Manual Backup</span>
                         </div>
                         <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="document.getElementById('import-file-tab').click()">
                             <span class="material-symbols-outlined" style="font-size: 20px;">restore_page</span> <span style="font-size: 13px; font-weight: bold;">Manual Restore</span>
                         </div>
-                        <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="app.handleManualRestore(event)">
+                        <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
                     </div>
                 </div>
 
@@ -393,7 +411,7 @@
                 
                 <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
                 
-                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="UI.openBottomSheet('sheet-master-sort')">tune</span>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.app) window.app.openMasterSort(); else UI.openBottomSheet('sheet-master-sort')">tune</span>
                 
                 <span id="master-more-options" class="material-symbols-outlined tap-target hidden" style="color: var(--md-on-surface-variant); padding: 6px; border-radius: 50%; margin-left: 2px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-master-actions')">more_vert</span>
                 
@@ -724,30 +742,30 @@
                     AI Scan Price Tag / Box
                 </button>
 
-                <div class="form-group"><label for="prod-name">Product Name *</label><input type="text" id="prod-name" name="name" required></div>
-                
-                <div class="form-group">
-                    <label for="prod-img">Product Image</label>
-                    <input type="file" id="prod-img" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('product-image-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                    <img id="product-image-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
+                <div id="product-valuation-card" class="m3-card hidden" style="background: #e3f2fd; border-left: 4px solid #0061a4; margin-bottom: 16px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <small style="color: #0061a4; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Current Valuation</small>
+                        <div id="product-total-stock-display" style="font-size: 13px; color: var(--md-on-surface); margin-top: 4px;">0.00 Units in Stock</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <strong id="product-total-value-display" style="font-size: 18px; color: #0061a4;">₹0.00</strong>
+                    </div>
                 </div>
+
+                <div class="form-group"><label for="prod-name">Product Name *</label><input type="text" id="prod-name" name="name" required></div>
 
                 <div style="display: flex; gap: 12px;">
                     <div class="form-group" style="flex: 1;"><label for="prod-sell">Sell Price (&#8377;) *</label><input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="0.01" required></div>
                     <div class="form-group" style="flex: 1;"><label for="prod-buy">Buy Price (&#8377;)</label><input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="0.01"></div>
                 </div>
-
-                <div class="m3-card" style="margin-bottom: 12px; padding: 12px; border: 1px solid var(--md-outline-variant); background: #fdfcff;">
-                    <strong style="display:block; margin-bottom:12px; font-size:14px; color:var(--md-on-surface);">Opening Quantities</strong>
-                    <div style="display: flex; gap: 12px;">
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <label style="color:var(--md-primary); font-weight:bold;">GST Stock</label>
-                            <input type="number" id="prod-gst-stock" inputmode="decimal" name="gstStock" value="0" step="0.01" style="border: 1px solid #d1e4ff; background: #f4f8ff;">
-                        </div>
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <label style="color:#d84315; font-weight:bold;">UnAccount Stock</label>
-                            <input type="number" id="prod-unaccount-stock" inputmode="decimal" name="unaccountStock" value="0" step="0.01" style="border: 1px solid #ffe0b2; background: #fff8e1;">
-                        </div>
+                <div style="display: flex; gap: 12px; background: var(--md-surface-variant); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label style="color: var(--md-primary);">Opening Stock (GST)</label>
+                        <input type="number" id="prod-stock-gst" inputmode="decimal" name="stockGst" value="0" step="0.01" style="border: 1px solid var(--md-primary);">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label style="color: var(--md-error);">Opening Stock (Non-GST)</label>
+                        <input type="number" id="prod-stock-nongst" inputmode="decimal" name="stockNonGst" value="0" step="0.01" style="border: 1px solid var(--md-error);">
                     </div>
                 </div>
                 <div style="display: flex; gap: 12px;">
@@ -760,13 +778,21 @@
                     </div>
                     <div class="form-group" style="flex: 1;"><label>Low Stock Alert</label><input type="number" inputmode="decimal" name="minStock" value="5" step="any"></div>
                 </div>
-                
                 <div style="display: flex; gap: 12px;">
                     <div class="form-group" style="flex: 1;"><label>GST %</label><input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any"></div>
                     <div class="form-group" style="flex: 1;"><label>HSN / SAC Code</label><input type="text" name="hsn"></div>
                 </div>
                 
                 <div class="form-bottom-spacer"></div>
+
+                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 1px solid #90caf9; border-radius: 12px;" onclick="window.triggerItemLedgerFromForm()">
+                    <span class="material-symbols-outlined" style="color: #0277bd; font-size: 28px;">inventory_2</span>
+                    <div style="flex: 1;">
+                        <strong style="font-size:16px; color: #0277bd; display: block;">View Stock Ledger</strong>
+                        <small style="color: #01579b;">Track all Purchases & Sales</small>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: #0277bd;">chevron_right</span>
+                </div>
 
                 <div class="thumb-action-bar">
                     <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-product-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
@@ -824,6 +850,15 @@
                 </div>
                 
                 <div class="form-bottom-spacer"></div>
+
+                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 1px solid #ffe082; border-radius: 12px;" onclick="window.triggerKhataFromForm()">
+                    <span class="material-symbols-outlined" style="color: #f57f17; font-size: 28px;">menu_book</span>
+                    <div style="flex: 1;">
+                        <strong style="font-size:16px; color: #f57f17; display: block;">View Khata Ledger</strong>
+                        <small style="color: #d84315;">Print or PDF Statement</small>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: #f57f17;">print</span>
+                </div>
 
                 <div class="thumb-action-bar">
                     <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-ledger-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
@@ -977,20 +1012,6 @@
 
     <div id="sheet-overlay" class="sheet-overlay hidden" onclick="UI.closeAllBottomSheets()"></div>
     
-    <div id="sheet-simple-master" class="bottom-sheet">
-        <div class="sheet-header">
-            <span id="simple-master-title" style="font-size: 18px; font-weight: 500;">Manage List</span>
-            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-simple-master')">close</span>
-        </div>
-        <div style="padding: 16px; max-height: 70vh; overflow-y: auto;">
-            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                <input type="text" id="simple-master-input" placeholder="Type new name here..." style="flex: 1; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px;" enterkeyhint="done">
-                <button class="btn-primary" onclick="app.saveNewSimpleMaster()">Add</button>
-            </div>
-            <div id="simple-master-list" style="display: flex; flex-direction: column; gap: 8px;">
-                </div>
-        </div>
-    </div>
     <div id="sheet-document-formats" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Document Formats</span>
@@ -1174,23 +1195,46 @@
                 
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Adjustment Type *</label>
-                        <select id="adj-type" required>
-                            <option value="add">Add Stock (+)</option>
-                            <option value="reduce">Reduce Stock (-)</option>
+                        <label>Stock Pool *</label>
+                        <select id="adj-pool" required>
+                            <option value="gst">GST Stock</option>
+                            <option value="nongst">Non-GST Stock</option>
                         </select>
                     </div>
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Quantity *</label>
-                        <input type="number" inputmode="decimal" id="adj-qty" min="0.01" step="any" required>
+                        <label>Action *</label>
+                        <select id="adj-type" required>
+                            <option value="add">Add (+)</option>
+                            <option value="reduce">Reduce (-)</option>
+                        </select>
                     </div>
                 </div>
+                <div class="form-group"><label>Quantity *</label><input type="number" inputmode="decimal" id="adj-qty" min="0.01" step="any" required></div>
                 
                 <div class="form-group"><label>Date *</label><input type="date" id="adj-date" required></div>
                 <div class="form-group"><label>Reason / Notes *</label><input type="text" id="adj-notes" placeholder="e.g., Damaged, Audit Correction" required></div>
                 
                 <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">Save Adjustment</button>
             </form>
+        </div>
+    </div>
+
+    <div id="sheet-simple-master" class="bottom-sheet" style="height: 60vh;">
+        <div class="sheet-header">
+            <span id="simple-master-title" style="font-size: 18px; font-weight: 500;">Manage Options</span>
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-simple-master')">close</span>
+        </div>
+        <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <input type="text" id="simple-master-input" placeholder="Type new name here..." autocapitalize="words" autocomplete="off" onkeypress="if(event.key === 'Enter') document.getElementById('btn-add-simple-master').click()" style="flex: 1; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 16px;">
+                <button class="btn-primary" id="btn-add-simple-master" style="padding: 0 20px;">Add</button>
+            </div>
+
+            <h4 style="margin: 0 0 12px 0; color: var(--md-primary); font-size: 13px; text-transform: uppercase;">Existing Options</h4>
+            
+            <ul class="list-view" id="list-simple-master" style="flex: 1; overflow-y: auto; margin: 0; padding: 0;">
+                </ul>
         </div>
     </div>
 
@@ -1202,15 +1246,18 @@
         <div style="padding: 16px;">
             <div class="form-group">
                 <label>Filter By Status</label>
-                <select id="filter-master-view" onchange="UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');">
+                <select id="filter-master-view" onchange="if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');">
                     <option value="All">All Records</option>
+                    <option value="Stock Available">Stock Available</option>
+                    <option value="GST Stock">Has GST Stock</option>
+                    <option value="Non-GST Stock">Has Non-GST Stock</option>
                 </select>
             </div>
             <div class="form-group">
                 <label>Sort By</label>
-                <select id="sort-master-view" onchange="UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');">
-                    <option value="name-asc">A to Z</option>
-                    <option value="stock-asc">Lowest Stock First</option>
+                <select id="sort-master-view" onchange="if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');">
+                    <option value="name-asc">A to Z (Ascending)</option>
+                    <option value="name-desc">Z to A (Descending)</option>
                 </select>
             </div>
         </div>
@@ -1287,7 +1334,7 @@
             <span style="font-size: 18px; font-weight: 500;">Filter Sales Invoices</span>
             <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-sales-filter')">close</span>
         </div>
-        <div style="padding: 16px;">
+        <div style="padding: 16px; max-height: 70vh; overflow-y: auto;">
             <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'All', null); UI.closeBottomSheet('sheet-sales-filter');">
                 <div style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
                     <span class="material-symbols-outlined">receipt_long</span>
@@ -1306,8 +1353,26 @@
                     <small style="color:var(--md-text-muted);">Pending invoices</small>
                 </div>
             </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Shipped', null); UI.closeBottomSheet('sheet-sales-filter');">
+            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'GST', null); UI.closeBottomSheet('sheet-sales-filter');">
+                <div style="background: #e3f2fd; color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                    <span class="material-symbols-outlined">receipt</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:16px; color: #0061a4;">B2B (GST)</strong>
+                    <small style="color:var(--md-text-muted);">Standard Tax Invoices</small>
+                </div>
+            </div>
+            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Non-GST', null); UI.closeBottomSheet('sheet-sales-filter');">
                 <div style="background: #fff8e1; color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                    <span class="material-symbols-outlined">receipt_long</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:16px; color: #f57f17;">Bill of Supply</strong>
+                    <small style="color:var(--md-text-muted);">Non-GST / Exempt Invoices</small>
+                </div>
+            </div>
+            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Shipped', null); UI.closeBottomSheet('sheet-sales-filter');">
+                <div style="background: #e0f2f1; color: #00897b; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
                     <span class="material-symbols-outlined">local_shipping</span>
                 </div>
                 <div>
@@ -1332,7 +1397,7 @@
             <span style="font-size: 18px; font-weight: 500;">Filter Purchases</span>
             <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-purchases-filter')">close</span>
         </div>
-        <div style="padding: 16px;">
+        <div style="padding: 16px; max-height: 70vh; overflow-y: auto;">
             <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'All', null); UI.closeBottomSheet('sheet-purchases-filter');">
                 <div style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
                     <span class="material-symbols-outlined">receipt_long</span>
@@ -1349,6 +1414,24 @@
                 <div>
                     <strong style="display:block; font-size:16px;">To Pay</strong>
                     <small style="color:var(--md-text-muted);">Pending payment</small>
+                </div>
+            </div>
+            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'GST', null); UI.closeBottomSheet('sheet-purchases-filter');">
+                <div style="background: #e3f2fd; color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                    <span class="material-symbols-outlined">receipt</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:16px; color: #0061a4;">B2B (GST)</strong>
+                    <small style="color:var(--md-text-muted);">ITC Claimable Bills</small>
+                </div>
+            </div>
+            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'Non-GST', null); UI.closeBottomSheet('sheet-purchases-filter');">
+                <div style="background: #fff8e1; color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                    <span class="material-symbols-outlined">receipt_long</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:16px; color: #f57f17;">Bill of Supply</strong>
+                    <small style="color:var(--md-text-muted);">Non-GST / Exempt Bills</small>
                 </div>
             </div>
             <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'Completed', null); UI.closeBottomSheet('sheet-purchases-filter');">
@@ -1449,53 +1532,65 @@
                 <div id="btn-delete-receipt-in" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-in')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
-                <div class="icon-circle tap-target" onclick="Utils.generateReceiptPDF(app.state.currentReceiptId)" style="width: 36px; height: 36px; background: var(--md-primary-container); color: var(--md-primary);">
+                <div class="icon-circle tap-target" onclick="app.generateReceiptPDF(app.state.currentReceiptId)" style="width: 36px; height: 36px; background: var(--md-primary-container); color: var(--md-primary);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">ios_share</span>
                 </div>
             </div>
         </div>
         <div style="padding: 16px; overflow-y: auto; max-height: 70vh;">
             <form id="form-payment-in">
-                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Receipt No *</label><input type="text" id="pay-in-no" required></div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="pay-in-date" required></div>
+                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 24px 16px; border-radius: 16px; text-align: center; margin-bottom: 20px; border: 1px solid #a5d6a7; box-shadow: 0 4px 12px rgba(20, 108, 46, 0.1);">
+                    <label style="color: #146c2e; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; display: block; margin-bottom: 8px;">Amount Received (₹)</label>
+                    <input type="number" inputmode="decimal" id="pay-in-amount" min="0" step="any" placeholder="0.00" required style="background: transparent; border: none; outline: none; text-align: center; font-size: 40px; font-weight: 800; color: #146c2e; width: 100%; padding: 0;">
                 </div>
-                <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI){ window.UI.state.currentPrefix = 'pay-in'; window.UI.openBottomSheet('sheet-customers'); }">
-                    <div>
-                        <small style="color: var(--md-text-muted);">Customer (Received From) *</small>
-                        <div id="pay-in-customer-display" class="large-text" style="color: var(--md-text-muted);">Select Customer...</div>
-                        <input type="hidden" id="pay-in-customer" required>
-                    </div>
-                    <span class="material-symbols-outlined">chevron_right</span>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Receipt No *</label><input type="text" id="pay-in-no" required style="font-weight: bold; background: #f8fafc;"></div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="pay-in-date" required style="font-weight: bold; background: #f8fafc;"></div>
                 </div>
                 
-                <div class="form-group" style="background: #e3f2fd; padding: 8px; border-radius: 8px; border: 1px solid var(--md-primary);">
-                    <label style="color: var(--md-primary);">Settle Pending Invoice(s)</label>
+                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; padding: 16px;" onclick="if(window.UI){ window.UI.state.currentPrefix = 'pay-in'; window.UI.openBottomSheet('sheet-customers'); }">
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div class="icon-circle" style="background: #e3f2fd; color: #0061a4; width: 40px; height: 40px;"><span class="material-symbols-outlined">person</span></div>
+                        <div>
+                            <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase; font-size: 10px;">Customer (Received From)</small>
+                            <div id="pay-in-customer-display" class="large-text" style="color: var(--md-on-surface); font-weight: bold;">Select Customer...</div>
+                            <input type="hidden" id="pay-in-customer" required>
+                        </div>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="color: var(--md-primary); font-weight: 600;">Settle Pending Invoice(s)</label>
                     <select id="pay-in-invoice-ref" multiple size="4" style="height: auto; min-height: 80px; padding: 4px; font-size: 14px;">
                         <option value="">On Account / Advance</option>
                     </select>
-                    <small style="display:block; margin-top:4px; color:var(--md-text-muted); font-size: 10px;">Hold Ctrl/Cmd or drag to select multiple (Tap multiple on mobile)</small>
+                    <small style="display:block; margin-top:4px; color:var(--md-text-muted); font-size: 10px;">Select invoices below to auto-calculate the amount</small>
                 </div>
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label>Amount (&#8377;) *</label><input type="number" inputmode="decimal" id="pay-in-amount" min="0" step="any" required></div>
-                    
-                    <div class="form-group" style="flex: 1;">
-                        <label>Mode *</label>
-                        <input type="text" id="pay-in-mode" value="Cash" required>
-                        <div class="filter-chips" style="margin-top: 6px; padding-bottom: 0;">
-                            <div class="chip" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('pay-in-mode').value='Cash'">Cash</div>
-                            <div class="chip" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('pay-in-mode').value='UPI'">UPI</div>
-                            <div class="chip" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('pay-in-mode').value='Bank'">Bank</div>
-                        </div>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Payment Mode *</label>
+                        <select id="pay-in-mode" required style="background: #f8fafc;">
+                            <option value="Cash">Cash</option>
+                            <option value="UPI">UPI</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Deposit To A/c *</label>
+                        <select id="pay-in-account" required style="background: #f8fafc;"><option value="cash">Cash Drawer</option></select>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Deposit To Account *</label>
-                    <select id="pay-in-account" required><option value="cash">Cash Drawer</option></select>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Ref / UTR No</label><input type="text" id="pay-in-ref" placeholder="Optional" style="background: #f8fafc;"></div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Notes</label><input type="text" id="pay-in-notes" placeholder="Optional" style="background: #f8fafc;"></div>
                 </div>
-                <div class="form-group"><label>Reference / UTR</label><input type="text" id="pay-in-ref"></div>
-                <div class="form-group"><label>Notes</label><input type="text" id="pay-in-notes" placeholder="Optional notes"></div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px; background: var(--md-success);">Save Receipt</button>
+
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; font-size: 16px; background: #146c2e; border-radius: 12px; box-shadow: 0 4px 12px rgba(20, 108, 46, 0.2);">Save Receipt</button>
             </form>
         </div>
     </div>
@@ -1510,53 +1605,65 @@
                 <div id="btn-delete-receipt-out" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-out')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
-                <div class="icon-circle tap-target" onclick="Utils.generateReceiptPDF(app.state.currentReceiptId)" style="width: 36px; height: 36px; background: var(--md-primary-container); color: var(--md-primary);">
+                <div class="icon-circle tap-target" onclick="app.generateReceiptPDF(app.state.currentReceiptId)" style="width: 36px; height: 36px; background: var(--md-primary-container); color: var(--md-primary);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">ios_share</span>
                 </div>
             </div>
         </div>
         <div style="padding: 16px; overflow-y: auto; max-height: 70vh;">
             <form id="form-payment-out">
-                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Voucher No *</label><input type="text" id="pay-out-no" required></div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="pay-out-date" required></div>
+                <div style="background: linear-gradient(135deg, #fff0f2 0%, #ffcdd2 100%); padding: 24px 16px; border-radius: 16px; text-align: center; margin-bottom: 20px; border: 1px solid #ef9a9a; box-shadow: 0 4px 12px rgba(186, 26, 26, 0.1);">
+                    <label style="color: #ba1a1a; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; display: block; margin-bottom: 8px;">Amount Paid (₹)</label>
+                    <input type="number" inputmode="decimal" id="pay-out-amount" min="0" step="any" placeholder="0.00" required style="background: transparent; border: none; outline: none; text-align: center; font-size: 40px; font-weight: 800; color: #ba1a1a; width: 100%; padding: 0;">
                 </div>
-                <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI){ window.UI.state.currentPrefix = 'pay-out'; window.UI.openBottomSheet('sheet-suppliers'); }">
-                    <div>
-                        <small style="color: var(--md-text-muted);">Supplier (Paid To) *</small>
-                        <div id="pay-out-supplier-display" class="large-text" style="color: var(--md-text-muted);">Select Supplier...</div>
-                        <input type="hidden" id="pay-out-supplier" required>
-                    </div>
-                    <span class="material-symbols-outlined">chevron_right</span>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Voucher No *</label><input type="text" id="pay-out-no" required style="font-weight: bold; background: #f8fafc;"></div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="pay-out-date" required style="font-weight: bold; background: #f8fafc;"></div>
                 </div>
                 
-                <div class="form-group" style="background: #fff0f2; padding: 8px; border-radius: 8px; border: 1px solid var(--md-error);">
-                    <label style="color: var(--md-error);">Settle Pending Bill / PO(s)</label>
+                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; padding: 16px;" onclick="if(window.UI){ window.UI.state.currentPrefix = 'pay-out'; window.UI.openBottomSheet('sheet-suppliers'); }">
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div class="icon-circle" style="background: #fff0f2; color: #ba1a1a; width: 40px; height: 40px;"><span class="material-symbols-outlined">storefront</span></div>
+                        <div>
+                            <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase; font-size: 10px;">Supplier (Paid To)</small>
+                            <div id="pay-out-supplier-display" class="large-text" style="color: var(--md-on-surface); font-weight: bold;">Select Supplier...</div>
+                            <input type="hidden" id="pay-out-supplier" required>
+                        </div>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
+                </div>
+                
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label style="color: var(--md-error); font-weight: 600;">Settle Pending Bill / PO(s)</label>
                     <select id="pay-out-invoice-ref" multiple size="4" style="height: auto; min-height: 80px; padding: 4px; font-size: 14px;">
                         <option value="">On Account / Advance</option>
                     </select>
-                    <small style="display:block; margin-top:4px; color:var(--md-text-muted); font-size: 10px;">Hold Ctrl/Cmd or drag to select multiple (Tap multiple on mobile)</small>
+                    <small style="display:block; margin-top:4px; color:var(--md-text-muted); font-size: 10px;">Select bills below to auto-calculate the amount</small>
                 </div>
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label>Amount (&#8377;) *</label><input type="number" inputmode="decimal" id="pay-out-amount" min="0" step="any" required></div>
-                    
-                    <div class="form-group" style="flex: 1;">
-                        <label>Mode *</label>
-                        <input type="text" id="pay-out-mode" value="Cash" required>
-                        <div class="filter-chips" style="margin-top: 6px; padding-bottom: 0;">
-                            <div class="chip" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('pay-out-mode').value='Cash'">Cash</div>
-                            <div class="chip" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('pay-out-mode').value='UPI'">UPI</div>
-                            <div class="chip" style="padding: 4px 10px; font-size: 11px;" onclick="document.getElementById('pay-out-mode').value='Bank'">Bank</div>
-                        </div>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Payment Mode *</label>
+                        <select id="pay-out-mode" required style="background: #f8fafc;">
+                            <option value="Cash">Cash</option>
+                            <option value="UPI">UPI</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cheque">Cheque</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Paid From A/c *</label>
+                        <select id="pay-out-account" required style="background: #f8fafc;"><option value="cash">Cash Drawer</option></select>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Paid From Account *</label>
-                    <select id="pay-out-account" required><option value="cash">Cash Drawer</option></select>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Ref / UTR No</label><input type="text" id="pay-out-ref" placeholder="Optional" style="background: #f8fafc;"></div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Notes</label><input type="text" id="pay-out-notes" placeholder="Optional" style="background: #f8fafc;"></div>
                 </div>
-                <div class="form-group"><label>Reference / UTR</label><input type="text" id="pay-out-ref"></div>
-                <div class="form-group"><label>Notes</label><input type="text" id="pay-out-notes" placeholder="Optional notes"></div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px; background: var(--md-error);">Save Payment</button>
+
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; font-size: 16px; background: #ba1a1a; border-radius: 12px; box-shadow: 0 4px 12px rgba(186, 26, 26, 0.2);">Save Payment</button>
             </form>
         </div>
     </div>
@@ -1811,12 +1918,16 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script src="cloud.js?v=83"></script>
+    <script src="cloud.js?v=81"></script>
 
-    <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+        <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
-    <script type="module" src="app.js?v=83"></script>
+    <script type="module" src="app.js?v=6.1"></script>
+    <script type="module">
+        import Utils from './utils.js?v=6.1';
+        window.Utils = Utils;
+    </script>
     <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
@@ -1837,13 +1948,11 @@
             }
         };
 
-        // UPGRADE 2: Service Worker & Update Listener
+        // UPGRADE 2: Smart Offline Service Worker Registration
         let newWorker;
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // ENTERPRISE FIX: Adding ?v=72 here forces the phone to bypass the locked cache immediately!
-                navigator.serviceWorker.register('sw.js?v=72').then(reg => {
-                    // Listen for updates from Netlify
+                navigator.serviceWorker.register('sw.js?v=6.0').then(reg => {
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {
@@ -2245,22 +2354,211 @@
         }, 1000);
     });
     </script>
-    <div id="custom-confirm-overlay" class="sheet-overlay hidden" style="z-index: 5000; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5);">
-        <div class="m3-card" style="width: 320px; padding: 24px; background: var(--md-surface); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); margin: 20px;">
-            <div style="display: flex; gap: 16px; margin-bottom: 20px;">
-                <div class="icon-circle" id="confirm-icon-bg" style="width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <span class="material-symbols-outlined" id="confirm-icon" style="font-size: 24px;">warning</span>
-                </div>
-                <div style="flex: 1;">
-                    <strong id="confirm-title" style="font-size: 18px; color: var(--md-on-surface); display: block; margin-bottom: 6px; line-height: 1.2;">Are you sure?</strong>
-                    <span id="confirm-msg" style="color: var(--md-text-muted); font-size: 14px; line-height: 1.4; display: block;">This action cannot be undone.</span>
-                </div>
-            </div>
-            <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                <button class="btn-primary-small tap-target" style="background: transparent; color: var(--md-on-surface-variant); border: none; font-weight: 600; padding: 8px 16px;" onclick="if(window.UI && window.UI.resolveConfirm) window.UI.resolveConfirm(false)">Cancel</button>
-                <button id="confirm-yes-btn" class="btn-primary-small tap-target" style="border: none; font-weight: 600; padding: 8px 16px; border-radius: 20px;" onclick="if(window.UI && window.UI.resolveConfirm) window.UI.resolveConfirm(true)">Confirm</button>
-            </div>
-        </div>
-    </div>
+
+    <script>
+    setTimeout(() => {
+        if (window.app && window.app.openMasterSort) {
+            // Hijack the Menu Builder to force the options to appear
+            const originalOpen = window.app.openMasterSort;
+            window.app.openMasterSort = function() {
+                originalOpen.apply(this, arguments);
+                if (window.UI && window.UI.state.currentMasterType === 'products') {
+                    const filter = document.getElementById('filter-master-view');
+                    if (filter && !filter.innerHTML.includes('GST Stock')) {
+                        filter.innerHTML += '<option value="GST Stock">Has GST Stock</option><option value="Non-GST Stock">Has Non-GST Stock</option>';
+                    }
+                }
+            };
+
+            // Hijack the Filtering Engine to force the math to calculate
+            const originalFilter = window.app.applySmartMasterFilter;
+            window.app.applySmartMasterFilter = function() {
+                originalFilter.apply(this, arguments);
+                setTimeout(() => {
+                    const filterVal = document.getElementById('filter-master-view').value;
+                    if (filterVal === 'GST Stock' || filterVal === 'Non-GST Stock') {
+                        const list = document.querySelector('#master-list-container .list-view');
+                        if (!list) return;
+                        
+                        Array.from(list.children).forEach(li => {
+                            if (li.classList.contains('empty-state')) return;
+                            let show = true;
+                            const idMatch = li.innerHTML.match(/(sollo-[a-z0-9-]+)/);
+                            const itemId = idMatch ? idMatch[1] : null;
+                            
+                            if (itemId && window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.items) {
+                                const dbItem = window.UI.state.rawData.items.find(i => i.id === itemId);
+                                if (dbItem) {
+                                    if (filterVal === 'GST Stock' && (parseFloat(dbItem.stockGst) || 0) <= 0) show = false;
+                                    if (filterVal === 'Non-GST Stock' && (parseFloat(dbItem.stockNonGst) || 0) <= 0) show = false;
+                                }
+                            } else {
+                                show = false;
+                            }
+                            li.style.display = show ? 'flex' : 'none';
+                        });
+                    }
+                }, 100);
+            };
+        }
+    }, 1500);
+    </script>
+
+    <script>
+    window.triggerItemLedgerFromForm = async () => {
+        const id = window.app.state.currentEditId;
+        const name = document.getElementById('prod-name').value;
+        
+        if (!id) {
+            return window.Utils.showToast("⚠️ Please save this product first before viewing its ledger!");
+        }
+        
+        // Hijack the UI to show Product Details instead of Party Details
+        document.getElementById('report-party-name').innerText = "Item Ledger: " + name;
+        const timelineContainer = document.getElementById('timeline-list');
+        timelineContainer.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card" style="animation-delay: 0.1s"></div>';
+        
+        // Hide the edit & share buttons since this is a dynamic product view
+        const editBtn = document.getElementById('btn-edit-ledger');
+        const shareBtn = editBtn ? editBtn.nextElementSibling : null;
+        if(editBtn) editBtn.style.display = 'none';
+        if(shareBtn) shareBtn.style.display = 'none';
+        
+        window.UI.openActivity('activity-report-viewer');
+        
+        setTimeout(() => {
+            let timeline = [];
+            
+            // 1. Scan all Purchases (Adds to Stock)
+            const purchases = window.UI.state.rawData.purchases || [];
+            purchases.forEach(p => {
+                if(p.status === 'Open') return;
+                (p.items || []).forEach(i => {
+                    if(i.itemId === id) {
+                        const isReturn = p.documentType === 'return';
+                        const qty = parseFloat(i.qty) || 0;
+                        timeline.push({
+                            date: p.date,
+                            desc: isReturn ? 'Purchase Return (Debit Note)' : 'Purchase Bill',
+                            partyName: p.supplierName,
+                            ref: p.poNo || p.invoiceNo,
+                            impact: isReturn ? -qty : qty,
+                            rate: parseFloat(i.rate) || 0
+                        });
+                    }
+                });
+            });
+            
+            // 2. Scan all Sales (Reduces Stock)
+            const sales = window.UI.state.rawData.sales || [];
+            sales.forEach(s => {
+                if(s.status === 'Open') return;
+                (s.items || []).forEach(i => {
+                    if(i.itemId === id) {
+                        const isReturn = s.documentType === 'return';
+                        const qty = parseFloat(i.qty) || 0;
+                        timeline.push({
+                            date: s.date,
+                            desc: isReturn ? 'Sales Return (Credit Note)' : 'Sales Invoice',
+                            partyName: s.customerName,
+                            ref: s.invoiceNo || s.orderNo,
+                            impact: isReturn ? qty : -qty,
+                            rate: parseFloat(i.rate) || 0
+                        });
+                    }
+                });
+            });
+            
+            // 3. Sort chronologically by Date
+            timeline.sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            // Calculate Movement Math
+            let runningBal = 0;
+            timeline.forEach(t => {
+                runningBal += t.impact;
+                t.runningBalance = runningBal; 
+            });
+            
+            // Update Top Screen Balances
+            const balEl = document.getElementById('report-party-balance');
+            balEl.innerText = `Net Movement: ${runningBal > 0 ? '+' : ''}${runningBal} Units`;
+            balEl.style.color = runningBal >= 0 ? 'var(--md-success)' : 'var(--md-error)';
+            
+            const emptyHTML = '<p class="empty-state">No transaction history found for this item.</p>';
+            
+            // Render the UI List
+            window.UI.renderVirtualList(timelineContainer, timeline, (t) => {
+                const isPositive = t.impact > 0;
+                const icon = isPositive ? 'add_shopping_cart' : 'remove_shopping_cart';
+                const iconColor = isPositive ? '#146c2e' : '#ba1a1a';
+                const iconBg = isPositive ? '#e8f5e9' : '#fff0f2';
+                const sign = isPositive ? '+' : '';
+                
+                return `
+                <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
+                    <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; flex-shrink: 0;">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <strong class="large-text">${t.desc}</strong><br>
+                        <small style="color: var(--md-text-muted);">${t.date} | ${t.partyName || 'Cash'} ${t.ref ? '| Ref: ' + t.ref : ''}</small>
+                    </div>
+                    <div style="text-align:right;">
+                        <strong style="font-size: 15px; color: ${iconColor};">${sign}${t.impact} Units</strong><br>
+                        <small style="color: var(--md-text-muted);">Rate: ₹${t.rate.toFixed(2)}</small>
+                    </div>
+                </div>`;
+            }, emptyHTML);
+            
+            // Ensure the back button restores the standard Ledger Screen settings
+            const closeBtn = document.querySelector('#activity-report-viewer .activity-header .material-symbols-outlined');
+            closeBtn.onclick = () => {
+                if(editBtn) editBtn.style.display = 'flex';
+                if(shareBtn) shareBtn.style.display = 'flex';
+                window.UI.closeActivity('activity-report-viewer');
+            };
+        }, 100); 
+    };
+    </script>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const observer = new MutationObserver((mutations) => {
+            document.querySelectorAll('.list-view li').forEach(li => {
+                const text = li.innerText || '';
+                // Strict check: If the row contains "Due" or a negative sign on a balance
+                if (text.includes('Due') || text.match(/Balance:.*[1-9]/) || text.match(/₹\s*-\d/)) {
+                    // Paint the right-side amount container red
+                    const amtDiv = li.querySelector('div:last-child');
+                    if (amtDiv) {
+                        amtDiv.style.color = '#ba1a1a'; // Strict Enterprise Red
+                    }
+                }
+            });
+        });
+        
+        // Silently watch all major data grids
+        const config = { childList: true, subtree: true };
+        setTimeout(() => {
+            const salesContainer = document.getElementById('sales-history-container');
+            const purchaseContainer = document.getElementById('purchase-history-container');
+            const masterContainer = document.getElementById('master-list-container');
+            
+            if (salesContainer) observer.observe(salesContainer, config);
+            if (purchaseContainer) observer.observe(purchaseContainer, config);
+            if (masterContainer) observer.observe(masterContainer, config);
+        }, 1000);
+    });
+    </script>
+        <script>
+        let isRefreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!isRefreshing) {
+                isRefreshing = true;
+                window.Utils && window.Utils.showToast ? window.Utils.showToast("🔄 Applying new app update...") : alert("Applying new update...");
+                setTimeout(() => window.location.reload(), 1000);
+            }
+        });
+    </script>
 </body>
 </html>
+

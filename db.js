@@ -1,5 +1,5 @@
 // ==========================================
-// SOLLO ERP - DATABASE ENGINE (v5.2 Enterprise)
+// SOLLO ERP - DATABASE ENGINE (v6.1 Enterprise)
 // ==========================================
 const DB_NAME = 'SOLLO_ERP_DB';
 const DB_VERSION = 10; // Upgraded version for Trash/Recycle Bin Engine
@@ -131,10 +131,17 @@ const deleteRecordById = async (storeName, id) => {
 
                 if (receiptsToDelete.length > 0) {
                     await new Promise((resolveBatch, rejectBatch) => {
-                        const t = db.transaction('receipts', 'readwrite');
-                        const store = t.objectStore('receipts');
+                        // STRICT ERP LOGIC: Open BOTH stores so receipts can be safely sent to the Trash!
+                        const t = db.transaction(['receipts', 'trash'], 'readwrite');
+                        const recStore = t.objectStore('receipts');
+                        const trashStore = t.objectStore('trash');
                         
-                        receiptsToDelete.forEach(r => store.delete(r.id));
+                        receiptsToDelete.forEach(r => {
+                            r._module = 'receipts';
+                            r._deletedAt = new Date().toISOString();
+                            trashStore.put(r); // Save to recycle bin first
+                            recStore.delete(r.id); // Then remove from active ledger
+                        });
                         
                         t.oncomplete = () => resolveBatch();
                         t.onerror = () => rejectBatch(t.error);
@@ -170,9 +177,9 @@ const getAllFirms = () => getAllRecords('firms');
 // STRICT INVENTORY & INVOICE ENGINE
 // ==========================================
 const reverseStockImpact = async (storeName, record) => {
-    if (record.status === 'Open') return; 
+    if (record.status === 'Open') return; // Drafts do not reverse Stock
     const isReturn = record.documentType === 'return';
-    const isGSTInvoice = record.invoiceType !== 'Non-GST'; 
+    const isNonGST = record.invoiceType === 'Non-GST'; // NEW: Dual Engine Routing Flag
     const items = await getAllRecords('items');
     
     for (const row of (record.items || [])) {
@@ -180,34 +187,39 @@ const reverseStockImpact = async (storeName, record) => {
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
             
-            // BULLETPROOF MIGRATION MATH
-            let currentTotal = parseFloat(dbItem.stock) || 0;
-            let unacc = parseFloat(dbItem.unaccountStock) || parseFloat(dbItem.unAccountStock) || 0;
-            let gst = parseFloat(dbItem.gstStock);
-            if (isNaN(gst)) gst = currentTotal - unacc;
+            // NEW: Initialize Dual Stock Pools (Backwards compatible with old items)
+            let stockGst = dbItem.stockGst !== undefined ? parseFloat(dbItem.stockGst) : (parseFloat(dbItem.stock) || 0);
+            let stockNonGst = parseFloat(dbItem.stockNonGst) || 0;
             
-            dbItem.gstStock = gst;
-            dbItem.unaccountStock = unacc;
-            
-            let bucket = isGSTInvoice ? 'gstStock' : 'unaccountStock';
-            let currentBucketStock = parseFloat(dbItem[bucket]) || 0;
-            
+            // Determine math impact based on transaction type
+            let impact = 0;
             if (storeName === 'sales') {
-                dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? -qty : qty)) * 100) / 100;
+                impact = isReturn ? -qty : qty;
             } else if (storeName === 'purchases') {
-                dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? qty : -qty)) * 100) / 100;
+                impact = isReturn ? qty : -qty;
             }
             
-            dbItem.stock = Math.round((dbItem.gstStock + dbItem.unaccountStock) * 100) / 100;
+            // Route to correct stock pool based on Invoice Type
+            if (isNonGST) {
+                stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
+                dbItem.stockNonGst = stockNonGst;
+            } else {
+                stockGst = Math.round((stockGst + impact) * 100) / 100;
+                dbItem.stockGst = stockGst;
+            }
+            
+            // UNIVERSAL SAFETY: Maintain total combined stock so UI tables don't break
+            dbItem.stock = Math.round((stockGst + stockNonGst) * 100) / 100;
+            
             await saveRecord('items', dbItem);
         }
     }
 };
 
 const applyStockImpact = async (storeName, record) => {
-    if (record.status === 'Open') return; 
+    if (record.status === 'Open') return; // Drafts do not apply Stock
     const isReturn = record.documentType === 'return';
-    const isGSTInvoice = record.invoiceType !== 'Non-GST'; 
+    const isNonGST = record.invoiceType === 'Non-GST'; // NEW: Dual Engine Routing Flag
     const items = await getAllRecords('items');
     
     for (const row of (record.items || [])) {
@@ -215,26 +227,22 @@ const applyStockImpact = async (storeName, record) => {
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
             
-            // BULLETPROOF MIGRATION MATH
-            let currentTotal = parseFloat(dbItem.stock) || 0;
-            let unacc = parseFloat(dbItem.unaccountStock) || parseFloat(dbItem.unAccountStock) || 0;
-            let gst = parseFloat(dbItem.gstStock);
-            if (isNaN(gst)) gst = currentTotal - unacc;
+            // NEW: Initialize Dual Stock Pools (Backwards compatible with old items)
+            let stockGst = dbItem.stockGst !== undefined ? parseFloat(dbItem.stockGst) : (parseFloat(dbItem.stock) || 0);
+            let stockNonGst = parseFloat(dbItem.stockNonGst) || 0;
             
-            dbItem.gstStock = gst;
-            dbItem.unaccountStock = unacc;
-            
-            let bucket = isGSTInvoice ? 'gstStock' : 'unaccountStock';
-            let currentBucketStock = parseFloat(dbItem[bucket]) || 0;
-            
+            // Determine math impact based on transaction type
+            let impact = 0;
             if (storeName === 'sales') {
-                dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? qty : -qty)) * 100) / 100; 
+                impact = isReturn ? qty : -qty;
             } else if (storeName === 'purchases') {
-                dbItem[bucket] = Math.round((currentBucketStock + (isReturn ? -qty : qty)) * 100) / 100; 
+                impact = isReturn ? -qty : qty;
                 
+                // Automatically update buy price to the latest rate
                 if (!isReturn && row.rate > 0) {
                     let discountRatio = 0;
                     const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
+                    
                     if (record.discount > 0 && trueSubtotal > 0) {
                         discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
                     }
@@ -242,7 +250,18 @@ const applyStockImpact = async (storeName, record) => {
                 }
             }
             
-            dbItem.stock = Math.round((dbItem.gstStock + dbItem.unaccountStock) * 100) / 100;
+            // Route to correct stock pool based on Invoice Type
+            if (isNonGST) {
+                stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
+                dbItem.stockNonGst = stockNonGst;
+            } else {
+                stockGst = Math.round((stockGst + impact) * 100) / 100;
+                dbItem.stockGst = stockGst;
+            }
+            
+            // UNIVERSAL SAFETY: Maintain total combined stock so UI tables don't break
+            dbItem.stock = Math.round((stockGst + stockNonGst) * 100) / 100;
+            
             await saveRecord('items', dbItem);
         }
     }
@@ -331,8 +350,13 @@ const getNextDocumentNumber = async (storeName, docType, targetField = null) => 
         'VOU': 'VOU {NUM}/{FY}'      
     };
     
-    // Read the user's custom settings from the device memory
-    const savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}');
+    // STRICT ERP LOGIC: Prevent fatal app crash if LocalStorage JSON gets corrupted!
+    let savedFormats = {};
+    try {
+        savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}');
+    } catch (err) {
+        console.warn("Recovered from corrupted document formats.");
+    }
     const formatSettings = { ...defaultFormats, ...savedFormats };
 
     const template = formatSettings[docType] || `${docType} {NUM}/{FY}`;
@@ -429,9 +453,12 @@ const getKhataStatement = async (partyId, partyType) => {
             const docLabel = isReturn ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
             const docNo = s.invoiceNo || s.orderNo || String(s.id).slice(-4).toUpperCase();
             
+            // STRICT ERP LOGIC: Enforce absolute value to prevent negative embezzlement hacks!
+            const safeAmount = Math.abs(parseFloat(s.grandTotal) || 0);
+            
             timeline.push({
                 id: s.id, date: s.date, desc: `${docLabel} (${docNo})`, 
-                amount: s.grandTotal, isInvoice: !isReturn, impact: isReturn ? -s.grandTotal : s.grandTotal
+                amount: safeAmount, isInvoice: !isReturn, impact: isReturn ? -safeAmount : safeAmount
             });
         }
     });
@@ -446,9 +473,11 @@ const getKhataStatement = async (partyId, partyType) => {
             const docLabel = isReturn ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
             const docNo = p.poNo || p.invoiceNo || p.orderNo || String(p.id).slice(-4).toUpperCase();
             
+            const safeAmount = Math.abs(parseFloat(p.grandTotal) || 0);
+            
             timeline.push({
                 id: p.id, date: p.date, desc: `${docLabel} (${docNo})`, 
-                amount: p.grandTotal, isInvoice: !isReturn, impact: isReturn ? -p.grandTotal : p.grandTotal
+                amount: safeAmount, isInvoice: !isReturn, impact: isReturn ? -safeAmount : safeAmount
             });
         }
     });
@@ -459,12 +488,13 @@ const getKhataStatement = async (partyId, partyType) => {
     rawReceipts.forEach(r => {
         if (r.firmId === firmId && r.ledgerId === partyId) {
             const isMoneyIn = r.type === 'in';
-            let impact = isCustomer ? (isMoneyIn ? -r.amount : r.amount) : (isMoneyIn ? r.amount : -r.amount);
+            const safeAmount = Math.abs(parseFloat(r.amount) || 0);
+            let impact = isCustomer ? (isMoneyIn ? -safeAmount : safeAmount) : (isMoneyIn ? safeAmount : -safeAmount);
             
             timeline.push({
                 id: r.id, date: r.date, 
                 desc: (r.receiptNo ? r.receiptNo + ' - ' : '') + (r.desc || (isMoneyIn ? 'Payment Received' : 'Payment Made')),
-                amount: r.amount, isInvoice: false, impact: impact 
+                amount: safeAmount, isInvoice: false, impact: impact 
             });
         }
     });
@@ -474,7 +504,12 @@ const getKhataStatement = async (partyId, partyType) => {
     timeline.sort((a, b) => {
         if (a.id === 'open-bal') return -1;
         if (b.id === 'open-bal') return 1;
-        return new Date(a.date) - new Date(b.date);
+        
+        // STRICT ERP LOGIC: Sort by Date AND ID to prevent same-day running balance scrambling!
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return (a.id > b.id) ? 1 : -1;
     });
 
     // Compute Running Balance
@@ -516,7 +551,8 @@ const getGlobalTimeline = async (firmId) => {
     // 3. Process Receipts & Wipe RAM
     const rawReceipts = await getAllRecords('receipts');
     rawReceipts.forEach(r => {
-        if (r.firmId === firmId) {
+        // STRICT ERP LOGIC: Prevent Quadruple Entry by filtering out auto-generated receipts!
+        if (r.firmId === firmId && !r.isAutoGenerated) {
             timeline.push({ id: r.id, date: r.date, type: r.type, amount: r.amount, mode: r.mode, desc: `Party: ${r.ledgerName}` });
         }
     });
@@ -526,7 +562,9 @@ const getGlobalTimeline = async (firmId) => {
     const rawExpenses = await getAllRecords('expenses');
     rawExpenses.forEach(e => {
         if (e.firmId === firmId) {
-            timeline.push({ id: e.id, date: e.date, type: 'out', amount: parseFloat(e.amount), mode: 'Cash', desc: `Expense: ${e.category}` });
+            // STRICT ERP LOGIC: Audit accurate payment modes instead of forcing 'Cash'
+            const mode = e.accountId === 'cash' || !e.accountId ? 'Cash' : 'Bank';
+            timeline.push({ id: e.id, date: e.date, type: 'out', amount: parseFloat(e.amount), mode: mode, desc: `Expense: ${e.category}` });
         }
     });
     rawExpenses.length = 0;
@@ -594,22 +632,32 @@ const importDatabase = async (parsedData) => {
         const transaction = db.transaction(validStores, 'readwrite');
         validStores.forEach(storeName => {
             const store = transaction.objectStore(storeName);
-            store.clear(); 
-            parsedData[storeName].forEach(record => {
-                
-                // --- ENTERPRISE FIX: INVISIBLE NAME TAG OVERRIDE ---
-                if (storeName === 'firms') {
-                    record.id = activeFirmId; // Force the firm profile to match the phone
-                } else if (storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
-                    // Global settings, leave them as is
-                } else {
-                    // Force all Invoices, Products, Customers, and Cashbook data to belong to this phone!
-                    record.firmId = activeFirmId;
-                }
-                // ---------------------------------------------------
-                
-                store.put(record);
-            });
+            
+            // STRICT ERP LOGIC: Prevent Multi-Company Doomsday Wipe!
+            // Only clear the records belonging to the ACTIVE firm, protecting other companies' data!
+            if (storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
+                store.clear(); 
+                parsedData[storeName].forEach(record => {
+                    store.put(record);
+                });
+            } else {
+                const request = store.index('firmId').openKeyCursor(IDBKeyRange.only(activeFirmId));
+                request.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        store.delete(cursor.primaryKey);
+                        cursor.continue();
+                    } else {
+                        // STRICT ERP LOGIC: Insert new records ONLY AFTER old ones are fully deleted!
+                        // This prevents the asynchronous race condition from destroying the imported data.
+                        parsedData[storeName].forEach(record => {
+                            if (storeName === 'firms') record.id = activeFirmId;
+                            else record.firmId = activeFirmId;
+                            store.put(record);
+                        });
+                    }
+                };
+            }
         });
         
         transaction.oncomplete = () => {
@@ -654,9 +702,9 @@ async function generateGSTReport(yearMonth, firmId) {
         let isReturn = s.documentType === 'return';
         let mult = isReturn ? -1 : 1; // Subtract returns from total sales
         
-        // FIX: Reverted Double-Discount Bug! ui.js already applies the discount before saving s.subtotal.
-        let taxable = parseFloat(s.subtotal) * mult;
-        let tax = parseFloat(s.totalGst) * mult;
+        // STRICT ERP LOGIC: Prevent NaN Wipeout if legacy invoices are missing the subtotal field!
+        let taxable = (parseFloat(s.subtotal) || 0) * mult;
+        let tax = (parseFloat(s.totalGst) || 0) * mult;
 
         gstr1.totalTaxable += taxable;
         gstr1.totalTax += tax;
@@ -680,9 +728,9 @@ async function generateGSTReport(yearMonth, firmId) {
         let isReturn = p.documentType === 'return';
         let mult = isReturn ? -1 : 1;
         
-        // FIX: Reverted Double-Discount Bug!
-        gstr2.totalTaxable += parseFloat(p.subtotal) * mult;
-        gstr2.totalTax += parseFloat(p.totalGst) * mult;
+        // STRICT ERP LOGIC: Prevent NaN Wipeout on missing fields
+        gstr2.totalTaxable += (parseFloat(p.subtotal) || 0) * mult;
+        gstr2.totalTax += (parseFloat(p.totalGst) || 0) * mult;
     });
 
     // Calculate GSTR-3B (Net Summary)
