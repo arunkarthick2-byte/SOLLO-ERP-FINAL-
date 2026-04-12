@@ -2662,3 +2662,84 @@ select {
     border: 1px solid rgba(0, 0, 0, 0.15) !important;
     background-color: #f8fafc !important;
 }
+/* ========================================== */
+/* ENTERPRISE UPGRADE: PREMIUM UI/UX POLISH   */
+/* ========================================== */
+
+/* UPGRADE 1: NATIVE APP SCROLLBARS */
+/* Hides clunky desktop scrollbars and replaces them with sleek mobile-style indicators */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+/* UPGRADE 2: GLOBAL TABULAR NUMBERS */
+/* Mathematically aligns all decimal points and commas across the entire application */
+table, td, th, input[type="number"], .m3-card strong, .m3-card span, .bottom-sheet strong, .activity-header strong {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* UPGRADE 4: APPLE-STYLE FROSTED GLASS BLUR */
+/* Adds a premium background blur to all Bottom Sheets and Popup Menus */
+.sheet-overlay, .dialog-overlay, #khata-overlay {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    background-color: rgba(0, 0, 0, 0.35) !important; /* Lighter shade because the blur creates the contrast */
+    transition: backdrop-filter 0.3s ease, background-color 0.3s ease;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: PROFESSIONAL DATA GRID */
+/* ========================================== */
+
+/* 1. STICKY TABLE HEADERS */
+.a4-document table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    /* Solid background so scrolling rows slide cleanly underneath */
+    background-color: #f8fafc !important; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* 2. ZEBRA-STRIPED DATA ROWS */
+.a4-document table tbody tr:nth-child(even) {
+    background-color: #f8fafc; /* Subtle grey for alternate rows */
+}
+.a4-document table tbody tr:hover {
+    background-color: #f1f5f9; /* Subtle hover effect for tracking data */
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: GLOBAL COMPACT MODE    */
+/* ========================================== */
+
+/* Tightens the gap between all saved entries, cards, and list items app-wide */
+.list-view li, 
+.m3-card, 
+.history-card, 
+.transaction-card,
+.activity-list > div {
+    margin-bottom: 8px !important; /* Reduced from the standard 12px/16px gap */
+}
+
+/* Tightens the gap inside the Cashbook and History grids */
+#cashbook-list, 
+#sales-history-container, 
+#purchase-history-container, 
+#master-list-container {
+    gap: 8px !important; /* Pulls the grid items closer together */
+}

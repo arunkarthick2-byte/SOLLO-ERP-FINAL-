@@ -54,8 +54,12 @@ self.addEventListener('activate', (event) => {
 // ENTERPRISE UPGRADE: 3-Second Timeout Engine for "Lie-Fi" connections
 const fetchWithTimeout = (request, timeout = 3000) => {
     return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Network Timeout')), timeout);
-        fetch(request).then(response => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => {
+            controller.abort(); // STRICT ERP LOGIC: Physically sever the hanging network connection!
+            reject(new Error('Network Timeout'));
+        }, timeout);
+        fetch(request, { signal: controller.signal }).then(response => {
             clearTimeout(timer);
             resolve(response);
         }).catch(err => {

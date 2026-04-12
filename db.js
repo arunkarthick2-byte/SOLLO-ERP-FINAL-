@@ -117,7 +117,7 @@ const deleteRecordById = async (storeName, id) => {
         // 1. Fetch the record first to identify linked impacts
         const oldRecord = await getRecordById(storeName, id);
         
-        if (oldRecord && (storeName === 'sales' || storeName === 'purchases')) {
+        if (oldRecord && (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments')) {
             // 2. CRITICAL: Await the stock reversal COMPLETELY before proceeding
             await reverseStockImpact(storeName, oldRecord);
             
@@ -197,6 +197,8 @@ const reverseStockImpact = async (storeName, record) => {
                 impact = isReturn ? -qty : qty;
             } else if (storeName === 'purchases') {
                 impact = isReturn ? qty : -qty;
+            } else if (storeName === 'adjustments') {
+                impact = record.type === 'add' ? -qty : qty; // Reversing an 'add' removes the stock!
             }
             
             // Route to correct stock pool based on Invoice Type

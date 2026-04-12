@@ -363,9 +363,8 @@ const Utils = {
         const element = document.getElementById(elementId);
         if (!element) return;
 
-        // Load BOTH the preview engine and the true PDF engine
         if (typeof html2canvas === 'undefined' || typeof html2pdf === 'undefined') {
-            alert("Installing True PDF Engine... Please wait 3 seconds and tap Print again.");
+            window.Utils.showToast("Installing True PDF Engine... Please wait 3 seconds and tap Print again.");
             if (typeof html2canvas === 'undefined') {
                 const s1 = document.createElement('script');
                 s1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
@@ -380,13 +379,21 @@ const Utils = {
         }
         
         try {
-            // Keep html2canvas for the visual on-screen preview
+            // STRICT ERP LOGIC: Physically lock the DOM to A4 Desktop dimensions BEFORE taking the snapshot!
+            const origWidth = element.style.width;
+            const origMinWidth = element.style.minWidth;
+            const origMaxWidth = element.style.maxWidth;
+            
+            element.style.width = '800px';
+            element.style.minWidth = '800px';
+            element.style.maxWidth = '800px';
+
             const canvas = await html2canvas(element, { 
-                // CRITICAL FIX: Lowered scale from 4 to 2 (Retina Display quality, massive CPU boost)
                 scale: 2, 
                 useCORS: true,
-                logging: false, // Prevents background console lag
+                logging: false,
                 backgroundColor: '#ffffff',
+                windowWidth: 800, // Force engine to render as a desktop screen
                 onclone: (clonedDoc) => {
                     const printArea = clonedDoc.getElementById('print-area');
                     if (printArea) {
@@ -394,11 +401,17 @@ const Utils = {
                         printArea.style.display = 'block';
                         printArea.style.position = 'relative';
                         printArea.style.visibility = 'visible';
+                        printArea.style.width = '800px';
                     }
                 }
             });
             
             const imgSrc = canvas.toDataURL('image/png');
+            
+            // Instantly restore mobile layout behind the scenes
+            element.style.width = origWidth;
+            element.style.minWidth = origMinWidth;
+            element.style.maxWidth = origMaxWidth;
 
             const viewer = document.createElement('div');
             viewer.id = 'in-app-pdf-viewer';
@@ -430,37 +443,31 @@ const Utils = {
             `;
             document.body.appendChild(viewer);
 
-            // Print Button
             document.getElementById('btn-print-preview').onclick = () => {
                 document.getElementById('in-app-pdf-viewer').style.display = 'none';
                 window.print();
                 setTimeout(() => { document.getElementById('in-app-pdf-viewer').style.display = 'flex'; }, 500);
             };
             
-            // NEW: TRUE PDF SHARE ENGINE
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
-                    if (window.Utils) window.Utils.showToast("Generating PDF File...");
+                    if (window.Utils) window.Utils.showToast("Generating Print-Ready PDF...");
                     
-                    // We generate the PDF directly from the invisible #print-area
-                    const printArea = document.getElementById('print-area');
-                    if (!printArea) return alert("Document data lost. Please close and tap print again.");
+                    // Re-lock to 800px A4 Width for the True PDF Engine
+                    element.style.width = '800px';
+                    element.style.minWidth = '800px';
+                    element.style.maxWidth = '800px';
 
                     const opt = {
-                        /* ENTERPRISE FIX: Added physical 0.4-inch margins so text never touches the paper edge! */
                         margin:       [0.4, 0.4, 0.4, 0.4], 
                         filename:     filename,
-                        /* UPGRADE: Max image quality for crisp logos */
                         image:        { type: 'jpeg', quality: 1.0 }, 
-                        /* ENTERPRISE FIX: Forces the PDF to jump to Page 2 instead of slicing rows in half! */
                         pagebreak:    { mode: ['css', 'legacy'] }, 
                         html2canvas:  { 
-                            /* UPGRADE: Increased scale to 3 for Retina-quality crispness */
                             scale: 3, 
                             useCORS: true,
-                            letterRendering: true, /* Smoothes out small fonts */
+                            letterRendering: true,
                             logging: false, 
-                            // STRICT ERP LOGIC: Trick the engine into thinking it's a desktop monitor (800px) so A4 proportions are perfect!
                             windowWidth: 800,
                             width: 800,
                             onclone: (clonedDoc) => {
@@ -469,7 +476,6 @@ const Utils = {
                                     pa.style.display = 'block';
                                     pa.style.position = 'relative';
                                     pa.style.visibility = 'visible';
-                                    // Force physical A4 width on the cloned element
                                     pa.style.width = '800px'; 
                                     pa.style.maxWidth = '800px';
                                 }
@@ -478,9 +484,13 @@ const Utils = {
                         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
                     };
 
-                    // CRITICAL FIX: Use 'element' instead of 'printArea', and use outputPdf('blob')
-                    const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+                    const pdfBlob = await window.html2pdf().set(opt).from(element).outputPdf('blob');
                     const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+                    // Instantly Restore layout
+                    element.style.width = origWidth;
+                    element.style.minWidth = origMinWidth;
+                    element.style.maxWidth = origMaxWidth;
 
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
@@ -488,15 +498,12 @@ const Utils = {
                             files: [file]
                         });
                     } else {
-                        // Fallback: Force Download if sharing is blocked
                         const url = URL.createObjectURL(pdfBlob);
                         const link = document.createElement("a");
                         link.href = url;
                         link.download = filename;
-                        document.body.appendChild(link); // WebKit safety
+                        document.body.appendChild(link);
                         link.click();
-                        
-                        // STRICT ERP LOGIC: Give Android 1 second to intercept the PDF before destroying memory!
                         setTimeout(() => {
                             URL.revokeObjectURL(url);
                             document.body.removeChild(link);
@@ -511,8 +518,6 @@ const Utils = {
         } catch (err) {
             console.error("Preview Generation Failed", err);
             alert("Failed to generate preview.");
-        } finally {
-            // Do NOT clear the print-area here anymore, because html2pdf needs it when the user clicks share!
         }
     },
 
@@ -1150,6 +1155,72 @@ const Utils = {
             if (window.Utils) window.Utils.showToast("✅ Auto-Fill Applied! Please verify data before saving.");
         } catch (e) {
             console.log("Auto-fill safely skipped.", e);
+        }
+    }, // <-- CRITICAL COMMA ADDED HERE
+
+    // ==========================================
+    // STRICT ERP LOGIC: NATIVE WEB SHARE API ENGINE
+    // ==========================================
+    sharePDF: async (elementId, filename, shareText = "Here is your document.") => {
+        try {
+            if (typeof html2pdf === 'undefined' || typeof html2canvas === 'undefined') {
+                window.Utils.showToast("⏳ Installing Share Engine... Please tap Share again in 3 seconds.");
+                if (typeof html2canvas === 'undefined') {
+                    const s1 = document.createElement('script');
+                    s1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                    document.head.appendChild(s1);
+                }
+                const s2 = document.createElement('script');
+                s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+                document.head.appendChild(s2);
+                return;
+            }
+
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            
+            window.Utils.showToast("⏳ Preparing PDF for Print...");
+
+            // STRICT ERP LOGIC: Force Absolute A4 Desktop Dimensions!
+            const originalWidth = el.style.width;
+            const originalMinWidth = el.style.minWidth;
+            const originalMaxWidth = el.style.maxWidth;
+            
+            el.style.width = '800px';
+            el.style.minWidth = '800px';
+            el.style.maxWidth = '800px';
+
+            const opt = {
+                margin: [0.4, 0.4, 0.4, 0.4],
+                filename: filename,
+                image: { type: 'jpeg', quality: 1.0 },
+                pagebreak: { mode: ['css', 'legacy'] },
+                html2canvas: { scale: 3, useCORS: true, letterRendering: true, logging: false, windowWidth: 800 },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+
+            const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
+            
+            // Instantly restore mobile layout
+            el.style.width = originalWidth;
+            el.style.minWidth = originalMinWidth;
+            el.style.maxWidth = originalMaxWidth;
+
+            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: filename.replace('.pdf', ''),
+                    text: shareText,
+                    files: [file]
+                });
+            } else {
+                window.Utils.showToast("⚠️ Direct share not supported. Downloading instead...");
+                window.html2pdf().set(opt).from(el).save();
+            }
+        } catch (err) {
+            console.error("Share API Error:", err);
+            window.Utils.showToast("❌ Share cancelled or failed.");
         }
     }
 }; // <--- THIS CLOSES THE UTILS OBJECT

@@ -100,11 +100,12 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // --- NEW CODE: Import all our modules ---
+// STRICT ERP LOGIC: Synchronized to v6.1 to prevent catastrophic double-booting of the database!
 import { 
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=6.0';
+} from './db.js?v=6.1';
 import Utils from './utils.js?v=6.1';
 import UI from './ui.js?v=6.1';
 // --- END OF NEW CODE ---
@@ -160,11 +161,7 @@ const app = {
                                 
                                 // ENTERPRISE FIX: Force the new Service Worker to take over immediately!
                                 newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                
-                                // Safely reload ONLY when the new worker has actually taken control
-                                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                                    window.location.reload();
-                                });
+                                // (Reload logic safely deferred to index.html to prevent double-boot glitches)
                             }
                         });
                     });
@@ -942,10 +939,22 @@ const app = {
         
         // NEW: Bind the edit button to the currently open party
         const editBtn = document.getElementById('btn-edit-ledger');
-        if(editBtn) editBtn.onclick = () => { 
-            UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
-            setTimeout(() => app.openForm('ledger', partyId), 150); // Open the form smoothly
-        };
+        if(editBtn) {
+            editBtn.style.display = 'flex';
+            editBtn.onclick = () => { 
+                UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
+                setTimeout(() => app.openForm('ledger', partyId), 150); // Open the form smoothly
+            };
+        }
+        
+        // STRICT ERP LOGIC: Bind the PDF/Share button to generate the A4 Khata Statement!
+        const shareBtn = document.getElementById('btn-share-ledger');
+        if(shareBtn) {
+            shareBtn.style.display = 'flex';
+            shareBtn.onclick = () => {
+                window.executeKhataReport(partyId, partyName, partyType);
+            };
+        }
         
         UI.openActivity('activity-report-viewer');
 
@@ -1059,14 +1068,22 @@ const app = {
         // Bind the Edit Button in the top right corner
         const editBtn = document.getElementById('btn-edit-ledger');
         if(editBtn) {
+            editBtn.style.display = 'flex';
             if(accountId === 'cash') {
-                editBtn.onclick = () => alert('The Default Cash Drawer is a system account and cannot be modified directly.');
+                editBtn.onclick = () => window.Utils.showToast('The Default Cash Drawer is a system account and cannot be modified directly.');
             } else {
                 editBtn.onclick = () => { 
                     UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
                     setTimeout(() => app.openForm('account', accountId), 150); // Open the form smoothly
                 };
             }
+        }
+        
+        // STRICT ERP LOGIC: Wire the PDF Share button to generate the Bank/Cash Statement!
+        const shareBtn = document.getElementById('btn-share-ledger');
+        if (shareBtn) {
+            shareBtn.style.display = 'flex';
+            shareBtn.onclick = () => window.executeAccountReport(accountId);
         }
         
         UI.openActivity('activity-report-viewer');
@@ -2517,11 +2534,18 @@ const app = {
         
         // 1. Calculate total money received/paid for this party (including Advances)
         let totalPaid = 0;
+        let explicitlyLinkedMoney = 0; // NEW: Track money safely locked to specific invoices
+
         allReceipts.forEach(r => {
             if (r.firmId === app.state.firmId && r.ledgerId === partyId) {
                 const amt = parseFloat(r.amount) || 0;
-                if (isSales) totalPaid += (r.type === 'in' ? amt : -amt);
-                else totalPaid += (r.type === 'out' ? amt : -amt);
+                const impact = isSales ? (r.type === 'in' ? amt : -amt) : (r.type === 'out' ? amt : -amt);
+                totalPaid += impact;
+                
+                // Lock manually tied receipt money away from the global pool!
+                if (r.invoiceRef && impact > 0) {
+                    explicitlyLinkedMoney += impact;
+                }
             }
         });
         
@@ -2529,8 +2553,8 @@ const app = {
         const partyDocs = allDocs.filter(d => d.firmId === app.state.firmId && d[partyKey] === partyId && d.documentType !== 'return' && d.status !== 'Open');
         partyDocs.sort((a, b) => new Date(a.date) - new Date(b.date));
         
-        // 3. Smart Allocation - Prioritize explicit payments first, then use FIFO for advances
-        let remainingMoney = totalPaid;
+        // 3. Smart Allocation - Only use true unlinked advance money for FIFO waterfall!
+        let remainingAdvanceMoney = Math.max(0, totalPaid - explicitlyLinkedMoney);
         
         for (const doc of partyDocs) {
             const docTotal = parseFloat(doc.grandTotal) || 0;
@@ -2548,19 +2572,25 @@ const app = {
             });
             
             // Mark completed if explicit payments cover it, OR if leftover FIFO advance covers it
-            if (explicitPaid >= docTotal - 0.5 || remainingMoney >= docTotal - 0.5) { 
-                remainingMoney -= docTotal; // Consume from global pool
-                
-                // STRICT ERP LOGIC: Status cannot be 'Open' because they are filtered out. We must check for 'Shipped' or other non-completed states!
+            if (explicitPaid >= docTotal - 0.5) {
+                // Fully covered by its own direct receipt!
                 if (doc.status !== 'Completed') {
                     doc.status = 'Completed';
-                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) {
-                        doc.completedDate = doc.completedDate || Utils.getLocalDate();
-                    }
-                    await saveRecord(storeName, doc); // Auto-save!
+                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) doc.completedDate = doc.completedDate || Utils.getLocalDate();
+                    await saveRecord(storeName, doc);
+                }
+            } else if ((explicitPaid + remainingAdvanceMoney) >= docTotal - 0.5) { 
+                // Covered by a mix of direct receipt + leftover advance pool
+                remainingAdvanceMoney -= (docTotal - explicitPaid); 
+                
+                if (doc.status !== 'Completed') {
+                    doc.status = 'Completed';
+                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) doc.completedDate = doc.completedDate || Utils.getLocalDate();
+                    await saveRecord(storeName, doc);
                 }
             } else {
-                remainingMoney -= Math.min(remainingMoney, docTotal);
+                // Not enough money to complete this invoice
+                remainingAdvanceMoney -= Math.min(remainingAdvanceMoney, Math.max(0, docTotal - explicitPaid));
             }
         }
     },
@@ -2636,31 +2666,8 @@ const app = {
             }
         }
 
-        // STRICT ERP LOGIC 2: Restore Dual-Pool Inventory when Invoice is Deleted
-        if ((type === 'sales' || type === 'purchase') && record.status !== 'Open') {
-            const allItems = await getAllRecords('items');
-            for (const item of (record.items || [])) {
-                const dbItem = allItems.find(i => i.id === item.itemId);
-                if (dbItem) {
-                    const isNonGST = record.invoiceType === 'Non-GST';
-                    const qty = parseFloat(item.qty) || 0;
-                    const isReturn = record.documentType === 'return';
-                    
-                    let impact = 0;
-                    if (type === 'sales') impact = isReturn ? -qty : qty;
-                    if (type === 'purchase') impact = isReturn ? qty : -qty;
-
-                    if (isNonGST) {
-                        dbItem.stockNonGst = (parseFloat(dbItem.stockNonGst) || 0) + impact;
-                    } else {
-                        let currentGstStock = dbItem.stockGst !== undefined ? parseFloat(dbItem.stockGst) : (parseFloat(dbItem.stock) || 0);
-                        dbItem.stockGst = currentGstStock + impact;
-                    }
-                    dbItem.stock = Math.round(((parseFloat(dbItem.stockGst) || 0) + (parseFloat(dbItem.stockNonGst) || 0)) * 100) / 100;
-                    await saveRecord('items', dbItem);
-                }
-            }
-        }
+        // STRICT ERP LOGIC 2: Stock reversal is now safely handled by the central db.js engine!
+        // (Redundant manual loop deleted to prevent double-reversal inventory corruption)
 
         // Prevent Bank Account Deletion if transactions are tied to it
         if (type === 'account') {
@@ -3294,23 +3301,29 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 
     const statement = statementData.timeline;
 
-    // Build Professional A4 Print Template
+    // Build Professional A4 Print Template (Now perfectly mobile responsive!)
     let html = `
-    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #000;">
-        <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px;">
-            <h2 style="margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 1px;">Ledger Statement</h2>
-            <h3 style="margin: 5px 0 0 0; color: #444; font-size: 18px;">${partyName}</h3>
-            <p style="margin: 5px 0 0 0; font-size: 12px; color: #666;">Generated on: ${new Date().toLocaleDateString('en-IN')}</p>
+    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+            <div>
+                <h2 style="margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: 0.5px;">LEDGER STATEMENT</h2>
+                <h3 style="margin: 6px 0 0 0; color: #0061a4; font-size: 16px; font-weight: 700;">${partyName}</h3>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 0; font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Generated On</p>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: #0f172a; font-weight: 700;">${new Date().toLocaleDateString('en-IN')}</p>
+            </div>
         </div>
         
-        <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; table-layout: auto;">
             <thead>
-                <tr style="background-color: #f4f6fa; border-bottom: 2px solid #000;">
-                    <th style="padding: 10px 8px; text-align: left; border: 1px solid #ddd;">Date</th>
-                    <th style="padding: 10px 8px; text-align: left; border: 1px solid #ddd;">Particulars / Ref</th>
-                    <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd; width: 15%;">Debit (₹)</th>
-                    <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd; width: 15%;">Credit (₹)</th>
-                    <th style="padding: 10px 8px; text-align: right; border: 1px solid #ddd; width: 15%;">Balance</th>
+                <tr style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1; color: #475569;">
+                    <th style="padding: 8px 4px; text-align: left; white-space: nowrap; font-weight: 600;">Date</th>
+                    <th style="padding: 8px 4px; text-align: left; width: 100%; font-weight: 600;">Particulars</th>
+                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Debit</th>
+                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Credit</th>
+                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Balance</th>
                 </tr>
             </thead>
             <tbody>
@@ -3320,7 +3333,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
     statement.forEach(row => {
         runBal += row.impact;
         
-        // PERFECT ACCOUNTING MATH: Customers = Dr increases balance | Suppliers = Cr increases balance
+        // PERFECT ACCOUNTING MATH
         let isDebit = false;
         if (String(partyType).toLowerCase() === 'customer') {
             isDebit = row.impact > 0;
@@ -3347,34 +3360,42 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             balText += (runBal >= 0 ? ' Cr' : ' Dr');
         }
 
+        // STRICT ERP LOGIC: Reduced vertical padding to 5px to remove the empty gap between rows!
         html += `
-                <tr style="border-bottom: 1px solid #eee;">
-                    <td style="padding: 8px; border: 1px solid #ddd;">${row.date}</td>
-                    <td style="padding: 8px; border: 1px solid #ddd;">${row.desc || row.particulars || 'Opening Balance'}</td>
-                    <td style="padding: 8px; text-align: right; border: 1px solid #ddd; color: #ba1a1a;">${drText}</td>
-                    <td style="padding: 8px; text-align: right; border: 1px solid #ddd; color: #146c2e;">${crText}</td>
-                    <td style="padding: 8px; text-align: right; border: 1px solid #ddd; font-weight: bold;">${balText}</td>
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${row.date}</td>
+                    <td style="padding: 5px 4px; word-break: break-word; vertical-align: top; color: #1e293b; line-height: 1.4;">${row.desc || row.particulars || 'Opening Balance'}</td>
+                    <td style="padding: 5px 4px; text-align: right; color: #e11d48; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${drText}</td>
+                    <td style="padding: 5px 4px; text-align: right; color: #16a34a; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${crText}</td>
+                    <td style="padding: 5px 4px; text-align: right; color: #0f172a; font-weight: 700; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums;">${balText}</td>
                 </tr>
         `;
     });
 
     const finalBalText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
+    
+    // STRICT ERP LOGIC: Professional Status Pill Generator
     let finalBalStatus = 'Settled';
+    let statusBg = '#e8f5e9'; // Soft Green
+    let statusColor = '#146c2e'; // Dark Green
+
     if (String(partyType).toLowerCase() === 'customer') {
-        finalBalStatus = runBal > 0 ? 'Due to Receive (Dr)' : (runBal < 0 ? 'Advance Received (Cr)' : 'Settled');
+        if (runBal > 0) { finalBalStatus = 'Due to Receive (Dr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
+        else if (runBal < 0) { finalBalStatus = 'Advance Received (Cr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
     } else {
-        finalBalStatus = runBal > 0 ? 'Due to Pay (Cr)' : (runBal < 0 ? 'Advance Paid (Dr)' : 'Settled');
+        if (runBal > 0) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
+        else if (runBal < 0) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
     }
 
     html += `
             </tbody>
         </table>
         
-        <div style="display: flex; justify-content: flex-end;">
-            <div style="background: #f4f6fa; padding: 15px 20px; border-radius: 8px; border: 1px solid #000; display: inline-block;">
-                <span style="font-size: 14px; color: #555;">Closing Balance:</span><br>
-                <strong style="font-size: 20px; color: #000;">₹ ${finalBalText}</strong>
-                <div style="font-size: 12px; font-weight: bold; color: ${runBal > 0 ? '#ba1a1a' : '#146c2e'}; margin-top: 4px;">${finalBalStatus}</div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${statusColor}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Closing Balance</span><br>
+                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px;">₹ ${finalBalText}</strong>
+                <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${statusColor}40; display: inline-block;">${finalBalStatus}</span>
             </div>
         </div>
     </div>`;
@@ -3400,13 +3421,22 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                 <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-khata-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-khata-viewer').remove(), 350);">arrow_back</span>
                 <strong style="font-size: 18px;">Ledger Statement</strong>
             </div>
-            <div class="btn-primary-small tap-target" onclick="window.print()" style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 14px;">
-                <span class="material-symbols-outlined" style="font-size: 18px;">print</span> Print / PDF
+            
+            <div style="display: flex; align-items: center; gap: 12px;">
+                
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('khata-render-target', 'Ledger_Statement_${partyName.replace(/\s+/g, '_')}.pdf', 'Here is your Ledger Statement from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
+                </div>
+
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('khata-render-target', 'Ledger_Statement_${partyName.replace(/\s+/g, '_')}.pdf')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+                </div>
+
             </div>
         </div>
-        <div class="activity-content" style="flex: 1; padding: 16px; background: var(--md-background);">
-            <div style="width: 100%; overflow-x: auto; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); -webkit-overflow-scrolling: touch; background: white;">
-                <div style="min-width: 210mm;">
+        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background);">
+            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow: hidden; display: flex; flex-direction: column;">
+                <div id="khata-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box; overflow-x: auto; -webkit-overflow-scrolling: touch;">
                     ${html}
                 </div>
             </div>
@@ -3446,6 +3476,184 @@ window.triggerKhataFromForm = () => {
     } else {
         window.Utils.showToast("⚠️ Please save this profile first before generating a ledger!");
     }
+};
+
+// ==========================================
+// NEW: BANK & CASH STATEMENT PDF ENGINE
+// ==========================================
+window.executeAccountReport = async (accountId) => {
+    window.Utils.showToast("Generating Bank Statement... ⏳");
+    
+    let account = { name: 'Cash Drawer', openingBalance: 0 };
+    if (accountId !== 'cash') {
+        account = await getRecordById('accounts', accountId) || account;
+    }
+
+    const receipts = await getAllRecords('receipts');
+    const firmId = app.state.firmId;
+    
+    const accountReceipts = receipts.filter(r => {
+        if (r.firmId !== firmId) return false;
+        if (accountId === 'cash') return r.accountId === 'cash' || !r.accountId;
+        return r.accountId === accountId;
+    });
+
+    let timeline = [];
+    let openingBalance = parseFloat(account.openingBalance) || 0;
+    
+    if (openingBalance !== 0) {
+        timeline.push({ id: 'open-bal', date: 'Opening', desc: 'Opening Balance', amount: Math.abs(openingBalance), impact: openingBalance });
+    }
+
+    accountReceipts.forEach(r => {
+        const isMoneyIn = r.type === 'in';
+        const impact = isMoneyIn ? parseFloat(r.amount) : -parseFloat(r.amount);
+        
+        let displayRefs = '';
+        if (r.invoiceRef) {
+            const refs = String(r.invoiceRef).split(',').map(x => x.trim());
+            displayRefs = refs.map(ref => ref.startsWith('sollo-') ? ref.slice(-4).toUpperCase() : ref).join(', ');
+        }
+        let refText = r.ref || '';
+        if (displayRefs) refText = refText ? `${refText} | Docs: ${displayRefs}` : `Docs: ${displayRefs}`;
+        if (r.receiptNo) refText = `${r.receiptNo} ${refText ? '| ' + refText : ''}`;
+
+        timeline.push({
+            id: r.id,
+            date: r.date,
+            desc: r.desc || (isMoneyIn ? 'Money In' : 'Money Out'),
+            partyName: r.ledgerName || '',
+            amount: parseFloat(r.amount),
+            impact: impact,
+            ref: refText
+        });
+    });
+
+    timeline.sort((a, b) => {
+        if (a.id === 'open-bal') return -1;
+        if (b.id === 'open-bal') return 1;
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return (a.id > b.id) ? 1 : -1;
+    });
+
+    let html = `
+    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+            <div>
+                <h2 style="margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: 0.5px;">ACCOUNT STATEMENT</h2>
+                <h3 style="margin: 6px 0 0 0; color: #0061a4; font-size: 16px; font-weight: 700;">${account.name}</h3>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 0; font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Generated On</p>
+                <p style="margin: 2px 0 0 0; font-size: 12px; color: #0f172a; font-weight: 700;">${new Date().toLocaleDateString('en-IN')}</p>
+            </div>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; table-layout: auto;">
+            <thead>
+                <tr style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1; color: #475569;">
+                    <th style="padding: 8px 4px; text-align: left; white-space: nowrap; font-weight: 600;">Date</th>
+                    <th style="padding: 8px 4px; text-align: left; width: 100%; font-weight: 600;">Description</th>
+                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">In</th>
+                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Out</th>
+                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    let runBal = 0;
+    timeline.forEach(row => {
+        runBal += row.impact;
+        
+        let isMoneyIn = row.impact > 0;
+        if (row.id === 'open-bal') isMoneyIn = runBal > 0;
+        
+        const amtStr = Math.abs(row.impact || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
+        const inText = isMoneyIn ? amtStr : '';
+        const outText = !isMoneyIn ? amtStr : '';
+        const balText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
+        
+        let fullDesc = row.desc;
+        if (row.partyName) fullDesc += `<br><span style="color:#555; font-size:9px;">Party: ${row.partyName}</span>`;
+        if (row.ref) fullDesc += `<br><span style="color:#555; font-size:9px;">Ref: ${row.ref}</span>`;
+
+        html += `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${row.date}</td>
+                    <td style="padding: 5px 4px; word-break: break-word; vertical-align: top; color: #1e293b; line-height: 1.4;">${fullDesc}</td>
+                    <td style="padding: 5px 4px; text-align: right; color: #16a34a; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${inText}</td>
+                    <td style="padding: 5px 4px; text-align: right; color: #e11d48; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${outText}</td>
+                    <td style="padding: 5px 4px; text-align: right; color: #0f172a; font-weight: 700; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums;">${balText}</td>
+                </tr>
+        `;
+    });
+
+    const finalBalText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
+
+    html += `
+            </tbody>
+        </table>
+        
+        <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${runBal >= 0 ? '#146c2e' : '#ba1a1a'}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Available Balance</span><br>
+                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px;">₹ ${finalBalText}</strong>
+                <span style="background: ${runBal >= 0 ? '#e8f5e9' : '#fff0f2'}; color: ${runBal >= 0 ? '#146c2e' : '#ba1a1a'}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${runBal >= 0 ? '#146c2e40' : '#ba1a1a40'}; display: inline-block;">${runBal >= 0 ? 'Surplus / In-Hand' : 'Overdrawn'}</span>
+            </div>
+        </div>
+    </div>`;
+
+    let printDiv = document.getElementById('print-area');
+    if (!printDiv) {
+        printDiv = document.createElement('div');
+        printDiv.id = 'print-area';
+        printDiv.className = 'print-only';
+        document.body.appendChild(printDiv);
+    }
+    printDiv.innerHTML = html;
+    
+    let oldViewer = document.getElementById('activity-account-viewer');
+    if (oldViewer) oldViewer.remove();
+
+    const safeFilename = `Account_Statement_${account.name.replace(/\\s+/g, '_')}.pdf`;
+
+    let viewerHTML = `
+    <div id="activity-account-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column;">
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 16px;">
+                <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-account-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-account-viewer').remove(), 350);">arrow_back</span>
+                <strong style="font-size: 18px;">Account Statement</strong>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('account-render-target', '${safeFilename}', 'Here is your Bank Statement from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
+                </div>
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('account-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+                </div>
+            </div>
+        </div>
+        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background);">
+            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow: hidden; display: flex; flex-direction: column;">
+                <div id="account-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    ${html}
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', viewerHTML);
+    
+    setTimeout(() => {
+        document.getElementById('activity-account-viewer').classList.add('open');
+        window.Utils.showToast("✅ Statement Ready!");
+    }, 50);
 };
 
 // --- NEW CODE: Module Initialization ---

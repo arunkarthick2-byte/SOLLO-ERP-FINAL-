@@ -728,14 +728,20 @@ const UI = {
                         matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                         
                         matchedDocs.forEach(doc => {
-                            if (remainingAmt <= 0) return;
+                            if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for refunds!
                             const key = `${c.ledgerId}_${doc.id}`;
                             const currentPaid = paymentMap[key] || 0;
                             const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
                             
-                            const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                            let allocation = 0;
+                            if (remainingAmt > 0) {
+                                allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                            } else {
+                                // Mathematical Refund: Deduct from what was previously paid
+                                allocation = Math.max(-currentPaid, remainingAmt); 
+                            }
                             
-                            if (allocation > 0) {
+                            if (Math.abs(allocation) > 0) {
                                 paymentMap[key] = currentPaid + allocation;
                                 ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
                                 remainingAmt -= allocation;
@@ -1050,15 +1056,33 @@ const UI = {
                     const rowIcon = isCustomer ? 'person' : 'storefront';
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
 
-                    return UI.renderRowWiseItem(
-                        UI.highlightText(l.name || 'Unnamed Party', searchTerm), 
-                        UI.highlightText(l.phone || 'No Phone', searchTerm), 
-                        `<span style="color:${balColor}; font-weight:500;">${balText}</span>`, 
-                        'View Ledger >', 
-                        rowIcon, 
-                        rowColor, 
-                        `app.openPartyLedger('${l.id}', '${l.type}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}')`
-                    );
+                    // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
+                    const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    return `
+                    <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <div class="tap-target" style="display: flex; align-items: center; gap: 12px;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
+                            </div>
+                            <div style="flex: 1; min-width: 0; overflow: hidden;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0;">
+                                <strong style="font-size: 15px; color: ${balColor};">${balText}</strong>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #e3f2fd; color: #1565c0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                            </div>
+                            
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeKhataReport('${l.id}', '${safeName}', '${l.type}')">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                            </div>
+                        </div>
+                    </div>`;
                 }, emptyHTML);
             }
             else if (activeTab === 'pay-in' || activeTab === 'pay-out') {
