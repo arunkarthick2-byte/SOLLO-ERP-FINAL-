@@ -479,13 +479,20 @@ const Utils = {
                         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
                     };
 
+                                        // STRICT ERP LOGIC: Spoof a Desktop Monitor!
+                    // We MUST force the live DOM to 800px BEFORE the engine takes its initial measurements.
+                    element.style.width = '800px';
+                    element.style.minWidth = '800px';
+                    element.style.maxWidth = '800px';
+
                     const pdfBlob = await window.html2pdf().set(opt).from(element).outputPdf('blob');
                     const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-                    // Instantly Restore layout
+                    // Instantly Restore the layout back to mobile size so the app doesn't break
                     element.style.width = origWidth;
                     element.style.minWidth = origMinWidth;
                     element.style.maxWidth = origMaxWidth;
+                  
 
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
