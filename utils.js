@@ -467,34 +467,26 @@ const Utils = {
                             onclone: (clonedDoc) => {
                                 const target = clonedDoc.getElementById(elementId);
                                 if (target) {
-                                    // STRICT ERP LOGIC: The "Mobile Prison" Escape
-                                    // Move the target directly to the body, escaping ALL hidden mobile containers
-                                    clonedDoc.body.appendChild(target);
-                                    
-                                    // Hide everything else so it doesn't crush the canvas width
-                                    Array.from(clonedDoc.body.children).forEach(child => {
-                                        if (child !== target) child.style.display = 'none';
-                                    });
-                                    
-                                    // Force true A4 layout mathematically on the absolute root
-                                    clonedDoc.documentElement.style.width = '800px';
-                                    clonedDoc.body.style.width = '800px';
-                                    clonedDoc.body.style.margin = '0';
-                                    clonedDoc.body.style.padding = '0';
-                                    clonedDoc.body.style.overflow = 'visible';
-                                    
-                                    // Safely size the isolated document
-                                    target.style.display = 'block';
+                                    // STRICT ERP LOGIC: The True "Mobile Prison" Escape
+                                    // Moving the element caused a White Screen because html2pdf lost the reference!
+                                    // Instead, we leave it in place and mathematically unlock EVERY parent container.
                                     target.style.width = '800px'; 
                                     target.style.minWidth = '800px'; 
                                     target.style.maxWidth = '800px';
-                                    target.style.position = 'relative';
-                                    target.style.top = '0';
-                                    target.style.left = '0';
                                     target.style.backgroundColor = '#ffffff';
-                                    target.style.boxSizing = 'border-box';
-                                    target.style.overflow = 'visible';
-                                    target.style.transform = 'none';
+                                    
+                                    let parent = target.parentElement;
+                                    while (parent && parent !== clonedDoc.body && parent !== clonedDoc.documentElement) {
+                                        parent.style.overflow = 'visible';
+                                        parent.style.width = '800px';
+                                        parent.style.minWidth = '800px';
+                                        parent.style.maxWidth = 'none';
+                                        parent.style.transform = 'none';
+                                        parent = parent.parentElement;
+                                    }
+                                    
+                                    clonedDoc.body.style.width = '800px';
+                                    clonedDoc.body.style.overflow = 'visible';
                                 }
                             }
                         },
@@ -923,7 +915,7 @@ const Utils = {
                 </div>
             </div>
         `;
-        
+
         const printArea = document.getElementById('print-area');
         if (printArea) {
             printArea.innerHTML = html;
