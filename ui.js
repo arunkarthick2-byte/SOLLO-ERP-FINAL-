@@ -1436,14 +1436,19 @@ const UI = {
                     matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                     
                     matchedDocs.forEach(doc => {
-                        if (remainingAmt <= 0) return;
+                        if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for supplier payments & refunds!
                         const key = `${c.ledgerId}_${doc.id}`;
                         const currentPaid = paymentMap[key] || 0;
                         const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
                         
-                        const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                        let allocation = 0;
+                        if (remainingAmt > 0) {
+                            allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                        } else {
+                            allocation = Math.max(-currentPaid, remainingAmt); 
+                        }
                         
-                        if (allocation > 0) {
+                        if (Math.abs(allocation) > 0) {
                             paymentMap[key] = currentPaid + allocation;
                             ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
                             remainingAmt -= allocation;
@@ -1885,12 +1890,194 @@ const UI = {
 
         setTimeout(() => { 
             if (sheet) sheet.classList.add('hidden');
-            if (remainingSheets.length === 0 && overlay) overlay.classList.add('hidden'); 
+            // STRICT ERP LOGIC: Re-check the DOM dynamically to prevent vanishing overlays on rapid switching, and ignore the haptic menu!
+            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
+            if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden'); 
         }, 300);
 
         if(typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
         // FIXED: Added an ignore flag to prevent double-closing
         if (history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); }
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: SMART SEARCH ENGINE
+    // ==========================================
+    // ==========================================
+    // ENTERPRISE UPGRADE: DEDICATED SMART SEARCH
+    // ==========================================
+    openSmartSearch: (targetType, formPrefix) => {
+        UI.state.smartSearchTarget = targetType;
+        UI.state.smartSearchPrefix = formPrefix;
+        
+        const titleEl = document.getElementById('smart-search-title');
+        const inputEl = document.getElementById('smart-search-input');
+        
+        if (targetType === 'customer') titleEl.innerText = "Select Customer";
+        else if (targetType === 'supplier') titleEl.innerText = "Select Supplier";
+        else if (targetType === 'item') titleEl.innerText = "Add Product";
+        
+        inputEl.value = '';
+        UI.executeSmartSearch(); // Load initial list
+        UI.openBottomSheet('sheet-smart-search');
+        
+        // UX Polish: Wait for the sheet to slide up, then auto-focus the keyboard!
+        setTimeout(() => inputEl.focus(), 350);
+    },
+
+    // NEW: Handles the "+" icon tap inside the search bar header!
+    createNewFromSearch: () => {
+        UI.closeBottomSheet('sheet-smart-search');
+        if (UI.state.smartSearchTarget === 'item') {
+            if(window.app) window.app.openForm('product');
+        } else {
+            if(window.app) window.app.openForm('ledger');
+        }
+    },
+
+    executeSmartSearch: () => {
+        const query = (document.getElementById('smart-search-input').value || '').toLowerCase();
+        const resultsContainer = document.getElementById('smart-search-results');
+        const targetType = UI.state.smartSearchTarget;
+        const prefix = UI.state.smartSearchPrefix;
+        
+        let results = [];
+        let html = '';
+
+        if (targetType === 'customer' || targetType === 'supplier') {
+            const isCust = targetType === 'customer';
+            const dbType = isCust ? 'Customer' : 'Supplier';
+            results = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === dbType.toLowerCase() && (l.name || '').toLowerCase().includes(query));
+            
+            results.slice(0, 30).forEach(l => {
+                const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                html += `
+                <div class="tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
+                    <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">${isCust?'person':'storefront'}</span></div>
+                    <div><strong style="display: block; font-size: 16px;">${UI.highlightText(l.name, query)}</strong><small style="color: var(--md-text-muted);">${l.phone || 'No Phone'}</small></div>
+                </div>`;
+            });
+            if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No matches found.</div>`;
+            // Bottom '+ Create New' button has been intentionally removed!
+            
+        } else if (targetType === 'item') {
+            const isSales = prefix === 'sales';
+            results = UI.state.rawData.items.filter(i => (i.name || '').toLowerCase().includes(query) || (i.sku || '').toLowerCase().includes(query));
+            
+            results.slice(0, 30).forEach(i => {
+                const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
+                const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const safeUom = (i.uom || '').replace(/'/g, "\\'");
+                const safeHsn = (i.hsn || '').replace(/'/g, "\\'");
+                const stockVal = parseFloat(i.stock) || 0;
+                const stockStr = `<span style="color: ${stockVal<=0 ? 'var(--md-error)' : 'var(--md-success)'}; font-weight: bold;">Stock: ${stockVal}</span>`;
+                
+                // ENTERPRISE UX: Done & Done and New Buttons!
+                html += `
+                <div style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div><strong style="display: block; font-size: 16px;">${UI.highlightText(i.name, query)}</strong><small>${stockStr}</small></div>
+                        <div style="text-align: right;"><strong style="color: var(--md-primary); font-size: 18px;">₹${price.toFixed(2)}</strong></div>
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button class="btn-primary-small tap-target" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 8px 16px;" 
+                            onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added to invoice');">
+                            Done & New
+                        </button>
+                        <button class="btn-primary-small tap-target" style="padding: 8px 16px;" 
+                            onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); UI.closeBottomSheet('sheet-smart-search');">
+                            Done
+                        </button>
+                    </div>
+                </div>`;
+            });
+            if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found.</div>`;
+            // Bottom '+ Create New' button has been intentionally removed!
+        }
+
+        resultsContainer.innerHTML = html;
+    },
+
+    selectSmartParty: (typeId, id, name) => {
+        const inputId = document.getElementById(`${typeId}-id`);
+        const display = document.getElementById(`${typeId}-display`);
+        
+        if(inputId) inputId.value = id;
+        if(display) {
+            display.innerText = name;
+            display.style.color = 'var(--md-on-surface)';
+        }
+        
+        UI.closeBottomSheet('sheet-smart-search');
+        
+        const prefix = typeId.split('-')[0];
+        if (typeof app !== 'undefined' && typeof app.loadOriginalDocuments === 'function') {
+            app.loadOriginalDocuments(id, prefix);
+        }
+    },
+
+    addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice) => {
+        const container = document.getElementById(`${prefix}-items-body`);
+        const emptyState = document.getElementById(`${prefix}-empty-items`);
+        if(!container) return;
+        if(emptyState) emptyState.style.display = 'none';
+        
+        const itemCard = document.createElement('div');
+        itemCard.className = 'item-entry-card m3-card';
+        itemCard.style.padding = '14px';
+        itemCard.style.marginBottom = '0';
+        itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
+        
+        const hiddenInputs = `<input type="hidden" class="row-item-id" value="${id}"><input type="hidden" class="row-item-name" value="${name.replace(/"/g, '&quot;')}"><input type="hidden" class="row-uom" value="${uom}">`;
+
+        itemCard.innerHTML = `
+            ${hiddenInputs}
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
+                    ${name}
+                    <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${hsn}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                </div>
+                <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <div>
+                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${uom || 'Unit'})</small>
+                    <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;" onfocus="this.select()">
+                </div>
+                <div>
+                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
+                    <input type="number" inputmode="decimal" class="row-rate" value="${price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                </div>
+                <div>
+                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                    <input type="number" inputmode="decimal" class="row-gst" value="${gst}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
+                <div style="display:flex; gap:8px;">
+                    ${prefix === 'sales' ? `
+                    <div>
+                        <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
+                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                    </div>
+                    ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
+                </div>
+                <div style="text-align:right;">
+                    <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
+                    <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                </div>
+            </div>
+            ${prefix === 'sales' ? `<small class="live-margin" style="font-size:10px; display:block; margin-top:8px; text-align:right;"></small>` : ''}
+        `;
+        container.appendChild(itemCard);
+        
+        prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
+        
+        // UX Magic: Auto-focus the Qty box of the newly added row!
+        setTimeout(() => {
+            const newQty = itemCard.querySelector('.row-qty');
+            if (newQty) newQty.focus();
+        }, 100);
     },
 
     closeAllBottomSheets: () => {
@@ -1904,7 +2091,11 @@ const UI = {
         const overlay = document.getElementById('sheet-overlay');
         if (overlay && overlay.classList.contains('open')) {
             overlay.classList.remove('open');
-            setTimeout(() => overlay.classList.add('hidden'), 300);
+            setTimeout(() => {
+                // STRICT ERP LOGIC: Re-check dynamically so rapid tapping doesn't break the background!
+                const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
+                if (currentlyOpen === 0) overlay.classList.add('hidden');
+            }, 300);
             closedSomething = true;
         }
         
@@ -1919,10 +2110,10 @@ const UI = {
             overlay = document.createElement('div');
             overlay.id = 'haptic-overlay';
             overlay.className = 'sheet-overlay hidden'; // Reuses your premium blur effect!
-            overlay.style.zIndex = '4500';
+            overlay.style.zIndex = '6500'; // STRICT ERP LOGIC: Must be higher than standard bottom-sheets (5100)
             
             overlay.innerHTML = `
-                <div id="haptic-menu" class="bottom-sheet" style="z-index: 4501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
+                <div id="haptic-menu" class="bottom-sheet" style="z-index: 6501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
                     
                     <div style="margin: 0 16px 16px 16px; background: var(--md-surface); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); overflow: hidden;">
                         <div style="padding: 14px; text-align: center; font-size: 12px; font-weight: bold; color: var(--md-text-muted); border-bottom: 1px solid var(--md-surface-variant); background: rgba(0,0,0,0.02);">
@@ -2421,8 +2612,9 @@ const UI = {
         // STRICT ERP LOGIC: Synchronize CSV Export with On-Screen PnL
         UI.state.rawData.cashbook.forEach(c => {
             if (c.date >= start && c.date <= end && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
-                if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
                     indirectIncome += parseFloat(c.amount) || 0;
                 }
             }
@@ -2733,7 +2925,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const overlay = document.getElementById('sheet-overlay');
                     if (overlay) {
                         overlay.classList.remove('open');
-                        setTimeout(() => overlay.classList.add('hidden'), 300);
+                        setTimeout(() => {
+                            // STRICT ERP LOGIC: Re-check dynamically
+                            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
+                            if (currentlyOpen === 0) overlay.classList.add('hidden');
+                        }, 300);
                     }
                 }
                 if (typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
@@ -2750,6 +2946,30 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 // NEW CODE: ES MODULE EXPORT & GLOBAL MAP
 // ==========================================
+// ==========================================
+// ENTERPRISE UPGRADE: SMART SEARCH WATCHERS
+// ==========================================
+// 1. Hide dropdowns when clicking outside of them
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.smart-dropdown') && !e.target.closest('input[id$="-search"]')) {
+        document.querySelectorAll('.smart-dropdown').forEach(d => d.classList.add('hidden'));
+    }
+});
+
+// 2. Strict Fallback Observer: Automatically syncs the old "display" engine 
+// to the new search boxes so editing an old invoice works flawlessly!
+['sales-customer', 'purchase-supplier'].forEach(prefix => {
+    const display = document.getElementById(`${prefix}-display`);
+    const search = document.getElementById(`${prefix}-search`);
+    if(display && search) {
+        new MutationObserver(() => {
+            if(display.innerText && display.innerText !== 'Select Customer...' && display.innerText !== 'Select Supplier...') {
+                search.value = display.innerText;
+            }
+        }).observe(display, { childList: true, characterData: true, subtree: true });
+    }
+});
+
 // 1. Export the module so app.js can import it
 export default UI;
 

@@ -452,13 +452,13 @@
                     AI Auto-Fill from Document
                 </button>
 
-                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) { window.UI.state.currentPrefix = 'sales'; window.UI.openBottomSheet('sheet-customers'); }">
+                <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('customer', 'sales')">
                     <div>
                         <small style="color: var(--md-text-muted);">Billed To *</small>
                         <div id="sales-customer-display" class="large-text" style="color: var(--md-text-muted);">Select Customer...</div>
                         <input type="hidden" id="sales-customer-id" required>
                     </div>
-                    <span class="material-symbols-outlined">chevron_right</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
                 </div>
 
                 <div id="sales-return-ref-group" class="form-group hidden" style="background: #fff0f2; padding: 12px; border-radius: 8px; border: 1px solid var(--md-error);">
@@ -490,9 +490,10 @@
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
-                    <div style="padding: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-surface-variant);">
-                        <strong class="large-text">Items</strong>
-                        <button type="button" class="btn-primary-small" onclick="if(window.UI) window.UI.openBottomSheet('sheet-products')">+ Add Item</button>
+                    <div class="tap-target" style="padding: 12px; display: flex; align-items: center; background: #e3f2fd; border-bottom: 1px solid #90caf9; border-radius: 8px 8px 0 0;" onclick="if(window.UI) UI.openSmartSearch('item', 'sales')">
+                        <span class="material-symbols-outlined" style="color: #0061a4; margin-right: 8px;">search</span>
+                        <span style="flex: 1; font-size: 15px; color: #0061a4; font-weight: 600;">Tap to add products...</span>
+                        <span class="material-symbols-outlined" style="color: #0061a4;" onclick="event.stopPropagation(); if(window.app) window.app.openForm('product')">add_circle</span>
                     </div>
                     <div id="sales-items-body" style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--md-background);"></div>
                     <div id="sales-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
@@ -567,13 +568,13 @@
                     AI Scan Purchase Bill
                 </button>
 
-                <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) { window.UI.state.currentPrefix = 'purchase'; window.UI.openBottomSheet('sheet-suppliers'); }">
+                <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'purchase')">
                     <div>
                         <small style="color: var(--md-text-muted);">Purchased From *</small>
                         <div id="purchase-supplier-display" class="large-text" style="color: var(--md-text-muted);">Select Supplier...</div>
                         <input type="hidden" id="purchase-supplier-id" required>
                     </div>
-                    <span class="material-symbols-outlined">chevron_right</span>
+                    <span class="material-symbols-outlined" style="color: #d84315;">search</span>
                 </div>
 
                 <div id="purchase-return-ref-group" class="form-group hidden" style="background: #e8f5e9; padding: 12px; border-radius: 8px; border: 1px solid var(--md-success);">
@@ -605,9 +606,10 @@
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
-                    <div style="padding: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-surface-variant);">
-                        <strong class="large-text">Items Received</strong>
-                        <button type="button" class="btn-primary-small" onclick="if(window.UI) window.UI.openBottomSheet('sheet-products')">+ Add Item</button>
+                    <div class="tap-target" style="padding: 12px; display: flex; align-items: center; background: #fff8e1; border-bottom: 1px solid #ffe082; border-radius: 8px 8px 0 0;" onclick="if(window.UI) UI.openSmartSearch('item', 'purchase')">
+                        <span class="material-symbols-outlined" style="color: #f57f17; margin-right: 8px;">search</span>
+                        <span style="flex: 1; font-size: 15px; color: #f57f17; font-weight: 600;">Tap to add products...</span>
+                        <span class="material-symbols-outlined" style="color: #f57f17;" onclick="event.stopPropagation(); if(window.app) window.app.openForm('product')">add_circle</span>
                     </div>
                     <div id="purchase-items-body" style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--md-background);"></div>
                     <div id="purchase-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
@@ -2562,6 +2564,24 @@
             }
         });
     </script>
+    <div id="sheet-smart-search" class="bottom-sheet" style="height: 90vh; max-height: 90vh; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; padding: 0; z-index: 6000;">
+        <div style="padding: 16px; background: var(--md-surface); border-bottom: 1px solid var(--md-surface-variant); position: sticky; top: 0; z-index: 10; border-radius: 16px 16px 0 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <strong id="smart-search-title" style="font-size: 18px;">Search</strong>
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-smart-search')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
+            </div>
+            <div style="display: flex; align-items: center; background: var(--md-background); border: 2px solid var(--md-primary); border-radius: 8px; padding: 4px 12px;">
+                <span class="material-symbols-outlined" style="color: var(--md-primary); margin-right: 8px;">search</span>
+                <input type="text" id="smart-search-input" placeholder="Type to search..." autocomplete="off" oninput="UI.executeSmartSearch()" style="flex: 1; border: none; background: transparent; outline: none; padding: 10px 0; font-size: 16px; font-weight: bold; color: var(--md-on-surface);">
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline); margin-left: 8px;" onclick="document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus();">close</span>
+                <div style="width: 1px; height: 24px; background: var(--md-outline-variant); margin: 0 8px;"></div>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary);" onclick="UI.createNewFromSearch()">add_circle</span>
+            </div>
+        </div>
+        <div id="smart-search-results" style="flex: 1; overflow-y: auto; padding: 0 0 80px 0; background: var(--md-surface);">
+            </div>
+    </div>
+
 </body>
 </html>
 

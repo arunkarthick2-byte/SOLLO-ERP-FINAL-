@@ -1680,7 +1680,6 @@ select:focus {
 /* Prevents Chrome/Safari from injecting ugly white backgrounds into inputs on live servers */
 .search-container input,
 .search-bar input,
-input[type="text"],
 input[type="search"] {
     background-color: transparent !important;
     color: var(--md-on-surface) !important;

@@ -452,11 +452,6 @@ const Utils = {
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
                     if (window.Utils) window.Utils.showToast("Generating Print-Ready PDF...");
-                    
-                    // Re-lock to 800px A4 Width for the True PDF Engine
-                    element.style.width = '800px';
-                    element.style.minWidth = '800px';
-                    element.style.maxWidth = '800px';
 
                     const opt = {
                         margin:       [0.4, 0.4, 0.4, 0.4], 
@@ -464,20 +459,23 @@ const Utils = {
                         image:        { type: 'jpeg', quality: 1.0 }, 
                         pagebreak:    { mode: ['css', 'legacy'] }, 
                         html2canvas:  { 
-                            scale: 3, 
+                            scale: 2, 
                             useCORS: true,
-                            letterRendering: true,
                             logging: false, 
                             windowWidth: 800,
                             width: 800,
                             onclone: (clonedDoc) => {
-                                const pa = clonedDoc.getElementById('print-area');
-                                if (pa) {
-                                    pa.style.display = 'block';
-                                    pa.style.position = 'relative';
-                                    pa.style.visibility = 'visible';
-                                    pa.style.width = '800px'; 
-                                    pa.style.maxWidth = '800px';
+                                // STRICT ERP LOGIC: Physically rip the document out of all mobile bounding boxes!
+                                const target = clonedDoc.getElementById(elementId);
+                                if (target) {
+                                    target.style.width = '800px'; 
+                                    target.style.minWidth = '800px'; 
+                                    target.style.maxWidth = '800px';
+                                    target.style.position = 'absolute';
+                                    target.style.top = '0';
+                                    target.style.left = '0';
+                                    clonedDoc.body.style.width = '800px';
+                                    clonedDoc.body.style.overflow = 'visible'; // Destroys the mobile cutoff!
                                 }
                             }
                         },
@@ -1181,31 +1179,36 @@ const Utils = {
             
             window.Utils.showToast("⏳ Preparing PDF for Print...");
 
-            // STRICT ERP LOGIC: Force Absolute A4 Desktop Dimensions!
-            const originalWidth = el.style.width;
-            const originalMinWidth = el.style.minWidth;
-            const originalMaxWidth = el.style.maxWidth;
-            
-            el.style.width = '800px';
-            el.style.minWidth = '800px';
-            el.style.maxWidth = '800px';
-
             const opt = {
                 margin: [0.4, 0.4, 0.4, 0.4],
                 filename: filename,
                 image: { type: 'jpeg', quality: 1.0 },
                 pagebreak: { mode: ['css', 'legacy'] },
-                html2canvas: { scale: 3, useCORS: true, letterRendering: true, logging: false, windowWidth: 800 },
+                html2canvas: { 
+                    scale: 2, 
+                    useCORS: true, 
+                    logging: false, 
+                    windowWidth: 800,
+                    width: 800,
+                    onclone: (clonedDoc) => {
+                        // STRICT ERP LOGIC: Physically rip the document out of all mobile bounding boxes!
+                        const target = clonedDoc.getElementById(elementId);
+                        if (target) {
+                            target.style.width = '800px'; 
+                            target.style.minWidth = '800px'; 
+                            target.style.maxWidth = '800px';
+                            target.style.position = 'absolute';
+                            target.style.top = '0';
+                            target.style.left = '0';
+                            clonedDoc.body.style.width = '800px';
+                            clonedDoc.body.style.overflow = 'visible'; // Destroys the mobile cutoff!
+                        }
+                    }
+                },
                 jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
             };
 
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
-            
-            // Instantly restore mobile layout
-            el.style.width = originalWidth;
-            el.style.minWidth = originalMinWidth;
-            el.style.maxWidth = originalMaxWidth;
-
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {

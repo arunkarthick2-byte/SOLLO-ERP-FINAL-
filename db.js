@@ -620,6 +620,18 @@ const exportDatabase = async () => {
 };
 
 const importDatabase = async (parsedData) => {
+    // ==========================================
+    // STRICT ERP LOGIC: THE FILE SHIELD
+    // ==========================================
+    // Mathematically reject PDFs, Images, or random JSON files from other apps!
+    // A valid backup MUST be an object and MUST contain core ERP tables.
+    if (!parsedData || typeof parsedData !== 'object' || Array.isArray(parsedData)) {
+        return Promise.reject(new Error("Invalid File Format. Please upload a valid .json backup."));
+    }
+    if (!parsedData.ledgers && !parsedData.items && !parsedData.sales) {
+        return Promise.reject(new Error("File Rejected: This is not a valid SOLLO ERP backup file."));
+    }
+
     const stores = Object.keys(parsedData);
     
     // ENTERPRISE FIX: Capture the phone's current active Firm ID

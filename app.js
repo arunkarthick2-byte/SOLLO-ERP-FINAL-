@@ -2187,8 +2187,8 @@ const app = {
                     } else {
                         item.stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
                     }
-                    // Sync the unified visual stock
-                    item.stock = Math.round((item.stockGst + item.stockNonGst) * 100) / 100;
+                    // STRICT ERP LOGIC: ParseFloat prevents legacy items from corrupting into NaN!
+                    item.stock = Math.round(((parseFloat(item.stockGst) || 0) + (parseFloat(item.stockNonGst) || 0)) * 100) / 100;
                     
                     await saveRecord('adjustments', adjData);
                     await saveRecord('items', item);
