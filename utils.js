@@ -458,35 +458,21 @@ const Utils = {
                         filename:     filename,
                         image:        { type: 'jpeg', quality: 1.0 }, 
                         pagebreak:    { mode: ['css', 'legacy'] }, 
+                        // STRICT ERP LOGIC: We mirror the EXACT config that successfully built the flawless UI preview!
                         html2canvas:  { 
                             scale: 2, 
                             useCORS: true,
-                            logging: false, 
-                            windowWidth: 800,
-                            width: 800,
+                            logging: false,
+                            backgroundColor: '#ffffff',
+                            windowWidth: 800, 
                             onclone: (clonedDoc) => {
-                                const target = clonedDoc.getElementById(elementId);
-                                if (target) {
-                                    // STRICT ERP LOGIC: The True "Mobile Prison" Escape
-                                    // Moving the element caused a White Screen because html2pdf lost the reference!
-                                    // Instead, we leave it in place and mathematically unlock EVERY parent container.
-                                    target.style.width = '800px'; 
-                                    target.style.minWidth = '800px'; 
-                                    target.style.maxWidth = '800px';
-                                    target.style.backgroundColor = '#ffffff';
-                                    
-                                    let parent = target.parentElement;
-                                    while (parent && parent !== clonedDoc.body && parent !== clonedDoc.documentElement) {
-                                        parent.style.overflow = 'visible';
-                                        parent.style.width = '800px';
-                                        parent.style.minWidth = '800px';
-                                        parent.style.maxWidth = 'none';
-                                        parent.style.transform = 'none';
-                                        parent = parent.parentElement;
-                                    }
-                                    
-                                    clonedDoc.body.style.width = '800px';
-                                    clonedDoc.body.style.overflow = 'visible';
+                                const printArea = clonedDoc.getElementById('print-area');
+                                if (printArea) {
+                                    printArea.className = ''; 
+                                    printArea.style.display = 'block';
+                                    printArea.style.position = 'relative';
+                                    printArea.style.visibility = 'visible';
+                                    printArea.style.width = '800px';
                                 }
                             }
                         },
