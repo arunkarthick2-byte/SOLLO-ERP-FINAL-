@@ -465,17 +465,36 @@ const Utils = {
                             windowWidth: 800,
                             width: 800,
                             onclone: (clonedDoc) => {
-                                // STRICT ERP LOGIC: Physically rip the document out of all mobile bounding boxes!
                                 const target = clonedDoc.getElementById(elementId);
                                 if (target) {
+                                    // STRICT ERP LOGIC: The "Mobile Prison" Escape
+                                    // Move the target directly to the body, escaping ALL hidden mobile containers
+                                    clonedDoc.body.appendChild(target);
+                                    
+                                    // Hide everything else so it doesn't crush the canvas width
+                                    Array.from(clonedDoc.body.children).forEach(child => {
+                                        if (child !== target) child.style.display = 'none';
+                                    });
+                                    
+                                    // Force true A4 layout mathematically on the absolute root
+                                    clonedDoc.documentElement.style.width = '800px';
+                                    clonedDoc.body.style.width = '800px';
+                                    clonedDoc.body.style.margin = '0';
+                                    clonedDoc.body.style.padding = '0';
+                                    clonedDoc.body.style.overflow = 'visible';
+                                    
+                                    // Safely size the isolated document
+                                    target.style.display = 'block';
                                     target.style.width = '800px'; 
                                     target.style.minWidth = '800px'; 
                                     target.style.maxWidth = '800px';
-                                    target.style.position = 'absolute';
+                                    target.style.position = 'relative';
                                     target.style.top = '0';
                                     target.style.left = '0';
-                                    clonedDoc.body.style.width = '800px';
-                                    clonedDoc.body.style.overflow = 'visible'; // Destroys the mobile cutoff!
+                                    target.style.backgroundColor = '#ffffff';
+                                    target.style.boxSizing = 'border-box';
+                                    target.style.overflow = 'visible';
+                                    target.style.transform = 'none';
                                 }
                             }
                         },
@@ -908,8 +927,10 @@ const Utils = {
         const printArea = document.getElementById('print-area');
         if (printArea) {
             printArea.innerHTML = html;
+            // STRICT ERP LOGIC: Safely generate the title and target the correct statement wrapper!
+            const docTitle = isAccount ? 'Account_Statement' : 'Ledger_Statement';
             setTimeout(() => {
-                Utils.processPDFExport('pdf-receipt-wrapper', `${title.replace(/ /g, '_')}_${safeDocNo}.pdf`);
+                Utils.processPDFExport('pdf-statement-wrapper', `${docTitle}_${safeDocNo}.pdf`);
             }, 100);
         }
     },
@@ -1191,7 +1212,7 @@ const Utils = {
                     windowWidth: 800,
                     width: 800,
                     onclone: (clonedDoc) => {
-                        // STRICT ERP LOGIC: Physically rip the document out of all mobile bounding boxes!
+                        // Original safe logic for Ledgers
                         const target = clonedDoc.getElementById(elementId);
                         if (target) {
                             target.style.width = '800px'; 
@@ -1201,7 +1222,7 @@ const Utils = {
                             target.style.top = '0';
                             target.style.left = '0';
                             clonedDoc.body.style.width = '800px';
-                            clonedDoc.body.style.overflow = 'visible'; // Destroys the mobile cutoff!
+                            clonedDoc.body.style.overflow = 'visible';
                         }
                     }
                 },
