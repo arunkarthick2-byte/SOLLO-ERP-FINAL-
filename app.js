@@ -352,6 +352,55 @@ const app = {
         }
 
         // ==========================================
+        // ENTERPRISE UPGRADE: RECEIVABLES AGING ENGINE
+        // ==========================================
+        if (UI.state.rawData.sales && UI.state.rawData.cashbook) {
+            let bucket30 = 0, bucket60 = 0, bucket90 = 0, totalDue = 0;
+            const today = new Date();
+            
+            // Build an instant payment lookup map
+            const paymentMap = {};
+            UI.state.rawData.cashbook.forEach(r => {
+                if (r.firmId === app.state.firmId && r.invoiceRef && r.type === 'in') {
+                    const refs = String(r.invoiceRef).split(',').map(x => x.trim());
+                    const splitAmt = (parseFloat(r.amount) || 0) / (refs.length || 1);
+                    refs.forEach(ref => paymentMap[ref] = (paymentMap[ref] || 0) + splitAmt);
+                }
+            });
+
+            UI.state.rawData.sales.forEach(sale => {
+                if (sale.firmId === app.state.firmId && sale.status !== 'Completed' && sale.documentType !== 'return') {
+                    // Match the precise true balance using the core payment map
+                    const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean))];
+                    const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
+                    const balance = (parseFloat(sale.grandTotal) || 0) - paid;
+
+                    if (balance > 0.01) {
+                        totalDue += balance;
+                        const diffTime = Math.abs(today - new Date(sale.date));
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+                        if (diffDays <= 30) bucket30 += balance;
+                        else if (diffDays <= 60) bucket60 += balance;
+                        else bucket90 += balance;
+                    }
+                }
+            });
+
+            const totalEl = document.getElementById('aging-total-due');
+            if (totalEl) {
+                totalEl.innerText = `₹${totalDue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('aging-30-amt').innerText = `₹${bucket30.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('aging-60-amt').innerText = `₹${bucket60.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById('aging-90-amt').innerText = `₹${bucket90.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                
+                document.getElementById('aging-30-bar').style.width = totalDue > 0 ? `${(bucket30/totalDue)*100}%` : '0%';
+                document.getElementById('aging-60-bar').style.width = totalDue > 0 ? `${(bucket60/totalDue)*100}%` : '0%';
+                document.getElementById('aging-90-bar').style.width = totalDue > 0 ? `${(bucket90/totalDue)*100}%` : '0%';
+            }
+        }
+
+        // ==========================================
         // TRIGGER SILENT MEMORY OPTIMIZATION
         // ==========================================
         if (window.UI && typeof window.UI.optimizeMemory === 'function') {

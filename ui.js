@@ -813,6 +813,9 @@ const UI = {
             if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
             if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
+            // NEW CODE: Smart Document Sorting (Order No primary, Invoice No fallback)
+            if(sortOption === 'doc-desc') data.sort((a,b) => String(b.orderNo || b.invoiceNo || '').localeCompare(String(a.orderNo || a.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
+            if(sortOption === 'doc-asc') data.sort((a,b) => String(a.orderNo || a.invoiceNo || '').localeCompare(String(b.orderNo || b.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
 
             const container = document.getElementById(containerId);
             if (container) {
@@ -842,7 +845,7 @@ const UI = {
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                             <div style="flex:1; min-width:0; overflow:hidden;">
                                 <div class="large-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${s.invoiceNo || s.orderNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
+                                <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
@@ -882,6 +885,9 @@ const UI = {
             if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
             if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
+            // NEW CODE: Smart Document Sorting (Order/PO No primary, Invoice No fallback)
+            if(sortOption === 'doc-desc') data.sort((a,b) => String(b.orderNo || b.poNo || b.invoiceNo || '').localeCompare(String(a.orderNo || a.poNo || a.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
+            if(sortOption === 'doc-asc') data.sort((a,b) => String(a.orderNo || a.poNo || a.invoiceNo || '').localeCompare(String(b.orderNo || b.poNo || b.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
 
             const container = document.getElementById(containerId);
             if (container) {

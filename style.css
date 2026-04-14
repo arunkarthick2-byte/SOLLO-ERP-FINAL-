@@ -145,12 +145,15 @@ a, button, input, select, textarea, .nav-item, .chip {
     transform-origin: center top; 
 }
 
-/* THE MAGIC: Shrinks the entire app backward when ANY menu opens */
+/* THE MAGIC: Shrinks the entire app backward when ANY menu or screen opens (iOS Style) */
 body:has(.sheet-overlay.open) #app-shell,
-body:has(.bottom-sheet.open) #app-shell {
+body:has(.bottom-sheet.open) #app-shell,
+body:has(.activity-screen.open) #app-shell {
     transform: scale(0.93) translateY(12px);
     border-radius: 20px;
     overflow: hidden;
+    /* Adds a cinematic dimming effect to the background app so the new screen pops */
+    filter: brightness(0.65); 
 }
 
 .app-header {
@@ -299,12 +302,19 @@ body.dark-mode .swipe-card {
     font-weight: bold;
 }
 
+/* Elite Spring Physics applied to ALL tabs */
+.nav-item .material-symbols-outlined {
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); 
+    border-radius: 24px;
+    padding: 4px; /* Default resting padding */
+}
+
+/* The Jelly Spring expansion when a tab becomes active */
 .nav-item.active .material-symbols-outlined {
     background: var(--md-primary-container);
-    color: var(--md-primary); /* UPGRADE: Changed from black to Primary Blue */
+    color: var(--md-primary); 
     padding: 4px 20px; 
-    border-radius: 24px; 
-    transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+    /* The spring curve above makes this width expansion physically 'bounce' */
 }
 
 /* Modern Material 3 Floating Action Button */
@@ -333,10 +343,12 @@ body.dark-mode .swipe-card {
 }
 
 .floating-action-button:active {
-    transform: scale(0.92);
+    /* 3D Magnetic Tilt Effect */
+    transform: scale(0.92) rotate(-3deg) translateY(4px);
     background: var(--md-primary);
     color: var(--md-on-primary);
-    box-shadow: var(--elevation-1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s ease;
 }
 
 .floating-action-button .material-symbols-outlined {
@@ -663,12 +675,15 @@ body.dark-mode .activity-header {
 .bottom-sheet::before {
     content: '';
     display: block;
-    width: 36px;
-    height: 4px;
-    background: var(--md-outline-variant);
-    border-radius: 4px;
+    width: 48px;
+    height: 5px;
+    background: rgba(0, 0, 0, 0.15); /* Softer contrast */
+    border-radius: 5px; /* Perfect pill */
     margin: 12px auto 0;
     flex-shrink: 0;
+}
+body.dark-mode .bottom-sheet::before {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .bottom-sheet.open { 
@@ -2452,19 +2467,19 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
 /* PREMIUM UPGRADE: ULTIMATE VISUAL POLISH    */
 /* ========================================== */
 
-/* 1. COMPACT MODE */
-.m3-card { padding: 12px !important; margin-bottom: 10px !important; }
+/* 1. COMPACT MODE (Strict 8-Point Grid) */
+.m3-card { padding: 16px !important; margin-bottom: 16px !important; }
 
 /* The List Items (Seamless Flush List) */
 .list-view li { 
-    padding: 10px 12px !important; 
+    padding: 16px !important; 
     margin-bottom: 0px !important; /* GAP REMOVED */
     display: flex !important; 
     align-items: center !important; 
     justify-content: space-between !important; 
-    gap: 12px !important; 
+    gap: 16px !important; 
     border-radius: 0px !important; /* Removes round corners so they touch perfectly */
-    border-bottom: 1px solid rgba(150, 150, 150, 0.15) !important; /* Subtle separator line */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important; /* Ultra-soft separator line */
 }
 
 .list-view li > div:last-child {
@@ -2501,10 +2516,15 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
 /* 2. GLASSMORPHISM & PREMIUM SHADOWS */
 /* Removed .list-view li from this section so lists don't get thick borders */
 .m3-card {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.02) !important;
-    background: var(--md-surface) !important; /* Protected for Dark Mode */
-    border: 1px solid rgba(150, 150, 150, 0.2) !important;
-    border-radius: 12px !important;
+    background: var(--md-surface) !important; 
+    border: 1px solid rgba(0, 0, 0, 0.03) !important; /* Almost invisible FinTech border */
+    border-radius: 16px !important; /* Smoother, friendly Apple-style corners */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+}
+body.dark-mode .m3-card {
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    background: #141414 !important; /* Slightly elevated from pure black */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
 }
 .bottom-sheet {
     box-shadow: 0 -10px 30px rgba(0,0,0,0.1) !important;
@@ -2723,22 +2743,137 @@ table, td, th, input[type="number"], .m3-card strong, .m3-card span, .bottom-she
     background-color: #f1f5f9; /* Subtle hover effect for tracking data */
 }
 /* ========================================== */
-/* ENTERPRISE UPGRADE: GLOBAL COMPACT MODE    */
+/* ENTERPRISE UPGRADE: ULTRA-DENSE FLUSH RECORDS */
 /* ========================================== */
 
-/* Tightens the gap between all saved entries, cards, and list items app-wide */
-.list-view li, 
-.m3-card, 
+/* Seamless list style: zero margins, crushed padding, square corners */
 .history-card, 
 .transaction-card,
 .activity-list > div {
-    margin-bottom: 8px !important; /* Reduced from the standard 12px/16px gap */
+    margin-bottom: 0 !important; 
+    padding: 8px 12px !important; /* CRUSHED PADDING: Squeezes the height of each row significantly! */
+    border-radius: 0 !important; 
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important; 
+    box-shadow: none !important; 
 }
 
-/* Tightens the gap inside the Cashbook and History grids */
+/* Removes the extra line at the very bottom of the list */
+.history-card:last-child, 
+.transaction-card:last-child,
+.activity-list > div:last-child {
+    border-bottom: none !important;
+}
+
+/* ZERO gap between saved records so they touch perfectly */
 #cashbook-list, 
+#cashbook-container,
+#expense-history-container,
 #sales-history-container, 
 #purchase-history-container, 
 #master-list-container {
-    gap: 8px !important; /* Pulls the grid items closer together */
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important; 
+    background: var(--md-surface);
+    border-radius: 8px; /* Slightly sharper container corners */
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: ELITE FINTECH UI POLISH */
+/* ========================================== */
+
+/* 1. TABULAR "FINTECH" NUMBERS (Perfect Decimal Alignment) */
+/* Forces all numbers to be the exact same width so prices stack perfectly */
+body, input, textarea, select, button, td, th, .large-text, strong {
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* 2. iOS "GLASS" BOTTOM NAVIGATION */
+/* Replaces the solid white bar with a frosted glass blur effect */
+.bottom-nav {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.03) !important;
+}
+body.dark-mode .bottom-nav {
+    background: rgba(20, 20, 20, 0.85) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 3. MODERN "SOFT" INPUT FIELDS */
+/* Removes harsh borders and uses soft expanding grey backgrounds */
+input[type="text"], 
+input[type="number"], 
+input[type="date"], 
+input[type="password"], 
+textarea, 
+select {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border: 2px solid transparent !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    font-size: 16px !important;
+    transition: all 0.2s ease !important;
+    box-shadow: none !important;
+}
+
+/* Dark mode inputs */
+body.dark-mode input[type="text"], 
+body.dark-mode input[type="number"], 
+body.dark-mode input[type="date"], 
+body.dark-mode textarea, 
+body.dark-mode select {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: white !important;
+}
+
+/* Active/Focus state - The input "lights up" with a primary color border when tapped */
+input[type="text"]:focus, 
+input[type="number"]:focus, 
+input[type="date"]:focus, 
+textarea:focus, 
+select:focus {
+    background: transparent !important;
+    border: 2px solid var(--md-primary) !important;
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.1) !important;
+    outline: none !important;
+}
+/* ========================================== */
+/* ENTERPRISE UPGRADE: "SOFT PULSE" BADGES    */
+/* ========================================== */
+
+/* The Breathing Engine: Gently scales and projects a soft red glow */
+@keyframes soft-breathe-danger {
+    0% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.25); }
+    50% { opacity: 0.85; transform: scale(0.97); box-shadow: 0 0 0 6px rgba(186, 26, 26, 0); }
+    100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(186, 26, 26, 0); }
+}
+
+@keyframes soft-breathe-danger-dark {
+    0% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 100, 100, 0.15); }
+    50% { opacity: 0.85; transform: scale(0.97); box-shadow: 0 0 0 6px rgba(255, 100, 100, 0); }
+    100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 100, 100, 0); }
+}
+
+/* THE MAGIC: Automatically hunts down the exact hex codes you use for 
+   "To Pay", "Due", and "Overdue" badges and animates them!
+*/
+small[style*="color:#ba1a1a"], 
+span[style*="color:#be123c"],
+small[style*="color:var(--md-error)"],
+small[style*="color: var(--md-error)"] {
+    animation: soft-breathe-danger 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative; /* Keeps the glowing shadow behind the badge */
+    display: inline-block !important;
+}
+
+/* Automatically applies a softer neon glow when in Dark Mode */
+body.dark-mode small[style*="color:#ba1a1a"], 
+body.dark-mode span[style*="color:#be123c"],
+body.dark-mode small[style*="color:var(--md-error)"],
+body.dark-mode small[style*="color: var(--md-error)"] {
+     animation: soft-breathe-danger-dark 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
