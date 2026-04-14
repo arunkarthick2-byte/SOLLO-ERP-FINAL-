@@ -454,21 +454,30 @@ const Utils = {
                     if (window.Utils) window.Utils.showToast("Generating Print-Ready PDF...");
 
                     // THE ULTIMATE MOBILE BUG BYPASS
-                    // The UI Preview generation above already created a mathematically flawless image (imgSrc).
-                    // We completely bypass the mobile DOM bugs by taking that perfect image, attaching it off-screen, and generating the PDF directly from it!
                     const wrapper = document.createElement('div');
-                    wrapper.style.position = 'absolute';
-                    wrapper.style.left = '-9999px';
-                    wrapper.style.top = '-9999px';
+                    wrapper.style.position = 'fixed';
+                    wrapper.style.top = '0';
+                    wrapper.style.left = '0';
                     wrapper.style.width = '800px';
-                    wrapper.innerHTML = `<img src="${imgSrc}" style="width: 100%; display: block;" />`;
+                    // Hide it safely BEHIND the active full-screen Preview overlay!
+                    wrapper.style.zIndex = '9999'; 
+                    
+                    const imgToPrint = new Image();
+                    imgToPrint.src = imgSrc;
+                    imgToPrint.style.width = '100%';
+                    imgToPrint.style.display = 'block';
+                    
+                    wrapper.appendChild(imgToPrint);
                     document.body.appendChild(wrapper);
+
+                    // We MUST give the browser 150ms to physically decode and paint the image, otherwise it captures a blank white box!
+                    await new Promise(resolve => setTimeout(resolve, 150));
 
                     const opt = {
                         margin:       [0.4, 0.4, 0.4, 0.4], 
                         filename:     filename,
                         image:        { type: 'jpeg', quality: 1.0 }, 
-                        html2canvas:  { scale: 2, useCORS: true, logging: false }, 
+                        html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' }, 
                         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
                     };
 
