@@ -453,46 +453,29 @@ const Utils = {
                 try {
                     if (window.Utils) window.Utils.showToast("Generating Print-Ready PDF...");
 
+                    // THE ULTIMATE MOBILE BUG BYPASS
+                    // The UI Preview generation above already created a mathematically flawless image (imgSrc).
+                    // We completely bypass the mobile DOM bugs by taking that perfect image, attaching it off-screen, and generating the PDF directly from it!
+                    const wrapper = document.createElement('div');
+                    wrapper.style.position = 'absolute';
+                    wrapper.style.left = '-9999px';
+                    wrapper.style.top = '-9999px';
+                    wrapper.style.width = '800px';
+                    wrapper.innerHTML = `<img src="${imgSrc}" style="width: 100%; display: block;" />`;
+                    document.body.appendChild(wrapper);
+
                     const opt = {
                         margin:       [0.4, 0.4, 0.4, 0.4], 
                         filename:     filename,
                         image:        { type: 'jpeg', quality: 1.0 }, 
-                        pagebreak:    { mode: ['css', 'legacy'] }, 
-                        // STRICT ERP LOGIC: We mirror the EXACT config that successfully built the flawless UI preview!
-                        html2canvas:  { 
-                            scale: 2, 
-                            useCORS: true,
-                            logging: false,
-                            backgroundColor: '#ffffff',
-                            windowWidth: 800, 
-                            onclone: (clonedDoc) => {
-                                const printArea = clonedDoc.getElementById('print-area');
-                                if (printArea) {
-                                    printArea.className = ''; 
-                                    printArea.style.display = 'block';
-                                    printArea.style.position = 'relative';
-                                    printArea.style.visibility = 'visible';
-                                    printArea.style.width = '800px';
-                                }
-                            }
-                        },
+                        html2canvas:  { scale: 2, useCORS: true, logging: false }, 
                         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
                     };
 
-                                        // STRICT ERP LOGIC: Spoof a Desktop Monitor!
-                    // We MUST force the live DOM to 800px BEFORE the engine takes its initial measurements.
-                    element.style.width = '800px';
-                    element.style.minWidth = '800px';
-                    element.style.maxWidth = '800px';
-
-                    const pdfBlob = await window.html2pdf().set(opt).from(element).outputPdf('blob');
+                    const pdfBlob = await window.html2pdf().set(opt).from(wrapper).outputPdf('blob');
                     const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-
-                    // Instantly Restore the layout back to mobile size so the app doesn't break
-                    element.style.width = origWidth;
-                    element.style.minWidth = origMinWidth;
-                    element.style.maxWidth = origMaxWidth;
-                  
+                    
+                    document.body.removeChild(wrapper);
 
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
