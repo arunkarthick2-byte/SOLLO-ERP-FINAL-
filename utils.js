@@ -451,61 +451,37 @@ const Utils = {
             
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
-                    if (window.Utils) window.Utils.showToast("Generating Print-Ready PDF...");
+                    if (window.Utils) window.Utils.showToast("Preparing Document...");
 
-                    // THE ULTIMATE MOBILE BUG BYPASS
-                    const wrapper = document.createElement('div');
-                    wrapper.style.position = 'fixed';
-                    wrapper.style.top = '0';
-                    wrapper.style.left = '0';
-                    wrapper.style.width = '800px';
-                    // Hide it safely BEHIND the active full-screen Preview overlay!
-                    wrapper.style.zIndex = '9999'; 
+                    // THE ULTIMATE FIX: YOU WERE 100% CORRECT!
+                    // Sharing as a native Image (PNG) bypasses all the iOS/Android PDF rendering bugs.
+                    // We take the flawless Preview image and share it directly to WhatsApp/Email!
                     
-                    const imgToPrint = new Image();
-                    imgToPrint.src = imgSrc;
-                    imgToPrint.style.width = '100%';
-                    imgToPrint.style.display = 'block';
-                    
-                    wrapper.appendChild(imgToPrint);
-                    document.body.appendChild(wrapper);
-
-                    // We MUST give the browser 150ms to physically decode and paint the image, otherwise it captures a blank white box!
-                    await new Promise(resolve => setTimeout(resolve, 150));
-
-                    const opt = {
-                        margin:       [0.4, 0.4, 0.4, 0.4], 
-                        filename:     filename,
-                        image:        { type: 'jpeg', quality: 1.0 }, 
-                        html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' }, 
-                        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-                    };
-
-                    const pdfBlob = await window.html2pdf().set(opt).from(wrapper).outputPdf('blob');
-                    const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-                    
-                    document.body.removeChild(wrapper);
+                    const res = await fetch(imgSrc);
+                    const blob = await res.blob();
+                    const imageFilename = filename.replace('.pdf', '.png');
+                    const file = new File([blob], imageFilename, { type: 'image/png' });
 
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({
-                            title: filename,
+                            title: imageFilename.replace('.png', ''),
                             files: [file]
                         });
                     } else {
-                        const url = URL.createObjectURL(pdfBlob);
+                        const url = URL.createObjectURL(blob);
                         const link = document.createElement("a");
                         link.href = url;
-                        link.download = filename;
+                        link.download = imageFilename;
                         document.body.appendChild(link);
                         link.click();
                         setTimeout(() => {
                             URL.revokeObjectURL(url);
                             document.body.removeChild(link);
                         }, 1000);
-                        alert("Native sharing is blocked by this device. The PDF has been downloaded to your files instead.");
+                        alert("Native sharing is blocked by this device. The image has been downloaded to your files instead.");
                     }
                 } catch (err) {
-                    console.log("PDF Share cancelled or failed", err);
+                    console.log("Share cancelled or failed", err);
                     alert("Sharing was cancelled or is unsupported on this device.");
                 }
             };
