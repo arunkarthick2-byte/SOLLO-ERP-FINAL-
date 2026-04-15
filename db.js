@@ -658,25 +658,35 @@ const importDatabase = async (parsedData) => {
                     });
                 }
             } else {
-                const request = store.index('firmId').openKeyCursor(IDBKeyRange.only(activeFirmId));
-                request.onsuccess = (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        store.delete(cursor.primaryKey);
-                        cursor.continue();
-                    } else {
-                        // STRICT ERP LOGIC: Insert new records ONLY AFTER old ones are fully deleted!
-                        // This prevents the asynchronous race condition from destroying the imported data.
-                        // SAFETY CHECK: Ensure the array actually exists to prevent "o.length" crash
-                        if (Array.isArray(parsedData[storeName])) {
-                            parsedData[storeName].forEach(record => {
-                                if (storeName === 'firms') record.id = activeFirmId;
-                                else record.firmId = activeFirmId;
-                                store.put(record);
-                            });
+                // SAFETY CHECK: Only use the firmId index if the table actually has it!
+                if (store.indexNames.contains('firmId')) {
+                    const request = store.index('firmId').openKeyCursor(IDBKeyRange.only(activeFirmId));
+                    request.onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            store.delete(cursor.primaryKey);
+                            cursor.continue();
+                        } else {
+                            if (Array.isArray(parsedData[storeName])) {
+                                parsedData[storeName].forEach(record => {
+                                    if (storeName === 'firms') record.id = activeFirmId;
+                                    else record.firmId = activeFirmId;
+                                    store.put(record);
+                                });
+                            }
                         }
+                    };
+                } else {
+                    // For core tables like 'firms' and 'businessProfile', use the primary key directly
+                    store.delete(activeFirmId); 
+                    if (Array.isArray(parsedData[storeName])) {
+                        parsedData[storeName].forEach(record => {
+                            if (storeName === 'firms') record.id = activeFirmId;
+                            else record.firmId = activeFirmId;
+                            store.put(record);
+                        });
                     }
-                };
+                }
             }
         });
         
