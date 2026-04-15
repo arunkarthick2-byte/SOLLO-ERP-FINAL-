@@ -1000,13 +1000,15 @@ const UI = {
                     const minStock = parseFloat(i.minStock) || 0;
                     const isLowStock = minStock > 0 && currentStock <= minStock;
                     
-                    // NEW: Dual Engine Display Logic
-                    const gstStock = i.stockGst !== undefined ? parseFloat(i.stockGst) : currentStock;
-                    const nonGstStock = parseFloat(i.stockNonGst) || 0;
+                    // NEW: Bulletproof Dual Stock Math (Fixes "undefined" text)
+                    const rawGst = parseFloat(i.stockGst);
+                    const rawNon = parseFloat(i.stockNonGst);
+                    const gstStock = isNaN(rawGst) ? currentStock : rawGst;
+                    const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
                     
                     const stockLabel = `
                         <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Tot: ${currentStock} ${i.uom || ''} ${isLowStock ? '⚠️' : ''}</span>
-                        <span style="font-size: 11px; color: var(--md-text-muted); display: block; margin-top: 2px;">GST: ${gstStock} | Non: ${nonGstStock}</span>
+                        <span style="font-size: 11px; color: var(--md-text-muted); display: block; margin-top: 2px;">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
                     `;
 
                     return UI.renderRowWiseItem(
@@ -2218,9 +2220,11 @@ const UI = {
             const minStock = parseFloat(item.minStock) || 0;
             const isLowStock = minStock > 0 && currentStock <= minStock;
             
-            // NEW: Dual Engine Display Logic
-            const gstStock = item.stockGst !== undefined ? parseFloat(item.stockGst) : currentStock;
-            const nonGstStock = parseFloat(item.stockNonGst) || 0;
+            // NEW: Bulletproof Dual Stock Math (Fixes "undefined" text)
+            const rawGst = parseFloat(item.stockGst);
+            const rawNon = parseFloat(item.stockNonGst);
+            const gstStock = isNaN(rawGst) ? currentStock : rawGst;
+            const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
             
             return `
             <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
@@ -2229,7 +2233,7 @@ const UI = {
                     <small>
                         <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Tot: ${currentStock} ${item.uom || ''} ${isLowStock ? '⚠️' : ''}</span> 
                         | Rate: \u20B9${price.toFixed(2)}
-                        <br><span style="font-size: 10px; color: var(--md-text-muted);">GST: ${gstStock} | Non: ${nonGstStock}</span>
+                        <br><span style="font-size: 10px; color: var(--md-text-muted);">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
                     </small>
                 </div>
                 <input type="checkbox" style="width: 20px; height: 20px; pointer-events: none;">

@@ -651,9 +651,12 @@ const importDatabase = async (parsedData) => {
             // Only clear the records belonging to the ACTIVE firm, protecting other companies' data!
             if (storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
                 store.clear(); 
-                parsedData[storeName].forEach(record => {
-                    store.put(record);
-                });
+                // SAFETY CHECK: Ensure the array actually exists to prevent "o.length" crash
+                if (Array.isArray(parsedData[storeName])) {
+                    parsedData[storeName].forEach(record => {
+                        store.put(record);
+                    });
+                }
             } else {
                 const request = store.index('firmId').openKeyCursor(IDBKeyRange.only(activeFirmId));
                 request.onsuccess = (event) => {
@@ -664,11 +667,14 @@ const importDatabase = async (parsedData) => {
                     } else {
                         // STRICT ERP LOGIC: Insert new records ONLY AFTER old ones are fully deleted!
                         // This prevents the asynchronous race condition from destroying the imported data.
-                        parsedData[storeName].forEach(record => {
-                            if (storeName === 'firms') record.id = activeFirmId;
-                            else record.firmId = activeFirmId;
-                            store.put(record);
-                        });
+                        // SAFETY CHECK: Ensure the array actually exists to prevent "o.length" crash
+                        if (Array.isArray(parsedData[storeName])) {
+                            parsedData[storeName].forEach(record => {
+                                if (storeName === 'firms') record.id = activeFirmId;
+                                else record.firmId = activeFirmId;
+                                store.put(record);
+                            });
+                        }
                     }
                 };
             }
@@ -693,6 +699,7 @@ const importDatabase = async (parsedData) => {
         transaction.onerror = () => reject(transaction.error);
     });
 };
+
 // ==========================================
 // 9. GST REPORTS AGGREGATION ENGINE
 // ==========================================
@@ -781,3 +788,4 @@ window.getGlobalTimeline = getGlobalTimeline;
 window.exportDatabase = exportDatabase;
 window.importDatabase = importDatabase;
 window.generateGSTReport = generateGSTReport;
+
