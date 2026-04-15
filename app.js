@@ -316,8 +316,11 @@ const app = {
             let lowStockCount = 0;
 
             UI.state.rawData.items.forEach(i => {
-                const stockGst = i.stockGst !== undefined ? parseFloat(i.stockGst) : (parseFloat(i.stock) || 0);
-                const stockNonGst = parseFloat(i.stockNonGst) || 0;
+                // STRICT ERP LOGIC: Bulletproof Math to prevent NaN wiping out the whole dashboard!
+                const rawGst = parseFloat(i.stockGst);
+                const rawNon = parseFloat(i.stockNonGst);
+                const stockGst = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
+                const stockNonGst = isNaN(rawNon) ? 0 : rawNon;
                 const totalStock = stockGst + stockNonGst;
                 
                 const buyPrice = parseFloat(i.buyPrice) || 0;
@@ -553,9 +556,11 @@ const app = {
             let html = '<option value="">Select Product...</option>';
             items.forEach(i => {
                 if (i.firmId === app.state.firmId) {
-                    let g = i.stockGst !== undefined ? i.stockGst : (i.stock || 0);
-                    let ng = i.stockNonGst || 0;
-                    html += `<option value="${i.id}">${i.name} (GST: ${parseFloat(g).toFixed(2)} | Non: ${parseFloat(ng).toFixed(2)})</option>`;
+                    const rawGst = parseFloat(i.stockGst);
+                    const rawNon = parseFloat(i.stockNonGst);
+                    let g = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
+                    let ng = isNaN(rawNon) ? 0 : rawNon;
+                    html += `<option value="${i.id}">${i.name} (GST: ${g.toFixed(2)} | Non-GST: ${ng.toFixed(2)})</option>`;
                 }
             });
             
@@ -633,85 +638,11 @@ const app = {
     },
 
     applySmartMasterFilter: () => {
+        // The old, clunky DOM filter has been deleted!
+        // We now rely 100% on the lightning-fast native data filter inside ui.js!
         if (window.UI && typeof window.UI.applyFilters === 'function') {
             window.UI.applyFilters('masters');
         }
-
-        setTimeout(() => {
-            const filterVal = document.getElementById('filter-master-view').value;
-            const sortVal = document.getElementById('sort-master-view').value;
-            const type = window.UI.state.currentMasterType;
-            
-            const list = document.querySelector('#master-list-container .list-view');
-            if (!list) return;
-            
-            let items = Array.from(list.children);
-            if (items.length === 0 || items[0].classList.contains('empty-state')) return;
-
-            items.forEach(li => {
-                let show = true;
-                const text = li.innerText.toLowerCase();
-                
-                if (type === 'products') {
-                    const stockMatch = text.match(/stock:\s*([\d.-]+)/i);
-                    const stock = stockMatch ? parseFloat(stockMatch[1]) : 0;
-                    if (filterVal === 'Out of Stock' && stock > 0) show = false;
-                    if (filterVal === 'Low Stock' && stock > 10) show = false; 
-
-                    // NEW: Smart Data Lookup for GST / Non-GST Stock
-                    if (filterVal === 'GST Stock' || filterVal === 'Non-GST Stock') {
-                        // Extract the item ID from the row to check real database memory
-                        const idMatch = li.innerHTML.match(/(sollo-[a-z0-9-]+)/);
-                        const itemId = idMatch ? idMatch[1] : null;
-                        
-                        if (itemId && window.UI && window.UI.state && window.UI.state.rawData.items) {
-                            const dbItem = window.UI.state.rawData.items.find(i => i.id === itemId);
-                            if (dbItem) {
-                                // Check the specific stock pools in memory
-                                if (filterVal === 'GST Stock' && (parseFloat(dbItem.stockGst) || 0) <= 0) show = false;
-                                if (filterVal === 'Non-GST Stock' && (parseFloat(dbItem.stockNonGst) || 0) <= 0) show = false;
-                            }
-                        } else {
-                            show = false; // Hide if ID cannot be verified
-                        }
-                    }
-                } else if (type === 'customers' || type === 'suppliers') {
-                    if (filterVal === 'To Receive' && !text.includes('to receive')) show = false;
-                    if (filterVal === 'To Pay' && !text.includes('to pay')) show = false;
-                    if (filterVal === 'Advance' && !text.includes('advance')) show = false;
-                    if (filterVal === 'Settled' && !(text.includes('settled') || text.includes('₹0.00'))) show = false;
-                }
-                
-                li.style.display = show ? 'flex' : 'none';
-                
-                // Set data sorting targets
-                li.dataset.sortval = text; 
-                if (sortVal.includes('stock')) {
-                    const m = text.match(/stock:\s*([\d.-]+)/i);
-                    li.dataset.sortval = m ? parseFloat(m[1]) : 0;
-                } else if (sortVal.includes('bal')) {
-                    const m = text.match(/₹([\d,.]+)/);
-                    li.dataset.sortval = m ? parseFloat(m[1].replace(/,/g, '')) : 0;
-                }
-            });
-
-            items.sort((a, b) => {
-                let valA = a.dataset.sortval;
-                let valB = b.dataset.sortval;
-
-                if (sortVal === 'name-asc') return String(valA).localeCompare(String(valB));
-                if (sortVal === 'name-desc') return String(valB).localeCompare(String(valA));
-
-                valA = parseFloat(valA) || 0;
-                valB = parseFloat(valB) || 0;
-
-                if (sortVal === 'stock-asc' || sortVal === 'bal-asc') return valA - valB;
-                if (sortVal === 'stock-desc' || sortVal === 'bal-desc') return valB - valA;
-                return 0;
-            });
-
-            items.forEach(li => list.appendChild(li));
-        }, 50);
     },
 
     // ==========================================
@@ -1945,9 +1876,11 @@ const app = {
                         for (const row of items) {
                             const dbItem = allItems.find(i => i.id === row.itemId);
                             if (dbItem) {
-                                // Isolate the exact stock pool being targeted
-                                let stockGst = dbItem.stockGst !== undefined ? parseFloat(dbItem.stockGst) : (parseFloat(dbItem.stock) || 0);
-                                let stockNonGst = parseFloat(dbItem.stockNonGst) || 0;
+                                // Isolate the exact stock pool being targeted (Bulletproof Math)
+                                const rawGst = parseFloat(dbItem.stockGst);
+                                const rawNon = parseFloat(dbItem.stockNonGst);
+                                let stockGst = isNaN(rawGst) ? (parseFloat(dbItem.stock) || 0) : rawGst;
+                                let stockNonGst = isNaN(rawNon) ? 0 : rawNon;
                                 let effectiveStock = isNonGST ? stockNonGst : stockGst;
                                 
                                 // If editing an already-completed invoice, temporarily add the old qty back to the pool
@@ -2207,8 +2140,10 @@ const app = {
                     const item = await getRecordById('items', itemId);
                     if (!item) throw new Error("Product not found in database.");
                     
-                    let stockGst = item.stockGst !== undefined ? parseFloat(item.stockGst) : (parseFloat(item.stock) || 0);
-                    let stockNonGst = parseFloat(item.stockNonGst) || 0;
+                    const rawGst = parseFloat(item.stockGst);
+                    const rawNon = parseFloat(item.stockNonGst);
+                    let stockGst = isNaN(rawGst) ? (parseFloat(item.stock) || 0) : rawGst;
+                    let stockNonGst = isNaN(rawNon) ? 0 : rawNon;
                     let targetStock = pool === 'gst' ? stockGst : stockNonGst;
                     
                     if (type === 'reduce') {
@@ -2786,8 +2721,17 @@ const app = {
             delete record._module;
             delete record.deletedAt;
             
-            // Save it back to the active IndexedDB
-            await saveRecord(storeName, record); 
+            // STRICT ERP LOGIC: Re-apply stock impacts if restoring an invoice or adjustment!
+            if (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments') {
+                if (typeof saveInvoiceTransaction === 'function') {
+                    await saveInvoiceTransaction(storeName, record);
+                } else {
+                    await saveRecord(storeName, record); // Failsafe fallback
+                }
+            } else {
+                // Save normal records back to the active IndexedDB without stock math
+                await saveRecord(storeName, record); 
+            }
             
             // FIX: Recreate the Cashbook entry if restoring an Expense
             if (storeName === 'expenses') {

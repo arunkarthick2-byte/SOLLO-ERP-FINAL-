@@ -988,26 +988,54 @@ const UI = {
                 data = UI.state.rawData.items.filter(i => {
                     const matchSearch = (i.name || '').toLowerCase().includes(searchTerm) || (i.sku || '').toLowerCase().includes(searchTerm);
                     let matchFilter = true;
-                    if (activeMasterFilter === 'In Stock') matchFilter = (parseFloat(i.stock) || 0) > 0;
+                    
+                    // Bulletproof Math
+                    const rawGst = parseFloat(i.stockGst);
+                    const rawNon = parseFloat(i.stockNonGst);
+                    const gst = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
+                    const non = isNaN(rawNon) ? 0 : rawNon;
+                    const tot = parseFloat(i.stock) || 0;
+                    const min = parseFloat(i.minStock) || 0;
+
+                    if (activeMasterFilter === 'In Stock') matchFilter = tot > 0;
+                    else if (activeMasterFilter === 'Out of Stock') matchFilter = tot <= 0;
+                    else if (activeMasterFilter === 'Low Stock') matchFilter = min > 0 && tot <= min;
+                    else if (activeMasterFilter === 'GST Stock') matchFilter = gst > 0;
+                    else if (activeMasterFilter === 'Non-GST Stock') matchFilter = non > 0;
+                    
                     return matchSearch && matchFilter;
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
-                if(sortOption === 'stock-asc') data.sort((a,b) => (a.stock || 0) - (b.stock || 0));
+                if(sortOption === 'stock-asc' || sortOption === 'stock-desc') {
+                    data.sort((a,b) => {
+                        const getVal = (item) => {
+                            if (activeMasterFilter === 'GST Stock') return isNaN(parseFloat(item.stockGst)) ? (parseFloat(item.stock) || 0) : parseFloat(item.stockGst);
+                            if (activeMasterFilter === 'Non-GST Stock') return parseFloat(item.stockNonGst) || 0;
+                            return parseFloat(item.stock) || 0;
+                        };
+                        return sortOption === 'stock-asc' ? getVal(a) - getVal(b) : getVal(b) - getVal(a);
+                    });
+                }
 
                 UI.renderVirtualList(container, data, (i) => {
                     const currentStock = parseFloat(i.stock) || 0;
                     const minStock = parseFloat(i.minStock) || 0;
                     const isLowStock = minStock > 0 && currentStock <= minStock;
                     
-                    // NEW: Bulletproof Dual Stock Math (Fixes "undefined" text)
+                    // Bulletproof Math
                     const rawGst = parseFloat(i.stockGst);
                     const rawNon = parseFloat(i.stockNonGst);
                     const gstStock = isNaN(rawGst) ? currentStock : rawGst;
                     const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
                     
+                    // Smart Highlight Display based on the active filter
+                    let primaryStockLabel = `Tot: ${currentStock}`;
+                    if (activeMasterFilter === 'GST Stock') primaryStockLabel = `GST: ${gstStock}`;
+                    else if (activeMasterFilter === 'Non-GST Stock') primaryStockLabel = `Non-GST: ${nonGstStock}`;
+                    
                     const stockLabel = `
-                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Tot: ${currentStock} ${i.uom || ''} ${isLowStock ? '⚠️' : ''}</span>
+                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">${primaryStockLabel} ${i.uom || ''} ${isLowStock ? '⚠️' : ''}</span>
                         <span style="font-size: 11px; color: var(--md-text-muted); display: block; margin-top: 2px;">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
                     `;
 
@@ -2455,7 +2483,7 @@ const UI = {
         const container = document.getElementById('pnl-container');
 
         // ENTERPRISE FIX: Multi-Company Data Isolation for PnL
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
 
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
 
@@ -2545,7 +2573,7 @@ const UI = {
         const dailyActivity = [];
         
         // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
         
         UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open').forEach(s => {
             const isRet = s.documentType === 'return';

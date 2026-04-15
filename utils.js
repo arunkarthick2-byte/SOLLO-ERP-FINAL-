@@ -276,7 +276,9 @@ const Utils = {
             }
             blobParts.push('}');
 
-            const fileName = `SOLLO_Backup_${new Date().toISOString().split('T')[0]}.json`;
+            // STRICT ERP LOGIC: Inject exact timestamp to prevent OS-level file overwriting!
+            const timestamp = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+            const fileName = `SOLLO_Backup_${new Date().toISOString().split('T')[0]}_${timestamp}.json`;
             const blob = new Blob(blobParts, { type: "application/json" });
             const file = new File([blob], fileName, { type: "application/json" });
 
@@ -344,14 +346,18 @@ const Utils = {
             const jsonStr = document.getElementById('restore-textarea').value;
             if (!jsonStr) return alert("Please paste the backup text first.");
             try {
-                const data = JSON.parse(jsonStr);
+                // STRICT ERP LOGIC: Sanitize hidden keyboard artifacts and line breaks before parsing!
+                const cleanStr = jsonStr.trim().replace(/[\u200B-\u200D\uFEFF]/g, ''); 
+                const data = JSON.parse(cleanStr);
+                
                 if (typeof window.importDatabase === 'function') {
                     await window.importDatabase(data);
                     alert("✅ Database restored successfully! Reloading app...");
                     window.location.reload();
                 }
             } catch (err) {
-                alert("❌ Invalid backup text. Please ensure you copied the exact JSON string.");
+                console.error("Restore Parser Error:", err);
+                alert("❌ Invalid backup text. Please ensure you copied the exact JSON string without adding any extra spaces.");
             }
         };
     },
@@ -524,7 +530,8 @@ const Utils = {
         (doc.items || []).forEach((item, index) => {
             const qty = parseFloat(item.qty) || 0;
             const rate = parseFloat(item.rate) || 0;
-            const gstPercent = parseFloat(item.gstPercent) || 0;
+            // STRICT ERP LOGIC: Completely kill the tax math if this is a Non-GST Bill of Supply!
+            const gstPercent = isNonGST ? 0 : (parseFloat(item.gstPercent) || 0);
             
             // STRICT ERP LOGIC: Apply proportional discount BEFORE calculating GST to match UI math!
             const baseAmount = qty * rate;
@@ -598,12 +605,12 @@ const Utils = {
                     <thead>
                         <tr>
                             <th style="width: 5%;">#</th>
-                            <th style="width: 35%; text-align: left;">Description of Goods</th>
+                            <th style="width: ${!isNonGST ? '35%' : '45%'}; text-align: left;">Description of Goods</th>
                             ${!isNonGST ? `<th style="width: 10%;">HSN/SAC</th>` : ''}
-                            <th style="width: 10%;">Qty</th>
-                            <th style="width: 12%; text-align: right;">Rate</th>
-                            ${!isNonGST ? `<th style="width: 8%;">GST%</th>` : ''}
-                            <th style="width: 15%; text-align: right;">Total Amount</th>
+                            <th style="width: ${!isNonGST ? '10%' : '15%'};">Qty</th>
+                            <th style="width: ${!isNonGST ? '15%' : '15%'}; text-align: right;">Rate</th>
+                            ${!isNonGST ? `<th style="width: 10%;">GST%</th>` : ''}
+                            <th style="width: ${!isNonGST ? '15%' : '20%'}; text-align: right;">Total Amount</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1114,15 +1121,21 @@ const Utils = {
             if (moduleType === 'expense') {
                 if (extracted.amount) triggerInput('exp-amount', extracted.amount);
                 if (extracted.invNo) triggerInput('expense-no', extracted.invNo);
+                if (extracted.date) triggerInput('expense-date', extracted.date);
             } 
             else if (moduleType === 'purchase') {
                 if (extracted.invNo) triggerInput('purchase-po-no', extracted.invNo);
+                if (extracted.date) triggerInput('purchase-date', extracted.date);
             }
             else if (moduleType === 'sales') {
                 if (extracted.invNo) triggerInput('sales-invoice-no', extracted.invNo);
+                if (extracted.date) triggerInput('sales-date', extracted.date);
             }
             else if (moduleType === 'product') {
                 if (extracted.amount) triggerInput('prod-sell', extracted.amount);
+            }
+            else if (moduleType === 'ledger') {
+                if (extracted.gstin) triggerInput('ledger-gst', extracted.gstin);
             }
             if (window.Utils) window.Utils.showToast("✅ Auto-Fill Applied! Please verify data before saving.");
         } catch (e) {

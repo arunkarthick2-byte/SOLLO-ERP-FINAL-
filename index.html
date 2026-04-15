@@ -2538,6 +2538,23 @@
                 });
             });
             
+            // STRICT ERP LOGIC: 2.5 Scan all Manual Stock Adjustments!
+            const adjustments = window.UI.state.rawData.adjustments || [];
+            adjustments.forEach(a => {
+                if (a.itemId === id) {
+                    const qty = parseFloat(a.qty) || 0;
+                    const isAdd = a.type === 'add';
+                    timeline.push({
+                        date: a.date,
+                        desc: `Stock Adjustment (${a.pool === 'gst' ? 'GST' : 'Non-GST'})`,
+                        partyName: 'Manual Correction',
+                        ref: a.notes || 'Audit',
+                        impact: isAdd ? qty : -qty,
+                        rate: 0 // Adjustments don't have a buy/sell rate
+                    });
+                }
+            });
+            
             // 3. Sort chronologically by Date
             timeline.sort((a,b) => new Date(a.date) - new Date(b.date));
             
