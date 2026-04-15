@@ -4,7 +4,7 @@
   "short_name": "SOLLO",
   "description": "Professional Accounting, Billing, and Inventory Management System",
   "start_url": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "display_override": ["window-controls-overlay", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#0061a4",
