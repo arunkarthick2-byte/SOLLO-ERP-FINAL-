@@ -1595,7 +1595,11 @@ const UI = {
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                 // Ease-out formula for smoother deceleration
                 const easeOut = 1 - Math.pow(1 - progress, 3);
-                obj.innerHTML = '\u20B9' + (easeOut * (end - start) + start).toFixed(2);
+                const currentVal = (easeOut * (end - start) + start);
+                // STRICT ERP LOGIC: Safely format negative currency numbers (e.g. -₹500 instead of ₹-500)
+                obj.innerHTML = currentVal < 0 
+                    ? '-\u20B9' + Math.abs(currentVal).toFixed(2) 
+                    : '\u20B9' + currentVal.toFixed(2);
                 if (progress < 1) window.requestAnimationFrame(step);
             };
             window.requestAnimationFrame(step);

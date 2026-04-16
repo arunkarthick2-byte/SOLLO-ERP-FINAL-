@@ -2877,3 +2877,281 @@ body.dark-mode small[style*="color:var(--md-error)"],
 body.dark-mode small[style*="color: var(--md-error)"] {
      animation: soft-breathe-danger-dark 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
+/* ==========================================
+   ELITE UPGRADE 1: FLOATING PILL SAVE CONSOLE
+   ========================================== */
+.activity-bottom-bar, .activity-footer, #activity-sales-form .bottom-bar, #activity-purchase-form .bottom-bar, .bottom-action-bar {
+    position: fixed !important;
+    bottom: 24px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 92% !important;
+    max-width: 450px !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-radius: 50px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 2px 10px rgba(0, 97, 164, 0.1) !important;
+    padding: 10px 16px !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+/* Make the primary save buttons match the pill aesthetic */
+.activity-bottom-bar button, .activity-footer button, .bottom-action-bar button, .activity-screen .primary-btn {
+    border-radius: 50px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    padding: 14px 24px !important;
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.3) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Add a hover/press effect to the new pill buttons */
+.activity-bottom-bar button:active, .activity-footer button:active {
+    transform: scale(0.97) !important;
+    box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2) !important;
+}
+
+/* Pad the bottom of the forms so the new floating pill doesn't hide the last text box */
+.activity-content, .scrollable-content {
+    padding-bottom: 110px !important;
+}
+/* ==========================================
+   ELITE UPGRADE 2: AMOLED TRUE BLACK DARK MODE
+   ========================================== */
+[data-theme="dark"], body.dark-mode, body.dark-theme {
+    /* AMOLED Battery-Saver Core */
+    --md-background: #000000 !important; /* True Black - Turns off OLED pixels! */
+    --md-surface: #121212 !important; /* Slightly elevated surface */
+    --md-surface-variant: #1e1e22 !important;
+    
+    /* Neon Contrast Text */
+    --md-on-surface: #e2e2e6 !important;
+    --md-on-surface-variant: #c4c6d0 !important;
+    
+    /* Adjusted Primary Accents for Dark Backgrounds */
+    --md-primary: #8cbbf1 !important;
+    --md-on-primary: #00315a !important;
+    --md-primary-container: #00487d !important;
+    --md-on-primary-container: #d1e4ff !important;
+    
+    /* Adjusted Status Colors for Dark Mode */
+    --md-outline: #44474e !important;
+    --md-error: #ffb4ab !important; /* Soft Neon Red */
+    --md-success: #81c995 !important; /* Soft Neon Green */
+    --md-warning: #ffb74d !important;
+}
+
+/* Force specific elements to respect the AMOLED aesthetic */
+[data-theme="dark"] .m3-card,
+[data-theme="dark"] .bottom-sheet,
+[data-theme="dark"] .activity-screen,
+body.dark-mode .m3-card,
+body.dark-mode .bottom-sheet,
+body.dark-mode .activity-screen {
+    background-color: var(--md-surface) !important;
+    border: 1px solid var(--md-outline) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Glassmorphism adjustment for the Floating Pill in Dark Mode */
+[data-theme="dark"] .activity-bottom-bar,
+[data-theme="dark"] .activity-footer,
+body.dark-mode .activity-bottom-bar,
+body.dark-mode .activity-footer {
+    background: rgba(18, 18, 18, 0.85) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(140, 187, 241, 0.1) !important;
+}
+
+/* Ensure inputs don't blind the user */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: var(--md-surface-variant) !important;
+    color: var(--md-on-surface) !important;
+    border: 1px solid var(--md-outline) !important;
+}
+/* ==========================================
+   ELITE UPGRADE 3: "LIQUID GLASS" BOTTOM SHEETS
+   ========================================== */
+/* The Menu Sheet */
+.bottom-sheet {
+    transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.05) !important; /* Spring/Bounce physics */
+    border-top-left-radius: 28px !important;
+    border-top-right-radius: 28px !important;
+    background: rgba(253, 252, 255, 0.85) !important;
+    backdrop-filter: blur(24px) !important;
+    -webkit-backdrop-filter: blur(24px) !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+/* AMOLED Dark Mode override for the Glass Sheet */
+[data-theme="dark"] .bottom-sheet,
+body.dark-mode .bottom-sheet {
+    background: rgba(18, 18, 18, 0.80) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* The Background Dimmer */
+.sheet-overlay {
+    transition: opacity 0.35s ease, backdrop-filter 0.35s ease !important;
+    background-color: rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(6px) !important; /* Blurs the entire app behind the menu */
+    -webkit-backdrop-filter: blur(6px) !important;
+}
+/* ==========================================
+   ELITE UPGRADE 4: GPAY-STYLE PAYMENT INPUTS
+   ========================================== */
+/* Make the Amount input massive and center it */
+#pay-in-amount, #pay-out-amount {
+    font-size: 56px !important;
+    font-weight: 900 !important;
+    text-align: center !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 20px 0 10px 0 !important;
+    width: 100% !important;
+    outline: none !important;
+    box-shadow: none !important;
+    letter-spacing: -2px !important;
+    border-bottom: 2px solid var(--md-surface-variant) !important;
+    border-radius: 0 !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+/* Color Code: Green for Money In, Red for Money Out */
+#pay-in-amount { color: var(--md-success) !important; }
+#pay-out-amount { color: var(--md-error) !important; }
+
+/* The "Pop" effect when the user taps to type the number */
+#pay-in-amount:focus, #pay-out-amount:focus {
+    border-bottom: 2px solid var(--md-primary) !important;
+    transform: scale(1.05) !important;
+}
+
+/* Center and style the label above the massive number */
+label[for="pay-in-amount"], label[for="pay-out-amount"], 
+#form-payment-in label:first-of-type, #form-payment-out label:first-of-type {
+    text-align: center !important;
+    display: block !important;
+    width: 100% !important;
+    font-size: 13px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.5px !important;
+    font-weight: 800 !important;
+    margin-bottom: -10px !important;
+}
+/* ==========================================
+   ELITE UPGRADE 5: PREMIUM WIDGET DASHBOARD CARDS
+   ========================================== */
+/* Upgrade the base card physics and visuals */
+.m3-card, .dashboard-card, .item-entry-card {
+    border-radius: 20px !important; /* Softer, Apple-style rounded corners */
+    border: 1px solid rgba(255, 255, 255, 0.6) !important; /* Subtle glass reflection */
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+    background: linear-gradient(145deg, var(--md-surface), rgba(255,255,255,0.7)) !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.05) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* AMOLED Dark Mode support for the new Widgets */
+[data-theme="dark"] .m3-card, 
+body.dark-mode .m3-card,
+[data-theme="dark"] .item-entry-card,
+body.dark-mode .item-entry-card {
+    background: linear-gradient(145deg, var(--md-surface), var(--md-surface-variant)) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Inject realistic physics when a user taps a card */
+.m3-card.tap-target:active, .item-entry-card.tap-target:active {
+    transform: scale(0.96) !important; /* Shrinks slightly into the screen */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Clean up the inner icon circles to match the new soft aesthetic */
+.m3-card .icon-circle {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.5) !important;
+}
+
+[data-theme="dark"] .m3-card .icon-circle, 
+body.dark-mode .m3-card .icon-circle {
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3) !important;
+}
+/* ==========================================
+   ELITE UPGRADE 6: DYNAMIC NAVIGATION BAR
+   ========================================== */
+/* Base Navigation Bar Styling with iPhone Notch Support */
+.bottom-nav, #bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom) !important; 
+    background: rgba(253, 252, 255, 0.9) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.03) !important;
+    transition: background-color 0.3s ease !important;
+}
+
+/* AMOLED Dark Mode Override */
+[data-theme="dark"] .bottom-nav, body.dark-mode .bottom-nav {
+    background: rgba(18, 18, 18, 0.85) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Navigation Items and Spring Animations */
+.bottom-nav .nav-item {
+    position: relative !important;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.2) !important;
+}
+
+/* Physical 'squish' effect when tapped */
+.bottom-nav .nav-item:active {
+    transform: scale(0.85) !important;
+}
+
+/* The Active Indicator Dot (Apple/Google Flagship Style) */
+.bottom-nav .nav-item::after {
+    content: '' !important;
+    position: absolute !important;
+    bottom: -6px !important;
+    left: 50% !important;
+    transform: translateX(-50%) scale(0) !important;
+    width: 5px !important;
+    height: 5px !important;
+    background-color: var(--md-primary) !important;
+    border-radius: 50% !important;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    opacity: 0 !important;
+}
+
+/* Trigger the dot to snap into place when active */
+.bottom-nav .nav-item.active::after {
+    transform: translateX(-50%) scale(1) !important;
+    opacity: 1 !important;
+}
+
+/* Floating Icon Effect: Bounces up slightly and fills in */
+.bottom-nav .nav-item.active .material-symbols-outlined {
+    transform: translateY(-2px) !important;
+    color: var(--md-primary) !important;
+    font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24 !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}

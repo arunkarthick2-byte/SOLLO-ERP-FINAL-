@@ -38,8 +38,11 @@ let wakeLock = null;
 const requestWakeLock = async () => {
     try {
         if ('wakeLock' in navigator) {
+            // STRICT ERP LOGIC: Destroy the old wake lock listener before creating a new one to prevent background memory leaks!
+            if (wakeLock !== null) wakeLock.onrelease = null; 
+            
             wakeLock = await navigator.wakeLock.request('screen');
-            wakeLock.addEventListener('release', () => console.log('Screen Wake Lock released'));
+            wakeLock.onrelease = () => console.log('Screen Wake Lock released');
         }
     } catch (err) { console.warn(`Wake Lock error: ${err.name}, ${err.message}`); }
 };
@@ -50,8 +53,8 @@ requestWakeLock(); // Request immediately on boot
 
 // --- ENTERPRISE UPGRADE: "ANTI-SWIPE" DATA LOSS PREVENTER ---
 window.addEventListener('beforeunload', (event) => {
-    // If an activity form is currently open on the screen, warn the user before closing!
-    const openForms = document.querySelectorAll('.activity-screen.open');
+    // STRICT ERP LOGIC: Only trap the user if they are inside a DATA ENTRY form, not a read-only PDF or Ledger report!
+    const openForms = Array.from(document.querySelectorAll('.activity-screen.open')).filter(el => el.id.includes('-form'));
     if (openForms.length > 0) {
         event.preventDefault();
         event.returnValue = "You have unsaved changes. Are you sure you want to leave?";
@@ -125,6 +128,11 @@ window.compressImage = async (base64Str) => {
             ctx.drawImage(img, 0, 0, width, height);
             resolve(canvas.toDataURL('image/webp', 0.6)); // 60% WebP = 95% file size reduction!
         };
+        // STRICT ERP LOGIC: Prevent Infinite "Saving..." loops if the image is corrupted!
+        img.onerror = () => {
+            console.error("Image compression failed, falling back to original string.");
+            resolve(base64Str); 
+        };
         img.src = base64Str;
     });
 };
@@ -161,10 +169,18 @@ const app = {
                                 
                                 // ENTERPRISE FIX: Force the new Service Worker to take over immediately!
                                 newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                // (Reload logic safely deferred to index.html to prevent double-boot glitches)
                             }
                         });
                     });
+                });
+                
+                // STRICT ERP LOGIC: Listen for the exact moment the new worker takes over, and force a hard reload!
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        window.location.reload();
+                    }
                 });
             }
 
@@ -372,7 +388,8 @@ const app = {
             });
 
             UI.state.rawData.sales.forEach(sale => {
-                if (sale.firmId === app.state.firmId && sale.status !== 'Completed' && sale.documentType !== 'return') {
+                // STRICT ERP LOGIC: Ignore 'Open' (Draft) invoices so they don't create phantom debt!
+                if (sale.firmId === app.state.firmId && sale.status !== 'Completed' && sale.status !== 'Open' && sale.documentType !== 'return') {
                     // Match the precise true balance using the core payment map
                     const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
@@ -544,11 +561,13 @@ const app = {
     // ==========================================
     openAdjustmentSheet: async () => {
         try {
-            const items = await getAllRecords('items');
+            const allItems = await getAllRecords('items');
+            // STRICT ERP LOGIC: Isolate items to the current active firm BEFORE checking if empty!
+            const items = allItems.filter(i => i.firmId === app.state.firmId);
             const select = document.getElementById('adj-product-id');
             
             if (!items || items.length === 0) {
-                alert("Please add at least one Product in Inventory first!");
+                alert("Please add at least one Product in Inventory for this company first!");
                 return;
             }
 
@@ -649,22 +668,27 @@ const app = {
     // NEW: SIMPLE MASTER CRUD ENGINE
     // ==========================================
     loadDropdowns: async () => {
+        // STRICT ERP LOGIC: Multi-Company Data Isolation for Settings!
         // 1. Auto-seed and Load Units
-        let units = await getAllRecords('units');
+        let allUnits = await getAllRecords('units');
+        let units = allUnits.filter(u => u.firmId === app.state.firmId);
+        
         if (units.length === 0) {
             const defaults = ['Pcs', 'Kg', 'Mtr', 'Ltr', 'Box', 'Dozen', 'Tonnes'];
-            for (let u of defaults) await saveRecord('units', { id: Utils.generateId(), name: u });
-            units = await getAllRecords('units');
+            for (let u of defaults) await saveRecord('units', { id: Utils.generateId(), firmId: app.state.firmId, name: u });
+            units = (await getAllRecords('units')).filter(u => u.firmId === app.state.firmId);
         }
         const uomSelect = document.getElementById('product-uom-select');
         if (uomSelect) uomSelect.innerHTML = units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
 
         // 2. Auto-seed and Load Categories
-        let cats = await getAllRecords('expenseCategories');
+        let allCats = await getAllRecords('expenseCategories');
+        let cats = allCats.filter(c => c.firmId === app.state.firmId);
+        
         if (cats.length === 0) {
             const defaults = ['Salary', 'Rent', 'Electricity', 'Transport', 'Office Supplies', 'Marketing', 'Maintenance', 'Other'];
-            for (let c of defaults) await saveRecord('expenseCategories', { id: Utils.generateId(), name: c });
-            cats = await getAllRecords('expenseCategories');
+            for (let c of defaults) await saveRecord('expenseCategories', { id: Utils.generateId(), firmId: app.state.firmId, name: c });
+            cats = (await getAllRecords('expenseCategories')).filter(c => c.firmId === app.state.firmId);
         }
         const catSelect = document.getElementById('expense-category-select');
         if (catSelect) catSelect.innerHTML = '<option value="">Select Category...</option>' + cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
@@ -674,7 +698,9 @@ const app = {
         const titleEl = document.getElementById('simple-master-title');
         if (titleEl) titleEl.innerText = `Manage ${title}`;
 
-        const records = await getAllRecords(storeName);
+        // STRICT ERP LOGIC: Only fetch records for the active company!
+        const allRecords = await getAllRecords(storeName);
+        const records = allRecords.filter(r => r.firmId === app.state.firmId);
 
         const listEl = document.getElementById('list-simple-master');
         if (listEl) {
@@ -708,7 +734,8 @@ const app = {
                     return window.Utils.showToast("⚠️ This already exists!");
                 }
 
-                await saveRecord(storeName, { id: Utils.generateId(), name: newName });
+                // STRICT ERP LOGIC: Attach the firmId so it doesn't bleed into other companies!
+                await saveRecord(storeName, { id: Utils.generateId(), firmId: app.state.firmId, name: newName });
                 window.Utils.showToast("Added successfully! ✅");
                 
                 app.manageSimpleMaster(storeName, title); 
@@ -764,6 +791,13 @@ const app = {
         const type = UI.state.currentMasterType;
         
         const reader = new FileReader();
+        
+        // STRICT ERP LOGIC: Failsafe for unreadable, locked, or corrupted files from the OS!
+        reader.onerror = () => {
+            alert("ERROR: The file could not be read. It may be locked by another application like Excel, or corrupted.");
+            event.target.value = ''; // Unlock the input so they can try again
+        };
+        
         reader.onload = async (e) => {
             try {
                 const text = e.target.result;
@@ -818,19 +852,22 @@ const app = {
                         // NEW: Prevent duplicates by finding existing items by name
                         const match = existingItems.find(i => i.name.toLowerCase() === cols[nameIdx].toLowerCase() && i.firmId === app.state.firmId);
 
+                        // STRICT ERP LOGIC: Strip commas from Excel CSV exports before parsing to prevent data corruption!
+                        const cleanNum = (val) => parseFloat(String(val || '0').replace(/,/g, '')) || 0;
+
                         const data = {
                             id: match ? match.id : Utils.generateId(),
                             firmId: app.state.firmId,
                             name: cols[nameIdx],
-                            sellPrice: parseFloat(cols[sellIdx]) || 0,
-                            buyPrice: parseFloat(cols[buyIdx]) || 0,
+                            sellPrice: cleanNum(cols[sellIdx]),
+                            buyPrice: cleanNum(cols[buyIdx]),
                             // STRICT ERP LOGIC: Safely preserve the segregated GST and Non-GST stock pools!
-                            stock: match ? match.stock : (parseFloat(cols[stockIdx]) || 0),
-                            stockGst: match ? match.stockGst : (parseFloat(cols[stockIdx]) || 0),
+                            stock: match ? match.stock : cleanNum(cols[stockIdx]),
+                            stockGst: match ? match.stockGst : cleanNum(cols[stockIdx]),
                             stockNonGst: match ? (match.stockNonGst || 0) : 0,
-                            minStock: parseFloat(cols[minStockIdx]) || 0,
+                            minStock: cleanNum(cols[minStockIdx]),
                             uom: cols[uomIdx] || 'Pcs',
-                            gst: parseFloat(cols[gstIdx]) || 0,
+                            gst: cleanNum(cols[gstIdx]),
                             hsn: cols[hsnIdx] || ''
                         };
                         await saveRecord('items', data);
@@ -865,6 +902,8 @@ const app = {
                             (l.name.toLowerCase() === cols[nameIdx].toLowerCase() || (cols[phoneIdx] && l.phone === cols[phoneIdx]))
                         );
 
+                        const cleanNum = (val) => parseFloat(String(val || '0').replace(/,/g, '')) || 0;
+
                         const data = {
                             id: match ? match.id : Utils.generateId(), // Re-use ID if they already exist
                             firmId: app.state.firmId,
@@ -875,7 +914,7 @@ const app = {
                             city: cols[cityIdx] || '',
                             state: cols[stateIdx] || '',
                             address: cols[addrIdx] || '',
-                            openingBalance: parseFloat(cols[obIdx]) || 0,
+                            openingBalance: cleanNum(cols[obIdx]),
                             balanceType: balType
                         };
                         await saveRecord('ledgers', data);
@@ -886,6 +925,9 @@ const app = {
 
                         successCount++;
                     }
+                    
+                    // STRICT ERP LOGIC: Prevent Main Thread Lockout! Yield to the browser every 25 rows to prevent mobile RAM crashes during massive CSV uploads.
+                    if (i % 25 === 0) await new Promise(resolve => setTimeout(resolve, 0));
                 }
                 
                 alert(`✅ Successfully imported ${successCount} records!`);
@@ -1418,6 +1460,16 @@ const app = {
                     img.src = '';
                     img.classList.add('hidden');
                 });
+                
+                // STRICT ERP LOGIC: Unlock the stock fields for BRAND NEW products!
+                if (type === 'product') {
+                    const stockInputs = form.querySelectorAll('input[name="stockGst"], input[name="stockNonGst"], input[name="stock"]');
+                    stockInputs.forEach(input => {
+                        input.readOnly = false;
+                        input.style.backgroundColor = '';
+                        input.style.border = '';
+                    });
+                }
             }
             
             // NEW: Ensure the valuation card is hidden when creating a brand new product
@@ -1714,14 +1766,30 @@ const app = {
             const elements = form.elements;
             for (let i = 0; i < elements.length; i++) {
                 const el = elements[i];
-                if (el.name && record[el.name] !== undefined) {
+                if (el.name) {
+                    // STRICT ERP LOGIC: Prevent Ghost Data! Clear the field if the new record doesn't have a value.
+                    const val = record[el.name] !== undefined ? record[el.name] : '';
                     if (el.type === 'checkbox') {
-                        el.checked = record[el.name];
+                        el.checked = !!val;
                     } else {
-                        el.value = record[el.name];
-                        if (el._flatpickr) el._flatpickr.setDate(record[el.name]); // FIX: Sync Flatpickr dynamically
+                        el.value = val;
+                        if (el._flatpickr) {
+                            if (val) el._flatpickr.setDate(val);
+                            else el._flatpickr.clear();
+                        }
                     }
                 }
+            }
+            
+            // STRICT ERP LOGIC: Lock Inventory fields on existing products to prevent audit trail bypass!
+            if (type === 'product' && id) {
+                const stockInputs = form.querySelectorAll('input[name="stockGst"], input[name="stockNonGst"], input[name="stock"]');
+                stockInputs.forEach(input => {
+                    input.readOnly = true;
+                    input.style.backgroundColor = 'var(--md-surface-variant)';
+                    input.style.border = '1px dashed var(--md-outline-variant)';
+                    input.title = "To change existing inventory, please use the official Stock Adjustment tool.";
+                });
             }
             
             // Recover images so they aren't erased on save
@@ -1757,9 +1825,9 @@ const app = {
                 if (record.linkedInvoice) {
                     const links = record.linkedInvoice.split(',').map(x => x.trim()).filter(x => x);
                     const displayNames = links.map(linkId => {
-                        // SELF-HEALING: Catch broken fragments like '8965' or '0778'
-                        const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
-                        const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
+                        // SELF-HEALING: Catch broken fragments and protect against corrupted empty IDs!
+                        const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || (s.id && s.id.endsWith(linkId)));
+                        const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || (p.id && p.id.endsWith(linkId)));
                         
                         if (sDoc) return sDoc.orderNo || sDoc.invoiceNo || sDoc.id.slice(-4).toUpperCase();
                         if (pDoc) return pDoc.orderNo || pDoc.poNo || pDoc.invoiceNo || pDoc.id.slice(-4).toUpperCase();
@@ -1804,6 +1872,18 @@ const app = {
                         const partyKey = type === 'sales' ? 'customer' : 'supplier';
                     const partyId = document.getElementById(`${type}-${partyKey}-id`).value;
                     if (!partyId) return alert(`Please select a ${partyKey}.`);
+
+                    // STRICT ERP LOGIC: Block Future Dates to protect PnL and Aging Reports!
+                    const docDate = document.getElementById(`${type}-date`).value;
+                    if (docDate) {
+                        const selectedDate = new Date(docDate);
+                        const today = new Date();
+                        today.setDate(today.getDate() + 1); // Allow up to 1 day for timezone safety
+                        if (selectedDate > today) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            return alert("ERROR: You cannot save a document with a future date. Please correct the date to protect your financial reports.");
+                        }
+                    }
 
                     const items = [];
                     const rows = document.querySelectorAll(`#${type}-items-body .item-entry-card`);
@@ -1920,7 +2000,8 @@ const app = {
                         items: items,
                         
                         subtotal: parseFloat(document.getElementById(`${type}-subtotal`).innerText.replace(/[^\d.-]/g, '')) || 0,
-                        discount: parseFloat(document.getElementById(`${type}-discount`).value) || 0,
+                        // STRICT ERP LOGIC: Force absolute numbers to prevent negative discounts from inflating the total!
+                        discount: Math.abs(parseFloat(document.getElementById(`${type}-discount`).value) || 0),
                         discountType: discTypeEl ? discTypeEl.value : '\u20B9',
                         totalGst: parseFloat(document.getElementById(`${type}-gst-total`).innerText.replace(/[^\d.-]/g, '')) || 0,
                         grandTotal: parseFloat(document.getElementById(`${type}-grand-total`).innerText.replace(/[^\d.-]/g, '')) || 0,
@@ -2021,6 +2102,27 @@ const app = {
                     data.amount = parseFloat(data.amount) || 0;
                     const accEl = document.getElementById('expense-account-id');
                     data.accountId = accEl ? accEl.value : 'cash';
+                    
+                    // STRICT ERP LOGIC: Prevent Expenses from silently overdrafting the Cashbook!
+                    const allReceipts = await getAllRecords('receipts');
+                    let currentBal = 0;
+                    if (data.accountId !== 'cash') {
+                        const accRecord = await getRecordById('accounts', data.accountId);
+                        if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
+                    }
+                    allReceipts.forEach(r => {
+                        if (r.firmId === app.state.firmId && (r.accountId || 'cash') === data.accountId && r.id !== ('exp-rec-' + data.id)) {
+                            currentBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
+                        }
+                    });
+                    
+                    if (currentBal - data.amount < 0) {
+                        if (!confirm(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This expense will drop the balance below zero. Continue anyway?`)) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            return;
+                        }
+                    }
+
                     const img = document.getElementById('expense-attachment-preview');
                     // ENTERPRISE FIX: Compress the expense receipt!
                     if (img && !img.classList.contains('hidden')) data.attachment = await window.compressImage(img.src);
@@ -2212,11 +2314,20 @@ const app = {
                     terms: document.getElementById('profile-terms').value
                 };
 
+                // STRICT ERP LOGIC: Prevent the "Deep Fryer" bug! Only compress if it is a brand new upload.
+                const existingProfile = await getRecordById('businessProfile', app.state.firmId);
+                
                 const logoImg = document.getElementById('profile-logo-preview');
-                if (logoImg && !logoImg.classList.contains('hidden')) data.logo = await window.compressImage(logoImg.src);
+                if (logoImg && !logoImg.classList.contains('hidden')) {
+                    if (existingProfile && existingProfile.logo === logoImg.src) data.logo = existingProfile.logo;
+                    else data.logo = await window.compressImage(logoImg.src);
+                }
 
                 const sigImg = document.getElementById('profile-signature-preview');
-                if (sigImg && !sigImg.classList.contains('hidden')) data.signature = await window.compressImage(sigImg.src);
+                if (sigImg && !sigImg.classList.contains('hidden')) {
+                    if (existingProfile && existingProfile.signature === sigImg.src) data.signature = existingProfile.signature;
+                    else data.signature = await window.compressImage(sigImg.src);
+                }
 
                 await saveRecord('businessProfile', data);
                 
@@ -2267,16 +2378,18 @@ const app = {
                     const manualRef = document.getElementById(`pay-${type}-ref`).value;
                     const docNoInput = document.getElementById(`pay-${type}-no`).value;
 
-                    // FIX: Duplicate Number Protection for Receipts
+                    // FIX: Duplicate Number Protection for Receipts (Safely ignoring blank numbers!)
                     const allReceipts = await getAllRecords('receipts');
-                    const isDuplicate = allReceipts.some(r => 
-                        r.firmId === app.state.firmId && 
-                        r.receiptNo === docNoInput && 
-                        r.id !== app.state.currentReceiptId
-                    );
-                    if (isDuplicate) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                        return alert(`Error: Document number "${docNoInput}" already exists! Please use a unique number.`);
+                    if (docNoInput && docNoInput.trim() !== '') {
+                        const isDuplicate = allReceipts.some(r => 
+                            r.firmId === app.state.firmId && 
+                            r.receiptNo === docNoInput && 
+                            r.id !== app.state.currentReceiptId
+                        );
+                        if (isDuplicate) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            return alert(`Error: Document number "${docNoInput}" already exists! Please use a unique number.`);
+                        }
                     }
 
                     // STRICT ERP LOGIC: Revert old invoices if unlinked during a receipt edit
@@ -2297,6 +2410,29 @@ const app = {
                                         await saveRecord(docStore, linkedDoc);
                                     }
                                 }
+                            }
+                        }
+                    }
+
+                    // STRICT ERP LOGIC: Cashbook Overdraft Protection!
+                    if (type === 'out') {
+                        const allReceipts = await getAllRecords('receipts');
+                        let currentBal = 0;
+                        if (accountId !== 'cash') {
+                            const accRecord = await getRecordById('accounts', accountId);
+                            if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
+                        }
+                        allReceipts.forEach(r => {
+                            if (r.firmId === app.state.firmId && (r.accountId || 'cash') === (accountId || 'cash') && r.id !== app.state.currentReceiptId) {
+                                currentBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
+                            }
+                        });
+                        
+                        const attemptAmt = parseFloat(document.getElementById(`pay-${type}-amount`).value) || 0;
+                        if (currentBal - attemptAmt < 0) {
+                            if (!confirm(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This payment will drop the balance below zero. Continue anyway?`)) {
+                                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                                return;
                             }
                         }
                     }
@@ -2495,9 +2631,9 @@ const app = {
         const record = await getRecordById('purchases', id);
         if (!record) return alert("Record not found.");
 
-        record.status = 'Completed';
-        const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-        record.completedDate = today;
+        // STRICT ERP LOGIC: A converted PO is a liability! It must be 'Pending', not 'Completed'!
+        record.status = 'Pending';
+        record.completedDate = ''; // Wiped so it accurately tracks aging in reports
 
         await saveInvoiceTransaction('purchases', record);
         
@@ -2575,6 +2711,13 @@ const app = {
             } else {
                 // Not enough money to complete this invoice
                 remainingAdvanceMoney -= Math.min(remainingAdvanceMoney, Math.max(0, docTotal - explicitPaid));
+                
+                // STRICT ERP LOGIC: Safely re-open the invoice if the advance payment was deleted or reduced!
+                if (doc.status === 'Completed') {
+                    doc.status = 'Open';
+                    doc.completedDate = '';
+                    await saveRecord(storeName, doc);
+                }
             }
         }
     },
@@ -2616,8 +2759,16 @@ const app = {
                     const refs = String(r.invoiceRef || '').split(',').map(x => x.trim());
                     return refs.some(ref => uniqueRefs.includes(ref)) && r.ledgerId === partyId && r.isAutoGenerated === false;
                 });
+                
                 if (linkedManualReceipts.length > 0) {
-                    if (!confirm(`Warning: This document has ${linkedManualReceipts.length} manual payment(s) linked to it. Delete them as well to keep the cashbook balanced?`)) {
+                    // STRICT ERP LOGIC: Prevent deleting invoices tied to BULK payments!
+                    const hasBulkPayment = linkedManualReceipts.some(r => String(r.invoiceRef || '').split(',').filter(x => x.trim()).length > 1);
+                    
+                    if (hasBulkPayment) {
+                        return alert("ERROR: Cannot delete this document! It is tied to a BULK payment that covers multiple invoices. Please go to the Cashbook, edit the receipt to unlink this specific invoice, and then try deleting it again.");
+                    }
+                    
+                    if (!confirm(`Warning: This document has ${linkedManualReceipts.length} manual payment(s) exclusively linked to it. Delete them as well to keep the cashbook balanced?`)) {
                         return; // Abort the whole deletion if they cancel here to prevent imbalance
                     }
                     for (const r of linkedManualReceipts) {
@@ -2678,6 +2829,19 @@ const app = {
             }
         }
 
+        // STRICT ERP LOGIC: Prevent Product Deletion if it has active transaction history!
+        if (type === 'product') {
+            const allSales = await getAllRecords('sales');
+            const allPurchases = await getAllRecords('purchases');
+            
+            const inSales = allSales.some(s => (s.items || []).some(i => i.itemId === id));
+            const inPurchases = allPurchases.some(p => (p.items || []).some(i => i.itemId === id));
+            
+            if (inSales || inPurchases) {
+                return alert(`Cannot delete this product. It is permanently linked to past invoices or bills. To protect your audit trail and PnL, please edit the product and rename it to "Inactive - [Product Name]" instead.`);
+            }
+        }
+
         record.deletedAt = new Date().toLocaleString();
         
         // FIX: Delete heavy base64 images before saving to LocalStorage to prevent 5MB Quota crashes!
@@ -2686,6 +2850,12 @@ const app = {
         
         const trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
         trashBin.push(record);
+        
+        // STRICT ERP LOGIC: Cap Recycle Bin at 50 items to prevent 5MB LocalStorage Quota crashes!
+        if (trashBin.length > 50) {
+            trashBin.shift(); // Silently purge the oldest item
+        }
+        
         localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
 
         // Delete from main database
@@ -3066,12 +3236,20 @@ const app = {
     },
 
     fetchPincode: async (pincode, prefix) => {
-        if (!pincode || pincode.toString().length !== 6) return;
+        // STRICT ERP LOGIC: Ensure it is exactly 6 digits, no letters allowed!
+        if (!pincode || !/^\d{6}$/.test(pincode.toString())) return;
         
         try {
             if (window.Utils) window.Utils.showToast("Fetching Location...");
             
-            const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+            // STRICT ERP LOGIC: Add a 5-second timeout so the app never hangs if the government API goes down!
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             
             if (data && data[0] && data[0].Status === 'Success') {
@@ -3203,6 +3381,9 @@ const app = {
             
             // Compute Main Cash Drawer
             let cashBal = 0;
+            const defaultCashAcc = accounts.find(a => a.id === 'cash' && a.firmId === app.state.firmId);
+            if (defaultCashAcc) cashBal = parseFloat(defaultCashAcc.openingBalance) || 0;
+            
             allReceipts.filter(r => r.firmId === app.state.firmId && (r.accountId === 'cash' || !r.accountId)).forEach(r => {
                 cashBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
             });
@@ -3210,7 +3391,8 @@ const app = {
             
             // Compute Custom Bank Accounts
             for (const acc of accounts) {
-                if (acc.firmId !== app.state.firmId) continue;
+                // STRICT ERP LOGIC: Skip the default Cash Drawer here so it doesn't print twice and inflate assets!
+                if (acc.firmId !== app.state.firmId || acc.id === 'cash') continue;
                 let accBal = parseFloat(acc.openingBalance) || 0;
                 allReceipts.filter(r => r.firmId === app.state.firmId && r.accountId === acc.id).forEach(r => {
                     accBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
@@ -3250,6 +3432,12 @@ window.triggerKhataReport = async () => {
         return type === 'customer' || type === 'supplier';
     });
     if (parties.length === 0) return window.Utils.showToast("No Customers or Suppliers found!");
+
+    // STRICT ERP LOGIC: Destroy old instances to prevent catastrophic DOM memory leaks!
+    const oldSheet = document.getElementById('sheet-khata-select');
+    if (oldSheet) oldSheet.remove();
+    const oldOverlay = document.getElementById('khata-overlay');
+    if (oldOverlay) oldOverlay.remove();
 
     // 2. Build a beautiful native Bottom Sheet dynamically
     let sheetHTML = `
