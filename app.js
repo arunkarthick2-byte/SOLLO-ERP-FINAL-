@@ -859,16 +859,17 @@ const app = {
                             id: match ? match.id : Utils.generateId(),
                             firmId: app.state.firmId,
                             name: cols[nameIdx],
-                            sellPrice: cleanNum(cols[sellIdx]),
-                            buyPrice: cleanNum(cols[buyIdx]),
+                            // STRICT ERP LOGIC: Retain existing data if the CSV cells are blank!
+                            sellPrice: (cols[sellIdx] !== undefined && cols[sellIdx] !== '') ? cleanNum(cols[sellIdx]) : (match ? match.sellPrice : 0),
+                            buyPrice: (cols[buyIdx] !== undefined && cols[buyIdx] !== '') ? cleanNum(cols[buyIdx]) : (match ? match.buyPrice : 0),
                             // STRICT ERP LOGIC: Safely preserve the segregated GST and Non-GST stock pools!
                             stock: match ? match.stock : cleanNum(cols[stockIdx]),
                             stockGst: match ? match.stockGst : cleanNum(cols[stockIdx]),
                             stockNonGst: match ? (match.stockNonGst || 0) : 0,
-                            minStock: cleanNum(cols[minStockIdx]),
-                            uom: cols[uomIdx] || 'Pcs',
-                            gst: cleanNum(cols[gstIdx]),
-                            hsn: cols[hsnIdx] || ''
+                            minStock: (cols[minStockIdx] !== undefined && cols[minStockIdx] !== '') ? cleanNum(cols[minStockIdx]) : (match ? match.minStock : 0),
+                            uom: (cols[uomIdx] !== undefined && cols[uomIdx] !== '') ? cols[uomIdx] : (match ? match.uom : 'Pcs'),
+                            gst: (cols[gstIdx] !== undefined && cols[gstIdx] !== '') ? cleanNum(cols[gstIdx]) : (match ? match.gst : 0),
+                            hsn: (cols[hsnIdx] !== undefined && cols[hsnIdx] !== '') ? cols[hsnIdx] : (match ? match.hsn : '')
                         };
                         await saveRecord('items', data);
                         
@@ -909,13 +910,14 @@ const app = {
                             firmId: app.state.firmId,
                             name: cols[nameIdx],
                             type: pType,
-                            phone: cols[phoneIdx] || '',
-                            gst: cols[gstIdx] ? cols[gstIdx].toUpperCase() : '',
-                            city: cols[cityIdx] || '',
-                            state: cols[stateIdx] || '',
-                            address: cols[addrIdx] || '',
-                            openingBalance: cleanNum(cols[obIdx]),
-                            balanceType: balType
+                            phone: (cols[phoneIdx] !== undefined && cols[phoneIdx] !== '') ? cols[phoneIdx] : (match ? match.phone : ''),
+                            gst: (cols[gstIdx] !== undefined && cols[gstIdx] !== '') ? cols[gstIdx].toUpperCase() : (match ? match.gst : ''),
+                            city: (cols[cityIdx] !== undefined && cols[cityIdx] !== '') ? cols[cityIdx] : (match ? match.city : ''),
+                            state: (cols[stateIdx] !== undefined && cols[stateIdx] !== '') ? cols[stateIdx] : (match ? match.state : ''),
+                            address: (cols[addrIdx] !== undefined && cols[addrIdx] !== '') ? cols[addrIdx] : (match ? match.address : ''),
+                            // STRICT ERP LOGIC: If CSV balance is blank, retain the existing database balance!
+                            openingBalance: (cols[obIdx] !== undefined && cols[obIdx] !== '') ? cleanNum(cols[obIdx]) : (match ? match.openingBalance : 0),
+                            balanceType: (cols[typeIdx] !== undefined && cols[typeIdx] !== '') ? balType : (match ? match.balanceType : balType)
                         };
                         await saveRecord('ledgers', data);
                         
@@ -2690,18 +2692,23 @@ const app = {
                     }
                 }
             });
+
+            // STRICT ERP LOGIC: Factor in Credit Notes & Purchase Returns to prevent Ghost Debt!
+            const linkedReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
+            const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
+            const totalSettled = explicitPaid + returnTotal;
             
-            // Mark completed if explicit payments cover it, OR if leftover FIFO advance covers it
-            if (explicitPaid >= docTotal - 0.5) {
-                // Fully covered by its own direct receipt!
+            // Mark completed if explicit payments + returns cover it, OR if leftover FIFO advance covers it
+            if (totalSettled >= docTotal - 0.5) {
+                // Fully covered by its own direct receipt or return!
                 if (doc.status !== 'Completed') {
                     doc.status = 'Completed';
                     if (typeof Utils !== 'undefined' && Utils.getLocalDate) doc.completedDate = doc.completedDate || Utils.getLocalDate();
                     await saveRecord(storeName, doc);
                 }
-            } else if ((explicitPaid + remainingAdvanceMoney) >= docTotal - 0.5) { 
-                // Covered by a mix of direct receipt + leftover advance pool
-                remainingAdvanceMoney -= (docTotal - explicitPaid); 
+            } else if ((totalSettled + remainingAdvanceMoney) >= docTotal - 0.5) { 
+                // Covered by a mix of direct receipt + returns + leftover advance pool
+                remainingAdvanceMoney -= (docTotal - totalSettled); 
                 
                 if (doc.status !== 'Completed') {
                     doc.status = 'Completed';

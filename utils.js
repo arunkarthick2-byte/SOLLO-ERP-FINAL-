@@ -9,6 +9,7 @@ const Utils = {
     // 1. CORE UTILITIES & STRICT MATH
     // ==========================================
     // STRICT ERP LOGIC: Forces a UNIX timestamp to the end of EVERY UUID so Daybook sorting never scrambles same-day transactions!
+    // STRICT ERP LOGIC: Added the missing parentheses so Date.now() mathematically attaches to EVERY id!
     generateId: () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'sollo-' + Math.random().toString(36).substr(2, 9)) + '-' + Date.now(),
 
     // --- ENTERPRISE UPGRADE: OFFLINE IMAGE COMPRESSOR ---

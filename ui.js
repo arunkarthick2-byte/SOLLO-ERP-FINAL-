@@ -1056,15 +1056,17 @@ const UI = {
                 }, emptyHTML);
             } 
             else if (activeTab === 'customers' || activeTab === 'suppliers' || activeTab === 'contacts') {
-                const typeFilter = activeTab === 'customers' ? 'Customer' : (activeTab === 'suppliers' ? 'Supplier' : 'All');
+                const typeFilter = activeTab === 'customers' ? 'customer' : (activeTab === 'suppliers' ? 'supplier' : 'all');
 
                 data = UI.state.rawData.ledgers.filter(l => {
-                    const matchSearch = (typeFilter === 'All' || l.type === typeFilter) && ((l.name || '').toLowerCase().includes(searchTerm) || (l.phone || '').toLowerCase().includes(searchTerm));
+                    const safeType = String(l.type).toLowerCase();
+                    // STRICT ERP LOGIC: Case-insensitive matching so no parties become ghosts!
+                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && ((l.name || '').toLowerCase().includes(searchTerm) || (l.phone || '').toLowerCase().includes(searchTerm));
                     let matchFilter = true;
                     const bal = getBal(l.id, l.type);
 
-                    if (activeMasterFilter === 'To Receive') matchFilter = l.type === 'Customer' && bal > 0.01;
-                    else if (activeMasterFilter === 'To Pay') matchFilter = l.type === 'Supplier' && bal > 0.01;
+                    if (activeMasterFilter === 'To Receive') matchFilter = safeType === 'customer' && bal > 0.01;
+                    else if (activeMasterFilter === 'To Pay') matchFilter = safeType === 'supplier' && bal > 0.01;
                     else if (activeMasterFilter === 'Advance') matchFilter = bal < -0.01; 
                     else if (activeMasterFilter === 'GST') matchFilter = l.gst && l.gst.trim() !== '';
                     else if (activeMasterFilter === 'Non-GST') matchFilter = !l.gst || l.gst.trim() === '';
@@ -1567,8 +1569,10 @@ const UI = {
         let indirectIncome = 0;
         cashbook.forEach(c => {
             if (isDateInRange(c.date) && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                // STRICT ERP LOGIC: Prevent Customer Advance Payments from inflating the Net Profit!
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId);
+                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
+                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
+                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
                 if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
                     indirectIncome += parseFloat(c.amount) || 0;
@@ -2542,8 +2546,10 @@ const UI = {
         
         UI.state.rawData.cashbook.forEach(c => {
             if (c.date >= startDate && c.date <= endDate && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                // STRICT ERP LOGIC: Prevent Customer Advance Payments from inflating the Net Profit!
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId);
+                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
+                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
+                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
                 if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
                     indirectIncome += parseFloat(c.amount) || 0;
@@ -2679,7 +2685,10 @@ const UI = {
         // STRICT ERP LOGIC: Synchronize CSV Export with On-Screen PnL
         UI.state.rawData.cashbook.forEach(c => {
             if (c.date >= start && c.date <= end && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId);
+                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit in the CSV!
+                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
+                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
                 if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
                     indirectIncome += parseFloat(c.amount) || 0;
