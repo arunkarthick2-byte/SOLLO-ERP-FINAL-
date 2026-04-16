@@ -28,17 +28,17 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <link rel="stylesheet" href="style.css?v=6.1">
+    
     <link rel="manifest" href="./manifest.json"> 
+    <link rel="apple-touch-icon" href="icon-192.png">
 
     <style>
         .search-bar input {
@@ -54,8 +54,6 @@
 
     <script async defer src="https://apis.google.com/js/api.js"></script>
     <script async defer src="https://accounts.google.com/gsi/client"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 
 <body>
@@ -232,7 +230,7 @@
                         </div>
                         <div class="search-bar" style="flex: 1; margin-bottom: 0; padding-right: 8px; display: flex; align-items: center; height: 44px;">
                             <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
-                            <input type="text" id="search-sales" placeholder="Search..." style="flex: 1; min-width: 0; font-size: 14px;">
+                            <input type="text" id="search-sales" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0; font-size: 14px;">
                             
                             <div id="sum-sales" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
                             
@@ -252,7 +250,7 @@
                         </div>
                         <div class="search-bar" style="flex: 1; margin-bottom: 0; padding-right: 8px; display: flex; align-items: center; height: 44px;">
                             <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
-                            <input type="text" id="search-purchases" placeholder="Search..." style="flex: 1; min-width: 0; font-size: 14px;">
+                            <input type="text" id="search-purchases" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0; font-size: 14px;">
                             
                             <div id="sum-purchases" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
                             
@@ -633,9 +631,8 @@
                     <div class="form-group" style="margin-bottom: 0;">
                         <label>Status</label>
                         <select id="purchase-order-status" onchange="UI.toggleDates('purchase')">
-                            <option value="Open">Draft PO</option>
-                            <option value="Shipped">In Transit</option>
-                            <option value="Completed" selected>Received</option>
+                            <option value="Open" selected>Open (Unpaid Bill)</option>
+                            <option value="Completed">Completed (Fully Paid)</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()"><option value="B2B">B2B (ITC Claimable)</option><option value="Non-GST">Non-GST / Exempt</option></select></div>
@@ -2220,10 +2217,18 @@
                     // Only lock the button if the form is fully filled out and valid
                     if (this.checkValidity()) {
                         const submitBtn = this.querySelector('button[type="submit"]');
-                        if (submitBtn) {
+                        if (submitBtn && !submitBtn.disabled) {
+                            // STRICT ERP LOGIC: Physically lock the hardware to prevent spam-click duplicate invoices!
+                            submitBtn.disabled = true;
+                            submitBtn.style.pointerEvents = 'none';
                             submitBtn.classList.add('btn-loading');
-                            // Failsafe: Unlock button after 3 seconds just in case the network hangs
-                            setTimeout(() => submitBtn.classList.remove('btn-loading'), 3000);
+                            
+                            // Failsafe: Unlock button after 3 seconds just in case the background save hangs
+                            setTimeout(() => {
+                                submitBtn.disabled = false;
+                                submitBtn.style.pointerEvents = 'auto';
+                                submitBtn.classList.remove('btn-loading');
+                            }, 3000);
                         }
                     }
                 });
@@ -2304,6 +2309,53 @@
                 setTimeout(() => {
                     circle.remove();
                 }, 600);
+            });
+
+            // ==========================================
+            // ENTERPRISE UPGRADE: SCROLL-WHEEL FINANCIAL SHIELD
+            // ==========================================
+            // Prevent mouse scroll wheels from secretly inflating numbers when an input is focused!
+            document.addEventListener('wheel', function(event) {
+                if (document.activeElement.type === 'number') {
+                    document.activeElement.blur(); 
+                }
+            }, { passive: true });
+
+            // ==========================================
+            // ENTERPRISE UPGRADE: ANDROID HARDWARE BACK-BUTTON SHIELD
+            // ==========================================
+            // Prime the History API Trap the moment the app boots
+            history.pushState({ sollo: true }, document.title, window.location.href);
+
+            window.addEventListener('popstate', function(event) {
+                let uiIntercepted = false;
+                
+                // 1. Intercept Back Button if a Bottom Sheet is open
+                const overlay = document.getElementById('sheet-overlay');
+                if (overlay && !overlay.classList.contains('hidden')) {
+                    if (window.UI) window.UI.closeAllBottomSheets();
+                    uiIntercepted = true;
+                } 
+                // 2. Intercept Back Button if a Full-Screen Form/Activity is open
+                else {
+                    const openActivities = Array.from(document.querySelectorAll('.activity-screen:not(.hidden)'));
+                    if (openActivities.length > 0) {
+                        // Safely close the topmost form instead of exiting the app
+                        const topActivity = openActivities[openActivities.length - 1];
+                        if (window.UI && typeof window.UI.closeActivity === 'function') {
+                            window.UI.closeActivity(topActivity.id);
+                        } else {
+                            topActivity.classList.add('hidden');
+                        }
+                        uiIntercepted = true;
+                    }
+                }
+
+                if (uiIntercepted) {
+                    // STRICT ERP LOGIC: We saved them from exiting the app! 
+                    // Now we must instantly re-arm the trap for the next time they swipe back.
+                    history.pushState({ sollo: true }, document.title, window.location.href);
+                }
             });
 
         }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK
@@ -2654,7 +2706,7 @@
             </div>
             <div style="display: flex; align-items: center; background: var(--md-background); border: 2px solid var(--md-primary); border-radius: 8px; padding: 4px 12px;">
                 <span class="material-symbols-outlined" style="color: var(--md-primary); margin-right: 8px;">search</span>
-                <input type="text" id="smart-search-input" placeholder="Type to search..." autocomplete="off" oninput="UI.executeSmartSearch()" style="flex: 1; border: none; background: transparent; outline: none; padding: 10px 0; font-size: 16px; font-weight: bold; color: var(--md-on-surface);">
+                <input type="text" id="smart-search-input" placeholder="Type to search..." autocomplete="off" oninput="if(window.st) clearTimeout(window.st); window.st = setTimeout(() => UI.executeSmartSearch(), 250);" style="flex: 1; border: none; background: transparent; outline: none; padding: 10px 0; font-size: 16px; font-weight: bold; color: var(--md-on-surface);">
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-outline); margin-left: 8px;" onclick="document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus();">close</span>
                 <div style="width: 1px; height: 24px; background: var(--md-outline-variant); margin: 0 8px;"></div>
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-primary);" onclick="UI.createNewFromSearch()">add_circle</span>

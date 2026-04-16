@@ -6,7 +6,16 @@ const DB_VERSION = 10; // Upgraded version for Trash/Recycle Bin Engine
 let db;
 
 const initDB = () => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+        // STRICT ERP LOGIC: Force the browser to lock this data permanently so it never gets wiped when the phone is full!
+        if (navigator.storage && navigator.storage.persist) {
+            try {
+                const isPersisted = await navigator.storage.persist();
+                if (isPersisted) console.log("🔒 ERP Vault Locked: Data Persistence Granted.");
+                else console.warn("⚠️ Persistence denied by browser. Data may be at risk if storage gets full.");
+            } catch (e) { console.error("Persistence check failed:", e); }
+        }
+
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onupgradeneeded = (event) => {
@@ -179,19 +188,19 @@ const getAllFirms = () => getAllRecords('firms');
 const reverseStockImpact = async (storeName, record) => {
     if (record.status === 'Open') return; // Drafts do not reverse Stock
     const isReturn = record.documentType === 'return';
-    const isNonGST = record.invoiceType === 'Non-GST'; // NEW: Dual Engine Routing Flag
+    const isNonGST = record.invoiceType === 'Non-GST'; 
     const items = await getAllRecords('items');
     
-    for (const row of (record.items || [])) {
+    // STRICT ERP LOGIC: Safely format Stock Adjustments which lack an 'items' array!
+    const rowsToProcess = storeName === 'adjustments' ? [record] : (record.items || []);
+    
+    for (const row of rowsToProcess) {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            
-            // NEW: Initialize Dual Stock Pools (Backwards compatible with old items)
             let stockGst = dbItem.stockGst !== undefined ? parseFloat(dbItem.stockGst) : (parseFloat(dbItem.stock) || 0);
             let stockNonGst = parseFloat(dbItem.stockNonGst) || 0;
             
-            // Determine math impact based on transaction type
             let impact = 0;
             if (storeName === 'sales') {
                 impact = isReturn ? -qty : qty;
@@ -201,8 +210,11 @@ const reverseStockImpact = async (storeName, record) => {
                 impact = record.type === 'add' ? -qty : qty; // Reversing an 'add' removes the stock!
             }
             
-            // Route to correct stock pool based on Invoice Type
-            if (isNonGST) {
+            // Route to correct stock pool
+            let targetPoolIsNonGST = isNonGST;
+            if (storeName === 'adjustments') targetPoolIsNonGST = record.pool === 'nongst';
+            
+            if (targetPoolIsNonGST) {
                 stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
                 dbItem.stockNonGst = stockNonGst;
             } else {
@@ -210,9 +222,7 @@ const reverseStockImpact = async (storeName, record) => {
                 dbItem.stockGst = stockGst;
             }
             
-            // UNIVERSAL SAFETY: Maintain total combined stock so UI tables don't break
             dbItem.stock = Math.round((stockGst + stockNonGst) * 100) / 100;
-            
             await saveRecord('items', dbItem);
         }
     }
@@ -221,39 +231,42 @@ const reverseStockImpact = async (storeName, record) => {
 const applyStockImpact = async (storeName, record) => {
     if (record.status === 'Open') return; // Drafts do not apply Stock
     const isReturn = record.documentType === 'return';
-    const isNonGST = record.invoiceType === 'Non-GST'; // NEW: Dual Engine Routing Flag
+    const isNonGST = record.invoiceType === 'Non-GST'; 
     const items = await getAllRecords('items');
     
-    for (const row of (record.items || [])) {
+    // STRICT ERP LOGIC: Safely format Stock Adjustments which lack an 'items' array!
+    const rowsToProcess = storeName === 'adjustments' ? [record] : (record.items || []);
+    
+    for (const row of rowsToProcess) {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            
-            // NEW: Initialize Dual Stock Pools (Backwards compatible with old items)
             let stockGst = dbItem.stockGst !== undefined ? parseFloat(dbItem.stockGst) : (parseFloat(dbItem.stock) || 0);
             let stockNonGst = parseFloat(dbItem.stockNonGst) || 0;
             
-            // Determine math impact based on transaction type
             let impact = 0;
             if (storeName === 'sales') {
                 impact = isReturn ? qty : -qty;
             } else if (storeName === 'purchases') {
                 impact = isReturn ? -qty : qty;
                 
-                // Automatically update buy price to the latest rate
                 if (!isReturn && row.rate > 0) {
                     let discountRatio = 0;
                     const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
-                    
                     if (record.discount > 0 && trueSubtotal > 0) {
                         discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
                     }
                     dbItem.buyPrice = row.rate * (1 - discountRatio);
                 }
+            } else if (storeName === 'adjustments') {
+                impact = record.type === 'add' ? qty : -qty;
             }
             
-            // Route to correct stock pool based on Invoice Type
-            if (isNonGST) {
+            // Route to correct stock pool
+            let targetPoolIsNonGST = isNonGST;
+            if (storeName === 'adjustments') targetPoolIsNonGST = record.pool === 'nongst';
+            
+            if (targetPoolIsNonGST) {
                 stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
                 dbItem.stockNonGst = stockNonGst;
             } else {
@@ -261,9 +274,7 @@ const applyStockImpact = async (storeName, record) => {
                 dbItem.stockGst = stockGst;
             }
             
-            // UNIVERSAL SAFETY: Maintain total combined stock so UI tables don't break
             dbItem.stock = Math.round((stockGst + stockNonGst) * 100) / 100;
-            
             await saveRecord('items', dbItem);
         }
     }
@@ -273,10 +284,11 @@ const saveInvoiceTransaction = async (storeName, data) => {
     // STRICT ERP LOGIC: Capture BOTH old and new items to prevent permanent inventory loss during a crash rollback!
     const existingRecord = await getRecordById(storeName, data.id);
     const allItems = await getAllRecords('items');
-    const allItemIds = [...new Set([
-        ...(data.items || []).map(row => row.itemId),
-        ...(existingRecord && existingRecord.items ? existingRecord.items.map(row => row.itemId) : [])
-    ])];
+    // STRICT ERP LOGIC: Factor in Adjustment item IDs to prevent snapshot rollback failures!
+    const newDataItems = storeName === 'adjustments' ? [data.itemId] : (data.items || []).map(row => row.itemId);
+    const oldDataItems = existingRecord ? (storeName === 'adjustments' ? [existingRecord.itemId] : (existingRecord.items || []).map(row => row.itemId)) : [];
+    
+    const allItemIds = [...new Set([...newDataItems, ...oldDataItems].filter(Boolean))];
     const itemsSnapshot = allItems.filter(i => allItemIds.includes(i.id));
 
     try {
@@ -737,8 +749,12 @@ async function generateGSTReport(yearMonth, firmId) {
         let isReturn = s.documentType === 'return';
         let mult = isReturn ? -1 : 1; // Subtract returns from total sales
         
-        // STRICT ERP LOGIC: Prevent NaN Wipeout if legacy invoices are missing the subtotal field!
-        let taxable = (parseFloat(s.subtotal) || 0) * mult;
+        // STRICT ERP LOGIC: Deduct discounts to prevent GST Portal rejections for mismatched Taxable Values!
+        let rawSubtotal = parseFloat(s.subtotal) || 0;
+        let discountAmount = parseFloat(s.discount) || 0;
+        if (s.discountType === '%') discountAmount = rawSubtotal * (discountAmount / 100);
+        
+        let taxable = Math.max(0, rawSubtotal - discountAmount) * mult;
         let tax = (parseFloat(s.totalGst) || 0) * mult;
 
         gstr1.totalTaxable += taxable;
@@ -763,8 +779,14 @@ async function generateGSTReport(yearMonth, firmId) {
         let isReturn = p.documentType === 'return';
         let mult = isReturn ? -1 : 1;
         
-        // STRICT ERP LOGIC: Prevent NaN Wipeout on missing fields
-        gstr2.totalTaxable += (parseFloat(p.subtotal) || 0) * mult;
+        // STRICT ERP LOGIC: Deduct discounts to prevent ITC mismatches!
+        let rawSubtotal = parseFloat(p.subtotal) || 0;
+        let discountAmount = parseFloat(p.discount) || 0;
+        if (p.discountType === '%') discountAmount = rawSubtotal * (discountAmount / 100);
+        
+        let taxable = Math.max(0, rawSubtotal - discountAmount) * mult;
+
+        gstr2.totalTaxable += taxable;
         gstr2.totalTax += (parseFloat(p.totalGst) || 0) * mult;
     });
 

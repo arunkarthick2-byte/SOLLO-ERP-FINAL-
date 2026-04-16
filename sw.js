@@ -20,7 +20,10 @@ const ASSETS_TO_CACHE = [
     'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js',
+    // STRICT ERP LOGIC: Added Chart.js and HTML2PDF so the dashboard and printing work offline!
+    'https://cdn.jsdelivr.net/npm/chart.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -73,6 +76,13 @@ const fetchWithTimeout = (request, timeout = 3000) => {
 self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
     if (event.request.url.startsWith('blob:') || event.request.url.startsWith('data:')) return;
+    
+    // STRICT ERP LOGIC: Never intercept or cache Google Auth & API scripts! 
+    // This prevents permanent "Token Mismatch" lockouts on the Cloud Backup engine.
+    const url = event.request.url;
+    if (url.includes('apis.google.com') || url.includes('accounts.google.com')) {
+        return; 
+    }
 
     // STRICT ERP LOGIC: Network-First with a 3-second abort timeout.
     // If the network is slow or hanging, it instantly drops to the high-speed cache!

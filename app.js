@@ -125,6 +125,11 @@ window.compressImage = async (base64Str) => {
             if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
+            
+            // STRICT ERP LOGIC: Paint the canvas white first so transparent PNG Logos & Signatures don't turn into ugly black boxes!
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            
             ctx.drawImage(img, 0, 0, width, height);
             resolve(canvas.toDataURL('image/webp', 0.6)); // 60% WebP = 95% file size reduction!
         };
@@ -1294,7 +1299,10 @@ const app = {
         if (!originalDoc) return;
 
         const allDocs = storeName === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases;
-        const previousReturns = allDocs.filter(d => d.documentType === 'return' && d.orderNo === originalDoc.invoiceNo);
+        
+        // STRICT ERP LOGIC: Block Cross-Company Leaks and safely map Supplier Bills!
+        const originalDocNo = originalDoc.invoiceNo || originalDoc.poNo || originalDoc.orderNo || originalDoc.id;
+        const previousReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.orderNo === originalDocNo);
         
         const returnedQtyMap = {};
         previousReturns.forEach(ret => {
@@ -1397,16 +1405,25 @@ const app = {
             }
         });
 
+        // STRICT ERP LOGIC: Factor in Credit/Debit Notes to prevent Phantom Debt in the dropdown!
+        const returnMap = {};
+        allDocs.forEach(d => {
+            if (d.firmId === activeFirmId && d.documentType === 'return' && d.status !== 'Open') {
+                const ref = d.orderNo; // Returns link to the original invoice via orderNo
+                if (ref) returnMap[ref] = (returnMap[ref] || 0) + (parseFloat(d.grandTotal) || 0);
+            }
+        });
+
         const pendingDocs = allDocs.filter(doc => {
             if (doc.firmId !== activeFirmId || doc[partyKey] !== partyId) return false;
             if (doc.status === 'Open' || doc.documentType === 'return') return false;
             
             // BULLETPROOF MATH: Safely catches ghost IDs and clean Order Numbers
-            // FIX: Use a Set to prevent double-counting if orderNo and invoiceNo are identical strings
             const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
             const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
+            const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
             
-            const balance = (parseFloat(doc.grandTotal) || 0) - paid;
+            const balance = (parseFloat(doc.grandTotal) || 0) - paid - returned;
             return balance > 0.01; 
         });
 
@@ -1416,8 +1433,9 @@ const app = {
             const options = pendingDocs.map(doc => {
                 const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
                 const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
+                const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
                 
-                const balance = (parseFloat(doc.grandTotal) || 0) - paid;
+                const balance = (parseFloat(doc.grandTotal) || 0) - paid - returned;
                 
                 // BULLETPROOF: Directly save the clean Order/PO number to the database!
                 const docNo = (isMoneyIn ? (doc.orderNo || doc.invoiceNo) : (doc.orderNo || doc.poNo || doc.invoiceNo)) || doc.id;
@@ -2087,12 +2105,23 @@ const app = {
                 if (type === 'product') {
                     data.sellPrice = parseFloat(data.sellPrice) || 0;
                     data.buyPrice = parseFloat(data.buyPrice) || 0;
-                    data.stockGst = parseFloat(data.stockGst) || 0;
-                    data.stockNonGst = parseFloat(data.stockNonGst) || 0;
-                    // Dual Engine Safety: Total Stock is always Math(GST + Non-GST)
-                    data.stock = Math.round((data.stockGst + data.stockNonGst) * 100) / 100;
                     data.minStock = parseFloat(data.minStock) || 0;
                     data.gst = parseFloat(data.gst) || 0;
+                    
+                    // STRICT ERP LOGIC: Prevent "Race Condition" Stock Wipeouts!
+                    // If editing an existing product, NEVER overwrite the live stock with the stale UI number. 
+                    if (app.state.currentEditId) {
+                        const liveRecord = await getRecordById('items', app.state.currentEditId);
+                        data.stockGst = liveRecord ? parseFloat(liveRecord.stockGst) || 0 : 0;
+                        data.stockNonGst = liveRecord ? parseFloat(liveRecord.stockNonGst) || 0 : 0;
+                    } else {
+                        data.stockGst = parseFloat(data.stockGst) || 0;
+                        data.stockNonGst = parseFloat(data.stockNonGst) || 0;
+                    }
+                    
+                    // Dual Engine Safety: Total Stock is always Math(GST + Non-GST)
+                    data.stock = Math.round((data.stockGst + data.stockNonGst) * 100) / 100;
+                    
                     const img = document.getElementById('product-image-preview');
                     if (img && !img.classList.contains('hidden')) data.image = await window.compressImage(img.src);
                     else data.image = ''; // STRICT ERP LOGIC: Permanently delete removed images
@@ -2108,10 +2137,10 @@ const app = {
                     // STRICT ERP LOGIC: Prevent Expenses from silently overdrafting the Cashbook!
                     const allReceipts = await getAllRecords('receipts');
                     let currentBal = 0;
-                    if (data.accountId !== 'cash') {
-                        const accRecord = await getRecordById('accounts', data.accountId);
-                        if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
-                    }
+                    // FIX: Read the Opening Balance for ALL accounts, including the default Cash Drawer!
+                    const accRecord = await getRecordById('accounts', data.accountId);
+                    if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
+                    
                     allReceipts.forEach(r => {
                         if (r.firmId === app.state.firmId && (r.accountId || 'cash') === data.accountId && r.id !== ('exp-rec-' + data.id)) {
                             currentBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
@@ -2405,7 +2434,8 @@ const app = {
                             
                             for (const oldRef of oldRefs) {
                                 if (!newRefs.includes(oldRef)) {
-                                    const linkedDoc = allDocs.find(d => d.id === oldRef || d.invoiceNo === oldRef || d.poNo === oldRef || d.orderNo === oldRef);
+                                    // STRICT ERP LOGIC: Enforce Firm ID boundaries so Shop A doesn't accidentally open Shop B's invoices!
+                                    const linkedDoc = allDocs.find(d => d.firmId === app.state.firmId && (d.id === oldRef || d.invoiceNo === oldRef || d.poNo === oldRef || d.orderNo === oldRef));
                                     if (linkedDoc && linkedDoc.status === 'Completed') {
                                         linkedDoc.status = 'Open';
                                         linkedDoc.completedDate = '';
@@ -2420,10 +2450,10 @@ const app = {
                     if (type === 'out') {
                         const allReceipts = await getAllRecords('receipts');
                         let currentBal = 0;
-                        if (accountId !== 'cash') {
-                            const accRecord = await getRecordById('accounts', accountId);
-                            if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
-                        }
+                        // FIX: Read the Opening Balance for ALL accounts, including the default Cash Drawer!
+                        const accRecord = await getRecordById('accounts', accountId);
+                        if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
+                        
                         allReceipts.forEach(r => {
                             if (r.firmId === app.state.firmId && (r.accountId || 'cash') === (accountId || 'cash') && r.id !== app.state.currentReceiptId) {
                                 currentBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
@@ -2485,8 +2515,19 @@ const app = {
                                         }
                                     });
 
-                                    // If the split manual payments cover the grand total, mark as Completed
-                                    if (totalPaid >= parseFloat(linkedInvoice.grandTotal) - 0.5) { 
+                                    // STRICT ERP LOGIC: Add Returns (Credit/Debit Notes) to the total settled amount!
+                                    let totalReturned = 0;
+                                    allDocs.forEach(d => {
+                                        if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open') {
+                                            // Match returns to the original invoice
+                                            if (d.orderNo === linkedInvoice.invoiceNo || d.orderNo === linkedInvoice.poNo || d.orderNo === linkedInvoice.orderNo || d.orderNo === linkedInvoice.id) {
+                                                totalReturned += (parseFloat(d.grandTotal) || 0);
+                                            }
+                                        }
+                                    });
+
+                                    // If the split manual payments + returns cover the grand total, mark as Completed
+                                    if ((totalPaid + totalReturned) >= parseFloat(linkedInvoice.grandTotal) - 0.5) { 
                                         linkedInvoice.status = 'Completed';
                                         await saveRecord(storeName, linkedInvoice);
                                     }
@@ -2798,7 +2839,8 @@ const app = {
                 const refs = String(record.invoiceRef).split(',').map(r => r.trim());
                 
                 for (const ref of refs) {
-                    const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref);
+                    // STRICT ERP LOGIC: Lock the search to the specific record's Firm ID to prevent cross-company data corruption!
+                    const linkedDoc = allDocs.find(d => d.firmId === record.firmId && (d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref));
                     if (linkedDoc && linkedDoc.status === 'Completed') {
                         linkedDoc.status = 'Open';
                         linkedDoc.completedDate = '';
@@ -2978,9 +3020,27 @@ const app = {
                 }
             }
         });
+
+        // STRICT ERP LOGIC: Add Returns/Credit Notes so the printed PDF doesn't demand fake money!
+        const allDocs = await getAllRecords(storeName);
+        let totalReturned = 0;
+        allDocs.forEach(d => {
+            if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open') {
+                if (uniqueRefs.includes(d.orderNo)) {
+                    totalReturned += (parseFloat(d.grandTotal) || 0);
+                    // Push the return into the receipts array so it prints on the PDF as an offset payment!
+                    linkedReceipts.push({
+                        receiptNo: d.orderNo ? 'CN-' + d.orderNo : 'Credit Note',
+                        date: d.date,
+                        mode: 'Return / Credit',
+                        amount: parseFloat(d.grandTotal) || 0
+                    });
+                }
+            }
+        });
         
-        // Inject the total paid AND the receipt details into the record object
-        record.trueTotalPaid = totalPaid;
+        // Inject the total paid + returns AND the detailed history into the record object
+        record.trueTotalPaid = totalPaid + totalReturned;
         record.linkedReceipts = linkedReceipts;
 
         const profile = await getRecordById('businessProfile', app.state.firmId);
@@ -3641,9 +3701,9 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 
             </div>
         </div>
-        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background);">
-            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow: hidden; display: flex; flex-direction: column;">
-                <div id="khata-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
+            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <div id="khata-render-target" style="min-width: 800px; background: white; padding: 24px; box-sizing: border-box;">
                     ${html}
                 </div>
             </div>
@@ -3675,7 +3735,8 @@ window.triggerKhataFromForm = () => {
 
     // 2. Look up this exact name in the Database
     const ledgers = window.UI.state.rawData.ledgers || [];
-    const party = ledgers.find(l => (l.name || '').toLowerCase() === foundName.toLowerCase());
+    // STRICT ERP LOGIC: Enforce the Firm ID so "Shop B" doesn't accidentally print "Shop A's" confidential ledger!
+    const party = ledgers.find(l => l.firmId === window.app.state.firmId && (l.name || '').toLowerCase() === foundName.toLowerCase());
     
     // 3. Trigger the PDF Viewer
     if (party) {
@@ -3845,9 +3906,9 @@ window.executeAccountReport = async (accountId) => {
                 </div>
             </div>
         </div>
-        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background);">
-            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow: hidden; display: flex; flex-direction: column;">
-                <div id="account-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
+            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <div id="account-render-target" style="min-width: 800px; background: white; padding: 24px; box-sizing: border-box;">
                     ${html}
                 </div>
             </div>

@@ -2684,7 +2684,8 @@ const UI = {
         
         // STRICT ERP LOGIC: Synchronize CSV Export with On-Screen PnL
         UI.state.rawData.cashbook.forEach(c => {
-            if (c.date >= start && c.date <= end && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+            // STRICT ERP LOGIC: Enforce the activeFirmId boundary so Shop B's income doesn't leak into Shop A's CSV!
+            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= start && c.date <= end && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
                 // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit in the CSV!
                 const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
                                              UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
@@ -2935,21 +2936,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // UPGRADE: Auto-Hiding FAB & Bottom Nav on Scroll
     let lastScrollY = 0;
+    let isScrolling = false;
     const mainContent = document.querySelector('.main-content');
     const fab = document.querySelector('.floating-action-button');
     const bottomNav = document.querySelector('.bottom-nav'); // <-- NEW
     
     if (mainContent) {
         mainContent.addEventListener('scroll', () => {
-            const currentScrollY = mainContent.scrollTop;
-            if (currentScrollY > lastScrollY && currentScrollY > 50) {
-                if (fab) fab.classList.add('fab-hidden'); // Hide FAB
-                if (bottomNav) bottomNav.style.transform = 'translateY(150%)'; // Hide Nav smoothly
-            } else {
-                if (fab) fab.classList.remove('fab-hidden'); // Show FAB
-                if (bottomNav) bottomNav.style.transform = 'translateY(0)'; // Show Nav smoothly
+            lastScrollY = mainContent.scrollTop;
+            
+            // STRICT ERP LOGIC: Debounce the DOM paint to prevent CPU layout-thrashing on mobile devices!
+            if (!isScrolling) {
+                window.requestAnimationFrame(() => {
+                    if (lastScrollY > 50) {
+                        if (fab) fab.classList.add('fab-hidden'); 
+                        if (bottomNav) bottomNav.style.transform = 'translateY(150%)'; 
+                    } else {
+                        if (fab) fab.classList.remove('fab-hidden'); 
+                        if (bottomNav) bottomNav.style.transform = 'translateY(0)'; 
+                    }
+                    isScrolling = false;
+                });
+                isScrolling = true;
             }
-            lastScrollY = currentScrollY;
         }, {passive: true});
     }
     
