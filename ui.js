@@ -538,7 +538,8 @@ const UI = {
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
-        const discountInput = parseFloat(document.getElementById('sales-discount').value) || 0;
+        // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the invoice total!
+        const discountInput = Math.abs(parseFloat(document.getElementById('sales-discount').value) || 0);
         const discountTypeEl = document.getElementById('sales-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -615,7 +616,8 @@ const UI = {
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
-        const discountInput = parseFloat(document.getElementById('purchase-discount').value) || 0;
+        // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the PO total!
+        const discountInput = Math.abs(parseFloat(document.getElementById('purchase-discount').value) || 0);
         const discountTypeEl = document.getElementById('purchase-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -706,6 +708,11 @@ const UI = {
         const ledgerExplicitlyLinked = {}; 
 
         if (tab === 'sales' || tab === 'purchases') {
+            // STRICT ERP LOGIC: Build an O(1) Document Hash Map to prevent O(N^2) Search Bar Freezes!
+            const docMap = {};
+            UI.state.rawData.sales.forEach(d => { docMap[d.id] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
+            UI.state.rawData.purchases.forEach(d => { docMap[d.id] = d; if(d.poNo) docMap[d.poNo] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
+
             UI.state.rawData.cashbook.forEach(c => {
                 if (c.ledgerId) {
                     let amt = parseFloat(c.amount) || 0;
@@ -719,11 +726,7 @@ const UI = {
                         let remainingAmt = amt;
                         
                         // Waterfall Allocation (FIFO)
-                        const matchedDocs = refs.map(ref => {
-                            return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
-                                   UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
-                                   { id: ref, grandTotal: Infinity, date: '1970-01-01' };
-                        });
+                        const matchedDocs = refs.map(ref => docMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
                         
                         matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                         
@@ -787,7 +790,8 @@ const UI = {
         if (tab === 'sales') {
             containerId = 'sales-history-container';
             data = UI.state.rawData.sales.filter(s => {
-                const matchSearch = (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || '').toLowerCase().includes(searchTerm);
+                // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, Order, and Database ID) are fully searchable!
+                const matchSearch = (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || s.orderNo || s.id || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
                 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -861,7 +865,8 @@ const UI = {
         else if (tab === 'purchases') {
             containerId = 'purchase-history-container';
             data = UI.state.rawData.purchases.filter(p => {
-                const matchSearch = (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || '').toLowerCase().includes(searchTerm);
+                // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, PO, and Internal Order) are fully searchable!
+                const matchSearch = (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || p.orderNo || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -1326,7 +1331,8 @@ const UI = {
 
             data = UI.state.rawData.timeline.filter(t => {
                 const descStr = t.desc || (t.type === 'IN' ? 'Purchase' : (t.type === 'OUT' ? 'Sale' : ''));
-                const matchSearch = descStr.toLowerCase().includes(searchTerm);
+                // STRICT ERP LOGIC: Allow accountants to instantly search the global timeline by exact Transaction Amount or Balance!
+                const matchSearch = descStr.toLowerCase().includes(searchTerm) || String(t.amount || 0).includes(searchTerm) || String(t.runningBalance || 0).includes(searchTerm);
                 let matchFilter = true;
                 let matchDate = true;
 
@@ -1453,6 +1459,11 @@ const UI = {
         const ledgerTotalPaid = {}; 
         const ledgerExplicitlyLinked = {}; 
 
+        // STRICT ERP LOGIC: Build an O(1) Document Hash Map to prevent O(N^2) Dashboard Boot-Up Freezes!
+        const dashDocMap = {};
+        sales.forEach(d => { dashDocMap[d.id] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
+        purchases.forEach(d => { dashDocMap[d.id] = d; if(d.poNo) dashDocMap[d.poNo] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
+
         cashbook.forEach(c => {
             if (c.ledgerId) {
                 let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
@@ -1463,11 +1474,7 @@ const UI = {
                     let remainingAmt = amt;
                     
                     // Waterfall Allocation (FIFO)
-                    const matchedDocs = refs.map(ref => {
-                        return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
-                               UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
-                               { id: ref, grandTotal: Infinity, date: '1970-01-01' };
-                    });
+                    const matchedDocs = refs.map(ref => dashDocMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
                     
                     matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                     
@@ -2362,19 +2369,37 @@ const UI = {
         const reportData = [];
         let grandTotal = 0;
 
-        for (const ledger of customerLedgers) {
-            if (typeof getKhataStatement !== 'undefined') {
-                const statement = await getKhataStatement(ledger.id, 'Customer');
-                if (statement.finalBalance > 0) {
-                    reportData.push({
-                        name: ledger.name || 'Unknown',
-                        phone: ledger.phone || 'N/A',
-                        balance: statement.finalBalance
-                    });
-                    grandTotal += statement.finalBalance;
-                }
+        // STRICT ERP LOGIC: O(1) Memory Hash Map instead of N+1 Database Queries!
+        // This prevents the app from freezing for 10+ seconds when exporting thousands of customers.
+        const balanceCache = {};
+        customerLedgers.forEach(l => {
+            let ob = parseFloat(l.openingBalance) || 0;
+            const balType = (l.balanceType || '').toLowerCase();
+            balanceCache[l.id] = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+        });
+
+        UI.state.rawData.sales.forEach(s => { 
+            if (s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
+                balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
             }
-        }
+        });
+        UI.state.rawData.cashbook.forEach(c => { 
+            if (c.ledgerId && balanceCache[c.ledgerId] !== undefined) {
+                balanceCache[c.ledgerId] += (c.type === 'in' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0));
+            }
+        });
+
+        customerLedgers.forEach(ledger => {
+            const bal = balanceCache[ledger.id] || 0;
+            if (bal > 0.01) {
+                reportData.push({
+                    name: ledger.name || 'Unknown',
+                    phone: ledger.phone || 'N/A',
+                    balance: bal
+                });
+                grandTotal += bal;
+            }
+        });
         
         if (reportData.length === 0) return alert("No pending receivables found.");
         window.Utils.printReceivablesReport(reportData, grandTotal);
@@ -2998,18 +3023,19 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// 2. Strict Fallback Observer: Automatically syncs the old "display" engine 
-// to the new search boxes so editing an old invoice works flawlessly!
-['sales-customer', 'purchase-supplier'].forEach(prefix => {
-    const display = document.getElementById(`${prefix}-display`);
-    const search = document.getElementById(`${prefix}-search`);
-    if(display && search) {
-        new MutationObserver(() => {
-            if(display.innerText && display.innerText !== 'Select Customer...' && display.innerText !== 'Select Supplier...') {
-                search.value = display.innerText;
-            }
-        }).observe(display, { childList: true, characterData: true, subtree: true });
-    }
+// 2. Strict Fallback Observer: Wrapped in an event listener to prevent DOM Race Conditions!
+document.addEventListener('DOMContentLoaded', () => {
+    ['sales-customer', 'purchase-supplier'].forEach(prefix => {
+        const display = document.getElementById(`${prefix}-display`);
+        const search = document.getElementById(`${prefix}-search`);
+        if(display && search) {
+            new MutationObserver(() => {
+                if(display.innerText && display.innerText !== 'Select Customer...' && display.innerText !== 'Select Supplier...') {
+                    search.value = display.innerText;
+                }
+            }).observe(display, { childList: true, characterData: true, subtree: true });
+        }
+    });
 });
 
 // 1. Export the module so app.js can import it

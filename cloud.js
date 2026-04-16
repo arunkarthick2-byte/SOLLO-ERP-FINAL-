@@ -158,14 +158,23 @@ const Cloud = {
                     'mimeType': 'application/json'
                 };
 
-                // Search for existing backup file to overwrite
+                // STRICT ERP LOGIC: Hunt down and destroy Google Drive duplicates to prevent version fragmentation!
                 let response = await gapi.client.drive.files.list({
                     q: "name='SOLLO_ERP_Backup.json' and trashed=false",
                     spaces: 'drive',
-                    fields: 'files(id, name)'
+                    fields: 'files(id)'
                 });
 
-                let fileId = response.result.files.length > 0 ? response.result.files[0].id : null;
+                let fileId = null;
+                if (response.result.files.length > 0) {
+                    fileId = response.result.files[0].id;
+                    // If Drive allowed ghost duplicates, nuke all of them except the primary one!
+                    if (response.result.files.length > 1) {
+                        for (let i = 1; i < response.result.files.length; i++) {
+                            await gapi.client.drive.files.delete({ fileId: response.result.files[i].id });
+                        }
+                    }
+                }
                 window.Utils.showToast("Uploading to Google Drive...");
 
                 const form = new FormData();

@@ -8,7 +8,8 @@ const Utils = {
     // ==========================================
     // 1. CORE UTILITIES & STRICT MATH
     // ==========================================
-    generateId: () => typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'sollo-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
+    // STRICT ERP LOGIC: Forces a UNIX timestamp to the end of EVERY UUID so Daybook sorting never scrambles same-day transactions!
+    generateId: () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'sollo-' + Math.random().toString(36).substr(2, 9)) + '-' + Date.now(),
 
     // --- ENTERPRISE UPGRADE: OFFLINE IMAGE COMPRESSOR ---
     compressImage: (file, maxWidth = 800, quality = 0.7) => {
@@ -766,10 +767,10 @@ const Utils = {
         // Harness the timeline that is already populated in the UI to prevent bugs
         const timeline = window.UI.state.rawData.timeline || [];
         
+        // STRICT ERP LOGIC: NEVER scrape the UI string for financial math! It strips negative signs and causes legal printing errors!
         let finalBal = 0;
-        if(balEl) {
-            const balMatch = balEl.innerText.replace(/,/g, '').match(/[\d.]+/);
-            if(balMatch) finalBal = parseFloat(balMatch[0]);
+        if (timeline.length > 0) {
+            finalBal = timeline[timeline.length - 1].runningBalance || 0;
         }
 
         // FIX 2: Safely calculate Opening Balance from the timeline to prevent silent crashes!
@@ -1223,14 +1224,3 @@ export default Utils;
 
 // 2. Attach to window so index.html onclick="Utils..." buttons don't break!
 window.Utils = Utils; 
-// ==========================================
-// ENTERPRISE UPGRADE: DEBOUNCE ENGINE
-// Prevents keyboard lag during live search
-// ==========================================
-window.Utils.debounce = (func, delay) => {
-    let timeoutId;
-    return (...args) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => func(...args), delay);
-    };
-};

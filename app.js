@@ -2631,9 +2631,9 @@ const app = {
         const record = await getRecordById('purchases', id);
         if (!record) return alert("Record not found.");
 
-        // STRICT ERP LOGIC: A converted PO is a liability! It must be 'Pending', not 'Completed'!
-        record.status = 'Pending';
-        record.completedDate = ''; // Wiped so it accurately tracks aging in reports
+        // STRICT ERP LOGIC: A converted PO becomes a physical bill. It must be 'Completed' to render correctly in UI filters!
+        record.status = 'Completed';
+        record.completedDate = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
 
         await saveInvoiceTransaction('purchases', record);
         
@@ -2842,23 +2842,8 @@ const app = {
             }
         }
 
-        record.deletedAt = new Date().toLocaleString();
-        
-        // FIX: Delete heavy base64 images before saving to LocalStorage to prevent 5MB Quota crashes!
-        if (record.image) delete record.image;
-        if (record.attachment) delete record.attachment;
-        
-        const trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
-        trashBin.push(record);
-        
-        // STRICT ERP LOGIC: Cap Recycle Bin at 50 items to prevent 5MB LocalStorage Quota crashes!
-        if (trashBin.length > 50) {
-            trashBin.shift(); // Silently purge the oldest item
-        }
-        
-        localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
-
-        // Delete from main database
+        // STRICT ERP LOGIC: db.js now automatically routes soft-deletions to the unlimited IndexedDB Trash Vault!
+        // Delete from main active database
         await deleteRecordById(storeName, id);
 
         // ENTERPRISE FIX: Wipe RAM Cache so the deleted item instantly disappears from the UI!
@@ -2881,15 +2866,13 @@ const app = {
     restoreRecord: async (id, storeName) => {
         if (!confirm("Are you sure you want to restore this item?")) return;
 
-        let trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
-        const recordIndex = trashBin.findIndex(t => t.id === id);
+        // STRICT ERP LOGIC: Pull directly from the unlimited IndexedDB Trash Vault!
+        const record = await getRecordById('trash', id);
         
-        if (recordIndex > -1) {
-            const record = trashBin[recordIndex];
-            
+        if (record) {
             // Remove the trash tags
             delete record._module;
-            delete record.deletedAt;
+            delete record._deletedAt;
             
             // STRICT ERP LOGIC: Re-apply stock impacts if restoring an invoice or adjustment!
             if (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments') {
@@ -2924,8 +2907,7 @@ const app = {
             }
             
             // Remove it from the Trash Vault
-            trashBin.splice(recordIndex, 1);
-            localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
+            await deleteRecordById('trash', id);
             
             // ENTERPRISE FIX: Wipe RAM Cache so the restored item instantly reappears!
             if (window.AppCache) {
@@ -2941,16 +2923,14 @@ const app = {
         }
     },
 
-    permanentlyDeleteRecord: (id) => {
+    permanentlyDeleteRecord: async (id) => {
         if (!confirm("Are you sure you want to permanently delete this item? This action cannot be undone.")) return;
 
-        let trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
-        const recordIndex = trashBin.findIndex(t => t.id === id);
+        // STRICT ERP LOGIC: Delete directly from the IndexedDB Trash Vault
+        const record = await getRecordById('trash', id);
         
-        if (recordIndex > -1) {
-            // Remove it from the Trash Vault permanently
-            trashBin.splice(recordIndex, 1);
-            localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
+        if (record) {
+            await deleteRecordById('trash', id);
             
             if (window.Utils) window.Utils.showToast("Record Permanently Deleted! 🗑️");
             app.refreshAll();
@@ -3361,11 +3341,50 @@ const app = {
             csvContent += "1. CUSTOMER & SUPPLIER LEDGERS\n";
             csvContent += "Party Name,Type,Phone,Closing Balance,Status\n";
             
-            // Aggregate all Customer & Supplier Balances using your strict Khata Engine
+            // STRICT ERP LOGIC: O(1) Memory Hash Map instead of N+1 Database Queries!
+            // This prevents the browser from crashing when generating the CA report for 1,000+ parties.
+            const balanceCache = {};
+            
+            ledgers.forEach(l => {
+                if (l.firmId !== app.state.firmId) return;
+                let ob = parseFloat(l.openingBalance) || 0;
+                const balType = (l.balanceType || '').toLowerCase();
+                if (l.type === 'Customer') {
+                    balanceCache[l.id] = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+                } else {
+                    balanceCache[l.id] = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+                }
+            });
+
+            if (window.UI && window.UI.state && window.UI.state.rawData) {
+                (window.UI.state.rawData.sales || []).forEach(s => {
+                    if (s.firmId === app.state.firmId && s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
+                        balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
+                    }
+                });
+
+                (window.UI.state.rawData.purchases || []).forEach(p => {
+                    if (p.firmId === app.state.firmId && p.status !== 'Open' && balanceCache[p.supplierId] !== undefined) {
+                        balanceCache[p.supplierId] += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
+                    }
+                });
+
+                (window.UI.state.rawData.cashbook || []).forEach(r => {
+                    if (r.firmId === app.state.firmId && r.ledgerId && balanceCache[r.ledgerId] !== undefined) {
+                        const party = ledgers.find(l => l.id === r.ledgerId);
+                        if (party) {
+                            const isMoneyIn = r.type === 'in';
+                            const amt = parseFloat(r.amount) || 0;
+                            if (party.type === 'Customer') balanceCache[r.ledgerId] += isMoneyIn ? -amt : amt;
+                            else balanceCache[r.ledgerId] += isMoneyIn ? amt : -amt;
+                        }
+                    }
+                });
+            }
+
             for (const party of ledgers) {
                 if (party.firmId !== app.state.firmId) continue;
-                const statement = await getKhataStatement(party.id, party.type);
-                const bal = statement.finalBalance;
+                const bal = balanceCache[party.id] || 0;
                 
                 let status = '';
                 if (party.type === 'Customer') status = bal > 0.01 ? 'To Receive' : (bal < -0.01 ? 'Advance' : 'Settled');

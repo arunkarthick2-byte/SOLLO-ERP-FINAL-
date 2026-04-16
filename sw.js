@@ -36,19 +36,20 @@ self.addEventListener('install', (event) => {
     );
 });
 
+// STRICT ERP LOGIC: The Garbage Collector. Destroys outdated caches to prevent mobile storage bombs!
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
+                        console.log('SW: Purging old zombie cache -', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim())
     );
-    self.clients.claim();
 });
 
 // ENTERPRISE UPGRADE: 3-Second Timeout Engine for "Lie-Fi" connections

@@ -270,10 +270,14 @@ const applyStockImpact = async (storeName, record) => {
 };
 
 const saveInvoiceTransaction = async (storeName, data) => {
-    // ENTERPRISE UPGRADE: Take a snapshot ONLY of the specific items in this transaction to prevent massive Lag/Freezing
-    const allItems = await getAllRecords('items');
-    const itemsSnapshot = allItems.filter(i => (data.items || []).some(row => row.itemId === i.id));
+    // STRICT ERP LOGIC: Capture BOTH old and new items to prevent permanent inventory loss during a crash rollback!
     const existingRecord = await getRecordById(storeName, data.id);
+    const allItems = await getAllRecords('items');
+    const allItemIds = [...new Set([
+        ...(data.items || []).map(row => row.itemId),
+        ...(existingRecord && existingRecord.items ? existingRecord.items.map(row => row.itemId) : [])
+    ])];
+    const itemsSnapshot = allItems.filter(i => allItemIds.includes(i.id));
 
     try {
         // 1. If Editing, Reverse previous stock impacts first

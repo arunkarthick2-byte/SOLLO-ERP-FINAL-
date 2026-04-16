@@ -3155,3 +3155,105 @@ body.dark-mode .m3-card .icon-circle {
     font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24 !important;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
 }
+/* ==========================================
+   ELITE UPGRADE 8: FINTECH DASHBOARD HERO
+   ========================================== */
+/* Transform the primary financial overview into a premium "Credit Card" style widget */
+#tab-dashboard .m3-card:first-of-type, 
+.dashboard-hero-card {
+    background: linear-gradient(135deg, #0061a4 0%, #002244 100%) !important;
+    color: #ffffff !important;
+    border-radius: 24px !important;
+    box-shadow: 0 16px 32px rgba(0, 97, 164, 0.3), inset 0 2px 0 rgba(255, 255, 255, 0.2) !important;
+    border: none !important;
+    padding: 24px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.05) !important;
+}
+
+/* Inject a subtle "glass flare" reflection inside the card */
+#tab-dashboard .m3-card:first-of-type::after,
+.dashboard-hero-card::after {
+    content: '' !important;
+    position: absolute !important;
+    top: -40% !important;
+    right: -10% !important;
+    width: 250px !important;
+    height: 250px !important;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 70%) !important;
+    border-radius: 50% !important;
+    pointer-events: none !important;
+}
+
+/* Force all text inside this specific hero card to be crisp white */
+#tab-dashboard .m3-card:first-of-type *,
+.dashboard-hero-card * {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Make the sub-labels look like premium micro-typography */
+#tab-dashboard .m3-card:first-of-type small,
+.dashboard-hero-card small {
+    text-transform: uppercase !important;
+    letter-spacing: 1.2px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Make the main financial numbers massive and elegant */
+#tab-dashboard .m3-card:first-of-type h2,
+#tab-dashboard .m3-card:first-of-type strong,
+.dashboard-hero-card h2,
+.dashboard-hero-card strong {
+    font-size: 34px !important;
+    font-weight: 900 !important;
+    letter-spacing: -1px !important;
+    margin: 8px 0 !important;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* AMOLED Dark Mode Override for the Hero Card */
+[data-theme="dark"] #tab-dashboard .m3-card:first-of-type,
+body.dark-mode #tab-dashboard .m3-card:first-of-type {
+    background: linear-gradient(135deg, #1e1e22 0%, #000000 100%) !important;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.8), inset 0 2px 0 rgba(255, 255, 255, 0.05) !important;
+}
+/* ==========================================
+   ELITE UPGRADE 10: "PHANTOM" NATIVE SCROLLBARS
+   ========================================== */
+/* Target all scrollable containers in the app */
+::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+    background-color: transparent !important;
+}
+
+::-webkit-scrollbar-track {
+    background-color: transparent !important;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.15) !important;
+    border-radius: 10px !important;
+    transition: background-color 0.2s ease !important;
+}
+
+/* Darken slightly when the user actively drags the thumb */
+::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* AMOLED Dark Mode Override for Scrollbars */
+[data-theme="dark"] ::-webkit-scrollbar-thumb, 
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover, 
+body.dark-mode ::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] ::-webkit-scrollbar-thumb:active, 
+body.dark-mode ::-webkit-scrollbar-thumb:active {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+}

@@ -19,7 +19,8 @@
     
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
-            alert("CRASH DETECTED!\n\nFile: " + source + "\nLine: " + lineno + "\nError: " + message);
+            // STRICT ERP LOGIC: Silently log UI errors so the user is never interrupted by a terrifying "Crash" popup!
+            console.error("Non-fatal UI Error:", message, "at line", lineno);
         };
         // STRICT ERP LOGIC: Removed the unhandledrejection alert that was causing fake "Background Crash" popups!
         // app.js now safely and silently handles background promise rejections.
