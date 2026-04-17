@@ -1,6 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // 1. Murder any active Service Workers so they stop trapping files
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                    console.log("🛠️ Dev Mode: Service Worker Killed.");
+                }
+            });
+        }
+        // 2. Violently wipe the browser's hard drive cache on every boot
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names) {
+                    caches.delete(name);
+                    console.log("🛠️ Dev Mode: Cleared Cache ->", name);
+                }
+            });
+        }
+    </script>
     <meta name="color-scheme" content="light">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -399,6 +419,14 @@
                         <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-error);">Recycle Bin</strong></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
+                    
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #fff8e1; border: 1px solid #ffe082; margin-top: 8px;" onclick="if(window.app && window.app.recalculateAllStock) window.app.recalculateAllStock()">
+                        <span class="material-symbols-outlined" style="color: #f57f17;">healing</span>
+                        <div style="flex: 1;">
+                            <strong style="font-size:15px; color: #f57f17;">Auto-Fix Corrupted Stock</strong>
+                            <small style="display:block; color: #f57f17; opacity: 0.8; margin-top: 2px;">Recalculate warehouse from scratch</small>
+                        </div>
+                    </div>
                 </div>
 
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-document-formats')">
@@ -513,11 +541,12 @@
                     <div class="form-group" style="margin-bottom: 0;"><label>Invoice No</label><input type="text" id="sales-invoice-no"></div>
                     <div class="form-group" style="margin-bottom: 0;"><label>Date</label><input type="date" id="sales-date"></div>
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label>Status</label>
+                        <label>Document Status</label>
                         <select id="sales-order-status" onchange="UI.toggleDates('sales')">
-                            <option value="Open">Draft / Open</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Completed" selected>Completed</option>
+                            <option value="Open">Draft Estimate (No Stock Impact)</option>
+                            <option value="Unpaid">Unpaid Invoice (Deducts Stock)</option>
+                            <option value="Shipped">Shipped (Deducts Stock)</option>
+                            <option value="Completed" selected>Completed / Paid (Deducts Stock)</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="sales-invoice-type" onchange="UI.calcSalesTotals()"><option value="B2B">B2B (GST)</option><option value="B2C">B2C (GST)</option><option value="Non-GST">Bill of Supply (No GST)</option></select></div>
@@ -629,10 +658,11 @@
                     <div class="form-group" style="margin-bottom: 0;"><label>Bill / PO No</label><input type="text" id="purchase-po-no"></div>
                     <div class="form-group" style="margin-bottom: 0;"><label>Bill Date</label><input type="date" id="purchase-date"></div>
                     <div class="form-group" style="margin-bottom: 0;">
-                        <label>Status</label>
+                        <label>Document Status</label>
                         <select id="purchase-order-status" onchange="UI.toggleDates('purchase')">
-                            <option value="Open" selected>Open (Unpaid Bill)</option>
-                            <option value="Completed">Completed (Fully Paid)</option>
+                            <option value="Open" selected>Draft PO (No Stock Impact)</option>
+                            <option value="Unpaid">Unpaid Bill (Adds to Stock)</option>
+                            <option value="Completed">Completed / Paid (Adds to Stock)</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()"><option value="B2B">B2B (ITC Claimable)</option><option value="Non-GST">Non-GST / Exempt</option></select></div>
@@ -2017,6 +2047,8 @@
 
         // UPGRADE 2: Smart Offline Service Worker Registration
         let newWorker;
+        // ❌ DISABLED FOR DEVELOPMENT MODE: Do not register service worker while testing!
+        /*
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js?v=6.0').then(reg => {
@@ -2040,6 +2072,7 @@
                 }
             });
         }
+        */
 
         window.applyAppUpdate = () => {
             if (newWorker) newWorker.postMessage({ type: 'SKIP_WAITING' });

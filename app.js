@@ -295,6 +295,8 @@ const app = {
         UI.state.rawData.expenses = stripBloat((await getAllRecords('expenses')).filter(r => r.firmId === app.state.firmId));
         UI.state.rawData.cashbook = (await getAllRecords('receipts')).filter(r => r.firmId === app.state.firmId);
         UI.state.rawData.timeline = typeof getGlobalTimeline === 'function' ? await getGlobalTimeline(app.state.firmId) : [];
+        // STRICT ERP LOGIC: Inject Stock Adjustments into RAM so the Dashboard PnL can calculate Stock Loss!
+        UI.state.rawData.adjustments = (await getAllRecords('adjustments')).filter(r => r.firmId === app.state.firmId);
         
         // 2. RAM CACHE: Static Master Data (Instant Load 0ms)
         if (!window.AppCache.items) window.AppCache.items = stripBloat((await getAllRecords('items')).filter(r => r.firmId === app.state.firmId));
@@ -451,6 +453,74 @@ const app = {
         // Trigger silent background backup if active
         if (typeof Cloud !== 'undefined' && Cloud.autoBackup) {
             Cloud.autoBackup();
+        }
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: GLOBAL STOCK HEALER
+    // ==========================================
+    recalculateAllStock: async () => {
+        if (!confirm("This will scan every past invoice and mathematically fix all corrupted stock & warehouse capital. Continue?")) return;
+        try {
+            if (window.Utils) window.Utils.showToast("Recalculating all stock... ⏳");
+            const allItems = await window.getAllRecords('items');
+            const allSales = await window.getAllRecords('sales');
+            const allPurchases = await window.getAllRecords('purchases');
+            const allAdjustments = await window.getAllRecords('adjustments');
+            
+            // 1. Reset all items to their Initial Opening Stock securely
+            for (let i of allItems) { 
+                i.stockGst = parseFloat(i.openingStockGst) || (parseFloat(i.openingStock) || 0); 
+                i.stockNonGst = parseFloat(i.openingStockNonGst) || 0; 
+                i.stock = parseFloat(i.openingStock) || 0; 
+            }
+            
+            // 2. Mathematically rebuild stock step-by-step
+            const processDocs = (docs, isSale) => {
+                docs.forEach(doc => {
+                    if (doc.status === 'Open') return; // Skip Drafts!
+                    const isReturn = doc.documentType === 'return';
+                    const isNonGST = doc.invoiceType === 'Non-GST';
+                    (doc.items || []).forEach(row => {
+                        const dbItem = allItems.find(item => String(item.id) === String(row.itemId || row.id));
+                        if (dbItem) {
+                            const qty = parseFloat(row.qty) || 0;
+                            const impact = isSale ? (isReturn ? qty : -qty) : (isReturn ? -qty : qty);
+                            if (isNonGST) dbItem.stockNonGst += impact;
+                            else dbItem.stockGst += impact;
+                        }
+                    });
+                });
+            };
+            processDocs(allSales, true);
+            processDocs(allPurchases, false);
+            
+            // 3. Process Manual Stock Adjustments
+            allAdjustments.forEach(adj => {
+                const dbItem = allItems.find(item => String(item.id) === String(adj.itemId || adj.id));
+                if (dbItem) {
+                    const qty = parseFloat(adj.qty) || 0;
+                    const impact = adj.type === 'add' ? qty : -qty;
+                    if (adj.pool === 'nongst') dbItem.stockNonGst += impact;
+                    else dbItem.stockGst += impact;
+                }
+            });
+            
+            // 4. Save corrected numbers to hard drive
+            for (let i of allItems) {
+                i.stockGst = Math.round(i.stockGst * 100) / 100;
+                i.stockNonGst = Math.round(i.stockNonGst * 100) / 100;
+                i.stock = Math.round((i.stockGst + i.stockNonGst) * 100) / 100;
+                await window.saveRecord('items', i);
+            }
+            
+            // Force RAM wipe and Dashboard Refresh
+            if (window.AppCache) window.AppCache.items = null;
+            await app.refreshAll();
+            if (window.Utils) window.Utils.showToast("✅ Stock & Capital Mathematically Fixed!");
+        } catch (e) {
+            console.error(e);
+            alert("Error recalculating stock: " + e.message);
         }
     },
 
@@ -871,6 +941,9 @@ const app = {
                             stock: match ? match.stock : cleanNum(cols[stockIdx]),
                             stockGst: match ? match.stockGst : cleanNum(cols[stockIdx]),
                             stockNonGst: match ? (match.stockNonGst || 0) : 0,
+                            openingStock: match ? (match.openingStock || match.stock || 0) : cleanNum(cols[stockIdx]),
+                            openingStockGst: match ? (match.openingStockGst || match.stockGst || 0) : cleanNum(cols[stockIdx]),
+                            openingStockNonGst: match ? (match.openingStockNonGst || match.stockNonGst || 0) : 0,
                             minStock: (cols[minStockIdx] !== undefined && cols[minStockIdx] !== '') ? cleanNum(cols[minStockIdx]) : (match ? match.minStock : 0),
                             uom: (cols[uomIdx] !== undefined && cols[uomIdx] !== '') ? cols[uomIdx] : (match ? match.uom : 'Pcs'),
                             gst: (cols[gstIdx] !== undefined && cols[gstIdx] !== '') ? cleanNum(cols[gstIdx]) : (match ? match.gst : 0),
@@ -2034,35 +2107,62 @@ const app = {
                     };
 
                         const storeName = type === 'sales' ? 'sales' : 'purchases';
+                        
+                        // STRICT ERP LOGIC 1: THE PRE-TRANSACTION CACHE ANNIHILATOR!
+                        // Destroy the browser's RAM cache BEFORE the database does its math. 
+                        // This guarantees the engine fetches the TRUE existing invoice and stops the stock from multiplying!
+                        if (window.AppCache) {
+                            window.AppCache.items = null;
+                            window.AppCache[storeName] = null;
+                        }
+
+                        // Execute the perfect database math
                         await saveInvoiceTransaction(storeName, data);
                         
-                        // --- ENTERPRISE FIX: 5ms MEMORY INJECTION ---
-                        // Inject the new data directly into RAM to avoid a heavy database reload!
-                        const ramData = storeName === 'sales' ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;
-                        const existIdx = ramData.findIndex(r => r.id === data.id);
-                        if (existIdx > -1) ramData[existIdx] = data;
-                        else ramData.push(data);
+                        // THE STATE TRANSITION LOCK
+                        app.state.currentEditId = data.id;
+                        
+                        // STRICT ERP LOGIC 2: THE POST-TRANSACTION CACHE ANNIHILATOR!
+                        // Destroy the cache a second time! This forces the Dashboard to read the newly saved hard drive data.
+                        if (window.AppCache) {
+                            window.AppCache.items = null;
+                            window.AppCache[storeName] = null;
+                        }
+                        
+                        // STRICT ERP LOGIC 3: INJECT THE ABSOLUTE TRUTH
+                        // Fetch the mathematically perfect stock directly from the hard drive and force it into the UI
+                        const absoluteTruth = await window.getAllRecords('items');
+                        if (window.UI && window.UI.state && window.UI.state.rawData) {
+                            window.UI.state.rawData.items = absoluteTruth;
+                        }
                         
                         // NEW: Auto-Complete Advance Payments Engine
                         if (typeof app.autoCompleteInvoices === 'function') {
                             await app.autoCompleteInvoices(partyId, type);
                         }
                         
-                        UI.showSuccess(); // UPGRADE: Trigger GPay Animation!
+                        UI.showSuccess(); 
                         UI.closeActivity(`activity-${type}-form`);
                         
-                        // Fast UI update instead of hitting the hard drive!
-                        window.UI.applyFilters(storeName);
-                        window.UI.renderDashboard();
+                        // STRICT ERP LOGIC 4: Execute a flawless, synchronized global refresh
+                        if (typeof app.refreshAll === 'function') {
+                            await app.refreshAll();
+                        } else if (window.UI && typeof window.UI.renderDashboard === 'function') {
+                            window.UI.renderDashboard();
+                        }
                     } catch (error) {
                         console.error("Save failed:", error);
                         alert("An error occurred while saving. Please try again.");
                     } finally {
-                        // NEW: Always unlock the button, even if the save fails
+                        // STRICT ERP LOGIC 3: THE ANIMATION SHIELD
+                        // Do NOT unlock the button instantly! Wait 400ms so the CSS slide-down animation 
+                        // finishes completely, making it physically impossible to double-click.
                         if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerText = originalText; // FIX: Restores dynamic text (e.g. "Save Credit Note")
-                            submitBtn.style.opacity = "1";
+                            setTimeout(() => {
+                                submitBtn.disabled = false;
+                                submitBtn.innerText = originalText; 
+                                submitBtn.style.opacity = "1";
+                            }, 400); 
                         }
                     }
                 });
@@ -2114,17 +2214,35 @@ const app = {
                         const liveRecord = await getRecordById('items', app.state.currentEditId);
                         data.stockGst = liveRecord ? parseFloat(liveRecord.stockGst) || 0 : 0;
                         data.stockNonGst = liveRecord ? parseFloat(liveRecord.stockNonGst) || 0 : 0;
+                        
+                        // Preserve the original Opening Stock
+                        if (liveRecord) {
+                            data.openingStock = liveRecord.openingStock || 0;
+                            data.openingStockGst = liveRecord.openingStockGst || 0;
+                            data.openingStockNonGst = liveRecord.openingStockNonGst || 0;
+                        }
                     } else {
-                        data.stockGst = parseFloat(data.stockGst) || 0;
+                        // For newly created items, inherit directly from the UI 'stock' field
+                        data.stock = parseFloat(data.stock) || 0;
+                        data.stockGst = parseFloat(data.stockGst) || data.stock;
                         data.stockNonGst = parseFloat(data.stockNonGst) || 0;
+                        
+                        // Seed the historical Opening Stock ledger
+                        data.openingStock = data.stock;
+                        data.openingStockGst = data.stockGst;
+                        data.openingStockNonGst = data.stockNonGst;
                     }
                     
                     // Dual Engine Safety: Total Stock is always Math(GST + Non-GST)
                     data.stock = Math.round((data.stockGst + data.stockNonGst) * 100) / 100;
                     
                     const img = document.getElementById('product-image-preview');
-                    if (img && !img.classList.contains('hidden')) data.image = await window.compressImage(img.src);
-                    else data.image = ''; // STRICT ERP LOGIC: Permanently delete removed images
+                    if (img && !img.classList.contains('hidden')) {
+                        // STRICT ERP LOGIC: The "Deep Fryer" Fix! Only compress if it's a NEW image upload to prevent quality loss over multiple edits.
+                        data.image = (data.image === img.src) ? data.image : await window.compressImage(img.src);
+                    } else {
+                        data.image = ''; // STRICT ERP LOGIC: Permanently delete removed images
+                    }
                 } 
                 else if (type === 'ledger') {
                     data.openingBalance = parseFloat(data.openingBalance) || 0;
@@ -2155,9 +2273,12 @@ const app = {
                     }
 
                     const img = document.getElementById('expense-attachment-preview');
-                    // ENTERPRISE FIX: Compress the expense receipt!
-                    if (img && !img.classList.contains('hidden')) data.attachment = await window.compressImage(img.src);
-                    else data.attachment = ''; // STRICT ERP LOGIC: Permanently delete removed images
+                    if (img && !img.classList.contains('hidden')) {
+                        // STRICT ERP LOGIC: The "Deep Fryer" Fix! Prevent repeated compression degradation.
+                        data.attachment = (data.attachment === img.src) ? data.attachment : await window.compressImage(img.src);
+                    } else {
+                        data.attachment = ''; // STRICT ERP LOGIC: Permanently delete removed images
+                    }
                 }
                 else if (type === 'account') {
                     storeName = 'accounts';
@@ -2437,7 +2558,7 @@ const app = {
                                     // STRICT ERP LOGIC: Enforce Firm ID boundaries so Shop A doesn't accidentally open Shop B's invoices!
                                     const linkedDoc = allDocs.find(d => d.firmId === app.state.firmId && (d.id === oldRef || d.invoiceNo === oldRef || d.poNo === oldRef || d.orderNo === oldRef));
                                     if (linkedDoc && linkedDoc.status === 'Completed') {
-                                        linkedDoc.status = 'Open';
+                                        linkedDoc.status = 'Unpaid'; // FIX: Marks as Unpaid but keeps Stock intact!
                                         linkedDoc.completedDate = '';
                                         await saveRecord(docStore, linkedDoc);
                                     }
@@ -2666,25 +2787,6 @@ const app = {
     },
 
     // ==========================================
-    // PO TO INVOICE CONVERTER
-    // ==========================================
-    convertPO: async (id) => {
-        if (!confirm("Convert this Draft PO into a Completed Purchase Bill? This will officially add the items to your inventory and update your payable ledger.")) return;
-        
-        const record = await getRecordById('purchases', id);
-        if (!record) return alert("Record not found.");
-
-        // STRICT ERP LOGIC: A converted PO becomes a physical bill. It must be 'Completed' to render correctly in UI filters!
-        record.status = 'Completed';
-        record.completedDate = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-
-        await saveInvoiceTransaction('purchases', record);
-        
-        alert("PO successfully converted to Purchase Bill!");
-        app.refreshAll();
-    },
-
-    // ==========================================
     // AUTO-COMPLETE ADVANCE PAYMENT ENGINE
     // ==========================================
     autoCompleteInvoices: async (partyId, type) => {
@@ -2747,6 +2849,14 @@ const app = {
                     if (typeof Utils !== 'undefined' && Utils.getLocalDate) doc.completedDate = doc.completedDate || Utils.getLocalDate();
                     await saveRecord(storeName, doc);
                 }
+                
+                // STRICT ERP LOGIC: STORE CREDIT & OVERPAYMENT RECOVERY!
+                // If returns (Credit Notes) or explicit payments exceed the invoice total, the excess 
+                // money MUST spill over back into the Advance Pool so future invoices can auto-complete!
+                if (totalSettled > docTotal) {
+                    remainingAdvanceMoney += (totalSettled - docTotal);
+                }
+                
             } else if ((totalSettled + remainingAdvanceMoney) >= docTotal - 0.5) { 
                 // Covered by a mix of direct receipt + returns + leftover advance pool
                 remainingAdvanceMoney -= (docTotal - totalSettled); 
@@ -2760,9 +2870,9 @@ const app = {
                 // Not enough money to complete this invoice
                 remainingAdvanceMoney -= Math.min(remainingAdvanceMoney, Math.max(0, docTotal - explicitPaid));
                 
-                // STRICT ERP LOGIC: Safely re-open the invoice if the advance payment was deleted or reduced!
-                if (doc.status === 'Completed') {
-                    doc.status = 'Open';
+                // STRICT ERP LOGIC: Safely mark the invoice as Unpaid if the advance payment was deleted!
+                if (doc.status === 'Completed' || doc.status === 'Open') { // FIX: Catch "Open" documents that should be "Unpaid"
+                    doc.status = 'Unpaid'; 
                     doc.completedDate = '';
                     await saveRecord(storeName, doc);
                 }
@@ -2842,7 +2952,7 @@ const app = {
                     // STRICT ERP LOGIC: Lock the search to the specific record's Firm ID to prevent cross-company data corruption!
                     const linkedDoc = allDocs.find(d => d.firmId === record.firmId && (d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref));
                     if (linkedDoc && linkedDoc.status === 'Completed') {
-                        linkedDoc.status = 'Open';
+                        linkedDoc.status = 'Unpaid'; // FIX: Marks as Unpaid but keeps Stock intact!
                         linkedDoc.completedDate = '';
                         await saveRecord(docStore, linkedDoc);
                     }
@@ -2891,22 +3001,6 @@ const app = {
             }
         }
 
-        // STRICT ERP LOGIC: db.js now automatically routes soft-deletions to the unlimited IndexedDB Trash Vault!
-        // Delete from main active database
-        await deleteRecordById(storeName, id);
-
-        // ENTERPRISE FIX: Wipe RAM Cache so the deleted item instantly disappears from the UI!
-        if (window.AppCache) {
-            window.AppCache.items = null;
-            window.AppCache.ledgers = null;
-            window.AppCache.accounts = null;
-        }
-
-        if (type === 'sales' || type === 'purchase') UI.closeActivity(`activity-${type}-form`);
-        else if (type === 'receipt-in' || type === 'receipt-out') UI.closeBottomSheet(`sheet-payment-${type.split('-')[1]}`);
-        else UI.closeActivity(`activity-${type}-form`);
-        
-        app.refreshAll();
     },
 
     // ==========================================

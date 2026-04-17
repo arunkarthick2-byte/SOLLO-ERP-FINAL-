@@ -590,7 +590,8 @@ const UI = {
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
 
-        document.getElementById('sales-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
+        // STRICT ERP LOGIC: Display the true GROSS subtotal before discounts!
+        document.getElementById('sales-subtotal').innerText = `\u20B9${rawSubtotal.toFixed(2)}`;
         document.getElementById('sales-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
         
         const roundOffEl = document.getElementById('sales-round-off');
@@ -657,7 +658,8 @@ const UI = {
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
 
-        document.getElementById('purchase-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
+        // STRICT ERP LOGIC: Display the true GROSS subtotal before discounts!
+        document.getElementById('purchase-subtotal').innerText = `\u20B9${rawSubtotal.toFixed(2)}`;
         document.getElementById('purchase-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
         
         const roundOffEl = document.getElementById('purchase-round-off');
@@ -925,7 +927,7 @@ const UI = {
                                 <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${p.date || 'Unknown Date'}</small>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-                                ${p.status === 'Open' ? `<button class="btn-primary-small" onclick="event.stopPropagation(); app.convertPO('${p.id}')">Complete PI</button>` : `<small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>`}
+                                <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
                                 <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(p.grandTotal || 0).toFixed(2)}</strong>
                             </div>
                         </div>
@@ -1584,7 +1586,8 @@ const UI = {
         let stockLoss = 0;
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                if (adj.type === 'remove' && isDateInRange(adj.date)) {
+                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
+                if (adj.type === 'reduce' && isDateInRange(adj.date)) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
                     stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
                 }
@@ -2698,7 +2701,8 @@ const UI = {
         });
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                if (adj.type === 'remove' && adj.date >= start && adj.date <= end) {
+                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
+                if (adj.type === 'reduce' && adj.date >= start && adj.date <= end) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
                     stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
                 }

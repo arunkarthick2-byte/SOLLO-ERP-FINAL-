@@ -84,6 +84,14 @@ self.addEventListener('fetch', (event) => {
         return; 
     }
 
+    // --- DEVELOPMENT MODE OVERRIDE ---
+    // If we are developing locally, ALWAYS bypass the cache completely
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+    // ---------------------------------
+
     // STRICT ERP LOGIC: Network-First with a 3-second abort timeout.
     // If the network is slow or hanging, it instantly drops to the high-speed cache!
     event.respondWith(

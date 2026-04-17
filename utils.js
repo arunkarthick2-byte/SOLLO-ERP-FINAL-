@@ -515,8 +515,8 @@ const Utils = {
         const isNonGST = doc.invoiceType === 'Non-GST';
         const isReturn = doc.documentType === 'return';
         
-        let title = isSales ? 'TAX INVOICE' : 'PURCHASE RECORD';
-        if (isNonGST && !isReturn) title = isSales ? 'BILL OF SUPPLY' : 'PURCHASE RECORD';
+        let title = isSales ? 'TAX INVOICE' : 'PURCHASE BILL';
+        if (isNonGST && !isReturn) title = isSales ? 'BILL OF SUPPLY' : 'PURCHASE BILL';
         if (isReturn) title = isSales ? 'CREDIT NOTE' : 'DEBIT NOTE';
 
         let rawSubtotal = 0;
@@ -597,7 +597,7 @@ const Utils = {
                 </div>
 
                 <div class="border-box">
-                    <strong style="text-transform: uppercase; font-size: 11px; background: #e5e5e5; padding: 2px 6px; border: 1px solid #000; display: inline-block; margin-bottom: 6px;">Billed To / Party Details</strong>
+                    <strong style="text-transform: uppercase; font-size: 11px; background: #e5e5e5; padding: 2px 6px; border: 1px solid #000; display: inline-block; margin-bottom: 6px;">${isSales ? 'Billed To / Party Details' : 'Billed By / Supplier Details'}</strong>
                     <div style="font-size: 14px; font-weight: bold; text-transform: uppercase;">${partyName}</div>
                     ${partyAddress ? `<div style="margin-top: 4px; white-space: pre-wrap;">${partyAddress}</div>` : ''}
                     ${!isNonGST && partyGst ? `<div style="margin-top: 4px;"><strong>GSTIN: ${partyGst}</strong></div>` : ''}
