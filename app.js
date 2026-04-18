@@ -1,5 +1,5 @@
 // ==========================================
-// SOLLO ERP - MAIN APPLICATION CONTROLLER (v6.1 Enterprise)
+// SOLLO ERP - MAIN APPLICATION CONTROLLER (v5.2 Enterprise)
 // ==========================================
 
 // --- ENTERPRISE UPGRADE: KILL UGLY BROWSER ALERTS ---
@@ -38,11 +38,8 @@ let wakeLock = null;
 const requestWakeLock = async () => {
     try {
         if ('wakeLock' in navigator) {
-            // STRICT ERP LOGIC: Destroy the old wake lock listener before creating a new one to prevent background memory leaks!
-            if (wakeLock !== null) wakeLock.onrelease = null; 
-            
             wakeLock = await navigator.wakeLock.request('screen');
-            wakeLock.onrelease = () => console.log('Screen Wake Lock released');
+            wakeLock.addEventListener('release', () => console.log('Screen Wake Lock released'));
         }
     } catch (err) { console.warn(`Wake Lock error: ${err.name}, ${err.message}`); }
 };
@@ -53,8 +50,8 @@ requestWakeLock(); // Request immediately on boot
 
 // --- ENTERPRISE UPGRADE: "ANTI-SWIPE" DATA LOSS PREVENTER ---
 window.addEventListener('beforeunload', (event) => {
-    // STRICT ERP LOGIC: Only trap the user if they are inside a DATA ENTRY form, not a read-only PDF or Ledger report!
-    const openForms = Array.from(document.querySelectorAll('.activity-screen.open')).filter(el => el.id.includes('-form'));
+    // If an activity form is currently open on the screen, warn the user before closing!
+    const openForms = document.querySelectorAll('.activity-screen.open');
     if (openForms.length > 0) {
         event.preventDefault();
         event.returnValue = "You have unsaved changes. Are you sure you want to leave?";
@@ -103,14 +100,13 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // --- NEW CODE: Import all our modules ---
-// STRICT ERP LOGIC: Synchronized to v6.1 to prevent catastrophic double-booting of the database!
 import { 
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=6.1';
-import Utils from './utils.js?v=6.1';
-import UI from './ui.js?v=6.1';
+} from './db.js?v=81';
+import Utils from './utils.js?v=81';
+import UI from './ui.js?v=81';
 // --- END OF NEW CODE ---
 
 // --- ENTERPRISE UPGRADE: IMAGE COMPRESSION ENGINE ---
@@ -125,18 +121,8 @@ window.compressImage = async (base64Str) => {
             if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
             canvas.width = width; canvas.height = height;
             const ctx = canvas.getContext('2d');
-            
-            // STRICT ERP LOGIC: Paint the canvas white first so transparent PNG Logos & Signatures don't turn into ugly black boxes!
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
-            
             ctx.drawImage(img, 0, 0, width, height);
             resolve(canvas.toDataURL('image/webp', 0.6)); // 60% WebP = 95% file size reduction!
-        };
-        // STRICT ERP LOGIC: Prevent Infinite "Saving..." loops if the image is corrupted!
-        img.onerror = () => {
-            console.error("Image compression failed, falling back to original string.");
-            resolve(base64Str); 
         };
         img.src = base64Str;
     });
@@ -174,18 +160,14 @@ const app = {
                                 
                                 // ENTERPRISE FIX: Force the new Service Worker to take over immediately!
                                 newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                
+                                // Safely reload ONLY when the new worker has actually taken control
+                                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                                    window.location.reload();
+                                });
                             }
                         });
                     });
-                });
-                
-                // STRICT ERP LOGIC: Listen for the exact moment the new worker takes over, and force a hard reload!
-                let refreshing = false;
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    if (!refreshing) {
-                        refreshing = true;
-                        window.location.reload();
-                    }
                 });
             }
 
@@ -295,8 +277,6 @@ const app = {
         UI.state.rawData.expenses = stripBloat((await getAllRecords('expenses')).filter(r => r.firmId === app.state.firmId));
         UI.state.rawData.cashbook = (await getAllRecords('receipts')).filter(r => r.firmId === app.state.firmId);
         UI.state.rawData.timeline = typeof getGlobalTimeline === 'function' ? await getGlobalTimeline(app.state.firmId) : [];
-        // STRICT ERP LOGIC: Inject Stock Adjustments into RAM so the Dashboard PnL can calculate Stock Loss!
-        UI.state.rawData.adjustments = (await getAllRecords('adjustments')).filter(r => r.firmId === app.state.firmId);
         
         // 2. RAM CACHE: Static Master Data (Instant Load 0ms)
         if (!window.AppCache.items) window.AppCache.items = stripBloat((await getAllRecords('items')).filter(r => r.firmId === app.state.firmId));
@@ -332,102 +312,6 @@ const app = {
         });
 
         // ==========================================
-        // NEW: WAREHOUSE HEALTH ENGINE
-        // ==========================================
-        if (UI.state.rawData.items) {
-            let totalValuation = 0;
-            let lowStockCount = 0;
-
-            UI.state.rawData.items.forEach(i => {
-                // STRICT ERP LOGIC: Bulletproof Math to prevent NaN wiping out the whole dashboard!
-                const rawGst = parseFloat(i.stockGst);
-                const rawNon = parseFloat(i.stockNonGst);
-                const stockGst = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
-                const stockNonGst = isNaN(rawNon) ? 0 : rawNon;
-                const totalStock = stockGst + stockNonGst;
-                
-                const buyPrice = parseFloat(i.buyPrice) || 0;
-                totalValuation += (totalStock * buyPrice);
-
-                const minStock = parseFloat(i.minStock) || 0;
-                if (minStock > 0 && totalStock <= minStock) lowStockCount++;
-            });
-
-            const valEl = document.getElementById('dash-inventory-value');
-            if (valEl) valEl.innerText = `₹${totalValuation.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
-            const lsText = document.getElementById('dash-low-stock-text');
-            const lsIcon = document.getElementById('dash-low-stock-icon');
-            const lsBtn = document.getElementById('dash-low-stock-btn');
-
-            if (lsText && lsIcon && lsBtn) {
-                if (lowStockCount > 0) {
-                    lsText.innerText = `${lowStockCount} Items Low on Stock!`;
-                    lsText.style.color = 'var(--md-error)';
-                    lsIcon.innerText = 'warning';
-                    lsIcon.style.color = 'var(--md-error)';
-                    lsBtn.style.borderLeft = '4px solid var(--md-error)';
-                } else {
-                    lsText.innerText = `Stock Levels Optimal`;
-                    lsText.style.color = 'var(--md-success)';
-                    lsIcon.innerText = 'check_circle';
-                    lsIcon.style.color = 'var(--md-success)';
-                    lsBtn.style.borderLeft = '4px solid var(--md-success)';
-                }
-            }
-        }
-
-        // ==========================================
-        // ENTERPRISE UPGRADE: RECEIVABLES AGING ENGINE
-        // ==========================================
-        if (UI.state.rawData.sales && UI.state.rawData.cashbook) {
-            let bucket30 = 0, bucket60 = 0, bucket90 = 0, totalDue = 0;
-            const today = new Date();
-            
-            // Build an instant payment lookup map
-            const paymentMap = {};
-            UI.state.rawData.cashbook.forEach(r => {
-                if (r.firmId === app.state.firmId && r.invoiceRef && r.type === 'in') {
-                    const refs = String(r.invoiceRef).split(',').map(x => x.trim());
-                    const splitAmt = (parseFloat(r.amount) || 0) / (refs.length || 1);
-                    refs.forEach(ref => paymentMap[ref] = (paymentMap[ref] || 0) + splitAmt);
-                }
-            });
-
-            UI.state.rawData.sales.forEach(sale => {
-                // STRICT ERP LOGIC: Ignore 'Open' (Draft) invoices so they don't create phantom debt!
-                if (sale.firmId === app.state.firmId && sale.status !== 'Completed' && sale.status !== 'Open' && sale.documentType !== 'return') {
-                    // Match the precise true balance using the core payment map
-                    const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean))];
-                    const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
-                    const balance = (parseFloat(sale.grandTotal) || 0) - paid;
-
-                    if (balance > 0.01) {
-                        totalDue += balance;
-                        const diffTime = Math.abs(today - new Date(sale.date));
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
-                        if (diffDays <= 30) bucket30 += balance;
-                        else if (diffDays <= 60) bucket60 += balance;
-                        else bucket90 += balance;
-                    }
-                }
-            });
-
-            const totalEl = document.getElementById('aging-total-due');
-            if (totalEl) {
-                totalEl.innerText = `₹${totalDue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('aging-30-amt').innerText = `₹${bucket30.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('aging-60-amt').innerText = `₹${bucket60.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('aging-90-amt').innerText = `₹${bucket90.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                
-                document.getElementById('aging-30-bar').style.width = totalDue > 0 ? `${(bucket30/totalDue)*100}%` : '0%';
-                document.getElementById('aging-60-bar').style.width = totalDue > 0 ? `${(bucket60/totalDue)*100}%` : '0%';
-                document.getElementById('aging-90-bar').style.width = totalDue > 0 ? `${(bucket90/totalDue)*100}%` : '0%';
-            }
-        }
-
-        // ==========================================
         // TRIGGER SILENT MEMORY OPTIMIZATION
         // ==========================================
         if (window.UI && typeof window.UI.optimizeMemory === 'function') {
@@ -457,74 +341,6 @@ const app = {
     },
 
     // ==========================================
-    // ENTERPRISE UPGRADE: GLOBAL STOCK HEALER
-    // ==========================================
-    recalculateAllStock: async () => {
-        if (!confirm("This will scan every past invoice and mathematically fix all corrupted stock & warehouse capital. Continue?")) return;
-        try {
-            if (window.Utils) window.Utils.showToast("Recalculating all stock... ⏳");
-            const allItems = await window.getAllRecords('items');
-            const allSales = await window.getAllRecords('sales');
-            const allPurchases = await window.getAllRecords('purchases');
-            const allAdjustments = await window.getAllRecords('adjustments');
-            
-            // 1. Reset all items to their Initial Opening Stock securely
-            for (let i of allItems) { 
-                i.stockGst = parseFloat(i.openingStockGst) || (parseFloat(i.openingStock) || 0); 
-                i.stockNonGst = parseFloat(i.openingStockNonGst) || 0; 
-                i.stock = parseFloat(i.openingStock) || 0; 
-            }
-            
-            // 2. Mathematically rebuild stock step-by-step
-            const processDocs = (docs, isSale) => {
-                docs.forEach(doc => {
-                    if (doc.status === 'Open') return; // Skip Drafts!
-                    const isReturn = doc.documentType === 'return';
-                    const isNonGST = doc.invoiceType === 'Non-GST';
-                    (doc.items || []).forEach(row => {
-                        const dbItem = allItems.find(item => String(item.id) === String(row.itemId || row.id));
-                        if (dbItem) {
-                            const qty = parseFloat(row.qty) || 0;
-                            const impact = isSale ? (isReturn ? qty : -qty) : (isReturn ? -qty : qty);
-                            if (isNonGST) dbItem.stockNonGst += impact;
-                            else dbItem.stockGst += impact;
-                        }
-                    });
-                });
-            };
-            processDocs(allSales, true);
-            processDocs(allPurchases, false);
-            
-            // 3. Process Manual Stock Adjustments
-            allAdjustments.forEach(adj => {
-                const dbItem = allItems.find(item => String(item.id) === String(adj.itemId || adj.id));
-                if (dbItem) {
-                    const qty = parseFloat(adj.qty) || 0;
-                    const impact = adj.type === 'add' ? qty : -qty;
-                    if (adj.pool === 'nongst') dbItem.stockNonGst += impact;
-                    else dbItem.stockGst += impact;
-                }
-            });
-            
-            // 4. Save corrected numbers to hard drive
-            for (let i of allItems) {
-                i.stockGst = Math.round(i.stockGst * 100) / 100;
-                i.stockNonGst = Math.round(i.stockNonGst * 100) / 100;
-                i.stock = Math.round((i.stockGst + i.stockNonGst) * 100) / 100;
-                await window.saveRecord('items', i);
-            }
-            
-            // Force RAM wipe and Dashboard Refresh
-            if (window.AppCache) window.AppCache.items = null;
-            await app.refreshAll();
-            if (window.Utils) window.Utils.showToast("✅ Stock & Capital Mathematically Fixed!");
-        } catch (e) {
-            console.error(e);
-            alert("Error recalculating stock: " + e.message);
-        }
-    },
-
-    // ==========================================
     // ENTERPRISE UPGRADE: DATA DEDUPLICATION ENGINE
     // ==========================================
     cleanupDuplicates: async () => {
@@ -546,26 +362,8 @@ const app = {
                     ledgerMap[key] = l;
                 } else {
                     const master = ledgerMap[key];
-                    
-                    // STRICT ERP LOGIC: Properly calculate Dr vs Cr before merging opening balances!
-                    const getSignedBal = (party) => {
-                        let bal = parseFloat(party.openingBalance) || 0;
-                        const bType = (party.balanceType || '').toLowerCase();
-                        if (party.type === 'Customer') return (bType.includes('pay') || bType.includes('credit')) ? -bal : bal;
-                        return (bType.includes('receive') || bType.includes('debit')) ? -bal : bal;
-                    };
-
-                    const masterSigned = getSignedBal(master);
-                    const duplicateSigned = getSignedBal(l);
-                    const newNetBal = masterSigned + duplicateSigned;
-                    
-                    master.openingBalance = Math.abs(newNetBal);
-                    if (master.type === 'Customer') {
-                        master.balanceType = newNetBal >= 0 ? 'To Receive / Debit' : 'To Pay / Credit';
-                    } else {
-                        master.balanceType = newNetBal >= 0 ? 'To Pay / Credit' : 'To Receive / Debit';
-                    }
-                    
+                    // Mathematically combine opening balances so no money is lost
+                    master.openingBalance = (parseFloat(master.openingBalance) || 0) + (parseFloat(l.openingBalance) || 0);
                     await saveRecord('ledgers', master);
 
                     // Safely remap all connected documents to the master ID
@@ -636,25 +434,19 @@ const app = {
     // ==========================================
     openAdjustmentSheet: async () => {
         try {
-            const allItems = await getAllRecords('items');
-            // STRICT ERP LOGIC: Isolate items to the current active firm BEFORE checking if empty!
-            const items = allItems.filter(i => i.firmId === app.state.firmId);
+            const items = await getAllRecords('items');
             const select = document.getElementById('adj-product-id');
             
             if (!items || items.length === 0) {
-                alert("Please add at least one Product in Inventory for this company first!");
+                alert("Please add at least one Product in Inventory first!");
                 return;
             }
 
-            // Populate the dropdown with actual products and their dual stock pools!
+            // Populate the dropdown with actual products and their current stock
             let html = '<option value="">Select Product...</option>';
             items.forEach(i => {
                 if (i.firmId === app.state.firmId) {
-                    const rawGst = parseFloat(i.stockGst);
-                    const rawNon = parseFloat(i.stockNonGst);
-                    let g = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
-                    let ng = isNaN(rawNon) ? 0 : rawNon;
-                    html += `<option value="${i.id}">${i.name} (GST: ${g.toFixed(2)} | Non-GST: ${ng.toFixed(2)})</option>`;
+                    html += `<option value="${i.id}">${i.name} (Cur Stock: ${parseFloat(i.stock || 0).toFixed(2)})</option>`;
                 }
             });
             
@@ -680,161 +472,59 @@ const app = {
     },
 
     // ==========================================
-    // NEW: SMART LEDGER DYNAMIC FILTERS
-    // ==========================================
-    openMasterSort: () => {
-        if (!window.UI || !window.UI.state) return;
-        const type = window.UI.state.currentMasterType;
-        const filterSelect = document.getElementById('filter-master-view');
-        const sortSelect = document.getElementById('sort-master-view');
-
-        if (!filterSelect || !sortSelect) return;
-
-        let filterHTML = '<option value="All">All Records</option>';
-        let sortHTML = '<option value="name-asc">A to Z (Ascending)</option><option value="name-desc">Z to A (Descending)</option>';
-
-        if (type === 'products') {
-            filterHTML += `
-                <option value="Low Stock">Low Stock Alert</option>
-                <option value="Out of Stock">Out of Stock</option>
-                <option value="GST Stock">Has GST Stock</option>
-                <option value="Non-GST Stock">Has Non-GST Stock</option>
-            `;
-            sortHTML += `
-                <option value="stock-asc">Lowest Stock First</option>
-                <option value="stock-desc">Highest Stock First</option>
-            `;
-        } else if (type === 'customers') {
-            filterHTML += `
-                <option value="To Receive">Pending Dues (To Receive)</option>
-                <option value="Advance">Advance Received</option>
-                <option value="Settled">Settled / Zero Balance</option>
-            `;
-            sortHTML += `
-                <option value="bal-desc">Highest Balance First</option>
-                <option value="bal-asc">Lowest Balance First</option>
-            `;
-        } else if (type === 'suppliers') {
-            filterHTML += `
-                <option value="To Pay">Pending Bills (To Pay)</option>
-                <option value="Advance">Advance Paid</option>
-                <option value="Settled">Settled / Zero Balance</option>
-            `;
-            sortHTML += `
-                <option value="bal-desc">Highest Balance First</option>
-                <option value="bal-asc">Lowest Balance First</option>
-            `;
-        }
-
-        filterSelect.innerHTML = filterHTML;
-        sortSelect.innerHTML = sortHTML;
-        window.UI.openBottomSheet('sheet-master-sort');
-    },
-
-    applySmartMasterFilter: () => {
-        // The old, clunky DOM filter has been deleted!
-        // We now rely 100% on the lightning-fast native data filter inside ui.js!
-        if (window.UI && typeof window.UI.applyFilters === 'function') {
-            window.UI.applyFilters('masters');
-        }
-    },
-
-    // ==========================================
     // NEW: SIMPLE MASTER CRUD ENGINE
     // ==========================================
     loadDropdowns: async () => {
-        // STRICT ERP LOGIC: Multi-Company Data Isolation for Settings!
         // 1. Auto-seed and Load Units
-        let allUnits = await getAllRecords('units');
-        let units = allUnits.filter(u => u.firmId === app.state.firmId);
-        
+        let units = await getAllRecords('units');
         if (units.length === 0) {
             const defaults = ['Pcs', 'Kg', 'Mtr', 'Ltr', 'Box', 'Dozen', 'Tonnes'];
-            for (let u of defaults) await saveRecord('units', { id: Utils.generateId(), firmId: app.state.firmId, name: u });
-            units = (await getAllRecords('units')).filter(u => u.firmId === app.state.firmId);
+            for (let u of defaults) await saveRecord('units', { id: Utils.generateId(), name: u });
+            units = await getAllRecords('units');
         }
         const uomSelect = document.getElementById('product-uom-select');
         if (uomSelect) uomSelect.innerHTML = units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
 
         // 2. Auto-seed and Load Categories
-        let allCats = await getAllRecords('expenseCategories');
-        let cats = allCats.filter(c => c.firmId === app.state.firmId);
-        
+        let cats = await getAllRecords('expenseCategories');
         if (cats.length === 0) {
             const defaults = ['Salary', 'Rent', 'Electricity', 'Transport', 'Office Supplies', 'Marketing', 'Maintenance', 'Other'];
-            for (let c of defaults) await saveRecord('expenseCategories', { id: Utils.generateId(), firmId: app.state.firmId, name: c });
-            cats = (await getAllRecords('expenseCategories')).filter(c => c.firmId === app.state.firmId);
+            for (let c of defaults) await saveRecord('expenseCategories', { id: Utils.generateId(), name: c });
+            cats = await getAllRecords('expenseCategories');
         }
         const catSelect = document.getElementById('expense-category-select');
         if (catSelect) catSelect.innerHTML = '<option value="">Select Category...</option>' + cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
     },
 
     manageSimpleMaster: async (storeName, title) => {
-        const titleEl = document.getElementById('simple-master-title');
-        if (titleEl) titleEl.innerText = `Manage ${title}`;
-
-        // STRICT ERP LOGIC: Only fetch records for the active company!
-        const allRecords = await getAllRecords(storeName);
-        const records = allRecords.filter(r => r.firmId === app.state.firmId);
-
-        const listEl = document.getElementById('list-simple-master');
-        if (listEl) {
-            if (records.length === 0) {
-                listEl.innerHTML = '<p style="text-align:center; color:var(--md-text-muted); margin-top: 20px;">No items found.</p>';
-            } else {
-                listEl.innerHTML = records.map(r => `
-                    <li style="display: flex; justify-content: space-between; align-items: center; padding: 14px 12px; border-bottom: 1px solid var(--md-surface-variant); border-radius: 8px; margin-bottom: 4px; background: var(--md-surface);">
-                        <span style="font-size: 16px; font-weight: 500;">${r.name}</span>
-                        <div class="icon-circle tap-target" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);" onclick="app.deleteSimpleMaster('${storeName}', '${r.id}', '${title}')">
-                            <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
-                        </div>
-                    </li>
-                `).join('');
+        const records = await getAllRecords(storeName);
+        let listText = records.map((r, i) => `${i + 1}. ${r.name}`).join('\n');
+        
+        let action = prompt(`=== Manage ${title} ===\n\nCurrent List:\n${listText}\n\nType 'ADD' to create a new one, or 'DELETE' to remove one. (Leave blank to cancel)`);
+        
+        if (!action) return;
+        
+        if (action.toUpperCase() === 'ADD') {
+            let newName = prompt(`Enter new ${title} name:`);
+            if (newName && newName.trim()) {
+                await saveRecord(storeName, { id: Utils.generateId(), name: newName.trim() });
+                Utils.showToast("Added successfully! ✅");
+                app.loadDropdowns(); // Refresh the UI instantly
             }
+        } else if (action.toUpperCase() === 'DELETE') {
+            let delName = prompt(`Enter the exact name to delete:\n\n${listText}`);
+            if (!delName) return;
+            let match = records.find(r => r.name.toLowerCase() === delName.toLowerCase().trim());
+            if (match) {
+                await deleteRecordById(storeName, match.id);
+                Utils.showToast("Deleted successfully! 🗑️");
+                app.loadDropdowns(); // Refresh the UI instantly
+            } else {
+                alert("Name not found. Please check the spelling.");
+            }
+        } else {
+            alert("Invalid action. Please type ADD or DELETE.");
         }
-
-        const addBtn = document.getElementById('btn-add-simple-master');
-        const inputEl = document.getElementById('simple-master-input');
-        
-        if (addBtn && inputEl) {
-            inputEl.value = ''; 
-            const newAddBtn = addBtn.cloneNode(true);
-            addBtn.parentNode.replaceChild(newAddBtn, addBtn);
-            
-            newAddBtn.onclick = async () => {
-                const newName = inputEl.value.trim();
-                if (!newName) return window.Utils.showToast("⚠️ Name cannot be empty");
-                
-                if (records.some(r => r.name.toLowerCase() === newName.toLowerCase())) {
-                    return window.Utils.showToast("⚠️ This already exists!");
-                }
-
-                // STRICT ERP LOGIC: Attach the firmId so it doesn't bleed into other companies!
-                await saveRecord(storeName, { id: Utils.generateId(), firmId: app.state.firmId, name: newName });
-                window.Utils.showToast("Added successfully! ✅");
-                
-                app.manageSimpleMaster(storeName, title); 
-                app.loadDropdowns(); 
-            };
-        }
-
-        if (window.UI) window.UI.openBottomSheet('sheet-simple-master');
-        
-        // Premium Polish: Auto-focus the text box so the mobile keyboard pops up instantly!
-        setTimeout(() => {
-            const input = document.getElementById('simple-master-input');
-            if (input) input.focus();
-        }, 300);
-    },
-
-    deleteSimpleMaster: async (storeName, id, title) => {
-        if (!confirm("Are you sure you want to delete this?")) return;
-        
-        await deleteRecordById(storeName, id);
-        window.Utils.showToast("Deleted successfully! 🗑️");
-        
-        app.manageSimpleMaster(storeName, title);
-        app.loadDropdowns(); 
     },
 
     // ==========================================
@@ -866,13 +556,6 @@ const app = {
         const type = UI.state.currentMasterType;
         
         const reader = new FileReader();
-        
-        // STRICT ERP LOGIC: Failsafe for unreadable, locked, or corrupted files from the OS!
-        reader.onerror = () => {
-            alert("ERROR: The file could not be read. It may be locked by another application like Excel, or corrupted.");
-            event.target.value = ''; // Unlock the input so they can try again
-        };
-        
         reader.onload = async (e) => {
             try {
                 const text = e.target.result;
@@ -927,27 +610,18 @@ const app = {
                         // NEW: Prevent duplicates by finding existing items by name
                         const match = existingItems.find(i => i.name.toLowerCase() === cols[nameIdx].toLowerCase() && i.firmId === app.state.firmId);
 
-                        // STRICT ERP LOGIC: Strip commas from Excel CSV exports before parsing to prevent data corruption!
-                        const cleanNum = (val) => parseFloat(String(val || '0').replace(/,/g, '')) || 0;
-
                         const data = {
                             id: match ? match.id : Utils.generateId(),
                             firmId: app.state.firmId,
                             name: cols[nameIdx],
-                            // STRICT ERP LOGIC: Retain existing data if the CSV cells are blank!
-                            sellPrice: (cols[sellIdx] !== undefined && cols[sellIdx] !== '') ? cleanNum(cols[sellIdx]) : (match ? match.sellPrice : 0),
-                            buyPrice: (cols[buyIdx] !== undefined && cols[buyIdx] !== '') ? cleanNum(cols[buyIdx]) : (match ? match.buyPrice : 0),
-                            // STRICT ERP LOGIC: Safely preserve the segregated GST and Non-GST stock pools!
-                            stock: match ? match.stock : cleanNum(cols[stockIdx]),
-                            stockGst: match ? match.stockGst : cleanNum(cols[stockIdx]),
-                            stockNonGst: match ? (match.stockNonGst || 0) : 0,
-                            openingStock: match ? (match.openingStock || match.stock || 0) : cleanNum(cols[stockIdx]),
-                            openingStockGst: match ? (match.openingStockGst || match.stockGst || 0) : cleanNum(cols[stockIdx]),
-                            openingStockNonGst: match ? (match.openingStockNonGst || match.stockNonGst || 0) : 0,
-                            minStock: (cols[minStockIdx] !== undefined && cols[minStockIdx] !== '') ? cleanNum(cols[minStockIdx]) : (match ? match.minStock : 0),
-                            uom: (cols[uomIdx] !== undefined && cols[uomIdx] !== '') ? cols[uomIdx] : (match ? match.uom : 'Pcs'),
-                            gst: (cols[gstIdx] !== undefined && cols[gstIdx] !== '') ? cleanNum(cols[gstIdx]) : (match ? match.gst : 0),
-                            hsn: (cols[hsnIdx] !== undefined && cols[hsnIdx] !== '') ? cols[hsnIdx] : (match ? match.hsn : '')
+                            sellPrice: parseFloat(cols[sellIdx]) || 0,
+                            buyPrice: parseFloat(cols[buyIdx]) || 0,
+                            // FIX: Preserve live stock if the item exists, otherwise use CSV opening stock
+                            stock: match ? match.stock : (parseFloat(cols[stockIdx]) || 0),
+                            minStock: parseFloat(cols[minStockIdx]) || 0,
+                            uom: cols[uomIdx] || 'Pcs',
+                            gst: parseFloat(cols[gstIdx]) || 0,
+                            hsn: cols[hsnIdx] || ''
                         };
                         await saveRecord('items', data);
                         
@@ -981,21 +655,18 @@ const app = {
                             (l.name.toLowerCase() === cols[nameIdx].toLowerCase() || (cols[phoneIdx] && l.phone === cols[phoneIdx]))
                         );
 
-                        const cleanNum = (val) => parseFloat(String(val || '0').replace(/,/g, '')) || 0;
-
                         const data = {
                             id: match ? match.id : Utils.generateId(), // Re-use ID if they already exist
                             firmId: app.state.firmId,
                             name: cols[nameIdx],
                             type: pType,
-                            phone: (cols[phoneIdx] !== undefined && cols[phoneIdx] !== '') ? cols[phoneIdx] : (match ? match.phone : ''),
-                            gst: (cols[gstIdx] !== undefined && cols[gstIdx] !== '') ? cols[gstIdx].toUpperCase() : (match ? match.gst : ''),
-                            city: (cols[cityIdx] !== undefined && cols[cityIdx] !== '') ? cols[cityIdx] : (match ? match.city : ''),
-                            state: (cols[stateIdx] !== undefined && cols[stateIdx] !== '') ? cols[stateIdx] : (match ? match.state : ''),
-                            address: (cols[addrIdx] !== undefined && cols[addrIdx] !== '') ? cols[addrIdx] : (match ? match.address : ''),
-                            // STRICT ERP LOGIC: If CSV balance is blank, retain the existing database balance!
-                            openingBalance: (cols[obIdx] !== undefined && cols[obIdx] !== '') ? cleanNum(cols[obIdx]) : (match ? match.openingBalance : 0),
-                            balanceType: (cols[typeIdx] !== undefined && cols[typeIdx] !== '') ? balType : (match ? match.balanceType : balType)
+                            phone: cols[phoneIdx] || '',
+                            gst: cols[gstIdx] ? cols[gstIdx].toUpperCase() : '',
+                            city: cols[cityIdx] || '',
+                            state: cols[stateIdx] || '',
+                            address: cols[addrIdx] || '',
+                            openingBalance: parseFloat(cols[obIdx]) || 0,
+                            balanceType: balType
                         };
                         await saveRecord('ledgers', data);
                         
@@ -1005,9 +676,6 @@ const app = {
 
                         successCount++;
                     }
-                    
-                    // STRICT ERP LOGIC: Prevent Main Thread Lockout! Yield to the browser every 25 rows to prevent mobile RAM crashes during massive CSV uploads.
-                    if (i % 25 === 0) await new Promise(resolve => setTimeout(resolve, 0));
                 }
                 
                 alert(`✅ Successfully imported ${successCount} records!`);
@@ -1041,22 +709,10 @@ const app = {
         
         // NEW: Bind the edit button to the currently open party
         const editBtn = document.getElementById('btn-edit-ledger');
-        if(editBtn) {
-            editBtn.style.display = 'flex';
-            editBtn.onclick = () => { 
-                UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
-                setTimeout(() => app.openForm('ledger', partyId), 150); // Open the form smoothly
-            };
-        }
-        
-        // STRICT ERP LOGIC: Bind the PDF/Share button to generate the A4 Khata Statement!
-        const shareBtn = document.getElementById('btn-share-ledger');
-        if(shareBtn) {
-            shareBtn.style.display = 'flex';
-            shareBtn.onclick = () => {
-                window.executeKhataReport(partyId, partyName, partyType);
-            };
-        }
+        if(editBtn) editBtn.onclick = () => { 
+            UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
+            setTimeout(() => app.openForm('ledger', partyId), 150); // Open the form smoothly
+        };
         
         UI.openActivity('activity-report-viewer');
 
@@ -1170,22 +826,14 @@ const app = {
         // Bind the Edit Button in the top right corner
         const editBtn = document.getElementById('btn-edit-ledger');
         if(editBtn) {
-            editBtn.style.display = 'flex';
             if(accountId === 'cash') {
-                editBtn.onclick = () => window.Utils.showToast('The Default Cash Drawer is a system account and cannot be modified directly.');
+                editBtn.onclick = () => alert('The Default Cash Drawer is a system account and cannot be modified directly.');
             } else {
                 editBtn.onclick = () => { 
                     UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
                     setTimeout(() => app.openForm('account', accountId), 150); // Open the form smoothly
                 };
             }
-        }
-        
-        // STRICT ERP LOGIC: Wire the PDF Share button to generate the Bank/Cash Statement!
-        const shareBtn = document.getElementById('btn-share-ledger');
-        if (shareBtn) {
-            shareBtn.style.display = 'flex';
-            shareBtn.onclick = () => window.executeAccountReport(accountId);
         }
         
         UI.openActivity('activity-report-viewer');
@@ -1269,14 +917,11 @@ const app = {
                 });
             });
 
-            // STRICT ERP LOGIC: Sort by Date AND ID to prevent same-day bank passbook scrambling!
+            // Sort chronologically (BULLETPROOF)
             timeline.sort((a, b) => {
                 if (a.id === 'open-bal') return -1;
                 if (b.id === 'open-bal') return 1;
-                const dateA = new Date(a.date || 0).getTime();
-                const dateB = new Date(b.date || 0).getTime();
-                if (dateA !== dateB) return dateA - dateB;
-                return (a.id > b.id) ? 1 : -1;
+                return String(a.date || '').localeCompare(String(b.date || ''));
             });
 
             // Calculate Running Balance
@@ -1372,10 +1017,7 @@ const app = {
         if (!originalDoc) return;
 
         const allDocs = storeName === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases;
-        
-        // STRICT ERP LOGIC: Block Cross-Company Leaks and safely map Supplier Bills!
-        const originalDocNo = originalDoc.invoiceNo || originalDoc.poNo || originalDoc.orderNo || originalDoc.id;
-        const previousReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.orderNo === originalDocNo);
+        const previousReturns = allDocs.filter(d => d.documentType === 'return' && d.orderNo === originalDoc.invoiceNo);
         
         const returnedQtyMap = {};
         previousReturns.forEach(ret => {
@@ -1392,45 +1034,21 @@ const app = {
             const maxAllowable = parseFloat(item.qty) - previouslyReturned;
 
             if (maxAllowable > 0) {
-                const tr = document.createElement('div');
-                tr.className = 'item-entry-card m3-card tap-target';
-                tr.style.cssText = `padding: 12px; margin-bottom: 8px; border-left: 4px solid var(--md-error);`;
-                
+                const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                        <div style="flex: 1;">
-                            <strong style="font-size: 15px; color: var(--md-on-surface);">${item.name}</strong>
-                            <br><small style="color:var(--md-error); font-weight: bold;">Max Return: ${maxAllowable}</small>
-                            <div style="font-size: 11px; color: var(--md-text-muted); margin-top: 2px;">HSN: <input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width: 60px; border:none; background:transparent; font-size: 11px;"></div>
-                            
-                            <input type="hidden" class="row-item-id" value="${item.itemId}">
-                            <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
-                            <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
-                            <input type="hidden" class="row-uom" value="${item.uom || ''}">
-                        </div>
-                        <div class="icon-circle tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 28px; height: 28px; background: #fff0f2; color: var(--md-error); flex-shrink: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
-                        </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; background: #fff0f2; padding: 8px; border-radius: 8px;">
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-error);">Return Qty (${item.uom || 'Pcs'})</small>
-                            <input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error);">
-                        </div>
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">Rate (₹)</small>
-                            <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 4px; background: var(--md-surface-variant);">
-                        </div>
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">GST %</small>
-                            <input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 4px;">
-                        </div>
-                    </div>
-                    
-                    <div style="text-align: right; margin-top: 8px; padding-right: 4px;">
-                        <small style="color:var(--md-text-muted);">Total: </small><strong class="row-total" style="font-size: 15px; color: var(--md-error);">0.00</strong>
-                    </div>
+                    <td>
+                        <div style="font-weight:500;">${item.name}</div>
+                        <small style="color:var(--md-text-muted);">Max Return: ${maxAllowable}</small>
+                        <input type="hidden" class="row-item-id" value="${item.itemId}">
+                        <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">                        <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
+                    </td>
+                    <td><input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
+                    <td><input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:60px; padding:4px; border-color:var(--md-error);"></td>
+                    <td><input type="text" class="row-uom" value="${item.uom || ''}" readonly style="width:50px; padding:4px;"></td>
+                    <td><input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly style="width:80px; padding:4px; background:var(--md-surface-variant);"></td>
+                    <td><input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
+                    <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
+                    <td style="text-align:center;"><span class="material-symbols-outlined tap-target" style="color:var(--md-error);" onclick="this.closest('tr').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span></td>
                 `;
                 tbody.appendChild(tr);
             }
@@ -1478,25 +1096,16 @@ const app = {
             }
         });
 
-        // STRICT ERP LOGIC: Factor in Credit/Debit Notes to prevent Phantom Debt in the dropdown!
-        const returnMap = {};
-        allDocs.forEach(d => {
-            if (d.firmId === activeFirmId && d.documentType === 'return' && d.status !== 'Open') {
-                const ref = d.orderNo; // Returns link to the original invoice via orderNo
-                if (ref) returnMap[ref] = (returnMap[ref] || 0) + (parseFloat(d.grandTotal) || 0);
-            }
-        });
-
         const pendingDocs = allDocs.filter(doc => {
             if (doc.firmId !== activeFirmId || doc[partyKey] !== partyId) return false;
             if (doc.status === 'Open' || doc.documentType === 'return') return false;
             
             // BULLETPROOF MATH: Safely catches ghost IDs and clean Order Numbers
+            // FIX: Use a Set to prevent double-counting if orderNo and invoiceNo are identical strings
             const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
             const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
-            const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
             
-            const balance = (parseFloat(doc.grandTotal) || 0) - paid - returned;
+            const balance = (parseFloat(doc.grandTotal) || 0) - paid;
             return balance > 0.01; 
         });
 
@@ -1506,9 +1115,8 @@ const app = {
             const options = pendingDocs.map(doc => {
                 const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
                 const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
-                const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
                 
-                const balance = (parseFloat(doc.grandTotal) || 0) - paid - returned;
+                const balance = (parseFloat(doc.grandTotal) || 0) - paid;
                 
                 // BULLETPROOF: Directly save the clean Order/PO number to the database!
                 const docNo = (isMoneyIn ? (doc.orderNo || doc.invoiceNo) : (doc.orderNo || doc.poNo || doc.invoiceNo)) || doc.id;
@@ -1553,22 +1161,6 @@ const app = {
                     img.src = '';
                     img.classList.add('hidden');
                 });
-                
-                // STRICT ERP LOGIC: Unlock the stock fields for BRAND NEW products!
-                if (type === 'product') {
-                    const stockInputs = form.querySelectorAll('input[name="stockGst"], input[name="stockNonGst"], input[name="stock"]');
-                    stockInputs.forEach(input => {
-                        input.readOnly = false;
-                        input.style.backgroundColor = '';
-                        input.style.border = '';
-                    });
-                }
-            }
-            
-            // NEW: Ensure the valuation card is hidden when creating a brand new product
-            if (type === 'product') {
-                const valCard = document.getElementById('product-valuation-card');
-                if (valCard) valCard.classList.add('hidden');
             }
             
             // Hide delete buttons for new records
@@ -1733,52 +1325,28 @@ const app = {
                     }
                 }
 
-                const tr = document.createElement('div');
-                tr.className = 'item-entry-card m3-card tap-target';
-                tr.style.cssText = `padding: 12px; margin-bottom: 8px; border-left: 4px solid ${type === 'sales' ? 'var(--md-primary)' : 'var(--md-error)'};`;
-                
+                const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                        <div style="flex: 1;">
-                            <strong style="font-size: 15px; color: var(--md-on-surface);">${item.name}</strong>
-                            ${maxLabel}
-                            <div style="font-size: 11px; color: var(--md-text-muted); margin-top: 2px;">HSN/SAC: <input type="text" class="row-hsn" value="${item.hsn || ''}" placeholder="HSN" style="width: 60px; border:none; border-bottom: 1px solid var(--md-outline-variant); background:transparent; font-size: 11px; padding: 2px;"></div>
-                            
-                            ${type === 'sales' && record.documentType !== 'return' ? `
-                            <div style="display:flex; align-items:center; gap:4px; margin-top:6px;">
-                                <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
-                            </div>
-                            <small class="live-margin" style="font-size:10px; display:block; margin-top:4px; color:var(--md-success);"></small>
-                            ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
-                            
-                            <input type="hidden" class="row-item-id" value="${item.itemId}">
-                            <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
-                            <input type="hidden" class="row-uom" value="${item.uom || ''}">
+                    <td>
+                        <div style="font-weight:500;">${item.name}</div>
+                        ${maxLabel}
+                        ${type === 'sales' && record.documentType !== 'return' ? `
+                        <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
+                            <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
+                            <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
                         </div>
-                        <div class="icon-circle tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 28px; height: 28px; background: #fff0f2; color: var(--md-error); flex-shrink: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
-                        </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; background: var(--md-surface-variant); padding: 8px; border-radius: 8px;">
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">Qty (${item.uom || 'Pcs'})</small>
-                            <input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; font-weight: bold; border: 1px solid var(--md-outline-variant); border-radius: 4px; ${record.documentType === 'return' ? 'border-color:var(--md-error);' : ''}">
-                        </div>
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">Rate (₹)</small>
-                            <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 4px; ${record.documentType === 'return' ? 'background:var(--md-background);' : ''}">
-                        </div>
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">GST %</small>
-                            <input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 4px;">
-                        </div>
-                    </div>
-                    
-                    <div style="text-align: right; margin-top: 8px; padding-right: 4px;">
-                        <small style="color:var(--md-text-muted);">Total: </small><strong class="row-total" style="font-size: 15px; color: var(--md-on-surface);">0.00</strong>
-                    </div>
+                        <small class="live-margin" style="font-size:10px; display:block; margin-top:4px;"></small>
+                        ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
+                        <input type="hidden" class="row-item-id" value="${item.itemId}">
+                        <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                    </td>
+                    <td><input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
+                    <td><input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:60px; padding:4px; ${record.documentType === 'return' ? 'border-color:var(--md-error);' : ''}"></td>
+                    <td><input type="text" class="row-uom" value="${item.uom || ''}" readonly style="width:50px; padding:4px;"></td>
+                    <td><input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:80px; padding:4px; ${record.documentType === 'return' ? 'background:var(--md-surface-variant);' : ''}"></td>
+                    <td><input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
+                    <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
+                    <td style="text-align:center;"><span class="material-symbols-outlined tap-target" style="color:var(--md-error);" onclick="this.closest('tr').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span></td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1859,30 +1427,14 @@ const app = {
             const elements = form.elements;
             for (let i = 0; i < elements.length; i++) {
                 const el = elements[i];
-                if (el.name) {
-                    // STRICT ERP LOGIC: Prevent Ghost Data! Clear the field if the new record doesn't have a value.
-                    const val = record[el.name] !== undefined ? record[el.name] : '';
+                if (el.name && record[el.name] !== undefined) {
                     if (el.type === 'checkbox') {
-                        el.checked = !!val;
+                        el.checked = record[el.name];
                     } else {
-                        el.value = val;
-                        if (el._flatpickr) {
-                            if (val) el._flatpickr.setDate(val);
-                            else el._flatpickr.clear();
-                        }
+                        el.value = record[el.name];
+                        if (el._flatpickr) el._flatpickr.setDate(record[el.name]); // FIX: Sync Flatpickr dynamically
                     }
                 }
-            }
-            
-            // STRICT ERP LOGIC: Lock Inventory fields on existing products to prevent audit trail bypass!
-            if (type === 'product' && id) {
-                const stockInputs = form.querySelectorAll('input[name="stockGst"], input[name="stockNonGst"], input[name="stock"]');
-                stockInputs.forEach(input => {
-                    input.readOnly = true;
-                    input.style.backgroundColor = 'var(--md-surface-variant)';
-                    input.style.border = '1px dashed var(--md-outline-variant)';
-                    input.title = "To change existing inventory, please use the official Stock Adjustment tool.";
-                });
             }
             
             // Recover images so they aren't erased on save
@@ -1890,25 +1442,6 @@ const app = {
                 const img = document.getElementById('product-image-preview');
                 if (img) { img.src = record.image; img.classList.remove('hidden'); }
             }
-            
-            // NEW: Calculate and display the Total Stock Valuation!
-            if (type === 'product') {
-                const valCard = document.getElementById('product-valuation-card');
-                if (valCard) {
-                    valCard.classList.remove('hidden');
-                    
-                    const totalStock = parseFloat(record.stock) || 0;
-                    const buyPrice = parseFloat(record.buyPrice) || 0;
-                    const totalValue = totalStock * buyPrice;
-                    
-                    const stockDisp = document.getElementById('product-total-stock-display');
-                    const valDisp = document.getElementById('product-total-value-display');
-                    
-                    if (stockDisp) stockDisp.innerText = `${totalStock} ${record.uom || 'Units'} Total`;
-                    if (valDisp) valDisp.innerText = `₹${totalValue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                }
-            }
-
             if (type === 'expense') {
                 if (record.attachment) {
                     const img = document.getElementById('expense-attachment-preview');
@@ -1918,9 +1451,9 @@ const app = {
                 if (record.linkedInvoice) {
                     const links = record.linkedInvoice.split(',').map(x => x.trim()).filter(x => x);
                     const displayNames = links.map(linkId => {
-                        // SELF-HEALING: Catch broken fragments and protect against corrupted empty IDs!
-                        const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || (s.id && s.id.endsWith(linkId)));
-                        const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || (p.id && p.id.endsWith(linkId)));
+                        // SELF-HEALING: Catch broken fragments like '8965' or '0778'
+                        const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
+                        const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
                         
                         if (sDoc) return sDoc.orderNo || sDoc.invoiceNo || sDoc.id.slice(-4).toUpperCase();
                         if (pDoc) return pDoc.orderNo || pDoc.poNo || pDoc.invoiceNo || pDoc.id.slice(-4).toUpperCase();
@@ -1966,32 +1499,12 @@ const app = {
                     const partyId = document.getElementById(`${type}-${partyKey}-id`).value;
                     if (!partyId) return alert(`Please select a ${partyKey}.`);
 
-                    // STRICT ERP LOGIC: Block Future Dates to protect PnL and Aging Reports!
-                    const docDate = document.getElementById(`${type}-date`).value;
-                    if (docDate) {
-                        const selectedDate = new Date(docDate);
-                        const today = new Date();
-                        today.setDate(today.getDate() + 1); // Allow up to 1 day for timezone safety
-                        if (selectedDate > today) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            return alert("ERROR: You cannot save a document with a future date. Please correct the date to protect your financial reports.");
-                        }
-                    }
-
                     const items = [];
                     const rows = document.querySelectorAll(`#${type}-items-body .item-entry-card`);
                     if (rows.length === 0) return alert("Please add at least one item.");
 
                     rows.forEach(tr => {
-                        const qtyInput = tr.querySelector('.row-qty');
-                        let qty = parseFloat(qtyInput.value) || 0;
-                        
-                        // STRICT ERP LOGIC: Enforce the max limit for Returns to protect inventory
-                        if (qtyInput.hasAttribute('max')) {
-                            const maxAllowable = parseFloat(qtyInput.getAttribute('max'));
-                            if (qty > maxAllowable) qty = maxAllowable;
-                        }
-                        
+                        const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
                         if (qty <= 0) return; // FIX: Prevent saving empty "0 qty" items from Returns or accidental inputs
 
                         items.push({
@@ -2041,21 +1554,10 @@ const app = {
                             existingInvoice = await getRecordById(type === 'sales' ? 'sales' : 'purchases', app.state.currentEditId);
                         }
                         
-                        // NEW: Detect which stock pool this invoice is attempting to pull from!
-                        const invTypeEl = document.getElementById(`${type}-invoice-type`);
-                        const isNonGST = invTypeEl ? invTypeEl.value === 'Non-GST' : false;
-                        const poolName = isNonGST ? 'Non-GST' : 'GST';
-                        
                         for (const row of items) {
                             const dbItem = allItems.find(i => i.id === row.itemId);
                             if (dbItem) {
-                                // Isolate the exact stock pool being targeted (Bulletproof Math)
-                                const rawGst = parseFloat(dbItem.stockGst);
-                                const rawNon = parseFloat(dbItem.stockNonGst);
-                                let stockGst = isNaN(rawGst) ? (parseFloat(dbItem.stock) || 0) : rawGst;
-                                let stockNonGst = isNaN(rawNon) ? 0 : rawNon;
-                                let effectiveStock = isNonGST ? stockNonGst : stockGst;
-                                
+                                let effectiveStock = parseFloat(dbItem.stock) || 0;
                                 // If editing an already-completed invoice, temporarily add the old qty back to the pool
                                 if (existingInvoice && existingInvoice.status !== 'Open') {
                                     const oldItem = existingInvoice.items.find(i => i.itemId === row.itemId);
@@ -2063,7 +1565,7 @@ const app = {
                                 }
                                 
                                 if (effectiveStock < parseFloat(row.qty)) {
-                                    if (!confirm(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective ${poolName} stock is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`)) {
+                                    if (!confirm(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective stock is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`)) {
                                         return; 
                                     }
                                 }
@@ -2093,8 +1595,7 @@ const app = {
                         items: items,
                         
                         subtotal: parseFloat(document.getElementById(`${type}-subtotal`).innerText.replace(/[^\d.-]/g, '')) || 0,
-                        // STRICT ERP LOGIC: Force absolute numbers to prevent negative discounts from inflating the total!
-                        discount: Math.abs(parseFloat(document.getElementById(`${type}-discount`).value) || 0),
+                        discount: parseFloat(document.getElementById(`${type}-discount`).value) || 0,
                         discountType: discTypeEl ? discTypeEl.value : '\u20B9',
                         totalGst: parseFloat(document.getElementById(`${type}-gst-total`).innerText.replace(/[^\d.-]/g, '')) || 0,
                         grandTotal: parseFloat(document.getElementById(`${type}-grand-total`).innerText.replace(/[^\d.-]/g, '')) || 0,
@@ -2107,62 +1608,35 @@ const app = {
                     };
 
                         const storeName = type === 'sales' ? 'sales' : 'purchases';
-                        
-                        // STRICT ERP LOGIC 1: THE PRE-TRANSACTION CACHE ANNIHILATOR!
-                        // Destroy the browser's RAM cache BEFORE the database does its math. 
-                        // This guarantees the engine fetches the TRUE existing invoice and stops the stock from multiplying!
-                        if (window.AppCache) {
-                            window.AppCache.items = null;
-                            window.AppCache[storeName] = null;
-                        }
-
-                        // Execute the perfect database math
                         await saveInvoiceTransaction(storeName, data);
                         
-                        // THE STATE TRANSITION LOCK
-                        app.state.currentEditId = data.id;
-                        
-                        // STRICT ERP LOGIC 2: THE POST-TRANSACTION CACHE ANNIHILATOR!
-                        // Destroy the cache a second time! This forces the Dashboard to read the newly saved hard drive data.
-                        if (window.AppCache) {
-                            window.AppCache.items = null;
-                            window.AppCache[storeName] = null;
-                        }
-                        
-                        // STRICT ERP LOGIC 3: INJECT THE ABSOLUTE TRUTH
-                        // Fetch the mathematically perfect stock directly from the hard drive and force it into the UI
-                        const absoluteTruth = await window.getAllRecords('items');
-                        if (window.UI && window.UI.state && window.UI.state.rawData) {
-                            window.UI.state.rawData.items = absoluteTruth;
-                        }
+                        // --- ENTERPRISE FIX: 5ms MEMORY INJECTION ---
+                        // Inject the new data directly into RAM to avoid a heavy database reload!
+                        const ramData = storeName === 'sales' ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;
+                        const existIdx = ramData.findIndex(r => r.id === data.id);
+                        if (existIdx > -1) ramData[existIdx] = data;
+                        else ramData.push(data);
                         
                         // NEW: Auto-Complete Advance Payments Engine
                         if (typeof app.autoCompleteInvoices === 'function') {
                             await app.autoCompleteInvoices(partyId, type);
                         }
                         
-                        UI.showSuccess(); 
+                        UI.showSuccess(); // UPGRADE: Trigger GPay Animation!
                         UI.closeActivity(`activity-${type}-form`);
                         
-                        // STRICT ERP LOGIC 4: Execute a flawless, synchronized global refresh
-                        if (typeof app.refreshAll === 'function') {
-                            await app.refreshAll();
-                        } else if (window.UI && typeof window.UI.renderDashboard === 'function') {
-                            window.UI.renderDashboard();
-                        }
+                        // Fast UI update instead of hitting the hard drive!
+                        window.UI.applyFilters(storeName);
+                        window.UI.renderDashboard();
                     } catch (error) {
                         console.error("Save failed:", error);
                         alert("An error occurred while saving. Please try again.");
                     } finally {
-                        // STRICT ERP LOGIC 3: THE ANIMATION SHIELD
-                        // Do NOT unlock the button instantly! Wait 400ms so the CSS slide-down animation 
-                        // finishes completely, making it physically impossible to double-click.
+                        // NEW: Always unlock the button, even if the save fails
                         if (submitBtn) {
-                            setTimeout(() => {
-                                submitBtn.disabled = false;
-                                submitBtn.innerText = originalText; 
-                                submitBtn.style.opacity = "1";
-                            }, 400); 
+                            submitBtn.disabled = false;
+                            submitBtn.innerText = originalText; // FIX: Restores dynamic text (e.g. "Save Credit Note")
+                            submitBtn.style.opacity = "1";
                         }
                     }
                 });
@@ -2205,44 +1679,12 @@ const app = {
                 if (type === 'product') {
                     data.sellPrice = parseFloat(data.sellPrice) || 0;
                     data.buyPrice = parseFloat(data.buyPrice) || 0;
+                    data.stock = parseFloat(data.stock) || 0;
                     data.minStock = parseFloat(data.minStock) || 0;
                     data.gst = parseFloat(data.gst) || 0;
-                    
-                    // STRICT ERP LOGIC: Prevent "Race Condition" Stock Wipeouts!
-                    // If editing an existing product, NEVER overwrite the live stock with the stale UI number. 
-                    if (app.state.currentEditId) {
-                        const liveRecord = await getRecordById('items', app.state.currentEditId);
-                        data.stockGst = liveRecord ? parseFloat(liveRecord.stockGst) || 0 : 0;
-                        data.stockNonGst = liveRecord ? parseFloat(liveRecord.stockNonGst) || 0 : 0;
-                        
-                        // Preserve the original Opening Stock
-                        if (liveRecord) {
-                            data.openingStock = liveRecord.openingStock || 0;
-                            data.openingStockGst = liveRecord.openingStockGst || 0;
-                            data.openingStockNonGst = liveRecord.openingStockNonGst || 0;
-                        }
-                    } else {
-                        // For newly created items, inherit directly from the UI 'stock' field
-                        data.stock = parseFloat(data.stock) || 0;
-                        data.stockGst = parseFloat(data.stockGst) || data.stock;
-                        data.stockNonGst = parseFloat(data.stockNonGst) || 0;
-                        
-                        // Seed the historical Opening Stock ledger
-                        data.openingStock = data.stock;
-                        data.openingStockGst = data.stockGst;
-                        data.openingStockNonGst = data.stockNonGst;
-                    }
-                    
-                    // Dual Engine Safety: Total Stock is always Math(GST + Non-GST)
-                    data.stock = Math.round((data.stockGst + data.stockNonGst) * 100) / 100;
-                    
                     const img = document.getElementById('product-image-preview');
-                    if (img && !img.classList.contains('hidden')) {
-                        // STRICT ERP LOGIC: The "Deep Fryer" Fix! Only compress if it's a NEW image upload to prevent quality loss over multiple edits.
-                        data.image = (data.image === img.src) ? data.image : await window.compressImage(img.src);
-                    } else {
-                        data.image = ''; // STRICT ERP LOGIC: Permanently delete removed images
-                    }
+                    // ENTERPRISE FIX: Compress the product image!
+                    if (img && !img.classList.contains('hidden')) data.image = await window.compressImage(img.src);
                 } 
                 else if (type === 'ledger') {
                     data.openingBalance = parseFloat(data.openingBalance) || 0;
@@ -2251,34 +1693,9 @@ const app = {
                     data.amount = parseFloat(data.amount) || 0;
                     const accEl = document.getElementById('expense-account-id');
                     data.accountId = accEl ? accEl.value : 'cash';
-                    
-                    // STRICT ERP LOGIC: Prevent Expenses from silently overdrafting the Cashbook!
-                    const allReceipts = await getAllRecords('receipts');
-                    let currentBal = 0;
-                    // FIX: Read the Opening Balance for ALL accounts, including the default Cash Drawer!
-                    const accRecord = await getRecordById('accounts', data.accountId);
-                    if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
-                    
-                    allReceipts.forEach(r => {
-                        if (r.firmId === app.state.firmId && (r.accountId || 'cash') === data.accountId && r.id !== ('exp-rec-' + data.id)) {
-                            currentBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
-                        }
-                    });
-                    
-                    if (currentBal - data.amount < 0) {
-                        if (!confirm(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This expense will drop the balance below zero. Continue anyway?`)) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            return;
-                        }
-                    }
-
                     const img = document.getElementById('expense-attachment-preview');
-                    if (img && !img.classList.contains('hidden')) {
-                        // STRICT ERP LOGIC: The "Deep Fryer" Fix! Prevent repeated compression degradation.
-                        data.attachment = (data.attachment === img.src) ? data.attachment : await window.compressImage(img.src);
-                    } else {
-                        data.attachment = ''; // STRICT ERP LOGIC: Permanently delete removed images
-                    }
+                    // ENTERPRISE FIX: Compress the expense receipt!
+                    if (img && !img.classList.contains('hidden')) data.attachment = await window.compressImage(img.src);
                 }
                 else if (type === 'account') {
                     storeName = 'accounts';
@@ -2387,22 +1804,17 @@ const app = {
                     const itemId = document.getElementById('adj-product-id').value;
                     if (!itemId) throw new Error("Please select a product.");
                     
-                    const pool = document.getElementById('adj-pool').value;
                     const type = document.getElementById('adj-type').value;
                     const qty = parseFloat(document.getElementById('adj-qty').value) || 0;
                     
                     const item = await getRecordById('items', itemId);
                     if (!item) throw new Error("Product not found in database.");
                     
-                    const rawGst = parseFloat(item.stockGst);
-                    const rawNon = parseFloat(item.stockNonGst);
-                    let stockGst = isNaN(rawGst) ? (parseFloat(item.stock) || 0) : rawGst;
-                    let stockNonGst = isNaN(rawNon) ? 0 : rawNon;
-                    let targetStock = pool === 'gst' ? stockGst : stockNonGst;
+                    const currentStock = parseFloat(item.stock) || 0;
                     
                     if (type === 'reduce') {
-                        if (targetStock - qty < 0) {
-                            if (!confirm(`Warning: This will drop the ${pool === 'gst' ? 'GST' : 'Non-GST'} stock below zero. Continue anyway?`)) {
+                        if (currentStock - qty < 0) {
+                            if (!confirm(`Warning: This adjustment will drop your stock below zero (Current: ${currentStock}). Continue anyway?`)) {
                                 return; 
                             }
                         }
@@ -2412,27 +1824,18 @@ const app = {
                         id: Utils.generateId(),
                         firmId: app.state.firmId,
                         itemId: itemId,
-                        pool: pool, // Track which pool was audited
                         type: type,
                         qty: qty,
                         date: document.getElementById('adj-date').value,
                         notes: document.getElementById('adj-notes').value
                     };
                     
-                    let impact = type === 'add' ? qty : -qty;
-                    if (pool === 'gst') {
-                        item.stockGst = Math.round((stockGst + impact) * 100) / 100;
-                    } else {
-                        item.stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
-                    }
-                    // STRICT ERP LOGIC: ParseFloat prevents legacy items from corrupting into NaN!
-                    item.stock = Math.round(((parseFloat(item.stockGst) || 0) + (parseFloat(item.stockNonGst) || 0)) * 100) / 100;
+                    // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift in inventory!
+                    const rawNewStock = currentStock + (type === 'add' ? qty : -qty);
+                    item.stock = Math.round(rawNewStock * 100) / 100;
                     
                     await saveRecord('adjustments', adjData);
                     await saveRecord('items', item);
-                    
-                    // STRICT ERP LOGIC: Wipe the RAM Cache so the UI instantly shows the new stock!
-                    if (window.AppCache) window.AppCache.items = null;
                     
                     alert("Stock adjusted successfully!");
                     UI.closeBottomSheet('sheet-stock-adjustment');
@@ -2466,20 +1869,11 @@ const app = {
                     terms: document.getElementById('profile-terms').value
                 };
 
-                // STRICT ERP LOGIC: Prevent the "Deep Fryer" bug! Only compress if it is a brand new upload.
-                const existingProfile = await getRecordById('businessProfile', app.state.firmId);
-                
                 const logoImg = document.getElementById('profile-logo-preview');
-                if (logoImg && !logoImg.classList.contains('hidden')) {
-                    if (existingProfile && existingProfile.logo === logoImg.src) data.logo = existingProfile.logo;
-                    else data.logo = await window.compressImage(logoImg.src);
-                }
+                if (logoImg && !logoImg.classList.contains('hidden')) data.logo = await window.compressImage(logoImg.src);
 
                 const sigImg = document.getElementById('profile-signature-preview');
-                if (sigImg && !sigImg.classList.contains('hidden')) {
-                    if (existingProfile && existingProfile.signature === sigImg.src) data.signature = existingProfile.signature;
-                    else data.signature = await window.compressImage(sigImg.src);
-                }
+                if (sigImg && !sigImg.classList.contains('hidden')) data.signature = await window.compressImage(sigImg.src);
 
                 await saveRecord('businessProfile', data);
                 
@@ -2530,64 +1924,16 @@ const app = {
                     const manualRef = document.getElementById(`pay-${type}-ref`).value;
                     const docNoInput = document.getElementById(`pay-${type}-no`).value;
 
-                    // FIX: Duplicate Number Protection for Receipts (Safely ignoring blank numbers!)
+                    // FIX: Duplicate Number Protection for Receipts
                     const allReceipts = await getAllRecords('receipts');
-                    if (docNoInput && docNoInput.trim() !== '') {
-                        const isDuplicate = allReceipts.some(r => 
-                            r.firmId === app.state.firmId && 
-                            r.receiptNo === docNoInput && 
-                            r.id !== app.state.currentReceiptId
-                        );
-                        if (isDuplicate) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            return alert(`Error: Document number "${docNoInput}" already exists! Please use a unique number.`);
-                        }
-                    }
-
-                    // STRICT ERP LOGIC: Revert old invoices if unlinked during a receipt edit
-                    if (app.state.currentReceiptId) {
-                        const oldReceipt = await getRecordById('receipts', app.state.currentReceiptId);
-                        if (oldReceipt && oldReceipt.invoiceRef) {
-                            const oldRefs = String(oldReceipt.invoiceRef).split(',').map(r => r.trim());
-                            const newRefs = selectedInvoiceRef.split(',').map(r => r.trim());
-                            const docStore = type === 'in' ? 'sales' : 'purchases';
-                            const allDocs = await getAllRecords(docStore);
-                            
-                            for (const oldRef of oldRefs) {
-                                if (!newRefs.includes(oldRef)) {
-                                    // STRICT ERP LOGIC: Enforce Firm ID boundaries so Shop A doesn't accidentally open Shop B's invoices!
-                                    const linkedDoc = allDocs.find(d => d.firmId === app.state.firmId && (d.id === oldRef || d.invoiceNo === oldRef || d.poNo === oldRef || d.orderNo === oldRef));
-                                    if (linkedDoc && linkedDoc.status === 'Completed') {
-                                        linkedDoc.status = 'Unpaid'; // FIX: Marks as Unpaid but keeps Stock intact!
-                                        linkedDoc.completedDate = '';
-                                        await saveRecord(docStore, linkedDoc);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // STRICT ERP LOGIC: Cashbook Overdraft Protection!
-                    if (type === 'out') {
-                        const allReceipts = await getAllRecords('receipts');
-                        let currentBal = 0;
-                        // FIX: Read the Opening Balance for ALL accounts, including the default Cash Drawer!
-                        const accRecord = await getRecordById('accounts', accountId);
-                        if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
-                        
-                        allReceipts.forEach(r => {
-                            if (r.firmId === app.state.firmId && (r.accountId || 'cash') === (accountId || 'cash') && r.id !== app.state.currentReceiptId) {
-                                currentBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
-                            }
-                        });
-                        
-                        const attemptAmt = parseFloat(document.getElementById(`pay-${type}-amount`).value) || 0;
-                        if (currentBal - attemptAmt < 0) {
-                            if (!confirm(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This payment will drop the balance below zero. Continue anyway?`)) {
-                                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                                return;
-                            }
-                        }
+                    const isDuplicate = allReceipts.some(r => 
+                        r.firmId === app.state.firmId && 
+                        r.receiptNo === docNoInput && 
+                        r.id !== app.state.currentReceiptId
+                    );
+                    if (isDuplicate) {
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                        return alert(`Error: Document number "${docNoInput}" already exists! Please use a unique number.`);
                     }
 
                     const data = {
@@ -2636,19 +1982,8 @@ const app = {
                                         }
                                     });
 
-                                    // STRICT ERP LOGIC: Add Returns (Credit/Debit Notes) to the total settled amount!
-                                    let totalReturned = 0;
-                                    allDocs.forEach(d => {
-                                        if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open') {
-                                            // Match returns to the original invoice
-                                            if (d.orderNo === linkedInvoice.invoiceNo || d.orderNo === linkedInvoice.poNo || d.orderNo === linkedInvoice.orderNo || d.orderNo === linkedInvoice.id) {
-                                                totalReturned += (parseFloat(d.grandTotal) || 0);
-                                            }
-                                        }
-                                    });
-
-                                    // If the split manual payments + returns cover the grand total, mark as Completed
-                                    if ((totalPaid + totalReturned) >= parseFloat(linkedInvoice.grandTotal) - 0.5) { 
+                                    // If the split manual payments cover the grand total, mark as Completed
+                                    if (totalPaid >= parseFloat(linkedInvoice.grandTotal) - 0.5) { 
                                         linkedInvoice.status = 'Completed';
                                         await saveRecord(storeName, linkedInvoice);
                                     }
@@ -2787,6 +2122,25 @@ const app = {
     },
 
     // ==========================================
+    // PO TO INVOICE CONVERTER
+    // ==========================================
+    convertPO: async (id) => {
+        if (!confirm("Convert this Draft PO into a Completed Purchase Bill? This will officially add the items to your inventory and update your payable ledger.")) return;
+        
+        const record = await getRecordById('purchases', id);
+        if (!record) return alert("Record not found.");
+
+        record.status = 'Completed';
+        const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+        record.completedDate = today;
+
+        await saveInvoiceTransaction('purchases', record);
+        
+        alert("PO successfully converted to Purchase Bill!");
+        app.refreshAll();
+    },
+
+    // ==========================================
     // AUTO-COMPLETE ADVANCE PAYMENT ENGINE
     // ==========================================
     autoCompleteInvoices: async (partyId, type) => {
@@ -2799,18 +2153,11 @@ const app = {
         
         // 1. Calculate total money received/paid for this party (including Advances)
         let totalPaid = 0;
-        let explicitlyLinkedMoney = 0; // NEW: Track money safely locked to specific invoices
-
         allReceipts.forEach(r => {
             if (r.firmId === app.state.firmId && r.ledgerId === partyId) {
                 const amt = parseFloat(r.amount) || 0;
-                const impact = isSales ? (r.type === 'in' ? amt : -amt) : (r.type === 'out' ? amt : -amt);
-                totalPaid += impact;
-                
-                // Lock manually tied receipt money away from the global pool!
-                if (r.invoiceRef && impact > 0) {
-                    explicitlyLinkedMoney += impact;
-                }
+                if (isSales) totalPaid += (r.type === 'in' ? amt : -amt);
+                else totalPaid += (r.type === 'out' ? amt : -amt);
             }
         });
         
@@ -2818,8 +2165,8 @@ const app = {
         const partyDocs = allDocs.filter(d => d.firmId === app.state.firmId && d[partyKey] === partyId && d.documentType !== 'return' && d.status !== 'Open');
         partyDocs.sort((a, b) => new Date(a.date) - new Date(b.date));
         
-        // 3. Smart Allocation - Only use true unlinked advance money for FIFO waterfall!
-        let remainingAdvanceMoney = Math.max(0, totalPaid - explicitlyLinkedMoney);
+        // 3. Smart Allocation - Prioritize explicit payments first, then use FIFO for advances
+        let remainingMoney = totalPaid;
         
         for (const doc of partyDocs) {
             const docTotal = parseFloat(doc.grandTotal) || 0;
@@ -2835,47 +2182,20 @@ const app = {
                     }
                 }
             });
-
-            // STRICT ERP LOGIC: Factor in Credit Notes & Purchase Returns to prevent Ghost Debt!
-            const linkedReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
-            const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
-            const totalSettled = explicitPaid + returnTotal;
             
-            // Mark completed if explicit payments + returns cover it, OR if leftover FIFO advance covers it
-            if (totalSettled >= docTotal - 0.5) {
-                // Fully covered by its own direct receipt or return!
-                if (doc.status !== 'Completed') {
+            // Mark completed if explicit payments cover it, OR if leftover FIFO advance covers it
+            if (explicitPaid >= docTotal - 0.5 || remainingMoney >= docTotal - 0.5) { 
+                remainingMoney -= docTotal; // Consume from global pool
+                
+                if (doc.status === 'Open') {
                     doc.status = 'Completed';
-                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) doc.completedDate = doc.completedDate || Utils.getLocalDate();
-                    await saveRecord(storeName, doc);
-                }
-                
-                // STRICT ERP LOGIC: STORE CREDIT & OVERPAYMENT RECOVERY!
-                // If returns (Credit Notes) or explicit payments exceed the invoice total, the excess 
-                // money MUST spill over back into the Advance Pool so future invoices can auto-complete!
-                if (totalSettled > docTotal) {
-                    remainingAdvanceMoney += (totalSettled - docTotal);
-                }
-                
-            } else if ((totalSettled + remainingAdvanceMoney) >= docTotal - 0.5) { 
-                // Covered by a mix of direct receipt + returns + leftover advance pool
-                remainingAdvanceMoney -= (docTotal - totalSettled); 
-                
-                if (doc.status !== 'Completed') {
-                    doc.status = 'Completed';
-                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) doc.completedDate = doc.completedDate || Utils.getLocalDate();
-                    await saveRecord(storeName, doc);
+                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) {
+                        doc.completedDate = doc.completedDate || Utils.getLocalDate();
+                    }
+                    await saveRecord(storeName, doc); // Auto-save!
                 }
             } else {
-                // Not enough money to complete this invoice
-                remainingAdvanceMoney -= Math.min(remainingAdvanceMoney, Math.max(0, docTotal - explicitPaid));
-                
-                // STRICT ERP LOGIC: Safely mark the invoice as Unpaid if the advance payment was deleted!
-                if (doc.status === 'Completed' || doc.status === 'Open') { // FIX: Catch "Open" documents that should be "Unpaid"
-                    doc.status = 'Unpaid'; 
-                    doc.completedDate = '';
-                    await saveRecord(storeName, doc);
-                }
+                remainingMoney -= Math.min(remainingMoney, docTotal);
             }
         }
     },
@@ -2917,16 +2237,8 @@ const app = {
                     const refs = String(r.invoiceRef || '').split(',').map(x => x.trim());
                     return refs.some(ref => uniqueRefs.includes(ref)) && r.ledgerId === partyId && r.isAutoGenerated === false;
                 });
-                
                 if (linkedManualReceipts.length > 0) {
-                    // STRICT ERP LOGIC: Prevent deleting invoices tied to BULK payments!
-                    const hasBulkPayment = linkedManualReceipts.some(r => String(r.invoiceRef || '').split(',').filter(x => x.trim()).length > 1);
-                    
-                    if (hasBulkPayment) {
-                        return alert("ERROR: Cannot delete this document! It is tied to a BULK payment that covers multiple invoices. Please go to the Cashbook, edit the receipt to unlink this specific invoice, and then try deleting it again.");
-                    }
-                    
-                    if (!confirm(`Warning: This document has ${linkedManualReceipts.length} manual payment(s) exclusively linked to it. Delete them as well to keep the cashbook balanced?`)) {
+                    if (!confirm(`Warning: This document has ${linkedManualReceipts.length} manual payment(s) linked to it. Delete them as well to keep the cashbook balanced?`)) {
                         return; // Abort the whole deletion if they cancel here to prevent imbalance
                     }
                     for (const r of linkedManualReceipts) {
@@ -2940,28 +2252,6 @@ const app = {
         if (type === 'expense') {
             await deleteRecordById('receipts', 'exp-rec-' + id);
         }
-
-        // STRICT ERP LOGIC 1: Revert Invoice Status when Payment is Deleted
-        if (type === 'receipt-in' || type === 'receipt-out') {
-            if (record.invoiceRef && !record.isAutoGenerated) {
-                const docStore = type === 'receipt-in' ? 'sales' : 'purchases';
-                const allDocs = await getAllRecords(docStore);
-                const refs = String(record.invoiceRef).split(',').map(r => r.trim());
-                
-                for (const ref of refs) {
-                    // STRICT ERP LOGIC: Lock the search to the specific record's Firm ID to prevent cross-company data corruption!
-                    const linkedDoc = allDocs.find(d => d.firmId === record.firmId && (d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref));
-                    if (linkedDoc && linkedDoc.status === 'Completed') {
-                        linkedDoc.status = 'Unpaid'; // FIX: Marks as Unpaid but keeps Stock intact!
-                        linkedDoc.completedDate = '';
-                        await saveRecord(docStore, linkedDoc);
-                    }
-                }
-            }
-        }
-
-        // STRICT ERP LOGIC 2: Stock reversal is now safely handled by the central db.js engine!
-        // (Redundant manual loop deleted to prevent double-reversal inventory corruption)
 
         // Prevent Bank Account Deletion if transactions are tied to it
         if (type === 'account') {
@@ -2988,19 +2278,31 @@ const app = {
             }
         }
 
-        // STRICT ERP LOGIC: Prevent Product Deletion if it has active transaction history!
-        if (type === 'product') {
-            const allSales = await getAllRecords('sales');
-            const allPurchases = await getAllRecords('purchases');
-            
-            const inSales = allSales.some(s => (s.items || []).some(i => i.itemId === id));
-            const inPurchases = allPurchases.some(p => (p.items || []).some(i => i.itemId === id));
-            
-            if (inSales || inPurchases) {
-                return alert(`Cannot delete this product. It is permanently linked to past invoices or bills. To protect your audit trail and PnL, please edit the product and rename it to "Inactive - [Product Name]" instead.`);
-            }
+        record.deletedAt = new Date().toLocaleString();
+        
+        // FIX: Delete heavy base64 images before saving to LocalStorage to prevent 5MB Quota crashes!
+        if (record.image) delete record.image;
+        if (record.attachment) delete record.attachment;
+        
+        const trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
+        trashBin.push(record);
+        localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
+
+        // Delete from main database
+        await deleteRecordById(storeName, id);
+
+        // ENTERPRISE FIX: Wipe RAM Cache so the deleted item instantly disappears from the UI!
+        if (window.AppCache) {
+            window.AppCache.items = null;
+            window.AppCache.ledgers = null;
+            window.AppCache.accounts = null;
         }
 
+        if (type === 'sales' || type === 'purchase') UI.closeActivity(`activity-${type}-form`);
+        else if (type === 'receipt-in' || type === 'receipt-out') UI.closeBottomSheet(`sheet-payment-${type.split('-')[1]}`);
+        else UI.closeActivity(`activity-${type}-form`);
+        
+        app.refreshAll();
     },
 
     // ==========================================
@@ -3009,25 +2311,18 @@ const app = {
     restoreRecord: async (id, storeName) => {
         if (!confirm("Are you sure you want to restore this item?")) return;
 
-        // STRICT ERP LOGIC: Pull directly from the unlimited IndexedDB Trash Vault!
-        const record = await getRecordById('trash', id);
+        let trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
+        const recordIndex = trashBin.findIndex(t => t.id === id);
         
-        if (record) {
+        if (recordIndex > -1) {
+            const record = trashBin[recordIndex];
+            
             // Remove the trash tags
             delete record._module;
-            delete record._deletedAt;
+            delete record.deletedAt;
             
-            // STRICT ERP LOGIC: Re-apply stock impacts if restoring an invoice or adjustment!
-            if (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments') {
-                if (typeof saveInvoiceTransaction === 'function') {
-                    await saveInvoiceTransaction(storeName, record);
-                } else {
-                    await saveRecord(storeName, record); // Failsafe fallback
-                }
-            } else {
-                // Save normal records back to the active IndexedDB without stock math
-                await saveRecord(storeName, record); 
-            }
+            // Save it back to the active IndexedDB
+            await saveRecord(storeName, record); 
             
             // FIX: Recreate the Cashbook entry if restoring an Expense
             if (storeName === 'expenses') {
@@ -3050,7 +2345,8 @@ const app = {
             }
             
             // Remove it from the Trash Vault
-            await deleteRecordById('trash', id);
+            trashBin.splice(recordIndex, 1);
+            localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
             
             // ENTERPRISE FIX: Wipe RAM Cache so the restored item instantly reappears!
             if (window.AppCache) {
@@ -3066,14 +2362,16 @@ const app = {
         }
     },
 
-    permanentlyDeleteRecord: async (id) => {
+    permanentlyDeleteRecord: (id) => {
         if (!confirm("Are you sure you want to permanently delete this item? This action cannot be undone.")) return;
 
-        // STRICT ERP LOGIC: Delete directly from the IndexedDB Trash Vault
-        const record = await getRecordById('trash', id);
+        let trashBin = JSON.parse(localStorage.getItem('sollo_trash') || '[]');
+        const recordIndex = trashBin.findIndex(t => t.id === id);
         
-        if (record) {
-            await deleteRecordById('trash', id);
+        if (recordIndex > -1) {
+            // Remove it from the Trash Vault permanently
+            trashBin.splice(recordIndex, 1);
+            localStorage.setItem('sollo_trash', JSON.stringify(trashBin));
             
             if (window.Utils) window.Utils.showToast("Record Permanently Deleted! 🗑️");
             app.refreshAll();
@@ -3114,126 +2412,15 @@ const app = {
                 }
             }
         });
-
-        // STRICT ERP LOGIC: Add Returns/Credit Notes so the printed PDF doesn't demand fake money!
-        const allDocs = await getAllRecords(storeName);
-        let totalReturned = 0;
-        allDocs.forEach(d => {
-            if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open') {
-                if (uniqueRefs.includes(d.orderNo)) {
-                    totalReturned += (parseFloat(d.grandTotal) || 0);
-                    // Push the return into the receipts array so it prints on the PDF as an offset payment!
-                    linkedReceipts.push({
-                        receiptNo: d.orderNo ? 'CN-' + d.orderNo : 'Credit Note',
-                        date: d.date,
-                        mode: 'Return / Credit',
-                        amount: parseFloat(d.grandTotal) || 0
-                    });
-                }
-            }
-        });
         
-        // Inject the total paid + returns AND the detailed history into the record object
-        record.trueTotalPaid = totalPaid + totalReturned;
+        // Inject the total paid AND the receipt details into the record object
+        record.trueTotalPaid = totalPaid;
         record.linkedReceipts = linkedReceipts;
 
         const profile = await getRecordById('businessProfile', app.state.firmId);
         const party = await getRecordById('ledgers', type === 'sales' ? record.customerId : record.supplierId);
 
-        window.Utils.generateInvoicePDF(record, profile || {}, party || {}, type);
-    },
-
-    generateReceiptPDF: async (receiptId) => {
-        const receipt = await getRecordById('receipts', receiptId);
-        if (!receipt) return alert("Receipt not found. Please save it first.");
-        
-        const biz = await getRecordById('businessProfile', receipt.firmId) || {};
-        
-        const isMoneyIn = receipt.type === 'in';
-        const title = isMoneyIn ? 'PAYMENT RECEIPT' : 'PAYMENT VOUCHER';
-        const safeDocNo = receipt.receiptNo || String(receipt.id).substring(0, 12).toUpperCase();
-        
-        let invoiceRefDisplay = '';
-        if (receipt.invoiceRef) {
-            const refs = String(receipt.invoiceRef).split(',').map(r => r.trim());
-            const store = isMoneyIn ? 'sales' : 'purchases';
-            const allDocs = await getAllRecords(store);
-            
-            const displayNames = refs.map(ref => {
-                const doc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref);
-                if (doc) {
-                    if (isMoneyIn) return doc.invoiceNo ? doc.invoiceNo : ('Bill of Supply' + (doc.orderNo ? ` (Ref: ${doc.orderNo})` : ''));
-                    else return (doc.poNo || doc.invoiceNo) ? (doc.poNo || doc.invoiceNo) : ('Bill of Supply' + (doc.orderNo ? ` (Ref: ${doc.orderNo})` : ''));
-                }
-                return ref.startsWith('sollo-') ? 'Bill of Supply' : ref;
-            });
-            invoiceRefDisplay = displayNames.join(', ');
-        }
-        
-        let balanceText = '';
-        if (receipt.ledgerId && typeof getKhataStatement === 'function') {
-            const party = await getRecordById('ledgers', receipt.ledgerId);
-            if (party) {
-                const statement = await getKhataStatement(party.id, party.type);
-                balanceText = `<p style="margin: 8px 0 0 0; font-size: 14px; color: #43474e;">Current Party Balance: <strong>\u20B9${Math.abs(statement.finalBalance).toFixed(2)} ${statement.finalBalance > 0 ? (party.type === 'Customer' ? '(Due)' : '(To Pay)') : '(Advance)'}</strong></p>`;
-            }
-        }
-
-        const html = `
-            <div id="pdf-receipt-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden; color: #2d3748;">
-                
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
-
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 30px; border-bottom: 4px solid #f0f4f8; position: relative; z-index: 1;">
-                    <div style="display: flex; align-items: center; gap: 15px; max-width: 60%;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; border-radius: 4px;" />` : ''}
-                        <div>
-                            <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #1a202c; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
-                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">${biz.address || ''}</p>
-                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">Ph: ${biz.phone || ''}</p>
-                        </div>
-                    </div>
-                    <div style="text-align: right;">
-                        <h2 style="margin: 0 0 5px 0; font-size: 26px; color: #0061a4; letter-spacing: 1px; text-transform: uppercase; font-weight: 300;">${title}</h2>
-                        <p style="margin: 0; font-size: 13px; font-weight: bold; color: #4a5568;"># ${safeDocNo}</p>
-                    </div>
-                </div>
-                
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin-bottom: 30px; position: relative; z-index: 1; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                    <div style="text-align: center; margin-bottom: 25px;">
-                        <p style="margin: 0 0 5px 0; font-size: 12px; color: #718096; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Amount ${isMoneyIn ? 'Received' : 'Paid'}</p>
-                        <h1 style="margin: 0; font-size: 42px; color: ${isMoneyIn ? '#2f855a' : '#e53e3e'}; font-weight: 800;">\u20B9${parseFloat(receipt.amount).toFixed(2)}</h1>
-                    </div>
-
-                    <table style="width: 100%; font-size: 13px; border-collapse: collapse; border: none;">
-                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; width: 35%; font-weight: bold;">Date:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.date}</td></tr>
-                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">${isMoneyIn ? 'Received From:' : 'Paid To:'}</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #0061a4; font-size: 15px;">${receipt.ledgerName}</td></tr>
-                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">Payment Mode:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.mode || 'Cash'} ${receipt.ref ? `(Ref: ${receipt.ref})` : ''}</td></tr>
-                        ${invoiceRefDisplay ? `<tr><td style="padding: 12px 10px; color: #718096; border-bottom: none; font-weight: bold;">Settled Invoice(s):</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: none; color: #1a202c;">${invoiceRefDisplay}</td></tr>` : ''}
-                    </table>
-                </div>
-                
-                <div style="text-align: center; position: relative; z-index: 1;">${balanceText}</div>
-                
-                <div class="avoid-break" style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid; position: relative; z-index: 1;">
-                    <div style="font-size: 11px; color: #718096;">
-                        <p style="margin:0;">* This is a computer generated receipt.</p>
-                    </div>
-                    <div style="width: 200px; text-align: center;">
-                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 5px;"></div>'}
-                        <div style="border-top: 1px solid #cbd5e0; padding-top: 5px; font-weight: bold; font-size: 11px; color: #2d3748;">Authorized Signatory</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        const printArea = document.getElementById('print-area');
-        if (printArea) {
-            printArea.innerHTML = html;
-            setTimeout(() => {
-                window.Utils.processPDFExport('pdf-receipt-wrapper', `${title.replace(/ /g, '_')}_${safeDocNo}.pdf`);
-            }, 100);
-        }
+        Utils.generateInvoicePDF(record, profile || {}, party || {}, type);
     },
 
     // ==========================================
@@ -3377,20 +2564,12 @@ const app = {
     },
 
     fetchPincode: async (pincode, prefix) => {
-        // STRICT ERP LOGIC: Ensure it is exactly 6 digits, no letters allowed!
-        if (!pincode || !/^\d{6}$/.test(pincode.toString())) return;
+        if (!pincode || pincode.toString().length !== 6) return;
         
         try {
             if (window.Utils) window.Utils.showToast("Fetching Location...");
             
-            // STRICT ERP LOGIC: Add a 5-second timeout so the app never hangs if the government API goes down!
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-            
-            const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
             const data = await response.json();
             
             if (data && data[0] && data[0].Status === 'Success') {
@@ -3502,50 +2681,11 @@ const app = {
             csvContent += "1. CUSTOMER & SUPPLIER LEDGERS\n";
             csvContent += "Party Name,Type,Phone,Closing Balance,Status\n";
             
-            // STRICT ERP LOGIC: O(1) Memory Hash Map instead of N+1 Database Queries!
-            // This prevents the browser from crashing when generating the CA report for 1,000+ parties.
-            const balanceCache = {};
-            
-            ledgers.forEach(l => {
-                if (l.firmId !== app.state.firmId) return;
-                let ob = parseFloat(l.openingBalance) || 0;
-                const balType = (l.balanceType || '').toLowerCase();
-                if (l.type === 'Customer') {
-                    balanceCache[l.id] = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-                } else {
-                    balanceCache[l.id] = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
-                }
-            });
-
-            if (window.UI && window.UI.state && window.UI.state.rawData) {
-                (window.UI.state.rawData.sales || []).forEach(s => {
-                    if (s.firmId === app.state.firmId && s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
-                        balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
-                    }
-                });
-
-                (window.UI.state.rawData.purchases || []).forEach(p => {
-                    if (p.firmId === app.state.firmId && p.status !== 'Open' && balanceCache[p.supplierId] !== undefined) {
-                        balanceCache[p.supplierId] += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
-                    }
-                });
-
-                (window.UI.state.rawData.cashbook || []).forEach(r => {
-                    if (r.firmId === app.state.firmId && r.ledgerId && balanceCache[r.ledgerId] !== undefined) {
-                        const party = ledgers.find(l => l.id === r.ledgerId);
-                        if (party) {
-                            const isMoneyIn = r.type === 'in';
-                            const amt = parseFloat(r.amount) || 0;
-                            if (party.type === 'Customer') balanceCache[r.ledgerId] += isMoneyIn ? -amt : amt;
-                            else balanceCache[r.ledgerId] += isMoneyIn ? amt : -amt;
-                        }
-                    }
-                });
-            }
-
+            // Aggregate all Customer & Supplier Balances using your strict Khata Engine
             for (const party of ledgers) {
                 if (party.firmId !== app.state.firmId) continue;
-                const bal = balanceCache[party.id] || 0;
+                const statement = await getKhataStatement(party.id, party.type);
+                const bal = statement.finalBalance;
                 
                 let status = '';
                 if (party.type === 'Customer') status = bal > 0.01 ? 'To Receive' : (bal < -0.01 ? 'Advance' : 'Settled');
@@ -3561,9 +2701,6 @@ const app = {
             
             // Compute Main Cash Drawer
             let cashBal = 0;
-            const defaultCashAcc = accounts.find(a => a.id === 'cash' && a.firmId === app.state.firmId);
-            if (defaultCashAcc) cashBal = parseFloat(defaultCashAcc.openingBalance) || 0;
-            
             allReceipts.filter(r => r.firmId === app.state.firmId && (r.accountId === 'cash' || !r.accountId)).forEach(r => {
                 cashBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
             });
@@ -3571,8 +2708,7 @@ const app = {
             
             // Compute Custom Bank Accounts
             for (const acc of accounts) {
-                // STRICT ERP LOGIC: Skip the default Cash Drawer here so it doesn't print twice and inflate assets!
-                if (acc.firmId !== app.state.firmId || acc.id === 'cash') continue;
+                if (acc.firmId !== app.state.firmId) continue;
                 let accBal = parseFloat(acc.openingBalance) || 0;
                 allReceipts.filter(r => r.firmId === app.state.firmId && r.accountId === acc.id).forEach(r => {
                     accBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
@@ -3599,424 +2735,6 @@ const app = {
     }
 
 }; // <--- THIS IS THE CRITICAL CLOSING BRACKET FOR THE APP OBJECT
-
-// ==========================================
-// NEW: KHATA (LEDGER) STATEMENT ENGINE
-// ==========================================
-window.triggerKhataReport = async () => {
-    if (!UI.state.rawData.ledgers) return window.Utils.showToast("No data available yet!");
-    
-    // 1. Get all Customers and Suppliers safely
-    const parties = UI.state.rawData.ledgers.filter(l => {
-        const type = String(l.type).toLowerCase();
-        return type === 'customer' || type === 'supplier';
-    });
-    if (parties.length === 0) return window.Utils.showToast("No Customers or Suppliers found!");
-
-    // STRICT ERP LOGIC: Destroy old instances to prevent catastrophic DOM memory leaks!
-    const oldSheet = document.getElementById('sheet-khata-select');
-    if (oldSheet) oldSheet.remove();
-    const oldOverlay = document.getElementById('khata-overlay');
-    if (oldOverlay) oldOverlay.remove();
-
-    // 2. Build a beautiful native Bottom Sheet dynamically
-    let sheetHTML = `
-    <div id="sheet-khata-select" class="bottom-sheet open" style="z-index: 9999; max-height: 80vh;">
-        <div class="sheet-header" style="background: var(--md-surface); position: sticky; top: 0; z-index: 10;">
-            <div>
-                <span style="font-size: 18px; font-weight: 600; display: block;">Khata Statement</span>
-                <small style="color: var(--md-text-muted);">Select a party to generate report</small>
-            </div>
-            <span class="material-symbols-outlined tap-target" onclick="this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
-        </div>
-        <div style="padding: 16px; overflow-y: auto;">
-            ${parties.map(p => `
-                <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant);" 
-                     onclick="window.executeKhataReport('${p.id}', '${(p.name || 'Unknown').replace(/'/g, "\\'")}', '${p.type}'); this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: ${String(p.type).toLowerCase() === 'customer' ? '#e3f2fd' : '#fff0f2'}; color: ${String(p.type).toLowerCase() === 'customer' ? '#0061a4' : '#ba1a1a'}; box-shadow: none;">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">${String(p.type).toLowerCase() === 'customer' ? 'person' : 'storefront'}</span>
-                        </div>
-                        <strong style="font-size: 15px;">${p.name || 'Unknown'}</strong>
-                    </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">print</span>
-                </div>
-            `).join('')}
-        </div>
-    </div>
-    <div id="khata-overlay" class="sheet-overlay open" style="z-index: 9998;" onclick="document.getElementById('sheet-khata-select').remove(); this.remove();"></div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', sheetHTML);
-};
-
-window.executeKhataReport = async (partyId, partyName, partyType) => {
-    window.Utils.showToast("Generating Ledger... ⏳");
-    
-    // Fetch Ledger math from Database
-    const statementData = await window.getKhataStatement(partyId, partyType);
-    
-    // FIX: Safely extract the timeline array from the object!
-    if (!statementData || !statementData.timeline || statementData.timeline.length === 0) {
-        return window.Utils.showToast("No transactions found for " + partyName);
-    }
-
-    const statement = statementData.timeline;
-
-    // Build Professional A4 Print Template (Now perfectly mobile responsive!)
-    let html = `
-    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important;">
-        
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
-            <div>
-                <h2 style="margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: 0.5px;">LEDGER STATEMENT</h2>
-                <h3 style="margin: 6px 0 0 0; color: #0061a4; font-size: 16px; font-weight: 700;">${partyName}</h3>
-            </div>
-            <div style="text-align: right;">
-                <p style="margin: 0; font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Generated On</p>
-                <p style="margin: 2px 0 0 0; font-size: 12px; color: #0f172a; font-weight: 700;">${new Date().toLocaleDateString('en-IN')}</p>
-            </div>
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; table-layout: auto;">
-            <thead>
-                <tr style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1; color: #475569;">
-                    <th style="padding: 8px 4px; text-align: left; white-space: nowrap; font-weight: 600;">Date</th>
-                    <th style="padding: 8px 4px; text-align: left; width: 100%; font-weight: 600;">Particulars</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Debit</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Credit</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Balance</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    let runBal = 0;
-    statement.forEach(row => {
-        runBal += row.impact;
-        
-        // PERFECT ACCOUNTING MATH
-        let isDebit = false;
-        if (String(partyType).toLowerCase() === 'customer') {
-            isDebit = row.impact > 0;
-        } else {
-            isDebit = row.impact < 0;
-        }
-
-        if (row.id === 'open-bal') {
-             if (String(partyType).toLowerCase() === 'customer') {
-                 isDebit = runBal > 0;
-             } else {
-                 isDebit = runBal < 0;
-             }
-        }
-        
-        const amtStr = Math.abs(row.impact || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
-        const drText = isDebit ? amtStr : '';
-        const crText = !isDebit ? amtStr : '';
-        
-        let balText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
-        if (String(partyType).toLowerCase() === 'customer') {
-            balText += (runBal >= 0 ? ' Dr' : ' Cr');
-        } else {
-            balText += (runBal >= 0 ? ' Cr' : ' Dr');
-        }
-
-        // STRICT ERP LOGIC: Reduced vertical padding to 5px to remove the empty gap between rows!
-        html += `
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${row.date}</td>
-                    <td style="padding: 5px 4px; word-break: break-word; vertical-align: top; color: #1e293b; line-height: 1.4;">${row.desc || row.particulars || 'Opening Balance'}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #e11d48; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${drText}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #16a34a; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${crText}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #0f172a; font-weight: 700; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums;">${balText}</td>
-                </tr>
-        `;
-    });
-
-    const finalBalText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
-    
-    // STRICT ERP LOGIC: Professional Status Pill Generator
-    let finalBalStatus = 'Settled';
-    let statusBg = '#e8f5e9'; // Soft Green
-    let statusColor = '#146c2e'; // Dark Green
-
-    if (String(partyType).toLowerCase() === 'customer') {
-        if (runBal > 0) { finalBalStatus = 'Due to Receive (Dr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
-        else if (runBal < 0) { finalBalStatus = 'Advance Received (Cr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
-    } else {
-        if (runBal > 0) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
-        else if (runBal < 0) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
-    }
-
-    html += `
-            </tbody>
-        </table>
-        
-        <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${statusColor}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Closing Balance</span><br>
-                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px;">₹ ${finalBalText}</strong>
-                <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${statusColor}40; display: inline-block;">${finalBalStatus}</span>
-            </div>
-        </div>
-    </div>`;
-
-    // Inject into hidden print area for the actual printer
-    let printDiv = document.getElementById('print-area');
-    if (!printDiv) {
-        printDiv = document.createElement('div');
-        printDiv.id = 'print-area';
-        printDiv.className = 'print-only';
-        document.body.appendChild(printDiv);
-    }
-    printDiv.innerHTML = html;
-    
-    // NEW: Build a beautiful On-Screen Viewer!
-    let oldViewer = document.getElementById('activity-khata-viewer');
-    if (oldViewer) oldViewer.remove();
-
-    let viewerHTML = `
-    <div id="activity-khata-viewer" class="activity-screen" style="z-index: 5500; display: flex; flex-direction: column;">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-khata-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-khata-viewer').remove(), 350);">arrow_back</span>
-                <strong style="font-size: 18px;">Ledger Statement</strong>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 12px;">
-                
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('khata-render-target', 'Ledger_Statement_${partyName.replace(/\s+/g, '_')}.pdf', 'Here is your Ledger Statement from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
-                </div>
-
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('khata-render-target', 'Ledger_Statement_${partyName.replace(/\s+/g, '_')}.pdf')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
-                </div>
-
-            </div>
-        </div>
-        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
-            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <div id="khata-render-target" style="min-width: 800px; background: white; padding: 24px; box-sizing: border-box;">
-                    ${html}
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', viewerHTML);
-    
-    // Trigger the smooth slide-in animation
-    setTimeout(() => {
-        document.getElementById('activity-khata-viewer').classList.add('open');
-        window.Utils.showToast("✅ Ledger Ready!");
-    }, 50);
-};
-
-// ==========================================
-// NEW: KHATA LEDGER TRIGGER (FROM FORM)
-// ==========================================
-window.triggerKhataFromForm = () => {
-    // 1. Grab the exact Party Name directly from the form's specific ID
-    const nameInput = document.getElementById('ledger-name');
-    
-    if (!nameInput || !nameInput.value || nameInput.value.trim() === '') {
-        return window.Utils.showToast("Could not read the name. Is the Party Name box empty?");
-    }
-
-    const foundName = nameInput.value.trim();
-
-    // 2. Look up this exact name in the Database
-    const ledgers = window.UI.state.rawData.ledgers || [];
-    // STRICT ERP LOGIC: Enforce the Firm ID so "Shop B" doesn't accidentally print "Shop A's" confidential ledger!
-    const party = ledgers.find(l => l.firmId === window.app.state.firmId && (l.name || '').toLowerCase() === foundName.toLowerCase());
-    
-    // 3. Trigger the PDF Viewer
-    if (party) {
-        window.executeKhataReport(party.id, party.name, party.type);
-    } else {
-        window.Utils.showToast("⚠️ Please save this profile first before generating a ledger!");
-    }
-};
-
-// ==========================================
-// NEW: BANK & CASH STATEMENT PDF ENGINE
-// ==========================================
-window.executeAccountReport = async (accountId) => {
-    window.Utils.showToast("Generating Bank Statement... ⏳");
-    
-    let account = { name: 'Cash Drawer', openingBalance: 0 };
-    if (accountId !== 'cash') {
-        account = await getRecordById('accounts', accountId) || account;
-    }
-
-    const receipts = await getAllRecords('receipts');
-    const firmId = app.state.firmId;
-    
-    const accountReceipts = receipts.filter(r => {
-        if (r.firmId !== firmId) return false;
-        if (accountId === 'cash') return r.accountId === 'cash' || !r.accountId;
-        return r.accountId === accountId;
-    });
-
-    let timeline = [];
-    let openingBalance = parseFloat(account.openingBalance) || 0;
-    
-    if (openingBalance !== 0) {
-        timeline.push({ id: 'open-bal', date: 'Opening', desc: 'Opening Balance', amount: Math.abs(openingBalance), impact: openingBalance });
-    }
-
-    accountReceipts.forEach(r => {
-        const isMoneyIn = r.type === 'in';
-        const impact = isMoneyIn ? parseFloat(r.amount) : -parseFloat(r.amount);
-        
-        let displayRefs = '';
-        if (r.invoiceRef) {
-            const refs = String(r.invoiceRef).split(',').map(x => x.trim());
-            displayRefs = refs.map(ref => ref.startsWith('sollo-') ? ref.slice(-4).toUpperCase() : ref).join(', ');
-        }
-        let refText = r.ref || '';
-        if (displayRefs) refText = refText ? `${refText} | Docs: ${displayRefs}` : `Docs: ${displayRefs}`;
-        if (r.receiptNo) refText = `${r.receiptNo} ${refText ? '| ' + refText : ''}`;
-
-        timeline.push({
-            id: r.id,
-            date: r.date,
-            desc: r.desc || (isMoneyIn ? 'Money In' : 'Money Out'),
-            partyName: r.ledgerName || '',
-            amount: parseFloat(r.amount),
-            impact: impact,
-            ref: refText
-        });
-    });
-
-    timeline.sort((a, b) => {
-        if (a.id === 'open-bal') return -1;
-        if (b.id === 'open-bal') return 1;
-        const dateA = new Date(a.date || 0).getTime();
-        const dateB = new Date(b.date || 0).getTime();
-        if (dateA !== dateB) return dateA - dateB;
-        return (a.id > b.id) ? 1 : -1;
-    });
-
-    let html = `
-    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important;">
-        
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
-            <div>
-                <h2 style="margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: 0.5px;">ACCOUNT STATEMENT</h2>
-                <h3 style="margin: 6px 0 0 0; color: #0061a4; font-size: 16px; font-weight: 700;">${account.name}</h3>
-            </div>
-            <div style="text-align: right;">
-                <p style="margin: 0; font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Generated On</p>
-                <p style="margin: 2px 0 0 0; font-size: 12px; color: #0f172a; font-weight: 700;">${new Date().toLocaleDateString('en-IN')}</p>
-            </div>
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; table-layout: auto;">
-            <thead>
-                <tr style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1; color: #475569;">
-                    <th style="padding: 8px 4px; text-align: left; white-space: nowrap; font-weight: 600;">Date</th>
-                    <th style="padding: 8px 4px; text-align: left; width: 100%; font-weight: 600;">Description</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">In</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Out</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Balance</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    let runBal = 0;
-    timeline.forEach(row => {
-        runBal += row.impact;
-        
-        let isMoneyIn = row.impact > 0;
-        if (row.id === 'open-bal') isMoneyIn = runBal > 0;
-        
-        const amtStr = Math.abs(row.impact || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
-        const inText = isMoneyIn ? amtStr : '';
-        const outText = !isMoneyIn ? amtStr : '';
-        const balText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
-        
-        let fullDesc = row.desc;
-        if (row.partyName) fullDesc += `<br><span style="color:#555; font-size:9px;">Party: ${row.partyName}</span>`;
-        if (row.ref) fullDesc += `<br><span style="color:#555; font-size:9px;">Ref: ${row.ref}</span>`;
-
-        html += `
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${row.date}</td>
-                    <td style="padding: 5px 4px; word-break: break-word; vertical-align: top; color: #1e293b; line-height: 1.4;">${fullDesc}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #16a34a; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${inText}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #e11d48; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${outText}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #0f172a; font-weight: 700; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums;">${balText}</td>
-                </tr>
-        `;
-    });
-
-    const finalBalText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
-
-    html += `
-            </tbody>
-        </table>
-        
-        <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${runBal >= 0 ? '#146c2e' : '#ba1a1a'}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Available Balance</span><br>
-                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px;">₹ ${finalBalText}</strong>
-                <span style="background: ${runBal >= 0 ? '#e8f5e9' : '#fff0f2'}; color: ${runBal >= 0 ? '#146c2e' : '#ba1a1a'}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${runBal >= 0 ? '#146c2e40' : '#ba1a1a40'}; display: inline-block;">${runBal >= 0 ? 'Surplus / In-Hand' : 'Overdrawn'}</span>
-            </div>
-        </div>
-    </div>`;
-
-    let printDiv = document.getElementById('print-area');
-    if (!printDiv) {
-        printDiv = document.createElement('div');
-        printDiv.id = 'print-area';
-        printDiv.className = 'print-only';
-        document.body.appendChild(printDiv);
-    }
-    printDiv.innerHTML = html;
-    
-    let oldViewer = document.getElementById('activity-account-viewer');
-    if (oldViewer) oldViewer.remove();
-
-    const safeFilename = `Account_Statement_${account.name.replace(/\\s+/g, '_')}.pdf`;
-
-    let viewerHTML = `
-    <div id="activity-account-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column;">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-account-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-account-viewer').remove(), 350);">arrow_back</span>
-                <strong style="font-size: 18px;">Account Statement</strong>
-            </div>
-            
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('account-render-target', '${safeFilename}', 'Here is your Bank Statement from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
-                </div>
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('account-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
-                </div>
-            </div>
-        </div>
-        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
-            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <div id="account-render-target" style="min-width: 800px; background: white; padding: 24px; box-sizing: border-box;">
-                    ${html}
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', viewerHTML);
-    
-    setTimeout(() => {
-        document.getElementById('activity-account-viewer').classList.add('open');
-        window.Utils.showToast("✅ Statement Ready!");
-    }, 50);
-};
 
 // --- NEW CODE: Module Initialization ---
 window.onload = app.init;

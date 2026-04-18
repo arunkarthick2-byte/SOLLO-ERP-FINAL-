@@ -158,23 +158,14 @@ const Cloud = {
                     'mimeType': 'application/json'
                 };
 
-                // STRICT ERP LOGIC: Hunt down and destroy Google Drive duplicates to prevent version fragmentation!
+                // Search for existing backup file to overwrite
                 let response = await gapi.client.drive.files.list({
                     q: "name='SOLLO_ERP_Backup.json' and trashed=false",
                     spaces: 'drive',
-                    fields: 'files(id)'
+                    fields: 'files(id, name)'
                 });
 
-                let fileId = null;
-                if (response.result.files.length > 0) {
-                    fileId = response.result.files[0].id;
-                    // If Drive allowed ghost duplicates, nuke all of them except the primary one!
-                    if (response.result.files.length > 1) {
-                        for (let i = 1; i < response.result.files.length; i++) {
-                            await gapi.client.drive.files.delete({ fileId: response.result.files[i].id });
-                        }
-                    }
-                }
+                let fileId = response.result.files.length > 0 ? response.result.files[0].id : null;
                 window.Utils.showToast("Uploading to Google Drive...");
 
                 const form = new FormData();
@@ -272,15 +263,9 @@ window.Cloud = Cloud;
 // ==========================================
 // Exactly 15 seconds after the app opens, it checks if 24 hours have passed since the last backup.
 // If yes, it quietly zips the database and sends it to Google Drive without interrupting the user.
-setTimeout(async () => {
+setTimeout(() => {
     if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
-        // STRICT ERP LOGIC: Prevent uploading an empty database if local storage was cleared!
-        const firms = await window.getAllRecords('firms');
-        if (firms && firms.length > 0) {
-            window.Cloud.autoBackup();
-        } else {
-            console.warn("Local database is empty. Auto-backup aborted to protect Google Drive data.");
-        }
+        window.Cloud.autoBackup();
     }
 }, 15000);
 

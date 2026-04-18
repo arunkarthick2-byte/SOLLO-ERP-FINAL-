@@ -1,10 +1,10 @@
 {
-  "id": "./",
+  "id": "/",
   "name": "SOLLO ERP Enterprise",
   "short_name": "SOLLO",
   "description": "Professional Accounting, Billing, and Inventory Management System",
-  "start_url": "./",
-  "display": "fullscreen",
+  "start_url": "/",
+  "display": "standalone",
   "display_override": ["window-controls-overlay", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#0061a4",
@@ -12,7 +12,7 @@
   "categories": ["business", "finance", "productivity"],
   "lang": "en",
   "dir": "ltr",
-  "scope": "./",
+  "scope": "/",
   "iarc_rating_id": "",
   "prefer_related_applications": false,
   "related_applications": [],
@@ -49,7 +49,7 @@
       "name": "New Sales Invoice",
       "short_name": "New Sale",
       "description": "Create a new Sales Invoice",
-      "url": "./?action=new_sale",
+      "url": "/?action=new_sale",
       "icons": [
         {
           "src": "icon-192.png",
@@ -62,7 +62,7 @@
       "name": "Open Cashbook",
       "short_name": "Cashbook",
       "description": "Open Cashbook & Banking",
-      "url": "./?action=cashbook",
+      "url": "/?action=cashbook",
       "icons": [
         {
           "src": "icon-192.png",
@@ -74,14 +74,14 @@
   ],
   "file_handlers": [
     {
-      "action": "./",
+      "action": "/",
       "accept": {
         "application/json": [".json"]
       }
     }
   ],
   "share_target": {
-    "action": "./",
+    "action": "/",
     "method": "GET",
     "params": {
       "title": "title",
@@ -95,7 +95,7 @@
   "protocol_handlers": [
     {
       "protocol": "web+sollo",
-      "url": "./?open=%s"
+      "url": "/?open=%s"
     }
   ],
   "widgets": [],
@@ -103,6 +103,6 @@
     "preferred_width": 400
   },
   "note_taking": {
-    "new_note_url": "./"
+    "new_note_url": "/"
   }
 }

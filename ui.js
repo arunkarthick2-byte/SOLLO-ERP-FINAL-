@@ -1,9 +1,9 @@
 // ==========================================
-// SOLLO ERP - UI & ANIMATION CONTROLLER (v6.1 Enterprise)
+// SOLLO ERP - UI & ANIMATION CONTROLLER (v5.2 Enterprise)
 // ==========================================
 
 // ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=6.1';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=81';
 
 const UI = {
 
@@ -165,7 +165,6 @@ const UI = {
         // FIXED: Pull from state to respect firmId filtering, preventing data leaks across multiple companies
         const accounts = UI.state.rawData.accounts || [];
         const receipts = UI.state.rawData.cashbook || [];
-        const expenses = UI.state.rawData.expenses || []; // STRICT ERP LOGIC: Load Expenses to prevent bank leaks!
         const container = document.getElementById('bank-balances-container');
         if (!container) return;
 
@@ -185,8 +184,6 @@ const UI = {
                     else if (r.type === 'out') balance -= parseFloat(r.amount);
                 }
             });
-            
-            // STRICT ERP LOGIC: Removed double-deduction bug! The cashbook 'receipts' array already contains the auto-generated expense entries.
             
             const color = balance >= 0 ? 'var(--md-success)' : 'var(--md-error)';
             
@@ -289,7 +286,6 @@ const UI = {
                 else if (tabId === 'tab-cashbook') UI.applyFilters('cashbook');
                 else if (tabId === 'tab-expenses') UI.applyFilters('expenses');
                 else if (tabId === 'tab-masters') UI.applyFilters('masters');
-                else if (tabId === 'tab-timeline') UI.applyFilters('timeline'); // STRICT ERP LOGIC: Fixed Dead Tab!
             }, 20); 
         };
 
@@ -410,21 +406,13 @@ const UI = {
                 const prodName = prod ? prod.name : 'Deleted Product';
                 const sign = adj.type === 'add' ? '+' : '-';
                 const color = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
-                
-                // NEW: Dual Inventory Audit Badge
-                const isGST = adj.pool === 'gst';
-                const poolBadge = adj.pool ? `<span style="background: ${isGST ? '#e3f2fd' : '#fff8e1'}; color: ${isGST ? '#0061a4' : '#f57f17'}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 8px; border: 1px solid ${isGST ? '#bbdefb' : '#ffecb3'};">${isGST ? 'GST Pool' : 'Non-GST Pool'}</span>` : '';
-
                 return `
                     <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <div style="display: flex; align-items: center; min-width: 0; flex: 1;">
-                                <strong style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${prodName}</strong>
-                                ${poolBadge}
-                            </div>
-                            <strong style="font-size: 16px; color: ${color}; flex-shrink: 0; margin-left: 8px;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <strong style="font-size: 14px;">${prodName}</strong>
+                            <strong style="font-size: 16px; color: ${color};">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
                         </div>
-                        <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 6px; font-size: 12px; color: var(--md-text-muted);">
+                        <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 4px; font-size: 12px; color: var(--md-text-muted);">
                             <span>${adj.date}</span>
                             <span>${adj.notes || 'No Reason Provided'}</span>
                         </div>
@@ -538,8 +526,7 @@ const UI = {
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
-        // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the invoice total!
-        const discountInput = Math.abs(parseFloat(document.getElementById('sales-discount').value) || 0);
+        const discountInput = parseFloat(document.getElementById('sales-discount').value) || 0;
         const discountTypeEl = document.getElementById('sales-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -590,8 +577,7 @@ const UI = {
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
 
-        // STRICT ERP LOGIC: Display the true GROSS subtotal before discounts!
-        document.getElementById('sales-subtotal').innerText = `\u20B9${rawSubtotal.toFixed(2)}`;
+        document.getElementById('sales-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
         document.getElementById('sales-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
         
         const roundOffEl = document.getElementById('sales-round-off');
@@ -617,8 +603,7 @@ const UI = {
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
-        // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the PO total!
-        const discountInput = Math.abs(parseFloat(document.getElementById('purchase-discount').value) || 0);
+        const discountInput = parseFloat(document.getElementById('purchase-discount').value) || 0;
         const discountTypeEl = document.getElementById('purchase-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -658,8 +643,7 @@ const UI = {
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
 
-        // STRICT ERP LOGIC: Display the true GROSS subtotal before discounts!
-        document.getElementById('purchase-subtotal').innerText = `\u20B9${rawSubtotal.toFixed(2)}`;
+        document.getElementById('purchase-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
         document.getElementById('purchase-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
         
         const roundOffEl = document.getElementById('purchase-round-off');
@@ -710,11 +694,6 @@ const UI = {
         const ledgerExplicitlyLinked = {}; 
 
         if (tab === 'sales' || tab === 'purchases') {
-            // STRICT ERP LOGIC: Build an O(1) Document Hash Map to prevent O(N^2) Search Bar Freezes!
-            const docMap = {};
-            UI.state.rawData.sales.forEach(d => { docMap[d.id] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
-            UI.state.rawData.purchases.forEach(d => { docMap[d.id] = d; if(d.poNo) docMap[d.poNo] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
-
             UI.state.rawData.cashbook.forEach(c => {
                 if (c.ledgerId) {
                     let amt = parseFloat(c.amount) || 0;
@@ -728,25 +707,23 @@ const UI = {
                         let remainingAmt = amt;
                         
                         // Waterfall Allocation (FIFO)
-                        const matchedDocs = refs.map(ref => docMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
+                        const matchedDocs = refs.map(ref => {
+                            return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
+                                   UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
+                                   { id: ref, grandTotal: Infinity, date: '1970-01-01' };
+                        });
                         
                         matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                         
                         matchedDocs.forEach(doc => {
-                            if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for refunds!
+                            if (remainingAmt <= 0) return;
                             const key = `${c.ledgerId}_${doc.id}`;
                             const currentPaid = paymentMap[key] || 0;
                             const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
                             
-                            let allocation = 0;
-                            if (remainingAmt > 0) {
-                                allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                            } else {
-                                // Mathematical Refund: Deduct from what was previously paid
-                                allocation = Math.max(-currentPaid, remainingAmt); 
-                            }
+                            const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
                             
-                            if (Math.abs(allocation) > 0) {
+                            if (allocation > 0) {
                                 paymentMap[key] = currentPaid + allocation;
                                 ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
                                 remainingAmt -= allocation;
@@ -792,8 +769,7 @@ const UI = {
         if (tab === 'sales') {
             containerId = 'sales-history-container';
             data = UI.state.rawData.sales.filter(s => {
-                // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, Order, and Database ID) are fully searchable!
-                const matchSearch = (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || s.orderNo || s.id || '').toLowerCase().includes(searchTerm);
+                const matchSearch = (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
                 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -819,9 +795,6 @@ const UI = {
             if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
             if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
-            // NEW CODE: Smart Document Sorting (Order No primary, Invoice No fallback)
-            if(sortOption === 'doc-desc') data.sort((a,b) => String(b.orderNo || b.invoiceNo || '').localeCompare(String(a.orderNo || a.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
-            if(sortOption === 'doc-asc') data.sort((a,b) => String(a.orderNo || a.invoiceNo || '').localeCompare(String(b.orderNo || b.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
 
             const container = document.getElementById(containerId);
             if (container) {
@@ -841,21 +814,25 @@ const UI = {
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid);
                     const statusText = s.status === 'Open' ? 'Draft' : (balance > 0 && !isReturn ? `Due: \u20B9${balance.toFixed(2)}` : 'Paid');
+                    const statusColor = s.status === 'Open' ? 'var(--md-text-muted)' : (balance > 0 && !isReturn ? 'var(--md-error)' : 'var(--md-success)');
                     
-                    // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
-                    const statusColor = s.status === 'Open' ? '#73777f' : (balance > 0 && !isReturn ? '#ba1a1a' : '#146c2e');
-                    const statusBg = s.status === 'Open' ? '#f1f3f4' : (balance > 0 && !isReturn ? '#fff0f2' : '#e8f5e9'); 
-                    
+                    let ribbonHTML = '';
+                    if (s.status !== 'Open' && !isReturn) {
+                        if (balance <= 0) ribbonHTML = '<div class="status-ribbon paid">PAID</div>';
+                        else ribbonHTML = '<div class="status-ribbon overdue">DUE</div>';
+                    }
+
                     return `
-                    <div class="m3-card tap-target list-card" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
-                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-                            <div style="flex:1; min-width:0; overflow:hidden;">
-                                <div class="large-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
+                    <div class="m3-card tap-target list-card" style="position: relative; overflow: visible !important; ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
+                        ${ribbonHTML}
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div class="large-text">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
+                                <small class="color-primary">${s.invoiceNo || s.orderNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
                             </div>
-                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-                                <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(s.grandTotal || 0).toFixed(2)}</strong>
+                            <div style="text-align:right;">
+                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'inherit'};">${isReturn ? '-' : ''}\u20B9${(s.grandTotal || 0).toFixed(2)}</strong><br>
+                                <small style="background:var(--md-surface-variant); color:${statusColor}; font-weight:bold; padding:2px 6px; border-radius:4px;">${statusText}</small>
                             </div>
                         </div>
                     </div>`;
@@ -867,8 +844,7 @@ const UI = {
         else if (tab === 'purchases') {
             containerId = 'purchase-history-container';
             data = UI.state.rawData.purchases.filter(p => {
-                // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, PO, and Internal Order) are fully searchable!
-                const matchSearch = (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || p.orderNo || '').toLowerCase().includes(searchTerm);
+                const matchSearch = (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -892,9 +868,6 @@ const UI = {
             if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
             if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
-            // NEW CODE: Smart Document Sorting (Order/PO No primary, Invoice No fallback)
-            if(sortOption === 'doc-desc') data.sort((a,b) => String(b.orderNo || b.poNo || b.invoiceNo || '').localeCompare(String(a.orderNo || a.poNo || a.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
-            if(sortOption === 'doc-asc') data.sort((a,b) => String(a.orderNo || a.poNo || a.invoiceNo || '').localeCompare(String(b.orderNo || b.poNo || b.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
 
             const container = document.getElementById(containerId);
             if (container) {
@@ -914,21 +887,18 @@ const UI = {
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid);
                     const statusText = p.status === 'Open' ? 'Draft PO' : (balance > 0 && !isReturn ? `To Pay: \u20B9${balance.toFixed(2)}` : 'Paid');
-                    
-                    // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
-                    const statusColor = p.status === 'Open' ? '#73777f' : (balance > 0 && !isReturn ? '#ba1a1a' : '#146c2e');
-                    const statusBg = p.status === 'Open' ? '#f1f3f4' : (balance > 0 && !isReturn ? '#fff0f2' : '#e8f5e9');
+                    const statusColor = p.status === 'Open' ? 'var(--md-text-muted)' : (balance > 0 && !isReturn ? 'var(--md-error)' : 'var(--md-success)');
 
                     return `
                     <div class="m3-card tap-target" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('purchase', '${p.id}', '${p.documentType}')">
-                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-                            <div style="flex:1; min-width:0; overflow:hidden;">
-                                <div class="large-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${p.date || 'Unknown Date'}</small>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div class="large-text">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
+                                <small class="color-primary">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${p.date || 'Unknown Date'}</small>
                             </div>
-                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-                                <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(p.grandTotal || 0).toFixed(2)}</strong>
+                            <div style="text-align:right;">
+                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'inherit'};">${isReturn ? '-' : ''}\u20B9${(p.grandTotal || 0).toFixed(2)}</strong><br>
+                                ${p.status === 'Open' ? `<button class="btn-primary-small mt-2" onclick="event.stopPropagation(); app.convertPO('${p.id}')">Complete PI</button>` : `<small style="background:var(--md-surface-variant); color:${statusColor}; font-weight:bold; padding:2px 6px; border-radius:4px;">${statusText}</small>`}
                             </div>
                         </div>
                     </div>`;
@@ -995,56 +965,21 @@ const UI = {
                 data = UI.state.rawData.items.filter(i => {
                     const matchSearch = (i.name || '').toLowerCase().includes(searchTerm) || (i.sku || '').toLowerCase().includes(searchTerm);
                     let matchFilter = true;
-                    
-                    // Bulletproof Math
-                    const rawGst = parseFloat(i.stockGst);
-                    const rawNon = parseFloat(i.stockNonGst);
-                    const gst = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
-                    const non = isNaN(rawNon) ? 0 : rawNon;
-                    const tot = parseFloat(i.stock) || 0;
-                    const min = parseFloat(i.minStock) || 0;
-
-                    if (activeMasterFilter === 'In Stock') matchFilter = tot > 0;
-                    else if (activeMasterFilter === 'Out of Stock') matchFilter = tot <= 0;
-                    else if (activeMasterFilter === 'Low Stock') matchFilter = min > 0 && tot <= min;
-                    else if (activeMasterFilter === 'GST Stock') matchFilter = gst > 0;
-                    else if (activeMasterFilter === 'Non-GST Stock') matchFilter = non > 0;
-                    
+                    if (activeMasterFilter === 'In Stock') matchFilter = (parseFloat(i.stock) || 0) > 0;
                     return matchSearch && matchFilter;
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
-                if(sortOption === 'stock-asc' || sortOption === 'stock-desc') {
-                    data.sort((a,b) => {
-                        const getVal = (item) => {
-                            if (activeMasterFilter === 'GST Stock') return isNaN(parseFloat(item.stockGst)) ? (parseFloat(item.stock) || 0) : parseFloat(item.stockGst);
-                            if (activeMasterFilter === 'Non-GST Stock') return parseFloat(item.stockNonGst) || 0;
-                            return parseFloat(item.stock) || 0;
-                        };
-                        return sortOption === 'stock-asc' ? getVal(a) - getVal(b) : getVal(b) - getVal(a);
-                    });
-                }
+                if(sortOption === 'stock-asc') data.sort((a,b) => (a.stock || 0) - (b.stock || 0));
 
                 UI.renderVirtualList(container, data, (i) => {
                     const currentStock = parseFloat(i.stock) || 0;
                     const minStock = parseFloat(i.minStock) || 0;
                     const isLowStock = minStock > 0 && currentStock <= minStock;
                     
-                    // Bulletproof Math
-                    const rawGst = parseFloat(i.stockGst);
-                    const rawNon = parseFloat(i.stockNonGst);
-                    const gstStock = isNaN(rawGst) ? currentStock : rawGst;
-                    const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
-                    
-                    // Smart Highlight Display based on the active filter
-                    let primaryStockLabel = `Tot: ${currentStock}`;
-                    if (activeMasterFilter === 'GST Stock') primaryStockLabel = `GST: ${gstStock}`;
-                    else if (activeMasterFilter === 'Non-GST Stock') primaryStockLabel = `Non-GST: ${nonGstStock}`;
-                    
-                    const stockLabel = `
-                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">${primaryStockLabel} ${i.uom || ''} ${isLowStock ? '⚠️' : ''}</span>
-                        <span style="font-size: 11px; color: var(--md-text-muted); display: block; margin-top: 2px;">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
-                    `;
+                    const stockLabel = isLowStock 
+                        ? `<span style="color:var(--md-error); font-weight:bold;">Stock: ${currentStock} ${i.uom || ''} ⚠️ Low</span>` 
+                        : `Stock: ${currentStock} ${i.uom || ''}`;
 
                     return UI.renderRowWiseItem(
                         UI.highlightText(i.name || 'Unnamed Product', searchTerm), 
@@ -1058,17 +993,15 @@ const UI = {
                 }, emptyHTML);
             } 
             else if (activeTab === 'customers' || activeTab === 'suppliers' || activeTab === 'contacts') {
-                const typeFilter = activeTab === 'customers' ? 'customer' : (activeTab === 'suppliers' ? 'supplier' : 'all');
+                const typeFilter = activeTab === 'customers' ? 'Customer' : (activeTab === 'suppliers' ? 'Supplier' : 'All');
 
                 data = UI.state.rawData.ledgers.filter(l => {
-                    const safeType = String(l.type).toLowerCase();
-                    // STRICT ERP LOGIC: Case-insensitive matching so no parties become ghosts!
-                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && ((l.name || '').toLowerCase().includes(searchTerm) || (l.phone || '').toLowerCase().includes(searchTerm));
+                    const matchSearch = (typeFilter === 'All' || l.type === typeFilter) && ((l.name || '').toLowerCase().includes(searchTerm) || (l.phone || '').toLowerCase().includes(searchTerm));
                     let matchFilter = true;
                     const bal = getBal(l.id, l.type);
 
-                    if (activeMasterFilter === 'To Receive') matchFilter = safeType === 'customer' && bal > 0.01;
-                    else if (activeMasterFilter === 'To Pay') matchFilter = safeType === 'supplier' && bal > 0.01;
+                    if (activeMasterFilter === 'To Receive') matchFilter = l.type === 'Customer' && bal > 0.01;
+                    else if (activeMasterFilter === 'To Pay') matchFilter = l.type === 'Supplier' && bal > 0.01;
                     else if (activeMasterFilter === 'Advance') matchFilter = bal < -0.01; 
                     else if (activeMasterFilter === 'GST') matchFilter = l.gst && l.gst.trim() !== '';
                     else if (activeMasterFilter === 'Non-GST') matchFilter = !l.gst || l.gst.trim() === '';
@@ -1101,33 +1034,15 @@ const UI = {
                     const rowIcon = isCustomer ? 'person' : 'storefront';
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
 
-                    // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
-                    const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                    return `
-                    <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div class="tap-target" style="display: flex; align-items: center; gap: 12px;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
-                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
-                            </div>
-                            <div style="flex: 1; min-width: 0; overflow: hidden;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
-                            </div>
-                            <div style="text-align: right; flex-shrink: 0;">
-                                <strong style="font-size: 15px; color: ${balColor};">${balText}</strong>
-                            </div>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #e3f2fd; color: #1565c0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
-                                <span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
-                            </div>
-                            
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeKhataReport('${l.id}', '${safeName}', '${l.type}')">
-                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
-                            </div>
-                        </div>
-                    </div>`;
+                    return UI.renderRowWiseItem(
+                        UI.highlightText(l.name || 'Unnamed Party', searchTerm), 
+                        UI.highlightText(l.phone || 'No Phone', searchTerm), 
+                        `<span style="color:${balColor}; font-weight:500;">${balText}</span>`, 
+                        'View Ledger >', 
+                        rowIcon, 
+                        rowColor, 
+                        `app.openPartyLedger('${l.id}', '${l.type}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}')`
+                    );
                 }, emptyHTML);
             }
             else if (activeTab === 'pay-in' || activeTab === 'pay-out') {
@@ -1335,8 +1250,7 @@ const UI = {
 
             data = UI.state.rawData.timeline.filter(t => {
                 const descStr = t.desc || (t.type === 'IN' ? 'Purchase' : (t.type === 'OUT' ? 'Sale' : ''));
-                // STRICT ERP LOGIC: Allow accountants to instantly search the global timeline by exact Transaction Amount or Balance!
-                const matchSearch = descStr.toLowerCase().includes(searchTerm) || String(t.amount || 0).includes(searchTerm) || String(t.runningBalance || 0).includes(searchTerm);
+                const matchSearch = descStr.toLowerCase().includes(searchTerm);
                 let matchFilter = true;
                 let matchDate = true;
 
@@ -1348,24 +1262,15 @@ const UI = {
                 // 2. Universal Type Check (Works for Banks, Parties, AND Expenses)
                 if (activeFilter === 'Money In') {
                     if (t.hasOwnProperty('isInvoice')) matchFilter = t.isInvoice === false; 
-                    else matchFilter = String(t.type).toUpperCase() === 'IN'; // STRICT ERP LOGIC: Fix case sensitivity and remove broken fallback
+                    else matchFilter = t.type === 'IN' || parseFloat(t.amount) > 0;
                 } else if (activeFilter === 'Money Out') {
                     if (t.hasOwnProperty('isInvoice')) matchFilter = t.isInvoice === true; 
-                    else matchFilter = String(t.type).toUpperCase() === 'OUT'; // STRICT ERP LOGIC: Fix case sensitivity and remove broken fallback
+                    else matchFilter = t.type === 'OUT' || parseFloat(t.amount) < 0;
                 } else if (activeFilter === 'Expenses') {
                     matchFilter = descStr.toLowerCase().includes('expense');
                 }
                 
                 return matchSearch && matchFilter && matchDate;
-            });
-
-            // STRICT ERP LOGIC: Sort by Date AND Time (Descending) to fix Backdated Receipt chronological desync!
-            data.sort((a, b) => {
-                const dateA = new Date(a.date || 0).getTime();
-                const dateB = new Date(b.date || 0).getTime();
-                if (dateB !== dateA) return dateB - dateA;
-                // Fallback to ID if dates are exactly identical
-                return (b.id > a.id) ? 1 : -1; 
             });
 
             const container = document.getElementById(containerId);
@@ -1395,25 +1300,15 @@ const UI = {
                                 <small>${t.date} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>
                             </div>
                             <div style="text-align:right;">
-                                <strong style="color:${t.isInvoice ? 'var(--md-error)' : 'var(--md-success)'};">\u20B9${parseFloat(t.amount || 0).toFixed(2)}</strong><br>
+                                <strong style="color:${t.isInvoice ? 'var(--md-error)' : 'var(--md-success)'};">\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
                                 <small>Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
                             </div>
                         </div>`;
                     } else {
-                        // STRICT ERP LOGIC: Properly render BOTH Invoices and Receipts in the Global Timeline without "undefined" corruption!
-                        const safeType = String(t.type).toUpperCase();
-                        const isMoneyIn = safeType === 'IN';
-                        const sign = isMoneyIn ? '+' : '-';
-                        const color = isMoneyIn ? 'var(--md-success)' : 'var(--md-error)';
-                        
-                        const title = t.party ? `${isMoneyIn ? 'Purchase' : 'Sale'} - ${t.party}` : (t.desc || 'Transaction');
-                        const subtitle = t.ref ? `${t.date} | Ref: ${t.ref}` : `${t.date} | Mode: ${t.mode || 'Cash'}`;
-                        const rightVal = t.qty ? t.qty : `${sign}\u20B9${parseFloat(t.amount || 0).toFixed(2)}`;
-
                         return `
                         <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
-                            <div><strong class="large-text">${title}</strong><br><small>${subtitle}</small></div>
-                            <strong style="font-size:16px; color:${color};">${rightVal}</strong>
+                            <div><strong class="large-text">${t.type === 'IN' ? 'Purchase' : 'Sale'} - ${t.party || 'Unknown'}</strong><br><small>${t.date} | Ref: ${t.ref}</small></div>
+                            <strong style="font-size:16px; color:${t.type === 'IN' ? 'var(--md-success)' : 'var(--md-error)'};">${t.type === 'IN' ? '+' : '-'}${t.qty}</strong>
                         </div>`;
                     }
                 }, emptyHTML);
@@ -1448,7 +1343,7 @@ const UI = {
         };
 
         // ENTERPRISE FIX: Secure Data Isolation (Prevent Multi-Firm Data Leaks)
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
 
         const sales = UI.state.rawData.sales.filter(s => !activeFirmId || s.firmId === activeFirmId);
         const purchases = UI.state.rawData.purchases.filter(p => !activeFirmId || p.firmId === activeFirmId);
@@ -1463,11 +1358,6 @@ const UI = {
         const ledgerTotalPaid = {}; 
         const ledgerExplicitlyLinked = {}; 
 
-        // STRICT ERP LOGIC: Build an O(1) Document Hash Map to prevent O(N^2) Dashboard Boot-Up Freezes!
-        const dashDocMap = {};
-        sales.forEach(d => { dashDocMap[d.id] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
-        purchases.forEach(d => { dashDocMap[d.id] = d; if(d.poNo) dashDocMap[d.poNo] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
-
         cashbook.forEach(c => {
             if (c.ledgerId) {
                 let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
@@ -1478,24 +1368,23 @@ const UI = {
                     let remainingAmt = amt;
                     
                     // Waterfall Allocation (FIFO)
-                    const matchedDocs = refs.map(ref => dashDocMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
+                    const matchedDocs = refs.map(ref => {
+                        return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
+                               UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
+                               { id: ref, grandTotal: Infinity, date: '1970-01-01' };
+                    });
                     
                     matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                     
                     matchedDocs.forEach(doc => {
-                        if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for supplier payments & refunds!
+                        if (remainingAmt <= 0) return;
                         const key = `${c.ledgerId}_${doc.id}`;
                         const currentPaid = paymentMap[key] || 0;
                         const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
                         
-                        let allocation = 0;
-                        if (remainingAmt > 0) {
-                            allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                        } else {
-                            allocation = Math.max(-currentPaid, remainingAmt); 
-                        }
+                        const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
                         
-                        if (Math.abs(allocation) > 0) {
+                        if (allocation > 0) {
                             paymentMap[key] = currentPaid + allocation;
                             ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
                             remainingAmt -= allocation;
@@ -1571,12 +1460,9 @@ const UI = {
         let indirectIncome = 0;
         cashbook.forEach(c => {
             if (isDateInRange(c.date) && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
-                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
-                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
+                // Safely catches miscellaneous income (like Bank Interest) not linked to customers
                 const ledgerName = (c.ledgerName || '').toLowerCase();
-                if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
                     indirectIncome += parseFloat(c.amount) || 0;
                 }
             }
@@ -1586,8 +1472,7 @@ const UI = {
         let stockLoss = 0;
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
-                if (adj.type === 'reduce' && isDateInRange(adj.date)) {
+                if (adj.type === 'remove' && isDateInRange(adj.date)) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
                     stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
                 }
@@ -1609,11 +1494,7 @@ const UI = {
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                 // Ease-out formula for smoother deceleration
                 const easeOut = 1 - Math.pow(1 - progress, 3);
-                const currentVal = (easeOut * (end - start) + start);
-                // STRICT ERP LOGIC: Safely format negative currency numbers (e.g. -₹500 instead of ₹-500)
-                obj.innerHTML = currentVal < 0 
-                    ? '-\u20B9' + Math.abs(currentVal).toFixed(2) 
-                    : '\u20B9' + currentVal.toFixed(2);
+                obj.innerHTML = '\u20B9' + (easeOut * (end - start) + start).toFixed(2);
                 if (progress < 1) window.requestAnimationFrame(step);
             };
             window.requestAnimationFrame(step);
@@ -1906,7 +1787,13 @@ const UI = {
             document.querySelectorAll('#list-products li').forEach(li => li.style.display = ''); // Force list to be visible
         }
         else if (sheetId === 'sheet-stock-adjustment') {
-            // STRICT ERP LOGIC: Let app.js handle the dropdown so the Dual-Stock GST/Non-GST pools aren't erased!
+            const options = UI.state.rawData.items.map(i => 
+                `<option value="${i.id}">${i.name || 'Unnamed'} (Cur: ${i.stock || 0} ${i.uom || ''})</option>`
+            ).join('');
+            
+            const prodSelect = document.getElementById('adj-product-id');
+            if(prodSelect) prodSelect.innerHTML = options ? `<option value="">Select Product...</option>` + options : `<option value="">No products found...</option>`;
+            
             const dateInput = document.getElementById('adj-date');
             if(dateInput) {
                 const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
@@ -1944,194 +1831,12 @@ const UI = {
 
         setTimeout(() => { 
             if (sheet) sheet.classList.add('hidden');
-            // STRICT ERP LOGIC: Re-check the DOM dynamically to prevent vanishing overlays on rapid switching, and ignore the haptic menu!
-            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
-            if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden'); 
+            if (remainingSheets.length === 0 && overlay) overlay.classList.add('hidden'); 
         }, 300);
 
         if(typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
         // FIXED: Added an ignore flag to prevent double-closing
         if (history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); }
-    },
-
-    // ==========================================
-    // ENTERPRISE UPGRADE: SMART SEARCH ENGINE
-    // ==========================================
-    // ==========================================
-    // ENTERPRISE UPGRADE: DEDICATED SMART SEARCH
-    // ==========================================
-    openSmartSearch: (targetType, formPrefix) => {
-        UI.state.smartSearchTarget = targetType;
-        UI.state.smartSearchPrefix = formPrefix;
-        
-        const titleEl = document.getElementById('smart-search-title');
-        const inputEl = document.getElementById('smart-search-input');
-        
-        if (targetType === 'customer') titleEl.innerText = "Select Customer";
-        else if (targetType === 'supplier') titleEl.innerText = "Select Supplier";
-        else if (targetType === 'item') titleEl.innerText = "Add Product";
-        
-        inputEl.value = '';
-        UI.executeSmartSearch(); // Load initial list
-        UI.openBottomSheet('sheet-smart-search');
-        
-        // UX Polish: Wait for the sheet to slide up, then auto-focus the keyboard!
-        setTimeout(() => inputEl.focus(), 350);
-    },
-
-    // NEW: Handles the "+" icon tap inside the search bar header!
-    createNewFromSearch: () => {
-        UI.closeBottomSheet('sheet-smart-search');
-        if (UI.state.smartSearchTarget === 'item') {
-            if(window.app) window.app.openForm('product');
-        } else {
-            if(window.app) window.app.openForm('ledger');
-        }
-    },
-
-    executeSmartSearch: () => {
-        const query = (document.getElementById('smart-search-input').value || '').toLowerCase();
-        const resultsContainer = document.getElementById('smart-search-results');
-        const targetType = UI.state.smartSearchTarget;
-        const prefix = UI.state.smartSearchPrefix;
-        
-        let results = [];
-        let html = '';
-
-        if (targetType === 'customer' || targetType === 'supplier') {
-            const isCust = targetType === 'customer';
-            const dbType = isCust ? 'Customer' : 'Supplier';
-            results = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === dbType.toLowerCase() && (l.name || '').toLowerCase().includes(query));
-            
-            results.slice(0, 30).forEach(l => {
-                const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                html += `
-                <div class="tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
-                    <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">${isCust?'person':'storefront'}</span></div>
-                    <div><strong style="display: block; font-size: 16px;">${UI.highlightText(l.name, query)}</strong><small style="color: var(--md-text-muted);">${l.phone || 'No Phone'}</small></div>
-                </div>`;
-            });
-            if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No matches found.</div>`;
-            // Bottom '+ Create New' button has been intentionally removed!
-            
-        } else if (targetType === 'item') {
-            const isSales = prefix === 'sales';
-            results = UI.state.rawData.items.filter(i => (i.name || '').toLowerCase().includes(query) || (i.sku || '').toLowerCase().includes(query));
-            
-            results.slice(0, 30).forEach(i => {
-                const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
-                const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const safeUom = (i.uom || '').replace(/'/g, "\\'");
-                const safeHsn = (i.hsn || '').replace(/'/g, "\\'");
-                const stockVal = parseFloat(i.stock) || 0;
-                const stockStr = `<span style="color: ${stockVal<=0 ? 'var(--md-error)' : 'var(--md-success)'}; font-weight: bold;">Stock: ${stockVal}</span>`;
-                
-                // ENTERPRISE UX: Done & Done and New Buttons!
-                html += `
-                <div style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; flex-direction: column; gap: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div><strong style="display: block; font-size: 16px;">${UI.highlightText(i.name, query)}</strong><small>${stockStr}</small></div>
-                        <div style="text-align: right;"><strong style="color: var(--md-primary); font-size: 18px;">₹${price.toFixed(2)}</strong></div>
-                    </div>
-                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                        <button class="btn-primary-small tap-target" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 8px 16px;" 
-                            onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added to invoice');">
-                            Done & New
-                        </button>
-                        <button class="btn-primary-small tap-target" style="padding: 8px 16px;" 
-                            onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); UI.closeBottomSheet('sheet-smart-search');">
-                            Done
-                        </button>
-                    </div>
-                </div>`;
-            });
-            if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found.</div>`;
-            // Bottom '+ Create New' button has been intentionally removed!
-        }
-
-        resultsContainer.innerHTML = html;
-    },
-
-    selectSmartParty: (typeId, id, name) => {
-        const inputId = document.getElementById(`${typeId}-id`);
-        const display = document.getElementById(`${typeId}-display`);
-        
-        if(inputId) inputId.value = id;
-        if(display) {
-            display.innerText = name;
-            display.style.color = 'var(--md-on-surface)';
-        }
-        
-        UI.closeBottomSheet('sheet-smart-search');
-        
-        const prefix = typeId.split('-')[0];
-        if (typeof app !== 'undefined' && typeof app.loadOriginalDocuments === 'function') {
-            app.loadOriginalDocuments(id, prefix);
-        }
-    },
-
-    addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice) => {
-        const container = document.getElementById(`${prefix}-items-body`);
-        const emptyState = document.getElementById(`${prefix}-empty-items`);
-        if(!container) return;
-        if(emptyState) emptyState.style.display = 'none';
-        
-        const itemCard = document.createElement('div');
-        itemCard.className = 'item-entry-card m3-card';
-        itemCard.style.padding = '14px';
-        itemCard.style.marginBottom = '0';
-        itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
-        
-        const hiddenInputs = `<input type="hidden" class="row-item-id" value="${id}"><input type="hidden" class="row-item-name" value="${name.replace(/"/g, '&quot;')}"><input type="hidden" class="row-uom" value="${uom}">`;
-
-        itemCard.innerHTML = `
-            ${hiddenInputs}
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
-                    ${name}
-                    <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${hsn}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
-                </div>
-                <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                <div>
-                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${uom || 'Unit'})</small>
-                    <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;" onfocus="this.select()">
-                </div>
-                <div>
-                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
-                    <input type="number" inputmode="decimal" class="row-rate" value="${price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
-                </div>
-                <div>
-                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                    <input type="number" inputmode="decimal" class="row-gst" value="${gst}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
-                </div>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
-                <div style="display:flex; gap:8px;">
-                    ${prefix === 'sales' ? `
-                    <div>
-                        <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
-                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
-                    </div>
-                    ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
-                </div>
-                <div style="text-align:right;">
-                    <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
-                    <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
-                </div>
-            </div>
-            ${prefix === 'sales' ? `<small class="live-margin" style="font-size:10px; display:block; margin-top:8px; text-align:right;"></small>` : ''}
-        `;
-        container.appendChild(itemCard);
-        
-        prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
-        
-        // UX Magic: Auto-focus the Qty box of the newly added row!
-        setTimeout(() => {
-            const newQty = itemCard.querySelector('.row-qty');
-            if (newQty) newQty.focus();
-        }, 100);
     },
 
     closeAllBottomSheets: () => {
@@ -2145,11 +1850,7 @@ const UI = {
         const overlay = document.getElementById('sheet-overlay');
         if (overlay && overlay.classList.contains('open')) {
             overlay.classList.remove('open');
-            setTimeout(() => {
-                // STRICT ERP LOGIC: Re-check dynamically so rapid tapping doesn't break the background!
-                const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
-                if (currentlyOpen === 0) overlay.classList.add('hidden');
-            }, 300);
+            setTimeout(() => overlay.classList.add('hidden'), 300);
             closedSomething = true;
         }
         
@@ -2164,10 +1865,10 @@ const UI = {
             overlay = document.createElement('div');
             overlay.id = 'haptic-overlay';
             overlay.className = 'sheet-overlay hidden'; // Reuses your premium blur effect!
-            overlay.style.zIndex = '6500'; // STRICT ERP LOGIC: Must be higher than standard bottom-sheets (5100)
+            overlay.style.zIndex = '4500';
             
             overlay.innerHTML = `
-                <div id="haptic-menu" class="bottom-sheet" style="z-index: 6501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
+                <div id="haptic-menu" class="bottom-sheet" style="z-index: 4501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
                     
                     <div style="margin: 0 16px 16px 16px; background: var(--md-surface); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); overflow: hidden;">
                         <div style="padding: 14px; text-align: center; font-size: 12px; font-weight: bold; color: var(--md-text-muted); border-bottom: 1px solid var(--md-surface-variant); background: rgba(0,0,0,0.02);">
@@ -2266,20 +1967,13 @@ const UI = {
             const minStock = parseFloat(item.minStock) || 0;
             const isLowStock = minStock > 0 && currentStock <= minStock;
             
-            // NEW: Bulletproof Dual Stock Math (Fixes "undefined" text)
-            const rawGst = parseFloat(item.stockGst);
-            const rawNon = parseFloat(item.stockNonGst);
-            const gstStock = isNaN(rawGst) ? currentStock : rawGst;
-            const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
-            
             return `
             <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
                 <div>
                     <div class="large-text">${item.name || 'Unnamed Product'}</div>
                     <small>
-                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Tot: ${currentStock} ${item.uom || ''} ${isLowStock ? '⚠️' : ''}</span> 
+                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Stock: ${currentStock} ${item.uom || ''} ${isLowStock ? '⚠️' : ''}</span> 
                         | Rate: \u20B9${price.toFixed(2)}
-                        <br><span style="font-size: 10px; color: var(--md-text-muted);">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
                     </small>
                 </div>
                 <input type="checkbox" style="width: 20px; height: 20px; pointer-events: none;">
@@ -2369,47 +2063,28 @@ const UI = {
     // 7. RECEIVABLES REPORT ENGINE
     // ==========================================
     downloadReceivablesReport: async () => {
-        // STRICT ERP LOGIC: Use window.Utils to prevent ES6 Module ReferenceError crash!
-        if (!window.Utils || typeof window.Utils.printReceivablesReport !== 'function') return alert("Print engine unavailable.");
+        if (typeof Utils === 'undefined' || typeof Utils.printReceivablesReport !== 'function') return alert("Print engine unavailable.");
         
         const customerLedgers = UI.state.rawData.ledgers.filter(l => l.type === 'Customer');
         const reportData = [];
         let grandTotal = 0;
 
-        // STRICT ERP LOGIC: O(1) Memory Hash Map instead of N+1 Database Queries!
-        // This prevents the app from freezing for 10+ seconds when exporting thousands of customers.
-        const balanceCache = {};
-        customerLedgers.forEach(l => {
-            let ob = parseFloat(l.openingBalance) || 0;
-            const balType = (l.balanceType || '').toLowerCase();
-            balanceCache[l.id] = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-        });
-
-        UI.state.rawData.sales.forEach(s => { 
-            if (s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
-                balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
+        for (const ledger of customerLedgers) {
+            if (typeof getKhataStatement !== 'undefined') {
+                const statement = await getKhataStatement(ledger.id, 'Customer');
+                if (statement.finalBalance > 0) {
+                    reportData.push({
+                        name: ledger.name || 'Unknown',
+                        phone: ledger.phone || 'N/A',
+                        balance: statement.finalBalance
+                    });
+                    grandTotal += statement.finalBalance;
+                }
             }
-        });
-        UI.state.rawData.cashbook.forEach(c => { 
-            if (c.ledgerId && balanceCache[c.ledgerId] !== undefined) {
-                balanceCache[c.ledgerId] += (c.type === 'in' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0));
-            }
-        });
-
-        customerLedgers.forEach(ledger => {
-            const bal = balanceCache[ledger.id] || 0;
-            if (bal > 0.01) {
-                reportData.push({
-                    name: ledger.name || 'Unknown',
-                    phone: ledger.phone || 'N/A',
-                    balance: bal
-                });
-                grandTotal += bal;
-            }
-        });
+        }
         
         if (reportData.length === 0) return alert("No pending receivables found.");
-        window.Utils.printReceivablesReport(reportData, grandTotal);
+        Utils.printReceivablesReport(reportData, grandTotal);
     },
 
     // ==========================================
@@ -2519,7 +2194,7 @@ const UI = {
         const container = document.getElementById('pnl-container');
 
         // ENTERPRISE FIX: Multi-Company Data Isolation for PnL
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
 
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
 
@@ -2549,12 +2224,8 @@ const UI = {
         
         UI.state.rawData.cashbook.forEach(c => {
             if (c.date >= startDate && c.date <= endDate && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
-                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
-                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
-                if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
                     indirectIncome += parseFloat(c.amount) || 0;
                 }
             }
@@ -2611,7 +2282,7 @@ const UI = {
         const dailyActivity = [];
         
         // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
         
         UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open').forEach(s => {
             const isRet = s.documentType === 'return';
@@ -2644,8 +2315,8 @@ const UI = {
 
         let csv = "Type,Description,Amount (INR)\n";
         dailyActivity.forEach(t => {
-            // STRICT ERP LOGIC: Strip hidden newlines to prevent CSV row-break spreadsheet corruption!
-            const safeDesc = String(t.desc || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' '); 
+            // Replace internal double quotes with two double quotes to safely escape them in CSV formatting
+            const safeDesc = (t.desc || '').replace(/"/g, '""'); 
             csv += `"${t.type}","${safeDesc}","${t.sign}${(t.amount || 0).toFixed(2)}"\n`;
         });
 
@@ -2669,10 +2340,9 @@ const UI = {
         const end = document.getElementById('report-pnl-end').value;
         
         // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
         
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
-        let indirectIncome = 0, stockLoss = 0;
 
         UI.state.rawData.sales.forEach(s => {
             if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open') {
@@ -2684,42 +2354,16 @@ const UI = {
         UI.state.rawData.expenses.forEach(e => {
             if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= start && e.date <= end) totalExpenses += parseFloat(e.amount) || 0;
         });
-        
-        // STRICT ERP LOGIC: Synchronize CSV Export with On-Screen PnL
-        UI.state.rawData.cashbook.forEach(c => {
-            // STRICT ERP LOGIC: Enforce the activeFirmId boundary so Shop B's income doesn't leak into Shop A's CSV!
-            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= start && c.date <= end && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit in the CSV!
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
-                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
-                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
-                const ledgerName = (c.ledgerName || '').toLowerCase();
-                if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
-                    indirectIncome += parseFloat(c.amount) || 0;
-                }
-            }
-        });
-        if (UI.state.rawData.adjustments) {
-            UI.state.rawData.adjustments.forEach(adj => {
-                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
-                if (adj.type === 'reduce' && adj.date >= start && adj.date <= end) {
-                    const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
-                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
-                }
-            });
-        }
 
-        const grossProfit = (totalRevenue + indirectIncome) - totalCOGS;
-        const netProfit = grossProfit - (totalExpenses + stockLoss);
+        const grossProfit = totalRevenue - totalCOGS;
+        const netProfit = grossProfit - totalExpenses;
 
         let csv = `Profit & Loss Statement (${start} to ${end})\n\n`;
         csv += `Account,Amount (INR)\n`;
         csv += `"Total Net Revenue","${totalRevenue.toFixed(2)}"\n`;
-        if (indirectIncome > 0) csv += `"Indirect Income","${indirectIncome.toFixed(2)}"\n`;
         csv += `"Cost of Goods Sold (COGS)","-${totalCOGS.toFixed(2)}"\n`;
         csv += `"Gross Profit","${grossProfit.toFixed(2)}"\n`;
         csv += `"Operating Expenses","-${totalExpenses.toFixed(2)}"\n`;
-        if (stockLoss > 0) csv += `"Stock Loss (Adjustments)","-${stockLoss.toFixed(2)}"\n`;
         csv += `"Net ${netProfit >= 0 ? 'Profit' : 'Loss'}","${netProfit.toFixed(2)}"\n`;
 
         // FIX: Directly generate the CSV Blob
@@ -2730,12 +2374,8 @@ const UI = {
         a.download = `PnL_${start}_to_${end}.csv`;
         document.body.appendChild(a);
         a.click();
-        
-        // STRICT ERP LOGIC: Give Android 1 second to intercept the PnL file before destroying memory!
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 1000);
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     },
 
     // ==========================================
@@ -2940,29 +2580,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // UPGRADE: Auto-Hiding FAB & Bottom Nav on Scroll
     let lastScrollY = 0;
-    let isScrolling = false;
     const mainContent = document.querySelector('.main-content');
     const fab = document.querySelector('.floating-action-button');
     const bottomNav = document.querySelector('.bottom-nav'); // <-- NEW
     
     if (mainContent) {
         mainContent.addEventListener('scroll', () => {
-            lastScrollY = mainContent.scrollTop;
-            
-            // STRICT ERP LOGIC: Debounce the DOM paint to prevent CPU layout-thrashing on mobile devices!
-            if (!isScrolling) {
-                window.requestAnimationFrame(() => {
-                    if (lastScrollY > 50) {
-                        if (fab) fab.classList.add('fab-hidden'); 
-                        if (bottomNav) bottomNav.style.transform = 'translateY(150%)'; 
-                    } else {
-                        if (fab) fab.classList.remove('fab-hidden'); 
-                        if (bottomNav) bottomNav.style.transform = 'translateY(0)'; 
-                    }
-                    isScrolling = false;
-                });
-                isScrolling = true;
+            const currentScrollY = mainContent.scrollTop;
+            if (currentScrollY > lastScrollY && currentScrollY > 50) {
+                if (fab) fab.classList.add('fab-hidden'); // Hide FAB
+                if (bottomNav) bottomNav.style.transform = 'translateY(150%)'; // Hide Nav smoothly
+            } else {
+                if (fab) fab.classList.remove('fab-hidden'); // Show FAB
+                if (bottomNav) bottomNav.style.transform = 'translateY(0)'; // Show Nav smoothly
             }
+            lastScrollY = currentScrollY;
         }, {passive: true});
     }
     
@@ -3014,11 +2646,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const overlay = document.getElementById('sheet-overlay');
                     if (overlay) {
                         overlay.classList.remove('open');
-                        setTimeout(() => {
-                            // STRICT ERP LOGIC: Re-check dynamically
-                            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
-                            if (currentlyOpen === 0) overlay.classList.add('hidden');
-                        }, 300);
+                        setTimeout(() => overlay.classList.add('hidden'), 300);
                     }
                 }
                 if (typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
@@ -3035,31 +2663,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 // NEW CODE: ES MODULE EXPORT & GLOBAL MAP
 // ==========================================
-// ==========================================
-// ENTERPRISE UPGRADE: SMART SEARCH WATCHERS
-// ==========================================
-// 1. Hide dropdowns when clicking outside of them
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.smart-dropdown') && !e.target.closest('input[id$="-search"]')) {
-        document.querySelectorAll('.smart-dropdown').forEach(d => d.classList.add('hidden'));
-    }
-});
-
-// 2. Strict Fallback Observer: Wrapped in an event listener to prevent DOM Race Conditions!
-document.addEventListener('DOMContentLoaded', () => {
-    ['sales-customer', 'purchase-supplier'].forEach(prefix => {
-        const display = document.getElementById(`${prefix}-display`);
-        const search = document.getElementById(`${prefix}-search`);
-        if(display && search) {
-            new MutationObserver(() => {
-                if(display.innerText && display.innerText !== 'Select Customer...' && display.innerText !== 'Select Supplier...') {
-                    search.value = display.innerText;
-                }
-            }).observe(display, { childList: true, characterData: true, subtree: true });
-        }
-    });
-});
-
 // 1. Export the module so app.js can import it
 export default UI;
 

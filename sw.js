@@ -1,8 +1,14 @@
 // ==========================================
-// SOLLO ERP - SMART OFFLINE ENGINE (v6.1)
+// SOLLO ERP - OFFLINE SERVICE WORKER (v5.2 Enterprise)
 // ==========================================
-const CACHE_NAME = 'sollo-erp-v6.1-offline';
 
+// --- NEW CODE: Bump the version to 8.1 to clear the cache! ---
+const CACHE_NAME = 'sollo-erp-v8.1-final';
+// --- END OF NEW CODE ---
+
+const TIMEOUT_MS = 3000; // 3-second timeout to defeat Lie-Fi
+
+// Critical assets to cache immediately upon installation
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -12,100 +18,129 @@ const ASSETS_TO_CACHE = [
     './db.js',
     './utils.js',
     './cloud.js',
-    './icon-192.png',
-    './icon-512.png',
+    './icon-192.png', // Add this!
+    './icon-512.png', // Add this!
     './manifest.json',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js', /* NEW: Enterprise AI Engine */
+ /* FIX: Added Excel Engine to Offline Cache */
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js',
-    // STRICT ERP LOGIC: Added Chart.js and HTML2PDF so the dashboard and printing work offline!
-    'https://cdn.jsdelivr.net/npm/chart.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js'
 ];
 
+// 1. Install Event
 self.addEventListener('install', (event) => {
-    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            // STRICT ERP LOGIC: Force { cache: 'reload' } to bypass the browser's HTTP cache.
-            // This guarantees the Service Worker downloads the absolute newest files from your server!
-            return Promise.all(ASSETS_TO_CACHE.map(url => {
-                return cache.add(new Request(url, { cache: 'reload' })).catch(err => console.warn(`Failed to cache: ${url}`, err));
-            }));
+            console.log('[Service Worker] Caching v5.2 enterprise assets');
+            return cache.addAll(ASSETS_TO_CACHE);
         })
     );
+    self.skipWaiting(); 
 });
 
-// STRICT ERP LOGIC: The Garbage Collector. Destroys outdated caches to prevent mobile storage bombs!
+// 2. Activate Event
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
-                        console.log('SW: Purging old zombie cache -', cacheName);
+                        console.log('[Service Worker] Clearing old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
             );
-        }).then(() => self.clients.claim())
-    );
-});
-
-// ENTERPRISE UPGRADE: 3-Second Timeout Engine for "Lie-Fi" connections
-const fetchWithTimeout = (request, timeout = 3000) => {
-    return new Promise((resolve, reject) => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => {
-            controller.abort(); // STRICT ERP LOGIC: Physically sever the hanging network connection!
-            reject(new Error('Network Timeout'));
-        }, timeout);
-        fetch(request, { signal: controller.signal }).then(response => {
-            clearTimeout(timer);
-            resolve(response);
-        }).catch(err => {
-            clearTimeout(timer);
-            reject(err);
-        });
-    });
-};
-
-self.addEventListener('fetch', (event) => {
-    if (event.request.method !== 'GET') return;
-    if (event.request.url.startsWith('blob:') || event.request.url.startsWith('data:')) return;
-    
-    // STRICT ERP LOGIC: Never intercept or cache Google Auth & API scripts! 
-    // This prevents permanent "Token Mismatch" lockouts on the Cloud Backup engine.
-    const url = event.request.url;
-    if (url.includes('apis.google.com') || url.includes('accounts.google.com')) {
-        return; 
-    }
-
-    // --- DEVELOPMENT MODE OVERRIDE ---
-    // If we are developing locally, ALWAYS bypass the cache completely
-    if (url.includes('localhost') || url.includes('127.0.0.1')) {
-        event.respondWith(fetch(event.request));
-        return;
-    }
-    // ---------------------------------
-
-    // STRICT ERP LOGIC: Network-First with a 3-second abort timeout.
-    // If the network is slow or hanging, it instantly drops to the high-speed cache!
-    event.respondWith(
-        fetchWithTimeout(event.request, 3000).then((networkResponse) => {
-            if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
-                const responseToCache = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-            }
-            return networkResponse;
-        }).catch(() => {
-            return caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) return cachedResponse;
-                if (event.request.mode === 'navigate') return caches.match('./index.html');
-            });
         })
     );
+    self.clients.claim(); 
+});
+
+// 3. Fetch Event (Split Strategy for Ultimate Speed)
+self.addEventListener('fetch', (event) => {
+    // Strictly ignore blob and data URLs
+    if (event.request.url.startsWith('blob:') || event.request.url.startsWith('data:')) return;
+    if (event.request.method !== 'GET') return;
+
+    const url = new URL(event.request.url);
+    const isStaticAsset = url.pathname.endsWith('.css') || url.pathname.endsWith('.js') || url.pathname.endsWith('.png') || url.hostname.includes('fonts') || url.hostname.includes('cdnjs');
+
+    if (isStaticAsset) {
+        // STRATEGY 1: CACHE-FIRST (For CSS, JS, Fonts, Images)
+        // Instantly loads from hardware. Updates cache silently in the background.
+        event.respondWith(
+            // FIX: Added { ignoreSearch: true } so ?v=15 tags don't break offline caching!
+            caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+                const fetchPromise = fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse.clone()));
+                    }
+                    return networkResponse;
+                }).catch(() => { console.log('[Service Worker] Offline: Using static cached asset.'); });
+
+                return cachedResponse || fetchPromise;
+            })
+        );
+    } else {
+        // STRATEGY 2: NETWORK-FIRST with Timeout Fallback (For HTML / App Shell)
+        // Ensures you always get the latest UI updates if online.
+        event.respondWith(
+            new Promise((resolve) => {
+                let isResolved = false;
+
+                const timeoutId = setTimeout(() => {
+                    if (!isResolved) {
+                        // FIX 1: Ignore ?v=15 search tags in the timeout fallback
+                        caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+                            if (cachedResponse) {
+                                isResolved = true;
+                                resolve(cachedResponse);
+                            }
+                        });
+                    }
+                }, TIMEOUT_MS);
+
+                fetch(event.request).then((networkResponse) => {
+                    clearTimeout(timeoutId);
+                    if (!isResolved) {
+                        if (networkResponse && networkResponse.status === 200 && !event.request.url.startsWith('chrome-extension')) {
+                            const responseToCache = networkResponse.clone();
+                            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+                        }
+                        isResolved = true;
+                        resolve(networkResponse);
+                    }
+                }).catch(() => {
+                    clearTimeout(timeoutId);
+                    if (!isResolved) {
+                        // FIX 2: Ignore ?v=15 search tags in the network failure fallback
+                        caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+                            if (cachedResponse) {
+                                resolve(cachedResponse);
+                            } else {
+                                if (event.request.mode === 'navigate' || event.request.headers.get('accept').includes('text/html')) {
+                                    caches.match('./index.html', { ignoreSearch: true }).then((cachedHtml) => {
+                                        resolve(cachedHtml || new Response('<div style="text-align:center; padding:50px; font-family:sans-serif;"><h2>App Offline</h2><p>Please check your connection and reload.</p></div>', { status: 503, headers: { 'Content-Type': 'text/html' } }));
+                                    });
+                                } else {
+                                    resolve(new Response('', { status: 503, statusText: 'Service Unavailable' }));
+                                }
+                            }
+                        });
+                    }
+                });
+            })
+        );
+    }
+});
+// ==========================================
+// NEW: LISTEN FOR UPDATE COMMAND FROM APP
+// ==========================================
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        // This forces the waiting service worker to become the active one immediately
+        self.skipWaiting(); 
+    }
 });
