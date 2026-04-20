@@ -2,6 +2,16 @@
 // SOLLO ERP - MAIN APPLICATION CONTROLLER (v5.2 Enterprise)
 // ==========================================
 
+// --- ENTERPRISE UPGRADE: TRUE INDIAN CURRENCY FORMATTER ---
+window.formatMoney = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount || 0);
+};
+
 // --- ENTERPRISE UPGRADE: KILL UGLY BROWSER ALERTS ---
 // This secretly intercepts every standard alert() in the entire app and turns them into M3 Toasts!
 window.alert = function(message) {
@@ -19,9 +29,47 @@ window.alert = function(message) {
     }
 };
 
+// --- ENTERPRISE UPGRADE: HIDDEN DEVELOPER DEBUG CONSOLE ---
+window.solloDebugLogs = [];
+const origError = console.error;
+console.error = function(...args) {
+    window.solloDebugLogs.unshift({ type: 'error', time: new Date().toLocaleTimeString(), msg: args.join(' ') });
+    origError.apply(console, args);
+};
+const origWarn = console.warn;
+console.warn = function(...args) {
+    window.solloDebugLogs.unshift({ type: 'warn', time: new Date().toLocaleTimeString(), msg: args.join(' ') });
+    origWarn.apply(console, args);
+};
+
+let devClickCount = 0;
+let devClickTimer = null;
+window.triggerDevConsole = () => {
+    devClickCount++;
+    clearTimeout(devClickTimer);
+    devClickTimer = setTimeout(() => devClickCount = 0, 1000);
+    if (devClickCount >= 5) {
+        devClickCount = 0;
+        let logHtml = window.solloDebugLogs.map(l => `<div style="color:${l.type==='error'?'#ff5252':'#fb8c00'}; margin-bottom:8px; border-bottom:1px dashed #333; padding-bottom:8px;">[${l.time}] ${l.msg}</div>`).join('');
+        let consoleDiv = document.getElementById('dev-console-overlay');
+        if (!consoleDiv) {
+            consoleDiv = document.createElement('div');
+            consoleDiv.id = 'dev-console-overlay';
+            consoleDiv.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(10, 10, 15, 0.95); color:#0f0; font-family:monospace; z-index:9999999; padding:20px; overflow-y:auto; box-sizing:border-box; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);';
+            document.body.appendChild(consoleDiv);
+        }
+        consoleDiv.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0f0; padding-bottom:10px; margin-bottom:15px;">
+            <h2 style="margin:0; color:#0f0; letter-spacing: 1px;">SOLLO TECHNICAL REVIEW CONSOLE</h2>
+            <button onclick="document.getElementById('dev-console-overlay').remove()" style="background:#f00; color:#fff; border:none; padding:8px 16px; border-radius:4px; font-weight:bold;">CLOSE X</button>
+        </div>
+        <div style="margin-bottom: 15px; font-size: 13px; color: #fff;"><strong>Database Status:</strong> <span style="color:#0ff;">Stable</span> | <strong>Background Sync:</strong> <span style="color:#0ff;">Active</span></div>
+        ${logHtml || '<div style="color:#888;">No system warnings or version conflicts logged yet. Environment running perfectly.</div>'}`;
+    }
+};
+
 // --- ENTERPRISE UPGRADE: GLOBAL ERROR SHIELD ---
 window.addEventListener('error', (event) => {
-    console.error("Global Error Caught:", event.error);
+    console.error("Global Window Error Caught:", event.error ? event.error.message : event.message);
     if (window.Utils && typeof window.Utils.showToast === 'function') {
         window.Utils.showToast("Something went wrong. Please try again.");
     }
@@ -31,6 +79,28 @@ window.addEventListener('unhandledrejection', (event) => {
     // Log the event for developers, but do NOT show a scary toast to the user.
     // This prevents false alarms from missing Service Workers or AdBlockers blocking Google Drive.
     console.warn("Silent background promise rejected:", event.reason);
+});
+
+// --- ENTERPRISE UPGRADE: UNIVERSAL DOUBLE-TAP PREVENTION ---
+document.addEventListener('submit', (e) => {
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn) {
+        if (btn.dataset.locked === "true") {
+            e.preventDefault();
+            return false; // Blocks the duplicate submission!
+        }
+        btn.dataset.locked = "true";
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span> Saving...';
+        btn.style.opacity = '0.7';
+        
+        // Safely unlock the button after 2.5 seconds in case validation failed
+        setTimeout(() => {
+            btn.dataset.locked = "false";
+            btn.innerHTML = originalText;
+            btn.style.opacity = '1';
+        }, 2500);
+    }
 });
 
 // --- ENTERPRISE UPGRADE: POS WAKE LOCK (Keep Screen On) ---
@@ -104,9 +174,9 @@ import {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
     getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=81';
-import Utils from './utils.js?v=81';
-import UI from './ui.js?v=81';
+} from './db.js';
+import Utils from './utils.js';
+import UI from './ui.js';
 // --- END OF NEW CODE ---
 
 // --- ENTERPRISE UPGRADE: IMAGE COMPRESSION ENGINE ---
@@ -186,6 +256,7 @@ const app = {
             
             await app.loadAllData(); 
             await app.cleanupDuplicates(); // <-- ENTERPRISE FIX: Scans and merges duplicates on boot!
+            await app.migrateLegacyStock(); // <-- NEW: Safely moves old inventory into the new Dual-Engine buckets
             app.setupForms();
             
             // 3. Render the UI
@@ -278,15 +349,10 @@ const app = {
         UI.state.rawData.cashbook = (await getAllRecords('receipts')).filter(r => r.firmId === app.state.firmId);
         UI.state.rawData.timeline = typeof getGlobalTimeline === 'function' ? await getGlobalTimeline(app.state.firmId) : [];
         
-        // 2. RAM CACHE: Static Master Data (Instant Load 0ms)
-        if (!window.AppCache.items) window.AppCache.items = stripBloat((await getAllRecords('items')).filter(r => r.firmId === app.state.firmId));
-        UI.state.rawData.items = window.AppCache.items;
-
-        if (!window.AppCache.ledgers) window.AppCache.ledgers = (await getAllRecords('ledgers')).filter(r => r.firmId === app.state.firmId);
-        UI.state.rawData.ledgers = window.AppCache.ledgers;
-
-        if (!window.AppCache.accounts) window.AppCache.accounts = (await getAllRecords('accounts')).filter(r => r.firmId === app.state.firmId);
-        UI.state.rawData.accounts = window.AppCache.accounts;
+        // ENTERPRISE FIX: Fetch fresh data every time to prevent "Ghost Data" sync bugs
+        UI.state.rawData.items = stripBloat((await getAllRecords('items')).filter(r => r.firmId === app.state.firmId));
+        UI.state.rawData.ledgers = (await getAllRecords('ledgers')).filter(r => r.firmId === app.state.firmId);
+        UI.state.rawData.accounts = (await getAllRecords('accounts')).filter(r => r.firmId === app.state.firmId);
 
         // UPGRADE 1: Load Recycle Bin from IndexedDB (Fixes the LocalStorage mismatch bug!)
         const dbTrash = await getAllRecords('trash');
@@ -337,6 +403,35 @@ const app = {
         // Trigger silent background backup if active
         if (typeof Cloud !== 'undefined' && Cloud.autoBackup) {
             Cloud.autoBackup();
+        }
+    },
+
+    // ==========================================
+    // NEW: LEGACY STOCK MIGRATION ENGINE
+    // ==========================================
+    migrateLegacyStock: async () => {
+        try {
+            const items = await getAllRecords('items');
+            let migratedCount = 0;
+            
+            for (const item of items) {
+                // If it's an old product that hasn't been split into buckets yet...
+                if (item.gstStock === undefined && item.nonGstStock === undefined && item.stock !== undefined) {
+                    // Safely move the old generic stock into the Account (GST) bucket
+                    item.gstStock = parseFloat(item.stock) || 0;
+                    item.nonGstStock = 0;
+                    await saveRecord('items', item);
+                    migratedCount++;
+                }
+            }
+            
+            if (migratedCount > 0) {
+                console.log(`Migrated ${migratedCount} legacy products to the Dual-Engine.`);
+                if (window.AppCache) window.AppCache.items = null; // Wipe cache to load the fixed items
+                if (window.Utils) window.Utils.showToast(`Upgraded ${migratedCount} old products to new Inventory Engine! 🚀`);
+            }
+        } catch (e) {
+            console.error("Migration failed:", e);
         }
     },
 
@@ -430,6 +525,106 @@ const app = {
     },
 
     // ==========================================
+    // ENTERPRISE UPGRADE: LIVE STOCK LEDGER ENGINE
+    // ==========================================
+    openStockLedger: async (itemId) => {
+        try {
+            const item = await getRecordById('items', itemId);
+            if (!item) return;
+
+            document.getElementById('stock-ledger-title').innerText = item.name;
+            document.getElementById('stock-ledger-bal').innerText = `Current Stock: ${parseFloat(item.stock||0).toFixed(2)} ${item.uom||''}`;
+
+            const sales = await getAllRecords('sales');
+            const purchases = await getAllRecords('purchases');
+            const adjustments = await getAllRecords('adjustments');
+
+            let timeline = [];
+
+            // 1. Scan Sales (Stock Out) & Sales Returns (Stock In)
+            sales.forEach(s => {
+                if (s.firmId !== app.state.firmId || s.status === 'Open') return;
+                const lineItem = s.items.find(x => x.itemId === itemId);
+                if (lineItem) {
+                    const isReturn = s.documentType === 'return';
+                    timeline.push({
+                        date: s.date,
+                        desc: isReturn ? `Credit Note (Return)` : `Sales Invoice`,
+                        ref: s.invoiceNo || s.orderNo || String(s.id).slice(-4).toUpperCase(),
+                        party: s.customerName,
+                        qty: parseFloat(lineItem.qty),
+                        type: isReturn ? 'in' : 'out'
+                    });
+                }
+            });
+
+            // 2. Scan Purchases (Stock In) & Purchase Returns (Stock Out)
+            purchases.forEach(p => {
+                if (p.firmId !== app.state.firmId || p.status === 'Open') return;
+                const lineItem = p.items.find(x => x.itemId === itemId);
+                if (lineItem) {
+                    const isReturn = p.documentType === 'return';
+                    timeline.push({
+                        date: p.date,
+                        desc: isReturn ? `Debit Note (Return)` : `Purchase Bill`,
+                        ref: p.poNo || p.invoiceNo || p.orderNo || String(p.id).slice(-4).toUpperCase(),
+                        party: p.supplierName,
+                        qty: parseFloat(lineItem.qty),
+                        type: isReturn ? 'out' : 'in'
+                    });
+                }
+            });
+
+            // 3. Scan Manual Adjustments
+            adjustments.forEach(a => {
+                if (a.firmId === app.state.firmId && a.itemId === itemId) {
+                    timeline.push({
+                        date: a.date,
+                        desc: `Manual Adjustment`,
+                        ref: a.notes,
+                        party: a.bucket === 'non-gst' ? 'Non-GST Bucket' : 'GST Bucket',
+                        qty: parseFloat(a.qty),
+                        type: a.type === 'add' ? 'in' : 'out'
+                    });
+                }
+            });
+
+            // Sort Chronologically (Newest First)
+            timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const container = document.getElementById('stock-ledger-timeline');
+            if (timeline.length === 0) {
+                container.innerHTML = '<div style="padding:24px; text-align:center; color:var(--md-text-muted);">No movement history found for this item.</div>';
+            } else {
+                container.innerHTML = timeline.map(t => {
+                    const isMoneyIn = t.type === 'in';
+                    const color = isMoneyIn ? '#146c2e' : '#ba1a1a';
+                    const bg = isMoneyIn ? '#e8f5e9' : '#fff0f2';
+                    const icon = isMoneyIn ? 'arrow_downward' : 'arrow_upward';
+                    const sign = isMoneyIn ? '+' : '-';
+
+                    return `
+                    <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 0;">
+                        <div class="icon-circle" style="background: ${bg}; color: ${color}; width: 40px; height: 40px; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                        </div>
+                        <div style="flex: 1; min-width:0;">
+                            <strong style="display:block; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.desc} <span style="color:var(--md-primary); font-size:11px;">(${t.ref})</span></strong>
+                            <small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.date} | ${t.party}</small>
+                        </div>
+                        <strong style="font-size: 16px; color: ${color};">${sign}${t.qty.toFixed(2)}</strong>
+                    </div>`;
+                }).join('');
+            }
+
+            if(window.UI) window.UI.openActivity('activity-stock-ledger');
+        } catch (e) {
+            console.error("Stock Ledger Error:", e);
+            alert("Could not load stock history.");
+        }
+    },
+
+    // ==========================================
     // ENTERPRISE UPGRADE: STOCK ADJUSTMENT ENGINE
     // ==========================================
     openAdjustmentSheet: async () => {
@@ -496,35 +691,69 @@ const app = {
         if (catSelect) catSelect.innerHTML = '<option value="">Select Category...</option>' + cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
     },
 
+    // ==========================================
+    // ENTERPRISE UPGRADE: PROFESSIONAL MASTER MANAGER
+    // ==========================================
     manageSimpleMaster: async (storeName, title) => {
-        const records = await getAllRecords(storeName);
-        let listText = records.map((r, i) => `${i + 1}. ${r.name}`).join('\n');
+        document.getElementById('simple-master-title').innerText = `Manage ${title}`;
+        const inputEl = document.getElementById('simple-master-input');
+        if (inputEl) inputEl.value = '';
         
-        let action = prompt(`=== Manage ${title} ===\n\nCurrent List:\n${listText}\n\nType 'ADD' to create a new one, or 'DELETE' to remove one. (Leave blank to cancel)`);
-        
-        if (!action) return;
-        
-        if (action.toUpperCase() === 'ADD') {
-            let newName = prompt(`Enter new ${title} name:`);
-            if (newName && newName.trim()) {
-                await saveRecord(storeName, { id: Utils.generateId(), name: newName.trim() });
-                Utils.showToast("Added successfully! ✅");
-                app.loadDropdowns(); // Refresh the UI instantly
+        const renderList = async () => {
+            const records = await getAllRecords(storeName);
+            const listEl = document.getElementById('simple-master-list');
+            if (listEl) {
+                listEl.innerHTML = records.map(r => `
+                    <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--md-outline-variant);">
+                        <span style="font-weight: 500; color: var(--md-on-surface);">${r.name}</span>
+                        <span class="material-symbols-outlined tap-target" style="color: var(--md-error); padding: 4px;" onclick="app.deleteSimpleMasterItem('${storeName}', '${r.id}')">delete</span>
+                    </li>
+                `).join('');
             }
-        } else if (action.toUpperCase() === 'DELETE') {
-            let delName = prompt(`Enter the exact name to delete:\n\n${listText}`);
-            if (!delName) return;
-            let match = records.find(r => r.name.toLowerCase() === delName.toLowerCase().trim());
-            if (match) {
-                await deleteRecordById(storeName, match.id);
-                Utils.showToast("Deleted successfully! 🗑️");
-                app.loadDropdowns(); // Refresh the UI instantly
-            } else {
-                alert("Name not found. Please check the spelling.");
-            }
-        } else {
-            alert("Invalid action. Please type ADD or DELETE.");
+        };
+
+        // Bind the new Add Button dynamically
+        const addBtn = document.getElementById('btn-add-simple-master');
+        if (addBtn) {
+            addBtn.onclick = async () => {
+                const val = inputEl.value.trim();
+                if (!val) return;
+                
+                const existing = await getAllRecords(storeName);
+                if (existing.some(e => e.name.toLowerCase() === val.toLowerCase())) {
+                    return alert("This item already exists!");
+                }
+
+                await saveRecord(storeName, { id: Utils.generateId(), name: val });
+                inputEl.value = ''; // Clear input for rapid adding
+                if (window.Utils) window.Utils.showToast("Added Successfully! ✅");
+                await renderList(); // Instantly update the list UI
+                app.loadDropdowns(); // Instantly update the background dropdowns
+            };
         }
+
+        await renderList();
+        if (window.UI) window.UI.openBottomSheet('sheet-simple-master');
+    },
+
+    deleteSimpleMasterItem: async (storeName, id) => {
+        if (!confirm("Are you sure you want to delete this item?")) return;
+        await deleteRecordById(storeName, id);
+        if (window.Utils) window.Utils.showToast("Deleted Successfully! 🗑️");
+        
+        // Rapid re-render of the list inside the open bottom sheet
+        const records = await getAllRecords(storeName);
+        const listEl = document.getElementById('simple-master-list');
+        if (listEl) {
+            listEl.innerHTML = records.map(r => `
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--md-outline-variant);">
+                    <span style="font-weight: 500; color: var(--md-on-surface);">${r.name}</span>
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-error); padding: 4px;" onclick="app.deleteSimpleMasterItem('${storeName}', '${r.id}')">delete</span>
+                </li>
+            `).join('');
+        }
+        
+        app.loadDropdowns(); // Update background dropdowns instantly
     },
 
     // ==========================================
@@ -616,7 +845,9 @@ const app = {
                             name: cols[nameIdx],
                             sellPrice: parseFloat(cols[sellIdx]) || 0,
                             buyPrice: parseFloat(cols[buyIdx]) || 0,
-                            // FIX: Preserve live stock if the item exists, otherwise use CSV opening stock
+                            // DUAL ENGINE FIX: Route CSV imports to the Account (GST) bucket by default
+                            gstStock: match ? (parseFloat(match.gstStock) || 0) : (parseFloat(cols[stockIdx]) || 0),
+                            nonGstStock: match ? (parseFloat(match.nonGstStock) || 0) : 0,
                             stock: match ? match.stock : (parseFloat(cols[stockIdx]) || 0),
                             minStock: parseFloat(cols[minStockIdx]) || 0,
                             uom: cols[uomIdx] || 'Pcs',
@@ -1034,28 +1265,65 @@ const app = {
             const maxAllowable = parseFloat(item.qty) - previouslyReturned;
 
             if (maxAllowable > 0) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <div style="font-weight:500;">${item.name}</div>
-                        <small style="color:var(--md-text-muted);">Max Return: ${maxAllowable}</small>
-                        <input type="hidden" class="row-item-id" value="${item.itemId}">
-                        <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">                        <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
-                    </td>
-                    <td><input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:60px; padding:4px; border-color:var(--md-error);"></td>
-                    <td><input type="text" class="row-uom" value="${item.uom || ''}" readonly style="width:50px; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly style="width:80px; padding:4px; background:var(--md-surface-variant);"></td>
-                    <td><input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
-                    <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
-                    <td style="text-align:center;"><span class="material-symbols-outlined tap-target" style="color:var(--md-error);" onclick="this.closest('tr').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span></td>
+                const itemCard = document.createElement('div');
+                itemCard.className = 'item-entry-card m3-card';
+                itemCard.style.padding = '14px';
+                itemCard.style.marginBottom = '12px';
+                itemCard.style.borderLeft = type === 'sales' ? '4px solid var(--md-error)' : '4px solid var(--md-success)';
+                
+                const hiddenInputs = `
+                    <input type="hidden" class="row-item-id" value="${item.itemId}">
+                    <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                    <input type="hidden" class="row-uom" value="${item.uom || ''}">
+                    <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
                 `;
-                tbody.appendChild(tr);
+
+                itemCard.innerHTML = `
+                    ${hiddenInputs}
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
+                            ${item.name}
+                            <div style="font-size:11px; color:var(--md-error); margin-top:2px; font-weight:bold;">Max Return: ${maxAllowable}</div>
+                            <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${item.hsn || ''}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                        </div>
+                        <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">delete</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Return Qty</small>
+                            <input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-error); border-radius:6px; background:var(--md-surface); font-size:14px; font-weight:bold; color:var(--md-error);">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Orig Rate</small>
+                            <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface-variant); font-size:14px; pointer-events:none;">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                            <input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
+                        <div style="text-align:right;">
+                            <small style="color:var(--md-text-muted); font-size:11px;">Total Refund (₹)</small><br>
+                            <strong class="row-total" style="font-size:18px; color:var(--md-error);">0.00</strong>
+                        </div>
+                    </div>
+                `;
+                tbody.appendChild(itemCard);
             }
         });
         
         const orderNoEl = document.getElementById(`${type}-order-no`);
         if (orderNoEl) orderNoEl.value = originalDoc.invoiceNo;
+        
+        // DUAL-ENGINE FIX: Make sure the return goes into the exact same stock bucket!
+        const invTypeEl = document.getElementById(`${type}-invoice-type`);
+        if (invTypeEl && originalDoc.invoiceType) {
+            invTypeEl.value = originalDoc.invoiceType;
+        }
         
         type === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
     },
@@ -1165,6 +1433,12 @@ const app = {
             
             // Hide delete buttons for new records
             UI.toggleDeleteButton(type, !!id);
+
+            // Hide Stock Ledger button for new records
+            if (type === 'product') {
+                const histBtn = document.getElementById('btn-view-stock-ledger');
+                if (histBtn) histBtn.classList.add('hidden');
+            }
 
             if (type === 'sales' || type === 'purchase') {
                 document.getElementById(`${type}-items-body`).innerHTML = '';
@@ -1312,6 +1586,7 @@ const app = {
                 const previousReturns = allDocs.filter(d => d.documentType === 'return' && d.orderNo === record.orderNo && d.id !== record.id);
                 previousReturns.forEach(ret => ret.items.forEach(i => returnedQtyMap[i.itemId] = (returnedQtyMap[i.itemId] || 0) + parseFloat(i.qty)));
             }
+            // FLEXIBLE MODE: Unlocked for easy editing of typos!
             (record.items || []).forEach(item => {
                 let maxHtml = 'min="0.01" step="any"';
                 let maxLabel = '';
@@ -1321,34 +1596,66 @@ const app = {
                     if (origItem) {
                         const maxAllowable = parseFloat(origItem.qty) - (returnedQtyMap[item.itemId] || 0);
                         maxHtml = `min="0" max="${maxAllowable}" step="any"`;
-                        maxLabel = `<br><small style="color:var(--md-text-muted);">Max Return: ${maxAllowable}</small>`;
+                        maxLabel = `<div style="font-size:11px; color:var(--md-error); margin-top:2px; font-weight:bold;">Max Return: ${maxAllowable}</div>`;
                     }
                 }
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>
-                        <div style="font-weight:500;">${item.name}</div>
-                        ${maxLabel}
-                        ${type === 'sales' && record.documentType !== 'return' ? `
-                        <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
-                            <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
-                            <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
-                        </div>
-                        <small class="live-margin" style="font-size:10px; display:block; margin-top:4px;"></small>
-                        ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
-                        <input type="hidden" class="row-item-id" value="${item.itemId}">
-                        <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
-                    </td>
-                    <td><input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width:60px; text-align:center; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:60px; padding:4px; ${record.documentType === 'return' ? 'border-color:var(--md-error);' : ''}"></td>
-                    <td><input type="text" class="row-uom" value="${item.uom || ''}" readonly style="width:50px; padding:4px;"></td>
-                    <td><input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:80px; padding:4px; ${record.documentType === 'return' ? 'background:var(--md-surface-variant);' : ''}"></td>
-                    <td><input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:50px; padding:4px;"></td>
-                    <td class="row-total" style="font-weight:bold; text-align:right;">0.00</td>
-                    <td style="text-align:center;"><span class="material-symbols-outlined tap-target" style="color:var(--md-error);" onclick="this.closest('tr').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">cancel</span></td>
+                const itemCard = document.createElement('div');
+                itemCard.className = 'item-entry-card m3-card';
+                itemCard.style.padding = '14px';
+                itemCard.style.marginBottom = '12px';
+                itemCard.style.borderLeft = type === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
+                
+                const hiddenInputs = `
+                    <input type="hidden" class="row-item-id" value="${item.itemId}">
+                    <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                    <input type="hidden" class="row-uom" value="${item.uom || ''}">
                 `;
-                tbody.appendChild(tr);
+
+                itemCard.innerHTML = `
+                    ${hiddenInputs}
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                        <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
+                            ${item.name}
+                            ${maxLabel}
+                            <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${item.hsn || ''}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                        </div>
+                        <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()">delete</span>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${item.uom || 'Unit'})</small>
+                            <input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
+                            <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly style="background:var(--md-surface-variant) !important;"' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                            <input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
+                        <div style="display:flex; gap:8px;">
+                            ${type === 'sales' && record.documentType !== 'return' ? `
+                            <div>
+                                <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
+                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                            </div>
+                            ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
+                        </div>
+                        <div style="text-align:right;">
+                            <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
+                            <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                        </div>
+                    </div>
+                    ${type === 'sales' && record.documentType !== 'return' ? `<small class="live-margin" style="font-size:10px; display:block; margin-top:8px; text-align:right;"></small>` : ''}
+                `;
+                tbody.appendChild(itemCard);
             });
             if (record.documentType === 'return') {
                 const refEl = document.getElementById(`${type}-original-ref`);
@@ -1438,9 +1745,21 @@ const app = {
             }
             
             // Recover images so they aren't erased on save
-            if (type === 'product' && record.image) {
-                const img = document.getElementById('product-image-preview');
-                if (img) { img.src = record.image; img.classList.remove('hidden'); }
+            if (type === 'product') {
+                if (record.image) {
+                    const img = document.getElementById('product-image-preview');
+                    if (img) { img.src = record.image; img.classList.remove('hidden'); }
+                }
+                // ENTERPRISE UX: Auto-calculate the Live Total Badge on Edit!
+                const badge = document.getElementById('prod-total-stock-badge');
+                if (badge) badge.innerText = (parseFloat(record.gstStock || 0) + parseFloat(record.nonGstStock || 0));
+                
+                // ENTERPRISE UX: Unhide the Stock Ledger Button
+                const histBtn = document.getElementById('btn-view-stock-ledger');
+                if (histBtn) {
+                    histBtn.classList.remove('hidden');
+                    histBtn.onclick = () => app.openStockLedger(id);
+                }
             }
             if (type === 'expense') {
                 if (record.attachment) {
@@ -1671,7 +1990,21 @@ const app = {
                     
                     if (app.state.currentEditId) {
                         const existingRecord = await getRecordById(storeName, app.state.currentEditId);
-                        if (existingRecord) data = { ...existingRecord };
+                        if (existingRecord) {
+                            data = { ...existingRecord };
+                            
+                            // ENTERPRISE UPGRADE: ADVANCED AUDIT TRAIL ENGINE
+                            // Tracks strict modifications and pushes version comparisons to the Dev Console
+                            const changedFields = [];
+                            formData.forEach((value, key) => { 
+                                if (existingRecord[key] !== undefined && String(existingRecord[key]) !== String(value)) {
+                                    changedFields.push(`[${key.toUpperCase()}] Old Code: "${existingRecord[key]}" ➔ New Code: "${value}"`);
+                                }
+                            });
+                            if (changedFields.length > 0) {
+                                console.warn(`AUDIT LOG (${storeName.toUpperCase()} ID: ${data.id}) | Version Mismatch Detected: <br> ${changedFields.join('<br>')}`);
+                            }
+                        }
                     }
                     
                     formData.forEach((value, key) => { data[key] = value; });
@@ -1679,7 +2012,12 @@ const app = {
                 if (type === 'product') {
                     data.sellPrice = parseFloat(data.sellPrice) || 0;
                     data.buyPrice = parseFloat(data.buyPrice) || 0;
-                    data.stock = parseFloat(data.stock) || 0;
+                    
+                    // NEW DUAL ENGINE MATH: Safely parse both buckets and roll them up
+                    data.gstStock = parseFloat(data.gstStock) || 0;
+                    data.nonGstStock = parseFloat(data.nonGstStock) || 0;
+                    data.stock = Math.round((data.gstStock + data.nonGstStock) * 100) / 100;
+                    
                     data.minStock = parseFloat(data.minStock) || 0;
                     data.gst = parseFloat(data.gst) || 0;
                     const img = document.getElementById('product-image-preview');
@@ -1738,7 +2076,14 @@ const app = {
                         if (list) {
                             const li = document.createElement('li');
                             li.innerHTML = `
-                                <div><strong>${data.name}</strong><br><small style="color:var(--md-text-muted);">Stock: ${data.stock} ${data.uom} | ₹${data.sellPrice.toFixed(2)}</small></div>
+                                <div>
+                                    <strong>${data.name}</strong><br>
+                                    <small style="color:var(--md-text-muted);">
+                                        GST: <span style="color:#0061a4; font-weight:bold;">${data.gstStock}</span> | 
+                                        Non-GST: <span style="color:#d84315; font-weight:bold;">${data.nonGstStock}</span>
+                                        (${data.uom}) | ₹${data.sellPrice.toFixed(2)}
+                                    </small>
+                                </div>
                                 <input type="checkbox" value="${data.id}" style="width: 24px; height: 24px;">
                             `;
                             list.insertBefore(li, list.firstChild);
@@ -1806,15 +2151,21 @@ const app = {
                     
                     const type = document.getElementById('adj-type').value;
                     const qty = parseFloat(document.getElementById('adj-qty').value) || 0;
+                    const bucket = document.getElementById('adj-bucket') ? document.getElementById('adj-bucket').value : 'gst'; // NEW: Identify Bucket
                     
                     const item = await getRecordById('items', itemId);
                     if (!item) throw new Error("Product not found in database.");
                     
-                    const currentStock = parseFloat(item.stock) || 0;
+                    // Initialize buckets safely
+                    item.gstStock = parseFloat(item.gstStock) || 0;
+                    item.nonGstStock = parseFloat(item.nonGstStock) || 0;
+                    
+                    const currentBucketStock = bucket === 'non-gst' ? item.nonGstStock : item.gstStock;
+                    const bucketName = bucket === 'non-gst' ? 'Non-GST' : 'Account (GST)';
                     
                     if (type === 'reduce') {
-                        if (currentStock - qty < 0) {
-                            if (!confirm(`Warning: This adjustment will drop your stock below zero (Current: ${currentStock}). Continue anyway?`)) {
+                        if (currentBucketStock - qty < 0) {
+                            if (!confirm(`Warning: This will drop your ${bucketName} stock below zero (Current: ${currentBucketStock}). Continue anyway?`)) {
                                 return; 
                             }
                         }
@@ -1825,14 +2176,22 @@ const app = {
                         firmId: app.state.firmId,
                         itemId: itemId,
                         type: type,
+                        bucket: bucket, // NEW: Track which bucket was adjusted
                         qty: qty,
                         date: document.getElementById('adj-date').value,
                         notes: document.getElementById('adj-notes').value
                     };
                     
-                    // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift in inventory!
-                    const rawNewStock = currentStock + (type === 'add' ? qty : -qty);
-                    item.stock = Math.round(rawNewStock * 100) / 100;
+                    // Apply math to the specific bucket
+                    const rawNewStock = currentBucketStock + (type === 'add' ? qty : -qty);
+                    if (bucket === 'non-gst') {
+                        item.nonGstStock = Math.round(rawNewStock * 100) / 100;
+                    } else {
+                        item.gstStock = Math.round(rawNewStock * 100) / 100;
+                    }
+                    
+                    // SHADOW SYNC: Roll up into master total
+                    item.stock = Math.round((item.gstStock + item.nonGstStock) * 100) / 100;
                     
                     await saveRecord('adjustments', adjData);
                     await saveRecord('items', item);

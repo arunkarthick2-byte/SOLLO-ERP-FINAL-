@@ -172,23 +172,36 @@ const getAllFirms = () => getAllRecords('firms');
 const reverseStockImpact = async (storeName, record) => {
     if (record.status === 'Open') return; // Drafts do not reverse Stock
     const isReturn = record.documentType === 'return';
-    const items = await getAllRecords('items');
+    const isNonGST = record.invoiceType === 'Non-GST'; // Identify the stock bucket
     
-    // CRITICAL FIX: Fallback to empty array if record items are missing (corrupted data)
-    for (const row of (record.items || [])) {
+    const items = await getAllRecords('items');
+    const safeItems = Array.isArray(record.items) ? record.items : [];
+    
+    for (const row of safeItems) {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
             
-            // CRITICAL FIX: Force current stock to be a safe number, preventing NaN corruption
-            let currentStock = parseFloat(dbItem.stock) || 0;
+            // 1. Initialize buckets if they don't exist yet (prevents NaN errors on old items)
+            dbItem.gstStock = parseFloat(dbItem.gstStock) || 0;
+            dbItem.nonGstStock = parseFloat(dbItem.nonGstStock) || 0;
             
-            // Reverse the math safely
-            if (storeName === 'sales') {
-                dbItem.stock = Math.round((currentStock + (isReturn ? -qty : qty)) * 100) / 100;
-            } else if (storeName === 'purchases') {
-                dbItem.stock = Math.round((currentStock + (isReturn ? qty : -qty)) * 100) / 100;
+            // 2. Determine reversal direction based on module
+            let impactQty = isReturn ? -qty : qty;
+            if (storeName === 'purchases') {
+                impactQty = isReturn ? qty : -qty;
             }
+            
+            // 3. Apply reversal to the correct isolated bucket
+            if (isNonGST) {
+                dbItem.nonGstStock = Math.round((dbItem.nonGstStock + impactQty) * 100) / 100;
+            } else {
+                dbItem.gstStock = Math.round((dbItem.gstStock + impactQty) * 100) / 100;
+            }
+            
+            // 4. SHADOW SYNC: Always maintain a unified master stock total for global reporting
+            dbItem.stock = Math.round((dbItem.gstStock + dbItem.nonGstStock) * 100) / 100;
+            
             await saveRecord('items', dbItem);
         }
     }
@@ -197,34 +210,60 @@ const reverseStockImpact = async (storeName, record) => {
 const applyStockImpact = async (storeName, record) => {
     if (record.status === 'Open') return; // Drafts do not apply Stock
     const isReturn = record.documentType === 'return';
-    const items = await getAllRecords('items');
+    const isNonGST = record.invoiceType === 'Non-GST'; // Identify the stock bucket
     
-    for (const row of (record.items || [])) {
+    const items = await getAllRecords('items');
+    const safeItems = Array.isArray(record.items) ? record.items : [];
+    
+    for (const row of safeItems) {
         const dbItem = items.find(i => i.id === row.itemId);
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            // CRITICAL FIX: Force current stock to be a safe number, preventing NaN corruption
-            let currentStock = parseFloat(dbItem.stock) || 0; 
             
-            // Apply the math safely
-            if (storeName === 'sales') {
-                dbItem.stock = Math.round((currentStock + (isReturn ? qty : -qty)) * 100) / 100; 
-            } else if (storeName === 'purchases') {
-                dbItem.stock = Math.round((currentStock + (isReturn ? -qty : qty)) * 100) / 100; 
-                
-                // Automatically update buy price to the latest rate (factoring in discounts!)
-                if (!isReturn && row.rate > 0) {
-                    let discountRatio = 0;
-                    
-                    // ENTERPRISE FIX: Calculate true subtotal natively to prevent DOM payload failures
-                    const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
-                    
-                    if (record.discount > 0 && trueSubtotal > 0) {
-                        discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
-                    }
-                    dbItem.buyPrice = row.rate * (1 - discountRatio);
-                }
+            // 1. Initialize buckets safely
+            dbItem.gstStock = parseFloat(dbItem.gstStock) || 0;
+            dbItem.nonGstStock = parseFloat(dbItem.nonGstStock) || 0;
+            
+            // 2. Determine impact direction based on module
+            let impactQty = isReturn ? qty : -qty;
+            if (storeName === 'purchases') {
+                impactQty = isReturn ? -qty : qty;
             }
+            
+            // 3. Route the quantity to the correct isolated bucket
+            if (isNonGST) {
+                dbItem.nonGstStock = Math.round((dbItem.nonGstStock + impactQty) * 100) / 100;
+            } else {
+                dbItem.gstStock = Math.round((dbItem.gstStock + impactQty) * 100) / 100;
+            }
+            
+            // 4. SHADOW SYNC: Roll up total stock for backward compatibility
+            dbItem.stock = Math.round((dbItem.gstStock + dbItem.nonGstStock) * 100) / 100;
+            
+            // 5. Dual Valuation Engine (Purchases Only)
+            if (storeName === 'purchases' && !isReturn && row.rate > 0) {
+                let discountRatio = 0;
+                const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
+                
+                if (record.discount > 0 && trueSubtotal > 0) {
+                    discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
+                }
+                
+                let finalRate = row.rate * (1 - discountRatio);
+
+                if (isNonGST) {
+                    // Capitalize tax into the Non-GST bucket
+                    const taxMultiplier = 1 + ((parseFloat(row.gstPercent) || 0) / 100);
+                    dbItem.nonGstBuyPrice = finalRate * taxMultiplier;
+                } else {
+                    // Standard cost logic for Account / GST bucket
+                    dbItem.gstBuyPrice = finalRate;
+                }
+                
+                // Keep the legacy buyPrice synced to the most recent purchase of ANY type
+                dbItem.buyPrice = isNonGST ? dbItem.nonGstBuyPrice : dbItem.gstBuyPrice;
+            }
+            
             await saveRecord('items', dbItem);
         }
     }

@@ -2,8 +2,8 @@
 // SOLLO ERP - OFFLINE SERVICE WORKER (v5.2 Enterprise)
 // ==========================================
 
-// --- NEW CODE: Bump the version to 8.1 to clear the cache! ---
-const CACHE_NAME = 'sollo-erp-v8.1-final';
+// --- NEW CODE: Bump the version to force the patch! ---
+const CACHE_NAME = 'sollo-erp-v8.2-final'; 
 // --- END OF NEW CODE ---
 
 const TIMEOUT_MS = 3000; // 3-second timeout to defeat Lie-Fi
@@ -25,7 +25,7 @@ const ASSETS_TO_CACHE = [
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js', /* NEW: Enterprise AI Engine */
- /* FIX: Added Excel Engine to Offline Cache */
+    'https://cdn.jsdelivr.net/npm/chart.js', /* FIX: Added Chart.js so dashboard works offline! */
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js'
 ];
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
 
     const url = new URL(event.request.url);
-    const isStaticAsset = url.pathname.endsWith('.css') || url.pathname.endsWith('.js') || url.pathname.endsWith('.png') || url.hostname.includes('fonts') || url.hostname.includes('cdnjs');
+    const isStaticAsset = url.pathname.endsWith('.css') || url.pathname.endsWith('.js') || url.pathname.endsWith('.png') || url.hostname.includes('fonts') || url.hostname.includes('cdnjs') || url.hostname.includes('unpkg') || url.pathname.endsWith('.wasm') || url.pathname.endsWith('traineddata');
 
     if (isStaticAsset) {
         // STRATEGY 1: CACHE-FIRST (For CSS, JS, Fonts, Images)

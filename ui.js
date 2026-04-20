@@ -3,7 +3,8 @@
 // ==========================================
 
 // ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=81';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js';
+
 
 const UI = {
 
@@ -320,6 +321,17 @@ const UI = {
             
             if (activityId === 'activity-sales-form') {
                 UI.state.activeActivity = 'sales';
+                
+                // --- ENTERPRISE UPGRADE 1: AUTO-SAVE DRAFT CHECK ---
+                const banner = document.getElementById('sales-draft-banner');
+                if (banner) {
+                    if (localStorage.getItem('sollo_sales_draft') && (!window.app || !window.app.state.currentRecordId)) {
+                        banner.classList.remove('hidden');
+                    } else {
+                        banner.classList.add('hidden');
+                    }
+                }
+                
             } else if (activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = 'purchase';
             }
@@ -413,7 +425,7 @@ const UI = {
                             <strong style="font-size: 16px; color: ${color};">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
                         </div>
                         <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 4px; font-size: 12px; color: var(--md-text-muted);">
-                            <span>${adj.date}</span>
+                            <span>${adj.date} <strong style="color:var(--md-primary); margin-left:8px;">[${adj.bucket === 'non-gst' ? 'Non-GST' : 'Account'}]</strong></span>
                             <span>${adj.notes || 'No Reason Provided'}</span>
                         </div>
                     </div>
@@ -541,6 +553,7 @@ const UI = {
         
         let finalSubtotal = 0;
         let totalGst = 0;
+        let totalCost = 0; // NEW: Track cost for CEO Badge
 
         rows.forEach(tr => {
             const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
@@ -561,6 +574,8 @@ const UI = {
             totalGst += roundedGst;
 
             const buyPrice = parseFloat(tr.querySelector('.row-item-buyprice').value) || 0;
+            totalCost += (qty * buyPrice); // NEW: Track total cost
+            
             const marginSpan = tr.querySelector('.live-margin');
             if (marginSpan) {
                 const effectiveRate = rate - (rate * discountRatio); 
@@ -585,7 +600,68 @@ const UI = {
             roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
         }
         
-        document.getElementById('sales-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        // ENTERPRISE UPGRADE: INDIAN CURRENCY FORMATTER
+        document.getElementById('sales-grand-total').innerText = window.formatMoney(roundedTotal);
+
+        // ==========================================
+        // ENTERPRISE UPGRADE 2: CEO Live Profit Indicator
+        // ==========================================
+        const ceoBadge = document.getElementById('sales-ceo-margin');
+        if (ceoBadge) {
+            if (finalSubtotal > 0 && totalCost > 0) {
+                const totalProfit = finalSubtotal - totalCost;
+                const marginPercent = ((totalProfit / finalSubtotal) * 100).toFixed(1);
+                
+                ceoBadge.style.display = 'inline-flex';
+                if (totalProfit >= 0) {
+                    ceoBadge.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">trending_up</span> +${marginPercent}% Margin`;
+                    ceoBadge.style.background = '#e8f5e9';
+                    ceoBadge.style.color = '#146c2e';
+                    ceoBadge.style.border = '1px solid #c8e6c9';
+                } else {
+                    ceoBadge.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">trending_down</span> ${marginPercent}% Loss`;
+                    ceoBadge.style.background = '#fff0f2';
+                    ceoBadge.style.color = '#ba1a1a';
+                    ceoBadge.style.border = '1px solid #ffcdd2';
+                }
+            } else {
+                ceoBadge.style.display = 'none';
+            }
+        }
+
+        // ==========================================
+        // ENTERPRISE UPGRADE 1: Auto-Save Draft
+        // ==========================================
+        if (window.app && (!window.app.state || !window.app.state.currentRecordId)) {
+            const draftItems = [];
+            rows.forEach(tr => {
+                draftItems.push({
+                    id: tr.querySelector('.row-item-id').value,
+                    name: tr.querySelector('.row-item-name').value,
+                    uom: tr.querySelector('.row-uom').value,
+                    hsn: tr.querySelector('.row-hsn').value,
+                    qty: tr.querySelector('.row-qty').value,
+                    rate: tr.querySelector('.row-rate').value,
+                    gst: tr.querySelector('.row-gst').value,
+                    buyPrice: tr.querySelector('.row-item-buyprice') ? tr.querySelector('.row-item-buyprice').value : 0
+                });
+            });
+            
+            if (draftItems.length > 0 || document.getElementById('sales-customer-id').value) {
+                const draft = {
+                    customerId: document.getElementById('sales-customer-id').value,
+                    customerName: document.getElementById('sales-customer-display').innerText,
+                    date: document.getElementById('sales-date').value,
+                    invoiceType: document.getElementById('sales-invoice-type').value,
+                    discount: document.getElementById('sales-discount').value,
+                    discountType: document.getElementById('sales-discount-type').value,
+                    freight: document.getElementById('sales-freight').value,
+                    notes: document.getElementById('sales-internal-notes').value,
+                    items: draftItems
+                };
+                localStorage.setItem('sollo_sales_draft', JSON.stringify(draft));
+            }
+        }
     },
 
     calcPurchaseTotals: () => {
@@ -651,7 +727,8 @@ const UI = {
             roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
         }
         
-        document.getElementById('purchase-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        // ENTERPRISE UPGRADE: INDIAN CURRENCY FORMATTER
+        document.getElementById('purchase-grand-total').innerText = window.formatMoney(roundedTotal);
     },
 
     // ==========================================
@@ -972,14 +1049,33 @@ const UI = {
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
                 if(sortOption === 'stock-asc') data.sort((a,b) => (a.stock || 0) - (b.stock || 0));
 
+                // ENTERPRISE UPGRADE: LIVE WAREHOUSE CAPITAL FILTER
+                let filterCapital = 0;
+                data.forEach(i => {
+                    const qty = parseFloat(i.stock) || 0;
+                    const cost = parseFloat(i.buyPrice) || 0;
+                    if (qty > 0) filterCapital += (qty * cost);
+                });
+                const titleEl = document.getElementById('master-view-title');
+                if (titleEl) {
+                    titleEl.innerHTML = `${UI.state.currentMasterTitle} <span style="font-size:11px; background:#fff8e1; color:#f57f17; padding:2px 8px; border-radius:12px; margin-left:8px; border: 1px solid #ffe0b2; vertical-align: middle;">Cap: ${window.formatMoney(filterCapital)}</span>`;
+                }
+
                 UI.renderVirtualList(container, data, (i) => {
                     const currentStock = parseFloat(i.stock) || 0;
+                    const gstStock = parseFloat(i.gstStock) || 0;
+                    const nonGstStock = parseFloat(i.nonGstStock) || 0;
                     const minStock = parseFloat(i.minStock) || 0;
                     const isLowStock = minStock > 0 && currentStock <= minStock;
                     
-                    const stockLabel = isLowStock 
-                        ? `<span style="color:var(--md-error); font-weight:bold;">Stock: ${currentStock} ${i.uom || ''} ⚠️ Low</span>` 
-                        : `Stock: ${currentStock} ${i.uom || ''}`;
+                    const totDisplay = isLowStock 
+                        ? `<span style="color:var(--md-error); font-weight:bold;">Tot: ${currentStock} ⚠️ Low</span>` 
+                        : `Tot: ${currentStock}`;
+
+                    const stockLabel = `
+                        <div style="font-size:13px; color:var(--md-text-muted); margin-top:2px;">${totDisplay}</div>
+                        <div style="font-size:11px; color:var(--md-text-muted); margin-top:2px;">GST: ${gstStock} | Non-GST: ${nonGstStock}</div>
+                    `;
 
                     return UI.renderRowWiseItem(
                         UI.highlightText(i.name || 'Unnamed Product', searchTerm), 
@@ -1423,6 +1519,7 @@ const UI = {
         sales.forEach(s => { 
             if(s.status !== 'Open' && isDateInRange(s.date)) { 
                 const isReturn = s.documentType === 'return';
+                const isNonGST = s.invoiceType === 'Non-GST'; // IDENTIFY SALES BUCKET
                 const modifier = isReturn ? -1 : 1;
 
                 // UX FIX: Show Full Invoice Value (including GST) so it matches your Sales Tab
@@ -1430,8 +1527,15 @@ const UI = {
                 outputGst += (parseFloat(s.totalGst) || 0) * modifier; 
                 
                 (s.items || []).forEach(item => {
-                    const historicalCost = parseFloat(item.buyPrice) || 0;
-                    cogs += ((parseFloat(item.qty) || 0) * historicalCost) * modifier;
+                    // DUAL ENGINE COGS: Pull exact cost basis based on the invoice tax type
+                    const masterItem = UI.state.rawData.items.find(i => i.id === item.itemId);
+                    let exactCost = parseFloat(item.buyPrice) || 0;
+                    
+                    if (masterItem) {
+                        exactCost = isNonGST ? (parseFloat(masterItem.nonGstBuyPrice) || exactCost) : (parseFloat(masterItem.gstBuyPrice) || exactCost);
+                    }
+                    
+                    cogs += ((parseFloat(item.qty) || 0) * exactCost) * modifier;
                 });
             }
         });        
@@ -1479,6 +1583,16 @@ const UI = {
             });
         }
 
+        // --- ENTERPRISE UPGRADE: WAREHOUSE CAPITAL CALCULATION ---
+        let totalWarehouseCapital = 0;
+        UI.state.rawData.items.forEach(item => {
+            const qty = parseFloat(item.stock) || 0;
+            const cost = parseFloat(item.buyPrice) || 0;
+            if (qty > 0 && cost > 0) {
+                totalWarehouseCapital += (qty * cost);
+            }
+        });
+
         // TRUE ACCRUAL PROFIT MATH (Upgraded)
         const netRevenue = (totalSales - outputGst) + indirectIncome; 
         const grossMargin = netRevenue - cogs;
@@ -1502,6 +1616,7 @@ const UI = {
 
         // Update DOM with Animation (Duration: 800ms)
         animateValue('dash-total-sales', 0, totalSales, 800);
+        animateValue('dash-warehouse-capital', 0, totalWarehouseCapital, 800); // Live Capital Animation!
         
         const netProfitEl = document.getElementById('dash-net-profit');
         if(netProfitEl) {
@@ -1964,6 +2079,8 @@ const UI = {
         UI.renderVirtualList(container, items, (item) => {
             const price = parseFloat(isPurchase ? (item.buyPrice || 0) : (item.sellPrice || 0)) || 0;
             const currentStock = parseFloat(item.stock) || 0;
+            const gstStock = parseFloat(item.gstStock) || 0;
+            const nonGstStock = parseFloat(item.nonGstStock) || 0;
             const minStock = parseFloat(item.minStock) || 0;
             const isLowStock = minStock > 0 && currentStock <= minStock;
             
@@ -1972,8 +2089,10 @@ const UI = {
                 <div>
                     <div class="large-text">${item.name || 'Unnamed Product'}</div>
                     <small>
-                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Stock: ${currentStock} ${item.uom || ''} ${isLowStock ? '⚠️' : ''}</span> 
-                        | Rate: \u20B9${price.toFixed(2)}
+                        <span style="color:#0061a4; font-weight:bold;">GST: ${gstStock}</span> | 
+                        <span style="color:#d84315; font-weight:bold;">Non-GST: ${nonGstStock}</span>
+                        ${isLowStock ? '<span style="color:var(--md-error); font-weight:bold;"> ⚠️ Low</span>' : ''}
+                        <br>Total: ${currentStock} ${item.uom || ''} | Rate: \u20B9${price.toFixed(2)}
                     </small>
                 </div>
                 <input type="checkbox" style="width: 20px; height: 20px; pointer-events: none;">
@@ -2202,11 +2321,19 @@ const UI = {
         UI.state.rawData.sales.forEach(s => {
             if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= startDate && s.date <= endDate && s.status !== 'Open') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
+                const isNonGST = s.invoiceType === 'Non-GST'; // IDENTIFY SALES BUCKET
                 const netSales = (parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0); // Profit excludes tax
                 totalRevenue += netSales * modifier;
 
                 (s.items || []).forEach(item => {
-                    const cost = parseFloat(item.buyPrice) || 0;
+                    // DUAL ENGINE COGS: Accurate profit margins based on capitalized tax
+                    const masterItem = UI.state.rawData.items.find(i => i.id === item.itemId);
+                    let cost = parseFloat(item.buyPrice) || 0;
+                    
+                    if (masterItem) {
+                        cost = isNonGST ? (parseFloat(masterItem.nonGstBuyPrice) || cost) : (parseFloat(masterItem.gstBuyPrice) || cost);
+                    }
+                    
                     totalCOGS += ((parseFloat(item.qty) || 0) * cost) * modifier;
                 });
             }
@@ -2347,8 +2474,17 @@ const UI = {
         UI.state.rawData.sales.forEach(s => {
             if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
+                const isNonGST = s.invoiceType === 'Non-GST'; // IDENTIFY SALES BUCKET
                 totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
-                (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
+                
+                (s.items || []).forEach(item => {
+                    const masterItem = UI.state.rawData.items.find(i => i.id === item.itemId);
+                    let cost = parseFloat(item.buyPrice) || 0;
+                    if (masterItem) {
+                        cost = isNonGST ? (parseFloat(masterItem.nonGstBuyPrice) || cost) : (parseFloat(masterItem.gstBuyPrice) || cost);
+                    }
+                    totalCOGS += ((parseFloat(item.qty) || 0) * cost) * modifier;
+                });
             }
         });
         UI.state.rawData.expenses.forEach(e => {
@@ -2385,6 +2521,94 @@ const UI = {
         // FIX: Memory optimization disabled! Pruning arrays from RAM breaks the Address Book's running balance math. 
         // Modern devices have plenty of RAM for text arrays, so we keep all data loaded for perfect accuracy.
         return;
+    },
+
+    restoreSalesDraft: () => {
+        const draftStr = localStorage.getItem('sollo_sales_draft');
+        if (!draftStr) return;
+        try {
+            const draft = JSON.parse(draftStr);
+            
+            if (draft.customerId) {
+                document.getElementById('sales-customer-id').value = draft.customerId;
+                document.getElementById('sales-customer-display').innerText = draft.customerName || 'Selected';
+                document.getElementById('sales-customer-display').style.color = 'var(--md-on-surface)';
+            }
+            if (draft.date) document.getElementById('sales-date').value = draft.date;
+            if (draft.invoiceType) document.getElementById('sales-invoice-type').value = draft.invoiceType;
+            if (draft.discount) document.getElementById('sales-discount').value = draft.discount;
+            if (draft.discountType) document.getElementById('sales-discount-type').value = draft.discountType;
+            if (draft.freight) document.getElementById('sales-freight').value = draft.freight;
+            if (draft.notes) document.getElementById('sales-internal-notes').value = draft.notes;
+            
+            if (draft.items && draft.items.length > 0) {
+                UI.state.selectedProducts = draft.items.map(i => ({
+                    id: i.id, name: i.name, uom: i.uom, hsn: i.hsn,
+                    qty: i.qty, price: i.rate, gst: i.gst, buyPrice: i.buyPrice
+                }));
+                const container = document.getElementById('sales-items-body');
+                container.innerHTML = ''; 
+                
+                const emptyState = document.getElementById('sales-empty-items');
+                if(emptyState) emptyState.style.display = 'none';
+                
+                draft.items.forEach(p => {
+                    const itemCard = document.createElement('div');
+                    itemCard.className = 'item-entry-card m3-card';
+                    itemCard.style.padding = '14px';
+                    itemCard.style.marginBottom = '12px';
+                    itemCard.style.borderLeft = '4px solid var(--md-primary)';
+                    
+                    itemCard.innerHTML = `
+                        <input type="hidden" class="row-item-id" value="${p.id}">
+                        <input type="hidden" class="row-item-name" value="${(p.name || '').replace(/"/g, '&quot;')}">
+                        <input type="hidden" class="row-uom" value="${p.uom || ''}">
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                            <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1;">
+                                ${p.name}
+                                <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                            </div>
+                            <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calcSalesTotals()">delete</span>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                            <div>
+                                <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty</small>
+                                <input type="number" inputmode="decimal" class="row-qty" value="${p.qty}" min="0.01" step="any" oninput="UI.calcSalesTotals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                            </div>
+                            <div>
+                                <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
+                                <input type="number" inputmode="decimal" class="row-rate" value="${p.rate}" step="any" oninput="UI.calcSalesTotals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                            </div>
+                            <div>
+                                <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                                <input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
+                            <div style="display:flex; gap:8px;">
+                                <div>
+                                    <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
+                                    <input type="number" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                                </div>
+                            </div>
+                            <div style="text-align:right;">
+                                <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
+                                <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(itemCard);
+                });
+            }
+            
+            UI.calcSalesTotals();
+            document.getElementById('sales-draft-banner').classList.add('hidden');
+            if (window.Utils) window.Utils.showToast("✅ Draft Restored Successfully!");
+            
+        } catch(e) { console.error("Draft restore error", e); }
     }
 
 }; // <--- MAKE SURE YOU HAVE THIS CLOSING BRACKET AND SEMICOLON!

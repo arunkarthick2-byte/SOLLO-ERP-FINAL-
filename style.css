@@ -2437,3 +2437,91 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
     -webkit-overflow-scrolling: touch !important; /* Vital for iOS Safari */
     overscroll-behavior-y: contain !important;
 }
+/* ==========================================
+   ENTERPRISE FIX: MOBILE SWIPE ZONES
+   ========================================== */
+#sales-items-body > div, 
+#purchase-items-body > div {
+    min-width: 320px; /* Forces the row to keep its shape so you can smoothly swipe left/right! */
+}
+/* ==========================================
+   ENTERPRISE FIX: ANDROID KEYBOARD COLLISION
+   ========================================== */
+/* When the virtual keyboard opens, the screen height shrinks. 
+   This safely hides the floating navs so they don't block the user's typing! */
+@media screen and (max-height: 600px) {
+    .bottom-nav { 
+        display: none !important; 
+    }
+    .floating-action-button { 
+        display: none !important; 
+    }
+    .screen-section {
+        padding-bottom: 20px !important; /* Removes the extra padding meant for the nav bar */
+    }
+}
+/* ==========================================
+   ENTERPRISE FIX: ANDROID NATIVE SLIDE TRANSITIONS
+   ========================================== */
+.activity-screen:not(.hidden) {
+    animation: androidSlideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+}
+
+@keyframes androidSlideIn {
+    0% { 
+        transform: translateX(100%); 
+        opacity: 0.8; 
+    }
+    100% { 
+        transform: translateX(0); 
+        opacity: 1; 
+    }
+}
+/* ==========================================
+   ENTERPRISE UX: STICKY CHECKOUT BAR
+   ========================================== */
+.sticky-bottom-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--md-surface);
+    padding: 16px 20px;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.1);
+    border-top: 1px solid var(--md-outline-variant);
+    z-index: 100;
+    margin: 24px -20px -40px -20px; /* Stretches edge-to-edge to bypass screen padding */
+    border-radius: 24px 24px 0 0;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    background: rgba(253, 252, 255, 0.95); /* Slight transparency for that premium iOS/Glassmorphism look */
+}
+/* ==========================================
+   ENTERPRISE UX: MATERIAL FORM FOCUS HIGHLIGHT
+   ========================================== */
+/* Smoothly animates the label color when the input below it is tapped */
+.form-group {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.form-group:focus-within label {
+    color: var(--md-primary) !important;
+    font-weight: 700 !important;
+}
+
+/* Adds a beautiful Apple-style glowing halo and slight lift to active inputs */
+.form-group input:focus, 
+.form-group select:focus, 
+.form-group textarea:focus {
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 0 0 4px var(--md-primary-container) !important;
+    transform: translateY(-2px);
+    background: var(--md-surface) !important;
+    outline: none !important;
+}
+
+/* Ensures transitions are silky smooth */
+.form-group input, 
+.form-group select, 
+.form-group textarea {
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}

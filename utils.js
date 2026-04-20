@@ -2,7 +2,7 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v5.2 Enterprise)
 // ==========================================
 
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=81';
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js';
 
 const Utils = {
     // ==========================================
@@ -488,6 +488,14 @@ const Utils = {
         if (isNonGST && !isReturn) title = isSales ? 'BILL OF SUPPLY' : 'PURCHASE RECORD';
         if (isReturn) title = isSales ? 'CREDIT NOTE' : 'DEBIT NOTE';
 
+        // --- ENTERPRISE UPGRADE: DYNAMIC THEME MATRIX ---
+        const themeSetting = localStorage.getItem('sollo_invoice_theme') || 'modern';
+        const theme = {
+            modern:  { main: '#0061a4', light: '#f0f4f8', box: '#f8fafc', text: '#2d3748', border: '#e2e8f0', darkText: '#1a202c' },
+            classic: { main: '#111111', light: '#f5f5f5', box: '#ffffff', text: '#333333', border: '#dddddd', darkText: '#000000' },
+            elegant: { main: '#2c3e50', light: '#ecf0f1', box: '#fafbfc', text: '#55606f', border: '#bdc3c7', darkText: '#2c3e50' }
+        }[themeSetting] || { main: '#0061a4', light: '#f0f4f8', box: '#f8fafc', text: '#2d3748', border: '#e2e8f0', darkText: '#1a202c' };
+
         let itemsHtml = '';
         let rawSubtotal = 0;
         
@@ -497,13 +505,13 @@ const Utils = {
             
             itemsHtml += `
                 <tr>
-                    <td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${index + 1}</td>
-                    <td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; font-weight: 500; color: #1a1c1e;">${item.name}</td>
-                    ${!isNonGST ? `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${item.hsn || '-'}</td>` : ''}
-                    <td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${item.qty} ${item.uom}</td>
-                    <td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align:right;">${parseFloat(item.rate).toFixed(2)}</td>
-                    ${!isNonGST ? `<td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align:center;">${item.gstPercent}%</td>` : ''}
-                    <td style="padding: 10px 8px; border-bottom: 1px solid #e0e0e0; text-align:right; font-weight:bold; color: #1a1c1e;">${rowTotal.toFixed(2)}</td>
+                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${index + 1}</td>
+                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; font-weight: 500; color: ${theme.darkText};">${item.name}</td>
+                    ${!isNonGST ? `<td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${item.hsn || '-'}</td>` : ''}
+                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${item.qty} ${item.uom}</td>
+                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:right;">${parseFloat(item.rate).toFixed(2)}</td>
+                    ${!isNonGST ? `<td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${item.gstPercent}%</td>` : ''}
+                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:right; font-weight:bold; color: ${theme.darkText};">${rowTotal.toFixed(2)}</td>
                 </tr>
             `;
         });
@@ -513,48 +521,47 @@ const Utils = {
         const safeDocNo = doc.invoiceNo || doc.poNo || 'DRAFT';
 
         const html = `
-            <div id="pdf-invoice-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden; color: #2d3748;">
+            <div id="pdf-invoice-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden; color: ${theme.text};">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
                 <style>
                     #pdf-invoice-wrapper * { position: relative; z-index: 1; }
                     #pdf-invoice-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; page-break-inside: auto; }
-                    #pdf-invoice-wrapper th { background-color: #f0f4f8; color: #0061a4; text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; border-bottom: 2px solid #0061a4; padding: 10px 8px; }
-                    #pdf-invoice-wrapper td { border-bottom: 1px solid #e2e8f0; padding: 10px 8px; color: #2d3748; }
-                    /* ENTERPRISE FIX: Added !important tags to physically block rows from cutting in half */
+                    #pdf-invoice-wrapper th { background-color: ${theme.light}; color: ${theme.main}; text-transform: uppercase; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; border-bottom: 2px solid ${theme.main}; padding: 10px 8px; }
+                    #pdf-invoice-wrapper td { border-bottom: 1px solid ${theme.border}; padding: 10px 8px; color: ${theme.text}; }
                     #pdf-invoice-wrapper tr { page-break-inside: avoid !important; break-inside: avoid !important; }
                     #pdf-invoice-wrapper thead { display: table-header-group; }
                 </style>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 25px; border-bottom: 4px solid #f0f4f8;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 25px; border-bottom: 4px solid ${theme.light};">
                     <div style="display: flex; align-items: center; gap: 15px; max-width: 60%;">
                         ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; border-radius: 4px;" />` : ''}
                         <div>
-                            <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #1a202c; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
-                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">${biz.address || ''}</p>
-                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">Ph: ${biz.phone || ''} &nbsp;|&nbsp; <strong style="color:#0061a4;">GSTIN: ${bizGst}</strong></p>
+                            <h1 style="margin: 0 0 4px 0; font-size: 24px; color: ${theme.darkText}; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
+                            <p style="margin: 2px 0; font-size: 11px; color: ${theme.text}; opacity: 0.8;">${biz.address || ''}</p>
+                            <p style="margin: 2px 0; font-size: 11px; color: ${theme.text}; opacity: 0.8;">Ph: ${biz.phone || ''} &nbsp;|&nbsp; <strong style="color:${theme.main};">GSTIN: ${bizGst}</strong></p>
                         </div>
                     </div>
                     <div style="text-align: right;">
-                        <h2 style="margin: 0 0 5px 0; font-size: 28px; color: #0061a4; letter-spacing: 2px; text-transform: uppercase; font-weight: 300;">${title}</h2>
-                        <p style="margin: 0; font-size: 13px; font-weight: bold; color: #4a5568;"># ${safeDocNo}</p>
+                        <h2 style="margin: 0 0 5px 0; font-size: 28px; color: ${theme.main}; letter-spacing: 2px; text-transform: uppercase; font-weight: 300;">${title}</h2>
+                        <p style="margin: 0; font-size: 13px; font-weight: bold; color: ${theme.darkText}; opacity: 0.8;"># ${safeDocNo}</p>
                     </div>
                 </div>
                 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-                    <div style="width: 48%; background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid #0061a4;">
-                        <p style="margin: 0 0 8px 0; font-size: 10px; color: #718096; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Billed To</p>
-                        <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: bold; color: #1a202c;">${partyName}</p>
-                        ${partyAddress ? `<p style="margin: 0 0 4px 0; font-size: 11px; color: #4a5568; white-space: pre-wrap; line-height: 1.4;">${partyAddress}</p>` : ''}
-                        ${!isNonGST && partyGst ? `<p style="margin: 6px 0 0 0; font-size: 11px; font-weight: bold; color: #0061a4;">GSTIN: ${partyGst}</p>` : ''}
+                    <div style="width: 48%; background: ${theme.box}; padding: 15px; border-radius: 8px; border-left: 4px solid ${theme.main}; border-top: 1px solid ${theme.border}; border-right: 1px solid ${theme.border}; border-bottom: 1px solid ${theme.border};">
+                        <p style="margin: 0 0 8px 0; font-size: 10px; color: ${theme.text}; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Billed To</p>
+                        <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: bold; color: ${theme.darkText};">${partyName}</p>
+                        ${partyAddress ? `<p style="margin: 0 0 4px 0; font-size: 11px; color: ${theme.text}; white-space: pre-wrap; line-height: 1.4;">${partyAddress}</p>` : ''}
+                        ${!isNonGST && partyGst ? `<p style="margin: 6px 0 0 0; font-size: 11px; font-weight: bold; color: ${theme.main};">GSTIN: ${partyGst}</p>` : ''}
                     </div>
                     <div style="width: 45%;">
                         <table style="width: 100%; font-size: 11px; margin-bottom:0; border: none;">
-                            <tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Invoice Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${Utils.formatDateDisplay(doc.date)}</td></tr>
-                            ${doc.orderNo ? `<tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Order Ref:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${doc.orderNo}</td></tr>` : ''}
-                            ${doc.shippedDate ? `<tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Dispatch Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #1a202c;">${Utils.formatDateDisplay(doc.shippedDate)}</td></tr>` : ''}
-                            <tr><td style="color: #718096; padding: 4px 0; border:none; font-weight: bold;">Status:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: #0061a4;">${doc.status}</td></tr>
+                            <tr><td style="color: ${theme.text}; opacity: 0.9; padding: 4px 0; border:none; font-weight: bold;">Invoice Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: ${theme.darkText};">${Utils.formatDateDisplay(doc.date)}</td></tr>
+                            ${doc.orderNo ? `<tr><td style="color: ${theme.text}; opacity: 0.9; padding: 4px 0; border:none; font-weight: bold;">Order Ref:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: ${theme.darkText};">${doc.orderNo}</td></tr>` : ''}
+                            ${doc.shippedDate ? `<tr><td style="color: ${theme.text}; opacity: 0.9; padding: 4px 0; border:none; font-weight: bold;">Dispatch Date:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: ${theme.darkText};">${Utils.formatDateDisplay(doc.shippedDate)}</td></tr>` : ''}
+                            <tr><td style="color: ${theme.text}; opacity: 0.9; padding: 4px 0; border:none; font-weight: bold;">Status:</td><td style="font-weight: bold; text-align:right; padding: 4px 0; border:none; color: ${theme.main};">${doc.status}</td></tr>
                         </table>
                     </div>
                 </div>
@@ -577,26 +584,26 @@ const Utils = {
                 </table>
 
                 <div class="avoid-break" style="display: flex; justify-content: space-between; align-items: flex-start; page-break-inside: avoid; margin-top: 15px;">
-                    <div style="width: 45%; font-size: 10px; color: #718096; line-height: 1.5;">
+                    <div style="width: 45%; font-size: 10px; color: ${theme.text}; line-height: 1.5; opacity: 0.9;">
                         ${biz.bankDetails ? `
                         <div style="margin-bottom: 15px;">
-                            <strong style="color: #2d3748; font-size: 11px; text-transform: uppercase;">Bank Details</strong><br>
+                            <strong style="color: ${theme.darkText}; font-size: 11px; text-transform: uppercase;">Bank Details</strong><br>
                             <span style="white-space: pre-wrap;">${biz.bankDetails}</span>
                         </div>` : ''}
                         <div>
-                            <strong style="color: #2d3748; text-transform: uppercase;">Terms & Conditions:</strong><br>
+                            <strong style="color: ${theme.darkText}; text-transform: uppercase;">Terms & Conditions:</strong><br>
                             <span style="white-space: pre-wrap;">${biz.terms ? biz.terms : '1. Subject to local jurisdiction.\\n2. This is a computer-generated document.'}</span>
                         </div>
                     </div>
 
                     <div style="width: 50%;">
                         <table style="width: 100%; border: none; font-size: 12px;">
-                            <tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Subtotal:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${rawSubtotal.toFixed(2)}</td></tr>
-                            ${discountAmt > 0 ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Discount:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#e53e3e; border:none;">-&#8377;${discountAmt.toFixed(2)}</td></tr>` : ''}
-                            ${!isNonGST ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Total GST:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
-                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 6px 8px; color: #4a5568; border:none;">Freight / Extra:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#1a202c; border:none;">&#8377;${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
+                            <tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Subtotal:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${rawSubtotal.toFixed(2)}</td></tr>
+                            ${discountAmt > 0 ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Discount:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#e53e3e; border:none;">-&#8377;${discountAmt.toFixed(2)}</td></tr>` : ''}
+                            ${!isNonGST ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Total GST:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
+                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Freight / Extra:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
                             
-                            <tr><td colspan="2" style="padding: 0; border: none;"><div style="background-color: #0061a4; color: white; border-radius: 6px; margin-top: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <tr><td colspan="2" style="padding: 0; border: none;"><div style="background-color: ${theme.main}; color: #ffffff; border-radius: 6px; margin-top: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-weight:bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Grand Total</span>
                                 <span style="font-size: 18px; font-weight:bold;">&#8377;${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</span>
                             </div></td></tr>
@@ -617,35 +624,22 @@ const Utils = {
                     </div>
                 </div>
 
-                <div class="avoid-break" style="margin-top: 15px; border-top: 1px dashed #cbd5e0; padding-top: 15px; page-break-inside: avoid;">
-                    <p style="margin: 0; font-size: 11px; color: #4a5568;"><strong>Amount in Words:</strong> <span style="text-transform: capitalize; color: #1a202c;">${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span></p>
+                <div class="avoid-break" style="margin-top: 15px; border-top: 1px dashed ${theme.border}; padding-top: 15px; page-break-inside: avoid;">
+                    <p style="margin: 0; font-size: 11px; color: ${theme.text};"><strong>Amount in Words:</strong> <span style="text-transform: capitalize; color: ${theme.darkText};">${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span></p>
                 </div>
 
                 <div class="avoid-break" style="margin-top: 30px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
                     <div style="width: 200px; text-align: center;">
                         ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 5px;"></div>'}
-                        <div style="border-top: 1px solid #cbd5e0; padding-top: 5px; font-weight: bold; font-size: 11px; color: #2d3748;">Authorized Signatory</div>
+                        <div style="border-top: 1px solid ${theme.border}; padding-top: 5px; font-weight: bold; font-size: 11px; color: ${theme.darkText};">Authorized Signatory</div>
                     </div>
                 </div>
             </div>
         `;
-        
-        // --- ENTERPRISE UPGRADE: PREMIUM PDF THEMES ---
-        let themedHtml = html;
-        const theme = localStorage.getItem('sollo_invoice_theme') || 'modern';
-        
-        if (theme === 'classic') {
-            // Classic Black & White
-            themedHtml = themedHtml.replace(/#0061a4/g, '#000000').replace(/#f0f4f8/g, '#f2f2f2').replace(/#f8fafc/g, '#ffffff');
-        } else if (theme === 'elegant') {
-            // Dark Slate & Minimalist
-            themedHtml = themedHtml.replace(/#0061a4/g, '#2c3e50').replace(/#f0f4f8/g, '#ecf0f1').replace(/#f8fafc/g, '#fdfdfd');
-        }
-        // --- END OF THEME ENGINE ---
 
         const printArea = document.getElementById('print-area');
         if (printArea) {
-            printArea.innerHTML = themedHtml; // FIX: Pushing the themed HTML instead of the default!
+            printArea.innerHTML = html; 
             setTimeout(() => {
                 const safeFilenameDocNo = String(safeDocNo).replace(/[^a-zA-Z0-9_.-]/g, '-');
                 Utils.processPDFExport('pdf-invoice-wrapper', `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`);
@@ -1057,11 +1051,9 @@ const Utils = {
             return alert("AI Engine is loading. Please check your internet connection.");
         }
 
-        // 1. Create an invisible file input that triggers Camera or Gallery!
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
-        // FIX: Removed the 'capture' attribute so Chrome is forced to show the "Camera vs Gallery" menu!
 
         input.onchange = async (e) => {
             const file = e.target.files[0];
@@ -1070,10 +1062,8 @@ const Utils = {
             if (window.Utils) window.Utils.showToast("🤖 AI is reading the document... Please wait.");
 
             try {
-                // 1. Compress image to make AI processing much faster
                 const compressedImage = await Utils.compressImage(file, 1200, 0.7);
 
-                // 2. ENTERPRISE FIX: Apply OCR Pre-Processing (High-Contrast Grayscale)
                 if (window.Utils) window.Utils.showToast("Enhancing document clarity...");
                 const enhancedImage = await new Promise((resolve) => {
                     const img = new Image();
@@ -1082,51 +1072,44 @@ const Utils = {
                         canvas.width = img.width;
                         canvas.height = img.height;
                         const ctx = canvas.getContext('2d');
-                        
                         ctx.drawImage(img, 0, 0);
                         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                         const data = imageData.data;
-                        
-                        // Boost contrast by 50% to make faded receipt text completely black
                         const contrast = 1.5; 
                         const intercept = 128 * (1 - contrast);
-                        
                         for (let i = 0; i < data.length; i += 4) {
-                            // Convert to Grayscale
                             const grayscale = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
-                            // Apply Contrast
                             let finalColor = (grayscale * contrast) + intercept;
                             if (finalColor > 255) finalColor = 255;
                             if (finalColor < 0) finalColor = 0;
-                            // Set R, G, B to the new high-contrast pixel
                             data[i] = data[i+1] = data[i+2] = finalColor; 
                         }
-                        
                         ctx.putImageData(imageData, 0, 0);
                         resolve(canvas.toDataURL('image/jpeg', 0.9));
                     };
                     img.src = compressedImage;
                 });
 
-                // 3. Run the OCR Engine on the crystal clear image!
                 const result = await Tesseract.recognize(enhancedImage, 'eng', {
                     logger: m => console.log("AI Progress:", m)
                 });
 
-                const text = result.data.text;
+                // ENTERPRISE FIX: Safely extract text and catch offline initialization crashes!
+                const text = result?.data?.text || result?.text || "";
+                if (!text) throw new Error("AI Engine failed to initialize offline.");
+
                 Utils.processAIText(text, moduleType);
 
             } catch (err) {
                 console.error("AI Scan Failed:", err);
-                alert("AI Engine failed to read the image. Please try a clearer photo.");
+                alert("AI Engine failed to read the image. Please check your internet if this is your first scan, or try a clearer photo.");
             }
         };
         
-        input.click(); // Open the camera/gallery
+        input.click(); 
     },
 
     processAIText: (text, moduleType) => {
-        // 2. Regex Pattern Matching to hunt down Enterprise Data
         const gstinMatch = text.match(/\b([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})\b/i);
         const amountMatch = text.match(/(?:total|amount|grand|net|payable|pay|sum)[\s:.-]*([₹$€£]?\s*[\d,]+\.\d{2})/i);
         const invMatch = text.match(/(?:inv|invoice|bill|receipt|ref|no|po)[\s:.-]*([A-Z0-9-/]+)/i);
@@ -1139,7 +1122,6 @@ const Utils = {
             date: dateMatch ? dateMatch[1].replace(/\./g, '-') : ''
         };
 
-        // 3. THE REVIEW STEP: Alert the user with what the AI found
         let msg = "🤖 AI Scan Complete! Please verify:\n\n";
         if (extracted.invNo) msg += `Document No: ${extracted.invNo}\n`;
         if (extracted.amount) msg += `Total Amount: ₹${extracted.amount}\n`;
@@ -1149,9 +1131,7 @@ const Utils = {
 
         alert(msg);
 
-        // 4. Safe Auto-Fill Logic (With Event Dispatchers)
         try {
-            // Helper function to inject value AND trigger the app's calculation listeners
             const triggerInput = (id, val) => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -1161,7 +1141,6 @@ const Utils = {
                 }
             };
 
-            // ENTERPRISE FIX: Mapped the AI outputs to your exact index.html form IDs!
             if (moduleType === 'expense') {
                 if (extracted.amount) triggerInput('exp-amount', extracted.amount);
                 if (extracted.invNo) triggerInput('expense-no', extracted.invNo);
@@ -1180,19 +1159,17 @@ const Utils = {
             console.log("Auto-fill safely skipped.", e);
         }
     }
+
 }; // <--- THIS CLOSES THE UTILS OBJECT
 
 // ==========================================
 // NEW CODE: ES MODULE EXPORT & GLOBAL MAP
 // ==========================================
-// 1. Export the module so app.js can import it safely
 export default Utils; 
-
-// 2. Attach to window so index.html onclick="Utils..." buttons don't break!
 window.Utils = Utils; 
+
 // ==========================================
 // ENTERPRISE UPGRADE: DEBOUNCE ENGINE
-// Prevents keyboard lag during live search
 // ==========================================
 window.Utils.debounce = (func, delay) => {
     let timeoutId;

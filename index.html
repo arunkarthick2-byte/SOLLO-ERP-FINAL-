@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" id="meta-theme-color" content="#0061a4">
     
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://apis.google.com https://accounts.google.com data: blob:;">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
@@ -26,18 +28,20 @@
         });
     </script>
 
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" as="style">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" as="style">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js" defer></script>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=81">
+    <link rel="stylesheet" href="style.css?v=82">
     <link rel="manifest" href="./manifest.json"> 
 
     <style>
@@ -78,7 +82,7 @@
             
             <div id="tab-dashboard" class="screen-section active-screen">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <strong style="font-size: 18px;">Business Overview</strong>
+                    <strong style="font-size: 18px;" class="tap-target" onclick="if(window.triggerDevConsole) window.triggerDevConsole()">Business Overview</strong>
                     <select id="dashboard-date-filter" style="width: auto; padding: 4px 8px; font-size: 14px; border:none; background:var(--md-surface-variant); border-radius:16px;" onchange="UI.renderDashboard()">
                         <option value="today">Today</option>
                         <option value="month" selected>This Month</option>
@@ -100,6 +104,15 @@
                             <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px; animation-delay: 0.1s;"></div>
                         </div>
                         <small id="profit-breakdown" style="font-size: 10px; color: var(--md-text-muted); display: block; margin-top: 4px; min-height: 12px;"></small>
+                    </div>
+                    <div class="m3-card" style="grid-column: span 2; display: flex; justify-content: space-between; align-items: center; background: #fff8e1; border: 1px solid #ffe0b2;">
+                        <div>
+                            <small style="color: #d84315; font-weight: bold; text-transform: uppercase; font-size: 11px;">Warehouse Capital (Live)</small>
+                            <div class="large-text" id="dash-warehouse-capital" style="font-size: 22px; margin-top: 2px; color: #f57f17; min-height: 24px;">
+                                <div class="skeleton-card" style="height: 20px; width: 120px; margin: 0; border-radius: 4px; background: #ffe0b2;"></div>
+                            </div>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: #f57f17; font-size: 36px; opacity: 0.8;">inventory_2</span>
                     </div>
                 </div>
 
@@ -349,8 +362,8 @@
             <div style="height: 80px;"></div>
         </main>
         
-        <button id="main-fab" class="floating-action-button tap-target" onclick="handleSmartFab()">
-            <span id="smart-fab-icon" class="material-symbols-outlined" style="transition: transform 0.2s ease-in-out;">add</span>
+        <button id="main-fab" class="floating-action-button tap-target" onclick="handleSmartFab()" aria-label="Open Create New Document Menu" aria-haspopup="true" aria-expanded="false">
+            <span id="smart-fab-icon" class="material-symbols-outlined" style="transition: transform 0.2s ease-in-out;" aria-hidden="true">add</span>
         </button>
 
         <nav class="bottom-nav">
@@ -422,6 +435,17 @@
                     AI Auto-Fill from Document
                 </button>
 
+                <div id="sales-draft-banner" class="m3-card hidden" style="background: #fff8e1; border: 1px solid #ffe0b2; margin-bottom: 16px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: #f57f17; font-size: 14px; display: flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 16px;">restore_page</span> Unsaved Draft Found</strong>
+                        <small style="color: #d84315;">Restore your previous work?</small>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <span class="material-symbols-outlined tap-target" style="color: var(--md-error); padding: 4px;" onclick="localStorage.removeItem('sollo_sales_draft'); document.getElementById('sales-draft-banner').classList.add('hidden');">delete</span>
+                        <button type="button" class="btn-primary-small" style="background: #f57f17;" onclick="if(window.UI) window.UI.restoreSalesDraft()">Restore</button>
+                    </div>
+                </div>
+
                 <div class="m3-card" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) { window.UI.state.currentPrefix = 'sales'; window.UI.openBottomSheet('sheet-customers'); }">
                     <div>
                         <small style="color: var(--md-text-muted);">Billed To *</small>
@@ -452,11 +476,17 @@
                     <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="sales-invoice-type" onchange="UI.calcSalesTotals()"><option value="B2B">B2B (GST)</option><option value="B2C">B2C (GST)</option><option value="Non-GST">Bill of Supply (No GST)</option></select></div>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group" style="margin-bottom: 0;"><label>Order Ref</label><input type="text" id="sales-order-no"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>Order Date</label><input type="date" id="sales-order-date"></div>
-                    <div class="form-group hidden" id="sales-shipped-date-group" style="margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="sales-shipped-date"></div>
-                    <div class="form-group hidden" id="sales-completed-date-group" style="margin-bottom: 0;"><label>Completed Date</label><input type="date" id="sales-completed-date"></div>
+                <div class="tap-target" onclick="document.getElementById('sales-advanced-section').classList.toggle('hidden')" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 12px; color: var(--md-primary); font-weight: bold; background: var(--md-primary-container); border-radius: 12px; margin-bottom: 12px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">tune</span> Show Advanced Details
+                </div>
+
+                <div id="sales-advanced-section" class="hidden">
+                    <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;"><label>Order Ref</label><input type="text" id="sales-order-no"></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label>Order Date</label><input type="date" id="sales-order-date"></div>
+                        <div class="form-group hidden" id="sales-shipped-date-group" style="margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="sales-shipped-date"></div>
+                        <div class="form-group hidden" id="sales-completed-date-group" style="margin-bottom: 0;"><label>Completed Date</label><input type="date" id="sales-completed-date"></div>
+                    </div>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
@@ -464,7 +494,7 @@
                         <strong class="large-text">Items</strong>
                         <button type="button" class="btn-primary-small" onclick="if(window.UI) window.UI.openBottomSheet('sheet-products')">+ Add Item</button>
                     </div>
-                    <div id="sales-items-body" style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--md-background);"></div>
+                    <div id="sales-items-body" style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--md-background); overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
                     <div id="sales-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
                 </div>
 
@@ -487,7 +517,10 @@
                         <strong id="sales-round-off">0.00</strong>
                     </div>
                     <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
-                    <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="sales-grand-total">&#8377;0.00</strong></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 18px; color: var(--md-primary);">
+                        <strong style="display: flex; align-items: center;">Grand Total: <span id="sales-ceo-margin" style="font-size: 12px; padding: 2px 8px; border-radius: 12px; margin-left: 8px; display: none;"></span></strong>
+                        <strong id="sales-grand-total">&#8377;0.00</strong>
+                    </div>
                 </div>
 
                 <div id="sales-payment-history-card" class="m3-card hidden" style="margin-bottom: 24px; border: 1px solid var(--md-outline-variant);">
@@ -567,11 +600,17 @@
                     <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()"><option value="B2B">B2B (ITC Claimable)</option><option value="Non-GST">Non-GST / Exempt</option></select></div>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group" style="margin-bottom: 0;"><label>Our PO No</label><input type="text" id="purchase-order-no"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>Order Date</label><input type="date" id="purchase-order-date"></div>
-                    <div class="form-group hidden" id="purchase-shipped-date-group" style="margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="purchase-shipped-date"></div>
-                    <div class="form-group hidden" id="purchase-completed-date-group" style="margin-bottom: 0;"><label>Completed Date</label><input type="date" id="purchase-completed-date"></div>
+                <div class="tap-target" onclick="document.getElementById('purchase-advanced-section').classList.toggle('hidden')" style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 12px; color: var(--md-primary); font-weight: bold; background: var(--md-primary-container); border-radius: 12px; margin-bottom: 12px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">tune</span> Show Advanced Details
+                </div>
+
+                <div id="purchase-advanced-section" class="hidden">
+                    <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;"><label>Our PO No</label><input type="text" id="purchase-order-no"></div>
+                        <div class="form-group" style="margin-bottom: 0;"><label>Order Date</label><input type="date" id="purchase-order-date"></div>
+                        <div class="form-group hidden" id="purchase-shipped-date-group" style="margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="purchase-shipped-date"></div>
+                        <div class="form-group hidden" id="purchase-completed-date-group" style="margin-bottom: 0;"><label>Completed Date</label><input type="date" id="purchase-completed-date"></div>
+                    </div>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
@@ -579,7 +618,7 @@
                         <strong class="large-text">Items Received</strong>
                         <button type="button" class="btn-primary-small" onclick="if(window.UI) window.UI.openBottomSheet('sheet-products')">+ Add Item</button>
                     </div>
-                    <div id="purchase-items-body" style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--md-background);"></div>
+                    <div id="purchase-items-body" style="display: flex; flex-direction: column; gap: 12px; padding: 12px; background: var(--md-background); overflow-x: auto; -webkit-overflow-scrolling: touch;"></div>
                     <div id="purchase-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
                 </div>
 
@@ -700,6 +739,9 @@
                 <span style="font-size: 18px; font-weight: 500;">Product Details</span>
             </div>
             <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-view-stock-ledger" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: #e3f2fd; color: #0061a4;">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">history</span>
+                </div>
                 <div id="btn-delete-product" class="icon-circle tap-target hidden" onclick="app.deleteRecord('product')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
@@ -712,33 +754,68 @@
                     AI Scan Price Tag / Box
                 </button>
 
-                <div class="form-group"><label for="prod-name">Product Name *</label><input type="text" id="prod-name" name="name" required></div>
-                
-                <div class="form-group">
-                    <label for="prod-img">Product Image</label>
-                    <input type="file" id="prod-img" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('product-image-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                    <img id="product-image-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
-                </div>
-
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label for="prod-sell">Sell Price (&#8377;) *</label><input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="0.01" required></div>
-                    <div class="form-group" style="flex: 1;"><label for="prod-buy">Buy Price (&#8377;)</label><input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="0.01"></div>
-                </div>
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label for="prod-stock">Opening Stock</label><input type="number" id="prod-stock" inputmode="decimal" name="stock" value="0" step="0.01"></div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>Unit (UOM) *</label>
-                        <div style="display: flex; gap: 8px;">
-                            <select name="uom" id="product-uom-select" style="flex: 1;" required></select>
-                            <button type="button" class="btn-primary-small" style="padding: 0 8px; border-radius: 8px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
+                <div class="m3-card" style="margin-bottom: 16px;">
+                    <strong style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:var(--md-primary); font-size: 15px;"><span class="material-symbols-outlined" style="font-size: 18px;">info</span> Core Details</strong>
+                    
+                    <div class="form-group"><label for="prod-name">Product Name *</label><input type="text" id="prod-name" name="name" required autocapitalize="words" enterkeyhint="next"></div>
+                    
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Product Image</label>
+                        <div style="display: flex; align-items: center; gap: 16px; margin-top: 8px;">
+                            <label for="prod-img" class="tap-target" style="width: 80px; height: 80px; border: 2px dashed var(--md-outline-variant); border-radius: 12px; display: flex; justify-content: center; align-items: center; background: var(--md-surface-variant); color: var(--md-outline); cursor: pointer; overflow: hidden; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" id="prod-img-icon" style="font-size: 28px;">add_a_photo</span>
+                                <img id="product-image-preview" class="hidden" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
+                            </label>
+                            <div style="flex: 1; font-size: 12px; color: var(--md-text-muted); line-height: 1.4;">Tap the box to upload a photo of the item or scan its physical price tag.</div>
+                            <input type="file" id="prod-img" accept="image/*" class="hidden" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('product-image-preview'); img.src = compressedStr; img.classList.remove('hidden'); document.getElementById('prod-img-icon').style.display = 'none'; }); }">
                         </div>
                     </div>
                 </div>
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label>Low Stock Alert</label><input type="number" inputmode="decimal" name="minStock" value="5" step="any"></div>
-                    <div class="form-group" style="flex: 1;"><label>GST %</label><input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any"></div>
+
+                <div class="m3-card" style="margin-bottom: 16px;">
+                    <strong style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:var(--md-primary); font-size: 15px;"><span class="material-symbols-outlined" style="font-size: 18px;">sell</span> Pricing & Tax</strong>
+                    
+                    <div style="display: flex; gap: 12px;">
+                        <div class="form-group" style="flex: 1;"><label for="prod-sell">Sell Price (&#8377;) *</label><input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="0.01" required></div>
+                        <div class="form-group" style="flex: 1;"><label for="prod-buy">Buy Cost (&#8377;)</label><input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="0.01"></div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-bottom: 0;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Tax (GST %)</label><input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any"></div>
+                        <div class="form-group" style="flex: 2; margin-bottom: 0;"><label>HSN / SAC Code</label><input type="text" name="hsn"></div>
+                    </div>
                 </div>
-                <div class="form-group"><label>HSN / SAC Code</label><input type="text" name="hsn"></div>
+
+                <div class="m3-card" style="margin-bottom: 16px;">
+                    <strong style="display:flex; align-items:center; gap:8px; margin-bottom:12px; color:var(--md-primary); font-size: 15px;"><span class="material-symbols-outlined" style="font-size: 18px;">inventory_2</span> Inventory Settings</strong>
+                    
+                    <div style="display: flex; gap: 12px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Unit (UOM) *</label>
+                            <div style="display: flex; gap: 8px;">
+                                <select name="uom" id="product-uom-select" style="flex: 1;" required></select>
+                                <button type="button" class="btn-primary-small tap-target" style="padding: 0 8px; border-radius: 8px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="flex: 1;"><label>Low Stock Alert</label><input type="number" inputmode="decimal" name="minStock" value="5" step="any"></div>
+                    </div>
+                    
+                    <div style="background: var(--md-background); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <strong style="font-size:12px; color:var(--md-on-surface); text-transform: uppercase; letter-spacing: 0.5px;">Opening Stock Balances</strong>
+                            <strong style="font-size:13px; color:var(--md-primary); background: var(--md-primary-container); padding: 2px 8px; border-radius: 12px;">Total: <span id="prod-total-stock-badge">0</span></strong>
+                        </div>
+                        <div style="display: flex; gap: 12px;">
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label for="prod-gst-stock" style="color: #0061a4; font-weight: bold;">GST Stock</label>
+                                <input type="number" id="prod-gst-stock" inputmode="decimal" name="gstStock" value="0" step="any" oninput="document.getElementById('prod-total-stock-badge').innerText = (parseFloat(this.value||0) + parseFloat(document.getElementById('prod-non-gst-stock').value||0))" style="border: 1px solid #90caf9; background: #e3f2fd; color: #0061a4; font-weight: bold; text-align: center;">
+                            </div>
+                            <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                                <label for="prod-non-gst-stock" style="color: #d84315; font-weight: bold;">Non-GST</label>
+                                <input type="number" id="prod-non-gst-stock" inputmode="decimal" name="nonGstStock" value="0" step="any" oninput="document.getElementById('prod-total-stock-badge').innerText = (parseFloat(this.value||0) + parseFloat(document.getElementById('prod-gst-stock').value||0))" style="border: 1px solid #ffccbc; background: #fbe9e7; color: #d84315; font-weight: bold; text-align: center;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="form-bottom-spacer"></div>
 
@@ -764,12 +841,12 @@
         </div>
         <div class="activity-content">
             <form id="form-ledger">
-                <div class="form-group"><label>Party Name *</label><input type="text" name="name" id="ledger-name" required></div>
+                <div class="form-group"><label>Party Name *</label><input type="text" name="name" id="ledger-name" required autocapitalize="words" enterkeyhint="next" autocomplete="organization"></div>
                 <div class="form-group">
                     <label>Type *</label>
-                    <select name="type" required><option value="Customer">Customer</option><option value="Supplier">Supplier</option></select>
+                    <select name="type" required enterkeyhint="next"><option value="Customer">Customer</option><option value="Supplier">Supplier</option></select>
                 </div>
-                <div class="form-group"><label>Phone Number</label><input type="tel" name="phone"></div>
+                <div class="form-group"><label>Phone Number</label><input type="tel" name="phone" enterkeyhint="done" autocomplete="tel"></div>
                 <div class="form-group">
                     <label>GSTIN (Optional)</label>
                     <div style="display: flex; gap: 8px;">
@@ -804,6 +881,22 @@
                     <button type="submit" class="btn-primary">Save Party</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div id="activity-stock-ledger" class="activity-screen hidden">
+        <div class="activity-header" style="background: #e3f2fd; color: #0061a4;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeActivity('activity-stock-ledger')" style="padding: 4px;">arrow_back</span>
+                <div>
+                    <span id="stock-ledger-title" style="font-size: 18px; font-weight: bold; display: block;">Product Name</span>
+                    <span id="stock-ledger-bal" style="font-size: 12px; opacity: 0.8;">Current Stock: 0</span>
+                </div>
+            </div>
+        </div>
+        <div class="activity-content" style="background: var(--md-background); padding: 12px;">
+            <div id="stock-ledger-timeline" style="display: flex; flex-direction: column; gap: 8px;">
+                </div>
         </div>
     </div>
 
@@ -946,6 +1039,21 @@
             <div id="timeline-list">
                 <p class="empty-state">Loading statement...</p>
             </div>
+        </div>
+    </div>
+
+    <div id="sheet-simple-master" class="bottom-sheet">
+        <div class="sheet-header">
+            <span id="simple-master-title" style="font-size: 18px; font-weight: 500;">Manage List</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-simple-master')">close</span>
+        </div>
+        <div style="padding: 16px; display: flex; flex-direction: column; max-height: 70vh;">
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <input type="text" id="simple-master-input" placeholder="Type new name here..." style="flex: 1; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px;">
+                <button class="btn-primary tap-target" id="btn-add-simple-master" style="padding: 0 16px;">Add</button>
+            </div>
+            <ul class="list-view" id="simple-master-list" style="flex: 1; overflow-y: auto; margin: 0; padding: 0;">
+                </ul>
         </div>
     </div>
 
@@ -1134,14 +1242,23 @@
                 
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Adjustment Type *</label>
+                        <label>Type *</label>
                         <select id="adj-type" required>
-                            <option value="add">Add Stock (+)</option>
-                            <option value="reduce">Reduce Stock (-)</option>
+                            <option value="add">Add (+)</option>
+                            <option value="reduce">Reduce (-)</option>
                         </select>
                     </div>
+                    
                     <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Quantity *</label>
+                        <label>Bucket *</label>
+                        <select id="adj-bucket" required style="font-weight:bold;">
+                            <option value="gst" style="color: #0061a4;">GST Stock</option>
+                            <option value="non-gst" style="color: #d84315;">Non-GST</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Qty *</label>
                         <input type="number" inputmode="decimal" id="adj-qty" min="0.01" step="any" required>
                     </div>
                 </div>
@@ -1771,12 +1888,12 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script src="cloud.js?v=81"></script>
+    <script src="cloud.js?v=82"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
-    <script type="module" src="app.js?v=81"></script>
+    <script type="module" src="app.js?v=82"></script>
     <script type="module">
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
@@ -1958,8 +2075,11 @@
                         originalDescriptor.set.call(this, val);
                         if (this._flatpickr && !isUpdating) {
                             isUpdating = true; // Lock the engine
-                            this._flatpickr.setDate(val, false); // Update calendar safely
-                            isUpdating = false; // Unlock the engine
+                            try {
+                                this._flatpickr.setDate(val, false); // Update calendar safely
+                            } finally {
+                                isUpdating = false; // Guarantee unlock even if Flatpickr throws an error
+                            }
                         }
                     }
                 });
