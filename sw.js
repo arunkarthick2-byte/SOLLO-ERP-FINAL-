@@ -3,7 +3,7 @@
 // ==========================================
 
 // --- NEW CODE: Bump the version to force the patch! ---
-const CACHE_NAME = 'sollo-erp-v8.2-final'; 
+const CACHE_NAME = 'sollo-erp-v9.0-enterprise'; 
 // --- END OF NEW CODE ---
 
 const TIMEOUT_MS = 3000; // 3-second timeout to defeat Lie-Fi

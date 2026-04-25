@@ -10,6 +10,27 @@ const Utils = {
     // ==========================================
     generateId: () => typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'sollo-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(),
 
+    // ==========================================
+    // ENTERPRISE ARCHITECTURE: EVENT-DRIVEN PUB/SUB BUS
+    // The central nervous system of the app. Decouples the UI from the Database.
+    // ==========================================
+    EventBus: {
+        events: {},
+        // "Subscribe" to a radio channel
+        on: function(eventName, callback) {
+            if (!this.events[eventName]) this.events[eventName] = [];
+            this.events[eventName].push(callback);
+        },
+        // "Broadcast" a message to a radio channel
+        emit: function(eventName, data) {
+            if (this.events[eventName]) {
+                this.events[eventName].forEach(callback => {
+                    try { callback(data); } catch (e) { console.error(`EventBus Error [${eventName}]:`, e); }
+                });
+            }
+        }
+    },
+
     // --- ENTERPRISE UPGRADE: OFFLINE IMAGE COMPRESSOR ---
     compressImage: (file, maxWidth = 800, quality = 0.7) => {
         return new Promise((resolve) => {
@@ -323,13 +344,13 @@ const Utils = {
     },
 
     // ==========================================
-    // 4. IN-APP INVOICE VIEWER (TRUE PDF UPGRADE)
+    // 4. ENTERPRISE ENGINE: HARDWARE-ACCELERATED PDF VIEWPORT
+    // Forces desktop-grade A4 rendering on mobile phones and stops UI freezing
     // ==========================================
     processPDFExport: async (elementId, filename) => {
         const element = document.getElementById(elementId);
         if (!element) return;
 
-        // Load BOTH the preview engine and the true PDF engine
         if (typeof html2canvas === 'undefined' || typeof html2pdf === 'undefined') {
             alert("Installing True PDF Engine... Please wait 3 seconds and tap Print again.");
             if (typeof html2canvas === 'undefined') {
@@ -346,16 +367,27 @@ const Utils = {
         }
         
         try {
-            // Keep html2canvas for the visual on-screen preview
+            if (window.Utils) window.Utils.showToast("Generating Document View...");
+
+            // ⚡ ZERO-LATENCY ENGINE: We force the heavy math to yield for 50ms. 
+            // This allows the browser to paint the toast message and keeps the UI from freezing!
+            await new Promise(resolve => setTimeout(resolve, 50)); 
+            
             const canvas = await html2canvas(element, { 
-                // CRITICAL FIX: Lowered scale from 4 to 2 (Retina Display quality, massive CPU boost)
                 scale: 2, 
                 useCORS: true,
-                logging: false, // Prevents background console lag
+                logging: false, 
                 backgroundColor: '#ffffff',
+                // 🚀 VIRTUAL MONITOR: Forces perfect A4 desktop rendering regardless of phone size!
+                windowWidth: 800,
+                width: 800,
                 onclone: (clonedDoc) => {
                     const printArea = clonedDoc.getElementById('print-area');
                     if (printArea) {
+                        printArea.style.width = '800px'; 
+                        printArea.style.maxWidth = '800px'; 
+                        printArea.style.padding = '0';
+                        printArea.style.margin = '0';
                         printArea.className = ''; 
                         printArea.style.display = 'block';
                         printArea.style.position = 'relative';
@@ -396,39 +428,47 @@ const Utils = {
             `;
             document.body.appendChild(viewer);
 
-            // Print Button
             document.getElementById('btn-print-preview').onclick = () => {
                 document.getElementById('in-app-pdf-viewer').style.display = 'none';
                 window.print();
                 setTimeout(() => { document.getElementById('in-app-pdf-viewer').style.display = 'flex'; }, 500);
             };
             
-            // NEW: TRUE PDF SHARE ENGINE
+            // 🚀 TRUE PDF GENERATOR
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
+                    const btn = document.getElementById('btn-share-preview');
+                    btn.style.opacity = '0.5';
+                    btn.style.pointerEvents = 'none';
+                    
                     if (window.Utils) window.Utils.showToast("Generating PDF File...");
                     
-                    // We generate the PDF directly from the invisible #print-area
+                    // ⚡ YIELD AGAIN: Let the toast render before locking CPU
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    
                     const printArea = document.getElementById('print-area');
                     if (!printArea) return alert("Document data lost. Please close and tap print again.");
 
                     const opt = {
-                        /* ENTERPRISE FIX: Added physical 0.4-inch margins so text never touches the paper edge! */
                         margin:       [0.4, 0.4, 0.4, 0.4], 
                         filename:     filename,
-                        /* UPGRADE: Max image quality for crisp logos */
-                        image:        { type: 'jpeg', quality: 1.0 }, 
-                        /* ENTERPRISE FIX: Forces the PDF to jump to Page 2 instead of slicing rows in half! */
+                        image:        { type: 'jpeg', quality: 0.98 }, 
                         pagebreak:    { mode: ['css', 'legacy'] }, 
                         html2canvas:  { 
-                            /* UPGRADE: Increased scale to 3 for Retina-quality crispness */
-                            scale: 3, 
+                            scale: 2, 
                             useCORS: true,
-                            letterRendering: true, /* Smoothes out small fonts */
+                            letterRendering: true, 
                             logging: false, 
+                            // 🚀 THE MAGIC FIX FOR PDF GENERATION ON MOBILE
+                            windowWidth: 800,
+                            width: 800,
                             onclone: (clonedDoc) => {
                                 const pa = clonedDoc.getElementById('print-area');
                                 if (pa) {
+                                    pa.style.width = '800px';
+                                    pa.style.maxWidth = '800px';
+                                    pa.style.padding = '0';
+                                    pa.style.margin = '0';
                                     pa.style.display = 'block';
                                     pa.style.position = 'relative';
                                     pa.style.visibility = 'visible';
@@ -438,7 +478,6 @@ const Utils = {
                         jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
                     };
 
-                    // CRITICAL FIX: Use 'element' instead of 'printArea', and use outputPdf('blob')
                     const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
                     const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
@@ -448,7 +487,6 @@ const Utils = {
                             files: [file]
                         });
                     } else {
-                        // Fallback: Force Download if sharing is blocked
                         const url = URL.createObjectURL(pdfBlob);
                         const link = document.createElement("a");
                         link.href = url;
@@ -460,16 +498,19 @@ const Utils = {
                 } catch (err) {
                     console.log("PDF Share cancelled or failed", err);
                     alert("Sharing was cancelled or is unsupported on this device.");
+                } finally {
+                    const btn = document.getElementById('btn-share-preview');
+                    if (btn) {
+                        btn.style.opacity = '1';
+                        btn.style.pointerEvents = 'auto';
+                    }
                 }
             };
         } catch (err) {
             console.error("Preview Generation Failed", err);
             alert("Failed to generate preview.");
-        } finally {
-            // Do NOT clear the print-area here anymore, because html2pdf needs it when the user clicks share!
         }
     },
-
     // ==========================================
     // 5. PRINT & TEMPLATE ENGINE
     // ==========================================
@@ -503,15 +544,19 @@ const Utils = {
             const rowTotal = Utils.calculateRowTotal(item.qty, item.rate, item.gstPercent).finalTotal;
             rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
             
+            // ⚡ ENTERPRISE FIX: Shield HSN/UOM from 'null' ghosts and strictly format item prices!
+            const safeHsn = (item.hsn && String(item.hsn).toLowerCase() !== 'null' && String(item.hsn).toLowerCase() !== 'undefined') ? item.hsn : '-';
+            const safeUom = (item.uom && String(item.uom).toLowerCase() !== 'null' && String(item.uom).toLowerCase() !== 'undefined') ? item.uom : 'Units';
+            
             itemsHtml += `
                 <tr>
                     <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${index + 1}</td>
                     <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; font-weight: 500; color: ${theme.darkText};">${item.name}</td>
-                    ${!isNonGST ? `<td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${item.hsn || '-'}</td>` : ''}
-                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${item.qty} ${item.uom}</td>
-                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:right;">${parseFloat(item.rate).toFixed(2)}</td>
+                    ${!isNonGST ? `<td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${safeHsn}</td>` : ''}
+                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${item.qty} ${safeUom}</td>
+                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:right;">${Utils.formatCurrency(parseFloat(item.rate) || 0)}</td>
                     ${!isNonGST ? `<td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:center;">${item.gstPercent}%</td>` : ''}
-                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:right; font-weight:bold; color: ${theme.darkText};">${rowTotal.toFixed(2)}</td>
+                    <td style="padding: 10px 8px; border-bottom: 1px solid ${theme.border}; text-align:right; font-weight:bold; color: ${theme.darkText};">${Utils.formatCurrency(rowTotal)}</td>
                 </tr>
             `;
         });
@@ -598,10 +643,10 @@ const Utils = {
 
                     <div style="width: 50%;">
                         <table style="width: 100%; border: none; font-size: 12px;">
-                            <tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Subtotal:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${rawSubtotal.toFixed(2)}</td></tr>
-                            ${discountAmt > 0 ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Discount:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#e53e3e; border:none;">-&#8377;${discountAmt.toFixed(2)}</td></tr>` : ''}
-                            ${!isNonGST ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Total GST:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
-                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Freight / Extra:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
+                            <tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Subtotal:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${Utils.formatCurrency(rawSubtotal)}</td></tr>
+                            ${discountAmt > 0 ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Discount:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:#e53e3e; border:none;">-&#8377;${Utils.formatCurrency(discountAmt)}</td></tr>` : ''}
+                            ${!isNonGST ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Total GST:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${Utils.formatCurrency(parseFloat(doc.totalGst) || 0)}</td></tr>` : ''}
+                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 6px 8px; color: ${theme.text}; border:none;">Freight / Extra:</td><td style="padding: 6px 8px; text-align:right; font-weight:bold; color:${theme.darkText}; border:none;">&#8377;${Utils.formatCurrency(parseFloat(doc.freightAmount) || 0)}</td></tr>` : ''}
                             
                             <tr><td colspan="2" style="padding: 0; border: none;"><div style="background-color: ${theme.main}; color: #ffffff; border-radius: 6px; margin-top: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-weight:bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Grand Total</span>
@@ -611,12 +656,12 @@ const Utils = {
                             ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
                                 <tr>
                                     <td style="padding: 8px 8px 4px; color: #2f855a; border:none; font-size: 11px;">Paid (${r.date}):</td>
-                                    <td style="padding: 8px 8px 4px; text-align:right; font-weight:bold; color:#2f855a; border:none; font-size: 12px;">-&#8377;${parseFloat(r.amount).toFixed(2)}</td>
+                                    <td style="padding: 8px 8px 4px; text-align:right; font-weight:bold; color:#2f855a; border:none; font-size: 12px;">-&#8377;${Utils.formatCurrency(parseFloat(r.amount) || 0)}</td>
                                 </tr>
                             `).join('') : ''}
                             
                             ${((parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)) > 0.01 ? `
-                            <tr><td style="padding: 8px 8px; font-weight:bold; font-size: 12px; color: #e53e3e; border:none;">Balance Due:</td><td style="padding: 8px 8px; text-align:right; font-size: 14px; font-weight:bold; color: #e53e3e; border:none;">&#8377;${Math.max(0, (parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)).toFixed(2)}</td></tr>
+                            <tr><td style="padding: 8px 8px; font-weight:bold; font-size: 12px; color: #e53e3e; border:none;">Balance Due:</td><td style="padding: 8px 8px; text-align:right; font-size: 14px; font-weight:bold; color: #e53e3e; border:none;">&#8377;${Utils.formatCurrency(Math.max(0, (parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)))}</td></tr>
                             ` : `
                             <tr><td style="padding: 8px 8px; font-weight:bold; font-size: 12px; color: #2f855a; border:none;">Balance Due:</td><td style="padding: 8px 8px; text-align:right; font-size: 14px; font-weight:bold; color: #2f855a; border:none;">&#8377;0.00 (PAID)</td></tr>
                             `}

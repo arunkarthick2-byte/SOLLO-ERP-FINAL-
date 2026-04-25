@@ -101,9 +101,25 @@ const Cloud = {
                 });
 
                 let fileId = response.result.files.length > 0 ? response.result.files[0].id : null;
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                form.append('file', file);
+                // ⚡ ENTERPRISE FIX: Strictly construct 'multipart/related' payload for Google Drive
+                const boundary = '-------SOLLOERPBACKUPBOUNDARY';
+                const multipartBlob = new Blob([
+                    "--" + boundary + "
+",
+                    "Content-Type: application/json; charset=UTF-8
+
+",
+                    JSON.stringify(metadata) + "
+",
+                    "--" + boundary + "
+",
+                    "Content-Type: application/json
+
+",
+                    file, 
+                    "
+--" + boundary + "--"
+                ], { type: 'multipart/related; boundary=' + boundary });
 
                 const url = fileId ? 
                     `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : 
@@ -111,8 +127,11 @@ const Cloud = {
                 
                 let uploadRes = await fetch(url, {
                     method: fileId ? 'PATCH' : 'POST',
-                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
-                    body: form,
+                    headers: new Headers({ 
+                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                        'Content-Type': 'multipart/related; boundary=' + boundary
+                    }),
+                    body: multipartBlob,
                 });
 
                 if (uploadRes.ok) {
@@ -168,9 +187,25 @@ const Cloud = {
                 let fileId = response.result.files.length > 0 ? response.result.files[0].id : null;
                 window.Utils.showToast("Uploading to Google Drive...");
 
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                form.append('file', file);
+                // ⚡ ENTERPRISE FIX: Strictly construct 'multipart/related' payload for Google Drive
+                const boundary = '-------SOLLOERPBACKUPBOUNDARY';
+                const multipartBlob = new Blob([
+                    "--" + boundary + "
+",
+                    "Content-Type: application/json; charset=UTF-8
+
+",
+                    JSON.stringify(metadata) + "
+",
+                    "--" + boundary + "
+",
+                    "Content-Type: application/json
+
+",
+                    file, 
+                    "
+--" + boundary + "--"
+                ], { type: 'multipart/related; boundary=' + boundary });
 
                 const url = fileId ? 
                     `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : 
@@ -179,8 +214,11 @@ const Cloud = {
 
                 let uploadRes = await fetch(url, {
                     method: method,
-                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
-                    body: form,
+                    headers: new Headers({ 
+                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                        'Content-Type': 'multipart/related; boundary=' + boundary
+                    }),
+                    body: multipartBlob,
                 });
 
                 if (uploadRes.ok) {

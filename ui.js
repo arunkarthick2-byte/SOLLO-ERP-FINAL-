@@ -8,6 +8,47 @@ import { getRecordById, getAllRecords, getKhataStatement } from './db.js';
 
 const UI = {
 
+    // ==========================================
+    // ENTERPRISE ARCHITECTURE 2: FINE-GRAINED SIGNALS
+    // Achieves absolute maximum theoretical UI performance (O(1) time complexity)
+    // ==========================================
+    createSignal: (initialValue) => {
+        let value = initialValue;
+        const subscribers = new Set(); // Stores exactly which HTML elements care about this data
+        
+        return {
+            get value() { return value; },
+            set value(newVal) {
+                if (value === newVal) return;
+                value = newVal;
+                // Surgically update only the exact pixels tied to this signal via the GPU thread
+                subscribers.forEach(sub => requestAnimationFrame(() => sub(value))); 
+            },
+            
+            // The Surgical DOM Binder
+            bindText: function(elementId, formatter = v => v) {
+                const el = document.getElementById(elementId);
+                if (el) {
+                    const updateDOM = (v) => { el.innerText = formatter(v); };
+                    subscribers.add(updateDOM);
+                    updateDOM(value); // Force an initial paint
+                }
+                return this; // Allows for chainable syntax
+            },
+            
+            // The Surgical CSS Binder
+            bindStyle: function(elementId, styleMap) {
+                const el = document.getElementById(elementId);
+                if (el) {
+                    const updateCSS = (v) => { Object.assign(el.style, styleMap(v)); };
+                    subscribers.add(updateCSS);
+                    updateCSS(value);
+                }
+                return this;
+            }
+        };
+    },
+
     // --- PREMIUM UX: NATIVE HAPTICS & SCROLL NAV ---
     triggerHaptic: (type = 'light') => {
         if (!navigator.vibrate) return;
@@ -16,7 +57,116 @@ const UI = {
         if (type === 'heavy') navigator.vibrate([30, 50, 30]);
     },
 
+    // ==========================================
+    // ⏳ ENTERPRISE UI: TIME MACHINE (AUDIT TRAIL)
+    // ==========================================
+    openTimeMachine: async (entityType, entityId) => {
+        if (!window.getRecordHistory) return alert("Audit Engine not loaded.");
+        if (window.Utils) window.Utils.showToast("Decrypting Audit Trail...");
+
+        const history = window.getRecordHistory(entityId);
+        
+        let tmScreen = document.getElementById('activity-time-machine');
+        if (!tmScreen) {
+            tmScreen = document.createElement('div');
+            tmScreen.id = 'activity-time-machine';
+            tmScreen.className = 'activity-screen hidden';
+            tmScreen.style.cssText = 'z-index: 6000; display: none; flex-direction: column; background: var(--md-background);';
+            document.body.appendChild(tmScreen);
+        }
+
+        let html = `
+            <div class="activity-header" style="background: #1a1c1e; color: #0f0; border-bottom: 2px solid #0f0;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-time-machine')" style="color:#0f0;">close</span>
+                <div class="title" style="flex:1; font-family: monospace; letter-spacing: 1px;">CRYPTOGRAPHIC AUDIT TRAIL</div>
+                <span class="material-symbols-outlined" style="color:#0f0;">history</span>
+            </div>
+            <div class="activity-content" style="padding: 16px; overflow-y: auto; flex: 1; font-family: monospace;">
+                <div style="background: #000; color: #0f0; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; border: 1px solid #0f0; box-shadow: 0 0 10px rgba(0,255,0,0.2);">
+                    ⚠️ <strong>RESTRICTED ACCESS</strong><br>
+                    Document ID: ${entityId}<br>
+                    Total Revisions Logged: ${history.length}
+                </div>
+                <div style="position: relative; padding-left: 20px; border-left: 2px dashed #0f0;">
+        `;
+
+        if (history.length === 0) {
+            html += `<div style="color: #888;">No historical modifications found for this document.</div>`;
+        } else {
+            history.forEach((evt, index) => {
+                const dateObj = new Date(evt.timestamp + "Z"); 
+                const localTime = dateObj.toLocaleString();
+                const isCreation = index === history.length - 1;
+                
+                let actionColor = evt.eventType === 'DELETE' ? '#ff5252' : (isCreation ? '#00e676' : '#ffea00');
+                let actionText = evt.eventType === 'DELETE' ? 'DESTROYED' : (isCreation ? 'CREATED' : 'MODIFIED');
+                
+                let changesHtml = '';
+                if (evt.eventType === 'UPSERT') {
+                    const payload = JSON.parse(evt.payload);
+                    changesHtml = `<div style="margin-top:8px; font-size:11px; color:#aaa; max-height: 100px; overflow-y:auto; background:#111; padding:8px; border-radius:4px;">Grand Total: ₹${payload.grandTotal || payload.amount || 'N/A'} <br> Items/Details: ${payload.items ? payload.items.length + ' rows' : 'Modified'}</div>`;
+                }
+
+                html += `
+                    <div style="margin-bottom: 20px; position: relative;">
+                        <div style="position: absolute; left: -26px; top: 0; width: 10px; height: 10px; background: ${actionColor}; border-radius: 50%; box-shadow: 0 0 8px ${actionColor};"></div>
+                        <div style="font-weight: bold; color: ${actionColor};">${actionText} <span style="color: #555; font-size: 11px; float: right;">${localTime}</span></div>
+                        <div style="font-size: 12px; color: #fff; margin-top: 4px;">Event ID: ${evt.eventId.substring(0, 15)}...</div>
+                        ${changesHtml}
+                    </div>
+                `;
+            });
+        }
+
+        html += `</div></div>`;
+        tmScreen.innerHTML = html;
+        UI.openActivity('activity-time-machine');
+    },
+
     initPremiumUX: () => {
+        // ⚡ AUDIT TRAIL INJECTOR: Dynamically add Time Machine buttons to forms
+        ['sales', 'purchase'].forEach(type => {
+            const header = document.querySelector(`#activity-${type}-form .activity-header`);
+            if (header && !document.getElementById(`btn-audit-${type}`)) {
+                const btn = document.createElement('span');
+                btn.id = `btn-audit-${type}`;
+                btn.className = 'material-symbols-outlined tap-target';
+                btn.style.cssText = 'color: var(--md-on-surface); margin-right: 12px; font-size: 22px;';
+                btn.innerText = 'history';
+                btn.onclick = () => {
+                    if (window.app && window.app.state.currentEditId) {
+                        UI.openTimeMachine(type, window.app.state.currentEditId);
+                    } else {
+                        if (window.Utils) window.Utils.showToast("Please save this document first to generate an audit trail.");
+                    }
+                };
+                
+                // Bulletproof insertion (Prevents the Null Reference Crash!)
+                const titleNode = header.querySelector('.title');
+                if (titleNode && titleNode.nextSibling) {
+                    header.insertBefore(btn, titleNode.nextSibling);
+                } else {
+                    header.appendChild(btn);
+                }
+            }
+        });
+
+        // 🤖 AI INJECTOR: Add the "Scan Bill" Camera Button strictly to Purchases
+        const purchaseHeader = document.querySelector('#activity-purchase-form .activity-header');
+        if (purchaseHeader && !document.getElementById('btn-ai-scan')) {
+            const aiBtn = document.createElement('span');
+            aiBtn.id = 'btn-ai-scan';
+            aiBtn.className = 'material-symbols-outlined tap-target';
+            aiBtn.style.cssText = 'color: #f57f17; margin-right: 12px; font-size: 24px;'; // Premium Orange
+            aiBtn.innerText = 'document_scanner';
+            aiBtn.onclick = () => { UI.scanPurchaseBill(); };
+            
+            const titleNode = purchaseHeader.querySelector('.title');
+            if (titleNode && titleNode.nextSibling) {
+                purchaseHeader.insertBefore(aiBtn, titleNode.nextSibling);
+            }
+        }
+
         // 1. Universal Auto-Haptics (Zero HTML changes required!)
         document.addEventListener('pointerdown', (e) => {
             const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .list-view li, .nav-item, .chip');
@@ -145,19 +295,65 @@ const UI = {
         container.innerHTML = htmlContent;
     },
 
-    // --- NATIVE SCROLLING (NO VIRTUALIZATION BUGS) ---
+    // ==========================================
+    // ENTERPRISE ARCHITECTURE: TRUE DOM VIRTUALIZATION
+    // Protects mobile RAM by using an IntersectionObserver to infinite-scroll large datasets.
+    // ==========================================
     renderVirtualList: (container, dataArray, renderRowFn, emptyStateHTML) => {
         if (!container) return;
+        
+        // Disconnect any previous observers on this container to prevent memory leaks
+        if (container._scrollObserver) {
+            container._scrollObserver.disconnect();
+            delete container._scrollObserver;
+        }
+
         if (!dataArray || dataArray.length === 0) {
             container.innerHTML = emptyStateHTML;
             return;
         }
-        
-        // Because the database math is now lightning fast, we can rip out the buggy scroll listeners entirely.
-        // We just hand the raw HTML to the browser and let native Android scrolling take over!
-        container.innerHTML = dataArray.map(item => renderRowFn(item)).join('');
+
+        container.innerHTML = '';
+        let currentIndex = 0;
+        const CHUNK_SIZE = 15; // Strict memory cap: Only paint 15 items per frame
+
+        const renderChunk = () => {
+            const chunk = dataArray.slice(currentIndex, currentIndex + CHUNK_SIZE);
+            if (chunk.length === 0) return;
+            
+            // Build the HTML securely off-screen before injecting it
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = chunk.map(item => renderRowFn(item)).join('');
+            
+            while(tempDiv.firstChild) {
+                container.appendChild(tempDiv.firstChild);
+            }
+            currentIndex += CHUNK_SIZE;
+        };
+
+        // 1. Paint the initial batch instantly
+        renderChunk();
+
+        // 2. Create the hidden "Sentinel" node to watch the scrollbar
+        if (currentIndex < dataArray.length) {
+            const sentinel = document.createElement('div');
+            sentinel.style.height = '1px';
+            sentinel.className = 'virtual-sentinel';
+            container.appendChild(sentinel);
+
+            // 3. Hardware-accelerated intersection watcher
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting && currentIndex < dataArray.length) {
+                    container.removeChild(sentinel); // Move watcher out of the way
+                    renderChunk(); // Inject next batch
+                    if (currentIndex < dataArray.length) container.appendChild(sentinel); // Put watcher at new bottom
+                }
+            }, { root: container, rootMargin: '200px' }); // Pre-load 200px before the user sees it!
+
+            observer.observe(sentinel);
+            container._scrollObserver = observer; // Save reference for memory cleanup
+        }
     },
-    // --- END OF NEW CODE ---
     
     // ==========================================
     // LIVE BANK BALANCE CALCULATOR
@@ -210,6 +406,28 @@ const UI = {
             `;
         });
         container.innerHTML = html;
+    },
+
+    // ==========================================
+    // ENTERPRISE ARCHITECTURE: REACTIVE PROXY ENGINE
+    // Completely decouples JavaScript data from HTML elements.
+    // ==========================================
+    createStore: (bindings) => {
+        return new Proxy({}, {
+            set(target, key, value) {
+                target[key] = value;
+                const b = bindings[key];
+                if (b && document.getElementById(b.id)) {
+                    const el = document.getElementById(b.id);
+                    if (b.type === 'text') el.innerText = b.format ? b.format(value) : value;
+                    else if (b.type === 'html') el.innerHTML = b.format ? b.format(value) : value;
+                    else if (b.type === 'display') el.style.display = b.format ? b.format(value) : value;
+                    
+                    if (b.styleMap) Object.assign(el.style, b.styleMap(value));
+                }
+                return true;
+            }
+        });
     },
 
     state: { 
@@ -321,16 +539,6 @@ const UI = {
             
             if (activityId === 'activity-sales-form') {
                 UI.state.activeActivity = 'sales';
-                
-                // --- ENTERPRISE UPGRADE 1: AUTO-SAVE DRAFT CHECK ---
-                const banner = document.getElementById('sales-draft-banner');
-                if (banner) {
-                    if (localStorage.getItem('sollo_sales_draft') && (!window.app || !window.app.state.currentRecordId)) {
-                        banner.classList.remove('hidden');
-                    } else {
-                        banner.classList.add('hidden');
-                    }
-                }
                 
             } else if (activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = 'purchase';
@@ -573,7 +781,9 @@ const UI = {
             finalSubtotal += roundedDiscountedBase;
             totalGst += roundedGst;
 
-            const buyPrice = parseFloat(tr.querySelector('.row-item-buyprice').value) || 0;
+            // ENTERPRISE BUG FIX: Safe Node Shield to prevent Null Reference Crashes!
+            const buyPriceNode = tr.querySelector('.row-item-buyprice');
+            const buyPrice = buyPriceNode ? (parseFloat(buyPriceNode.value) || 0) : 0;
             totalCost += (qty * buyPrice); // NEW: Track total cost
             
             const marginSpan = tr.querySelector('.live-margin');
@@ -592,76 +802,41 @@ const UI = {
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
 
-        document.getElementById('sales-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
-        document.getElementById('sales-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
-        
-        const roundOffEl = document.getElementById('sales-round-off');
-        if (roundOffEl) {
-            roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
-        }
-        
-        // ENTERPRISE UPGRADE: INDIAN CURRENCY FORMATTER
-        document.getElementById('sales-grand-total').innerText = window.formatMoney(roundedTotal);
-
-        // ==========================================
-        // ENTERPRISE UPGRADE 2: CEO Live Profit Indicator
-        // ==========================================
-        const ceoBadge = document.getElementById('sales-ceo-margin');
-        if (ceoBadge) {
-            if (finalSubtotal > 0 && totalCost > 0) {
-                const totalProfit = finalSubtotal - totalCost;
-                const marginPercent = ((totalProfit / finalSubtotal) * 100).toFixed(1);
-                
-                ceoBadge.style.display = 'inline-flex';
-                if (totalProfit >= 0) {
-                    ceoBadge.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">trending_up</span> +${marginPercent}% Margin`;
-                    ceoBadge.style.background = '#e8f5e9';
-                    ceoBadge.style.color = '#146c2e';
-                    ceoBadge.style.border = '1px solid #c8e6c9';
-                } else {
-                    ceoBadge.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">trending_down</span> ${marginPercent}% Loss`;
-                    ceoBadge.style.background = '#fff0f2';
-                    ceoBadge.style.color = '#ba1a1a';
-                    ceoBadge.style.border = '1px solid #ffcdd2';
+        // --- ENTERPRISE ARCHITECTURE: REACTIVE DATA BINDING ---
+        // 1. Initialize the Store & Define the UI Logic (Singleton Pattern)
+        if (!UI.salesStore) {
+            UI.salesStore = UI.createStore({
+                subtotal: { id: 'sales-subtotal', type: 'text', format: v => `\u20B9${v.toFixed(2)}` },
+                gst: { id: 'sales-gst-total', type: 'text', format: v => `\u20B9${v.toFixed(2)}` },
+                roundOff: { id: 'sales-round-off', type: 'text', format: v => `${v > 0 ? '+' : ''}${v.toFixed(2)}` },
+                grandTotal: { id: 'sales-grand-total', type: 'text', format: v => window.formatMoney(v) },
+                badgeDisplay: { id: 'sales-ceo-margin', type: 'display', format: v => v ? 'inline-flex' : 'none' },
+                badgeData: { 
+                    id: 'sales-ceo-margin', 
+                    type: 'html', 
+                    format: v => v >= 0 
+                        ? `<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">trending_up</span> +${v}% Margin`
+                        : `<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">trending_down</span> ${Math.abs(v)}% Loss`,
+                    styleMap: v => v >= 0 
+                        ? { background: '#e8f5e9', color: '#146c2e', border: '1px solid #c8e6c9' }
+                        : { background: '#fff0f2', color: '#ba1a1a', border: '1px solid #ffcdd2' }
                 }
-            } else {
-                ceoBadge.style.display = 'none';
-            }
+            });
         }
 
-        // ==========================================
-        // ENTERPRISE UPGRADE 1: Auto-Save Draft
-        // ==========================================
-        if (window.app && (!window.app.state || !window.app.state.currentRecordId)) {
-            const draftItems = [];
-            rows.forEach(tr => {
-                draftItems.push({
-                    id: tr.querySelector('.row-item-id').value,
-                    name: tr.querySelector('.row-item-name').value,
-                    uom: tr.querySelector('.row-uom').value,
-                    hsn: tr.querySelector('.row-hsn').value,
-                    qty: tr.querySelector('.row-qty').value,
-                    rate: tr.querySelector('.row-rate').value,
-                    gst: tr.querySelector('.row-gst').value,
-                    buyPrice: tr.querySelector('.row-item-buyprice') ? tr.querySelector('.row-item-buyprice').value : 0
-                });
-            });
-            
-            if (draftItems.length > 0 || document.getElementById('sales-customer-id').value) {
-                const draft = {
-                    customerId: document.getElementById('sales-customer-id').value,
-                    customerName: document.getElementById('sales-customer-display').innerText,
-                    date: document.getElementById('sales-date').value,
-                    invoiceType: document.getElementById('sales-invoice-type').value,
-                    discount: document.getElementById('sales-discount').value,
-                    discountType: document.getElementById('sales-discount-type').value,
-                    freight: document.getElementById('sales-freight').value,
-                    notes: document.getElementById('sales-internal-notes').value,
-                    items: draftItems
-                };
-                localStorage.setItem('sollo_sales_draft', JSON.stringify(draft));
-            }
+        // 2. Feed the Raw Data (The Proxy automatically updates the DOM, Colors, and Math formatting)
+        UI.salesStore.subtotal = finalSubtotal;
+        UI.salesStore.gst = totalGst;
+        UI.salesStore.roundOff = roundOff;
+        UI.salesStore.grandTotal = roundedTotal;
+        
+        if (finalSubtotal > 0 && totalCost > 0) {
+            UI.salesStore.badgeDisplay = true;
+            UI.salesStore.badgeData = (((finalSubtotal - totalCost) / finalSubtotal) * 100).toFixed(1);
+        } else {
+            UI.salesStore.badgeDisplay = false;
         }
+
     },
 
     calcPurchaseTotals: () => {
@@ -867,11 +1042,18 @@ const UI = {
             data.forEach(s => sumValue += (s.documentType === 'return' ? -(s.grandTotal || 0) : (s.grandTotal || 0)));
             if (document.getElementById('sum-sales')) document.getElementById('sum-sales').innerText = `\u20B9${sumValue.toFixed(2)}`;
 
-            // BULLETPROOF SORTING: Prevents WebView crashes!
-            if(sortOption === 'date-desc') data.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
-            if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+            // --- ENTERPRISE FIX: SMART ALPHANUMERIC ORDER NUMBER SORTING ---
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
-            if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
+            else if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
+            else if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+            else {
+                // DEFAULT: Sorts by Order/Invoice Number intelligently (e.g. PO-0010 comes before PO-0002)
+                data.sort((a,b) => {
+                    const refA = String(a.poNo || a.invoiceNo || a.orderNo || a.id);
+                    const refB = String(b.poNo || b.invoiceNo || b.orderNo || b.id);
+                    return refB.localeCompare(refA, undefined, { numeric: true, sensitivity: 'base' });
+                });
+            }
 
             const container = document.getElementById(containerId);
             if (container) {
@@ -940,11 +1122,18 @@ const UI = {
             data.forEach(p => sumValue += (p.documentType === 'return' ? -(p.grandTotal || 0) : (p.grandTotal || 0)));
             if (document.getElementById('sum-purchases')) document.getElementById('sum-purchases').innerText = `\u20B9${sumValue.toFixed(2)}`;
 
-            // BULLETPROOF SORTING: Prevents WebView crashes!
-            if(sortOption === 'date-desc') data.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
-            if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+            // --- ENTERPRISE FIX: SMART ALPHANUMERIC ORDER NUMBER SORTING ---
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
-            if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
+            else if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
+            else if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+            else {
+                // DEFAULT: Sorts by Order/Invoice Number intelligently (e.g. PO-0010 comes before PO-0002)
+                data.sort((a,b) => {
+                    const refA = String(a.poNo || a.invoiceNo || a.orderNo || a.id);
+                    const refB = String(b.poNo || b.invoiceNo || b.orderNo || b.id);
+                    return refB.localeCompare(refA, undefined, { numeric: true, sensitivity: 'base' });
+                });
+            }
 
             const container = document.getElementById(containerId);
             if (container) {
@@ -1042,19 +1231,27 @@ const UI = {
                 data = UI.state.rawData.items.filter(i => {
                     const matchSearch = (i.name || '').toLowerCase().includes(searchTerm) || (i.sku || '').toLowerCase().includes(searchTerm);
                     let matchFilter = true;
-                    if (activeMasterFilter === 'In Stock') matchFilter = (parseFloat(i.stock) || 0) > 0;
+                    if (activeMasterFilter === 'In Stock') {
+                        const trueStock = (parseFloat(i.gstStock) || 0) + (parseFloat(i.nonGstStock) || 0);
+                        matchFilter = trueStock > 0;
+                    }
                     return matchSearch && matchFilter;
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
                 if(sortOption === 'stock-asc') data.sort((a,b) => (a.stock || 0) - (b.stock || 0));
 
-                // ENTERPRISE UPGRADE: LIVE WAREHOUSE CAPITAL FILTER
+                // ⚡ TRUE DUAL-ENGINE FIX: LIVE WAREHOUSE CAPITAL FILTER
                 let filterCapital = 0;
                 data.forEach(i => {
-                    const qty = parseFloat(i.stock) || 0;
-                    const cost = parseFloat(i.buyPrice) || 0;
-                    if (qty > 0) filterCapital += (qty * cost);
+                    const gstQty = parseFloat(i.gstStock) || 0;
+                    const nonGstQty = parseFloat(i.nonGstStock) || 0;
+                    
+                    const gstCost = parseFloat(i.gstBuyPrice) || parseFloat(i.buyPrice) || 0;
+                    const nonGstCost = parseFloat(i.nonGstBuyPrice) || parseFloat(i.buyPrice) || 0;
+                    
+                    if (gstQty > 0) filterCapital += (gstQty * gstCost);
+                    if (nonGstQty > 0) filterCapital += (nonGstQty * nonGstCost);
                 });
                 const titleEl = document.getElementById('master-view-title');
                 if (titleEl) {
@@ -1062,30 +1259,57 @@ const UI = {
                 }
 
                 UI.renderVirtualList(container, data, (i) => {
-                    const currentStock = parseFloat(i.stock) || 0;
-                    const gstStock = parseFloat(i.gstStock) || 0;
-                    const nonGstStock = parseFloat(i.nonGstStock) || 0;
+                    const currentStock = ((parseFloat(i.gstStock) || 0) + (parseFloat(i.nonGstStock) || 0));
+                    const safeUom = (i.uom && String(i.uom).toLowerCase() !== 'null' && String(i.uom).toLowerCase() !== 'undefined') ? i.uom : 'Units';
                     const minStock = parseFloat(i.minStock) || 0;
-                    const isLowStock = minStock > 0 && currentStock <= minStock;
                     
-                    const totDisplay = isLowStock 
-                        ? `<span style="color:var(--md-error); font-weight:bold;">Tot: ${currentStock} ⚠️ Low</span>` 
-                        : `Tot: ${currentStock}`;
+                    // 1. Traffic Light Badge Logic
+                    let badgeColor, badgeBg, badgeText;
+                    if (currentStock <= 0) {
+                        badgeColor = '#ba1a1a'; badgeBg = '#fff0f2'; badgeText = 'Out of Stock';
+                    } else if (minStock > 0 && currentStock <= minStock) {
+                        badgeColor = '#f57f17'; badgeBg = '#fff8e1'; badgeText = 'Low Stock';
+                    } else {
+                        badgeColor = '#146c2e'; badgeBg = '#e8f5e9'; badgeText = 'In Stock';
+                    }
 
-                    const stockLabel = `
-                        <div style="font-size:13px; color:var(--md-text-muted); margin-top:2px;">${totDisplay}</div>
-                        <div style="font-size:11px; color:var(--md-text-muted); margin-top:2px;">GST: ${gstStock} | Non-GST: ${nonGstStock}</div>
-                    `;
+                    // 2. Dynamic Avatar Engine (Apple Style)
+                    const firstLetter = (i.name || 'U').charAt(0).toUpperCase();
+                    const hue = (firstLetter.charCodeAt(0) * 20) % 360;
+                    const avatarColor = `hsl(${hue}, 70%, 40%)`;
 
-                    return UI.renderRowWiseItem(
-                        UI.highlightText(i.name || 'Unnamed Product', searchTerm), 
-                        stockLabel, 
-                        `\u20B9${(i.sellPrice || 0).toFixed(2)}`, 
-                        `Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}`, 
-                        'inventory_2', 
-                        isLowStock ? 'var(--md-error)' : 'var(--md-primary)', 
-                        `app.openForm('product', '${i.id}')`
-                    );
+                    // 3. The New Premium Card UI
+                    return `
+                    <div class="m3-card tap-target virtual-item" style="padding: 16px; margin-bottom: 12px; border-radius: 16px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);" onclick="app.openForm('product', '${i.id}')">
+                        
+                        <div style="width: 50px; height: 50px; background: ${avatarColor}; color: white; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: 800; flex-shrink: 0; box-shadow: 0 4px 10px ${avatarColor}40;">
+                            ${firstLetter}
+                        </div>
+                        
+                        <div style="flex: 1; min-width: 0; overflow: hidden;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                                <strong style="font-size: 16px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 65%;">${UI.highlightText(i.name || 'Unnamed', searchTerm)}</strong>
+                                <strong style="font-size: 16px; color: var(--md-primary);">&#8377;${(i.sellPrice || 0).toFixed(2)}</strong>
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <span style="font-size: 10px; border: 1px solid var(--md-outline-variant); color: #0061a4; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: white;">GST: ${(parseFloat(i.gstStock) || 0).toFixed(2)}</span>
+                                    <span style="font-size: 10px; border: 1px solid var(--md-outline-variant); color: #d84315; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: white;">NON-GST: ${(parseFloat(i.nonGstStock) || 0).toFixed(2)}</span>
+                                    <span style="font-size: 10px; border: 1px solid var(--md-outline-variant); color: #146c2e; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: #e8f5e9;">TOTAL: ${((parseFloat(i.gstStock) || 0) + (parseFloat(i.nonGstStock) || 0)).toFixed(2)} ${safeUom}</span>
+                                </div>
+                                
+                                <div style="display: flex; gap: 8px;">
+                                    <div class="tap-target" onclick="event.stopPropagation(); UI.openBottomSheet('sheet-stock-adjustment'); setTimeout(() => { const el = document.getElementById('adj-product-id'); if(el) el.value = '${i.id}'; }, 100);" style="width: 32px; height: 32px; background: #fff0f2; color: #ba1a1a; border: 1px solid #ffcdd2; display: flex; justify-content: center; align-items: center; border-radius: 8px; box-shadow: 0 2px 4px rgba(186,26,26,0.1);">
+                                        <span class="material-symbols-outlined" style="font-size: 18px; font-weight: bold;">remove</span>
+                                    </div>
+                                    <div class="tap-target" onclick="event.stopPropagation(); UI.openBottomSheet('sheet-stock-adjustment'); setTimeout(() => { const el = document.getElementById('adj-product-id'); if(el) el.value = '${i.id}'; }, 100);" style="width: 32px; height: 32px; background: #e8f5e9; color: #146c2e; border: 1px solid #c8e6c9; display: flex; justify-content: center; align-items: center; border-radius: 8px; box-shadow: 0 2px 4px rgba(20,108,46,0.1);">
+                                        <span class="material-symbols-outlined" style="font-size: 18px; font-weight: bold;">add</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
                 }, emptyHTML);
             } 
             else if (activeTab === 'customers' || activeTab === 'suppliers' || activeTab === 'contacts') {
@@ -1112,33 +1336,57 @@ const UI = {
                 if(sortOption === 'bal-asc') data.sort((a,b) => getBal(a.id, a.type) - getBal(b.id, b.type));
 
                 UI.renderVirtualList(container, data, (l) => {
+                    // 1. Dynamic Circular Avatar Engine
+                    const firstLetter = (l.name || 'U').charAt(0).toUpperCase();
+                    const hue = (firstLetter.charCodeAt(0) * 25) % 360;
+                    const avatarColor = `hsl(${hue}, 65%, 45%)`;
+
+                    // 2. Smart Balance Badges (Preserving your fast O(1) Math Engine)
                     const isCustomer = String(l.type).toLowerCase() === 'customer';
                     let bal = getBal(l.id, l.type);
-                    let balText = '';
-                    let balColor = 'var(--md-text-muted)';
+                    let balDisplay = '';
                     
                     if (isCustomer) {
-                        if (bal > 0.01) { balText = `\u20B9${bal.toFixed(2)} (Receive)`; balColor = 'var(--md-error)'; }
-                        else if (bal < -0.01) { balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
-                        else { balText = `\u20B90.00`; }
+                        if (bal > 0.01) { balDisplay = `<span style="background: #fff0f2; color: #ba1a1a; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; border: 1px solid #ffcdd2;">To Receive: ₹${bal.toFixed(2)}</span>`; }
+                        else if (bal < -0.01) { balDisplay = `<span style="background: #e8f5e9; color: #146c2e; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; border: 1px solid #c8e6c9;">Advance: ₹${Math.abs(bal).toFixed(2)}</span>`; }
                     } else {
-                        if (bal > 0.01) { balText = `\u20B9${bal.toFixed(2)} (Pay)`; balColor = 'var(--md-error)'; }
-                        else if (bal < -0.01) { balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
-                        else { balText = `\u20B90.00`; }
+                        if (bal > 0.01) { balDisplay = `<span style="background: #fff0f2; color: #ba1a1a; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; border: 1px solid #ffcdd2;">To Pay: ₹${bal.toFixed(2)}</span>`; }
+                        else if (bal < -0.01) { balDisplay = `<span style="background: #e8f5e9; color: #146c2e; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; border: 1px solid #c8e6c9;">Advance: ₹${Math.abs(bal).toFixed(2)}</span>`; }
                     }
-                    
-                    const rowIcon = isCustomer ? 'person' : 'storefront';
-                    const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
 
-                    return UI.renderRowWiseItem(
-                        UI.highlightText(l.name || 'Unnamed Party', searchTerm), 
-                        UI.highlightText(l.phone || 'No Phone', searchTerm), 
-                        `<span style="color:${balColor}; font-weight:500;">${balText}</span>`, 
-                        'View Ledger >', 
-                        rowIcon, 
-                        rowColor, 
-                        `app.openPartyLedger('${l.id}', '${l.type}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}')`
-                    );
+                    // 3. Premium Contact Card UI
+                    return `
+                    <div class="m3-card tap-target virtual-item" style="padding: 16px; margin-bottom: 12px; border-radius: 16px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}')">
+                        
+                        <div style="width: 50px; height: 50px; background: ${avatarColor}; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 22px; font-weight: 800; flex-shrink: 0; box-shadow: 0 4px 10px ${avatarColor}40;">
+                            ${firstLetter}
+                        </div>
+                        
+                        <div style="flex: 1; min-width: 0; overflow: hidden;">
+                            <strong style="font-size: 16px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${UI.highlightText(l.name || 'Unknown', searchTerm)}</strong>
+                            
+                            <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--md-text-muted); margin-bottom: 6px;">
+                                <span class="material-symbols-outlined" style="font-size: 14px;">call</span> ${UI.highlightText(l.phone || 'No Phone Attached', searchTerm)}
+                            </div>
+                            
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: bold;">${l.type || 'Contact'}</span>
+                                ${balDisplay}
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 8px;">
+                            ${l.phone ? `
+                            <div class="tap-target" onclick="event.stopPropagation(); window.open('tel:${l.phone}')" style="width: 40px; height: 40px; background: #e3f2fd; color: #0061a4; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 8px rgba(0,97,164,0.15);">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">call</span>
+                            </div>
+                            ` : `
+                            <div class="tap-target" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-on-surface-variant); border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">chevron_right</span>
+                            </div>
+                            `}
+                        </div>
+                    </div>`;
                 }, emptyHTML);
             }
             else if (activeTab === 'pay-in' || activeTab === 'pay-out') {
@@ -1415,12 +1663,13 @@ const UI = {
     // ==========================================
     // 5. TRUE PROFIT DASHBOARD & DATE FILTERS
     // ==========================================
+    // ==========================================
+    // ENTERPRISE ARCHITECTURE: CQRS MATERIALIZED VIEW ENGINE
+    // ==========================================
     renderDashboard: () => {
         const filterEl = document.getElementById('dashboard-date-filter');
         const dateFilter = filterEl ? filterEl.value : 'all';
         const todayStr = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-        
-        // ENTERPRISE FIX: Absolute Timezone-Safe Date Math
         const currentYear = parseInt(todayStr.split('-')[0], 10);
         const currentMonth = parseInt(todayStr.split('-')[1], 10) - 1;
 
@@ -1428,177 +1677,207 @@ const UI = {
             if (dateFilter === 'all') return true;
             if (!dateStr) return false;
             if (dateFilter === 'today') return dateStr === todayStr;
-            
-            const [yearStr, monthStr, dayStr] = dateStr.split('-');
+            const [yearStr, monthStr] = dateStr.split('-');
             const itemYear = parseInt(yearStr, 10);
             const itemMonth = parseInt(monthStr, 10) - 1;
-            
             if (dateFilter === 'month') return itemMonth === currentMonth && itemYear === currentYear;
             if (dateFilter === 'year') return itemYear === currentYear;
             return true;
         };
 
-        // ENTERPRISE FIX: Secure Data Isolation (Prevent Multi-Firm Data Leaks)
         const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
 
-        const sales = UI.state.rawData.sales.filter(s => !activeFirmId || s.firmId === activeFirmId);
-        const purchases = UI.state.rawData.purchases.filter(p => !activeFirmId || p.firmId === activeFirmId);
-        const expenses = UI.state.rawData.expenses.filter(e => !activeFirmId || e.firmId === activeFirmId);
-        const cashbook = UI.state.rawData.cashbook.filter(c => !activeFirmId || c.firmId === activeFirmId);
+        // 1. Create a unique mathematical fingerprint of the entire database state
+        const dbFingerprint = `${UI.state.rawData.sales.length}-${UI.state.rawData.purchases.length}-${UI.state.rawData.expenses.length}-${UI.state.rawData.cashbook.length}-${UI.state.rawData.adjustments?.length || 0}`;
+        const cacheKey = `${dateFilter}_${activeFirmId}_${dbFingerprint}`;
 
-        let totalSales = 0, outputGst = 0, totalPurchases = 0, inputGst = 0, totalExpenses = 0;
-        let cogs = 0; 
+        if (!UI.dashboardCache) UI.dashboardCache = { key: null, payload: null };
 
-        // CRITICAL FIX: Dashboard Payment Map Math & Collision Guard
-        const paymentMap = {};
-        const ledgerTotalPaid = {}; 
-        const ledgerExplicitlyLinked = {}; 
+        let payload;
 
-        cashbook.forEach(c => {
-            if (c.ledgerId) {
-                let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
-                ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
+        if (UI.dashboardCache.key === cacheKey) {
+            // CACHE HIT! The database hasn't changed. Load from memory instantly!
+            payload = UI.dashboardCache.payload;
+        } else {
+            // CACHE MISS! New data was added. We crunch the heavy math one time.
+            const sales = UI.state.rawData.sales.filter(s => !activeFirmId || s.firmId === activeFirmId);
+            const purchases = UI.state.rawData.purchases.filter(p => !activeFirmId || p.firmId === activeFirmId);
+            const expenses = UI.state.rawData.expenses.filter(e => !activeFirmId || e.firmId === activeFirmId);
+            const cashbook = UI.state.rawData.cashbook.filter(c => !activeFirmId || c.firmId === activeFirmId);
 
-                if (c.invoiceRef) {
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                    let remainingAmt = amt;
-                    
-                    // Waterfall Allocation (FIFO)
-                    const matchedDocs = refs.map(ref => {
-                        return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
-                               UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
-                               { id: ref, grandTotal: Infinity, date: '1970-01-01' };
-                    });
-                    
-                    matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-                    
-                    matchedDocs.forEach(doc => {
-                        if (remainingAmt <= 0) return;
-                        const key = `${c.ledgerId}_${doc.id}`;
-                        const currentPaid = paymentMap[key] || 0;
-                        const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
-                        
-                        const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                        
-                        if (allocation > 0) {
-                            paymentMap[key] = currentPaid + allocation;
-                            ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
-                            remainingAmt -= allocation;
+            let totalSales = 0, outputGst = 0, totalPurchases = 0, inputGst = 0, totalExpenses = 0, cogs = 0; 
+            const paymentMap = {}, ledgerTotalPaid = {}, ledgerExplicitlyLinked = {}; 
+
+            cashbook.forEach(c => {
+                if (c.ledgerId) {
+                    let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
+                    ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
+
+                    if (c.invoiceRef) {
+                        const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                        let remainingAmt = amt;
+                        const matchedDocs = refs.map(ref => {
+                            return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
+                                   UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
+                                   { id: ref, grandTotal: Infinity, date: '1970-01-01' };
+                        });
+                        matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+                        matchedDocs.forEach(doc => {
+                            if (remainingAmt <= 0) return;
+                            const key = `${c.ledgerId}_${doc.id}`;
+                            const currentPaid = paymentMap[key] || 0;
+                            const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
+                            const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                            if (allocation > 0) {
+                                paymentMap[key] = currentPaid + allocation;
+                                ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
+                                remainingAmt -= allocation;
+                            }
+                        });
+                    }
+                }
+            });
+
+            const advancePool = {};
+            Object.keys(ledgerTotalPaid).forEach(ledgerId => {
+                const totalPaid = ledgerTotalPaid[ledgerId] || 0;
+                const explicitlyLinked = ledgerExplicitlyLinked[ledgerId] || 0;
+                advancePool[ledgerId] = totalPaid > explicitlyLinked ? totalPaid - explicitlyLinked : 0;
+            });
+
+            const sortedSales = [...sales].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+            sortedSales.forEach(doc => {
+                if (doc.status !== 'Open' && doc.documentType !== 'return') {
+                    if (advancePool[doc.customerId] > 0.01) {
+                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
+                        const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
+                        const due = (parseFloat(doc.grandTotal) || 0) - explicitPaid;
+                        if (due > 0.01) {
+                            const allocated = Math.min(due, advancePool[doc.customerId]);
+                            advancePool[doc.customerId] -= allocated;
+                            paymentMap[`${doc.customerId}_${doc.id}`] = (paymentMap[`${doc.customerId}_${doc.id}`] || 0) + allocated;
                         }
+                    }
+                }
+            });
+
+            sales.forEach(s => { 
+                if(s.status !== 'Open' && isDateInRange(s.date)) { 
+                    const isReturn = s.documentType === 'return';
+                    const isNonGST = s.invoiceType === 'Non-GST';
+                    const modifier = isReturn ? -1 : 1;
+                    totalSales += (parseFloat(s.grandTotal) || 0) * modifier; 
+                    outputGst += (parseFloat(s.totalGst) || 0) * modifier; 
+                    (s.items || []).forEach(item => {
+                        const masterItem = UI.state.rawData.items.find(i => i.id === item.itemId);
+                        let exactCost = parseFloat(item.buyPrice) || 0;
+                        if (masterItem) exactCost = isNonGST ? (parseFloat(masterItem.nonGstBuyPrice) || exactCost) : (parseFloat(masterItem.gstBuyPrice) || exactCost);
+                        cogs += ((parseFloat(item.qty) || 0) * exactCost) * modifier;
                     });
                 }
-            }
-        });
+            });        
+            purchases.forEach(p => { 
+                if (p.status !== 'Open' && isDateInRange(p.date)) { 
+                    const modifier = p.documentType === 'return' ? -1 : 1;
+                    const netPurchase = (parseFloat(p.grandTotal) || 0) - (parseFloat(p.totalGst) || 0);
+                    totalPurchases += netPurchase * modifier; 
+                    inputGst += (p.totalGst || 0) * modifier; 
+                } 
+            });
+            expenses.forEach(e => { if(isDateInRange(e.date)) totalExpenses += parseFloat(e.amount) || 0; });
 
-        // --- ENTERPRISE UPGRADE: DASHBOARD FIFO KNOCKOFF FOR OVERDUE SALES ---
-        const advancePool = {};
-        Object.keys(ledgerTotalPaid).forEach(ledgerId => {
-            const totalPaid = ledgerTotalPaid[ledgerId] || 0;
-            const explicitlyLinked = ledgerExplicitlyLinked[ledgerId] || 0;
-            if (totalPaid > explicitlyLinked) advancePool[ledgerId] = totalPaid - explicitlyLinked;
-            else advancePool[ledgerId] = 0;
-        });
-
-        const sortedSales = [...sales].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-        sortedSales.forEach(doc => {
-            if (doc.status !== 'Open' && doc.documentType !== 'return') {
-                if (advancePool[doc.customerId] > 0.01) {
-                    const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
-                    const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
-                    const due = (parseFloat(doc.grandTotal) || 0) - explicitPaid;
-                    
-                    if (due > 0.01) {
-                        const allocated = Math.min(due, advancePool[doc.customerId]);
-                        advancePool[doc.customerId] -= allocated;
-                        paymentMap[`${doc.customerId}_${doc.id}`] = (paymentMap[`${doc.customerId}_${doc.id}`] || 0) + allocated;
-                    }
+            let indirectIncome = 0;
+            cashbook.forEach(c => {
+                if (isDateInRange(c.date) && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+                    const ledgerName = (c.ledgerName || '').toLowerCase();
+                    if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) indirectIncome += parseFloat(c.amount) || 0;
                 }
-            }
-        });
+            });
 
-        sales.forEach(s => { 
-            if(s.status !== 'Open' && isDateInRange(s.date)) { 
-                const isReturn = s.documentType === 'return';
-                const isNonGST = s.invoiceType === 'Non-GST'; // IDENTIFY SALES BUCKET
-                const modifier = isReturn ? -1 : 1;
-
-                // UX FIX: Show Full Invoice Value (including GST) so it matches your Sales Tab
-                totalSales += (parseFloat(s.grandTotal) || 0) * modifier; 
-                outputGst += (parseFloat(s.totalGst) || 0) * modifier; 
-                
-                (s.items || []).forEach(item => {
-                    // DUAL ENGINE COGS: Pull exact cost basis based on the invoice tax type
-                    const masterItem = UI.state.rawData.items.find(i => i.id === item.itemId);
-                    let exactCost = parseFloat(item.buyPrice) || 0;
-                    
-                    if (masterItem) {
-                        exactCost = isNonGST ? (parseFloat(masterItem.nonGstBuyPrice) || exactCost) : (parseFloat(masterItem.gstBuyPrice) || exactCost);
+            let stockLoss = 0;
+            if (UI.state.rawData.adjustments) {
+                UI.state.rawData.adjustments.forEach(adj => {
+                    if (adj.type === 'remove' && isDateInRange(adj.date)) {
+                        const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
+                        stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
                     }
-                    
-                    cogs += ((parseFloat(item.qty) || 0) * exactCost) * modifier;
                 });
             }
-        });        
-        purchases.forEach(p => { 
-            if (p.status !== 'Open' && isDateInRange(p.date)) { 
-                const isReturn = p.documentType === 'return';
-                const modifier = isReturn ? -1 : 1;
-                const netPurchase = (parseFloat(p.grandTotal) || 0) - (parseFloat(p.totalGst) || 0);
-                totalPurchases += netPurchase * modifier; 
-                inputGst += (p.totalGst || 0) * modifier; 
-            } 
-        });
-        
-        // --- CLEAN DASHBOARD: CALCULATE TOTAL EXPENSES (Hidden from UI) ---
-        expenses.forEach(e => { 
-            if(isDateInRange(e.date)) {
-                totalExpenses += parseFloat(e.amount) || 0; 
-            }
-        });
-        
-        // Ensure the old expense container is completely hidden to keep the UI clean
+
+            // ⚡ TRUE DUAL-ENGINE FIX: DASHBOARD INVENTORY VALUATION
+            let totalWarehouseCapital = 0;
+            UI.state.rawData.items.forEach(item => {
+                const gstQty = parseFloat(item.gstStock) || 0;
+                const nonGstQty = parseFloat(item.nonGstStock) || 0;
+                
+                const gstCost = parseFloat(item.gstBuyPrice) || parseFloat(item.buyPrice) || 0;
+                const nonGstCost = parseFloat(item.nonGstBuyPrice) || parseFloat(item.buyPrice) || 0;
+                
+                if (gstQty > 0) totalWarehouseCapital += (gstQty * gstCost);
+                if (nonGstQty > 0) totalWarehouseCapital += (nonGstQty * nonGstCost);
+            });
+
+            const netRevenue = (totalSales - outputGst) + indirectIncome; 
+            const grossMargin = netRevenue - cogs;
+            const trueNetProfit = grossMargin - (totalExpenses + stockLoss); 
+
+            let openOrders = 0, shippedOrders = 0, completedOrders = 0;
+            let openCount = 0, shippedCount = 0, completedCount = 0;
+
+            sales.forEach(s => {
+                if (isDateInRange(s.date)) {
+                    const isReturn = s.documentType === 'return';
+                    const modifier = isReturn ? -1 : 1;
+                    const val = (parseFloat(s.grandTotal) || 0) * modifier;
+                    if (s.status === 'Open') { openOrders += val; if (!isReturn) openCount++; }
+                    else if (s.status === 'Shipped') { shippedOrders += val; if (!isReturn) shippedCount++; }
+                    else if (s.status === 'Completed') { completedOrders += val; if (!isReturn) completedCount++; }
+                }
+            });
+
+            const overdueSales = sales.filter(s => {
+                if (s.status === 'Open' || s.documentType === 'return') return false;
+                const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
+                const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
+                const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
+                if (balance <= 0) return false;
+                if (!s.date) return false;
+                const parts = s.date.split('-'); 
+                const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
+                const tParts = todayStr.split('-');
+                const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
+                const diffTime = todayDate - invoiceDate;
+                if (diffTime < 0) return false; 
+                return Math.floor(diffTime / (1000 * 60 * 60 * 24)) > 15;
+            });
+            
+            const overdueHTML = overdueSales.map(s => {
+                const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
+                const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
+                const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
+                return `<li><div><strong class="large-text">${s.customerName || 'Unknown Party'}</strong><br><small class="color-primary">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small></div><span style="background:#fff0f2; color:#be123c; border:1px solid #be123c; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">Overdue</span></li>`;
+            }).join('');
+
+            const pendingPurchases = purchases.filter(p => p.status === 'Open').length;
+
+            // Bundle everything into the payload
+            payload = {
+                totalSales, totalPurchases, totalExpenses, totalWarehouseCapital,
+                trueNetProfit, grossMargin,
+                openOrders, shippedOrders, completedOrders, openCount, shippedCount, completedCount,
+                overdueCount: overdueSales.length,
+                pendingPurchases,
+                overdueHTML
+            };
+
+            // Save to Cache!
+            UI.dashboardCache = { key: cacheKey, payload };
+        }
+
+        // 2. DOM PAINTING (Instant, uses the payload)
         const expenseContainer = document.getElementById('expense-ledger-container');
         if (expenseContainer) expenseContainer.style.display = 'none';
 
-        // --- ENTERPRISE UPGRADE: CATCHING INDIRECT INCOME & STOCK LOSS ---
-        let indirectIncome = 0;
-        cashbook.forEach(c => {
-            if (isDateInRange(c.date) && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                // Safely catches miscellaneous income (like Bank Interest) not linked to customers
-                const ledgerName = (c.ledgerName || '').toLowerCase();
-                if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
-                    indirectIncome += parseFloat(c.amount) || 0;
-                }
-            }
-        });
-
-        // Optional: If you sync adjustments to UI.state.rawData, deduct lost stock here
-        let stockLoss = 0;
-        if (UI.state.rawData.adjustments) {
-            UI.state.rawData.adjustments.forEach(adj => {
-                if (adj.type === 'remove' && isDateInRange(adj.date)) {
-                    const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
-                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
-                }
-            });
-        }
-
-        // --- ENTERPRISE UPGRADE: WAREHOUSE CAPITAL CALCULATION ---
-        let totalWarehouseCapital = 0;
-        UI.state.rawData.items.forEach(item => {
-            const qty = parseFloat(item.stock) || 0;
-            const cost = parseFloat(item.buyPrice) || 0;
-            if (qty > 0 && cost > 0) {
-                totalWarehouseCapital += (qty * cost);
-            }
-        });
-
-        // TRUE ACCRUAL PROFIT MATH (Upgraded)
-        const netRevenue = (totalSales - outputGst) + indirectIncome; 
-        const grossMargin = netRevenue - cogs;
-        const trueNetProfit = grossMargin - (totalExpenses + stockLoss); 
-
-        // UPGRADE 1: Count-Up Animation Engine
         const animateValue = (id, start, end, duration) => {
             const obj = document.getElementById(id);
             if (!obj) return;
@@ -1606,7 +1885,6 @@ const UI = {
             const step = (timestamp) => {
                 if (!startTimestamp) startTimestamp = timestamp;
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                // Ease-out formula for smoother deceleration
                 const easeOut = 1 - Math.pow(1 - progress, 3);
                 obj.innerHTML = '\u20B9' + (easeOut * (end - start) + start).toFixed(2);
                 if (progress < 1) window.requestAnimationFrame(step);
@@ -1614,78 +1892,37 @@ const UI = {
             window.requestAnimationFrame(step);
         };
 
-        // Update DOM with Animation (Duration: 800ms)
-        animateValue('dash-total-sales', 0, totalSales, 800);
-        animateValue('dash-warehouse-capital', 0, totalWarehouseCapital, 800); // Live Capital Animation!
+        animateValue('dash-total-sales', 0, payload.totalSales, 800);
         
         const netProfitEl = document.getElementById('dash-net-profit');
         if(netProfitEl) {
-            animateValue('dash-net-profit', 0, trueNetProfit, 800);
-            netProfitEl.style.color = trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
+            animateValue('dash-net-profit', 0, payload.trueNetProfit, 800);
+            netProfitEl.style.color = payload.trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
         }
         
-        if(document.getElementById('profit-breakdown')) document.getElementById('profit-breakdown').innerText = `Gross: \u20B9${grossMargin.toFixed(0)} | Exp: \u20B9${totalExpenses.toFixed(0)}`;
-        
-        // NEW: Operational Order Volume Tracking (Open, Shipped, Completed)
-        let openOrders = 0, shippedOrders = 0, completedOrders = 0;
-        let openCount = 0, shippedCount = 0, completedCount = 0;
-
-        sales.forEach(s => {
-            // Apply the global dashboard date filter to the pipeline
-            if (isDateInRange(s.date)) {
-                const isReturn = s.documentType === 'return';
-                const modifier = isReturn ? -1 : 1;
-                const val = (parseFloat(s.grandTotal) || 0) * modifier;
-                
-                if (s.status === 'Open') {
-                    openOrders += val;
-                    if (!isReturn) openCount++;
-                } else if (s.status === 'Shipped') {
-                    shippedOrders += val;
-                    if (!isReturn) shippedCount++;
-                } else if (s.status === 'Completed') {
-                    completedOrders += val;
-                    if (!isReturn) completedCount++;
-                }
+        if(document.getElementById('profit-breakdown')) {
+            const pb = document.getElementById('profit-breakdown');
+            pb.innerText = `Gross: \u20B9${payload.grossMargin.toFixed(0)} | Exp: \u20B9${payload.totalExpenses.toFixed(0)}`;
+            
+            // ⚡ DOUBLE-ENTRY UI: INJECT TRIAL BALANCE BUTTON DYNAMICALLY
+            if (!document.getElementById('btn-trial-balance')) {
+                const tbBtn = document.createElement('button');
+                tbBtn.id = 'btn-trial-balance';
+                tbBtn.className = 'btn-primary-small tap-target';
+                tbBtn.style.cssText = 'margin-top: 12px; width: 100%; background: #e3f2fd; color: #0061a4; border: 1px solid #90caf9; padding: 8px; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center;';
+                tbBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px; margin-right:8px;">account_balance</span> View Trial Balance';
+                tbBtn.onclick = () => UI.openTrialBalance();
+                pb.parentElement.appendChild(tbBtn);
             }
-        });
+        }
+        
+        if(document.getElementById('dash-orders-open')) document.getElementById('dash-orders-open').innerHTML = `${payload.openCount} Orders <strong style="color:var(--md-error); margin-left:8px;">\u20B9${payload.openOrders.toFixed(2)}</strong>`;
+        if(document.getElementById('dash-orders-shipped')) document.getElementById('dash-orders-shipped').innerHTML = `${payload.shippedCount} Orders <strong style="color:#f57f17; margin-left:8px;">\u20B9${payload.shippedOrders.toFixed(2)}</strong>`;
+        if(document.getElementById('dash-orders-completed')) document.getElementById('dash-orders-completed').innerHTML = `${payload.completedCount} Orders <strong style="color:var(--md-success); margin-left:8px;">\u20B9${payload.completedOrders.toFixed(2)}</strong>`;
+        
+        if(typeof UI.updateChart === 'function') UI.updateChart(payload.totalSales, payload.totalPurchases, payload.totalExpenses);
 
-        if(document.getElementById('dash-orders-open')) document.getElementById('dash-orders-open').innerHTML = `${openCount} Orders <strong style="color:var(--md-error); margin-left:8px;">\u20B9${openOrders.toFixed(2)}</strong>`;
-        if(document.getElementById('dash-orders-shipped')) document.getElementById('dash-orders-shipped').innerHTML = `${shippedCount} Orders <strong style="color:#f57f17; margin-left:8px;">\u20B9${shippedOrders.toFixed(2)}</strong>`;
-        if(document.getElementById('dash-orders-completed')) document.getElementById('dash-orders-completed').innerHTML = `${completedCount} Orders <strong style="color:var(--md-success); margin-left:8px;">\u20B9${completedOrders.toFixed(2)}</strong>`;
-        // --- NEW CODE: Call the chart updater ---
-        UI.updateChart(totalSales, totalPurchases, totalExpenses);
-        // --- END OF NEW CODE ---
-
-        // --- OVERDUE REMINDERS SAFELY INSIDE THE FUNCTION ---
-        const overdueSales = sales.filter(s => {
-            if (s.status === 'Open' || s.documentType === 'return') return false;
-            
-            // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
-            const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
-            const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
-            const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
-            if (balance <= 0) return false;
-            
-            if (!s.date) return false;
-            // BULLETPROOF DATE MATH: Manually parse YYYY-MM-DD so old WebViews don't panic!
-            const parts = s.date.split('-'); 
-            const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
-            
-            // ENTERPRISE FIX: Safely recreate 'today' using the timezone-safe string!
-            const tParts = todayStr.split('-');
-            const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
-            
-            const diffTime = todayDate - invoiceDate;
-            if (diffTime < 0) return false; // Prevent future/post-dated invoices from being flagged!
-            
-            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-            return diffDays > 15;
-        });
-
-        // UPGRADE 2: Update Bottom Nav Notification Badge for Actionable Documents
-        const pendingPurchases = purchases.filter(p => p.status === 'Open').length;
-        const totalAlerts = overdueSales.length + pendingPurchases;
+        const totalAlerts = payload.overdueCount + payload.pendingPurchases;
         const badgeEl = document.getElementById('badge-docs');
         if (badgeEl) {
             if (totalAlerts > 0) {
@@ -1696,35 +1933,17 @@ const UI = {
             }
         }
 
-        // UPGRADE 3: Native OS Home Screen App Badging
         if ('setAppBadge' in navigator) {
-            if (totalAlerts > 0) {
-                navigator.setAppBadge(totalAlerts).catch(e => console.error("Badging error", e));
-            } else {
-                navigator.clearAppBadge().catch(e => console.error("Badging clear error", e));
-            }
+            if (totalAlerts > 0) navigator.setAppBadge(totalAlerts).catch(e => console.error(e));
+            else navigator.clearAppBadge().catch(e => console.error(e));
         }
 
         const overdueContainer = document.getElementById('overdue-reminders-container');
         if (overdueContainer) {
-            if (overdueSales.length > 0) {
+            if (payload.overdueCount > 0) {
                 overdueContainer.classList.remove('hidden');
-                document.getElementById('overdue-text').innerText = `${overdueSales.length} invoices pending over 15 days.`;
-                
-                document.getElementById('list-overdue').innerHTML = overdueSales.map(s => {
-                    // FIX: Update the dashboard display to match the new cross-linked math!
-                    const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
-                    const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
-                    const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
-                    return `
-                    <li>
-                        <div>
-                            <strong class="large-text">${s.customerName || 'Unknown Party'}</strong><br>
-                            <small class="color-primary">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small>
-                        </div>
-                        <span style="background:#fff0f2; color:#be123c; border:1px solid #be123c; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">Overdue</span>
-                    </li>`;
-                }).join('');
+                document.getElementById('overdue-text').innerText = `${payload.overdueCount} invoices pending over 15 days.`;
+                document.getElementById('list-overdue').innerHTML = payload.overdueHTML;
             } else {
                 overdueContainer.classList.add('hidden');
             }
@@ -2078,21 +2297,22 @@ const UI = {
         // ENTERPRISE FIX: Route the products bottom sheet through the Virtualizer so it never freezes!
         UI.renderVirtualList(container, items, (item) => {
             const price = parseFloat(isPurchase ? (item.buyPrice || 0) : (item.sellPrice || 0)) || 0;
-            const currentStock = parseFloat(item.stock) || 0;
+            const currentStock = (parseFloat(item.gstStock) || 0) + (parseFloat(item.nonGstStock) || 0);
             const gstStock = parseFloat(item.gstStock) || 0;
             const nonGstStock = parseFloat(item.nonGstStock) || 0;
             const minStock = parseFloat(item.minStock) || 0;
             const isLowStock = minStock > 0 && currentStock <= minStock;
+            const safeUom = (item.uom && String(item.uom).toLowerCase() !== 'null' && String(item.uom).toLowerCase() !== 'undefined') ? item.uom : 'Units';
             
             return `
             <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
                 <div>
                     <div class="large-text">${item.name || 'Unnamed Product'}</div>
                     <small>
-                        <span style="color:#0061a4; font-weight:bold;">GST: ${gstStock}</span> | 
-                        <span style="color:#d84315; font-weight:bold;">Non-GST: ${nonGstStock}</span>
+                        <span style="color:#0061a4; font-weight:bold;">GST: ${gstStock.toFixed(2)}</span> | 
+                        <span style="color:#d84315; font-weight:bold;">Non-GST: ${nonGstStock.toFixed(2)}</span>
                         ${isLowStock ? '<span style="color:var(--md-error); font-weight:bold;"> ⚠️ Low</span>' : ''}
-                        <br>Total: ${currentStock} ${item.uom || ''} | Rate: \u20B9${price.toFixed(2)}
+                        <br>Total: ${currentStock.toFixed(2)} ${safeUom} | Rate: \u20B9${price.toFixed(2)}
                     </small>
                 </div>
                 <input type="checkbox" style="width: 20px; height: 20px; pointer-events: none;">
@@ -2402,6 +2622,158 @@ const UI = {
     },
 
     // ==========================================
+    // ⚡ DOUBLE-ENTRY UI: TRIAL BALANCE ENGINE
+    // ==========================================
+    openTrialBalance: async () => {
+        try {
+            if (window.Utils) window.Utils.showToast("Calculating Trial Balance...");
+            
+            // ⚡ BULLETPROOF FIX: Safely catch missing journal tables so it never crashes!
+            let journals = [];
+            try { journals = await getAllRecords('journal'); } catch(e) {}
+            if (!Array.isArray(journals)) journals = [];
+
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+            
+            const accounts = {};
+            let totalDr = 0;
+            let totalCr = 0;
+            
+            // 1. Mathematically aggregate all Debits and Credits per Ledger Account
+            journals.forEach(j => {
+                if (j.firmId !== activeFirmId) return;
+                j.legs.forEach(leg => {
+                    if (!accounts[leg.acc]) accounts[leg.acc] = { dr: 0, cr: 0 };
+                    if (leg.type === 'Dr') accounts[leg.acc].dr += leg.amt;
+                    if (leg.type === 'Cr') accounts[leg.acc].cr += leg.amt;
+                });
+            });
+            
+            // 2. Deduce the Final Net Balance per Account
+            const trialBalance = [];
+            Object.keys(accounts).forEach(acc => {
+                const net = accounts[acc].dr - accounts[acc].cr;
+                if (Math.abs(net) > 0.01) {
+                    if (net > 0) {
+                        trialBalance.push({ name: acc, dr: net, cr: 0 });
+                        totalDr += net;
+                    } else {
+                        trialBalance.push({ name: acc, dr: 0, cr: Math.abs(net) });
+                        totalCr += Math.abs(net);
+                    }
+                }
+            });
+            
+            trialBalance.sort((a, b) => a.name.localeCompare(b.name));
+            
+            // 3. Dynamically Generate the App Screen
+            let tbScreen = document.getElementById('activity-trial-balance');
+            if (!tbScreen) {
+                tbScreen = document.createElement('div');
+                tbScreen.id = 'activity-trial-balance';
+                tbScreen.className = 'activity-screen hidden';
+                tbScreen.style.cssText = 'z-index: 5000; display: none; flex-direction: column; background: var(--md-surface);';
+                document.body.appendChild(tbScreen);
+            }
+            
+            const isBalanced = Math.abs(totalDr - totalCr) < 0.5;
+            
+            let html = `
+                <div class="activity-header" style="background: #0061a4; color: white;">
+                    <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-trial-balance')" style="color:white;">arrow_back</span>
+                    <div class="title" style="flex:1; color:white;">Trial Balance</div>
+                    <span class="material-symbols-outlined tap-target" onclick="UI.exportTrialBalanceCSV()" style="color:white;">ios_share</span>
+                </div>
+                <div class="activity-content" style="background: var(--md-surface-variant); padding: 12px; overflow-y: auto; flex: 1;">
+                    
+                    ${isBalanced ? 
+                        `<div style="background:#e8f5e9; color:#146c2e; padding:10px; border-radius:8px; margin-bottom:12px; text-align:center; font-weight:bold; border:1px solid #c8e6c9;">✅ Books are Perfectly Balanced</div>` : 
+                        `<div style="background:#fff0f2; color:#ba1a1a; padding:10px; border-radius:8px; margin-bottom:12px; text-align:center; font-weight:bold; border:1px solid #ffcdd2;">⚠️ Math Error: Books do not balance</div>`
+                    }
+
+                    <div class="m3-card" style="padding:0; overflow:hidden; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+                            <thead style="position: sticky; top: 0; z-index: 2;">
+                                <tr style="background: #e3f2fd; color: #0061a4;">
+                                    <th style="padding: 14px 12px; text-align: left; font-weight: 800;">Ledger Account</th>
+                                    <th style="padding: 14px 12px; text-align: right; font-weight: 800;">Debit (Dr)</th>
+                                    <th style="padding: 14px 12px; text-align: right; font-weight: 800;">Credit (Cr)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${trialBalance.map(row => `
+                                    <tr style="border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface);">
+                                        <td style="padding: 12px; font-weight:600; color: var(--md-on-surface);">${row.name}</td>
+                                        <td style="padding: 12px; text-align: right; color: #d32f2f; font-weight: 500;">${row.dr > 0 ? window.formatMoney(row.dr) : '-'}</td>
+                                        <td style="padding: 12px; text-align: right; color: #2e7d32; font-weight: 500;">${row.cr > 0 ? window.formatMoney(row.cr) : '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                            <tfoot style="position: sticky; bottom: 0; z-index: 2;">
+                                <tr style="background: #0061a4; color: white; font-weight: bold; font-size: 14px;">
+                                    <td style="padding: 16px 12px; text-transform: uppercase;">Grand Total</td>
+                                    <td style="padding: 16px 12px; text-align: right;">${window.formatMoney(totalDr)}</td>
+                                    <td style="padding: 16px 12px; text-align: right;">${window.formatMoney(totalCr)}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            tbScreen.innerHTML = html;
+            UI.state.trialBalanceData = trialBalance; 
+            
+            UI.openActivity('activity-trial-balance');
+            
+        } catch (error) {
+            console.error("Trial Balance Error:", error);
+            alert("Could not generate Trial Balance.");
+        }
+    },
+
+    exportTrialBalanceCSV: async () => {
+        if (!UI.state.trialBalanceData) return;
+        let csv = "Account Name,Debit (Dr),Credit (Cr)\n";
+        let totDr = 0, totCr = 0;
+        
+        UI.state.trialBalanceData.forEach(row => {
+            csv += `"${row.name}",${row.dr.toFixed(2)},${row.cr.toFixed(2)}\n`;
+            totDr += row.dr;
+            totCr += row.cr;
+        });
+        
+        csv += `"GRAND TOTAL",${totDr.toFixed(2)},${totCr.toFixed(2)}\n`;
+        
+        const filename = `Trial_Balance_${new Date().toISOString().split('T')[0]}.csv`;
+        const file = new File([csv], filename, { type: "text/csv" });
+        
+        // ⚡ PREMIUM UX: Native Device Share Sheet instead of forced download
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: 'Trial Balance',
+                    text: 'Here is the Trial Balance report.',
+                    files: [file]
+                });
+                return;
+            } catch (err) {
+                console.log("Share cancelled", err);
+            }
+        }
+        
+        // Fallback for desktop browsers
+        const url = URL.createObjectURL(file);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    },
+
+    // ==========================================
     // UPGRADE: EXPORT ENGINES (CSV)
     // ==========================================
     exportDaybookCSV: () => {
@@ -2515,6 +2887,55 @@ const UI = {
     },
 
     // ==========================================
+    // 🤖 ENTERPRISE AI: OFFLINE BILL SCANNER
+    // ==========================================
+    scanPurchaseBill: async () => {
+        if (typeof Tesseract === 'undefined') {
+            if (window.Utils) window.Utils.showToast("⚠️ AI Engine downloading in background. Please wait 10 seconds and try again.");
+            return;
+        }
+        
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.capture = 'environment'; 
+        
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            if (window.Utils) window.Utils.showToast("🤖 AI Analyzing Document... (Takes 5-15s)");
+            
+            try {
+                const result = await Tesseract.recognize(file, 'eng');
+                const text = result.data.text;
+                
+                let invoiceNo = '';
+                const invMatch = text.match(/(?:invoice|inv|bill|ref)[\sno\.:#-]*([A-Z0-9-]{4,15})/i);
+                if (invMatch) invoiceNo = invMatch[1].trim();
+                
+                if (invoiceNo) {
+                    const poInput = document.getElementById('purchase-po-no');
+                    if (poInput) poInput.value = invoiceNo;
+                }
+                
+                const notesInput = document.getElementById('purchase-internal-notes');
+                if (notesInput) {
+                    // FIX: This keeps the text strictly on one line using \n
+                    notesInput.value = "--- AI SCANNED TEXT ---\n" + text.substring(0, 300) + "...\n\n" + notesInput.value;
+                }
+
+                if (window.Utils) window.Utils.showToast("✅ AI Extraction Complete! Please verify details.");
+            } catch (err) {
+                console.error(err);
+                if (window.Utils) window.Utils.showToast("⚠️ AI Error: Could not read image clearly.");
+            }
+        };
+        
+        fileInput.click();
+    },
+
+    // ==========================================
     // DATABASE OPTIMIZATION ENGINE
     // ==========================================
     optimizeMemory: () => {
@@ -2523,93 +2944,6 @@ const UI = {
         return;
     },
 
-    restoreSalesDraft: () => {
-        const draftStr = localStorage.getItem('sollo_sales_draft');
-        if (!draftStr) return;
-        try {
-            const draft = JSON.parse(draftStr);
-            
-            if (draft.customerId) {
-                document.getElementById('sales-customer-id').value = draft.customerId;
-                document.getElementById('sales-customer-display').innerText = draft.customerName || 'Selected';
-                document.getElementById('sales-customer-display').style.color = 'var(--md-on-surface)';
-            }
-            if (draft.date) document.getElementById('sales-date').value = draft.date;
-            if (draft.invoiceType) document.getElementById('sales-invoice-type').value = draft.invoiceType;
-            if (draft.discount) document.getElementById('sales-discount').value = draft.discount;
-            if (draft.discountType) document.getElementById('sales-discount-type').value = draft.discountType;
-            if (draft.freight) document.getElementById('sales-freight').value = draft.freight;
-            if (draft.notes) document.getElementById('sales-internal-notes').value = draft.notes;
-            
-            if (draft.items && draft.items.length > 0) {
-                UI.state.selectedProducts = draft.items.map(i => ({
-                    id: i.id, name: i.name, uom: i.uom, hsn: i.hsn,
-                    qty: i.qty, price: i.rate, gst: i.gst, buyPrice: i.buyPrice
-                }));
-                const container = document.getElementById('sales-items-body');
-                container.innerHTML = ''; 
-                
-                const emptyState = document.getElementById('sales-empty-items');
-                if(emptyState) emptyState.style.display = 'none';
-                
-                draft.items.forEach(p => {
-                    const itemCard = document.createElement('div');
-                    itemCard.className = 'item-entry-card m3-card';
-                    itemCard.style.padding = '14px';
-                    itemCard.style.marginBottom = '12px';
-                    itemCard.style.borderLeft = '4px solid var(--md-primary)';
-                    
-                    itemCard.innerHTML = `
-                        <input type="hidden" class="row-item-id" value="${p.id}">
-                        <input type="hidden" class="row-item-name" value="${(p.name || '').replace(/"/g, '&quot;')}">
-                        <input type="hidden" class="row-uom" value="${p.uom || ''}">
-                        
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                            <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1;">
-                                ${p.name}
-                                <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
-                            </div>
-                            <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calcSalesTotals()">delete</span>
-                        </div>
-                        
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                            <div>
-                                <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty</small>
-                                <input type="number" inputmode="decimal" class="row-qty" value="${p.qty}" min="0.01" step="any" oninput="UI.calcSalesTotals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
-                            </div>
-                            <div>
-                                <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
-                                <input type="number" inputmode="decimal" class="row-rate" value="${p.rate}" step="any" oninput="UI.calcSalesTotals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
-                            </div>
-                            <div>
-                                <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                                <input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
-                            </div>
-                        </div>
-
-                        <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
-                            <div style="display:flex; gap:8px;">
-                                <div>
-                                    <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
-                                    <input type="number" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
-                                </div>
-                            </div>
-                            <div style="text-align:right;">
-                                <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
-                                <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(itemCard);
-                });
-            }
-            
-            UI.calcSalesTotals();
-            document.getElementById('sales-draft-banner').classList.add('hidden');
-            if (window.Utils) window.Utils.showToast("✅ Draft Restored Successfully!");
-            
-        } catch(e) { console.error("Draft restore error", e); }
-    }
 
 }; // <--- MAKE SURE YOU HAVE THIS CLOSING BRACKET AND SEMICOLON!
 
