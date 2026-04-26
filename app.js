@@ -2486,7 +2486,8 @@ const app = {
                     }
 
                     try {
-                        const targetPartyId = type === 'in' ? document.getElementById('pay-in-customer').value : document.getElementById('pay-out-supplier').value;
+                        // ENTERPRISE FIX: Updated IDs so the database correctly grabs the Smart Search selection!
+                        const targetPartyId = type === 'in' ? document.getElementById('pay-in-customer-id').value : document.getElementById('pay-out-supplier-id').value;
                         if (!targetPartyId) {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
                             return alert("Please select a party.");
@@ -2703,7 +2704,8 @@ const app = {
             document.getElementById(`pay-${type}-date`).value = record.date || '';
             
             // UPGRADE: Hydrate the new custom Tap-to-Select UI display
-            const partyInput = document.getElementById(type === 'in' ? 'pay-in-customer' : 'pay-out-supplier');
+            // ENTERPRISE FIX: Re-mapped the hydration engine to support the new Smart Search!
+            const partyInput = document.getElementById(type === 'in' ? 'pay-in-customer-id' : 'pay-out-supplier-id');
             const partyDisplay = document.getElementById(type === 'in' ? 'pay-in-customer-display' : 'pay-out-supplier-display');
             
             if (partyInput) partyInput.value = record.ledgerId || '';

@@ -1626,13 +1626,13 @@
                     <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="pay-in-date" required style="font-weight: bold; background: #f8fafc;"></div>
                 </div>
                 
-                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; padding: 16px;" onclick="if(window.UI){ window.UI.state.currentPrefix = 'pay-in'; window.UI.openBottomSheet('sheet-customers'); }">
+                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; padding: 16px;" onclick="if(window.UI) UI.openSmartSearch('customer', 'pay-in')">
                     <div style="display: flex; gap: 12px; align-items: center;">
                         <div class="icon-circle" style="background: #e3f2fd; color: #0061a4; width: 40px; height: 40px;"><span class="material-symbols-outlined">person</span></div>
                         <div>
                             <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase; font-size: 10px;">Customer (Received From)</small>
                             <div id="pay-in-customer-display" class="large-text" style="color: var(--md-on-surface); font-weight: bold;">Select Customer...</div>
-                            <input type="hidden" id="pay-in-customer" required>
+                            <input type="hidden" id="pay-in-customer-id" required>
                         </div>
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
@@ -1699,13 +1699,13 @@
                     <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="pay-out-date" required style="font-weight: bold; background: #f8fafc;"></div>
                 </div>
                 
-                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; padding: 16px;" onclick="if(window.UI){ window.UI.state.currentPrefix = 'pay-out'; window.UI.openBottomSheet('sheet-suppliers'); }">
+                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; padding: 16px;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'pay-out')">
                     <div style="display: flex; gap: 12px; align-items: center;">
                         <div class="icon-circle" style="background: #fff0f2; color: #ba1a1a; width: 40px; height: 40px;"><span class="material-symbols-outlined">storefront</span></div>
                         <div>
                             <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase; font-size: 10px;">Supplier (Paid To)</small>
                             <div id="pay-out-supplier-display" class="large-text" style="color: var(--md-on-surface); font-weight: bold;">Select Supplier...</div>
-                            <input type="hidden" id="pay-out-supplier" required>
+                            <input type="hidden" id="pay-out-supplier-id" required>
                         </div>
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
