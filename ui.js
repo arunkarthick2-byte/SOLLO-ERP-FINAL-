@@ -162,10 +162,11 @@ const UI = {
     // LIVE BANK BALANCE CALCULATOR
     // ==========================================
     renderBankBalances: () => {
-        // FIXED: Pull from state to respect firmId filtering, preventing data leaks across multiple companies
-        const accounts = UI.state.rawData.accounts || [];
-        const receipts = UI.state.rawData.cashbook || [];
-        const expenses = UI.state.rawData.expenses || []; // STRICT ERP LOGIC: Load Expenses to prevent bank leaks!
+        // ENTERPRISE FIX: Actually apply the Firm ID filter so bank balances don't mathematically merge across companies!
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+        const accounts = (UI.state.rawData.accounts || []).filter(a => !activeFirmId || a.firmId === activeFirmId);
+        const receipts = (UI.state.rawData.cashbook || []).filter(r => !activeFirmId || r.firmId === activeFirmId);
+        const expenses = (UI.state.rawData.expenses || []).filter(e => !activeFirmId || e.firmId === activeFirmId);
         const container = document.getElementById('bank-balances-container');
         if (!container) return;
 
@@ -247,17 +248,9 @@ const UI = {
             splash.classList.add('fade-out');
             setTimeout(() => splash.classList.add('hidden'), 500); 
         }
-
-        // UPGRADE 4: Read Home Screen Shortcuts on Boot
-        setTimeout(() => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const action = urlParams.get('action');
-            if (action === 'new_sale' && typeof app !== 'undefined') {
-                app.openForm('sales', null, 'invoice');
-            } else if (action === 'cashbook') {
-                UI.switchTab('tab-cashbook', 'Cashbook & Banking');
-            }
-        }, 600); // Wait for the splash screen to finish fading before opening
+        
+        // ENTERPRISE FIX: Removed the redundant PWA Shortcut parser from here. 
+        // app.init() already handles it, preventing the forms from glitching and opening twice!
     },
 
     switchTab: (tabId, title, navElement) => {
@@ -394,8 +387,10 @@ const UI = {
             const searchInput = document.getElementById('search-master-view');
             if (searchInput && searchInput.parentElement) searchInput.parentElement.style.display = 'none';
 
-            const records = await getAllRecords('adjustments');
-            const products = await getAllRecords('items');
+            // ENTERPRISE FIX: Ensure multi-company data isolation for the Stock Ledger
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+            const records = (await getAllRecords('adjustments')).filter(a => !activeFirmId || a.firmId === activeFirmId);
+            const products = (await getAllRecords('items')).filter(p => !activeFirmId || p.firmId === activeFirmId);
             
             const actionBtn = document.getElementById('btn-master-action');
             if (actionBtn) actionBtn.classList.add('hidden');
@@ -713,6 +708,14 @@ const UI = {
             UI.state.rawData.sales.forEach(d => { docMap[d.id] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
             UI.state.rawData.purchases.forEach(d => { docMap[d.id] = d; if(d.poNo) docMap[d.poNo] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
 
+            // ENTERPRISE FIX: Inject Opening Balances into the allocation pool so they can pay off invoices!
+            UI.state.rawData.ledgers.forEach(l => {
+                let ob = parseFloat(l.openingBalance) || 0;
+                const bType = (l.balanceType || '').toLowerCase();
+                if (tab === 'sales' && (bType.includes('pay') || bType.includes('credit'))) ledgerTotalPaid[l.id] = (ledgerTotalPaid[l.id] || 0) + ob;
+                if (tab === 'purchases' && (bType.includes('receive') || bType.includes('debit'))) ledgerTotalPaid[l.id] = (ledgerTotalPaid[l.id] || 0) + ob;
+            });
+
             UI.state.rawData.cashbook.forEach(c => {
                 if (c.ledgerId) {
                     let amt = parseFloat(c.amount) || 0;
@@ -797,7 +800,12 @@ const UI = {
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
                 const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
                 const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
-                const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid);
+                
+                // ENTERPRISE FIX: Subtract Returns so honest customers don't show a red "Due" badge in the main list!
+                const linkedReturns = UI.state.rawData.sales.filter(d => d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
+                const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
+                
+                const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid - returnTotal);
                 
                 if (activeFilter === 'Open') matchFilter = s.status === 'Open';
                 else if (activeFilter === 'Completed') matchFilter = s.status === 'Completed'; // Removed balance restriction
@@ -1362,8 +1370,10 @@ const UI = {
                 const dateA = new Date(a.date || 0).getTime();
                 const dateB = new Date(b.date || 0).getTime();
                 if (dateB !== dateA) return dateB - dateA;
-                // Fallback to ID if dates are exactly identical
-                return (b.id > a.id) ? 1 : -1; 
+                // ENTERPRISE FIX: Extract the integer timestamp to prevent Timeline same-day scrambling!
+                const timeA = parseInt(String(a.id || '').split('-').pop()) || 0;
+                const timeB = parseInt(String(b.id || '').split('-').pop()) || 0;
+                return timeB - timeA;
             });
 
             const container = document.getElementById(containerId);
@@ -1465,6 +1475,13 @@ const UI = {
         const dashDocMap = {};
         sales.forEach(d => { dashDocMap[d.id] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
         purchases.forEach(d => { dashDocMap[d.id] = d; if(d.poNo) dashDocMap[d.poNo] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
+
+        // ENTERPRISE FIX: Inject Opening Balances into the Dashboard's Math Engine so "Overdue Defaulters" aren't artificially inflated!
+        UI.state.rawData.ledgers.forEach(l => {
+            let ob = parseFloat(l.openingBalance) || 0;
+            const bType = (l.balanceType || '').toLowerCase();
+            if (bType.includes('pay') || bType.includes('credit')) ledgerTotalPaid[l.id] = (ledgerTotalPaid[l.id] || 0) + ob;
+        });
 
         cashbook.forEach(c => {
             if (c.ledgerId) {
@@ -1584,8 +1601,8 @@ const UI = {
         let stockLoss = 0;
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
-                if (adj.type === 'reduce' && isDateInRange(adj.date)) {
+                // ENTERPRISE FIX: Enforce Firm ID isolation so Company B's stock loss doesn't destroy Company A's Net Profit!
+                if ((!activeFirmId || adj.firmId === activeFirmId) && adj.type === 'reduce' && isDateInRange(adj.date)) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
                     stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
                 }
@@ -1666,7 +1683,12 @@ const UI = {
             // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
             const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
             const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
-            const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
+            
+            // ENTERPRISE FIX: Subtract Credit Notes so returned items don't turn honest customers into false Defaulters!
+            const linkedReturns = sales.filter(d => d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
+            const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
+            
+            const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived - returnTotal);
             if (balance <= 0) return false;
             
             if (!s.date) return false;
@@ -2062,9 +2084,16 @@ const UI = {
         
         UI.closeBottomSheet('sheet-smart-search');
         
-        const prefix = typeId.split('-')[0];
-        if (typeof app !== 'undefined' && typeof app.loadOriginalDocuments === 'function') {
-            app.loadOriginalDocuments(id, prefix);
+        // ENTERPRISE FIX: Correctly parse Cashbook prefixes so Smart Search loads pending invoices!
+        const prefix = typeId.replace('-customer', '').replace('-supplier', ''); 
+        if (typeof app !== 'undefined') {
+            if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
+                app.loadOriginalDocuments(id, prefix);
+            } else if (prefix === 'pay-in' && typeof app.loadPendingInvoices === 'function') {
+                app.loadPendingInvoices(id, 'in');
+            } else if (prefix === 'pay-out' && typeof app.loadPendingInvoices === 'function') {
+                app.loadPendingInvoices(id, 'out');
+            }
         }
     },
 
@@ -2370,7 +2399,10 @@ const UI = {
         // STRICT ERP LOGIC: Use window.Utils to prevent ES6 Module ReferenceError crash!
         if (!window.Utils || typeof window.Utils.printReceivablesReport !== 'function') return alert("Print engine unavailable.");
         
-        const customerLedgers = UI.state.rawData.ledgers.filter(l => l.type === 'Customer');
+        // ENTERPRISE FIX: Enforce Firm ID isolation so Company B's customers don't leak into Company A's report!
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+        const customerLedgers = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'customer' && (!activeFirmId || l.firmId === activeFirmId));
+        
         const reportData = [];
         let grandTotal = 0;
 
@@ -2384,12 +2416,12 @@ const UI = {
         });
 
         UI.state.rawData.sales.forEach(s => { 
-            if (s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
+            if ((!activeFirmId || s.firmId === activeFirmId) && s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
                 balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
             }
         });
         UI.state.rawData.cashbook.forEach(c => { 
-            if (c.ledgerId && balanceCache[c.ledgerId] !== undefined) {
+            if ((!activeFirmId || c.firmId === activeFirmId) && c.ledgerId && balanceCache[c.ledgerId] !== undefined) {
                 balanceCache[c.ledgerId] += (c.type === 'in' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0));
             }
         });
@@ -2546,7 +2578,8 @@ const UI = {
         let stockLoss = 0;
         
         UI.state.rawData.cashbook.forEach(c => {
-            if (c.date >= startDate && c.date <= endDate && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+            // ENTERPRISE FIX: Enforce Firm ID isolation so Shop B's income doesn't mathematically merge into Shop A's live PnL!
+            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= startDate && c.date <= endDate && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
                 // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
                 const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
                                              UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
@@ -2648,8 +2681,8 @@ const UI = {
             csv += `"${t.type}","${safeDesc}","${t.sign}${(t.amount || 0).toFixed(2)}"\n`;
         });
 
-        // FIX: Directly generate the CSV Blob because downloadFile does not exist in utils.js
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        // ENTERPRISE FIX: Inject the UTF-8 BOM (\ufeff) so Microsoft Excel doesn't scramble the Rupee (₹) symbol!
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -2721,8 +2754,8 @@ const UI = {
         if (stockLoss > 0) csv += `"Stock Loss (Adjustments)","-${stockLoss.toFixed(2)}"\n`;
         csv += `"Net ${netProfit >= 0 ? 'Profit' : 'Loss'}","${netProfit.toFixed(2)}"\n`;
 
-        // FIX: Directly generate the CSV Blob
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        // ENTERPRISE FIX: Inject the UTF-8 BOM (\ufeff) so Microsoft Excel doesn't scramble the Rupee (₹) symbol!
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;

@@ -49,7 +49,12 @@ const Cloud = {
         if (gapi.client.getToken() === null) {
             // Prompt the user to log in
             tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) throw (resp);
+                // ENTERPRISE FIX: Gracefully handle aborted logins instead of throwing an unhandled exception that breaks the app!
+                if (resp.error !== undefined) {
+                    console.error("Google Auth Error:", resp.error);
+                    alert("Google Drive login was cancelled or failed.");
+                    return; 
+                }
                 callback();
             };
             tokenClient.requestAccessToken({ prompt: 'consent' });
@@ -93,10 +98,15 @@ const Cloud = {
                 blobParts.push('}');
 
                 const file = new Blob(blobParts, { type: 'application/json' });
-                const metadata = { 'name': 'SOLLO_ERP_Backup.json', 'mimeType': 'application/json' };
+                
+                // ENTERPRISE FIX: Auto-Backup must also isolate by Firm ID to stop cross-company overwrites!
+                const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+                const backupFileName = `SOLLO_ERP_Backup_${activeFirmId}.json`;
+                
+                const metadata = { 'name': backupFileName, 'mimeType': 'application/json' };
 
                 let response = await gapi.client.drive.files.list({
-                    q: "name='SOLLO_ERP_Backup.json' and trashed=false",
+                    q: `name='${backupFileName}' and trashed=false`,
                     spaces: 'drive', fields: 'files(id)'
                 });
 
@@ -153,14 +163,19 @@ const Cloud = {
                 blobParts.push('}');
 
                 const file = new Blob(blobParts, { type: 'application/json' });
+                
+                // ENTERPRISE FIX: Isolate cloud backups by Firm ID to prevent cross-company overwrites!
+                const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+                const backupFileName = `SOLLO_ERP_Backup_${activeFirmId}.json`;
+                
                 const metadata = {
-                    'name': 'SOLLO_ERP_Backup.json',
+                    'name': backupFileName,
                     'mimeType': 'application/json'
                 };
 
                 // STRICT ERP LOGIC: Hunt down and destroy Google Drive duplicates to prevent version fragmentation!
                 let response = await gapi.client.drive.files.list({
-                    q: "name='SOLLO_ERP_Backup.json' and trashed=false",
+                    q: `name='${backupFileName}' and trashed=false`,
                     spaces: 'drive',
                     fields: 'files(id)'
                 });
@@ -215,8 +230,12 @@ const Cloud = {
         Cloud.authenticate(async () => {
             window.Utils.showToast("Searching Google Drive...");
             try {
+                // ENTERPRISE FIX: Search for the company-specific backup file so restores don't silently fail!
+                const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+                const backupFileName = `SOLLO_ERP_Backup_${activeFirmId}.json`;
+                
                 let response = await gapi.client.drive.files.list({
-                    q: "name='SOLLO_ERP_Backup.json' and trashed=false",
+                    q: `name='${backupFileName}' and trashed=false`,
                     spaces: 'drive',
                     fields: 'files(id, name, modifiedTime)'
                 });
@@ -274,12 +293,17 @@ window.Cloud = Cloud;
 // If yes, it quietly zips the database and sends it to Google Drive without interrupting the user.
 setTimeout(async () => {
     if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
-        // STRICT ERP LOGIC: Prevent uploading an empty database if local storage was cleared!
-        const firms = await window.getAllRecords('firms');
-        if (firms && firms.length > 0) {
-            window.Cloud.autoBackup();
-        } else {
-            console.warn("Local database is empty. Auto-backup aborted to protect Google Drive data.");
+        // ENTERPRISE FIX: Wrap in try/catch to prevent Unhandled Promise Rejections from crashing the background thread!
+        try {
+            // STRICT ERP LOGIC: Prevent uploading an empty database if local storage was cleared!
+            const firms = await window.getAllRecords('firms');
+            if (firms && firms.length > 0) {
+                window.Cloud.autoBackup();
+            } else {
+                console.warn("Local database is empty. Auto-backup aborted to protect Google Drive data.");
+            }
+        } catch (err) {
+            console.warn("Database not ready for auto-backup yet, will retry next session.");
         }
     }
 }, 15000);

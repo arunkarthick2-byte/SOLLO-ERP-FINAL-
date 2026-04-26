@@ -27,6 +27,10 @@ const Utils = {
             reader.onload = (event) => {
                 const img = new Image();
                 img.src = event.target.result;
+                
+                // ENTERPRISE FIX: Prevent infinite loading loops if a user uploads a corrupted file!
+                img.onerror = () => resolve(''); 
+                
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     let width = img.width;
@@ -39,6 +43,11 @@ const Utils = {
                     canvas.width = width;
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
+                    
+                    // ENTERPRISE FIX: Paint a white background first so transparent PNG signatures/logos don't turn black!
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, width, height);
+                    
                     ctx.drawImage(img, 0, 0, width, height);
                     resolve(canvas.toDataURL('image/jpeg', quality));
                 };
@@ -539,7 +548,11 @@ const Utils = {
             const baseAmount = qty * rate;
             const discountedBase = baseAmount - (baseAmount * discountRatio);
             const gstAmount = discountedBase * (gstPercent / 100);
-            const rowTotal = discountedBase + gstAmount;
+            
+            // ENTERPRISE FIX: Enforce strict line-level rounding so printed PDF math exactly matches UI math!
+            const roundedDiscountedBase = Math.round(discountedBase * 100) / 100;
+            const roundedGst = Math.round(gstAmount * 100) / 100;
+            const rowTotal = roundedDiscountedBase + roundedGst;
             
             itemsHtml += `
                 <tr>
@@ -642,6 +655,7 @@ const Utils = {
                             ${discountAmt > 0 ? `<tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Discount:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">-${discountAmt.toFixed(2)}</td></tr>` : ''}
                             ${!isNonGST ? `<tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Total GST:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
                             ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Freight / Extra Charges:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
+                            ${Math.abs((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))) > 0.01 ? `<tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Round Off:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">${((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))).toFixed(2)}</td></tr>` : ''}
                             <tr>
                                 <td style="border: none; border-bottom: 1px solid #000; background: #e5e5e5; font-weight: bold; font-size: 14px; padding: 10px 8px;">GRAND TOTAL</td>
                                 <td style="border: none; border-bottom: 1px solid #000; background: #e5e5e5; font-weight: bold; font-size: 16px; text-align: right; padding: 10px 8px;">&#8377;${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</td>
@@ -759,6 +773,17 @@ const Utils = {
                 party = { id: 'cash', name: 'Cash Drawer', type: 'Account', firmId: typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1' };
             }
             if (party) isAccount = true;
+        }
+        
+        // ENTERPRISE FIX: Allow Item Stock Ledgers to bypass Customer/Bank validation!
+        let isItem = false;
+        if (!party && partyName.toLowerCase().startsWith('item ledger:')) {
+            const rawItemName = partyName.replace(/item ledger:\s*/i, '').trim();
+            party = window.UI.state.rawData.items.find(i => (i.name || '').trim().toLowerCase() === rawItemName.toLowerCase());
+            if (party) {
+                isItem = true;
+                party.type = 'Item';
+            }
         }
         
         if (!party) return alert("Could not identify details for: " + partyName);
@@ -934,8 +959,12 @@ const Utils = {
                 let cust = ledgers.find(l => l.id === s.customerId);
                 let gstin = cust ? cust.gst : '';
                 if (gstin && gstin.trim() !== '') {
-                    // STRICT ERP LOGIC: Prevent NaN values in Excel from legacy invoices
-                    let taxable = (parseFloat(s.subtotal) || 0) * (s.documentType === 'return' ? -1 : 1);
+                    // ENTERPRISE FIX: Strict Discount Deduction to prevent massive GST Portal liability inflation!
+                    let rawSubtotal = parseFloat(s.subtotal) || 0;
+                    let discountAmount = parseFloat(s.discount) || 0;
+                    if (s.discountType === '%') discountAmount = rawSubtotal * (discountAmount / 100);
+                    
+                    let taxable = Math.max(0, rawSubtotal - discountAmount) * (s.documentType === 'return' ? -1 : 1);
                     let tax = (parseFloat(s.totalGst) || 0) * (s.documentType === 'return' ? -1 : 1);
                     let total = (parseFloat(s.grandTotal) || 0) * (s.documentType === 'return' ? -1 : 1);
                     b2bData.push([s.date, s.invoiceNo, s.customerName || '', gstin.toUpperCase(), taxable, tax, total]);

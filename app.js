@@ -113,35 +113,6 @@ import Utils from './utils.js?v=6.1';
 import UI from './ui.js?v=6.1';
 // --- END OF NEW CODE ---
 
-// --- ENTERPRISE UPGRADE: IMAGE COMPRESSION ENGINE ---
-window.compressImage = async (base64Str) => {
-    return new Promise((resolve) => {
-        if (!base64Str || !base64Str.startsWith('data:image')) return resolve(base64Str);
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 800; // Shrinks 4K photos down to safe ERP size
-            let width = img.width, height = img.height;
-            if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
-            canvas.width = width; canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            
-            // STRICT ERP LOGIC: Paint the canvas white first so transparent PNG Logos & Signatures don't turn into ugly black boxes!
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
-            
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/webp', 0.6)); // 60% WebP = 95% file size reduction!
-        };
-        // STRICT ERP LOGIC: Prevent Infinite "Saving..." loops if the image is corrupted!
-        img.onerror = () => {
-            console.error("Image compression failed, falling back to original string.");
-            resolve(base64Str); 
-        };
-        img.src = base64Str;
-    });
-};
-
 const app = {
     state: { currentEditId: null, currentReceiptId: null, currentDocType: 'invoice', firmId: 'firm1' },
 
@@ -463,10 +434,13 @@ const app = {
         if (!confirm("This will scan every past invoice and mathematically fix all corrupted stock & warehouse capital. Continue?")) return;
         try {
             if (window.Utils) window.Utils.showToast("Recalculating all stock... ⏳");
-            const allItems = await window.getAllRecords('items');
-            const allSales = await window.getAllRecords('sales');
-            const allPurchases = await window.getAllRecords('purchases');
-            const allAdjustments = await window.getAllRecords('adjustments');
+            
+            // ENTERPRISE FIX: Isolate the stock recalculation strictly to the active company!
+            const activeFirmId = app.state.firmId;
+            const allItems = (await window.getAllRecords('items')).filter(i => i.firmId === activeFirmId);
+            const allSales = (await window.getAllRecords('sales')).filter(s => s.firmId === activeFirmId);
+            const allPurchases = (await window.getAllRecords('purchases')).filter(p => p.firmId === activeFirmId);
+            const allAdjustments = (await window.getAllRecords('adjustments')).filter(a => a.firmId === activeFirmId);
             
             // 1. Reset all items to their Initial Opening Stock securely
             for (let i of allItems) { 
@@ -600,6 +574,10 @@ const app = {
                     // Safely remap all transactions to the official cash drawer
                     for (const r of receipts) { if (r.accountId === a.id) { r.accountId = 'cash'; await saveRecord('receipts', r); } }
                     
+                    // ENTERPRISE FIX: Safely remap all Expenses to the official cash drawer so they don't get orphaned!
+                    const expenses = await getAllRecords('expenses');
+                    for (const e of expenses) { if (e.accountId === a.id) { e.accountId = 'cash'; await saveRecord('expenses', e); } }
+                    
                     // Delete the ghost copy
                     await deleteRecordById('accounts', a.id);
                     cleaned = true;
@@ -695,6 +673,7 @@ const app = {
 
         if (type === 'products') {
             filterHTML += `
+                <option value="In Stock">Stock Available</option>
                 <option value="Low Stock">Low Stock Alert</option>
                 <option value="Out of Stock">Out of Stock</option>
                 <option value="GST Stock">Has GST Stock</option>
@@ -1627,8 +1606,9 @@ const app = {
                     document.getElementById('sales-order-no').value = await getNextDocumentNumber('sales', 'ORD', 'orderNo');
                 } else if (type === 'purchase' && typeof getNextDocumentNumber === 'function') {
                     document.getElementById('purchase-po-no').value = ''; // Keep Supplier Bill blank
-                    // NEW: Auto-increment Our PO No instead!
-                    document.getElementById('purchase-order-no').value = await getNextDocumentNumber('purchases', 'PO', 'orderNo');
+                    // ENTERPRISE FIX: Dynamically assign DN prefix for Debit Notes to prevent PO corruption!
+                    const prefix = docType === 'return' ? 'DN' : 'PO';
+                    document.getElementById('purchase-order-no').value = await getNextDocumentNumber('purchases', prefix, 'orderNo');
                 }
             }
             
@@ -2661,10 +2641,14 @@ const app = {
                         console.error("Payment save failed:", error);
                         alert("An error occurred. Please try again.");
                     } finally {
+                        // ENTERPRISE FIX: THE ANIMATION SHIELD
+                        // Wait 400ms for the bottom sheet to close so users can't double-tap and duplicate payments!
                         if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerText = originalText;
-                            submitBtn.style.opacity = "1";
+                            setTimeout(() => {
+                                submitBtn.disabled = false;
+                                submitBtn.innerText = originalText;
+                                submitBtn.style.opacity = "1";
+                            }, 400);
                         }
                     }
                 });
@@ -2996,6 +2980,13 @@ const app = {
             window.AppCache.ledgers = null;
             window.AppCache.accounts = null;
         }
+        
+        // ENTERPRISE FIX: Re-run the Advance Payment Waterfall so invoices don't get permanently stuck as "Completed" when their payment is deleted!
+        if (type === 'receipt-in' || type === 'receipt-out') {
+            if (record.ledgerId && typeof app.autoCompleteInvoices === 'function') {
+                await app.autoCompleteInvoices(record.ledgerId, type === 'receipt-in' ? 'sales' : 'purchases');
+            }
+        }
 
         if (type === 'sales' || type === 'purchase') UI.closeActivity(`activity-${type}-form`);
         else if (type === 'receipt-in' || type === 'receipt-out') UI.closeBottomSheet(`sheet-payment-${type.split('-')[1]}`);
@@ -3105,12 +3096,14 @@ const app = {
             if (r.ledgerId === partyId && r.firmId === app.state.firmId) {
                 const refs = String(r.invoiceRef || '').split(',').map(x => x.trim());
                 if (refs.some(ref => uniqueRefs.includes(ref))) {
-                    // Mathematically split the payment value so the PDF balance is perfectly accurate
+                    // ENTERPRISE FIX: Correctly add/subtract based on Refunds so the PDF math doesn't inflate!
                     const splitAmt = (parseFloat(r.amount) || 0) / (refs.length || 1);
-                    totalPaid += splitAmt;
+                    const isRefund = type === 'sales' ? r.type === 'out' : r.type === 'in';
+                    
+                    totalPaid += isRefund ? -splitAmt : splitAmt;
                     
                     // Clone the receipt so we can safely alter the displayed amount on the PDF
-                    const clonedReceipt = { ...r, amount: splitAmt };
+                    const clonedReceipt = { ...r, amount: isRefund ? -splitAmt : splitAmt };
                     linkedReceipts.push(clonedReceipt);
                 }
             }
@@ -3161,7 +3154,8 @@ const app = {
             const allDocs = await getAllRecords(store);
             
             const displayNames = refs.map(ref => {
-                const doc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref);
+                // ENTERPRISE FIX: Enforce Firm ID to prevent cross-company data leaks on printed receipts!
+                const doc = allDocs.find(d => d.firmId === receipt.firmId && (d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref));
                 if (doc) {
                     if (isMoneyIn) return doc.invoiceNo ? doc.invoiceNo : ('Bill of Supply' + (doc.orderNo ? ` (Ref: ${doc.orderNo})` : ''));
                     else return (doc.poNo || doc.invoiceNo) ? (doc.poNo || doc.invoiceNo) : ('Bill of Supply' + (doc.orderNo ? ` (Ref: ${doc.orderNo})` : ''));
@@ -3228,13 +3222,19 @@ const app = {
             </div>
         `;
         
-        const printArea = document.getElementById('print-area');
-        if (printArea) {
-            printArea.innerHTML = html;
-            setTimeout(() => {
-                window.Utils.processPDFExport('pdf-receipt-wrapper', `${title.replace(/ /g, '_')}_${safeDocNo}.pdf`);
-            }, 100);
+        // ENTERPRISE FIX: Create the print-area dynamically so the PDF engine doesn't silently crash on fresh boots!
+        let printArea = document.getElementById('print-area');
+        if (!printArea) {
+            printArea = document.createElement('div');
+            printArea.id = 'print-area';
+            printArea.className = 'print-only';
+            document.body.appendChild(printArea);
         }
+        
+        printArea.innerHTML = html;
+        setTimeout(() => {
+            window.Utils.processPDFExport('pdf-receipt-wrapper', `${title.replace(/ /g, '_')}_${safeDocNo}.pdf`);
+        }, 100);
     },
 
     // ==========================================
@@ -3798,7 +3798,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         </div>
         <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
             <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <div id="khata-render-target" style="min-width: 800px; background: white; padding: 24px; box-sizing: border-box;">
+                <div id="khata-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box;">
                     ${html}
                 </div>
             </div>
@@ -4003,7 +4003,7 @@ window.executeAccountReport = async (accountId) => {
         </div>
         <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
             <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <div id="account-render-target" style="min-width: 800px; background: white; padding: 24px; box-sizing: border-box;">
+                <div id="account-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box;">
                     ${html}
                 </div>
             </div>

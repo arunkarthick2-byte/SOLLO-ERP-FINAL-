@@ -10,10 +10,15 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Re-enable text selection ONLY for input fields so users can still type and paste */
-input, textarea {
+/* ENTERPRISE FIX: Added 'select' so iOS Safari doesn't permanently lock dropdown menus! */
+input, textarea, select {
     user-select: auto;
     -webkit-user-select: auto;
+}
+
+/* ENTERPRISE FIX: Prevent iPhones from violently auto-zooming the screen when tapping small inputs */
+input[type="text"], input[type="number"], input[type="tel"], input[type="date"], select, textarea {
+    font-size: 16px !important;
 }
 /* ==========================================
    SOLLO ERP - MASTER STYLESHEET (v6.1 Enterprise)

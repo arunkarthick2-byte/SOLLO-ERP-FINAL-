@@ -1,26 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-        // 1. Murder any active Service Workers so they stop trapping files
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-                for(let registration of registrations) {
-                    registration.unregister();
-                    console.log("🛠️ Dev Mode: Service Worker Killed.");
-                }
-            });
-        }
-        // 2. Violently wipe the browser's hard drive cache on every boot
-        if ('caches' in window) {
-            caches.keys().then(function(names) {
-                for (let name of names) {
-                    caches.delete(name);
-                    console.log("🛠️ Dev Mode: Cleared Cache ->", name);
-                }
-            });
-        }
-    </script>
     <meta name="color-scheme" content="light">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -2584,10 +2564,12 @@
         setTimeout(() => {
             let timeline = [];
             
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+            
             // 1. Scan all Purchases (Adds to Stock)
             const purchases = window.UI.state.rawData.purchases || [];
             purchases.forEach(p => {
-                if(p.status === 'Open') return;
+                if(p.status === 'Open' || p.firmId !== activeFirmId) return;
                 (p.items || []).forEach(i => {
                     if(i.itemId === id) {
                         const isReturn = p.documentType === 'return';
@@ -2641,8 +2623,14 @@
                 }
             });
             
-            // 3. Sort chronologically by Date
-            timeline.sort((a,b) => new Date(a.date) - new Date(b.date));
+            // 3. Sort chronologically by Date (and ID for same-day precision)
+            timeline.sort((a,b) => {
+                const dateA = new Date(a.date || 0).getTime();
+                const dateB = new Date(b.date || 0).getTime();
+                if (dateA !== dateB) return dateA - dateB;
+                // STRICT ERP LOGIC: Fallback to ID sorting to fix same-day balance scrambling!
+                return ((a.id || '') > (b.id || '')) ? 1 : -1;
+            });
             
             // Calculate Movement Math
             let runningBal = 0;

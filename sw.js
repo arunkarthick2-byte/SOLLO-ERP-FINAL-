@@ -80,7 +80,8 @@ self.addEventListener('fetch', (event) => {
     // STRICT ERP LOGIC: Never intercept or cache Google Auth & API scripts! 
     // This prevents permanent "Token Mismatch" lockouts on the Cloud Backup engine.
     const url = event.request.url;
-    if (url.includes('apis.google.com') || url.includes('accounts.google.com')) {
+    // ENTERPRISE FIX: Also exclude 'googleapis.com' so massive database restores don't hit the 3-second timeout and crash on 3G networks!
+    if (url.includes('apis.google.com') || url.includes('accounts.google.com') || url.includes('googleapis.com')) {
         return; 
     }
 
@@ -102,7 +103,8 @@ self.addEventListener('fetch', (event) => {
             }
             return networkResponse;
         }).catch(() => {
-            return caches.match(event.request).then((cachedResponse) => {
+            // ENTERPRISE FIX: Add ignoreSearch so PWA Quick Actions (?action=new_sale) don't crash offline!
+            return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
                 if (cachedResponse) return cachedResponse;
                 if (event.request.mode === 'navigate') return caches.match('./index.html');
             });
