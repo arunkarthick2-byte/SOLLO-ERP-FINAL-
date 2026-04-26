@@ -1600,147 +1600,159 @@
     </div>
 
     <div id="sheet-payment-in" class="bottom-sheet">
-        <div class="sheet-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')" style="padding: 4px;">close</span>
-                <span style="font-size: 18px; font-weight: 500;">Payment Received In</span>
-            </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-delete-receipt-in" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-in')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
-                </div>
-                <div class="icon-circle tap-target" onclick="app.generateReceiptPDF(app.state.currentReceiptId)" style="width: 36px; height: 36px; background: #fff3e0; color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
-                </div>
+        <div class="sheet-header" style="background: var(--md-surface); border-bottom: 1px solid var(--md-surface-variant);">
+            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Receive Payment</span>
+            <div style="display: flex; gap: 8px;">
+                <span id="btn-delete-receipt-in" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); background: #fff0f2; padding: 8px; border-radius: 50%; font-size: 20px;" onclick="app.deleteRecord('receipt-in')">delete</span>
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%; font-size: 20px;">close</span>
             </div>
         </div>
-        <div style="padding: 16px; overflow-y: auto; max-height: 70vh;">
+        <div style="padding: 16px; overflow-y: auto;">
             <form id="form-payment-in">
-                <div style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 24px 16px; border-radius: 16px; text-align: center; margin-bottom: 20px; border: 1px solid #a5d6a7; box-shadow: 0 4px 12px rgba(20, 108, 46, 0.1);">
-                    <label style="color: #146c2e; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; display: block; margin-bottom: 8px;">Amount Received (₹)</label>
-                    <input type="number" inputmode="decimal" id="pay-in-amount" min="0" step="any" placeholder="0.00" required style="background: transparent; border: none; outline: none; text-align: center; font-size: 40px; font-weight: 800; color: #146c2e; width: 100%; padding: 0;">
-                </div>
 
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Receipt No *</label><input type="text" id="pay-in-no" required style="font-weight: bold; background: #f8fafc;"></div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="pay-in-date" required style="font-weight: bold; background: #f8fafc;"></div>
-                </div>
-                
-                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; padding: 16px;" onclick="if(window.UI) UI.openSmartSearch('customer', 'pay-in')">
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                        <div class="icon-circle" style="background: #e3f2fd; color: #0061a4; width: 40px; height: 40px;"><span class="material-symbols-outlined">person</span></div>
+                <div class="m3-card tap-target" style="margin-bottom: 16px; border: 1px solid var(--md-outline-variant); border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; background: var(--md-surface); box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onclick="if(window.UI) UI.openSmartSearch('customer', 'pay-in')">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div class="icon-circle" style="background: #e3f2fd; color: #0061a4; width: 44px; height: 44px; font-size: 22px;"><span class="material-symbols-outlined">person</span></div>
                         <div>
-                            <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase; font-size: 10px;">Customer (Received From)</small>
-                            <div id="pay-in-customer-display" class="large-text" style="color: var(--md-on-surface); font-weight: bold;">Select Customer...</div>
+                            <small style="color: var(--md-text-muted); font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">From Customer</small>
+                            <div id="pay-in-customer-display" style="font-size: 16px; font-weight: 800; color: var(--md-on-surface); margin-top: 2px;">Select Customer...</div>
                             <input type="hidden" id="pay-in-customer-id" required>
                         </div>
                     </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-primary); background: #e3f2fd; padding: 6px; border-radius: 50%; font-size: 18px;">search</span>
                 </div>
-                
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label style="color: var(--md-primary); font-weight: 600;">Settle Pending Invoice(s)</label>
-                    <select id="pay-in-invoice-ref" multiple size="4" style="height: auto; min-height: 80px; padding: 4px; font-size: 14px;">
+
+                <div style="margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px dashed var(--md-outline-variant);">
+                    <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 8px;">
+                        <span>Select Invoices to Settle</span>
+                        <span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Optional</span>
+                    </label>
+                    <select id="pay-in-invoice-ref" multiple style="display: none;">
                         <option value="">On Account / Advance</option>
                     </select>
-                    <small style="display:block; margin-top:4px; color:var(--md-text-muted); font-size: 10px;">Select invoices below to auto-calculate the amount</small>
                 </div>
-                
-                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Payment Mode *</label>
-                        <select id="pay-in-mode" required style="background: #f8fafc;">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Amount (₹) *</label>
+                        <input type="number" id="pay-in-amount" required inputmode="decimal" step="any" min="0.01" placeholder="0.00" style="width: 100%; padding: 12px; border: 2px solid #4caf50; border-radius: 8px; font-size: 16px; background: #f1f8e9; font-weight: 800; color: #1b5e20;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Date</label>
+                        <input type="date" id="pay-in-date" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Receipt No.</label>
+                        <input type="text" id="pay-in-no" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); font-weight: 800; color: var(--md-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Mode</label>
+                        <select id="pay-in-mode" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
                             <option value="Cash">Cash</option>
-                            <option value="UPI">UPI</option>
                             <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="UPI">UPI / QR</option>
                             <option value="Cheque">Cheque</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Deposit To A/c *</label>
-                        <select id="pay-in-account" required style="background: #f8fafc;"><option value="cash">Cash Drawer</option></select>
-                    </div>
                 </div>
                 
-                <div style="display: flex; gap: 12px; margin-bottom: 24px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Ref / UTR No</label><input type="text" id="pay-in-ref" placeholder="Optional" style="background: #f8fafc;"></div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Notes</label><input type="text" id="pay-in-notes" placeholder="Optional" style="background: #f8fafc;"></div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Deposit To</label>
+                    <select id="pay-in-account" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
+                    </select>
                 </div>
-
-                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; font-size: 16px; background: #146c2e; border-radius: 12px; box-shadow: 0 4px 12px rgba(20, 108, 46, 0.2);">Save Receipt</button>
+                
+                <div style="margin-bottom: 16px;">
+                    <input type="text" id="pay-in-ref" placeholder="Transaction ID / Cheque No (Optional)" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 600;">
+                </div>
+                
+                <div style="margin-bottom: 24px;">
+                    <textarea id="pay-in-notes" placeholder="Add a note or remark..." rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; resize: none; font-family: inherit; font-weight: 500;"></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary tap-target" style="width: 100%; padding: 16px; font-size: 16px; font-weight: 800; border-radius: 12px; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.3);">SAVE RECEIPT</button>
             </form>
         </div>
     </div>
 
     <div id="sheet-payment-out" class="bottom-sheet">
-        <div class="sheet-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')" style="padding: 4px;">close</span>
-                <span style="font-size: 18px; font-weight: 500;">Payment Made Out</span>
-            </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-delete-receipt-out" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-out')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
-                </div>
-                <div class="icon-circle tap-target" onclick="app.generateReceiptPDF(app.state.currentReceiptId)" style="width: 36px; height: 36px; background: #fff3e0; color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
-                </div>
+        <div class="sheet-header" style="background: var(--md-surface); border-bottom: 1px solid var(--md-surface-variant);">
+            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Make Payment</span>
+            <div style="display: flex; gap: 8px;">
+                <span id="btn-delete-receipt-out" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); background: #fff0f2; padding: 8px; border-radius: 50%; font-size: 20px;" onclick="app.deleteRecord('receipt-out')">delete</span>
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%; font-size: 20px;">close</span>
             </div>
         </div>
-        <div style="padding: 16px; overflow-y: auto; max-height: 70vh;">
+        <div style="padding: 16px; overflow-y: auto;">
             <form id="form-payment-out">
-                <div style="background: linear-gradient(135deg, #fff0f2 0%, #ffcdd2 100%); padding: 24px 16px; border-radius: 16px; text-align: center; margin-bottom: 20px; border: 1px solid #ef9a9a; box-shadow: 0 4px 12px rgba(186, 26, 26, 0.1);">
-                    <label style="color: #ba1a1a; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; display: block; margin-bottom: 8px;">Amount Paid (₹)</label>
-                    <input type="number" inputmode="decimal" id="pay-out-amount" min="0" step="any" placeholder="0.00" required style="background: transparent; border: none; outline: none; text-align: center; font-size: 40px; font-weight: 800; color: #ba1a1a; width: 100%; padding: 0;">
-                </div>
 
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Voucher No *</label><input type="text" id="pay-out-no" required style="font-weight: bold; background: #f8fafc;"></div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="pay-out-date" required style="font-weight: bold; background: #f8fafc;"></div>
-                </div>
-                
-                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; padding: 16px;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'pay-out')">
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                        <div class="icon-circle" style="background: #fff0f2; color: #ba1a1a; width: 40px; height: 40px;"><span class="material-symbols-outlined">storefront</span></div>
+                <div class="m3-card tap-target" style="margin-bottom: 16px; border: 1px solid var(--md-outline-variant); border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; background: var(--md-surface); box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onclick="if(window.UI) UI.openSmartSearch('supplier', 'pay-out')">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div class="icon-circle" style="background: #fff0f2; color: #ba1a1a; width: 44px; height: 44px; font-size: 22px;"><span class="material-symbols-outlined">storefront</span></div>
                         <div>
-                            <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase; font-size: 10px;">Supplier (Paid To)</small>
-                            <div id="pay-out-supplier-display" class="large-text" style="color: var(--md-on-surface); font-weight: bold;">Select Supplier...</div>
+                            <small style="color: var(--md-text-muted); font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Paid To Supplier</small>
+                            <div id="pay-out-supplier-display" style="font-size: 16px; font-weight: 800; color: var(--md-on-surface); margin-top: 2px;">Select Supplier...</div>
                             <input type="hidden" id="pay-out-supplier-id" required>
                         </div>
                     </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-error); background: #fff0f2; padding: 6px; border-radius: 50%; font-size: 18px;">search</span>
                 </div>
-                
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label style="color: var(--md-error); font-weight: 600;">Settle Pending Bill / PO(s)</label>
-                    <select id="pay-out-invoice-ref" multiple size="4" style="height: auto; min-height: 80px; padding: 4px; font-size: 14px;">
+
+                <div style="margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px dashed var(--md-outline-variant);">
+                    <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 8px;">
+                        <span>Select Bills to Clear</span>
+                        <span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Optional</span>
+                    </label>
+                    <select id="pay-out-invoice-ref" multiple style="display: none;">
                         <option value="">On Account / Advance</option>
                     </select>
-                    <small style="display:block; margin-top:4px; color:var(--md-text-muted); font-size: 10px;">Select bills below to auto-calculate the amount</small>
                 </div>
-                
-                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Payment Mode *</label>
-                        <select id="pay-out-mode" required style="background: #f8fafc;">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Amount (₹) *</label>
+                        <input type="number" id="pay-out-amount" required inputmode="decimal" step="any" min="0.01" placeholder="0.00" style="width: 100%; padding: 12px; border: 2px solid #f44336; border-radius: 8px; font-size: 16px; background: #ffebee; font-weight: 800; color: #b71c1c;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Date</label>
+                        <input type="date" id="pay-out-date" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Voucher No.</label>
+                        <input type="text" id="pay-out-no" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); font-weight: 800; color: var(--md-error);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Mode</label>
+                        <select id="pay-out-mode" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
                             <option value="Cash">Cash</option>
-                            <option value="UPI">UPI</option>
                             <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="UPI">UPI / QR</option>
                             <option value="Cheque">Cheque</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Paid From A/c *</label>
-                        <select id="pay-out-account" required style="background: #f8fafc;"><option value="cash">Cash Drawer</option></select>
-                    </div>
                 </div>
                 
-                <div style="display: flex; gap: 12px; margin-bottom: 24px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Ref / UTR No</label><input type="text" id="pay-out-ref" placeholder="Optional" style="background: #f8fafc;"></div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Notes</label><input type="text" id="pay-out-notes" placeholder="Optional" style="background: #f8fafc;"></div>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Paid From</label>
+                    <select id="pay-out-account" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
+                    </select>
                 </div>
-
-                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; font-size: 16px; background: #ba1a1a; border-radius: 12px; box-shadow: 0 4px 12px rgba(186, 26, 26, 0.2);">Save Payment</button>
+                
+                <div style="margin-bottom: 16px;">
+                    <input type="text" id="pay-out-ref" placeholder="Transaction ID / Cheque No (Optional)" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 600;">
+                </div>
+                
+                <div style="margin-bottom: 24px;">
+                    <textarea id="pay-out-notes" placeholder="Add a note or remark..." rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; resize: none; font-family: inherit; font-weight: 500;"></textarea>
+                </div>
+                
+                <button type="submit" class="btn-primary tap-target" style="width: 100%; padding: 16px; font-size: 16px; font-weight: 800; border-radius: 12px; letter-spacing: 0.5px; background: var(--md-error); box-shadow: 0 4px 12px rgba(186, 26, 26, 0.3);">SAVE PAYMENT</button>
             </form>
         </div>
     </div>
@@ -2385,7 +2397,8 @@
             if (!smartContainer) {
                 smartContainer = document.createElement('div');
                 smartContainer.id = selectId + '-smart';
-                smartContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 220px; overflow-y: auto; padding-right: 4px;';
+                // ENTERPRISE FIX: Expanded height to 450px so you can easily see up to 10 invoices without scrolling!
+                smartContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 450px; overflow-y: auto; padding-right: 4px;';
                 selectEl.parentNode.insertBefore(smartContainer, selectEl.nextSibling);
                 
                 // Hide the ugly original box and the "Hold Ctrl" text

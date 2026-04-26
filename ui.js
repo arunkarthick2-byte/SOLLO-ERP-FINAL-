@@ -1950,7 +1950,10 @@ const UI = {
 
         closeBottomSheet: (sheetId) => {
         const sheet = document.getElementById(sheetId);
-        if (sheet) sheet.classList.remove('open');
+        // ENTERPRISE FIX: Prevent double-tapping from popping multiple history states and crashing the main form!
+        if (!sheet || !sheet.classList.contains('open')) return;
+        
+        sheet.classList.remove('open');
 
         // --- ENTERPRISE FIX: MULTI-LAYER OVERLAY PROTECTOR ---
         // Only close the dark overlay if NO OTHER bottom sheets are currently open
@@ -1969,7 +1972,15 @@ const UI = {
             if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden'); 
         }, 300);
 
-        if(typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
+        // ENTERPRISE FIX: Only clear the Receipt ID if we are actually closing the Cashbook form!
+        if ((sheetId === 'sheet-payment-in' || sheetId === 'sheet-payment-out') && typeof app !== 'undefined' && app.state) {
+            app.state.currentReceiptId = null;
+        }
+        
+        // ENTERPRISE FIX: Smart Search does not use history states! 
+        // Returning here prevents the search menu from stealing the Cashbook's state and closing the entire form!
+        if (sheetId === 'sheet-smart-search') return;
+        
         // FIXED: Added an ignore flag to prevent double-closing
         if (history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); }
     },
@@ -2072,7 +2083,8 @@ const UI = {
         resultsContainer.innerHTML = html;
     },
 
-    selectSmartParty: (typeId, id, name) => {
+    // ENTERPRISE FIX: Added 'async' lock to prevent UI crashes!
+    selectSmartParty: async (typeId, id, name) => {
         const inputId = document.getElementById(`${typeId}-id`);
         const display = document.getElementById(`${typeId}-display`);
         
@@ -2082,19 +2094,20 @@ const UI = {
             display.style.color = 'var(--md-on-surface)';
         }
         
-        UI.closeBottomSheet('sheet-smart-search');
-        
-        // ENTERPRISE FIX: Correctly parse Cashbook prefixes so Smart Search loads pending invoices!
+        // ENTERPRISE FIX: Correctly parse Cashbook prefixes AND await the database fetch BEFORE closing!
         const prefix = typeId.replace('-customer', '').replace('-supplier', ''); 
         if (typeof app !== 'undefined') {
             if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
                 app.loadOriginalDocuments(id, prefix);
             } else if (prefix === 'pay-in' && typeof app.loadPendingInvoices === 'function') {
-                app.loadPendingInvoices(id, 'in');
+                await app.loadPendingInvoices(id, 'in'); // Added await
             } else if (prefix === 'pay-out' && typeof app.loadPendingInvoices === 'function') {
-                app.loadPendingInvoices(id, 'out');
+                await app.loadPendingInvoices(id, 'out'); // Added await
             }
         }
+        
+        // MOVED: Safely close the sheet only AFTER the database has finished loading!
+        UI.closeBottomSheet('sheet-smart-search');
     },
 
     addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice) => {

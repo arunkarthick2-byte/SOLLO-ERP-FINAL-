@@ -1420,7 +1420,7 @@ const app = {
         
         type === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
     },
-            loadPendingInvoices: async (partyId, type) => {
+    loadPendingInvoices: async (partyId, type) => {
         const isMoneyIn = type === 'in';
         const storeName = isMoneyIn ? 'sales' : 'purchases';
         const partyKey = isMoneyIn ? 'customerId' : 'supplierId';
@@ -1437,71 +1437,105 @@ const app = {
         const allDocs = await getAllRecords(storeName);
         const activeFirmId = app.state ? app.state.firmId : 'firm1';
         
-        // Calculate true balance to only show genuinely unpaid invoices
+        // 1. ELITE UPGRADE: CALCULATE THE EXACT TRUE LEDGER BALANCE FIRST
+        const party = await getRecordById('ledgers', partyId);
+        let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
+        const balType = party ? (party.balanceType || '').toLowerCase() : '';
+        let trueBalance = 0;
+        
+        if (isMoneyIn) { 
+            trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+        } else { 
+            trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+        }
+
+        allDocs.forEach(d => {
+            if (d.firmId === activeFirmId && d[partyKey] === partyId && d.status !== 'Open') {
+                const amt = parseFloat(d.grandTotal) || 0;
+                trueBalance += (d.documentType === 'return' ? -amt : amt);
+            }
+        });
+
         const receipts = await getAllRecords('receipts');
+        receipts.forEach(r => {
+            if (r.firmId === activeFirmId && r.ledgerId === partyId) {
+                const amt = parseFloat(r.amount) || 0;
+                if (isMoneyIn) trueBalance += (r.type === 'in' ? -amt : amt);
+                else trueBalance += (r.type === 'in' ? amt : -amt);
+            }
+        });
+
+        // 2. MAP EXPLICITLY LINKED PAYMENTS & RETURNS
         const paymentMap = {};
         receipts.forEach(c => {
-            if (c.firmId === activeFirmId && c.invoiceRef && c.ledgerId === partyId) {
+            if (c.firmId === activeFirmId && c.ledgerId === partyId && c.invoiceRef) {
                 let amt = parseFloat(c.amount) || 0;
-                if (storeName === 'sales') amt = c.type === 'in' ? amt : -amt;
-                if (storeName === 'purchases') amt = c.type === 'out' ? amt : -amt;
-                
-                // NEW: Split amount evenly if linked to multiple invoices
-                const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                if (refs.length > 0) {
-                    let splitAmt = amt / refs.length;
-                    refs.forEach(r => {
-                        paymentMap[r] = (paymentMap[r] || 0) + splitAmt;
-                    });
+                let impact = isMoneyIn ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                if (impact > 0) {
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                    if (refs.length > 0) {
+                        let splitAmt = impact / refs.length;
+                        refs.forEach(r => { paymentMap[r] = (paymentMap[r] || 0) + splitAmt; });
+                    }
                 }
             }
         });
 
-        // STRICT ERP LOGIC: Factor in Credit/Debit Notes to prevent Phantom Debt in the dropdown!
         const returnMap = {};
         allDocs.forEach(d => {
-            if (d.firmId === activeFirmId && d.documentType === 'return' && d.status !== 'Open') {
-                const ref = d.orderNo; // Returns link to the original invoice via orderNo
-                if (ref) returnMap[ref] = (returnMap[ref] || 0) + (parseFloat(d.grandTotal) || 0);
+            if (d.firmId === activeFirmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
             }
         });
 
-        const pendingDocs = allDocs.filter(doc => {
-            if (doc.firmId !== activeFirmId || doc[partyKey] !== partyId) return false;
-            if (doc.status === 'Open' || doc.documentType === 'return') return false;
-            
-            // BULLETPROOF MATH: Safely catches ghost IDs and clean Order Numbers
+        // 3. CALCULATE PENDING GROSS DEBT
+        let partyDocs = allDocs.filter(doc => doc.firmId === activeFirmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open');
+        partyDocs.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        let totalPendingDebt = 0;
+        const pendingInvoices = [];
+
+        for (const doc of partyDocs) {
             const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
-            const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
+            const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
             const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
             
-            const balance = (parseFloat(doc.grandTotal) || 0) - paid - returned;
-            return balance > 0.01; 
-        });
+            const docTotal = parseFloat(doc.grandTotal) || 0;
+            const balance = Math.max(0, docTotal - explicitPaid - returned);
+            
+            if (balance > 0.01) {
+                totalPendingDebt += balance;
+                pendingInvoices.push({ doc, balance });
+            }
+        }
 
-        if (pendingDocs.length === 0) {
+        // 4. THE MAGIC BULLET: MATHEMATICALLY EXTRACT THE ADVANCE POOL TO MATCH THE LEDGER
+        let remainingAdvanceMoney = Math.max(0, totalPendingDebt - trueBalance);
+
+        // 5. FIFO WATERFALL
+        const options = [];
+        for (const item of pendingInvoices) {
+            let finalBal = item.balance;
+            
+            if (remainingAdvanceMoney > 0) {
+                const advanceApplied = Math.min(remainingAdvanceMoney, finalBal);
+                finalBal -= advanceApplied;
+                remainingAdvanceMoney -= advanceApplied;
+            }
+            
+            if (finalBal > 0.01) {
+                const doc = item.doc;
+                const docNo = (isMoneyIn ? (doc.orderNo || doc.invoiceNo) : (doc.orderNo || doc.poNo || doc.invoiceNo)) || doc.id;
+                let displayNo = isMoneyIn ? (doc.orderNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase()) : (doc.orderNo || doc.poNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase());
+                
+                options.push(`<option value="${docNo}" data-bal="${finalBal.toFixed(2)}">${displayNo} (Due: \u20B9${finalBal.toFixed(2)})</option>`);
+            }
+        }
+
+        if (options.length === 0) {
             selectEl.innerHTML = '<option value="">No pending invoices (On Account)</option>';
         } else {
-            const options = pendingDocs.map(doc => {
-                const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
-                const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
-                const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
-                
-                const balance = (parseFloat(doc.grandTotal) || 0) - paid - returned;
-                
-                // BULLETPROOF: Directly save the clean Order/PO number to the database!
-                const docNo = (isMoneyIn ? (doc.orderNo || doc.invoiceNo) : (doc.orderNo || doc.poNo || doc.invoiceNo)) || doc.id;
-                
-                let displayNo = '';
-                if (isMoneyIn) {
-                    displayNo = doc.orderNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase();
-                } else {
-                    displayNo = doc.orderNo || doc.poNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase();
-                }
-                
-                return `<option value="${docNo}" data-bal="${balance.toFixed(2)}">${displayNo} (Due: \u20B9${balance.toFixed(2)})</option>`;
-            }).join('');
-            selectEl.innerHTML = '<option value="">On Account / Advance</option>' + options;
+            selectEl.innerHTML = '<option value="">On Account / Advance</option>' + options.join('');
         }
     },
 
@@ -2776,76 +2810,99 @@ const app = {
         const allDocs = await getAllRecords(storeName);
         const allReceipts = await getAllRecords('receipts');
         
-        // 1. Calculate total money received/paid for this party (including Advances)
-        let totalPaid = 0;
-        let explicitlyLinkedMoney = 0; // NEW: Track money safely locked to specific invoices
+        // 1. ELITE UPGRADE: CALCULATE THE EXACT TRUE LEDGER BALANCE FIRST
+        const party = await getRecordById('ledgers', partyId);
+        let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
+        const balType = party ? (party.balanceType || '').toLowerCase() : '';
+        let trueBalance = 0;
+        
+        if (isSales) { 
+            trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+        } else { 
+            trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+        }
+
+        allDocs.forEach(d => {
+            if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.status !== 'Open') {
+                const amt = parseFloat(d.grandTotal) || 0;
+                trueBalance += (d.documentType === 'return' ? -amt : amt);
+            }
+        });
 
         allReceipts.forEach(r => {
             if (r.firmId === app.state.firmId && r.ledgerId === partyId) {
                 const amt = parseFloat(r.amount) || 0;
-                const impact = isSales ? (r.type === 'in' ? amt : -amt) : (r.type === 'out' ? amt : -amt);
-                totalPaid += impact;
-                
-                // Lock manually tied receipt money away from the global pool!
-                if (r.invoiceRef && impact > 0) {
-                    explicitlyLinkedMoney += impact;
+                if (isSales) trueBalance += (r.type === 'in' ? -amt : amt);
+                else trueBalance += (r.type === 'in' ? amt : -amt);
+            }
+        });
+
+        // 2. MAP EXPLICITLY LINKED PAYMENTS & RETURNS
+        const paymentMap = {};
+        allReceipts.forEach(c => {
+            if (c.firmId === app.state.firmId && c.ledgerId === partyId && c.invoiceRef) {
+                let amt = parseFloat(c.amount) || 0;
+                let impact = isSales ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                if (impact > 0) {
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                    if (refs.length > 0) {
+                        let splitAmt = impact / refs.length;
+                        refs.forEach(r => { paymentMap[r] = (paymentMap[r] || 0) + splitAmt; });
+                    }
                 }
             }
         });
-        
-        // 2. Sort documents chronologically (oldest first). Ignore Drafts!
-        const partyDocs = allDocs.filter(d => d.firmId === app.state.firmId && d[partyKey] === partyId && d.documentType !== 'return' && d.status !== 'Open');
-        partyDocs.sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        // 3. Smart Allocation - Only use true unlinked advance money for FIFO waterfall!
-        let remainingAdvanceMoney = Math.max(0, totalPaid - explicitlyLinkedMoney);
-        
-        for (const doc of partyDocs) {
-            const docTotal = parseFloat(doc.grandTotal) || 0;
-            
-            // Calculate if THIS specific invoice was explicitly paid via manual receipt
-            const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
-            let explicitPaid = 0;
-            allReceipts.forEach(r => {
-                if (r.firmId === app.state.firmId && r.ledgerId === partyId) {
-                    const rRefs = String(r.invoiceRef || '').split(',').map(x => x.trim());
-                    if (rRefs.some(ref => uniqueRefs.includes(ref))) {
-                        explicitPaid += (parseFloat(r.amount) || 0) / (rRefs.length || 1);
-                    }
-                }
-            });
 
-            // STRICT ERP LOGIC: Factor in Credit Notes & Purchase Returns to prevent Ghost Debt!
-            const linkedReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
-            const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
-            const totalSettled = explicitPaid + returnTotal;
+        const returnMap = {};
+        allDocs.forEach(d => {
+            if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+            }
+        });
+
+        // 3. CALCULATE PENDING GROSS DEBT
+        let partyDocs = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open');
+        partyDocs.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        let totalPendingDebt = 0;
+        const pendingInvoices = [];
+
+        for (const doc of partyDocs) {
+            const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+            const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
+            const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
             
-            // Mark completed if explicit payments + returns cover it, OR if leftover FIFO advance covers it
-            if (totalSettled >= docTotal - 0.5) {
-                // Fully covered by its own direct receipt or return!
-                if (doc.status !== 'Completed') {
-                    doc.status = 'Completed';
-                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) doc.completedDate = doc.completedDate || Utils.getLocalDate();
-                    await saveRecord(storeName, doc);
-                }
-            } else if ((totalSettled + remainingAdvanceMoney) >= docTotal - 0.5) { 
-                // Covered by a mix of direct receipt + returns + leftover advance pool
-                remainingAdvanceMoney -= (docTotal - totalSettled); 
-                
-                if (doc.status !== 'Completed') {
-                    doc.status = 'Completed';
-                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) doc.completedDate = doc.completedDate || Utils.getLocalDate();
-                    await saveRecord(storeName, doc);
+            const docTotal = parseFloat(doc.grandTotal) || 0;
+            const balance = Math.max(0, docTotal - explicitPaid - returned);
+            
+            if (balance > 0.01) totalPendingDebt += balance;
+            pendingInvoices.push({ doc, balance });
+        }
+
+        // 4. THE MAGIC BULLET: MATHEMATICALLY EXTRACT THE ADVANCE POOL TO MATCH THE LEDGER
+        let remainingAdvanceMoney = Math.max(0, totalPendingDebt - trueBalance);
+
+        // 5. FIFO WATERFALL FOR STATUS UPDATE
+        for (const item of pendingInvoices) {
+            let finalBal = item.balance;
+            
+            if (remainingAdvanceMoney > 0 && finalBal > 0.01) {
+                const advanceApplied = Math.min(remainingAdvanceMoney, finalBal);
+                finalBal -= advanceApplied;
+                remainingAdvanceMoney -= advanceApplied;
+            }
+            
+            if (finalBal <= 0.01) {
+                if (item.doc.status !== 'Completed') {
+                    item.doc.status = 'Completed';
+                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) item.doc.completedDate = item.doc.completedDate || Utils.getLocalDate();
+                    await saveRecord(storeName, item.doc);
                 }
             } else {
-                // Not enough money to complete this invoice
-                remainingAdvanceMoney -= Math.min(remainingAdvanceMoney, Math.max(0, docTotal - explicitPaid));
-                
-                // STRICT ERP LOGIC: Safely mark the invoice as Unpaid if the advance payment was deleted!
-                if (doc.status === 'Completed') {
-                    doc.status = 'Unpaid'; // FIX: Marks as Unpaid but keeps Stock intact!
-                    doc.completedDate = '';
-                    await saveRecord(storeName, doc);
+                if (item.doc.status === 'Completed') {
+                    item.doc.status = 'Unpaid'; 
+                    item.doc.completedDate = '';
+                    await saveRecord(storeName, item.doc);
                 }
             }
         }
