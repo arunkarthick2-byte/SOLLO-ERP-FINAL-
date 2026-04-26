@@ -1,8 +1,0 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "app.vercel.sollo_erp_final.twa",
-        "sha256_cert_fingerprints": ["C3:36:BD:5B:6E:DD:92:B8:30:4C:A7:30:EE:05:26:30:A8:1C:F2:38:8C:EC:B2:96:40:8C:8C:7F:DA:A8:26:CC"]
-      }
-    }]
