@@ -101,25 +101,9 @@ const Cloud = {
                 });
 
                 let fileId = response.result.files.length > 0 ? response.result.files[0].id : null;
-                // ⚡ ENTERPRISE FIX: Strictly construct 'multipart/related' payload for Google Drive
-                const boundary = '-------SOLLOERPBACKUPBOUNDARY';
-                const multipartBlob = new Blob([
-                    "--" + boundary + "
-",
-                    "Content-Type: application/json; charset=UTF-8
-
-",
-                    JSON.stringify(metadata) + "
-",
-                    "--" + boundary + "
-",
-                    "Content-Type: application/json
-
-",
-                    file, 
-                    "
---" + boundary + "--"
-                ], { type: 'multipart/related; boundary=' + boundary });
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', file);
 
                 const url = fileId ? 
                     `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : 
@@ -127,11 +111,8 @@ const Cloud = {
                 
                 let uploadRes = await fetch(url, {
                     method: fileId ? 'PATCH' : 'POST',
-                    headers: new Headers({ 
-                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
-                        'Content-Type': 'multipart/related; boundary=' + boundary
-                    }),
-                    body: multipartBlob,
+                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
+                    body: form,
                 });
 
                 if (uploadRes.ok) {
@@ -177,35 +158,28 @@ const Cloud = {
                     'mimeType': 'application/json'
                 };
 
-                // Search for existing backup file to overwrite
+                // STRICT ERP LOGIC: Hunt down and destroy Google Drive duplicates to prevent version fragmentation!
                 let response = await gapi.client.drive.files.list({
                     q: "name='SOLLO_ERP_Backup.json' and trashed=false",
                     spaces: 'drive',
-                    fields: 'files(id, name)'
+                    fields: 'files(id)'
                 });
 
-                let fileId = response.result.files.length > 0 ? response.result.files[0].id : null;
+                let fileId = null;
+                if (response.result.files.length > 0) {
+                    fileId = response.result.files[0].id;
+                    // If Drive allowed ghost duplicates, nuke all of them except the primary one!
+                    if (response.result.files.length > 1) {
+                        for (let i = 1; i < response.result.files.length; i++) {
+                            await gapi.client.drive.files.delete({ fileId: response.result.files[i].id });
+                        }
+                    }
+                }
                 window.Utils.showToast("Uploading to Google Drive...");
 
-                // ⚡ ENTERPRISE FIX: Strictly construct 'multipart/related' payload for Google Drive
-                const boundary = '-------SOLLOERPBACKUPBOUNDARY';
-                const multipartBlob = new Blob([
-                    "--" + boundary + "
-",
-                    "Content-Type: application/json; charset=UTF-8
-
-",
-                    JSON.stringify(metadata) + "
-",
-                    "--" + boundary + "
-",
-                    "Content-Type: application/json
-
-",
-                    file, 
-                    "
---" + boundary + "--"
-                ], { type: 'multipart/related; boundary=' + boundary });
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', file);
 
                 const url = fileId ? 
                     `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : 
@@ -214,11 +188,8 @@ const Cloud = {
 
                 let uploadRes = await fetch(url, {
                     method: method,
-                    headers: new Headers({ 
-                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
-                        'Content-Type': 'multipart/related; boundary=' + boundary
-                    }),
-                    body: multipartBlob,
+                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
+                    body: form,
                 });
 
                 if (uploadRes.ok) {
@@ -301,9 +272,15 @@ window.Cloud = Cloud;
 // ==========================================
 // Exactly 15 seconds after the app opens, it checks if 24 hours have passed since the last backup.
 // If yes, it quietly zips the database and sends it to Google Drive without interrupting the user.
-setTimeout(() => {
+setTimeout(async () => {
     if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
-        window.Cloud.autoBackup();
+        // STRICT ERP LOGIC: Prevent uploading an empty database if local storage was cleared!
+        const firms = await window.getAllRecords('firms');
+        if (firms && firms.length > 0) {
+            window.Cloud.autoBackup();
+        } else {
+            console.warn("Local database is empty. Auto-backup aborted to protect Google Drive data.");
+        }
     }
 }, 15000);
 

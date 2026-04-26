@@ -1,64 +1,21 @@
 // ==========================================
-// SOLLO ERP - DATABASE ENGINE (v6.0 WASM EVENT LEDGER)
+// SOLLO ERP - DATABASE ENGINE (v6.1 Enterprise)
 // ==========================================
 const DB_NAME = 'SOLLO_ERP_DB';
-const DB_VERSION = 11; // ⚡ UPGRADED TO V11 FOR DOUBLE-ENTRY ACCOUNTING
-let db; // Legacy IndexedDB (Will be deprecated)
-
-// --- ENTERPRISE ARCHITECTURE: WEBASSEMBLY SQLITE CORE ---
-let sqlDB = null; // The new Bank-Grade SQL Engine
-
-const initSQLite = async () => {
-    try {
-        if (typeof window.initSqlJs === 'undefined') {
-            console.warn("Wasm Engine loading... retrying in 500ms");
-            setTimeout(initSQLite, 500);
-            return;
-        }
-        
-        // 1. Boot the C++ WebAssembly Compiler
-        const SQL = await window.initSqlJs({
-            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-        });
-
-        // 2. Try to load existing SQL binary from IndexedDB
-        const savedDB = localStorage.getItem('sollo_wasm_binary'); // Temporary bootstrap check
-        if (savedDB) {
-            // Load existing database from binary Uint8Array
-            const binaryArr = new Uint8Array(savedDB.split(','));
-            sqlDB = new SQL.Database(binaryArr);
-            console.log("🟢 Wasm SQLite Engine Restored from Cache!");
-        } else {
-            // Create a brand new blank SQL database
-            sqlDB = new SQL.Database();
-            console.log("🟢 New Wasm SQLite Engine Booted!");
-            
-            // 3. Build the Event Sourcing Ledger Table
-            sqlDB.run(`
-                CREATE TABLE EventLedger (
-                    eventId TEXT PRIMARY KEY,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    entityType TEXT NOT NULL,
-                    entityId TEXT NOT NULL,
-                    eventType TEXT NOT NULL,
-                    payload JSON NOT NULL,
-                    userId TEXT
-                );
-                CREATE INDEX idx_entity ON EventLedger(entityId);
-                CREATE INDEX idx_type ON EventLedger(entityType);
-            `);
-            console.log("🏦 Bank-Grade Event Ledger Table Created.");
-        }
-    } catch (err) {
-        console.error("Wasm Boot Failure:", err);
-    }
-};
-
-// Start the Wasm boot sequence parallel to the legacy IndexedDB
-initSQLite();
+const DB_VERSION = 10; // Upgraded version for Trash/Recycle Bin Engine
+let db;
 
 const initDB = () => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
+        // STRICT ERP LOGIC: Force the browser to lock this data permanently so it never gets wiped when the phone is full!
+        if (navigator.storage && navigator.storage.persist) {
+            try {
+                const isPersisted = await navigator.storage.persist();
+                if (isPersisted) console.log("🔒 ERP Vault Locked: Data Persistence Granted.");
+                else console.warn("⚠️ Persistence denied by browser. Data may be at risk if storage gets full.");
+            } catch (e) { console.error("Persistence check failed:", e); }
+        }
+
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
         request.onupgradeneeded = (event) => {
@@ -114,13 +71,6 @@ const initDB = () => {
                 let s = db.createObjectStore('trash', { keyPath: 'id' });
                 s.createIndex('firmId', 'firmId', { unique: false });
             }
-            
-            // ⚡ DOUBLE-ENTRY ENGINE: The General Journal
-            if (!db.objectStoreNames.contains('journal')) {
-                let s = db.createObjectStore('journal', { keyPath: 'id' });
-                s.createIndex('firmId', 'firmId', { unique: false });
-                s.createIndex('refId', 'refId', { unique: false });
-            }
         };
 
         request.onsuccess = (event) => { db = event.target.result; resolve(); };
@@ -131,89 +81,6 @@ const initDB = () => {
 // ==========================================
 // STANDARD CRUD OPERATIONS
 // ==========================================
-
-// --- ENTERPRISE ARCHITECTURE: EVENT SOURCING APPENDER ---
-const appendEvent = (entityType, entityId, eventType, payload) => {
-    if (!sqlDB) return; // Failsafe if Wasm hasn't booted
-    try {
-        const eventId = 'evt-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
-        const sql = `INSERT INTO EventLedger (eventId, entityType, entityId, eventType, payload) VALUES (?, ?, ?, ?, ?)`;
-        sqlDB.run(sql, [eventId, entityType, entityId, eventType, JSON.stringify(payload)]);
-        
-        // ⚡ ENTERPRISE FIX: Prevent 5MB Quota Crash! 
-        // Stringifying a Uint8Array massively inflates its size. We safely cap it to prevent fatal app crashes.
-        const binaryArray = sqlDB.export();
-        if (binaryArray.length < 1000000) { 
-            localStorage.setItem('sollo_wasm_binary', binaryArray.toString());
-        }
-    } catch (err) {
-        console.error("SQL Event Ledger Failure:", err);
-    }
-};
-
-// ==========================================
-// ENTERPRISE ARCHITECTURE: SQL TIME MACHINE (REPLAY ENGINE)
-// Rebuilds the exact state of any record at any specific point in history!
-// ==========================================
-const replayStateAtTime = (entityType, entityId, targetISODate = null) => {
-    if (!sqlDB) return null;
-    try {
-        // Fetch all events for this specific record, sorted from oldest to newest
-        let sql = `SELECT eventType, payload FROM EventLedger WHERE entityType = ? AND entityId = ?`;
-        let params = [entityType, entityId];
-        
-        if (targetISODate) {
-            sql += ` AND timestamp <= ?`;
-            params.push(targetISODate);
-        }
-        sql += ` ORDER BY timestamp ASC`;
-        
-        const stmt = sqlDB.prepare(sql);
-        stmt.bind(params);
-        
-        let currentState = null;
-        
-        // Replay the events one by one to reconstruct the file
-        while (stmt.step()) {
-            const row = stmt.getAsObject();
-            const payload = JSON.parse(row.payload);
-            
-            if (row.eventType === 'UPSERT') {
-                currentState = { ...currentState, ...payload };
-            } else if (row.eventType === 'DELETE') {
-                currentState = null; // The record was deleted at this point in time
-            }
-        }
-        stmt.free();
-        
-        return currentState;
-    } catch (err) {
-        console.error("Time Machine Failure:", err);
-        return null;
-    }
-};
-
-// ==========================================
-// ⚡ ENTERPRISE UPGRADE: EXTRACT EVENT HISTORY
-// ==========================================
-const getRecordHistory = (entityId) => {
-    if (!sqlDB) return [];
-    try {
-        let sql = `SELECT eventId, timestamp, eventType, payload FROM EventLedger WHERE entityId = ? ORDER BY timestamp DESC`;
-        const stmt = sqlDB.prepare(sql);
-        stmt.bind([entityId]);
-        let history = [];
-        while (stmt.step()) {
-            history.push(stmt.getAsObject());
-        }
-        stmt.free();
-        return history;
-    } catch (err) {
-        console.error("Failed to fetch history:", err);
-        return [];
-    }
-};
-
 const getAllRecords = (storeName, indexName = null, indexValue = null) => {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(storeName, 'readonly');
@@ -239,7 +106,31 @@ const getRecordById = (storeName, id) => {
         const transaction = db.transaction(storeName, 'readonly');
         const store = transaction.objectStore(storeName);
         const request = store.get(id);
-        request.onsuccess = () => resolve(request.result);
+        
+        request.onsuccess = () => {
+            if (request.result !== undefined) {
+                resolve(request.result);
+            } else {
+                // STRICT ERP LOGIC: IndexedDB Type Fallback! 
+                // Prevents old Number IDs from becoming untouchable ghosts when searched with String IDs from HTML.
+                if (typeof id === 'string') {
+                    const numId = Number(id);
+                    if (!isNaN(numId)) {
+                        const fallbackReq = store.get(numId);
+                        fallbackReq.onsuccess = () => resolve(fallbackReq.result);
+                        fallbackReq.onerror = () => resolve(undefined);
+                        return;
+                    }
+                } else if (typeof id === 'number') {
+                    const strId = String(id);
+                    const fallbackReq = store.get(strId);
+                    fallbackReq.onsuccess = () => resolve(fallbackReq.result);
+                    fallbackReq.onerror = () => resolve(undefined);
+                    return;
+                }
+                resolve(undefined);
+            }
+        };
         request.onerror = () => reject(request.error);
     });
 };
@@ -249,14 +140,7 @@ const saveRecord = (storeName, data) => {
         const transaction = db.transaction(storeName, 'readwrite');
         const store = transaction.objectStore(storeName);
         const request = store.put(data);
-        request.onsuccess = () => {
-            // --- ENTERPRISE EVENT SOURCING: DUAL-WRITE ROUTER ---
-            // Streams an immutable record of this exact transaction into the SQL database!
-            if (storeName !== 'trash' && storeName !== 'counters') {
-                appendEvent(storeName, data.id || data.firmId, 'UPSERT', data);
-            }
-            resolve(data.id || data.firmId);
-        };
+        request.onsuccess = () => resolve(data.id || data.firmId);
         request.onerror = () => reject(request.error);
     });
 };
@@ -266,7 +150,13 @@ const deleteRecordById = async (storeName, id) => {
         // 1. Fetch the record first to identify linked impacts
         const oldRecord = await getRecordById(storeName, id);
         
-        if (oldRecord && (storeName === 'sales' || storeName === 'purchases')) {
+        // STRICT ERP LOGIC: Stop ghost deletion! If the record doesn't exist, exit safely.
+        if (!oldRecord) return;
+        
+        // Ensure we use the exact data type from the DB for the physical deletion
+        const actualId = oldRecord.id; 
+        
+        if (oldRecord && (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments')) {
             // 2. CRITICAL: Await the stock reversal COMPLETELY before proceeding
             await reverseStockImpact(storeName, oldRecord);
             
@@ -280,10 +170,17 @@ const deleteRecordById = async (storeName, id) => {
 
                 if (receiptsToDelete.length > 0) {
                     await new Promise((resolveBatch, rejectBatch) => {
-                        const t = db.transaction('receipts', 'readwrite');
-                        const store = t.objectStore('receipts');
+                        // STRICT ERP LOGIC: Open BOTH stores so receipts can be safely sent to the Trash!
+                        const t = db.transaction(['receipts', 'trash'], 'readwrite');
+                        const recStore = t.objectStore('receipts');
+                        const trashStore = t.objectStore('trash');
                         
-                        receiptsToDelete.forEach(r => store.delete(r.id));
+                        receiptsToDelete.forEach(r => {
+                            r._module = 'receipts';
+                            r._deletedAt = new Date().toISOString();
+                            trashStore.put(r); // Save to recycle bin first
+                            recStore.delete(r.id); // Then remove from active ledger
+                        });
                         
                         t.oncomplete = () => resolveBatch();
                         t.onerror = () => rejectBatch(t.error);
@@ -299,27 +196,11 @@ const deleteRecordById = async (storeName, id) => {
             await saveRecord('trash', oldRecord); 
         }
 
-        // ⚡ DOUBLE-ENTRY REVERSAL: Destroy the linked Journal Entry
-        try {
-            await new Promise((res, rej) => {
-                const jt = db.transaction('journal', 'readwrite');
-                const jreq = jt.objectStore('journal').delete('JRN-' + id);
-                jreq.onsuccess = res;
-                jreq.onerror = rej;
-            });
-        } catch(e) {}
-
         // 4. Finally, delete the actual document only after all reversals finish
         await new Promise((resolveDelete, rejectDelete) => {
             const transaction = db.transaction(storeName, 'readwrite');
-            const request = transaction.objectStore(storeName).delete(id);
-            request.onsuccess = () => {
-                // --- ENTERPRISE EVENT SOURCING: TOMBSTONE APPENDER ---
-                if (storeName !== 'trash') {
-                    appendEvent(storeName, id, 'DELETE', { deletedAt: new Date().toISOString() });
-                }
-                resolveDelete();
-            };
+            const request = transaction.objectStore(storeName).delete(actualId); // <--- FIXED TYPE LOCK
+            request.onsuccess = () => resolveDelete();
             request.onerror = () => rejectDelete(request.error);
         });
 
@@ -335,195 +216,133 @@ const getAllFirms = () => getAllRecords('firms');
 // STRICT INVENTORY & INVOICE ENGINE
 // ==========================================
 const reverseStockImpact = async (storeName, record) => {
-    if (record.status === 'Open') return; 
+    if (record.status === 'Open') return; // Drafts do not reverse Stock
     const isReturn = record.documentType === 'return';
     const isNonGST = record.invoiceType === 'Non-GST'; 
-    
     const items = await getAllRecords('items');
-    const safeItems = Array.isArray(record.items) ? record.items : [];
     
-    for (const row of safeItems) {
-        const dbItem = items.find(i => i.id === row.itemId);
+    const rowsToProcess = storeName === 'adjustments' ? [record] : (record.items || []);
+    
+    for (const row of rowsToProcess) {
+        const dbItem = items.find(i => String(i.id) === String(row.itemId || row.id));
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            dbItem.gstStock = parseFloat(dbItem.gstStock) || 0;
-            dbItem.nonGstStock = parseFloat(dbItem.nonGstStock) || 0;
-            if (!dbItem.batches) dbItem.batches = []; 
             
-            let originalImpactQty = isReturn ? qty : -qty;
-            if (storeName === 'purchases') {
-                originalImpactQty = isReturn ? -qty : qty;
+            let stockGst = parseFloat(dbItem.stockGst);
+            if (isNaN(stockGst)) stockGst = parseFloat(dbItem.stock) || 0;
+            
+            let stockNonGst = parseFloat(dbItem.stockNonGst);
+            if (isNaN(stockNonGst)) stockNonGst = 0;
+            
+            // STRICT ERP LOGIC: Lock base stock back into object so we don't lose the secondary pool!
+            dbItem.stockGst = stockGst;
+            dbItem.stockNonGst = stockNonGst;
+            
+            let impact = 0;
+            if (storeName === 'sales') {
+                impact = isReturn ? -qty : qty;
+            } else if (storeName === 'purchases') {
+                impact = isReturn ? qty : -qty;
+            } else if (storeName === 'adjustments') {
+                impact = record.type === 'add' ? -qty : qty; 
             }
             
-            // ⚡ UPGRADED REVERSAL ENGINE
-            if (originalImpactQty > 0) {
-                const batchIdToDestroy = record.id + '-' + row.itemId;
-                dbItem.batches = dbItem.batches.filter(b => b.batchId !== batchIdToDestroy);
-            } else if (originalImpactQty < 0) {
-                if (row.fifoTrail) {
-                    row.fifoTrail.forEach(trail => {
-                        let batch = dbItem.batches.find(b => b.batchId === trail.batchId);
-                        // If we are reversing an overdraft, we restore the negative balance to 0!
-                        if (batch) batch.remaining += trail.qty; 
-                    });
-                }
-            }
-
-            // Legacy Shadow Sync Reversal
-            let reverseImpact = -originalImpactQty; 
-            if (isNonGST) {
-                dbItem.nonGstStock = Math.round((dbItem.nonGstStock + reverseImpact) * 100) / 100;
+            let targetPoolIsNonGST = isNonGST;
+            if (storeName === 'adjustments') targetPoolIsNonGST = record.pool === 'nongst';
+            
+            if (targetPoolIsNonGST) {
+                stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
+                dbItem.stockNonGst = stockNonGst;
             } else {
-                dbItem.gstStock = Math.round((dbItem.gstStock + reverseImpact) * 100) / 100;
+                stockGst = Math.round((stockGst + impact) * 100) / 100;
+                dbItem.stockGst = stockGst;
             }
-            dbItem.stock = Math.round((dbItem.gstStock + dbItem.nonGstStock) * 100) / 100;
             
+            dbItem.stock = Math.round((stockGst + stockNonGst) * 100) / 100;
             await saveRecord('items', dbItem);
         }
     }
 };
 
 const applyStockImpact = async (storeName, record) => {
-    if (record.status === 'Open') return; 
+    if (record.status === 'Open') return; // Drafts do not apply Stock
     const isReturn = record.documentType === 'return';
     const isNonGST = record.invoiceType === 'Non-GST'; 
-    
     const items = await getAllRecords('items');
-    const safeItems = Array.isArray(record.items) ? record.items : [];
     
-    for (const row of safeItems) {
-        const dbItem = items.find(i => i.id === row.itemId);
+    const rowsToProcess = storeName === 'adjustments' ? [record] : (record.items || []);
+    
+    for (const row of rowsToProcess) {
+        const dbItem = items.find(i => String(i.id) === String(row.itemId || row.id));
         if (dbItem) {
             let qty = parseFloat(row.qty) || 0;
-            dbItem.gstStock = parseFloat(dbItem.gstStock) || 0;
-            dbItem.nonGstStock = parseFloat(dbItem.nonGstStock) || 0;
-            if (!dbItem.batches) dbItem.batches = []; 
             
-            let impactQty = isReturn ? qty : -qty;
-            if (storeName === 'purchases') {
-                impactQty = isReturn ? -qty : qty;
+            let stockGst = parseFloat(dbItem.stockGst);
+            if (isNaN(stockGst)) stockGst = parseFloat(dbItem.stock) || 0;
+            
+            let stockNonGst = parseFloat(dbItem.stockNonGst);
+            if (isNaN(stockNonGst)) stockNonGst = 0;
+            
+            // STRICT ERP LOGIC: Lock base stock back into object so we don't lose the secondary pool!
+            dbItem.stockGst = stockGst;
+            dbItem.stockNonGst = stockNonGst;
+            
+            let impact = 0;
+            if (storeName === 'sales') {
+                impact = isReturn ? qty : -qty;
+            } else if (storeName === 'purchases') {
+                impact = isReturn ? -qty : qty;
+                
+                if (!isReturn && parseFloat(row.rate) > 0) {
+                    let discountRatio = 0;
+                    const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
+                    if (record.discount > 0 && trueSubtotal > 0) {
+                        discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
+                    }
+                    dbItem.buyPrice = parseFloat(row.rate) * (1 - discountRatio);
+                }
+            } else if (storeName === 'adjustments') {
+                impact = record.type === 'add' ? qty : -qty;
             }
             
-            const targetBucket = isNonGST ? 'non-gst' : 'gst';
-
-            // ⚡ ENTERPRISE FIX: TRUE FIFO COSTING & NEGATIVE STOCK ENGINE
-            if (impactQty > 0) {
-                // STOCK IN: Determine correct valuation for incoming stock
-                let trueCostRate = parseFloat(row.rate) || 0;
-                if (storeName === 'sales' && isReturn) {
-                    // 🛑 CRITICAL FIX: For Sales Returns, DO NOT use the selling price! Use the original buy price!
-                    trueCostRate = parseFloat(row.buyPrice) || parseFloat(isNonGST ? dbItem.nonGstBuyPrice : dbItem.gstBuyPrice) || parseFloat(dbItem.buyPrice) || 0;
-                }
-
-                // Before creating a new positive batch, check if we have any negative (overdraft) batches to fill!
-                let remainingToFill = impactQty;
-                dbItem.batches.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-                for (let batch of dbItem.batches) {
-                    if (remainingToFill <= 0) break;
-                    if (batch.bucket !== targetBucket || batch.remaining >= 0) continue; // Look only for negative overdrafts
-
-                    let fillAmount = Math.min(Math.abs(batch.remaining), remainingToFill);
-                    batch.remaining += fillAmount; // Fill the negative gap mathematically
-                    remainingToFill -= fillAmount;
-                }
-
-                // If there is still stock left after filling overdrafts, create a new batch
-                if (remainingToFill > 0) {
-                    dbItem.batches.push({
-                        batchId: record.id + '-' + row.itemId,
-                        date: record.date,
-                        rate: trueCostRate,
-                        qty: remainingToFill,
-                        remaining: remainingToFill,
-                        bucket: targetBucket
-                    });
-                }
-            } else if (impactQty < 0) {
-                // STOCK OUT -> Deduct from oldest Lots first
-                let needed = Math.abs(impactQty);
-                row.fifoTrail = []; 
-                
-                dbItem.batches.sort((a, b) => new Date(a.date) - new Date(b.date));
-                
-                for (let batch of dbItem.batches) {
-                    if (needed <= 0) break;
-                    if (batch.bucket !== targetBucket || batch.remaining <= 0) continue;
-                    
-                    let deducted = Math.min(batch.remaining, needed);
-                    batch.remaining -= deducted;
-                    needed -= deducted;
-                    
-                    row.fifoTrail.push({ batchId: batch.batchId, qty: deducted, rate: batch.rate });
-                }
-
-                // ⚡ FIX: OVERDRAFT (NEGATIVE STOCK) BATCH CREATOR
-                // If we sold more than we had, we MUST record the negative balance!
-                if (needed > 0) {
-                    const overdraftId = 'OVD-' + record.id + '-' + row.itemId;
-                    const fallbackCost = parseFloat(row.buyPrice) || parseFloat(isNonGST ? dbItem.nonGstBuyPrice : dbItem.gstBuyPrice) || parseFloat(dbItem.buyPrice) || 0;
-                    
-                    dbItem.batches.push({
-                        batchId: overdraftId,
-                        date: record.date,
-                        rate: fallbackCost,
-                        qty: -needed,
-                        remaining: -needed, // Mathematically negative remaining!
-                        bucket: targetBucket
-                    });
-                    
-                    row.fifoTrail.push({ batchId: overdraftId, qty: needed, rate: fallbackCost });
-                }
-                
-                // COGS Calculation: Average cost of the deducted lots
-                if (row.fifoTrail.length > 0) {
-                    let totalCost = row.fifoTrail.reduce((sum, t) => sum + (t.qty * t.rate), 0);
-                    let totalQty = row.fifoTrail.reduce((sum, t) => sum + t.qty, 0);
-                    row.buyPrice = totalCost / totalQty; 
-                }
-            }
+            let targetPoolIsNonGST = isNonGST;
+            if (storeName === 'adjustments') targetPoolIsNonGST = record.pool === 'nongst';
             
-            // Legacy Shadow Sync (Keeps the UI dashboards working perfectly)
-            if (isNonGST) {
-                dbItem.nonGstStock = Math.round((dbItem.nonGstStock + impactQty) * 100) / 100;
+            if (targetPoolIsNonGST) {
+                stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
+                dbItem.stockNonGst = stockNonGst;
             } else {
-                dbItem.gstStock = Math.round((dbItem.gstStock + impactQty) * 100) / 100;
-            }
-            dbItem.stock = Math.round((dbItem.gstStock + dbItem.nonGstStock) * 100) / 100;
-            
-            // Dual Valuation Fallback (For Master Records)
-            if (storeName === 'purchases' && !isReturn && row.rate > 0) {
-                let discountRatio = 0;
-                const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
-                if (record.discount > 0 && trueSubtotal > 0) discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
-                let finalRate = row.rate * (1 - discountRatio);
-
-                if (isNonGST) {
-                    const taxMultiplier = 1 + ((parseFloat(row.gstPercent) || 0) / 100);
-                    dbItem.nonGstBuyPrice = finalRate * taxMultiplier;
-                } else {
-                    dbItem.gstBuyPrice = finalRate;
-                }
-                dbItem.buyPrice = isNonGST ? dbItem.nonGstBuyPrice : dbItem.gstBuyPrice;
+                stockGst = Math.round((stockGst + impact) * 100) / 100;
+                dbItem.stockGst = stockGst;
             }
             
+            dbItem.stock = Math.round((stockGst + stockNonGst) * 100) / 100;
             await saveRecord('items', dbItem);
         }
     }
 };
 
 const saveInvoiceTransaction = async (storeName, data) => {
-    // ENTERPRISE UPGRADE: Take a snapshot ONLY of the specific items in this transaction to prevent massive Lag/Freezing
-    const allItems = await getAllRecords('items');
-    const itemsSnapshot = allItems.filter(i => (data.items || []).some(row => row.itemId === i.id));
     const existingRecord = await getRecordById(storeName, data.id);
+    
+    // STRICT ERP LOGIC: Inherit the exact DB type to prevent string/number cloning!
+    if (existingRecord) {
+        data.id = existingRecord.id;
+    }
+    
+    const allItems = await getAllRecords('items');
+    
+    // STRICT ERP LOGIC: Map all IDs to strings to prevent snapshot rollback failures!
+    const newDataItems = storeName === 'adjustments' ? [data.itemId] : (data.items || []).map(row => String(row.itemId || row.id));
+    const oldDataItems = existingRecord ? (storeName === 'adjustments' ? [existingRecord.itemId] : (existingRecord.items || []).map(row => String(row.itemId || row.id))) : [];
+    const allItemIds = [...new Set([...newDataItems, ...oldDataItems].filter(Boolean))];
+    
+    const itemsSnapshot = allItems.filter(i => allItemIds.includes(String(i.id)));
 
     try {
-        // 1. If Editing, Reverse previous stock impacts first
         if (existingRecord) {
             await reverseStockImpact(storeName, existingRecord);
             
-            // Delete old auto-receipts to recreate them fresh (Collision Protected)
             const docNo = existingRecord.invoiceNo || existingRecord.poNo || existingRecord.id;
             const partyId = storeName === 'sales' ? existingRecord.customerId : existingRecord.supplierId;
             const newDocNo = data.invoiceNo || data.poNo || data.id; 
@@ -532,7 +351,6 @@ const saveInvoiceTransaction = async (storeName, data) => {
                 const receipts = await getAllRecords('receipts');
                 for (const r of receipts) {
                     if (r.invoiceRef === docNo && r.ledgerId === partyId && r.isAutoGenerated) {
-                        // FIX: Actually delete the old auto-receipt so it doesn't duplicate the balance!
                         await deleteRecordById('receipts', r.id); 
                     }
                     else if (r.ledgerId === partyId && !r.isAutoGenerated && docNo !== newDocNo) {
@@ -550,76 +368,13 @@ const saveInvoiceTransaction = async (storeName, data) => {
             }
         }
 
-        // 2. Apply New Stock Impacts
         await applyStockImpact(storeName, data);
-
-        // 3. Save the actual Invoice/PO document
         await saveRecord(storeName, data);
         
-        // ==========================================
-        // ⚡ DOUBLE-ENTRY ENGINE: AUTOMATIC JOURNAL POSTING
-        // Generates strict Dr/Cr legs for every transaction
-        // ==========================================
-        if (data.status !== 'Open') {
-            let legs = [];
-            const gt = parseFloat(data.grandTotal) || 0;
-            const tax = parseFloat(data.totalGst) || 0;
-            const fr = parseFloat(data.freightAmount) || 0;
-            
-            // Mathematically deduce exact Net Revenue
-            const rawSubtotal = (data.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
-            const discAmt = data.discountType === '%' ? (rawSubtotal * ((parseFloat(data.discount) || 0) / 100)) : (parseFloat(data.discount) || 0);
-            const netRevenue = rawSubtotal - discAmt;
-
-            if (storeName === 'sales') {
-                if (data.documentType === 'return') {
-                    legs.push({ acc: 'Sales Returns', type: 'Dr', amt: gt, party: null });
-                    legs.push({ acc: 'Accounts Receivable', type: 'Cr', amt: gt, party: data.customerId });
-                } else {
-                    legs.push({ acc: 'Accounts Receivable', type: 'Dr', amt: gt, party: data.customerId });
-                    legs.push({ acc: 'Sales Revenue', type: 'Cr', amt: netRevenue, party: null });
-                    if (tax > 0) legs.push({ acc: 'Output GST (Liability)', type: 'Cr', amt: tax, party: null });
-                    if (fr > 0) legs.push({ acc: 'Freight Income', type: 'Cr', amt: fr, party: null });
-                }
-            } else if (storeName === 'purchases') {
-                if (data.documentType === 'return') {
-                    legs.push({ acc: 'Accounts Payable', type: 'Dr', amt: gt, party: data.supplierId });
-                    legs.push({ acc: 'Purchase Returns', type: 'Cr', amt: gt, party: null });
-                } else {
-                    legs.push({ acc: 'Purchases (COGS)', type: 'Dr', amt: netRevenue, party: null });
-                    if (tax > 0) legs.push({ acc: 'Input GST (Asset)', type: 'Dr', amt: tax, party: null });
-                    if (fr > 0) legs.push({ acc: 'Freight Expense', type: 'Dr', amt: fr, party: null });
-                    legs.push({ acc: 'Accounts Payable', type: 'Cr', amt: gt, party: data.supplierId });
-                }
-            }
-
-            // CA-Approval Failsafe: Verify Debits = Credits
-            const drTotal = Math.round(legs.filter(l => l.type === 'Dr').reduce((s, l) => s + l.amt, 0) * 100) / 100;
-            const crTotal = Math.round(legs.filter(l => l.type === 'Cr').reduce((s, l) => s + l.amt, 0) * 100) / 100;
-            
-            if (Math.abs(drTotal - crTotal) < 0.5) {
-                const journalEntry = {
-                    id: 'JRN-' + data.id, // Idempotent: Auto-overwrites on edits!
-                    firmId: data.firmId,
-                    date: data.date,
-                    refId: data.id,
-                    refNo: data.invoiceNo || data.poNo,
-                    module: storeName,
-                    legs: legs,
-                    timestamp: new Date().toISOString()
-                };
-                await saveRecord('journal', journalEntry);
-            } else {
-                console.error(`[Double-Entry] Imbalance in ${data.id}! Dr: ${drTotal}, Cr: ${crTotal}`);
-            }
-        }
-
-        // 4. Trigger silent background backup
         if (typeof triggerAutoBackup === 'function') triggerAutoBackup();
 
     } catch (error) {
         console.error("CRITICAL DB ERROR: Rolling back stock to prevent corruption...", error);
-        // ROLLBACK: Restore inventory to the exact snapshot taken before the crash!
         for (const oldItem of itemsSnapshot) {
             await saveRecord('items', oldItem);
         }
@@ -653,8 +408,13 @@ const getNextDocumentNumber = async (storeName, docType, targetField = null) => 
         'VOU': 'VOU {NUM}/{FY}'      
     };
     
-    // Read the user's custom settings from the device memory
-    const savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}');
+    // STRICT ERP LOGIC: Prevent fatal app crash if LocalStorage JSON gets corrupted!
+    let savedFormats = {};
+    try {
+        savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}');
+    } catch (err) {
+        console.warn("Recovered from corrupted document formats.");
+    }
     const formatSettings = { ...defaultFormats, ...savedFormats };
 
     const template = formatSettings[docType] || `${docType} {NUM}/{FY}`;
@@ -751,9 +511,12 @@ const getKhataStatement = async (partyId, partyType) => {
             const docLabel = isReturn ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
             const docNo = s.invoiceNo || s.orderNo || String(s.id).slice(-4).toUpperCase();
             
+            // STRICT ERP LOGIC: Enforce absolute value to prevent negative embezzlement hacks!
+            const safeAmount = Math.abs(parseFloat(s.grandTotal) || 0);
+            
             timeline.push({
                 id: s.id, date: s.date, desc: `${docLabel} (${docNo})`, 
-                amount: s.grandTotal, isInvoice: !isReturn, impact: isReturn ? -s.grandTotal : s.grandTotal
+                amount: safeAmount, isInvoice: !isReturn, impact: isReturn ? -safeAmount : safeAmount
             });
         }
     });
@@ -768,9 +531,11 @@ const getKhataStatement = async (partyId, partyType) => {
             const docLabel = isReturn ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
             const docNo = p.poNo || p.invoiceNo || p.orderNo || String(p.id).slice(-4).toUpperCase();
             
+            const safeAmount = Math.abs(parseFloat(p.grandTotal) || 0);
+            
             timeline.push({
                 id: p.id, date: p.date, desc: `${docLabel} (${docNo})`, 
-                amount: p.grandTotal, isInvoice: !isReturn, impact: isReturn ? -p.grandTotal : p.grandTotal
+                amount: safeAmount, isInvoice: !isReturn, impact: isReturn ? -safeAmount : safeAmount
             });
         }
     });
@@ -781,28 +546,28 @@ const getKhataStatement = async (partyId, partyType) => {
     rawReceipts.forEach(r => {
         if (r.firmId === firmId && r.ledgerId === partyId) {
             const isMoneyIn = r.type === 'in';
-            let impact = isCustomer ? (isMoneyIn ? -r.amount : r.amount) : (isMoneyIn ? r.amount : -r.amount);
+            const safeAmount = Math.abs(parseFloat(r.amount) || 0);
+            let impact = isCustomer ? (isMoneyIn ? -safeAmount : safeAmount) : (isMoneyIn ? safeAmount : -safeAmount);
             
             timeline.push({
                 id: r.id, date: r.date, 
                 desc: (r.receiptNo ? r.receiptNo + ' - ' : '') + (r.desc || (isMoneyIn ? 'Payment Received' : 'Payment Made')),
-                amount: r.amount, isInvoice: false, impact: impact 
+                amount: safeAmount, isInvoice: false, impact: impact 
             });
         }
     });
     rawReceipts.length = 0; // Force Garbage Collection
 
-    // --- ENTERPRISE FIX: SAME-DAY LEDGER PRECISION ---
-    // Sort chronologically (with ID fallback for exact hour/minute creation order)
+    // Sort chronologically
     timeline.sort((a, b) => {
         if (a.id === 'open-bal') return -1;
         if (b.id === 'open-bal') return 1;
         
-        const dateDiff = new Date(a.date) - new Date(b.date);
-        if (dateDiff !== 0) return dateDiff;
-        
-        // If they happened on the exact same day, sort by ID to prevent running balance glitches!
-        return String(a.id).localeCompare(String(b.id));
+        // STRICT ERP LOGIC: Sort by Date AND ID to prevent same-day running balance scrambling!
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        return (a.id > b.id) ? 1 : -1;
     });
 
     // Compute Running Balance
@@ -844,7 +609,8 @@ const getGlobalTimeline = async (firmId) => {
     // 3. Process Receipts & Wipe RAM
     const rawReceipts = await getAllRecords('receipts');
     rawReceipts.forEach(r => {
-        if (r.firmId === firmId) {
+        // STRICT ERP LOGIC: Prevent Quadruple Entry by filtering out auto-generated receipts!
+        if (r.firmId === firmId && !r.isAutoGenerated) {
             timeline.push({ id: r.id, date: r.date, type: r.type, amount: r.amount, mode: r.mode, desc: `Party: ${r.ledgerName}` });
         }
     });
@@ -854,17 +620,14 @@ const getGlobalTimeline = async (firmId) => {
     const rawExpenses = await getAllRecords('expenses');
     rawExpenses.forEach(e => {
         if (e.firmId === firmId) {
-            timeline.push({ id: e.id, date: e.date, type: 'out', amount: parseFloat(e.amount), mode: 'Cash', desc: `Expense: ${e.category}` });
+            // STRICT ERP LOGIC: Audit accurate payment modes instead of forcing 'Cash'
+            const mode = e.accountId === 'cash' || !e.accountId ? 'Cash' : 'Bank';
+            timeline.push({ id: e.id, date: e.date, type: 'out', amount: parseFloat(e.amount), mode: mode, desc: `Expense: ${e.category}` });
         }
     });
     rawExpenses.length = 0;
 
-    // --- ENTERPRISE FIX: SAME-DAY DASHBOARD PRECISION ---
-    return timeline.sort((a, b) => {
-        const dateDiff = new Date(b.date) - new Date(a.date); // Reverse chronological (Newest first)
-        if (dateDiff !== 0) return dateDiff;
-        return String(b.id).localeCompare(String(a.id)); // Fallback to ID
-    });
+    return timeline.sort((a, b) => new Date(b.date) - new Date(a.date));
 };
 
 // ==========================================
@@ -892,8 +655,8 @@ const exportDatabase = async () => {
     // ENTERPRISE FIX: Capture the phone's current active Firm ID
     const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
     
-    // ⚡ ENTERPRISE FIX: Added 'journal' so Trial Balance and Double-Entry Accounting are safely backed up!
-    const stores = ['firms', 'businessProfile', 'counters', 'items', 'ledgers', 'sales', 'purchases', 'receipts', 'expenses', 'accounts', 'adjustments', 'units', 'expenseCategories', 'trash', 'journal'];
+    // FIX: Added 'trash' to the export array so the recycle bin is safely backed up to the cloud
+    const stores = ['firms', 'businessProfile', 'counters', 'items', 'ledgers', 'sales', 'purchases', 'receipts', 'expenses', 'accounts', 'adjustments', 'units', 'expenseCategories', 'trash'];
     const backupData = {};
     
     for (const store of stores) {
@@ -913,6 +676,18 @@ const exportDatabase = async () => {
 };
 
 const importDatabase = async (parsedData) => {
+    // ==========================================
+    // STRICT ERP LOGIC: THE FILE SHIELD
+    // ==========================================
+    // Mathematically reject PDFs, Images, or random JSON files from other apps!
+    // A valid backup MUST be an object and MUST contain core ERP tables.
+    if (!parsedData || typeof parsedData !== 'object' || Array.isArray(parsedData)) {
+        return Promise.reject(new Error("Invalid File Format. Please upload a valid .json backup."));
+    }
+    if (!parsedData.ledgers && !parsedData.items && !parsedData.sales) {
+        return Promise.reject(new Error("File Rejected: This is not a valid SOLLO ERP backup file."));
+    }
+
     const stores = Object.keys(parsedData);
     
     // ENTERPRISE FIX: Capture the phone's current active Firm ID
@@ -927,22 +702,48 @@ const importDatabase = async (parsedData) => {
         const transaction = db.transaction(validStores, 'readwrite');
         validStores.forEach(storeName => {
             const store = transaction.objectStore(storeName);
-            store.clear(); 
-            parsedData[storeName].forEach(record => {
-                
-                // --- ENTERPRISE FIX: INVISIBLE NAME TAG OVERRIDE ---
-                if (storeName === 'firms') {
-                    record.id = activeFirmId; // Force the firm profile to match the phone
-                } else if (storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
-                    // Global settings, leave them as is
-                } else {
-                    // Force all Invoices, Products, Customers, and Cashbook data to belong to this phone!
-                    record.firmId = activeFirmId;
+            
+            // STRICT ERP LOGIC: Prevent Multi-Company Doomsday Wipe!
+            // Only clear the records belonging to the ACTIVE firm, protecting other companies' data!
+            if (storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
+                store.clear(); 
+                // SAFETY CHECK: Ensure the array actually exists to prevent "o.length" crash
+                if (Array.isArray(parsedData[storeName])) {
+                    parsedData[storeName].forEach(record => {
+                        store.put(record);
+                    });
                 }
-                // ---------------------------------------------------
-                
-                store.put(record);
-            });
+            } else {
+                // SAFETY CHECK: Only use the firmId index if the table actually has it!
+                if (store.indexNames.contains('firmId')) {
+                    const request = store.index('firmId').openKeyCursor(IDBKeyRange.only(activeFirmId));
+                    request.onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            store.delete(cursor.primaryKey);
+                            cursor.continue();
+                        } else {
+                            if (Array.isArray(parsedData[storeName])) {
+                                parsedData[storeName].forEach(record => {
+                                    if (storeName === 'firms') record.id = activeFirmId;
+                                    else record.firmId = activeFirmId;
+                                    store.put(record);
+                                });
+                            }
+                        }
+                    };
+                } else {
+                    // For core tables like 'firms' and 'businessProfile', use the primary key directly
+                    store.delete(activeFirmId); 
+                    if (Array.isArray(parsedData[storeName])) {
+                        parsedData[storeName].forEach(record => {
+                            if (storeName === 'firms') record.id = activeFirmId;
+                            else record.firmId = activeFirmId;
+                            store.put(record);
+                        });
+                    }
+                }
+            }
         });
         
         transaction.oncomplete = () => {
@@ -964,6 +765,7 @@ const importDatabase = async (parsedData) => {
         transaction.onerror = () => reject(transaction.error);
     });
 };
+
 // ==========================================
 // 9. GST REPORTS AGGREGATION ENGINE
 // ==========================================
@@ -987,9 +789,13 @@ async function generateGSTReport(yearMonth, firmId) {
         let isReturn = s.documentType === 'return';
         let mult = isReturn ? -1 : 1; // Subtract returns from total sales
         
-        // FIX: Reverted Double-Discount Bug! ui.js already applies the discount before saving s.subtotal.
-        let taxable = parseFloat(s.subtotal) * mult;
-        let tax = parseFloat(s.totalGst) * mult;
+        // STRICT ERP LOGIC: Deduct discounts to prevent GST Portal rejections for mismatched Taxable Values!
+        let rawSubtotal = parseFloat(s.subtotal) || 0;
+        let discountAmount = parseFloat(s.discount) || 0;
+        if (s.discountType === '%') discountAmount = rawSubtotal * (discountAmount / 100);
+        
+        let taxable = Math.max(0, rawSubtotal - discountAmount) * mult;
+        let tax = (parseFloat(s.totalGst) || 0) * mult;
 
         gstr1.totalTaxable += taxable;
         gstr1.totalTax += tax;
@@ -1013,9 +819,15 @@ async function generateGSTReport(yearMonth, firmId) {
         let isReturn = p.documentType === 'return';
         let mult = isReturn ? -1 : 1;
         
-        // FIX: Reverted Double-Discount Bug!
-        gstr2.totalTaxable += parseFloat(p.subtotal) * mult;
-        gstr2.totalTax += parseFloat(p.totalGst) * mult;
+        // STRICT ERP LOGIC: Deduct discounts to prevent ITC mismatches!
+        let rawSubtotal = parseFloat(p.subtotal) || 0;
+        let discountAmount = parseFloat(p.discount) || 0;
+        if (p.discountType === '%') discountAmount = rawSubtotal * (discountAmount / 100);
+        
+        let taxable = Math.max(0, rawSubtotal - discountAmount) * mult;
+
+        gstr2.totalTaxable += taxable;
+        gstr2.totalTax += (parseFloat(p.totalGst) || 0) * mult;
     });
 
     // Calculate GSTR-3B (Net Summary)
@@ -1035,8 +847,7 @@ async function generateGSTReport(yearMonth, firmId) {
 export {
     initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById,
     getAllFirms, saveInvoiceTransaction, getNextDocumentNumber,
-    getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport,
-    getRecordHistory, replayStateAtTime 
+    getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport
 };
 
 // 2. Map to window so inline HTML and older files don't break during the transition
@@ -1053,5 +864,4 @@ window.getGlobalTimeline = getGlobalTimeline;
 window.exportDatabase = exportDatabase;
 window.importDatabase = importDatabase;
 window.generateGSTReport = generateGSTReport;
-window.getRecordHistory = getRecordHistory;
-window.replayStateAtTime = replayStateAtTime;
+

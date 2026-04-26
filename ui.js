@@ -1,53 +1,11 @@
 // ==========================================
-// SOLLO ERP - UI & ANIMATION CONTROLLER (v5.2 Enterprise)
+// SOLLO ERP - UI & ANIMATION CONTROLLER (v6.1 Enterprise)
 // ==========================================
 
 // ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js';
-
+import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=6.1';
 
 const UI = {
-
-    // ==========================================
-    // ENTERPRISE ARCHITECTURE 2: FINE-GRAINED SIGNALS
-    // Achieves absolute maximum theoretical UI performance (O(1) time complexity)
-    // ==========================================
-    createSignal: (initialValue) => {
-        let value = initialValue;
-        const subscribers = new Set(); // Stores exactly which HTML elements care about this data
-        
-        return {
-            get value() { return value; },
-            set value(newVal) {
-                if (value === newVal) return;
-                value = newVal;
-                // Surgically update only the exact pixels tied to this signal via the GPU thread
-                subscribers.forEach(sub => requestAnimationFrame(() => sub(value))); 
-            },
-            
-            // The Surgical DOM Binder
-            bindText: function(elementId, formatter = v => v) {
-                const el = document.getElementById(elementId);
-                if (el) {
-                    const updateDOM = (v) => { el.innerText = formatter(v); };
-                    subscribers.add(updateDOM);
-                    updateDOM(value); // Force an initial paint
-                }
-                return this; // Allows for chainable syntax
-            },
-            
-            // The Surgical CSS Binder
-            bindStyle: function(elementId, styleMap) {
-                const el = document.getElementById(elementId);
-                if (el) {
-                    const updateCSS = (v) => { Object.assign(el.style, styleMap(v)); };
-                    subscribers.add(updateCSS);
-                    updateCSS(value);
-                }
-                return this;
-            }
-        };
-    },
 
     // --- PREMIUM UX: NATIVE HAPTICS & SCROLL NAV ---
     triggerHaptic: (type = 'light') => {
@@ -57,116 +15,7 @@ const UI = {
         if (type === 'heavy') navigator.vibrate([30, 50, 30]);
     },
 
-    // ==========================================
-    // ⏳ ENTERPRISE UI: TIME MACHINE (AUDIT TRAIL)
-    // ==========================================
-    openTimeMachine: async (entityType, entityId) => {
-        if (!window.getRecordHistory) return alert("Audit Engine not loaded.");
-        if (window.Utils) window.Utils.showToast("Decrypting Audit Trail...");
-
-        const history = window.getRecordHistory(entityId);
-        
-        let tmScreen = document.getElementById('activity-time-machine');
-        if (!tmScreen) {
-            tmScreen = document.createElement('div');
-            tmScreen.id = 'activity-time-machine';
-            tmScreen.className = 'activity-screen hidden';
-            tmScreen.style.cssText = 'z-index: 6000; display: none; flex-direction: column; background: var(--md-background);';
-            document.body.appendChild(tmScreen);
-        }
-
-        let html = `
-            <div class="activity-header" style="background: #1a1c1e; color: #0f0; border-bottom: 2px solid #0f0;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-time-machine')" style="color:#0f0;">close</span>
-                <div class="title" style="flex:1; font-family: monospace; letter-spacing: 1px;">CRYPTOGRAPHIC AUDIT TRAIL</div>
-                <span class="material-symbols-outlined" style="color:#0f0;">history</span>
-            </div>
-            <div class="activity-content" style="padding: 16px; overflow-y: auto; flex: 1; font-family: monospace;">
-                <div style="background: #000; color: #0f0; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; border: 1px solid #0f0; box-shadow: 0 0 10px rgba(0,255,0,0.2);">
-                    ⚠️ <strong>RESTRICTED ACCESS</strong><br>
-                    Document ID: ${entityId}<br>
-                    Total Revisions Logged: ${history.length}
-                </div>
-                <div style="position: relative; padding-left: 20px; border-left: 2px dashed #0f0;">
-        `;
-
-        if (history.length === 0) {
-            html += `<div style="color: #888;">No historical modifications found for this document.</div>`;
-        } else {
-            history.forEach((evt, index) => {
-                const dateObj = new Date(evt.timestamp + "Z"); 
-                const localTime = dateObj.toLocaleString();
-                const isCreation = index === history.length - 1;
-                
-                let actionColor = evt.eventType === 'DELETE' ? '#ff5252' : (isCreation ? '#00e676' : '#ffea00');
-                let actionText = evt.eventType === 'DELETE' ? 'DESTROYED' : (isCreation ? 'CREATED' : 'MODIFIED');
-                
-                let changesHtml = '';
-                if (evt.eventType === 'UPSERT') {
-                    const payload = JSON.parse(evt.payload);
-                    changesHtml = `<div style="margin-top:8px; font-size:11px; color:#aaa; max-height: 100px; overflow-y:auto; background:#111; padding:8px; border-radius:4px;">Grand Total: ₹${payload.grandTotal || payload.amount || 'N/A'} <br> Items/Details: ${payload.items ? payload.items.length + ' rows' : 'Modified'}</div>`;
-                }
-
-                html += `
-                    <div style="margin-bottom: 20px; position: relative;">
-                        <div style="position: absolute; left: -26px; top: 0; width: 10px; height: 10px; background: ${actionColor}; border-radius: 50%; box-shadow: 0 0 8px ${actionColor};"></div>
-                        <div style="font-weight: bold; color: ${actionColor};">${actionText} <span style="color: #555; font-size: 11px; float: right;">${localTime}</span></div>
-                        <div style="font-size: 12px; color: #fff; margin-top: 4px;">Event ID: ${evt.eventId.substring(0, 15)}...</div>
-                        ${changesHtml}
-                    </div>
-                `;
-            });
-        }
-
-        html += `</div></div>`;
-        tmScreen.innerHTML = html;
-        UI.openActivity('activity-time-machine');
-    },
-
     initPremiumUX: () => {
-        // ⚡ AUDIT TRAIL INJECTOR: Dynamically add Time Machine buttons to forms
-        ['sales', 'purchase'].forEach(type => {
-            const header = document.querySelector(`#activity-${type}-form .activity-header`);
-            if (header && !document.getElementById(`btn-audit-${type}`)) {
-                const btn = document.createElement('span');
-                btn.id = `btn-audit-${type}`;
-                btn.className = 'material-symbols-outlined tap-target';
-                btn.style.cssText = 'color: var(--md-on-surface); margin-right: 12px; font-size: 22px;';
-                btn.innerText = 'history';
-                btn.onclick = () => {
-                    if (window.app && window.app.state.currentEditId) {
-                        UI.openTimeMachine(type, window.app.state.currentEditId);
-                    } else {
-                        if (window.Utils) window.Utils.showToast("Please save this document first to generate an audit trail.");
-                    }
-                };
-                
-                // Bulletproof insertion (Prevents the Null Reference Crash!)
-                const titleNode = header.querySelector('.title');
-                if (titleNode && titleNode.nextSibling) {
-                    header.insertBefore(btn, titleNode.nextSibling);
-                } else {
-                    header.appendChild(btn);
-                }
-            }
-        });
-
-        // 🤖 AI INJECTOR: Add the "Scan Bill" Camera Button strictly to Purchases
-        const purchaseHeader = document.querySelector('#activity-purchase-form .activity-header');
-        if (purchaseHeader && !document.getElementById('btn-ai-scan')) {
-            const aiBtn = document.createElement('span');
-            aiBtn.id = 'btn-ai-scan';
-            aiBtn.className = 'material-symbols-outlined tap-target';
-            aiBtn.style.cssText = 'color: #f57f17; margin-right: 12px; font-size: 24px;'; // Premium Orange
-            aiBtn.innerText = 'document_scanner';
-            aiBtn.onclick = () => { UI.scanPurchaseBill(); };
-            
-            const titleNode = purchaseHeader.querySelector('.title');
-            if (titleNode && titleNode.nextSibling) {
-                purchaseHeader.insertBefore(aiBtn, titleNode.nextSibling);
-            }
-        }
-
         // 1. Universal Auto-Haptics (Zero HTML changes required!)
         document.addEventListener('pointerdown', (e) => {
             const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .list-view li, .nav-item, .chip');
@@ -295,65 +144,19 @@ const UI = {
         container.innerHTML = htmlContent;
     },
 
-    // ==========================================
-    // ENTERPRISE ARCHITECTURE: TRUE DOM VIRTUALIZATION
-    // Protects mobile RAM by using an IntersectionObserver to infinite-scroll large datasets.
-    // ==========================================
+    // --- NATIVE SCROLLING (NO VIRTUALIZATION BUGS) ---
     renderVirtualList: (container, dataArray, renderRowFn, emptyStateHTML) => {
         if (!container) return;
-        
-        // Disconnect any previous observers on this container to prevent memory leaks
-        if (container._scrollObserver) {
-            container._scrollObserver.disconnect();
-            delete container._scrollObserver;
-        }
-
         if (!dataArray || dataArray.length === 0) {
             container.innerHTML = emptyStateHTML;
             return;
         }
-
-        container.innerHTML = '';
-        let currentIndex = 0;
-        const CHUNK_SIZE = 15; // Strict memory cap: Only paint 15 items per frame
-
-        const renderChunk = () => {
-            const chunk = dataArray.slice(currentIndex, currentIndex + CHUNK_SIZE);
-            if (chunk.length === 0) return;
-            
-            // Build the HTML securely off-screen before injecting it
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = chunk.map(item => renderRowFn(item)).join('');
-            
-            while(tempDiv.firstChild) {
-                container.appendChild(tempDiv.firstChild);
-            }
-            currentIndex += CHUNK_SIZE;
-        };
-
-        // 1. Paint the initial batch instantly
-        renderChunk();
-
-        // 2. Create the hidden "Sentinel" node to watch the scrollbar
-        if (currentIndex < dataArray.length) {
-            const sentinel = document.createElement('div');
-            sentinel.style.height = '1px';
-            sentinel.className = 'virtual-sentinel';
-            container.appendChild(sentinel);
-
-            // 3. Hardware-accelerated intersection watcher
-            const observer = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting && currentIndex < dataArray.length) {
-                    container.removeChild(sentinel); // Move watcher out of the way
-                    renderChunk(); // Inject next batch
-                    if (currentIndex < dataArray.length) container.appendChild(sentinel); // Put watcher at new bottom
-                }
-            }, { root: container, rootMargin: '200px' }); // Pre-load 200px before the user sees it!
-
-            observer.observe(sentinel);
-            container._scrollObserver = observer; // Save reference for memory cleanup
-        }
+        
+        // Because the database math is now lightning fast, we can rip out the buggy scroll listeners entirely.
+        // We just hand the raw HTML to the browser and let native Android scrolling take over!
+        container.innerHTML = dataArray.map(item => renderRowFn(item)).join('');
     },
+    // --- END OF NEW CODE ---
     
     // ==========================================
     // LIVE BANK BALANCE CALCULATOR
@@ -362,6 +165,7 @@ const UI = {
         // FIXED: Pull from state to respect firmId filtering, preventing data leaks across multiple companies
         const accounts = UI.state.rawData.accounts || [];
         const receipts = UI.state.rawData.cashbook || [];
+        const expenses = UI.state.rawData.expenses || []; // STRICT ERP LOGIC: Load Expenses to prevent bank leaks!
         const container = document.getElementById('bank-balances-container');
         if (!container) return;
 
@@ -381,6 +185,8 @@ const UI = {
                     else if (r.type === 'out') balance -= parseFloat(r.amount);
                 }
             });
+            
+            // STRICT ERP LOGIC: Removed double-deduction bug! The cashbook 'receipts' array already contains the auto-generated expense entries.
             
             const color = balance >= 0 ? 'var(--md-success)' : 'var(--md-error)';
             
@@ -406,28 +212,6 @@ const UI = {
             `;
         });
         container.innerHTML = html;
-    },
-
-    // ==========================================
-    // ENTERPRISE ARCHITECTURE: REACTIVE PROXY ENGINE
-    // Completely decouples JavaScript data from HTML elements.
-    // ==========================================
-    createStore: (bindings) => {
-        return new Proxy({}, {
-            set(target, key, value) {
-                target[key] = value;
-                const b = bindings[key];
-                if (b && document.getElementById(b.id)) {
-                    const el = document.getElementById(b.id);
-                    if (b.type === 'text') el.innerText = b.format ? b.format(value) : value;
-                    else if (b.type === 'html') el.innerHTML = b.format ? b.format(value) : value;
-                    else if (b.type === 'display') el.style.display = b.format ? b.format(value) : value;
-                    
-                    if (b.styleMap) Object.assign(el.style, b.styleMap(value));
-                }
-                return true;
-            }
-        });
     },
 
     state: { 
@@ -505,6 +289,7 @@ const UI = {
                 else if (tabId === 'tab-cashbook') UI.applyFilters('cashbook');
                 else if (tabId === 'tab-expenses') UI.applyFilters('expenses');
                 else if (tabId === 'tab-masters') UI.applyFilters('masters');
+                else if (tabId === 'tab-timeline') UI.applyFilters('timeline'); // STRICT ERP LOGIC: Fixed Dead Tab!
             }, 20); 
         };
 
@@ -539,7 +324,6 @@ const UI = {
             
             if (activityId === 'activity-sales-form') {
                 UI.state.activeActivity = 'sales';
-                
             } else if (activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = 'purchase';
             }
@@ -626,14 +410,22 @@ const UI = {
                 const prodName = prod ? prod.name : 'Deleted Product';
                 const sign = adj.type === 'add' ? '+' : '-';
                 const color = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
+                
+                // NEW: Dual Inventory Audit Badge
+                const isGST = adj.pool === 'gst';
+                const poolBadge = adj.pool ? `<span style="background: ${isGST ? '#e3f2fd' : '#fff8e1'}; color: ${isGST ? '#0061a4' : '#f57f17'}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 8px; border: 1px solid ${isGST ? '#bbdefb' : '#ffecb3'};">${isGST ? 'GST Pool' : 'Non-GST Pool'}</span>` : '';
+
                 return `
                     <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div style="display: flex; justify-content: space-between; width: 100%;">
-                            <strong style="font-size: 14px;">${prodName}</strong>
-                            <strong style="font-size: 16px; color: ${color};">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div style="display: flex; align-items: center; min-width: 0; flex: 1;">
+                                <strong style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${prodName}</strong>
+                                ${poolBadge}
+                            </div>
+                            <strong style="font-size: 16px; color: ${color}; flex-shrink: 0; margin-left: 8px;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
                         </div>
-                        <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 4px; font-size: 12px; color: var(--md-text-muted);">
-                            <span>${adj.date} <strong style="color:var(--md-primary); margin-left:8px;">[${adj.bucket === 'non-gst' ? 'Non-GST' : 'Account'}]</strong></span>
+                        <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 6px; font-size: 12px; color: var(--md-text-muted);">
+                            <span>${adj.date}</span>
                             <span>${adj.notes || 'No Reason Provided'}</span>
                         </div>
                     </div>
@@ -746,7 +538,8 @@ const UI = {
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
-        const discountInput = parseFloat(document.getElementById('sales-discount').value) || 0;
+        // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the invoice total!
+        const discountInput = Math.abs(parseFloat(document.getElementById('sales-discount').value) || 0);
         const discountTypeEl = document.getElementById('sales-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -761,7 +554,6 @@ const UI = {
         
         let finalSubtotal = 0;
         let totalGst = 0;
-        let totalCost = 0; // NEW: Track cost for CEO Badge
 
         rows.forEach(tr => {
             const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
@@ -781,11 +573,7 @@ const UI = {
             finalSubtotal += roundedDiscountedBase;
             totalGst += roundedGst;
 
-            // ENTERPRISE BUG FIX: Safe Node Shield to prevent Null Reference Crashes!
-            const buyPriceNode = tr.querySelector('.row-item-buyprice');
-            const buyPrice = buyPriceNode ? (parseFloat(buyPriceNode.value) || 0) : 0;
-            totalCost += (qty * buyPrice); // NEW: Track total cost
-            
+            const buyPrice = parseFloat(tr.querySelector('.row-item-buyprice').value) || 0;
             const marginSpan = tr.querySelector('.live-margin');
             if (marginSpan) {
                 const effectiveRate = rate - (rate * discountRatio); 
@@ -802,41 +590,15 @@ const UI = {
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
 
-        // --- ENTERPRISE ARCHITECTURE: REACTIVE DATA BINDING ---
-        // 1. Initialize the Store & Define the UI Logic (Singleton Pattern)
-        if (!UI.salesStore) {
-            UI.salesStore = UI.createStore({
-                subtotal: { id: 'sales-subtotal', type: 'text', format: v => `\u20B9${v.toFixed(2)}` },
-                gst: { id: 'sales-gst-total', type: 'text', format: v => `\u20B9${v.toFixed(2)}` },
-                roundOff: { id: 'sales-round-off', type: 'text', format: v => `${v > 0 ? '+' : ''}${v.toFixed(2)}` },
-                grandTotal: { id: 'sales-grand-total', type: 'text', format: v => window.formatMoney(v) },
-                badgeDisplay: { id: 'sales-ceo-margin', type: 'display', format: v => v ? 'inline-flex' : 'none' },
-                badgeData: { 
-                    id: 'sales-ceo-margin', 
-                    type: 'html', 
-                    format: v => v >= 0 
-                        ? `<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">trending_up</span> +${v}% Margin`
-                        : `<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px;">trending_down</span> ${Math.abs(v)}% Loss`,
-                    styleMap: v => v >= 0 
-                        ? { background: '#e8f5e9', color: '#146c2e', border: '1px solid #c8e6c9' }
-                        : { background: '#fff0f2', color: '#ba1a1a', border: '1px solid #ffcdd2' }
-                }
-            });
-        }
-
-        // 2. Feed the Raw Data (The Proxy automatically updates the DOM, Colors, and Math formatting)
-        UI.salesStore.subtotal = finalSubtotal;
-        UI.salesStore.gst = totalGst;
-        UI.salesStore.roundOff = roundOff;
-        UI.salesStore.grandTotal = roundedTotal;
+        document.getElementById('sales-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
+        document.getElementById('sales-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
         
-        if (finalSubtotal > 0 && totalCost > 0) {
-            UI.salesStore.badgeDisplay = true;
-            UI.salesStore.badgeData = (((finalSubtotal - totalCost) / finalSubtotal) * 100).toFixed(1);
-        } else {
-            UI.salesStore.badgeDisplay = false;
+        const roundOffEl = document.getElementById('sales-round-off');
+        if (roundOffEl) {
+            roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
         }
-
+        
+        document.getElementById('sales-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
     },
 
     calcPurchaseTotals: () => {
@@ -854,7 +616,8 @@ const UI = {
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
-        const discountInput = parseFloat(document.getElementById('purchase-discount').value) || 0;
+        // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the PO total!
+        const discountInput = Math.abs(parseFloat(document.getElementById('purchase-discount').value) || 0);
         const discountTypeEl = document.getElementById('purchase-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -902,8 +665,7 @@ const UI = {
             roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
         }
         
-        // ENTERPRISE UPGRADE: INDIAN CURRENCY FORMATTER
-        document.getElementById('purchase-grand-total').innerText = window.formatMoney(roundedTotal);
+        document.getElementById('purchase-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
     },
 
     // ==========================================
@@ -946,6 +708,11 @@ const UI = {
         const ledgerExplicitlyLinked = {}; 
 
         if (tab === 'sales' || tab === 'purchases') {
+            // STRICT ERP LOGIC: Build an O(1) Document Hash Map to prevent O(N^2) Search Bar Freezes!
+            const docMap = {};
+            UI.state.rawData.sales.forEach(d => { docMap[d.id] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
+            UI.state.rawData.purchases.forEach(d => { docMap[d.id] = d; if(d.poNo) docMap[d.poNo] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
+
             UI.state.rawData.cashbook.forEach(c => {
                 if (c.ledgerId) {
                     let amt = parseFloat(c.amount) || 0;
@@ -959,23 +726,25 @@ const UI = {
                         let remainingAmt = amt;
                         
                         // Waterfall Allocation (FIFO)
-                        const matchedDocs = refs.map(ref => {
-                            return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
-                                   UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
-                                   { id: ref, grandTotal: Infinity, date: '1970-01-01' };
-                        });
+                        const matchedDocs = refs.map(ref => docMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
                         
                         matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                         
                         matchedDocs.forEach(doc => {
-                            if (remainingAmt <= 0) return;
+                            if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for refunds!
                             const key = `${c.ledgerId}_${doc.id}`;
                             const currentPaid = paymentMap[key] || 0;
                             const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
                             
-                            const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                            let allocation = 0;
+                            if (remainingAmt > 0) {
+                                allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                            } else {
+                                // Mathematical Refund: Deduct from what was previously paid
+                                allocation = Math.max(-currentPaid, remainingAmt); 
+                            }
                             
-                            if (allocation > 0) {
+                            if (Math.abs(allocation) > 0) {
                                 paymentMap[key] = currentPaid + allocation;
                                 ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
                                 remainingAmt -= allocation;
@@ -1021,7 +790,8 @@ const UI = {
         if (tab === 'sales') {
             containerId = 'sales-history-container';
             data = UI.state.rawData.sales.filter(s => {
-                const matchSearch = (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || '').toLowerCase().includes(searchTerm);
+                // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, Order, and Database ID) are fully searchable!
+                const matchSearch = (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || s.orderNo || s.id || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
                 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -1042,18 +812,14 @@ const UI = {
             data.forEach(s => sumValue += (s.documentType === 'return' ? -(s.grandTotal || 0) : (s.grandTotal || 0)));
             if (document.getElementById('sum-sales')) document.getElementById('sum-sales').innerText = `\u20B9${sumValue.toFixed(2)}`;
 
-            // --- ENTERPRISE FIX: SMART ALPHANUMERIC ORDER NUMBER SORTING ---
+            // BULLETPROOF SORTING: Prevents WebView crashes!
+            if(sortOption === 'date-desc') data.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
+            if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
-            else if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
-            else if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
-            else {
-                // DEFAULT: Sorts by Order/Invoice Number intelligently (e.g. PO-0010 comes before PO-0002)
-                data.sort((a,b) => {
-                    const refA = String(a.poNo || a.invoiceNo || a.orderNo || a.id);
-                    const refB = String(b.poNo || b.invoiceNo || b.orderNo || b.id);
-                    return refB.localeCompare(refA, undefined, { numeric: true, sensitivity: 'base' });
-                });
-            }
+            if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
+            // NEW CODE: Smart Document Sorting (Order No primary, Invoice No fallback)
+            if(sortOption === 'doc-desc') data.sort((a,b) => String(b.orderNo || b.invoiceNo || '').localeCompare(String(a.orderNo || a.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
+            if(sortOption === 'doc-asc') data.sort((a,b) => String(a.orderNo || a.invoiceNo || '').localeCompare(String(b.orderNo || b.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
 
             const container = document.getElementById(containerId);
             if (container) {
@@ -1073,25 +839,21 @@ const UI = {
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid);
                     const statusText = s.status === 'Open' ? 'Draft' : (balance > 0 && !isReturn ? `Due: \u20B9${balance.toFixed(2)}` : 'Paid');
-                    const statusColor = s.status === 'Open' ? 'var(--md-text-muted)' : (balance > 0 && !isReturn ? 'var(--md-error)' : 'var(--md-success)');
                     
-                    let ribbonHTML = '';
-                    if (s.status !== 'Open' && !isReturn) {
-                        if (balance <= 0) ribbonHTML = '<div class="status-ribbon paid">PAID</div>';
-                        else ribbonHTML = '<div class="status-ribbon overdue">DUE</div>';
-                    }
-
+                    // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
+                    const statusColor = s.status === 'Open' ? '#73777f' : (balance > 0 && !isReturn ? '#ba1a1a' : '#146c2e');
+                    const statusBg = s.status === 'Open' ? '#f1f3f4' : (balance > 0 && !isReturn ? '#fff0f2' : '#e8f5e9'); 
+                    
                     return `
-                    <div class="m3-card tap-target list-card" style="position: relative; overflow: visible !important; ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
-                        ${ribbonHTML}
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <div class="large-text">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
-                                <small class="color-primary">${s.invoiceNo || s.orderNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
+                    <div class="m3-card tap-target list-card" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                            <div style="flex:1; min-width:0; overflow:hidden;">
+                                <div class="large-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
+                                <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
                             </div>
-                            <div style="text-align:right;">
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'inherit'};">${isReturn ? '-' : ''}\u20B9${(s.grandTotal || 0).toFixed(2)}</strong><br>
-                                <small style="background:var(--md-surface-variant); color:${statusColor}; font-weight:bold; padding:2px 6px; border-radius:4px;">${statusText}</small>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+                                <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
+                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(s.grandTotal || 0).toFixed(2)}</strong>
                             </div>
                         </div>
                     </div>`;
@@ -1103,7 +865,8 @@ const UI = {
         else if (tab === 'purchases') {
             containerId = 'purchase-history-container';
             data = UI.state.rawData.purchases.filter(p => {
-                const matchSearch = (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || '').toLowerCase().includes(searchTerm);
+                // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, PO, and Internal Order) are fully searchable!
+                const matchSearch = (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || p.orderNo || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -1122,18 +885,14 @@ const UI = {
             data.forEach(p => sumValue += (p.documentType === 'return' ? -(p.grandTotal || 0) : (p.grandTotal || 0)));
             if (document.getElementById('sum-purchases')) document.getElementById('sum-purchases').innerText = `\u20B9${sumValue.toFixed(2)}`;
 
-            // --- ENTERPRISE FIX: SMART ALPHANUMERIC ORDER NUMBER SORTING ---
+            // BULLETPROOF SORTING: Prevents WebView crashes!
+            if(sortOption === 'date-desc') data.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
+            if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
             if(sortOption === 'amt-desc') data.sort((a,b) => (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
-            else if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
-            else if(sortOption === 'date-asc') data.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
-            else {
-                // DEFAULT: Sorts by Order/Invoice Number intelligently (e.g. PO-0010 comes before PO-0002)
-                data.sort((a,b) => {
-                    const refA = String(a.poNo || a.invoiceNo || a.orderNo || a.id);
-                    const refB = String(b.poNo || b.invoiceNo || b.orderNo || b.id);
-                    return refB.localeCompare(refA, undefined, { numeric: true, sensitivity: 'base' });
-                });
-            }
+            if(sortOption === 'amt-asc') data.sort((a,b) => (parseFloat(a.grandTotal) || 0) - (parseFloat(b.grandTotal) || 0));
+            // NEW CODE: Smart Document Sorting (Order/PO No primary, Invoice No fallback)
+            if(sortOption === 'doc-desc') data.sort((a,b) => String(b.orderNo || b.poNo || b.invoiceNo || '').localeCompare(String(a.orderNo || a.poNo || a.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
+            if(sortOption === 'doc-asc') data.sort((a,b) => String(a.orderNo || a.poNo || a.invoiceNo || '').localeCompare(String(b.orderNo || b.poNo || b.invoiceNo || ''), undefined, {numeric: true, sensitivity: 'base'}));
 
             const container = document.getElementById(containerId);
             if (container) {
@@ -1153,18 +912,21 @@ const UI = {
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid);
                     const statusText = p.status === 'Open' ? 'Draft PO' : (balance > 0 && !isReturn ? `To Pay: \u20B9${balance.toFixed(2)}` : 'Paid');
-                    const statusColor = p.status === 'Open' ? 'var(--md-text-muted)' : (balance > 0 && !isReturn ? 'var(--md-error)' : 'var(--md-success)');
+                    
+                    // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
+                    const statusColor = p.status === 'Open' ? '#73777f' : (balance > 0 && !isReturn ? '#ba1a1a' : '#146c2e');
+                    const statusBg = p.status === 'Open' ? '#f1f3f4' : (balance > 0 && !isReturn ? '#fff0f2' : '#e8f5e9');
 
                     return `
                     <div class="m3-card tap-target" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('purchase', '${p.id}', '${p.documentType}')">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <div class="large-text">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
-                                <small class="color-primary">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${p.date || 'Unknown Date'}</small>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                            <div style="flex:1; min-width:0; overflow:hidden;">
+                                <div class="large-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
+                                <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${p.date || 'Unknown Date'}</small>
                             </div>
-                            <div style="text-align:right;">
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'inherit'};">${isReturn ? '-' : ''}\u20B9${(p.grandTotal || 0).toFixed(2)}</strong><br>
-                                ${p.status === 'Open' ? `<button class="btn-primary-small mt-2" onclick="event.stopPropagation(); app.convertPO('${p.id}')">Complete PI</button>` : `<small style="background:var(--md-surface-variant); color:${statusColor}; font-weight:bold; padding:2px 6px; border-radius:4px;">${statusText}</small>`}
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+                                <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
+                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(p.grandTotal || 0).toFixed(2)}</strong>
                             </div>
                         </div>
                     </div>`;
@@ -1231,97 +993,80 @@ const UI = {
                 data = UI.state.rawData.items.filter(i => {
                     const matchSearch = (i.name || '').toLowerCase().includes(searchTerm) || (i.sku || '').toLowerCase().includes(searchTerm);
                     let matchFilter = true;
-                    if (activeMasterFilter === 'In Stock') {
-                        const trueStock = (parseFloat(i.gstStock) || 0) + (parseFloat(i.nonGstStock) || 0);
-                        matchFilter = trueStock > 0;
-                    }
+                    
+                    // Bulletproof Math
+                    const rawGst = parseFloat(i.stockGst);
+                    const rawNon = parseFloat(i.stockNonGst);
+                    const gst = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
+                    const non = isNaN(rawNon) ? 0 : rawNon;
+                    const tot = parseFloat(i.stock) || 0;
+                    const min = parseFloat(i.minStock) || 0;
+
+                    if (activeMasterFilter === 'In Stock') matchFilter = tot > 0;
+                    else if (activeMasterFilter === 'Out of Stock') matchFilter = tot <= 0;
+                    else if (activeMasterFilter === 'Low Stock') matchFilter = min > 0 && tot <= min;
+                    else if (activeMasterFilter === 'GST Stock') matchFilter = gst > 0;
+                    else if (activeMasterFilter === 'Non-GST Stock') matchFilter = non > 0;
+                    
                     return matchSearch && matchFilter;
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
-                if(sortOption === 'stock-asc') data.sort((a,b) => (a.stock || 0) - (b.stock || 0));
-
-                // ⚡ TRUE DUAL-ENGINE FIX: LIVE WAREHOUSE CAPITAL FILTER
-                let filterCapital = 0;
-                data.forEach(i => {
-                    const gstQty = parseFloat(i.gstStock) || 0;
-                    const nonGstQty = parseFloat(i.nonGstStock) || 0;
-                    
-                    const gstCost = parseFloat(i.gstBuyPrice) || parseFloat(i.buyPrice) || 0;
-                    const nonGstCost = parseFloat(i.nonGstBuyPrice) || parseFloat(i.buyPrice) || 0;
-                    
-                    if (gstQty > 0) filterCapital += (gstQty * gstCost);
-                    if (nonGstQty > 0) filterCapital += (nonGstQty * nonGstCost);
-                });
-                const titleEl = document.getElementById('master-view-title');
-                if (titleEl) {
-                    titleEl.innerHTML = `${UI.state.currentMasterTitle} <span style="font-size:11px; background:#fff8e1; color:#f57f17; padding:2px 8px; border-radius:12px; margin-left:8px; border: 1px solid #ffe0b2; vertical-align: middle;">Cap: ${window.formatMoney(filterCapital)}</span>`;
+                if(sortOption === 'stock-asc' || sortOption === 'stock-desc') {
+                    data.sort((a,b) => {
+                        const getVal = (item) => {
+                            if (activeMasterFilter === 'GST Stock') return isNaN(parseFloat(item.stockGst)) ? (parseFloat(item.stock) || 0) : parseFloat(item.stockGst);
+                            if (activeMasterFilter === 'Non-GST Stock') return parseFloat(item.stockNonGst) || 0;
+                            return parseFloat(item.stock) || 0;
+                        };
+                        return sortOption === 'stock-asc' ? getVal(a) - getVal(b) : getVal(b) - getVal(a);
+                    });
                 }
 
                 UI.renderVirtualList(container, data, (i) => {
-                    const currentStock = ((parseFloat(i.gstStock) || 0) + (parseFloat(i.nonGstStock) || 0));
-                    const safeUom = (i.uom && String(i.uom).toLowerCase() !== 'null' && String(i.uom).toLowerCase() !== 'undefined') ? i.uom : 'Units';
+                    const currentStock = parseFloat(i.stock) || 0;
                     const minStock = parseFloat(i.minStock) || 0;
+                    const isLowStock = minStock > 0 && currentStock <= minStock;
                     
-                    // 1. Traffic Light Badge Logic
-                    let badgeColor, badgeBg, badgeText;
-                    if (currentStock <= 0) {
-                        badgeColor = '#ba1a1a'; badgeBg = '#fff0f2'; badgeText = 'Out of Stock';
-                    } else if (minStock > 0 && currentStock <= minStock) {
-                        badgeColor = '#f57f17'; badgeBg = '#fff8e1'; badgeText = 'Low Stock';
-                    } else {
-                        badgeColor = '#146c2e'; badgeBg = '#e8f5e9'; badgeText = 'In Stock';
-                    }
+                    // Bulletproof Math
+                    const rawGst = parseFloat(i.stockGst);
+                    const rawNon = parseFloat(i.stockNonGst);
+                    const gstStock = isNaN(rawGst) ? currentStock : rawGst;
+                    const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
+                    
+                    // Smart Highlight Display based on the active filter
+                    let primaryStockLabel = `Tot: ${currentStock}`;
+                    if (activeMasterFilter === 'GST Stock') primaryStockLabel = `GST: ${gstStock}`;
+                    else if (activeMasterFilter === 'Non-GST Stock') primaryStockLabel = `Non-GST: ${nonGstStock}`;
+                    
+                    const stockLabel = `
+                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">${primaryStockLabel} ${i.uom || ''} ${isLowStock ? '⚠️' : ''}</span>
+                        <span style="font-size: 11px; color: var(--md-text-muted); display: block; margin-top: 2px;">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
+                    `;
 
-                    // 2. Dynamic Avatar Engine (Apple Style)
-                    const firstLetter = (i.name || 'U').charAt(0).toUpperCase();
-                    const hue = (firstLetter.charCodeAt(0) * 20) % 360;
-                    const avatarColor = `hsl(${hue}, 70%, 40%)`;
-
-                    // 3. The New Premium Card UI
-                    return `
-                    <div class="m3-card tap-target virtual-item" style="padding: 16px; margin-bottom: 12px; border-radius: 16px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);" onclick="app.openForm('product', '${i.id}')">
-                        
-                        <div style="width: 50px; height: 50px; background: ${avatarColor}; color: white; border-radius: 14px; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: 800; flex-shrink: 0; box-shadow: 0 4px 10px ${avatarColor}40;">
-                            ${firstLetter}
-                        </div>
-                        
-                        <div style="flex: 1; min-width: 0; overflow: hidden;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-                                <strong style="font-size: 16px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; max-width: 65%;">${UI.highlightText(i.name || 'Unnamed', searchTerm)}</strong>
-                                <strong style="font-size: 16px; color: var(--md-primary);">&#8377;${(i.sellPrice || 0).toFixed(2)}</strong>
-                            </div>
-                            
-                            <div style="display: flex; align-items: center; justify-content: space-between;">
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                    <span style="font-size: 10px; border: 1px solid var(--md-outline-variant); color: #0061a4; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: white;">GST: ${(parseFloat(i.gstStock) || 0).toFixed(2)}</span>
-                                    <span style="font-size: 10px; border: 1px solid var(--md-outline-variant); color: #d84315; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: white;">NON-GST: ${(parseFloat(i.nonGstStock) || 0).toFixed(2)}</span>
-                                    <span style="font-size: 10px; border: 1px solid var(--md-outline-variant); color: #146c2e; padding: 2px 6px; border-radius: 4px; font-weight: bold; background: #e8f5e9;">TOTAL: ${((parseFloat(i.gstStock) || 0) + (parseFloat(i.nonGstStock) || 0)).toFixed(2)} ${safeUom}</span>
-                                </div>
-                                
-                                <div style="display: flex; gap: 8px;">
-                                    <div class="tap-target" onclick="event.stopPropagation(); UI.openBottomSheet('sheet-stock-adjustment'); setTimeout(() => { const el = document.getElementById('adj-product-id'); if(el) el.value = '${i.id}'; }, 100);" style="width: 32px; height: 32px; background: #fff0f2; color: #ba1a1a; border: 1px solid #ffcdd2; display: flex; justify-content: center; align-items: center; border-radius: 8px; box-shadow: 0 2px 4px rgba(186,26,26,0.1);">
-                                        <span class="material-symbols-outlined" style="font-size: 18px; font-weight: bold;">remove</span>
-                                    </div>
-                                    <div class="tap-target" onclick="event.stopPropagation(); UI.openBottomSheet('sheet-stock-adjustment'); setTimeout(() => { const el = document.getElementById('adj-product-id'); if(el) el.value = '${i.id}'; }, 100);" style="width: 32px; height: 32px; background: #e8f5e9; color: #146c2e; border: 1px solid #c8e6c9; display: flex; justify-content: center; align-items: center; border-radius: 8px; box-shadow: 0 2px 4px rgba(20,108,46,0.1);">
-                                        <span class="material-symbols-outlined" style="font-size: 18px; font-weight: bold;">add</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
+                    return UI.renderRowWiseItem(
+                        UI.highlightText(i.name || 'Unnamed Product', searchTerm), 
+                        stockLabel, 
+                        `\u20B9${(i.sellPrice || 0).toFixed(2)}`, 
+                        `Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}`, 
+                        'inventory_2', 
+                        isLowStock ? 'var(--md-error)' : 'var(--md-primary)', 
+                        `app.openForm('product', '${i.id}')`
+                    );
                 }, emptyHTML);
             } 
             else if (activeTab === 'customers' || activeTab === 'suppliers' || activeTab === 'contacts') {
-                const typeFilter = activeTab === 'customers' ? 'Customer' : (activeTab === 'suppliers' ? 'Supplier' : 'All');
+                const typeFilter = activeTab === 'customers' ? 'customer' : (activeTab === 'suppliers' ? 'supplier' : 'all');
 
                 data = UI.state.rawData.ledgers.filter(l => {
-                    const matchSearch = (typeFilter === 'All' || l.type === typeFilter) && ((l.name || '').toLowerCase().includes(searchTerm) || (l.phone || '').toLowerCase().includes(searchTerm));
+                    const safeType = String(l.type).toLowerCase();
+                    // STRICT ERP LOGIC: Case-insensitive matching so no parties become ghosts!
+                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && ((l.name || '').toLowerCase().includes(searchTerm) || (l.phone || '').toLowerCase().includes(searchTerm));
                     let matchFilter = true;
                     const bal = getBal(l.id, l.type);
 
-                    if (activeMasterFilter === 'To Receive') matchFilter = l.type === 'Customer' && bal > 0.01;
-                    else if (activeMasterFilter === 'To Pay') matchFilter = l.type === 'Supplier' && bal > 0.01;
+                    if (activeMasterFilter === 'To Receive') matchFilter = safeType === 'customer' && bal > 0.01;
+                    else if (activeMasterFilter === 'To Pay') matchFilter = safeType === 'supplier' && bal > 0.01;
                     else if (activeMasterFilter === 'Advance') matchFilter = bal < -0.01; 
                     else if (activeMasterFilter === 'GST') matchFilter = l.gst && l.gst.trim() !== '';
                     else if (activeMasterFilter === 'Non-GST') matchFilter = !l.gst || l.gst.trim() === '';
@@ -1336,55 +1081,49 @@ const UI = {
                 if(sortOption === 'bal-asc') data.sort((a,b) => getBal(a.id, a.type) - getBal(b.id, b.type));
 
                 UI.renderVirtualList(container, data, (l) => {
-                    // 1. Dynamic Circular Avatar Engine
-                    const firstLetter = (l.name || 'U').charAt(0).toUpperCase();
-                    const hue = (firstLetter.charCodeAt(0) * 25) % 360;
-                    const avatarColor = `hsl(${hue}, 65%, 45%)`;
-
-                    // 2. Smart Balance Badges (Preserving your fast O(1) Math Engine)
                     const isCustomer = String(l.type).toLowerCase() === 'customer';
                     let bal = getBal(l.id, l.type);
-                    let balDisplay = '';
+                    let balText = '';
+                    let balColor = 'var(--md-text-muted)';
                     
                     if (isCustomer) {
-                        if (bal > 0.01) { balDisplay = `<span style="background: #fff0f2; color: #ba1a1a; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; border: 1px solid #ffcdd2;">To Receive: ₹${bal.toFixed(2)}</span>`; }
-                        else if (bal < -0.01) { balDisplay = `<span style="background: #e8f5e9; color: #146c2e; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; border: 1px solid #c8e6c9;">Advance: ₹${Math.abs(bal).toFixed(2)}</span>`; }
+                        if (bal > 0.01) { balText = `\u20B9${bal.toFixed(2)} (Receive)`; balColor = 'var(--md-error)'; }
+                        else if (bal < -0.01) { balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
+                        else { balText = `\u20B90.00`; }
                     } else {
-                        if (bal > 0.01) { balDisplay = `<span style="background: #fff0f2; color: #ba1a1a; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; border: 1px solid #ffcdd2;">To Pay: ₹${bal.toFixed(2)}</span>`; }
-                        else if (bal < -0.01) { balDisplay = `<span style="background: #e8f5e9; color: #146c2e; font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 8px; border: 1px solid #c8e6c9;">Advance: ₹${Math.abs(bal).toFixed(2)}</span>`; }
+                        if (bal > 0.01) { balText = `\u20B9${bal.toFixed(2)} (Pay)`; balColor = 'var(--md-error)'; }
+                        else if (bal < -0.01) { balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
+                        else { balText = `\u20B90.00`; }
                     }
+                    
+                    const rowIcon = isCustomer ? 'person' : 'storefront';
+                    const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
 
-                    // 3. Premium Contact Card UI
+                    // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
+                    const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
-                    <div class="m3-card tap-target virtual-item" style="padding: 16px; margin-bottom: 12px; border-radius: 16px; display: flex; align-items: center; gap: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}')">
-                        
-                        <div style="width: 50px; height: 50px; background: ${avatarColor}; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 22px; font-weight: 800; flex-shrink: 0; box-shadow: 0 4px 10px ${avatarColor}40;">
-                            ${firstLetter}
-                        </div>
-                        
-                        <div style="flex: 1; min-width: 0; overflow: hidden;">
-                            <strong style="font-size: 16px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${UI.highlightText(l.name || 'Unknown', searchTerm)}</strong>
-                            
-                            <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--md-text-muted); margin-bottom: 6px;">
-                                <span class="material-symbols-outlined" style="font-size: 14px;">call</span> ${UI.highlightText(l.phone || 'No Phone Attached', searchTerm)}
+                    <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <div class="tap-target" style="display: flex; align-items: center; gap: 12px;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                             </div>
-                            
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: bold;">${l.type || 'Contact'}</span>
-                                ${balDisplay}
+                            <div style="flex: 1; min-width: 0; overflow: hidden;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0;">
+                                <strong style="font-size: 15px; color: ${balColor};">${balText}</strong>
                             </div>
                         </div>
                         
-                        <div style="display: flex; gap: 8px;">
-                            ${l.phone ? `
-                            <div class="tap-target" onclick="event.stopPropagation(); window.open('tel:${l.phone}')" style="width: 40px; height: 40px; background: #e3f2fd; color: #0061a4; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 8px rgba(0,97,164,0.15);">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">call</span>
+                        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #e3f2fd; color: #1565c0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
                             </div>
-                            ` : `
-                            <div class="tap-target" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-on-surface-variant); border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">chevron_right</span>
+                            
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeKhataReport('${l.id}', '${safeName}', '${l.type}')">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                             </div>
-                            `}
                         </div>
                     </div>`;
                 }, emptyHTML);
@@ -1594,7 +1333,8 @@ const UI = {
 
             data = UI.state.rawData.timeline.filter(t => {
                 const descStr = t.desc || (t.type === 'IN' ? 'Purchase' : (t.type === 'OUT' ? 'Sale' : ''));
-                const matchSearch = descStr.toLowerCase().includes(searchTerm);
+                // STRICT ERP LOGIC: Allow accountants to instantly search the global timeline by exact Transaction Amount or Balance!
+                const matchSearch = descStr.toLowerCase().includes(searchTerm) || String(t.amount || 0).includes(searchTerm) || String(t.runningBalance || 0).includes(searchTerm);
                 let matchFilter = true;
                 let matchDate = true;
 
@@ -1606,15 +1346,24 @@ const UI = {
                 // 2. Universal Type Check (Works for Banks, Parties, AND Expenses)
                 if (activeFilter === 'Money In') {
                     if (t.hasOwnProperty('isInvoice')) matchFilter = t.isInvoice === false; 
-                    else matchFilter = t.type === 'IN' || parseFloat(t.amount) > 0;
+                    else matchFilter = String(t.type).toUpperCase() === 'IN'; // STRICT ERP LOGIC: Fix case sensitivity and remove broken fallback
                 } else if (activeFilter === 'Money Out') {
                     if (t.hasOwnProperty('isInvoice')) matchFilter = t.isInvoice === true; 
-                    else matchFilter = t.type === 'OUT' || parseFloat(t.amount) < 0;
+                    else matchFilter = String(t.type).toUpperCase() === 'OUT'; // STRICT ERP LOGIC: Fix case sensitivity and remove broken fallback
                 } else if (activeFilter === 'Expenses') {
                     matchFilter = descStr.toLowerCase().includes('expense');
                 }
                 
                 return matchSearch && matchFilter && matchDate;
+            });
+
+            // STRICT ERP LOGIC: Sort by Date AND Time (Descending) to fix Backdated Receipt chronological desync!
+            data.sort((a, b) => {
+                const dateA = new Date(a.date || 0).getTime();
+                const dateB = new Date(b.date || 0).getTime();
+                if (dateB !== dateA) return dateB - dateA;
+                // Fallback to ID if dates are exactly identical
+                return (b.id > a.id) ? 1 : -1; 
             });
 
             const container = document.getElementById(containerId);
@@ -1644,15 +1393,25 @@ const UI = {
                                 <small>${t.date} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>
                             </div>
                             <div style="text-align:right;">
-                                <strong style="color:${t.isInvoice ? 'var(--md-error)' : 'var(--md-success)'};">\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
+                                <strong style="color:${t.isInvoice ? 'var(--md-error)' : 'var(--md-success)'};">\u20B9${parseFloat(t.amount || 0).toFixed(2)}</strong><br>
                                 <small>Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
                             </div>
                         </div>`;
                     } else {
+                        // STRICT ERP LOGIC: Properly render BOTH Invoices and Receipts in the Global Timeline without "undefined" corruption!
+                        const safeType = String(t.type).toUpperCase();
+                        const isMoneyIn = safeType === 'IN';
+                        const sign = isMoneyIn ? '+' : '-';
+                        const color = isMoneyIn ? 'var(--md-success)' : 'var(--md-error)';
+                        
+                        const title = t.party ? `${isMoneyIn ? 'Purchase' : 'Sale'} - ${t.party}` : (t.desc || 'Transaction');
+                        const subtitle = t.ref ? `${t.date} | Ref: ${t.ref}` : `${t.date} | Mode: ${t.mode || 'Cash'}`;
+                        const rightVal = t.qty ? t.qty : `${sign}\u20B9${parseFloat(t.amount || 0).toFixed(2)}`;
+
                         return `
                         <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
-                            <div><strong class="large-text">${t.type === 'IN' ? 'Purchase' : 'Sale'} - ${t.party || 'Unknown'}</strong><br><small>${t.date} | Ref: ${t.ref}</small></div>
-                            <strong style="font-size:16px; color:${t.type === 'IN' ? 'var(--md-success)' : 'var(--md-error)'};">${t.type === 'IN' ? '+' : '-'}${t.qty}</strong>
+                            <div><strong class="large-text">${title}</strong><br><small>${subtitle}</small></div>
+                            <strong style="font-size:16px; color:${color};">${rightVal}</strong>
                         </div>`;
                     }
                 }, emptyHTML);
@@ -1663,13 +1422,12 @@ const UI = {
     // ==========================================
     // 5. TRUE PROFIT DASHBOARD & DATE FILTERS
     // ==========================================
-    // ==========================================
-    // ENTERPRISE ARCHITECTURE: CQRS MATERIALIZED VIEW ENGINE
-    // ==========================================
     renderDashboard: () => {
         const filterEl = document.getElementById('dashboard-date-filter');
         const dateFilter = filterEl ? filterEl.value : 'all';
         const todayStr = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+        
+        // ENTERPRISE FIX: Absolute Timezone-Safe Date Math
         const currentYear = parseInt(todayStr.split('-')[0], 10);
         const currentMonth = parseInt(todayStr.split('-')[1], 10) - 1;
 
@@ -1677,207 +1435,169 @@ const UI = {
             if (dateFilter === 'all') return true;
             if (!dateStr) return false;
             if (dateFilter === 'today') return dateStr === todayStr;
-            const [yearStr, monthStr] = dateStr.split('-');
+            
+            const [yearStr, monthStr, dayStr] = dateStr.split('-');
             const itemYear = parseInt(yearStr, 10);
             const itemMonth = parseInt(monthStr, 10) - 1;
+            
             if (dateFilter === 'month') return itemMonth === currentMonth && itemYear === currentYear;
             if (dateFilter === 'year') return itemYear === currentYear;
             return true;
         };
 
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+        // ENTERPRISE FIX: Secure Data Isolation (Prevent Multi-Firm Data Leaks)
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
 
-        // 1. Create a unique mathematical fingerprint of the entire database state
-        const dbFingerprint = `${UI.state.rawData.sales.length}-${UI.state.rawData.purchases.length}-${UI.state.rawData.expenses.length}-${UI.state.rawData.cashbook.length}-${UI.state.rawData.adjustments?.length || 0}`;
-        const cacheKey = `${dateFilter}_${activeFirmId}_${dbFingerprint}`;
+        const sales = UI.state.rawData.sales.filter(s => !activeFirmId || s.firmId === activeFirmId);
+        const purchases = UI.state.rawData.purchases.filter(p => !activeFirmId || p.firmId === activeFirmId);
+        const expenses = UI.state.rawData.expenses.filter(e => !activeFirmId || e.firmId === activeFirmId);
+        const cashbook = UI.state.rawData.cashbook.filter(c => !activeFirmId || c.firmId === activeFirmId);
 
-        if (!UI.dashboardCache) UI.dashboardCache = { key: null, payload: null };
+        let totalSales = 0, outputGst = 0, totalPurchases = 0, inputGst = 0, totalExpenses = 0;
+        let cogs = 0; 
 
-        let payload;
+        // CRITICAL FIX: Dashboard Payment Map Math & Collision Guard
+        const paymentMap = {};
+        const ledgerTotalPaid = {}; 
+        const ledgerExplicitlyLinked = {}; 
 
-        if (UI.dashboardCache.key === cacheKey) {
-            // CACHE HIT! The database hasn't changed. Load from memory instantly!
-            payload = UI.dashboardCache.payload;
-        } else {
-            // CACHE MISS! New data was added. We crunch the heavy math one time.
-            const sales = UI.state.rawData.sales.filter(s => !activeFirmId || s.firmId === activeFirmId);
-            const purchases = UI.state.rawData.purchases.filter(p => !activeFirmId || p.firmId === activeFirmId);
-            const expenses = UI.state.rawData.expenses.filter(e => !activeFirmId || e.firmId === activeFirmId);
-            const cashbook = UI.state.rawData.cashbook.filter(c => !activeFirmId || c.firmId === activeFirmId);
+        // STRICT ERP LOGIC: Build an O(1) Document Hash Map to prevent O(N^2) Dashboard Boot-Up Freezes!
+        const dashDocMap = {};
+        sales.forEach(d => { dashDocMap[d.id] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
+        purchases.forEach(d => { dashDocMap[d.id] = d; if(d.poNo) dashDocMap[d.poNo] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
 
-            let totalSales = 0, outputGst = 0, totalPurchases = 0, inputGst = 0, totalExpenses = 0, cogs = 0; 
-            const paymentMap = {}, ledgerTotalPaid = {}, ledgerExplicitlyLinked = {}; 
+        cashbook.forEach(c => {
+            if (c.ledgerId) {
+                let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
+                ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
 
-            cashbook.forEach(c => {
-                if (c.ledgerId) {
-                    let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
-                    ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
-
-                    if (c.invoiceRef) {
-                        const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                        let remainingAmt = amt;
-                        const matchedDocs = refs.map(ref => {
-                            return UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref) || 
-                                   UI.state.rawData.purchases.find(d => d.id === ref || d.poNo === ref || d.invoiceNo === ref || d.orderNo === ref) ||
-                                   { id: ref, grandTotal: Infinity, date: '1970-01-01' };
-                        });
-                        matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-                        matchedDocs.forEach(doc => {
-                            if (remainingAmt <= 0) return;
-                            const key = `${c.ledgerId}_${doc.id}`;
-                            const currentPaid = paymentMap[key] || 0;
-                            const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
-                            const allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                            if (allocation > 0) {
-                                paymentMap[key] = currentPaid + allocation;
-                                ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
-                                remainingAmt -= allocation;
-                            }
-                        });
-                    }
-                }
-            });
-
-            const advancePool = {};
-            Object.keys(ledgerTotalPaid).forEach(ledgerId => {
-                const totalPaid = ledgerTotalPaid[ledgerId] || 0;
-                const explicitlyLinked = ledgerExplicitlyLinked[ledgerId] || 0;
-                advancePool[ledgerId] = totalPaid > explicitlyLinked ? totalPaid - explicitlyLinked : 0;
-            });
-
-            const sortedSales = [...sales].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-            sortedSales.forEach(doc => {
-                if (doc.status !== 'Open' && doc.documentType !== 'return') {
-                    if (advancePool[doc.customerId] > 0.01) {
-                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
-                        const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
-                        const due = (parseFloat(doc.grandTotal) || 0) - explicitPaid;
-                        if (due > 0.01) {
-                            const allocated = Math.min(due, advancePool[doc.customerId]);
-                            advancePool[doc.customerId] -= allocated;
-                            paymentMap[`${doc.customerId}_${doc.id}`] = (paymentMap[`${doc.customerId}_${doc.id}`] || 0) + allocated;
+                if (c.invoiceRef) {
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                    let remainingAmt = amt;
+                    
+                    // Waterfall Allocation (FIFO)
+                    const matchedDocs = refs.map(ref => dashDocMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
+                    
+                    matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+                    
+                    matchedDocs.forEach(doc => {
+                        if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for supplier payments & refunds!
+                        const key = `${c.ledgerId}_${doc.id}`;
+                        const currentPaid = paymentMap[key] || 0;
+                        const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
+                        
+                        let allocation = 0;
+                        if (remainingAmt > 0) {
+                            allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                        } else {
+                            allocation = Math.max(-currentPaid, remainingAmt); 
                         }
-                    }
-                }
-            });
-
-            sales.forEach(s => { 
-                if(s.status !== 'Open' && isDateInRange(s.date)) { 
-                    const isReturn = s.documentType === 'return';
-                    const isNonGST = s.invoiceType === 'Non-GST';
-                    const modifier = isReturn ? -1 : 1;
-                    totalSales += (parseFloat(s.grandTotal) || 0) * modifier; 
-                    outputGst += (parseFloat(s.totalGst) || 0) * modifier; 
-                    (s.items || []).forEach(item => {
-                        const masterItem = UI.state.rawData.items.find(i => i.id === item.itemId);
-                        let exactCost = parseFloat(item.buyPrice) || 0;
-                        if (masterItem) exactCost = isNonGST ? (parseFloat(masterItem.nonGstBuyPrice) || exactCost) : (parseFloat(masterItem.gstBuyPrice) || exactCost);
-                        cogs += ((parseFloat(item.qty) || 0) * exactCost) * modifier;
+                        
+                        if (Math.abs(allocation) > 0) {
+                            paymentMap[key] = currentPaid + allocation;
+                            ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
+                            remainingAmt -= allocation;
+                        }
                     });
                 }
-            });        
-            purchases.forEach(p => { 
-                if (p.status !== 'Open' && isDateInRange(p.date)) { 
-                    const modifier = p.documentType === 'return' ? -1 : 1;
-                    const netPurchase = (parseFloat(p.grandTotal) || 0) - (parseFloat(p.totalGst) || 0);
-                    totalPurchases += netPurchase * modifier; 
-                    inputGst += (p.totalGst || 0) * modifier; 
-                } 
-            });
-            expenses.forEach(e => { if(isDateInRange(e.date)) totalExpenses += parseFloat(e.amount) || 0; });
+            }
+        });
 
-            let indirectIncome = 0;
-            cashbook.forEach(c => {
-                if (isDateInRange(c.date) && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                    const ledgerName = (c.ledgerName || '').toLowerCase();
-                    if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) indirectIncome += parseFloat(c.amount) || 0;
-                }
-            });
+        // --- ENTERPRISE UPGRADE: DASHBOARD FIFO KNOCKOFF FOR OVERDUE SALES ---
+        const advancePool = {};
+        Object.keys(ledgerTotalPaid).forEach(ledgerId => {
+            const totalPaid = ledgerTotalPaid[ledgerId] || 0;
+            const explicitlyLinked = ledgerExplicitlyLinked[ledgerId] || 0;
+            if (totalPaid > explicitlyLinked) advancePool[ledgerId] = totalPaid - explicitlyLinked;
+            else advancePool[ledgerId] = 0;
+        });
 
-            let stockLoss = 0;
-            if (UI.state.rawData.adjustments) {
-                UI.state.rawData.adjustments.forEach(adj => {
-                    if (adj.type === 'remove' && isDateInRange(adj.date)) {
-                        const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
-                        stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+        const sortedSales = [...sales].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+        sortedSales.forEach(doc => {
+            if (doc.status !== 'Open' && doc.documentType !== 'return') {
+                if (advancePool[doc.customerId] > 0.01) {
+                    const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
+                    const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
+                    const due = (parseFloat(doc.grandTotal) || 0) - explicitPaid;
+                    
+                    if (due > 0.01) {
+                        const allocated = Math.min(due, advancePool[doc.customerId]);
+                        advancePool[doc.customerId] -= allocated;
+                        paymentMap[`${doc.customerId}_${doc.id}`] = (paymentMap[`${doc.customerId}_${doc.id}`] || 0) + allocated;
                     }
+                }
+            }
+        });
+
+        sales.forEach(s => { 
+            if(s.status !== 'Open' && isDateInRange(s.date)) { 
+                const isReturn = s.documentType === 'return';
+                const modifier = isReturn ? -1 : 1;
+
+                // UX FIX: Show Full Invoice Value (including GST) so it matches your Sales Tab
+                totalSales += (parseFloat(s.grandTotal) || 0) * modifier; 
+                outputGst += (parseFloat(s.totalGst) || 0) * modifier; 
+                
+                (s.items || []).forEach(item => {
+                    const historicalCost = parseFloat(item.buyPrice) || 0;
+                    cogs += ((parseFloat(item.qty) || 0) * historicalCost) * modifier;
                 });
             }
-
-            // ⚡ TRUE DUAL-ENGINE FIX: DASHBOARD INVENTORY VALUATION
-            let totalWarehouseCapital = 0;
-            UI.state.rawData.items.forEach(item => {
-                const gstQty = parseFloat(item.gstStock) || 0;
-                const nonGstQty = parseFloat(item.nonGstStock) || 0;
-                
-                const gstCost = parseFloat(item.gstBuyPrice) || parseFloat(item.buyPrice) || 0;
-                const nonGstCost = parseFloat(item.nonGstBuyPrice) || parseFloat(item.buyPrice) || 0;
-                
-                if (gstQty > 0) totalWarehouseCapital += (gstQty * gstCost);
-                if (nonGstQty > 0) totalWarehouseCapital += (nonGstQty * nonGstCost);
-            });
-
-            const netRevenue = (totalSales - outputGst) + indirectIncome; 
-            const grossMargin = netRevenue - cogs;
-            const trueNetProfit = grossMargin - (totalExpenses + stockLoss); 
-
-            let openOrders = 0, shippedOrders = 0, completedOrders = 0;
-            let openCount = 0, shippedCount = 0, completedCount = 0;
-
-            sales.forEach(s => {
-                if (isDateInRange(s.date)) {
-                    const isReturn = s.documentType === 'return';
-                    const modifier = isReturn ? -1 : 1;
-                    const val = (parseFloat(s.grandTotal) || 0) * modifier;
-                    if (s.status === 'Open') { openOrders += val; if (!isReturn) openCount++; }
-                    else if (s.status === 'Shipped') { shippedOrders += val; if (!isReturn) shippedCount++; }
-                    else if (s.status === 'Completed') { completedOrders += val; if (!isReturn) completedCount++; }
-                }
-            });
-
-            const overdueSales = sales.filter(s => {
-                if (s.status === 'Open' || s.documentType === 'return') return false;
-                const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
-                const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
-                const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
-                if (balance <= 0) return false;
-                if (!s.date) return false;
-                const parts = s.date.split('-'); 
-                const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
-                const tParts = todayStr.split('-');
-                const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
-                const diffTime = todayDate - invoiceDate;
-                if (diffTime < 0) return false; 
-                return Math.floor(diffTime / (1000 * 60 * 60 * 24)) > 15;
-            });
-            
-            const overdueHTML = overdueSales.map(s => {
-                const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
-                const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
-                const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
-                return `<li><div><strong class="large-text">${s.customerName || 'Unknown Party'}</strong><br><small class="color-primary">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small></div><span style="background:#fff0f2; color:#be123c; border:1px solid #be123c; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">Overdue</span></li>`;
-            }).join('');
-
-            const pendingPurchases = purchases.filter(p => p.status === 'Open').length;
-
-            // Bundle everything into the payload
-            payload = {
-                totalSales, totalPurchases, totalExpenses, totalWarehouseCapital,
-                trueNetProfit, grossMargin,
-                openOrders, shippedOrders, completedOrders, openCount, shippedCount, completedCount,
-                overdueCount: overdueSales.length,
-                pendingPurchases,
-                overdueHTML
-            };
-
-            // Save to Cache!
-            UI.dashboardCache = { key: cacheKey, payload };
-        }
-
-        // 2. DOM PAINTING (Instant, uses the payload)
+        });        
+        purchases.forEach(p => { 
+            if (p.status !== 'Open' && isDateInRange(p.date)) { 
+                const isReturn = p.documentType === 'return';
+                const modifier = isReturn ? -1 : 1;
+                const netPurchase = (parseFloat(p.grandTotal) || 0) - (parseFloat(p.totalGst) || 0);
+                totalPurchases += netPurchase * modifier; 
+                inputGst += (p.totalGst || 0) * modifier; 
+            } 
+        });
+        
+        // --- CLEAN DASHBOARD: CALCULATE TOTAL EXPENSES (Hidden from UI) ---
+        expenses.forEach(e => { 
+            if(isDateInRange(e.date)) {
+                totalExpenses += parseFloat(e.amount) || 0; 
+            }
+        });
+        
+        // Ensure the old expense container is completely hidden to keep the UI clean
         const expenseContainer = document.getElementById('expense-ledger-container');
         if (expenseContainer) expenseContainer.style.display = 'none';
 
+        // --- ENTERPRISE UPGRADE: CATCHING INDIRECT INCOME & STOCK LOSS ---
+        let indirectIncome = 0;
+        cashbook.forEach(c => {
+            if (isDateInRange(c.date) && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
+                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
+                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
+                const ledgerName = (c.ledgerName || '').toLowerCase();
+                if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                    indirectIncome += parseFloat(c.amount) || 0;
+                }
+            }
+        });
+
+        // Optional: If you sync adjustments to UI.state.rawData, deduct lost stock here
+        let stockLoss = 0;
+        if (UI.state.rawData.adjustments) {
+            UI.state.rawData.adjustments.forEach(adj => {
+                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
+                if (adj.type === 'reduce' && isDateInRange(adj.date)) {
+                    const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
+                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                }
+            });
+        }
+
+        // TRUE ACCRUAL PROFIT MATH (Upgraded)
+        const netRevenue = (totalSales - outputGst) + indirectIncome; 
+        const grossMargin = netRevenue - cogs;
+        const trueNetProfit = grossMargin - (totalExpenses + stockLoss); 
+
+        // UPGRADE 1: Count-Up Animation Engine
         const animateValue = (id, start, end, duration) => {
             const obj = document.getElementById(id);
             if (!obj) return;
@@ -1885,44 +1605,89 @@ const UI = {
             const step = (timestamp) => {
                 if (!startTimestamp) startTimestamp = timestamp;
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                // Ease-out formula for smoother deceleration
                 const easeOut = 1 - Math.pow(1 - progress, 3);
-                obj.innerHTML = '\u20B9' + (easeOut * (end - start) + start).toFixed(2);
+                const currentVal = (easeOut * (end - start) + start);
+                // STRICT ERP LOGIC: Safely format negative currency numbers (e.g. -₹500 instead of ₹-500)
+                obj.innerHTML = currentVal < 0 
+                    ? '-\u20B9' + Math.abs(currentVal).toFixed(2) 
+                    : '\u20B9' + currentVal.toFixed(2);
                 if (progress < 1) window.requestAnimationFrame(step);
             };
             window.requestAnimationFrame(step);
         };
 
-        animateValue('dash-total-sales', 0, payload.totalSales, 800);
+        // Update DOM with Animation (Duration: 800ms)
+        animateValue('dash-total-sales', 0, totalSales, 800);
         
         const netProfitEl = document.getElementById('dash-net-profit');
         if(netProfitEl) {
-            animateValue('dash-net-profit', 0, payload.trueNetProfit, 800);
-            netProfitEl.style.color = payload.trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
+            animateValue('dash-net-profit', 0, trueNetProfit, 800);
+            netProfitEl.style.color = trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
         }
         
-        if(document.getElementById('profit-breakdown')) {
-            const pb = document.getElementById('profit-breakdown');
-            pb.innerText = `Gross: \u20B9${payload.grossMargin.toFixed(0)} | Exp: \u20B9${payload.totalExpenses.toFixed(0)}`;
-            
-            // ⚡ DOUBLE-ENTRY UI: INJECT TRIAL BALANCE BUTTON DYNAMICALLY
-            if (!document.getElementById('btn-trial-balance')) {
-                const tbBtn = document.createElement('button');
-                tbBtn.id = 'btn-trial-balance';
-                tbBtn.className = 'btn-primary-small tap-target';
-                tbBtn.style.cssText = 'margin-top: 12px; width: 100%; background: #e3f2fd; color: #0061a4; border: 1px solid #90caf9; padding: 8px; border-radius: 8px; font-weight: bold; display: flex; align-items: center; justify-content: center;';
-                tbBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px; margin-right:8px;">account_balance</span> View Trial Balance';
-                tbBtn.onclick = () => UI.openTrialBalance();
-                pb.parentElement.appendChild(tbBtn);
-            }
-        }
+        if(document.getElementById('profit-breakdown')) document.getElementById('profit-breakdown').innerText = `Gross: \u20B9${grossMargin.toFixed(0)} | Exp: \u20B9${totalExpenses.toFixed(0)}`;
         
-        if(document.getElementById('dash-orders-open')) document.getElementById('dash-orders-open').innerHTML = `${payload.openCount} Orders <strong style="color:var(--md-error); margin-left:8px;">\u20B9${payload.openOrders.toFixed(2)}</strong>`;
-        if(document.getElementById('dash-orders-shipped')) document.getElementById('dash-orders-shipped').innerHTML = `${payload.shippedCount} Orders <strong style="color:#f57f17; margin-left:8px;">\u20B9${payload.shippedOrders.toFixed(2)}</strong>`;
-        if(document.getElementById('dash-orders-completed')) document.getElementById('dash-orders-completed').innerHTML = `${payload.completedCount} Orders <strong style="color:var(--md-success); margin-left:8px;">\u20B9${payload.completedOrders.toFixed(2)}</strong>`;
-        
-        if(typeof UI.updateChart === 'function') UI.updateChart(payload.totalSales, payload.totalPurchases, payload.totalExpenses);
+        // NEW: Operational Order Volume Tracking (Open, Shipped, Completed)
+        let openOrders = 0, shippedOrders = 0, completedOrders = 0;
+        let openCount = 0, shippedCount = 0, completedCount = 0;
 
-        const totalAlerts = payload.overdueCount + payload.pendingPurchases;
+        sales.forEach(s => {
+            // Apply the global dashboard date filter to the pipeline
+            if (isDateInRange(s.date)) {
+                const isReturn = s.documentType === 'return';
+                const modifier = isReturn ? -1 : 1;
+                const val = (parseFloat(s.grandTotal) || 0) * modifier;
+                
+                if (s.status === 'Open') {
+                    openOrders += val;
+                    if (!isReturn) openCount++;
+                } else if (s.status === 'Shipped') {
+                    shippedOrders += val;
+                    if (!isReturn) shippedCount++;
+                } else if (s.status === 'Completed') {
+                    completedOrders += val;
+                    if (!isReturn) completedCount++;
+                }
+            }
+        });
+
+        if(document.getElementById('dash-orders-open')) document.getElementById('dash-orders-open').innerHTML = `${openCount} Orders <strong style="color:var(--md-error); margin-left:8px;">\u20B9${openOrders.toFixed(2)}</strong>`;
+        if(document.getElementById('dash-orders-shipped')) document.getElementById('dash-orders-shipped').innerHTML = `${shippedCount} Orders <strong style="color:#f57f17; margin-left:8px;">\u20B9${shippedOrders.toFixed(2)}</strong>`;
+        if(document.getElementById('dash-orders-completed')) document.getElementById('dash-orders-completed').innerHTML = `${completedCount} Orders <strong style="color:var(--md-success); margin-left:8px;">\u20B9${completedOrders.toFixed(2)}</strong>`;
+        // --- NEW CODE: Call the chart updater ---
+        UI.updateChart(totalSales, totalPurchases, totalExpenses);
+        // --- END OF NEW CODE ---
+
+        // --- OVERDUE REMINDERS SAFELY INSIDE THE FUNCTION ---
+        const overdueSales = sales.filter(s => {
+            if (s.status === 'Open' || s.documentType === 'return') return false;
+            
+            // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
+            const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
+            const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
+            const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
+            if (balance <= 0) return false;
+            
+            if (!s.date) return false;
+            // BULLETPROOF DATE MATH: Manually parse YYYY-MM-DD so old WebViews don't panic!
+            const parts = s.date.split('-'); 
+            const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
+            
+            // ENTERPRISE FIX: Safely recreate 'today' using the timezone-safe string!
+            const tParts = todayStr.split('-');
+            const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
+            
+            const diffTime = todayDate - invoiceDate;
+            if (diffTime < 0) return false; // Prevent future/post-dated invoices from being flagged!
+            
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
+            return diffDays > 15;
+        });
+
+        // UPGRADE 2: Update Bottom Nav Notification Badge for Actionable Documents
+        const pendingPurchases = purchases.filter(p => p.status === 'Open').length;
+        const totalAlerts = overdueSales.length + pendingPurchases;
         const badgeEl = document.getElementById('badge-docs');
         if (badgeEl) {
             if (totalAlerts > 0) {
@@ -1933,17 +1698,35 @@ const UI = {
             }
         }
 
+        // UPGRADE 3: Native OS Home Screen App Badging
         if ('setAppBadge' in navigator) {
-            if (totalAlerts > 0) navigator.setAppBadge(totalAlerts).catch(e => console.error(e));
-            else navigator.clearAppBadge().catch(e => console.error(e));
+            if (totalAlerts > 0) {
+                navigator.setAppBadge(totalAlerts).catch(e => console.error("Badging error", e));
+            } else {
+                navigator.clearAppBadge().catch(e => console.error("Badging clear error", e));
+            }
         }
 
         const overdueContainer = document.getElementById('overdue-reminders-container');
         if (overdueContainer) {
-            if (payload.overdueCount > 0) {
+            if (overdueSales.length > 0) {
                 overdueContainer.classList.remove('hidden');
-                document.getElementById('overdue-text').innerText = `${payload.overdueCount} invoices pending over 15 days.`;
-                document.getElementById('list-overdue').innerHTML = payload.overdueHTML;
+                document.getElementById('overdue-text').innerText = `${overdueSales.length} invoices pending over 15 days.`;
+                
+                document.getElementById('list-overdue').innerHTML = overdueSales.map(s => {
+                    // FIX: Update the dashboard display to match the new cross-linked math!
+                    const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
+                    const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
+                    const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
+                    return `
+                    <li>
+                        <div>
+                            <strong class="large-text">${s.customerName || 'Unknown Party'}</strong><br>
+                            <small class="color-primary">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small>
+                        </div>
+                        <span style="background:#fff0f2; color:#be123c; border:1px solid #be123c; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">Overdue</span>
+                    </li>`;
+                }).join('');
             } else {
                 overdueContainer.classList.add('hidden');
             }
@@ -2121,13 +1904,7 @@ const UI = {
             document.querySelectorAll('#list-products li').forEach(li => li.style.display = ''); // Force list to be visible
         }
         else if (sheetId === 'sheet-stock-adjustment') {
-            const options = UI.state.rawData.items.map(i => 
-                `<option value="${i.id}">${i.name || 'Unnamed'} (Cur: ${i.stock || 0} ${i.uom || ''})</option>`
-            ).join('');
-            
-            const prodSelect = document.getElementById('adj-product-id');
-            if(prodSelect) prodSelect.innerHTML = options ? `<option value="">Select Product...</option>` + options : `<option value="">No products found...</option>`;
-            
+            // STRICT ERP LOGIC: Let app.js handle the dropdown so the Dual-Stock GST/Non-GST pools aren't erased!
             const dateInput = document.getElementById('adj-date');
             if(dateInput) {
                 const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
@@ -2165,12 +1942,194 @@ const UI = {
 
         setTimeout(() => { 
             if (sheet) sheet.classList.add('hidden');
-            if (remainingSheets.length === 0 && overlay) overlay.classList.add('hidden'); 
+            // STRICT ERP LOGIC: Re-check the DOM dynamically to prevent vanishing overlays on rapid switching, and ignore the haptic menu!
+            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
+            if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden'); 
         }, 300);
 
         if(typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
         // FIXED: Added an ignore flag to prevent double-closing
         if (history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); }
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: SMART SEARCH ENGINE
+    // ==========================================
+    // ==========================================
+    // ENTERPRISE UPGRADE: DEDICATED SMART SEARCH
+    // ==========================================
+    openSmartSearch: (targetType, formPrefix) => {
+        UI.state.smartSearchTarget = targetType;
+        UI.state.smartSearchPrefix = formPrefix;
+        
+        const titleEl = document.getElementById('smart-search-title');
+        const inputEl = document.getElementById('smart-search-input');
+        
+        if (targetType === 'customer') titleEl.innerText = "Select Customer";
+        else if (targetType === 'supplier') titleEl.innerText = "Select Supplier";
+        else if (targetType === 'item') titleEl.innerText = "Add Product";
+        
+        inputEl.value = '';
+        UI.executeSmartSearch(); // Load initial list
+        UI.openBottomSheet('sheet-smart-search');
+        
+        // UX Polish: Wait for the sheet to slide up, then auto-focus the keyboard!
+        setTimeout(() => inputEl.focus(), 350);
+    },
+
+    // NEW: Handles the "+" icon tap inside the search bar header!
+    createNewFromSearch: () => {
+        UI.closeBottomSheet('sheet-smart-search');
+        if (UI.state.smartSearchTarget === 'item') {
+            if(window.app) window.app.openForm('product');
+        } else {
+            if(window.app) window.app.openForm('ledger');
+        }
+    },
+
+    executeSmartSearch: () => {
+        const query = (document.getElementById('smart-search-input').value || '').toLowerCase();
+        const resultsContainer = document.getElementById('smart-search-results');
+        const targetType = UI.state.smartSearchTarget;
+        const prefix = UI.state.smartSearchPrefix;
+        
+        let results = [];
+        let html = '';
+
+        if (targetType === 'customer' || targetType === 'supplier') {
+            const isCust = targetType === 'customer';
+            const dbType = isCust ? 'Customer' : 'Supplier';
+            results = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === dbType.toLowerCase() && (l.name || '').toLowerCase().includes(query));
+            
+            results.slice(0, 30).forEach(l => {
+                const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                html += `
+                <div class="tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
+                    <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">${isCust?'person':'storefront'}</span></div>
+                    <div><strong style="display: block; font-size: 16px;">${UI.highlightText(l.name, query)}</strong><small style="color: var(--md-text-muted);">${l.phone || 'No Phone'}</small></div>
+                </div>`;
+            });
+            if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No matches found.</div>`;
+            // Bottom '+ Create New' button has been intentionally removed!
+            
+        } else if (targetType === 'item') {
+            const isSales = prefix === 'sales';
+            results = UI.state.rawData.items.filter(i => (i.name || '').toLowerCase().includes(query) || (i.sku || '').toLowerCase().includes(query));
+            
+            results.slice(0, 30).forEach(i => {
+                const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
+                const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const safeUom = (i.uom || '').replace(/'/g, "\\'");
+                const safeHsn = (i.hsn || '').replace(/'/g, "\\'");
+                const stockVal = parseFloat(i.stock) || 0;
+                const stockStr = `<span style="color: ${stockVal<=0 ? 'var(--md-error)' : 'var(--md-success)'}; font-weight: bold;">Stock: ${stockVal}</span>`;
+                
+                // ENTERPRISE UX: Done & Done and New Buttons!
+                html += `
+                <div style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div><strong style="display: block; font-size: 16px;">${UI.highlightText(i.name, query)}</strong><small>${stockStr}</small></div>
+                        <div style="text-align: right;"><strong style="color: var(--md-primary); font-size: 18px;">₹${price.toFixed(2)}</strong></div>
+                    </div>
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button class="btn-primary-small tap-target" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 8px 16px;" 
+                            onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added to invoice');">
+                            Done & New
+                        </button>
+                        <button class="btn-primary-small tap-target" style="padding: 8px 16px;" 
+                            onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); UI.closeBottomSheet('sheet-smart-search');">
+                            Done
+                        </button>
+                    </div>
+                </div>`;
+            });
+            if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found.</div>`;
+            // Bottom '+ Create New' button has been intentionally removed!
+        }
+
+        resultsContainer.innerHTML = html;
+    },
+
+    selectSmartParty: (typeId, id, name) => {
+        const inputId = document.getElementById(`${typeId}-id`);
+        const display = document.getElementById(`${typeId}-display`);
+        
+        if(inputId) inputId.value = id;
+        if(display) {
+            display.innerText = name;
+            display.style.color = 'var(--md-on-surface)';
+        }
+        
+        UI.closeBottomSheet('sheet-smart-search');
+        
+        const prefix = typeId.split('-')[0];
+        if (typeof app !== 'undefined' && typeof app.loadOriginalDocuments === 'function') {
+            app.loadOriginalDocuments(id, prefix);
+        }
+    },
+
+    addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice) => {
+        const container = document.getElementById(`${prefix}-items-body`);
+        const emptyState = document.getElementById(`${prefix}-empty-items`);
+        if(!container) return;
+        if(emptyState) emptyState.style.display = 'none';
+        
+        const itemCard = document.createElement('div');
+        itemCard.className = 'item-entry-card m3-card';
+        itemCard.style.padding = '14px';
+        itemCard.style.marginBottom = '0';
+        itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
+        
+        const hiddenInputs = `<input type="hidden" class="row-item-id" value="${id}"><input type="hidden" class="row-item-name" value="${name.replace(/"/g, '&quot;')}"><input type="hidden" class="row-uom" value="${uom}">`;
+
+        itemCard.innerHTML = `
+            ${hiddenInputs}
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
+                    ${name}
+                    <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${hsn}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                </div>
+                <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                <div>
+                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${uom || 'Unit'})</small>
+                    <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;" onfocus="this.select()">
+                </div>
+                <div>
+                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
+                    <input type="number" inputmode="decimal" class="row-rate" value="${price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                </div>
+                <div>
+                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                    <input type="number" inputmode="decimal" class="row-gst" value="${gst}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
+                <div style="display:flex; gap:8px;">
+                    ${prefix === 'sales' ? `
+                    <div>
+                        <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
+                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                    </div>
+                    ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
+                </div>
+                <div style="text-align:right;">
+                    <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
+                    <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                </div>
+            </div>
+            ${prefix === 'sales' ? `<small class="live-margin" style="font-size:10px; display:block; margin-top:8px; text-align:right;"></small>` : ''}
+        `;
+        container.appendChild(itemCard);
+        
+        prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
+        
+        // UX Magic: Auto-focus the Qty box of the newly added row!
+        setTimeout(() => {
+            const newQty = itemCard.querySelector('.row-qty');
+            if (newQty) newQty.focus();
+        }, 100);
     },
 
     closeAllBottomSheets: () => {
@@ -2184,7 +2143,11 @@ const UI = {
         const overlay = document.getElementById('sheet-overlay');
         if (overlay && overlay.classList.contains('open')) {
             overlay.classList.remove('open');
-            setTimeout(() => overlay.classList.add('hidden'), 300);
+            setTimeout(() => {
+                // STRICT ERP LOGIC: Re-check dynamically so rapid tapping doesn't break the background!
+                const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
+                if (currentlyOpen === 0) overlay.classList.add('hidden');
+            }, 300);
             closedSomething = true;
         }
         
@@ -2199,10 +2162,10 @@ const UI = {
             overlay = document.createElement('div');
             overlay.id = 'haptic-overlay';
             overlay.className = 'sheet-overlay hidden'; // Reuses your premium blur effect!
-            overlay.style.zIndex = '4500';
+            overlay.style.zIndex = '6500'; // STRICT ERP LOGIC: Must be higher than standard bottom-sheets (5100)
             
             overlay.innerHTML = `
-                <div id="haptic-menu" class="bottom-sheet" style="z-index: 4501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
+                <div id="haptic-menu" class="bottom-sheet" style="z-index: 6501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
                     
                     <div style="margin: 0 16px 16px 16px; background: var(--md-surface); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); overflow: hidden;">
                         <div style="padding: 14px; text-align: center; font-size: 12px; font-weight: bold; color: var(--md-text-muted); border-bottom: 1px solid var(--md-surface-variant); background: rgba(0,0,0,0.02);">
@@ -2297,22 +2260,24 @@ const UI = {
         // ENTERPRISE FIX: Route the products bottom sheet through the Virtualizer so it never freezes!
         UI.renderVirtualList(container, items, (item) => {
             const price = parseFloat(isPurchase ? (item.buyPrice || 0) : (item.sellPrice || 0)) || 0;
-            const currentStock = (parseFloat(item.gstStock) || 0) + (parseFloat(item.nonGstStock) || 0);
-            const gstStock = parseFloat(item.gstStock) || 0;
-            const nonGstStock = parseFloat(item.nonGstStock) || 0;
+            const currentStock = parseFloat(item.stock) || 0;
             const minStock = parseFloat(item.minStock) || 0;
             const isLowStock = minStock > 0 && currentStock <= minStock;
-            const safeUom = (item.uom && String(item.uom).toLowerCase() !== 'null' && String(item.uom).toLowerCase() !== 'undefined') ? item.uom : 'Units';
+            
+            // NEW: Bulletproof Dual Stock Math (Fixes "undefined" text)
+            const rawGst = parseFloat(item.stockGst);
+            const rawNon = parseFloat(item.stockNonGst);
+            const gstStock = isNaN(rawGst) ? currentStock : rawGst;
+            const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
             
             return `
             <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
                 <div>
                     <div class="large-text">${item.name || 'Unnamed Product'}</div>
                     <small>
-                        <span style="color:#0061a4; font-weight:bold;">GST: ${gstStock.toFixed(2)}</span> | 
-                        <span style="color:#d84315; font-weight:bold;">Non-GST: ${nonGstStock.toFixed(2)}</span>
-                        ${isLowStock ? '<span style="color:var(--md-error); font-weight:bold;"> ⚠️ Low</span>' : ''}
-                        <br>Total: ${currentStock.toFixed(2)} ${safeUom} | Rate: \u20B9${price.toFixed(2)}
+                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Tot: ${currentStock} ${item.uom || ''} ${isLowStock ? '⚠️' : ''}</span> 
+                        | Rate: \u20B9${price.toFixed(2)}
+                        <br><span style="font-size: 10px; color: var(--md-text-muted);">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
                     </small>
                 </div>
                 <input type="checkbox" style="width: 20px; height: 20px; pointer-events: none;">
@@ -2402,28 +2367,47 @@ const UI = {
     // 7. RECEIVABLES REPORT ENGINE
     // ==========================================
     downloadReceivablesReport: async () => {
-        if (typeof Utils === 'undefined' || typeof Utils.printReceivablesReport !== 'function') return alert("Print engine unavailable.");
+        // STRICT ERP LOGIC: Use window.Utils to prevent ES6 Module ReferenceError crash!
+        if (!window.Utils || typeof window.Utils.printReceivablesReport !== 'function') return alert("Print engine unavailable.");
         
         const customerLedgers = UI.state.rawData.ledgers.filter(l => l.type === 'Customer');
         const reportData = [];
         let grandTotal = 0;
 
-        for (const ledger of customerLedgers) {
-            if (typeof getKhataStatement !== 'undefined') {
-                const statement = await getKhataStatement(ledger.id, 'Customer');
-                if (statement.finalBalance > 0) {
-                    reportData.push({
-                        name: ledger.name || 'Unknown',
-                        phone: ledger.phone || 'N/A',
-                        balance: statement.finalBalance
-                    });
-                    grandTotal += statement.finalBalance;
-                }
+        // STRICT ERP LOGIC: O(1) Memory Hash Map instead of N+1 Database Queries!
+        // This prevents the app from freezing for 10+ seconds when exporting thousands of customers.
+        const balanceCache = {};
+        customerLedgers.forEach(l => {
+            let ob = parseFloat(l.openingBalance) || 0;
+            const balType = (l.balanceType || '').toLowerCase();
+            balanceCache[l.id] = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+        });
+
+        UI.state.rawData.sales.forEach(s => { 
+            if (s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
+                balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
             }
-        }
+        });
+        UI.state.rawData.cashbook.forEach(c => { 
+            if (c.ledgerId && balanceCache[c.ledgerId] !== undefined) {
+                balanceCache[c.ledgerId] += (c.type === 'in' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0));
+            }
+        });
+
+        customerLedgers.forEach(ledger => {
+            const bal = balanceCache[ledger.id] || 0;
+            if (bal > 0.01) {
+                reportData.push({
+                    name: ledger.name || 'Unknown',
+                    phone: ledger.phone || 'N/A',
+                    balance: bal
+                });
+                grandTotal += bal;
+            }
+        });
         
         if (reportData.length === 0) return alert("No pending receivables found.");
-        Utils.printReceivablesReport(reportData, grandTotal);
+        window.Utils.printReceivablesReport(reportData, grandTotal);
     },
 
     // ==========================================
@@ -2533,7 +2517,7 @@ const UI = {
         const container = document.getElementById('pnl-container');
 
         // ENTERPRISE FIX: Multi-Company Data Isolation for PnL
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
 
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
 
@@ -2541,19 +2525,11 @@ const UI = {
         UI.state.rawData.sales.forEach(s => {
             if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= startDate && s.date <= endDate && s.status !== 'Open') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
-                const isNonGST = s.invoiceType === 'Non-GST'; // IDENTIFY SALES BUCKET
                 const netSales = (parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0); // Profit excludes tax
                 totalRevenue += netSales * modifier;
 
                 (s.items || []).forEach(item => {
-                    // DUAL ENGINE COGS: Accurate profit margins based on capitalized tax
-                    const masterItem = UI.state.rawData.items.find(i => i.id === item.itemId);
-                    let cost = parseFloat(item.buyPrice) || 0;
-                    
-                    if (masterItem) {
-                        cost = isNonGST ? (parseFloat(masterItem.nonGstBuyPrice) || cost) : (parseFloat(masterItem.gstBuyPrice) || cost);
-                    }
-                    
+                    const cost = parseFloat(item.buyPrice) || 0;
                     totalCOGS += ((parseFloat(item.qty) || 0) * cost) * modifier;
                 });
             }
@@ -2571,8 +2547,12 @@ const UI = {
         
         UI.state.rawData.cashbook.forEach(c => {
             if (c.date >= startDate && c.date <= endDate && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
+                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
+                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
-                if (!ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
                     indirectIncome += parseFloat(c.amount) || 0;
                 }
             }
@@ -2580,7 +2560,8 @@ const UI = {
 
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                if (adj.type === 'remove' && adj.date >= startDate && adj.date <= endDate) {
+                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
+                if (adj.type === 'reduce' && adj.date >= startDate && adj.date <= endDate) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
                     stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
                 }
@@ -2622,158 +2603,6 @@ const UI = {
     },
 
     // ==========================================
-    // ⚡ DOUBLE-ENTRY UI: TRIAL BALANCE ENGINE
-    // ==========================================
-    openTrialBalance: async () => {
-        try {
-            if (window.Utils) window.Utils.showToast("Calculating Trial Balance...");
-            
-            // ⚡ BULLETPROOF FIX: Safely catch missing journal tables so it never crashes!
-            let journals = [];
-            try { journals = await getAllRecords('journal'); } catch(e) {}
-            if (!Array.isArray(journals)) journals = [];
-
-            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
-            
-            const accounts = {};
-            let totalDr = 0;
-            let totalCr = 0;
-            
-            // 1. Mathematically aggregate all Debits and Credits per Ledger Account
-            journals.forEach(j => {
-                if (j.firmId !== activeFirmId) return;
-                j.legs.forEach(leg => {
-                    if (!accounts[leg.acc]) accounts[leg.acc] = { dr: 0, cr: 0 };
-                    if (leg.type === 'Dr') accounts[leg.acc].dr += leg.amt;
-                    if (leg.type === 'Cr') accounts[leg.acc].cr += leg.amt;
-                });
-            });
-            
-            // 2. Deduce the Final Net Balance per Account
-            const trialBalance = [];
-            Object.keys(accounts).forEach(acc => {
-                const net = accounts[acc].dr - accounts[acc].cr;
-                if (Math.abs(net) > 0.01) {
-                    if (net > 0) {
-                        trialBalance.push({ name: acc, dr: net, cr: 0 });
-                        totalDr += net;
-                    } else {
-                        trialBalance.push({ name: acc, dr: 0, cr: Math.abs(net) });
-                        totalCr += Math.abs(net);
-                    }
-                }
-            });
-            
-            trialBalance.sort((a, b) => a.name.localeCompare(b.name));
-            
-            // 3. Dynamically Generate the App Screen
-            let tbScreen = document.getElementById('activity-trial-balance');
-            if (!tbScreen) {
-                tbScreen = document.createElement('div');
-                tbScreen.id = 'activity-trial-balance';
-                tbScreen.className = 'activity-screen hidden';
-                tbScreen.style.cssText = 'z-index: 5000; display: none; flex-direction: column; background: var(--md-surface);';
-                document.body.appendChild(tbScreen);
-            }
-            
-            const isBalanced = Math.abs(totalDr - totalCr) < 0.5;
-            
-            let html = `
-                <div class="activity-header" style="background: #0061a4; color: white;">
-                    <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-trial-balance')" style="color:white;">arrow_back</span>
-                    <div class="title" style="flex:1; color:white;">Trial Balance</div>
-                    <span class="material-symbols-outlined tap-target" onclick="UI.exportTrialBalanceCSV()" style="color:white;">ios_share</span>
-                </div>
-                <div class="activity-content" style="background: var(--md-surface-variant); padding: 12px; overflow-y: auto; flex: 1;">
-                    
-                    ${isBalanced ? 
-                        `<div style="background:#e8f5e9; color:#146c2e; padding:10px; border-radius:8px; margin-bottom:12px; text-align:center; font-weight:bold; border:1px solid #c8e6c9;">✅ Books are Perfectly Balanced</div>` : 
-                        `<div style="background:#fff0f2; color:#ba1a1a; padding:10px; border-radius:8px; margin-bottom:12px; text-align:center; font-weight:bold; border:1px solid #ffcdd2;">⚠️ Math Error: Books do not balance</div>`
-                    }
-
-                    <div class="m3-card" style="padding:0; overflow:hidden; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                        <table style="width:100%; border-collapse: collapse; font-size: 13px;">
-                            <thead style="position: sticky; top: 0; z-index: 2;">
-                                <tr style="background: #e3f2fd; color: #0061a4;">
-                                    <th style="padding: 14px 12px; text-align: left; font-weight: 800;">Ledger Account</th>
-                                    <th style="padding: 14px 12px; text-align: right; font-weight: 800;">Debit (Dr)</th>
-                                    <th style="padding: 14px 12px; text-align: right; font-weight: 800;">Credit (Cr)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${trialBalance.map(row => `
-                                    <tr style="border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface);">
-                                        <td style="padding: 12px; font-weight:600; color: var(--md-on-surface);">${row.name}</td>
-                                        <td style="padding: 12px; text-align: right; color: #d32f2f; font-weight: 500;">${row.dr > 0 ? window.formatMoney(row.dr) : '-'}</td>
-                                        <td style="padding: 12px; text-align: right; color: #2e7d32; font-weight: 500;">${row.cr > 0 ? window.formatMoney(row.cr) : '-'}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                            <tfoot style="position: sticky; bottom: 0; z-index: 2;">
-                                <tr style="background: #0061a4; color: white; font-weight: bold; font-size: 14px;">
-                                    <td style="padding: 16px 12px; text-transform: uppercase;">Grand Total</td>
-                                    <td style="padding: 16px 12px; text-align: right;">${window.formatMoney(totalDr)}</td>
-                                    <td style="padding: 16px 12px; text-align: right;">${window.formatMoney(totalCr)}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            `;
-            
-            tbScreen.innerHTML = html;
-            UI.state.trialBalanceData = trialBalance; 
-            
-            UI.openActivity('activity-trial-balance');
-            
-        } catch (error) {
-            console.error("Trial Balance Error:", error);
-            alert("Could not generate Trial Balance.");
-        }
-    },
-
-    exportTrialBalanceCSV: async () => {
-        if (!UI.state.trialBalanceData) return;
-        let csv = "Account Name,Debit (Dr),Credit (Cr)\n";
-        let totDr = 0, totCr = 0;
-        
-        UI.state.trialBalanceData.forEach(row => {
-            csv += `"${row.name}",${row.dr.toFixed(2)},${row.cr.toFixed(2)}\n`;
-            totDr += row.dr;
-            totCr += row.cr;
-        });
-        
-        csv += `"GRAND TOTAL",${totDr.toFixed(2)},${totCr.toFixed(2)}\n`;
-        
-        const filename = `Trial_Balance_${new Date().toISOString().split('T')[0]}.csv`;
-        const file = new File([csv], filename, { type: "text/csv" });
-        
-        // ⚡ PREMIUM UX: Native Device Share Sheet instead of forced download
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    title: 'Trial Balance',
-                    text: 'Here is the Trial Balance report.',
-                    files: [file]
-                });
-                return;
-            } catch (err) {
-                console.log("Share cancelled", err);
-            }
-        }
-        
-        // Fallback for desktop browsers
-        const url = URL.createObjectURL(file);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-    },
-
-    // ==========================================
     // UPGRADE: EXPORT ENGINES (CSV)
     // ==========================================
     exportDaybookCSV: () => {
@@ -2781,7 +2610,7 @@ const UI = {
         const dailyActivity = [];
         
         // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
         
         UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open').forEach(s => {
             const isRet = s.documentType === 'return';
@@ -2814,8 +2643,8 @@ const UI = {
 
         let csv = "Type,Description,Amount (INR)\n";
         dailyActivity.forEach(t => {
-            // Replace internal double quotes with two double quotes to safely escape them in CSV formatting
-            const safeDesc = (t.desc || '').replace(/"/g, '""'); 
+            // STRICT ERP LOGIC: Strip hidden newlines to prevent CSV row-break spreadsheet corruption!
+            const safeDesc = String(t.desc || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' '); 
             csv += `"${t.type}","${safeDesc}","${t.sign}${(t.amount || 0).toFixed(2)}"\n`;
         });
 
@@ -2839,39 +2668,57 @@ const UI = {
         const end = document.getElementById('report-pnl-end').value;
         
         // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.currentFirmId : null;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
         
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
+        let indirectIncome = 0, stockLoss = 0;
 
         UI.state.rawData.sales.forEach(s => {
             if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
-                const isNonGST = s.invoiceType === 'Non-GST'; // IDENTIFY SALES BUCKET
                 totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
-                
-                (s.items || []).forEach(item => {
-                    const masterItem = UI.state.rawData.items.find(i => i.id === item.itemId);
-                    let cost = parseFloat(item.buyPrice) || 0;
-                    if (masterItem) {
-                        cost = isNonGST ? (parseFloat(masterItem.nonGstBuyPrice) || cost) : (parseFloat(masterItem.gstBuyPrice) || cost);
-                    }
-                    totalCOGS += ((parseFloat(item.qty) || 0) * cost) * modifier;
-                });
+                (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
             }
         });
         UI.state.rawData.expenses.forEach(e => {
             if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= start && e.date <= end) totalExpenses += parseFloat(e.amount) || 0;
         });
+        
+        // STRICT ERP LOGIC: Synchronize CSV Export with On-Screen PnL
+        UI.state.rawData.cashbook.forEach(c => {
+            // STRICT ERP LOGIC: Enforce the activeFirmId boundary so Shop B's income doesn't leak into Shop A's CSV!
+            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= start && c.date <= end && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit in the CSV!
+                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
+                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
+                const ledgerName = (c.ledgerName || '').toLowerCase();
+                if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                    indirectIncome += parseFloat(c.amount) || 0;
+                }
+            }
+        });
+        if (UI.state.rawData.adjustments) {
+            UI.state.rawData.adjustments.forEach(adj => {
+                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
+                if (adj.type === 'reduce' && adj.date >= start && adj.date <= end) {
+                    const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
+                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                }
+            });
+        }
 
-        const grossProfit = totalRevenue - totalCOGS;
-        const netProfit = grossProfit - totalExpenses;
+        const grossProfit = (totalRevenue + indirectIncome) - totalCOGS;
+        const netProfit = grossProfit - (totalExpenses + stockLoss);
 
         let csv = `Profit & Loss Statement (${start} to ${end})\n\n`;
         csv += `Account,Amount (INR)\n`;
         csv += `"Total Net Revenue","${totalRevenue.toFixed(2)}"\n`;
+        if (indirectIncome > 0) csv += `"Indirect Income","${indirectIncome.toFixed(2)}"\n`;
         csv += `"Cost of Goods Sold (COGS)","-${totalCOGS.toFixed(2)}"\n`;
         csv += `"Gross Profit","${grossProfit.toFixed(2)}"\n`;
         csv += `"Operating Expenses","-${totalExpenses.toFixed(2)}"\n`;
+        if (stockLoss > 0) csv += `"Stock Loss (Adjustments)","-${stockLoss.toFixed(2)}"\n`;
         csv += `"Net ${netProfit >= 0 ? 'Profit' : 'Loss'}","${netProfit.toFixed(2)}"\n`;
 
         // FIX: Directly generate the CSV Blob
@@ -2882,57 +2729,12 @@ const UI = {
         a.download = `PnL_${start}_to_${end}.csv`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    },
-
-    // ==========================================
-    // 🤖 ENTERPRISE AI: OFFLINE BILL SCANNER
-    // ==========================================
-    scanPurchaseBill: async () => {
-        if (typeof Tesseract === 'undefined') {
-            if (window.Utils) window.Utils.showToast("⚠️ AI Engine downloading in background. Please wait 10 seconds and try again.");
-            return;
-        }
         
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = 'image/*';
-        fileInput.capture = 'environment'; 
-        
-        fileInput.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            if (window.Utils) window.Utils.showToast("🤖 AI Analyzing Document... (Takes 5-15s)");
-            
-            try {
-                const result = await Tesseract.recognize(file, 'eng');
-                const text = result.data.text;
-                
-                let invoiceNo = '';
-                const invMatch = text.match(/(?:invoice|inv|bill|ref)[\sno\.:#-]*([A-Z0-9-]{4,15})/i);
-                if (invMatch) invoiceNo = invMatch[1].trim();
-                
-                if (invoiceNo) {
-                    const poInput = document.getElementById('purchase-po-no');
-                    if (poInput) poInput.value = invoiceNo;
-                }
-                
-                const notesInput = document.getElementById('purchase-internal-notes');
-                if (notesInput) {
-                    // FIX: This keeps the text strictly on one line using \n
-                    notesInput.value = "--- AI SCANNED TEXT ---\n" + text.substring(0, 300) + "...\n\n" + notesInput.value;
-                }
-
-                if (window.Utils) window.Utils.showToast("✅ AI Extraction Complete! Please verify details.");
-            } catch (err) {
-                console.error(err);
-                if (window.Utils) window.Utils.showToast("⚠️ AI Error: Could not read image clearly.");
-            }
-        };
-        
-        fileInput.click();
+        // STRICT ERP LOGIC: Give Android 1 second to intercept the PnL file before destroying memory!
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 1000);
     },
 
     // ==========================================
@@ -2942,8 +2744,7 @@ const UI = {
         // FIX: Memory optimization disabled! Pruning arrays from RAM breaks the Address Book's running balance math. 
         // Modern devices have plenty of RAM for text arrays, so we keep all data loaded for perfect accuracy.
         return;
-    },
-
+    }
 
 }; // <--- MAKE SURE YOU HAVE THIS CLOSING BRACKET AND SEMICOLON!
 
@@ -3138,21 +2939,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // UPGRADE: Auto-Hiding FAB & Bottom Nav on Scroll
     let lastScrollY = 0;
+    let isScrolling = false;
     const mainContent = document.querySelector('.main-content');
     const fab = document.querySelector('.floating-action-button');
     const bottomNav = document.querySelector('.bottom-nav'); // <-- NEW
     
     if (mainContent) {
         mainContent.addEventListener('scroll', () => {
-            const currentScrollY = mainContent.scrollTop;
-            if (currentScrollY > lastScrollY && currentScrollY > 50) {
-                if (fab) fab.classList.add('fab-hidden'); // Hide FAB
-                if (bottomNav) bottomNav.style.transform = 'translateY(150%)'; // Hide Nav smoothly
-            } else {
-                if (fab) fab.classList.remove('fab-hidden'); // Show FAB
-                if (bottomNav) bottomNav.style.transform = 'translateY(0)'; // Show Nav smoothly
+            lastScrollY = mainContent.scrollTop;
+            
+            // STRICT ERP LOGIC: Debounce the DOM paint to prevent CPU layout-thrashing on mobile devices!
+            if (!isScrolling) {
+                window.requestAnimationFrame(() => {
+                    if (lastScrollY > 50) {
+                        if (fab) fab.classList.add('fab-hidden'); 
+                        if (bottomNav) bottomNav.style.transform = 'translateY(150%)'; 
+                    } else {
+                        if (fab) fab.classList.remove('fab-hidden'); 
+                        if (bottomNav) bottomNav.style.transform = 'translateY(0)'; 
+                    }
+                    isScrolling = false;
+                });
+                isScrolling = true;
             }
-            lastScrollY = currentScrollY;
         }, {passive: true});
     }
     
@@ -3204,7 +3013,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const overlay = document.getElementById('sheet-overlay');
                     if (overlay) {
                         overlay.classList.remove('open');
-                        setTimeout(() => overlay.classList.add('hidden'), 300);
+                        setTimeout(() => {
+                            // STRICT ERP LOGIC: Re-check dynamically
+                            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
+                            if (currentlyOpen === 0) overlay.classList.add('hidden');
+                        }, 300);
                     }
                 }
                 if (typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
@@ -3221,6 +3034,31 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 // NEW CODE: ES MODULE EXPORT & GLOBAL MAP
 // ==========================================
+// ==========================================
+// ENTERPRISE UPGRADE: SMART SEARCH WATCHERS
+// ==========================================
+// 1. Hide dropdowns when clicking outside of them
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.smart-dropdown') && !e.target.closest('input[id$="-search"]')) {
+        document.querySelectorAll('.smart-dropdown').forEach(d => d.classList.add('hidden'));
+    }
+});
+
+// 2. Strict Fallback Observer: Wrapped in an event listener to prevent DOM Race Conditions!
+document.addEventListener('DOMContentLoaded', () => {
+    ['sales-customer', 'purchase-supplier'].forEach(prefix => {
+        const display = document.getElementById(`${prefix}-display`);
+        const search = document.getElementById(`${prefix}-search`);
+        if(display && search) {
+            new MutationObserver(() => {
+                if(display.innerText && display.innerText !== 'Select Customer...' && display.innerText !== 'Select Supplier...') {
+                    search.value = display.innerText;
+                }
+            }).observe(display, { childList: true, characterData: true, subtree: true });
+        }
+    });
+});
+
 // 1. Export the module so app.js can import it
 export default UI;
 
