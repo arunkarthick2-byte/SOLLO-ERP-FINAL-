@@ -140,6 +140,10 @@ const saveRecord = (storeName, data) => {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction(storeName, 'readwrite');
         const store = transaction.objectStore(storeName);
+        
+        // STRICT ERP LOGIC: ALWAYS update the timestamp on every save/edit so Cloud Sync doesn't overwrite new data!
+        data._lastModified = new Date().toISOString();
+        
         const request = store.put(data);
         request.onsuccess = () => resolve(data.id || data.firmId);
         request.onerror = () => reject(request.error);
@@ -157,14 +161,18 @@ const deleteRecordById = async (storeName, id) => {
         // Ensure we use the exact data type from the DB for the physical deletion
         const actualId = oldRecord.id; 
         
+        // 1. Save to Recycle Bin first (Safest operation)
+        if (oldRecord && storeName !== 'trash') {
+            oldRecord._module = storeName; 
+            oldRecord._deletedAt = new Date().toISOString(); 
+            await saveRecord('trash', oldRecord); 
+        }
+
         if (oldRecord && (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments' || storeName === 'expenses')) {
-            // 2. CRITICAL: Await the stock reversal COMPLETELY before proceeding
-            if (storeName !== 'expenses') {
-                await reverseStockImpact(storeName, oldRecord);
-            }
+            // 2. CRITICAL FIX: Reverse Inventory BEFORE deleting the document
+            await reverseStockImpact(storeName, oldRecord);
             
-            // 3. Batched cleanup of auto-generated receipts (Optimized & Collision Protected)
-            // ENTERPRISE FIX: Ensure deleted Expenses also wipe their auto-generated bank deductions!
+            // 3. Batched cleanup of auto-generated receipts
             const uniqueRefs = [...new Set([oldRecord.orderNo, oldRecord.invoiceNo, oldRecord.poNo, oldRecord.expenseNo, oldRecord.id].filter(Boolean))];
             const partyId = storeName === 'sales' ? oldRecord.customerId : (storeName === 'purchases' ? oldRecord.supplierId : null);
             
@@ -196,13 +204,6 @@ const deleteRecordById = async (storeName, id) => {
                     });
                 }
             }
-        }
-
-        // ENTERPRISE UPGRADE: Soft Deletion (Send to Recycle Bin instead of void)
-        if (oldRecord && storeName !== 'trash') {
-            oldRecord._module = storeName; 
-            oldRecord._deletedAt = new Date().toISOString(); 
-            await saveRecord('trash', oldRecord); 
         }
 
         // 4. Finally, delete the actual document only after all reversals finish
@@ -254,6 +255,8 @@ const reverseStockImpact = async (storeName, record) => {
                 impact = isReturn ? qty : -qty;
             } else if (storeName === 'adjustments') {
                 impact = record.type === 'add' ? -qty : qty; 
+            } else if (storeName === 'expenses') {
+                impact = qty; // REVERSE: Refund stock when an expense is deleted or modified
             }
             
             let targetPoolIsNonGST = isNonGST;
@@ -312,6 +315,8 @@ const applyStockImpact = async (storeName, record) => {
                 }
             } else if (storeName === 'adjustments') {
                 impact = record.type === 'add' ? qty : -qty;
+            } else if (storeName === 'expenses') {
+                impact = -qty; // APPLY: Automatically deducts stock when consumed in an expense
             }
             
             let targetPoolIsNonGST = isNonGST;

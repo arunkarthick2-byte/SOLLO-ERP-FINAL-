@@ -3262,3 +3262,13 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover,
 body.dark-mode ::-webkit-scrollbar-thumb:active {
     background-color: rgba(255, 255, 255, 0.3) !important;
 }
+/* ==========================================
+   BUG FIX: ENABLE SCROLLING FOR EXPENSE LINKED DOCS
+   ========================================== */
+#list-linked-docs {
+    max-height: 60vh; /* Prevents the list from growing taller than 60% of your screen */
+    overflow-y: auto !important; /* Forces the browser to create a vertical scrollbar */
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; /* Enables smooth, momentum scrolling on mobile */
+    padding-bottom: 30px; /* Adds a little extra breathing room at the bottom */
+}

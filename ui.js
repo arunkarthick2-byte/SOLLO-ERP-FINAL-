@@ -152,9 +152,37 @@ const UI = {
             return;
         }
         
-        // Because the database math is now lightning fast, we can rip out the buggy scroll listeners entirely.
-        // We just hand the raw HTML to the browser and let native Android scrolling take over!
-        container.innerHTML = dataArray.map(item => renderRowFn(item)).join('');
+        // ENTERPRISE FIX: True DOM Pagination with Scroll Preservation!
+        let currentIndex = 0;
+        const chunkSize = 50;
+        
+        container.innerHTML = ''; // Clear container exactly once at start
+        
+        const renderNextChunk = () => {
+            const chunk = dataArray.slice(currentIndex, currentIndex + chunkSize);
+            const chunkHTML = chunk.map(item => renderRowFn(item)).join('');
+            
+            // Safely inject new DOM nodes without destroying existing elements or losing scroll position
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = chunkHTML;
+            while(tempDiv.firstChild) container.appendChild(tempDiv.firstChild);
+            
+            currentIndex += chunkSize;
+            
+            // Clean up old Load More button and spawn a fresh one at the new bottom
+            const oldBtn = document.getElementById('btn-load-more-virtual');
+            if (oldBtn) oldBtn.remove();
+            
+            if (currentIndex < dataArray.length) {
+                const btnContainer = document.createElement('div');
+                btnContainer.id = 'btn-load-more-virtual';
+                btnContainer.style.cssText = 'text-align: center; padding: 16px; width: 100%;';
+                btnContainer.innerHTML = `<button class="btn-primary-small" style="padding: 8px 16px; background: var(--md-surface-variant); color: var(--md-on-surface);">Load More Records...</button>`;
+                btnContainer.onclick = renderNextChunk;
+                container.appendChild(btnContainer);
+            }
+        };
+        renderNextChunk();
     },
     // --- END OF NEW CODE ---
     

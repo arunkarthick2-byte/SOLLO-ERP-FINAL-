@@ -36,6 +36,8 @@ const Utils = {
                     let width = img.width;
                     let height = img.height;
                     
+                    if (width === 0) return resolve(''); // Shield against division by zero
+                    
                     if (width > maxWidth) {
                         height = Math.round((height * maxWidth) / width);
                         width = maxWidth;
@@ -66,8 +68,10 @@ const Utils = {
     // --- ENTERPRISE UPGRADE: PROFESSIONAL DATE DISPLAY ---
     formatDateDisplay: (dateString) => {
         if (!dateString) return '';
-        // Neutralize Timezone Shift by forcing evaluation at High Noon (12:00:00)
-        const safeString = dateString.includes('T') ? dateString : dateString + 'T12:00:00';
+        // ENTERPRISE FIX: Strip any existing Timezones first, then forcefully lock to Local High Noon!
+        const cleanDate = dateString.split('T')[0];
+        const safeString = cleanDate + 'T12:00:00';
+        
         const d = new Date(safeString);
         if (isNaN(d.getTime())) return dateString; 
         // Converts "2026-03-25" into "25 Mar 2026"

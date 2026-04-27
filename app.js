@@ -38,8 +38,11 @@ let wakeLock = null;
 const requestWakeLock = async () => {
     try {
         if ('wakeLock' in navigator) {
-            // STRICT ERP LOGIC: Destroy the old wake lock listener before creating a new one to prevent background memory leaks!
-            if (wakeLock !== null) wakeLock.onrelease = null; 
+            // STRICT ERP LOGIC: Safely release and destroy the old lock!
+            if (wakeLock !== null) {
+                wakeLock.onrelease = null; 
+                await wakeLock.release(); 
+            }
             
             wakeLock = await navigator.wakeLock.request('screen');
             wakeLock.onrelease = () => console.log('Screen Wake Lock released');
@@ -82,7 +85,9 @@ const updateNetworkStatus = () => {
         // Turn it green, tell them they are connected, then slide it away after 3 seconds
         banner.style.backgroundColor = 'var(--md-success, #146c2e)';
         banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">cloud_done</span> Back online. Sync ready.';
-        setTimeout(() => { banner.style.transform = 'translateY(-100%)'; }, 3000);
+        
+        if (window.networkBannerTimeout) clearTimeout(window.networkBannerTimeout);
+        window.networkBannerTimeout = setTimeout(() => { banner.style.transform = 'translateY(-100%)'; }, 3000);
     }
 };
 
@@ -194,8 +199,8 @@ const app = {
             if (action === 'new_sale') {
                 setTimeout(() => app.openForm('sales', null, 'invoice'), 300);
             } else if (action === 'cashbook') {
-                // FIX: Pass the correct tab ID and Screen Title
-                setTimeout(() => { if(window.UI) window.UI.switchTab('tab-cashbook', 'Cashbook & Banking'); }, 300);
+                // FIX: Pass the correct tab ID, Title, AND the Navigation Element so the blue highlight moves!
+                setTimeout(() => { if(window.UI) window.UI.switchTab('tab-cashbook', 'Cashbook & Banking', document.getElementById('nav-cashbook')); }, 300);
             }
 
         } catch (e) { 
@@ -440,6 +445,7 @@ const app = {
             const allItems = (await window.getAllRecords('items')).filter(i => i.firmId === activeFirmId);
             const allSales = (await window.getAllRecords('sales')).filter(s => s.firmId === activeFirmId);
             const allPurchases = (await window.getAllRecords('purchases')).filter(p => p.firmId === activeFirmId);
+            const allExpenses = (await window.getAllRecords('expenses')).filter(e => e.firmId === activeFirmId);
             const allAdjustments = (await window.getAllRecords('adjustments')).filter(a => a.firmId === activeFirmId);
             
             // 1. Reset all items to their Initial Opening Stock securely
@@ -468,6 +474,7 @@ const app = {
             };
             processDocs(allSales, true);
             processDocs(allPurchases, false);
+            processDocs(allExpenses, true); // Deducts stock consumed through the expense ledger
             
             // 3. Process Manual Stock Adjustments
             allAdjustments.forEach(adj => {
@@ -2215,6 +2222,20 @@ const app = {
                     }
                     
                     formData.forEach((value, key) => { data[key] = value; });
+
+                    // ENTERPRISE FIX: Duplicate Document Number Protection for Expenses
+                    if (type === 'expense' && data.expenseNo) {
+                        const allExistingExpenses = await getAllRecords('expenses');
+                        const isDuplicate = allExistingExpenses.some(e => 
+                            e.firmId === app.state.firmId && 
+                            e.expenseNo === data.expenseNo && 
+                            e.id !== data.id
+                        );
+                        if (isDuplicate) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            return alert(`Error: Expense number "${data.expenseNo}" already exists! Please use a unique number.`);
+                        }
+                    }
                 
                 if (type === 'product') {
                     data.sellPrice = parseFloat(data.sellPrice) || 0;
@@ -2251,7 +2272,7 @@ const app = {
                     data.stock = Math.round((data.stockGst + data.stockNonGst) * 100) / 100;
                     
                     const img = document.getElementById('product-image-preview');
-                    if (img && !img.classList.contains('hidden')) data.image = await window.compressImage(img.src);
+                    if (img && !img.classList.contains('hidden')) data.image = await window.Utils.compressImage(img.src);
                     else data.image = ''; // STRICT ERP LOGIC: Permanently delete removed images
                 } 
                 else if (type === 'ledger') {
@@ -2284,7 +2305,7 @@ const app = {
 
                     const img = document.getElementById('expense-attachment-preview');
                     // ENTERPRISE FIX: Compress the expense receipt!
-                    if (img && !img.classList.contains('hidden')) data.attachment = await window.compressImage(img.src);
+                    if (img && !img.classList.contains('hidden')) data.attachment = await window.Utils.compressImage(img.src);
                     else data.attachment = ''; // STRICT ERP LOGIC: Permanently delete removed images
                 }
                 else if (type === 'account') {
@@ -2292,7 +2313,14 @@ const app = {
                     data.openingBalance = parseFloat(data.openingBalance) || 0;
                 }
 
-                await saveRecord(storeName, data);
+                // ENTERPRISE FIX: Safely route Expenses through the Transaction Engine so Inventory is actually consumed!
+                if (type === 'expense' && data.items && data.items.length > 0) {
+                    if (typeof saveInvoiceTransaction === 'function') await saveInvoiceTransaction(storeName, data);
+                    else if (window.saveInvoiceTransaction) await window.saveInvoiceTransaction(storeName, data);
+                    else await saveRecord(storeName, data);
+                } else {
+                    await saveRecord(storeName, data);
+                }
 
                 // ENTERPRISE FIX: WIPE RAM CACHE ON SAVE SO IT REFRESHES!
                 if (window.AppCache) {
@@ -2479,13 +2507,13 @@ const app = {
                 const logoImg = document.getElementById('profile-logo-preview');
                 if (logoImg && !logoImg.classList.contains('hidden')) {
                     if (existingProfile && existingProfile.logo === logoImg.src) data.logo = existingProfile.logo;
-                    else data.logo = await window.compressImage(logoImg.src);
+                    else data.logo = await window.Utils.compressImage(logoImg.src);
                 }
 
                 const sigImg = document.getElementById('profile-signature-preview');
                 if (sigImg && !sigImg.classList.contains('hidden')) {
                     if (existingProfile && existingProfile.signature === sigImg.src) data.signature = existingProfile.signature;
-                    else data.signature = await window.compressImage(sigImg.src);
+                    else data.signature = await window.Utils.compressImage(sigImg.src);
                 }
 
                 await saveRecord('businessProfile', data);
@@ -3068,8 +3096,8 @@ const app = {
             delete record._module;
             delete record._deletedAt;
             
-            // STRICT ERP LOGIC: Re-apply stock impacts if restoring an invoice or adjustment!
-            if (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments') {
+            // 2 & 3. CRITICAL FIX: Put it back and restore Inventory securely via the Transaction Engine!
+            if (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments' || storeName === 'expenses') {
                 if (typeof saveInvoiceTransaction === 'function') {
                     await saveInvoiceTransaction(storeName, record);
                 } else {

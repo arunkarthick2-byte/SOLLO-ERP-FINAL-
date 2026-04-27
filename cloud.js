@@ -67,8 +67,18 @@ const Cloud = {
     },
 
     autoBackup: async () => {
-        // Only run if Google API is loaded and token is actively authorized
-        if (!gapiInited || !gisInited || gapi.client.getToken() === null) return;
+        // Halt if API isn't loaded
+        if (!gapiInited || !gisInited) return;
+        
+        // If token is missing, request one silently and bind the backup to the callback!
+        if (gapi.client.getToken() === null) {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) return; // Abort silently if background token fails
+                Cloud.autoBackup(); // Securely resume the backup now that we have the token
+            };
+            tokenClient.requestAccessToken({ prompt: '' }); 
+            return; 
+        }
         
         const lastBackup = localStorage.getItem('sollo_last_backup');
         const now = Date.now();

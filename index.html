@@ -1775,31 +1775,40 @@
         </div>
     </div>
 
-    <div id="sheet-products" class="bottom-sheet" style="height: 85vh;">
-        <div class="sheet-header"><span style="font-size: 18px; font-weight: 500;">Add Products</span><span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-products')">close</span></div>
-        <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
-            <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-products" placeholder="Search products..."></div>
-            <ul class="list-view" id="list-products" style="flex: 1; overflow-y: auto;"></ul>
-            <div style="display: flex; gap: 8px; margin-top: 12px;">
-                <button class="btn-primary-small" style="flex: 1; background: var(--md-surface-variant); color: var(--md-on-surface);" onclick="UI.closeBottomSheet('sheet-products'); setTimeout(() => { if(window.app) window.app.openForm('product'); }, 200);">+ New Product</button>
-                <button class="btn-primary" style="flex: 2;" onclick="if(window.UI) window.UI.confirmProducts()">Add Selected</button>
-            </div>
+    <div id="sheet-products" class="bottom-sheet" style="height: 85vh; padding: 16px; display: block; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--md-background);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <strong style="font-size: 18px;">Add Products</strong>
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-products')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
+        </div>
+        <div class="search-bar" style="margin-bottom: 16px;">
+            <span class="material-symbols-outlined">search</span>
+            <input type="text" id="search-products" placeholder="Search products...">
+        </div>
+        
+        <ul class="list-view" id="list-products" style="margin: 0; padding: 0; margin-bottom: 24px;"></ul>
+        
+        <div style="display: flex; gap: 8px; padding-bottom: 24px;">
+            <button class="btn-primary-small" style="flex: 1; background: var(--md-surface-variant); color: var(--md-on-surface);" onclick="UI.closeBottomSheet('sheet-products'); setTimeout(() => { if(window.app) window.app.openForm('product'); }, 200);">+ New Product</button>
+            <button class="btn-primary" style="flex: 2;" onclick="if(window.UI) window.UI.confirmProducts()">Add Selected</button>
         </div>
     </div>
 
-    <div id="sheet-linked-docs" class="bottom-sheet" style="height: 85vh;">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Link to Document(s)</span>
-            <div style="display: flex; gap: 16px; align-items: center;">
+    <div id="sheet-linked-docs" class="bottom-sheet" style="height: 85vh; padding: 16px; display: block; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--md-background);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <strong style="font-size: 18px;">Link to Document(s)</strong>
+            <div style="display: flex; gap: 12px; align-items: center;">
                 <button class="btn-primary-small" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">Done</button>
-                <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">close</span>
+                <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
             </div>
         </div>
-        <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
-            <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-linked-docs" placeholder="Search Order No or Inv No..." oninput="if(window.app) window.app.filterLinkedDocs(this.value)"></div>
-            <div class="tap-target m3-card" style="background: var(--md-surface-variant); text-align: center; font-weight: 500; color: var(--md-primary);" onclick="if(window.app) window.app.selectLinkedDoc('', '-- No Link (General Expense) --')">Clear Link / General Expense</div>
-            <ul class="list-view" id="list-linked-docs" style="flex: 1; overflow-y: auto;"></ul>
+        <div class="search-bar" style="margin-bottom: 16px;">
+            <span class="material-symbols-outlined">search</span>
+            <input type="text" id="search-linked-docs" placeholder="Search Order No or Inv No..." oninput="if(window.app) window.app.filterLinkedDocs(this.value)">
         </div>
+        
+        <div class="tap-target m3-card" style="background: var(--md-surface-variant); text-align: center; font-weight: 500; color: var(--md-primary); margin-bottom: 16px;" onclick="if(window.app) window.app.selectLinkedDoc('', '-- No Link (General Expense) --')">Clear Link / General Expense</div>
+        
+        <ul class="list-view" id="list-linked-docs" style="margin: 0; padding: 0; padding-bottom: 40px;"></ul>
     </div>
     <div id="activity-gst-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
