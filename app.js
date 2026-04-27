@@ -376,7 +376,12 @@ const app = {
                     // Match the precise true balance using the core payment map
                     const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
-                    const balance = (parseFloat(sale.grandTotal) || 0) - paid;
+                    
+                    // ENTERPRISE FIX: Subtract Credit Notes so returned items don't falsely inflate dashboard debt!
+                    const linkedReturns = UI.state.rawData.sales.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
+                    const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
+                    
+                    const balance = (parseFloat(sale.grandTotal) || 0) - paid - returnTotal;
 
                     if (balance > 0.01) {
                         totalDue += balance;
@@ -428,7 +433,11 @@ const app = {
         
         // Trigger silent background backup if active
         if (typeof Cloud !== 'undefined' && Cloud.autoBackup) {
-            Cloud.autoBackup();
+            // ENTERPRISE FIX: Only run background backup if Google Drive is ALREADY authenticated!
+            // This prevents the Google Drive login screen from violently interrupting your workflow after saving.
+            if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
+                Cloud.autoBackup();
+            }
         }
     },
 
@@ -549,10 +558,10 @@ const app = {
                     
                     await saveRecord('ledgers', master);
 
-                    // Safely remap all connected documents to the master ID
-                    for (const s of sales) { if (s.customerId === l.id) { s.customerId = master.id; await saveRecord('sales', s); } }
-                    for (const p of purchases) { if (p.supplierId === l.id) { p.supplierId = master.id; await saveRecord('purchases', p); } }
-                    for (const r of receipts) { if (r.ledgerId === l.id) { r.ledgerId = master.id; await saveRecord('receipts', r); } }
+                    // ENTERPRISE FIX: Safely remap all connected documents AND update their static display names to the master!
+                    for (const s of sales) { if (s.customerId === l.id) { s.customerId = master.id; s.customerName = master.name; await saveRecord('sales', s); } }
+                    for (const p of purchases) { if (p.supplierId === l.id) { p.supplierId = master.id; p.supplierName = master.name; await saveRecord('purchases', p); } }
+                    for (const r of receipts) { if (r.ledgerId === l.id) { r.ledgerId = master.id; r.ledgerName = master.name; await saveRecord('receipts', r); } }
                     
                     // Delete the ghost copy
                     await deleteRecordById('ledgers', l.id);
@@ -769,10 +778,10 @@ const app = {
                 listEl.innerHTML = '<p style="text-align:center; color:var(--md-text-muted); margin-top: 20px;">No items found.</p>';
             } else {
                 listEl.innerHTML = records.map(r => `
-                    <li style="display: flex; justify-content: space-between; align-items: center; padding: 14px 12px; border-bottom: 1px solid var(--md-surface-variant); border-radius: 8px; margin-bottom: 4px; background: var(--md-surface);">
-                        <span style="font-size: 16px; font-weight: 500;">${r.name}</span>
-                        <div class="icon-circle tap-target" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);" onclick="app.deleteSimpleMaster('${storeName}', '${r.id}', '${title}')">
-                            <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
+                    <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid var(--md-surface-variant); border-radius: 8px; margin-bottom: 8px; background: var(--md-surface);">
+                        <span style="font-size: 16px; font-weight: 500; line-height: 1; margin: 0; padding: 0;">${r.name}</span>
+                        <div class="tap-target" style="width: 36px; height: 36px; min-width: 36px; background: #fff0f2; color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0; padding: 0; margin: 0;" onclick="app.deleteSimpleMaster('${storeName}', '${r.id}', '${title}')">
+                            <span class="material-symbols-outlined" style="font-size: 20px; display: flex; justify-content: center; align-items: center; line-height: 1; margin: 0; padding: 0;">delete</span>
                         </div>
                     </li>
                 `).join('');
@@ -1655,18 +1664,23 @@ const app = {
             
             // NEW: Expense form specific logic
             if (type === 'expense') {
-                if (!id && typeof getNextDocumentNumber === 'function') {
-                    document.getElementById('expense-no').value = await getNextDocumentNumber('expenses', 'EXP', 'expenseNo');
+                if (!id) {
+                    // STRICT ERP LOGIC: Only reset the labels and hidden inputs if we are creating a BRAND NEW expense!
+                    if (typeof getNextDocumentNumber === 'function') {
+                        document.getElementById('expense-no').value = await getNextDocumentNumber('expenses', 'EXP', 'expenseNo');
+                    }
+                    
+                    const linkInput = document.getElementById('expense-linked-invoice');
+                    if (linkInput) linkInput.value = '';
+                    
+                    const displayEl = document.getElementById('expense-linked-display');
+                    if (displayEl) {
+                        displayEl.innerText = '-- No Link (General Expense) --';
+                        displayEl.style.color = 'var(--md-text-muted)';
+                    }
                 }
                 
-                // Reset the display label
-                const displayEl = document.getElementById('expense-linked-display');
-                if (displayEl) {
-                    displayEl.innerText = '-- No Link (General Expense) --';
-                    displayEl.style.color = 'var(--md-text-muted)';
-                }
-                
-                // Build the new search screen
+                // Build the new search screen for BOTH new and edit modes so the checkboxes match the true state
                 if (typeof app.loadLinkedDocsList === 'function') app.loadLinkedDocsList();
             }
             
@@ -2221,7 +2235,15 @@ const app = {
                         if (existingRecord) data = { ...existingRecord };
                     }
                     
-                    formData.forEach((value, key) => { data[key] = value; });
+                    formData.forEach((value, key) => { 
+                        // ENTERPRISE UPGRADE: Auto-Capitalize Names & Categories for a clean, professional database!
+                        if (typeof value === 'string' && (key === 'name' || key === 'category' || key === 'city')) {
+                            // Converts "acme corp" into "Acme Corp" automatically
+                            data[key] = value.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                        } else {
+                            data[key] = value; 
+                        }
+                    });
 
                     // ENTERPRISE FIX: Duplicate Document Number Protection for Expenses
                     if (type === 'expense' && data.expenseNo) {
@@ -3383,10 +3405,16 @@ const app = {
         const currentSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
         let html = '';
         
-        const recentSales = sales.filter(s => s.firmId === app.state.firmId && s.status !== 'Open').slice(-50).reverse();
-        if (recentSales.length > 0) {
+        const recentSales = sales.filter(s => s.firmId === app.state.firmId && s.status !== 'Open');
+        // ENTERPRISE FIX: Sort Sales Invoices alphanumerically by Order/Invoice Number
+        recentSales.sort((a,b) => String(b.orderNo || b.invoiceNo || b.id).localeCompare(String(a.orderNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
+        
+        // Take only the top 50 to prevent freezing the UI
+        const slicedSales = recentSales.slice(0, 50);
+
+        if (slicedSales.length > 0) {
             html += `<li style="background: var(--md-surface-variant); font-weight: bold; pointer-events: none; padding: 8px 16px; border-radius: 4px;">Sales Invoices</li>`;
-            recentSales.forEach(s => {
+            slicedSales.forEach(s => {
                 // BULLETPROOF: Save the exact Order/Invoice number directly!
                 const docNo = s.orderNo || s.invoiceNo || s.id;
                 const displayNo = s.orderNo || s.invoiceNo || s.id.slice(-4).toUpperCase();
@@ -3401,10 +3429,16 @@ const app = {
             });
         }
         
-        const recentPurch = purchases.filter(p => p.firmId === app.state.firmId && p.status !== 'Open').slice(-50).reverse();
-        if (recentPurch.length > 0) {
+        const recentPurch = purchases.filter(p => p.firmId === app.state.firmId && p.status !== 'Open');
+        // ENTERPRISE FIX: Sort Purchase Bills alphanumerically by PO/Order Number
+        recentPurch.sort((a,b) => String(b.poNo || b.orderNo || b.invoiceNo || b.id).localeCompare(String(a.poNo || a.orderNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
+        
+        // Take only the top 50 to prevent freezing the UI
+        const slicedPurch = recentPurch.slice(0, 50);
+
+        if (slicedPurch.length > 0) {
             html += `<li style="background: var(--md-surface-variant); font-weight: bold; pointer-events: none; padding: 8px 16px; border-radius: 4px; margin-top: 12px;">Purchase Bills</li>`;
-            recentPurch.forEach(p => {
+            slicedPurch.forEach(p => {
                 // BULLETPROOF: Save the exact PO/Order number directly!
                 const docNo = p.orderNo || p.poNo || p.invoiceNo || p.id;
                 const displayNo = p.orderNo || p.poNo || p.invoiceNo || p.id.slice(-4).toUpperCase();

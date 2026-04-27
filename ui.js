@@ -16,6 +16,15 @@ const UI = {
     },
 
     initPremiumUX: () => {
+        // ENTERPRISE UPGRADE: Lightning-Fast Data Entry!
+        // Automatically highlights the entire number when a user taps a quantity or rate box.
+        document.addEventListener('focusin', (e) => {
+            if (e.target.tagName === 'INPUT' && (e.target.type === 'number' || e.target.inputMode === 'decimal')) {
+                // A 50ms delay ensures mobile keyboards don't instantly un-select the text
+                setTimeout(() => e.target.select(), 50);
+            }
+        });
+
         // 1. Universal Auto-Haptics (Zero HTML changes required!)
         document.addEventListener('pointerdown', (e) => {
             const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .list-view li, .nav-item, .chip');
@@ -2075,7 +2084,27 @@ const UI = {
             
         } else if (targetType === 'item') {
             const isSales = prefix === 'sales';
+            
+            // ENTERPRISE UPGRADE: Smart Frequent Items Sorting Engine
+            const freqMap = {};
+            const historyData = isSales ? UI.state.rawData.sales : UI.state.rawData.purchases;
+            historyData.forEach(doc => {
+                if (doc.status !== 'Open') { // Ignore drafts
+                    (doc.items || []).forEach(row => {
+                        freqMap[row.itemId] = (freqMap[row.itemId] || 0) + 1;
+                    });
+                }
+            });
+
             results = UI.state.rawData.items.filter(i => (i.name || '').toLowerCase().includes(query) || (i.sku || '').toLowerCase().includes(query));
+            
+            // Sort by most frequently used first, falling back to alphabetical order
+            results.sort((a, b) => {
+                const freqA = freqMap[a.id] || 0;
+                const freqB = freqMap[b.id] || 0;
+                if (freqB !== freqA) return freqB - freqA; // Descending frequency
+                return (a.name || '').localeCompare(b.name || '');
+            });
             
             results.slice(0, 30).forEach(i => {
                 const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);

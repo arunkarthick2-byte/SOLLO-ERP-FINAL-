@@ -3272,3 +3272,18 @@ body.dark-mode ::-webkit-scrollbar-thumb:active {
     -webkit-overflow-scrolling: touch; /* Enables smooth, momentum scrolling on mobile */
     padding-bottom: 30px; /* Adds a little extra breathing room at the bottom */
 }
+/* ==========================================
+   ENTERPRISE FIX: PROFESSIONAL STATIC FAB
+   ========================================== */
+#main-fab {
+    animation: none !important; /* Kills the continuous breathing/pulsing effect */
+    transform: none !important; /* Stops any background scaling */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important; /* Clean, static enterprise shadow */
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
+}
+
+/* Crisp, responsive feedback only when actively pressed */
+#main-fab:active {
+    transform: scale(0.96) !important; /* Professional click indent */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
