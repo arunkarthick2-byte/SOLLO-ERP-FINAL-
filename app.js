@@ -65,6 +65,25 @@ window.addEventListener('beforeunload', (event) => {
     }
 });
 
+// --- ENTERPRISE UPGRADE: NATIVE ANDROID BACK BUTTON INTERCEPTOR ---
+// Prevents the app from closing when the user presses the hardware back button while a menu is open!
+window.addEventListener('popstate', (event) => {
+    const openSheets = document.querySelectorAll('.bottom-sheet.open, .activity-screen.open');
+    if (openSheets.length > 0) {
+        openSheets.forEach(sheet => {
+            sheet.classList.remove('open');
+            // Remove dark overlays if they exist
+            const overlayId = sheet.id.replace('sheet-', 'overlay-');
+            const overlay = document.getElementById(overlayId) || document.querySelector('.sheet-overlay.open');
+            if (overlay) overlay.classList.remove('open');
+        });
+        // Push a fake state back into history so the app doesn't actually close
+        history.pushState(null, document.title, location.href);
+    }
+});
+// Seed the initial history state so the popstate event has something to bounce off of
+history.pushState(null, document.title, location.href);
+
 // --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT BANNER ---
 const updateNetworkStatus = () => {
     let banner = document.getElementById('offline-banner');
@@ -780,8 +799,8 @@ const app = {
                 listEl.innerHTML = records.map(r => `
                     <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid var(--md-surface-variant); border-radius: 8px; margin-bottom: 8px; background: var(--md-surface);">
                         <span style="font-size: 16px; font-weight: 500; line-height: 1; margin: 0; padding: 0;">${r.name}</span>
-                        <div class="tap-target" style="width: 36px; height: 36px; min-width: 36px; background: #fff0f2; color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0; padding: 0; margin: 0;" onclick="app.deleteSimpleMaster('${storeName}', '${r.id}', '${title}')">
-                            <span class="material-symbols-outlined" style="font-size: 20px; display: flex; justify-content: center; align-items: center; line-height: 1; margin: 0; padding: 0;">delete</span>
+                        <div class="tap-target" style="color: var(--md-error); display: flex; justify-content: center; align-items: center; padding: 4px; margin: 0;" onclick="app.deleteSimpleMaster('${storeName}', '${r.id}', '${title}')">
+                            <span class="material-symbols-outlined" style="font-size: 24px; display: flex; justify-content: center; align-items: center; line-height: 1; margin: 0; padding: 0;">delete</span>
                         </div>
                     </li>
                 `).join('');
@@ -1949,6 +1968,11 @@ const app = {
                     const img = document.getElementById('expense-attachment-preview');
                     if (img) { img.src = record.attachment; img.classList.remove('hidden'); }
                 }
+                
+                // ENTERPRISE FIX: Restore the hidden input value so editing an expense doesn't accidentally unlink it!
+                const linkInput = document.getElementById('expense-linked-invoice');
+                if (linkInput) linkInput.value = record.linkedInvoice || '';
+
                 // NEW: Recover the document names for the UI Display (Multi-Link)
                 if (record.linkedInvoice) {
                     const links = record.linkedInvoice.split(',').map(x => x.trim()).filter(x => x);

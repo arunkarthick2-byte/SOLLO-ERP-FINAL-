@@ -308,7 +308,12 @@ setTimeout(async () => {
             // STRICT ERP LOGIC: Prevent uploading an empty database if local storage was cleared!
             const firms = await window.getAllRecords('firms');
             if (firms && firms.length > 0) {
-                window.Cloud.autoBackup();
+                // ENTERPRISE FIX: Do NOT ambush the user with a popup 15 seconds after boot!
+                if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
+                    window.Cloud.autoBackup();
+                } else {
+                    console.warn("Cloud Sync pending: User not authenticated yet. Skipping silent boot backup.");
+                }
             } else {
                 console.warn("Local database is empty. Auto-backup aborted to protect Google Drive data.");
             }

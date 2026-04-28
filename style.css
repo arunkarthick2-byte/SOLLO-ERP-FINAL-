@@ -3263,9 +3263,10 @@ body.dark-mode ::-webkit-scrollbar-thumb:active {
     background-color: rgba(255, 255, 255, 0.3) !important;
 }
 /* ==========================================
-   BUG FIX: ENABLE SCROLLING FOR EXPENSE LINKED DOCS
+   ENTERPRISE FIX: ENABLE SCROLLING FOR ALL BOTTOM SHEET LISTS
    ========================================== */
-#list-linked-docs {
+#list-linked-docs,
+#list-simple-master {
     max-height: 60vh; /* Prevents the list from growing taller than 60% of your screen */
     overflow-y: auto !important; /* Forces the browser to create a vertical scrollbar */
     overflow-x: hidden;
@@ -3286,4 +3287,25 @@ body.dark-mode ::-webkit-scrollbar-thumb:active {
 #main-fab:active {
     transform: scale(0.96) !important; /* Professional click indent */
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+/* ==========================================
+   ENTERPRISE UX: NATIVE SPEED & FOCUS TRACKING
+   ========================================== */
+
+/* 1. Eliminate 300ms mobile tap delay for lightning-fast button reactions */
+button, .tap-target, .icon-circle, input, select, textarea {
+    touch-action: manipulation !important;
+}
+
+/* 2. Professional Input Tracking (Glows blue instantly when typing) */
+input:focus, select:focus, textarea:focus {
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 0 0 3px var(--md-primary-container) !important;
+    outline: none !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+/* 3. Force GSTIN and PAN fields to always type in Uppercase visually */
+input[id*="gst"], input[id*="hsn"] {
+    text-transform: uppercase !important;
 }
