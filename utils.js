@@ -1227,7 +1227,9 @@ const Utils = {
                         }
                     }
                 },
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+                // ENTERPRISE SPEED UPGRADE: Aggressive JPEG compression makes the PDF build and share instantly!
+                image: { type: 'jpeg', quality: 0.92 },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress: true }
             };
 
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');

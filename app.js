@@ -9,9 +9,16 @@ window.alert = function(message) {
         let icon = "💬";
         const msgLower = message.toLowerCase();
         
-        // Smart Engine: Auto-assigns emojis based on the text context!
-        if (msgLower.includes("error") || msgLower.includes("fail") || msgLower.includes("invalid") || msgLower.includes("please") || msgLower.includes("cannot")) icon = "⚠️";
-        if (msgLower.includes("success") || msgLower.includes("converted") || msgLower.includes("added")) icon = "✅";
+        // Smart Engine: Auto-assigns emojis AND physical haptic feedback based on the text context!
+        if (msgLower.includes("error") || msgLower.includes("fail") || msgLower.includes("invalid") || msgLower.includes("please") || msgLower.includes("cannot")) {
+            icon = "⚠️";
+            // SMART HAPTICS: Harsh double-vibration for errors/warnings
+            if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('heavy');
+        } else if (msgLower.includes("success") || msgLower.includes("converted") || msgLower.includes("added") || msgLower.includes("restored")) {
+            icon = "✅";
+            // SMART HAPTICS: Smooth single bump for success
+            if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('medium');
+        }
         
         window.Utils.showToast(`${icon} ${message}`);
     } else {
@@ -107,6 +114,15 @@ const updateNetworkStatus = () => {
         
         if (window.networkBannerTimeout) clearTimeout(window.networkBannerTimeout);
         window.networkBannerTimeout = setTimeout(() => { banner.style.transform = 'translateY(-100%)'; }, 3000);
+
+        // ENTERPRISE UPGRADE: SMART AUTO-RECOVERY
+        // The moment internet is restored, silently push all offline work to Google Drive!
+        if (typeof Cloud !== 'undefined' && typeof Cloud.autoBackup === 'function') {
+            if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
+                // Wait 2 seconds to ensure the 4G/WiFi connection is stable, then sync
+                setTimeout(() => Cloud.autoBackup(), 2000);
+            }
+        }
     }
 };
 
@@ -115,14 +131,33 @@ window.addEventListener('online', updateNetworkStatus);
 // Run once on boot just in case they open the app while already offline
 if (!navigator.onLine) updateNetworkStatus();
 
-// --- ENTERPRISE UPGRADE: BANKING APP PRIVACY SHIELD ---
+// --- ENTERPRISE SECURITY: BANKING PRIVACY SHIELD ---
+// Blurs the screen when the app is pushed to the background to hide financial data
 document.addEventListener('visibilitychange', () => {
-    // Blurs the entire app screen when the user minimizes it or opens the app switcher
-    if (document.hidden) {
-        document.body.style.filter = 'blur(15px)';
-        document.body.style.transition = 'filter 0.2s ease';
+    if (document.visibilityState === 'hidden') {
+        document.body.classList.add('privacy-blur');
     } else {
-        document.body.style.filter = 'none';
+        // Remove blur with a tiny delay to let the OS finish waking up the app
+        setTimeout(() => document.body.classList.remove('privacy-blur'), 150);
+    }
+});
+
+// --- ENTERPRISE UX: DOUBLE-CHARGE PREVENTER ---
+// Globally stops users from accidentally creating duplicate records by double-tapping save buttons
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-primary, .btn-primary-small');
+    // If it's a primary action button and it's not already disabled...
+    if (btn && !btn.disabled && btn.style.pointerEvents !== 'none') {
+        
+        // Freeze the button
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.7';
+        
+        // Unfreeze it after 1.5 seconds (plenty of time for the database to finish saving)
+        setTimeout(() => {
+            btn.style.pointerEvents = 'auto';
+            btn.style.opacity = '1';
+        }, 1500);
     }
 });
 
@@ -139,6 +174,32 @@ import UI from './ui.js?v=6.1';
 
 const app = {
     state: { currentEditId: null, currentReceiptId: null, currentDocType: 'invoice', firmId: 'firm1' },
+
+    // ==========================================
+    // ENTERPRISE UX: DASHBOARD QUICK LINKS
+    // ==========================================
+    viewFilteredSales: (status) => {
+        // 1. Navigate to the Documents Tab seamlessly
+        if (window.UI && typeof window.UI.switchTab === 'function') {
+            const navBtn = document.getElementById('nav-docs');
+            window.UI.switchTab('tab-documents', 'Documents', navBtn);
+            
+            // 2. Ensure the Sales view is active (hiding Purchases if it was open)
+            const salesView = document.getElementById('doc-sales-view');
+            const purchView = document.getElementById('doc-purchase-view');
+            if (salesView && purchView) {
+                salesView.classList.remove('hidden');
+                purchView.classList.add('hidden');
+            }
+            
+            // 3. Wait 150ms for the screen to slide over, then apply the native filter!
+            setTimeout(() => {
+                if (window.UI && typeof window.UI.setFilter === 'function') {
+                    window.UI.setFilter('sales', status, null);
+                }
+            }, 150);
+        }
+    },
 
     // ==========================================
     // 1. BOOT SEQUENCE & FIRM MANAGEMENT
@@ -3303,71 +3364,130 @@ const app = {
             const party = await getRecordById('ledgers', receipt.ledgerId);
             if (party) {
                 const statement = await getKhataStatement(party.id, party.type);
-                balanceText = `<p style="margin: 8px 0 0 0; font-size: 14px; color: #43474e;">Current Party Balance: <strong>\u20B9${Math.abs(statement.finalBalance).toFixed(2)} ${statement.finalBalance > 0 ? (party.type === 'Customer' ? '(Due)' : '(To Pay)') : '(Advance)'}</strong></p>`;
+                // ENTERPRISE FIX: Styled the balance box to match the new Ledger layout perfectly!
+                balanceText = `<div style="display: inline-block; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 10px; color: #475569; margin-bottom: 8px;">Current Balance: <strong style="color: #0f172a; font-size: 12px;">\u20B9${Math.abs(statement.finalBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})} ${statement.finalBalance > 0 ? (party.type === 'Customer' ? '(Due)' : '(To Pay)') : '(Advance)'}</strong></div>`;
             }
         }
 
-        const html = `
-            <div id="pdf-receipt-wrapper" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; position: relative; background: #ffffff; overflow: hidden; color: #2d3748;">
-                
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+        // ENTERPRISE UPGRADE: Indian Rupee Number-to-Words Engine
+        const numToWords = (num) => {
+            const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+            const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
+            const n = ('000000000' + Math.floor(num)).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            if (!n) return '';
+            let str = '';
+            str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
+            str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
+            str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
+            str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
+            str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+            return str.trim() ? "Rupees " + str.trim() + " Only" : "";
+        };
+        const amountInWords = numToWords(parseFloat(receipt.amount) || 0);
 
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; margin-bottom: 30px; border-bottom: 4px solid #f0f4f8; position: relative; z-index: 1;">
-                    <div style="display: flex; align-items: center; gap: 15px; max-width: 60%;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; border-radius: 4px;" />` : ''}
+        const html = `
+            <div id="pdf-receipt-wrapper" class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important; position: relative; z-index: 1;">
+                
+                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: -1; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 12px; max-width: 60%;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 45px; border-radius: 4px; object-fit: contain;" />` : ''}
                         <div>
-                            <h1 style="margin: 0 0 4px 0; font-size: 24px; color: #1a202c; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
-                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">${biz.address || ''}</p>
-                            <p style="margin: 2px 0; font-size: 11px; color: #718096;">Ph: ${biz.phone || ''}</p>
+                            <h2 style="margin: 0; font-size: 16px; color: #0f172a; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${biz.name || 'Company Name'}</h2>
+                            <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b; line-height: 1.3;">${biz.address || ''}<br>Ph: ${biz.phone || ''}</p>
                         </div>
                     </div>
-                    <div style="text-align: right;">
-                        <h2 style="margin: 0 0 5px 0; font-size: 26px; color: #0061a4; letter-spacing: 1px; text-transform: uppercase; font-weight: 300;">${title}</h2>
-                        <p style="margin: 0; font-size: 13px; font-weight: bold; color: #4a5568;"># ${safeDocNo}</p>
+                    <div style="text-align: right; flex-shrink: 0;">
+                        <h2 style="margin: 0; font-size: 18px; color: #0061a4; font-weight: 800; letter-spacing: 0.5px;">${title}</h2>
+                        <h3 style="margin: 4px 0 0 0; color: #475569; font-size: 11px; font-weight: 700;"># ${safeDocNo}</h3>
                     </div>
                 </div>
-                
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 30px; margin-bottom: 30px; position: relative; z-index: 1; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                    <div style="text-align: center; margin-bottom: 25px;">
-                        <p style="margin: 0 0 5px 0; font-size: 12px; color: #718096; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Amount ${isMoneyIn ? 'Received' : 'Paid'}</p>
-                        <h1 style="margin: 0; font-size: 42px; color: ${isMoneyIn ? '#2f855a' : '#e53e3e'}; font-weight: 800;">\u20B9${parseFloat(receipt.amount).toFixed(2)}</h1>
-                    </div>
 
-                    <table style="width: 100%; font-size: 13px; border-collapse: collapse; border: none;">
-                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; width: 35%; font-weight: bold;">Date:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.date}</td></tr>
-                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">${isMoneyIn ? 'Received From:' : 'Paid To:'}</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #0061a4; font-size: 15px;">${receipt.ledgerName}</td></tr>
-                        <tr><td style="padding: 12px 10px; color: #718096; border-bottom: 1px dashed #e2e8f0; font-weight: bold;">Payment Mode:</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: 1px dashed #e2e8f0; color: #1a202c;">${receipt.mode || 'Cash'} ${receipt.ref ? `(Ref: ${receipt.ref})` : ''}</td></tr>
-                        ${invoiceRefDisplay ? `<tr><td style="padding: 12px 10px; color: #718096; border-bottom: none; font-weight: bold;">Settled Invoice(s):</td><td style="padding: 12px 10px; font-weight: bold; text-align: right; border-bottom: none; color: #1a202c;">${invoiceRefDisplay}</td></tr>` : ''}
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed;">
+                        <tr>
+                            <td style="padding: 6px 4px; color: #64748b; width: 35%; font-weight: 600; text-transform: uppercase; font-size: 9px;">Date</td>
+                            <td style="padding: 6px 4px; color: #0f172a; font-weight: 700; text-align: right;">${receipt.date}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid #f1f5f9;">
+                            <td style="padding: 6px 4px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px;">${isMoneyIn ? 'Received From' : 'Paid To'}</td>
+                            <td style="padding: 6px 4px; color: #0061a4; font-weight: 800; font-size: 12px; text-align: right; word-wrap: break-word;">${receipt.ledgerName}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid #f1f5f9;">
+                            <td style="padding: 6px 4px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px;">Payment Mode</td>
+                            <td style="padding: 6px 4px; color: #0f172a; font-weight: 700; text-align: right;">${receipt.mode || 'Cash'} ${receipt.ref ? `<span style="color:#64748b; font-weight:500;">(Ref: ${receipt.ref})</span>` : ''}</td>
+                        </tr>
+                        ${invoiceRefDisplay ? `
+                        <tr style="border-top: 1px solid #f1f5f9;">
+                            <td style="padding: 6px 4px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px;">Settled Docs</td>
+                            <td style="padding: 6px 4px; color: #0f172a; font-weight: 700; text-align: right; word-wrap: break-word;">${invoiceRefDisplay}</td>
+                        </tr>` : ''}
                     </table>
                 </div>
-                
-                <div style="text-align: center; position: relative; z-index: 1;">${balanceText}</div>
-                
-                <div class="avoid-break" style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid; position: relative; z-index: 1;">
-                    <div style="font-size: 11px; color: #718096;">
+
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 10px;">
+                    <div style="text-align: left; flex: 1;">
+                        ${balanceText}
+                        ${amountInWords ? `<div style="font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase;">Amount in Words:</div><div style="font-size: 11px; color: #0f172a; font-weight: 700;">${amountInWords}</div>` : ''}
+                    </div>
+                    <div style="background: #f8fafc; padding: 12px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${isMoneyIn ? '#16a34a' : '#e11d48'}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-shrink: 0;">
+                        <span style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Amount ${isMoneyIn ? 'Received' : 'Paid'}</span><br>
+                        <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 2px;">₹ ${parseFloat(receipt.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                    </div>
+                </div>
+
+                <div class="avoid-break" style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid;">
+                    <div style="font-size: 9px; color: #64748b;">
                         <p style="margin:0;">* This is a computer generated receipt.</p>
                     </div>
-                    <div style="width: 200px; text-align: center;">
-                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 50px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 50px; margin-bottom: 5px;"></div>'}
-                        <div style="border-top: 1px solid #cbd5e0; padding-top: 5px; font-weight: bold; font-size: 11px; color: #2d3748;">Authorized Signatory</div>
+                    <div style="width: 120px; text-align: center;">
+                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 40px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 40px; margin-bottom: 5px;"></div>'}
+                        <div style="border-top: 1px solid #cbd5e0; padding-top: 5px; font-weight: bold; font-size: 9px; color: #0f172a; text-transform: uppercase;">Authorized Signatory</div>
                     </div>
                 </div>
             </div>
         `;
         
-        // ENTERPRISE FIX: Create the print-area dynamically so the PDF engine doesn't silently crash on fresh boots!
-        let printArea = document.getElementById('print-area');
-        if (!printArea) {
-            printArea = document.createElement('div');
-            printArea.id = 'print-area';
-            printArea.className = 'print-only';
-            document.body.appendChild(printArea);
-        }
+        // ENTERPRISE UPGRADE: Interactive Receipt PDF Viewer
+        const safeFilename = `${title.replace(/ /g, '_')}_${safeDocNo}.pdf`;
         
-        printArea.innerHTML = html;
+        let oldViewer = document.getElementById('activity-receipt-viewer');
+        if (oldViewer) oldViewer.remove();
+
+        let viewerHTML = `
+        <div id="activity-receipt-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column;">
+            <div class="activity-header">
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-receipt-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-receipt-viewer').remove(), 350);">arrow_back</span>
+                    <strong style="font-size: 18px;">${title}</strong>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('pdf-receipt-wrapper', '${safeFilename}', 'Here is your ${title} from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
+                    </div>
+                    <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('pdf-receipt-wrapper', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+                    </div>
+                </div>
+            </div>
+            <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
+                <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                    <div id="receipt-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box;">
+                        ${html}
+                    </div>
+                </div>
+            </div>
+        </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', viewerHTML);
+        
         setTimeout(() => {
-            window.Utils.processPDFExport('pdf-receipt-wrapper', `${title.replace(/ /g, '_')}_${safeDocNo}.pdf`);
-        }, 100);
+            document.getElementById('activity-receipt-viewer').classList.add('open');
+            window.Utils.showToast("✅ Document Ready!");
+        }, 50);
     },
 
     // ==========================================
@@ -3807,6 +3927,36 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
     }
 
     const statement = statementData.timeline;
+    
+    // ==========================================
+    // ENTERPRISE UPGRADE: PDF SUMMARY MATH ENGINE
+    // ==========================================
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    statement.forEach(row => {
+        let isDebit = false;
+        if (String(partyType).toLowerCase() === 'customer') {
+            isDebit = row.impact > 0;
+        } else {
+            isDebit = row.impact < 0;
+        }
+
+        // Handle the opening balance row specifically
+        if (row.id === 'open-bal') {
+             if (String(partyType).toLowerCase() === 'customer') {
+                 isDebit = row.impact > 0; 
+             } else {
+                 isDebit = row.impact < 0; 
+             }
+        }
+        
+        if (isDebit) {
+            totalDebit += Math.abs(row.impact || 0);
+        } else {
+            totalCredit += Math.abs(row.impact || 0);
+        }
+    });
 
     // Build Professional A4 Print Template (Now perfectly mobile responsive!)
     let html = `
@@ -3898,7 +4048,19 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             </tbody>
         </table>
         
-        <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px;">
+            <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; gap: 20px;">
+                <div>
+                    <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600;">Total Debit</span><br>
+                    <strong style="font-size: 14px; color: #e11d48;">₹ ${totalDebit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="width: 1px; background: #cbd5e1;"></div>
+                <div>
+                    <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600;">Total Credit</span><br>
+                    <strong style="font-size: 14px; color: #16a34a;">₹ ${totalCredit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+            </div>
+
             <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${statusColor}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Closing Balance</span><br>
                 <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px;">₹ ${finalBalText}</strong>
@@ -4172,3 +4334,27 @@ window.app = app; // Explicitly map to window to protect your HTML buttons
 window.exportDatabase = exportDatabase;
 window.importDatabase = importDatabase;
 // --- END OF NEW CODE ---
+// ==========================================
+// ENTERPRISE UPGRADE: PWA GHOST-CACHE DETECTOR
+// ==========================================
+// Constantly scans the server in the background. If you upload a new version of the app,
+// it instantly downloads it and alerts the user to refresh!
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(registration => {
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    // When the new code is fully downloaded and ready...
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        if (window.Utils && typeof window.Utils.showToast === 'function') {
+                            window.Utils.showToast("🚀 App Update Downloaded! Applying now...", 3000);
+                            // Force the phone to drop the old code and load the new code
+                            setTimeout(() => window.location.reload(), 2500);
+                        }
+                    }
+                });
+            });
+        });
+    });
+}

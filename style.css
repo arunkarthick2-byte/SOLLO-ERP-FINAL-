@@ -3309,3 +3309,76 @@ input:focus, select:focus, textarea:focus {
 input[id*="gst"], input[id*="hsn"] {
     text-transform: uppercase !important;
 }
+/* ==========================================
+   ENTERPRISE B2B UI: STRICT DATA & READABILITY
+   ========================================== */
+
+/* 1. Tabular Numbers (The Golden Rule of Accounting UIs)
+   Forces all numbers (1s, 8s, 0s) to have the exact same width. 
+   When looking at a column of prices or quantities, the digits will align perfectly vertically! */
+body, input, textarea, select, button {
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* 2. High-Density Data Structuring (Zebra Striping)
+   Makes long lists of invoices, customers, and inventory much easier to read without eye strain. */
+ul li:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02) !important;
+}
+ul li {
+    border-bottom: 1px solid var(--md-surface-variant) !important;
+    border-radius: 4px !important; /* Sharp, professional corners */
+    margin-bottom: 0 !important; /* Removes wasted space between list items */
+}
+body.dark-mode ul li:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* 3. Strict Structural Cards (Salesforce/SAP style)
+   Removes heavy drop-shadows and replaces them with crisp, defined borders. */
+.m3-card, .bottom-sheet {
+    border-radius: 8px !important; /* Tighter, more serious corners */
+    border: 1px solid var(--md-outline-variant) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important; /* Clean, minimal depth */
+}
+
+/* 4. Instant "No-Nonsense" Transitions
+   Replaces bouncy physics with incredibly fast, linear transitions for a "snappy" data-entry feel. */
+.bottom-sheet {
+    transition: transform 0.2s ease-out !important; 
+}
+.activity-screen {
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out !important; 
+}
+/* ==========================================
+   ENTERPRISE SECURITY: BANKING PRIVACY SHIELD
+   ========================================== */
+body.privacy-blur > * {
+    filter: blur(12px) grayscale(50%) !important;
+    opacity: 0.4 !important;
+    pointer-events: none !important;
+}
+
+body.privacy-blur::after {
+    content: "🔒 SECURED";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--md-on-surface);
+    z-index: 999999;
+}
+/* ==========================================
+   ENTERPRISE MOBILE: PULL-TO-REFRESH SHIELD
+   ========================================== */
+/* 1. Globally kills the mobile browser "Swipe down to refresh" feature to prevent accidental data loss! */
+body, html {
+    overscroll-behavior-y: none !important;
+}
+
+/* 2. Safely unlocks scrolling inside your menus and lists so they don't get trapped by the shield above! */
+.activity-content, .bottom-sheet, .list-view, #smart-search-results {
+    overscroll-behavior-y: contain !important;
+}

@@ -17,6 +17,8 @@
     <link rel="dns-prefetch" href="https://apis.google.com">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             // STRICT ERP LOGIC: Silently log UI errors so the user is never interrupted by a terrifying "Crash" popup!
@@ -139,21 +141,21 @@
                         <span class="material-symbols-outlined">local_shipping</span> Order Fulfillment
                     </strong>
                     
-                    <div style="background: #fff0f2; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--md-error);">
+                    <div class="tap-target" onclick="app.viewFilteredSales('Open')" style="background: #fff0f2; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--md-error); cursor: pointer;">
                         <span style="color: var(--md-error); font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">pending_actions</span> Open</span>
                         <span id="dash-orders-open" style="font-size: 14px; color: var(--md-error); font-weight: 500;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.2s;"></div>
                         </span>
                     </div>
                     
-                    <div style="background: #fff8e1; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #f57f17;">
+                    <div class="tap-target" onclick="app.viewFilteredSales('Shipped')" style="background: #fff8e1; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #f57f17; cursor: pointer;">
                         <span style="color: #d84315; font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">flight_takeoff</span> Shipped</span>
                         <span id="dash-orders-shipped" style="font-size: 14px; color: #d84315; font-weight: 500;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.3s;"></div>
                         </span>
                     </div>
                     
-                    <div style="background: #e8f5e9; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--md-success);">
+                    <div class="tap-target" onclick="app.viewFilteredSales('Completed')" style="background: #e8f5e9; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--md-success); cursor: pointer;">
                         <span style="color: #146c2e; font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">task_alt</span> Completed</span>
                         <span id="dash-orders-completed" style="font-size: 14px; color: #146c2e; font-weight: 500;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.4s;"></div>
@@ -1051,12 +1053,24 @@
         </div>
         <div class="activity-content" style="background: var(--md-background); padding: 0px 12px 12px 12px;">
             
-            <div class="search-bar" style="margin-bottom: 16px;">
+            <div class="search-bar" style="margin-bottom: 12px;">
                 <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                 <input type="text" id="search-timeline" placeholder="Search transactions..." style="flex: 1; min-width: 0;">
                 
                 <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="UI.openBottomSheet('sheet-timeline-filter')">filter_list</span>
+            </div>
+
+            <div id="ledger-summary-card" class="m3-card" style="display: flex; justify-content: space-between; padding: 12px; margin-bottom: 16px; border-left: 4px solid var(--md-primary);">
+                <div style="text-align: center; flex: 1;">
+                    <small style="color: var(--md-text-muted); display: block; font-size: 11px; text-transform: uppercase; font-weight: bold;">Total Debit</small>
+                    <strong id="ledger-total-debit" style="color: var(--md-error); font-size: 16px;">₹0.00</strong>
+                </div>
+                <div style="width: 1px; background: var(--md-outline-variant); margin: 0 12px;"></div>
+                <div style="text-align: center; flex: 1;">
+                    <small style="color: var(--md-text-muted); display: block; font-size: 11px; text-transform: uppercase; font-weight: bold;">Total Credit</small>
+                    <strong id="ledger-total-credit" style="color: var(--md-success); font-size: 16px;">₹0.00</strong>
+                </div>
             </div>
 
             <div id="timeline-list">
@@ -1603,6 +1617,9 @@
         <div class="sheet-header" style="background: var(--md-surface); border-bottom: 1px solid var(--md-surface-variant);">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Receive Payment</span>
             <div style="display: flex; gap: 8px;">
+                
+                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentEditId || window.app.state.currentReceiptId; if(id) { window.app.state.currentEditId = id; window.app.state.currentReceiptId = id; if(window.app.generateReceiptPDF) window.app.generateReceiptPDF(id); else window.app.generatePDF('receipt-in'); } else { alert('Please save the receipt first before printing!'); } }" style="color: #146c2e; background: #e8f5e9; padding: 8px; border-radius: 50%; font-size: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">picture_as_pdf</span>
+
                 <span id="btn-delete-receipt-in" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); background: #fff0f2; padding: 8px; border-radius: 50%; font-size: 20px;" onclick="app.deleteRecord('receipt-in')">delete</span>
                 <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%; font-size: 20px;">close</span>
             </div>
@@ -1682,6 +1699,9 @@
         <div class="sheet-header" style="background: var(--md-surface); border-bottom: 1px solid var(--md-surface-variant);">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Make Payment</span>
             <div style="display: flex; gap: 8px;">
+
+                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentEditId || window.app.state.currentReceiptId; if(id) { window.app.state.currentEditId = id; window.app.state.currentReceiptId = id; if(window.app.generateReceiptPDF) window.app.generateReceiptPDF(id); else window.app.generatePDF('receipt-out'); } else { alert('Please save the payment voucher first before printing!'); } }" style="color: #b71c1c; background: #ffebee; padding: 8px; border-radius: 50%; font-size: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">picture_as_pdf</span>
+
                 <span id="btn-delete-receipt-out" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); background: #fff0f2; padding: 8px; border-radius: 50%; font-size: 20px;" onclick="app.deleteRecord('receipt-out')">delete</span>
                 <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%; font-size: 20px;">close</span>
             </div>
@@ -2356,10 +2376,72 @@
             }, { passive: true });
 
             // ==========================================
+            // ENTERPRISE UPGRADE: DYNAMIC STATUS BAR (ANDROID)
+            // ==========================================
+            // Darkens the phone's top clock/battery bar when a menu opens, just like native apps!
+            const sheetOverlay = document.getElementById('sheet-overlay');
+            const themeMeta = document.getElementById('meta-theme-color');
+            if (sheetOverlay && themeMeta) {
+                new MutationObserver(() => {
+                    if (sheetOverlay.classList.contains('hidden')) {
+                        themeMeta.setAttribute('content', '#0061a4'); // Main brand blue
+                    } else {
+                        themeMeta.setAttribute('content', '#002a4a'); // Darkened overlay blue
+                    }
+                }).observe(sheetOverlay, { attributes: true, attributeFilter: ['class'] });
+            }
+
+            // ==========================================
+            // ENTERPRISE UPGRADE: SMART KEYBOARD CAPITALIZATION
+            // ==========================================
+            // Forces mobile keyboards to automatically capitalize names, products, and cities!
+            document.querySelectorAll('input[type="text"]').forEach(input => {
+                const id = (input.id || '').toLowerCase();
+                // Exclude fields that should be ALL CAPS (GST) or lowercase (search)
+                if (id.includes('gst')) {
+                    input.setAttribute('autocapitalize', 'characters');
+                } else if (!id.includes('search')) {
+                    input.setAttribute('autocapitalize', 'words');
+                }
+            });
+
+            // ==========================================
+            // ENTERPRISE UPGRADE: HIGH-SPEED "ENTER-TO-NEXT" ENGINE
+            // ==========================================
+            // Allows users to breeze through forms using the "Enter" or "Next" key on their mobile keyboard!
+            document.addEventListener('keydown', function(e) {
+                // Support both modern .key and older mobile .keyCode implementations
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                    const active = document.activeElement;
+                    // Ignore textareas (they need Enter for new lines) and search bars
+                    if (active.tagName === 'TEXTAREA' || (active.id && active.id.includes('search'))) return;
+                    
+                    if (active.tagName === 'INPUT' || active.tagName === 'SELECT') {
+                        e.preventDefault(); // Stop accidental form submission
+                        const form = active.closest('form');
+                        if (form) {
+                            // Find all visible, editable inputs in this exact form (ignoring readonly)
+                            const focusable = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), button[type="submit"]'));
+                            const index = focusable.indexOf(active);
+                            
+                            if (index > -1 && index < focusable.length - 1) {
+                                // ENTERPRISE FIX: Wait 50ms before jumping so the mobile keyboard doesn't glitch and blink!
+                                setTimeout(() => {
+                                    focusable[index + 1].focus(); 
+                                }, 50);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // ==========================================
             // ENTERPRISE UPGRADE: ANDROID HARDWARE BACK-BUTTON SHIELD
             // ==========================================
             // Prime the History API Trap the moment the app boots
             history.pushState({ sollo: true }, document.title, window.location.href);
+
+            let lastBackPressTime = 0; // NEW: Tracks the timer for double-taps
 
             window.addEventListener('popstate', function(event) {
                 let uiIntercepted = false;
@@ -2386,9 +2468,20 @@
                 }
 
                 if (uiIntercepted) {
-                    // STRICT ERP LOGIC: We saved them from exiting the app! 
-                    // Now we must instantly re-arm the trap for the next time they swipe back.
+                    // STRICT ERP LOGIC: We saved them from closing a menu! 
+                    // Instantly re-arm the trap for the next time they swipe back.
                     history.pushState({ sollo: true }, document.title, window.location.href);
+                } else {
+                    // ENTERPRISE UX: "Double-Tap to Exit" at the Home Screen
+                    const currentTime = new Date().getTime();
+                    if (currentTime - lastBackPressTime < 2000) {
+                        // User pressed back twice within 2 seconds. Let the app close normally!
+                    } else {
+                        // First time pressing back on the home screen. Trap it and warn them!
+                        lastBackPressTime = currentTime;
+                        if (window.Utils) window.Utils.showToast("Tap Back again to exit app");
+                        history.pushState({ sollo: true }, document.title, window.location.href);
+                    }
                 }
             });
 
@@ -2729,6 +2822,48 @@
             if (purchaseContainer) observer.observe(purchaseContainer, config);
             if (masterContainer) observer.observe(masterContainer, config);
         }, 1000);
+
+        // ==========================================
+        // ENTERPRISE UPGRADE: LEDGER TOTALS CALCULATOR
+        // ==========================================
+        // Secretly intercepts the data flowing into the timeline and calculates exact Debit/Credit totals!
+        if (window.UI && window.UI.renderVirtualList) {
+            const originalRender = window.UI.renderVirtualList;
+            window.UI.renderVirtualList = function(container, data, renderFn, emptyHtml) {
+                if (container && container.id === 'timeline-list') {
+                    let totalDebit = 0;
+                    let totalCredit = 0;
+                    
+                    if (Array.isArray(data)) {
+                        data.forEach(t => {
+                            // 1. Math for Party (Khata) Ledger
+                            if (t.debit) totalDebit += parseFloat(t.debit) || 0;
+                            if (t.credit) totalCredit += parseFloat(t.credit) || 0;
+                            
+                            // 2. Math Fallback for Item (Stock) Ledger 
+                            if (t.impact !== undefined) {
+                                if (parseFloat(t.impact) < 0) totalDebit += Math.abs(parseFloat(t.impact));
+                                if (parseFloat(t.impact) > 0) totalCredit += parseFloat(t.impact);
+                            }
+                        });
+                    }
+                    
+                    const debitEl = document.getElementById('ledger-total-debit');
+                    const creditEl = document.getElementById('ledger-total-credit');
+                    
+                    // Auto-detect if this is Money or Stock Units
+                    const isStock = data.length > 0 && data[0].impact !== undefined;
+                    const prefix = isStock ? '' : '₹';
+                    const suffix = isStock ? ' Units' : '';
+                    
+                    if (debitEl) debitEl.innerText = prefix + totalDebit.toFixed(2) + suffix;
+                    if (creditEl) creditEl.innerText = prefix + totalCredit.toFixed(2) + suffix;
+                }
+                
+                // Allow the original UI rendering to continue safely
+                return originalRender.apply(this, arguments);
+            };
+        }
     });
     </script>
         <script>
