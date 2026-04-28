@@ -70,13 +70,11 @@ const Cloud = {
         // Halt if API isn't loaded
         if (!gapiInited || !gisInited) return;
         
-        // If token is missing, request one silently and bind the backup to the callback!
+        // ENTERPRISE FIX: COMPLETELY KILL THE SILENT TOKEN REQUEST!
+        // Google Auth violently interrupts the screen to check accounts even when prompt is set to ''.
+        // Auto-backup will now ONLY run if the user is already actively logged in!
         if (gapi.client.getToken() === null) {
-            tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) return; // Abort silently if background token fails
-                Cloud.autoBackup(); // Securely resume the backup now that we have the token
-            };
-            tokenClient.requestAccessToken({ prompt: '' }); 
+            console.warn("Cloud Sync skipped: User not logged in this session.");
             return; 
         }
         
