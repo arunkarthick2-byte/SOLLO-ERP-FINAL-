@@ -7,7 +7,7 @@
 window.alert = function(message) {
     if (window.Utils && typeof window.Utils.showToast === 'function') {
         let icon = "💬";
-        const msgLower = message.toLowerCase();
+        const msgLower = String(message || '').toLowerCase();
         
         // Smart Engine: Auto-assigns emojis AND physical haptic feedback based on the text context!
         if (msgLower.includes("error") || msgLower.includes("fail") || msgLower.includes("invalid") || msgLower.includes("please") || msgLower.includes("cannot")) {
@@ -1005,7 +1005,7 @@ const app = {
                 const newName = inputEl.value.trim();
                 if (!newName) return window.Utils.showToast("⚠️ Name cannot be empty");
                 
-                if (records.some(r => r.name.toLowerCase() === newName.toLowerCase())) {
+                if (records.some(r => String(r.name || '').toLowerCase() === newName.toLowerCase())) {
                     return window.Utils.showToast("⚠️ This already exists!");
                 }
 
@@ -1125,7 +1125,7 @@ const app = {
                         if (nameIdx === -1 || !cols[nameIdx]) continue;
 
                         // NEW: Prevent duplicates by finding existing items by name
-                        const match = existingItems.find(i => i.name.toLowerCase() === cols[nameIdx].toLowerCase() && i.firmId === app.state.firmId);
+                        const match = existingItems.find(i => String(i.name || '').toLowerCase() === String(cols[nameIdx] || '').toLowerCase() && i.firmId === app.state.firmId);
 
                         // STRICT ERP LOGIC: Strip commas from Excel CSV exports before parsing to prevent data corruption!
                         const cleanNum = (val) => parseFloat(String(val || '0').replace(/,/g, '')) || 0;
@@ -1178,7 +1178,7 @@ const app = {
 
                         // FIX: Search the pre-loaded memory array instead of querying the database on every single row!
                         const match = existingLedgers.find(l => l.firmId === app.state.firmId && l.type === pType && 
-                            (l.name.toLowerCase() === cols[nameIdx].toLowerCase() || (cols[phoneIdx] && l.phone === cols[phoneIdx]))
+                            (String(l.name || '').toLowerCase() === String(cols[nameIdx] || '').toLowerCase() || (cols[phoneIdx] && l.phone === cols[phoneIdx]))
                         );
 
                         const cleanNum = (val) => parseFloat(String(val || '0').replace(/,/g, '')) || 0;
@@ -4505,10 +4505,11 @@ window.importDatabase = importDatabase;
 // Mathematically calculates if a word is a typo of another word (Max 2 mistakes)
 window.fuzzyMatch = function(searchQuery, targetText) {
     if (!searchQuery) return true; // Empty search shows everything
+    if (!targetText) return false; // ENTERPRISE FIX: Prevent crashes if an SKU or Name is empty!
     
     // Remove spaces and make lowercase for easy comparison
-    const search = searchQuery.toLowerCase().replace(/\s+/g, '');
-    const target = targetText.toLowerCase().replace(/\s+/g, '');
+    const search = String(searchQuery).toLowerCase().replace(/\s+/g, '');
+    const target = String(targetText).toLowerCase().replace(/\s+/g, '');
     
     // 1. If it's a perfect match or a perfect partial match, instant win!
     if (target.includes(search)) return true; 

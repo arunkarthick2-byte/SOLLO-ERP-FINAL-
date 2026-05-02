@@ -2521,8 +2521,10 @@
                 });
             });
 
-            // Start watching the entire app body for opening/closing screens
-            navObserver.observe(document.body, { attributes: true, attributeOldValue: true, attributeFilter: ['class'], subtree: true });
+            // ENTERPRISE FIX: Watch ONLY the specific screens to save battery and prevent CPU stutter!
+            document.querySelectorAll('.bottom-sheet, .activity-screen').forEach(screen => {
+                navObserver.observe(screen, { attributes: true, attributeOldValue: true, attributeFilter: ['class'] });
+            });
 
         }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK
     </script>
