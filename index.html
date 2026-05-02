@@ -17,8 +17,6 @@
     <link rel="dns-prefetch" href="https://apis.google.com">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             // STRICT ERP LOGIC: Silently log UI errors so the user is never interrupted by a terrifying "Crash" popup!
@@ -54,8 +52,6 @@
         }
     </style>
 
-    <script async defer src="https://apis.google.com/js/api.js"></script>
-    <script async defer src="https://accounts.google.com/gsi/client"></script>
 </head>
 
 <body>
@@ -81,12 +77,17 @@
             <div id="tab-dashboard" class="screen-section active-screen">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <strong style="font-size: 18px;">Business Overview</strong>
-                    <select id="dashboard-date-filter" style="width: auto; padding: 4px 8px; font-size: 14px; border:none; background:var(--md-surface-variant); border-radius:16px;" onchange="UI.renderDashboard()">
-                        <option value="today">Today</option>
-                        <option value="month" selected>This Month</option>
-                        <option value="year">This Year</option>
-                        <option value="all">All Time</option>
-                    </select>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <input type="month" id="dashboard-custom-month" style="display: none; padding: 4px; font-size: 13px; border: 1px solid var(--md-primary); border-radius: 6px; outline: none; background: #e3f2fd; color: #0061a4; font-weight: bold;" onchange="UI.renderDashboard()">
+                        <select id="dashboard-date-filter" style="width: auto; padding: 6px 10px; font-size: 13px; font-weight: 600; border:none; background:var(--md-surface-variant); color:var(--md-on-surface); border-radius:8px; outline:none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" onchange="if(this.value==='custom') { document.getElementById('dashboard-custom-month').style.display='block'; document.getElementById('dashboard-custom-month').showPicker ? document.getElementById('dashboard-custom-month').showPicker() : document.getElementById('dashboard-custom-month').focus(); } else { document.getElementById('dashboard-custom-month').style.display='none'; UI.renderDashboard(); }">
+                            <option value="today">Today</option>
+                            <option value="month" selected>This Month</option>
+                            <option value="last_month">Last Month</option>
+                            <option value="year">This Year</option>
+                            <option value="all">All Time</option>
+                            <option value="custom">Specific Month...</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
@@ -396,6 +397,17 @@
                             <div class="theme-toggle-knob" style="width: 20px; height: 20px; background: var(--md-outline); border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;"></div>
                         </div>
                     </div>
+
+                    <div class="m3-card tap-target" onclick="document.body.classList.toggle('compact-mode'); window.Utils.showToast('Density Updated');" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;">
+                        <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-primary); width: 40px; height: 40px; flex-shrink: 0;">
+                            <span class="material-symbols-outlined">format_line_spacing</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <strong class="large-text" style="font-size: 15px;">Compact Mode</strong>
+                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Shrink lists to fit more data</small>
+                        </div>
+                    </div>
+
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('trash', 'Recycle Bin')">
                         <span class="material-symbols-outlined" style="color: var(--md-error);">delete</span>
                         <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-error);">Recycle Bin</strong></div>
@@ -583,10 +595,15 @@
                     <div id="sales-expense-history-list"></div>
                 </div>
 
-                <div class="form-group" style="margin-top: 16px; margin-bottom: 24px;">
-                    <label style="color: #f57f17; font-weight: bold;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
-                    <textarea id="sales-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 8px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
-                </div>
+                <details class="advanced-options">
+                    <summary>Advanced Options & Notes</summary>
+                    <div>
+                        <div class="form-group" style="margin-top: 16px; margin-bottom: 8px;">
+                            <label style="color: #f57f17; font-weight: bold;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
+                            <textarea id="sales-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 8px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
+                        </div>
+                    </div>
+                </details>
 
                 <div class="form-bottom-spacer"></div>
 
@@ -2066,13 +2083,12 @@
             }
         };
 
-        // UPGRADE 2: Smart Offline Service Worker Registration
+        // UPGRADE 2: Stable Production Service Worker Registration
         let newWorker;
-        // ❌ DISABLED FOR DEVELOPMENT MODE: Do not register service worker while testing!
-        /*
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=6.0').then(reg => {
+                // v=7.0 forces the phone to dump the old broken cache!
+                navigator.serviceWorker.register('sw.js?v=7.0').then(reg => {
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {
@@ -2084,20 +2100,13 @@
                     });
                 });
             });
-
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    window.location.reload();
-                    refreshing = true;
-                }
-            });
+            // Note: We completely deleted the rogue controllerchange listener!
         }
-        */
 
         window.applyAppUpdate = () => {
             if (newWorker) newWorker.postMessage({ type: 'SKIP_WAITING' });
-            setTimeout(() => window.location.reload(), 500); 
+            // Safely wait half a second, then reload exactly once.
+            setTimeout(() => { window.location.reload(true); }, 500); 
         };
 
         // ==========================================
@@ -2216,7 +2225,8 @@
                     altInput: true,      // Creates a visual clone for the user
                     altFormat: "d/m/Y",  // Displays as DD/MM/YYYY (Indian Standard)
                     defaultDate: el.value || today,
-                    disableMobile: "true" 
+                    // ENTERPRISE UI: Triggers the native Android/iOS date wheel for perfect mobile visibility!
+                    disableMobile: false 
                 });
 
                 // ENTERPRISE FIX: Intercept JS value assignments to perfectly sync the Calendar UI!
@@ -2436,54 +2446,83 @@
             });
 
             // ==========================================
-            // ENTERPRISE UPGRADE: ANDROID HARDWARE BACK-BUTTON SHIELD
+            // ENTERPRISE UPGRADE: UNIVERSAL BACK-GESTURE & CLOSE ENGINE
             // ==========================================
-            // Prime the History API Trap the moment the app boots
-            history.pushState({ sollo: true }, document.title, window.location.href);
+            // Fixes the exact bug where closing a form jumps too far back or completely exits the app!
+            
+            let isSoftwareCloseInProgress = false;
+            let lastBackCallTime = 0;
 
-            let lastBackPressTime = 0; // NEW: Tracks the timer for double-taps
+            // ENTERPRISE UX: Lock the home screen so the first back-swipe doesn't exit the app immediately
+            window.history.pushState({ id: 'home' }, '', window.location.href);
 
-            window.addEventListener('popstate', function(event) {
-                let uiIntercepted = false;
-                
-                // 1. Intercept Back Button if a Bottom Sheet is open
-                const overlay = document.getElementById('sheet-overlay');
-                if (overlay && !overlay.classList.contains('hidden')) {
-                    if (window.UI) window.UI.closeAllBottomSheets();
-                    uiIntercepted = true;
-                } 
-                // 2. Intercept Back Button if a Full-Screen Form/Activity is open
-                else {
-                    const openActivities = Array.from(document.querySelectorAll('.activity-screen:not(.hidden)'));
-                    if (openActivities.length > 0) {
-                        // Safely close the topmost form instead of exiting the app
-                        const topActivity = openActivities[openActivities.length - 1];
-                        if (window.UI && typeof window.UI.closeActivity === 'function') {
-                            window.UI.closeActivity(topActivity.id);
-                        } else {
-                            topActivity.classList.add('hidden');
-                        }
-                        uiIntercepted = true;
-                    }
+            // 1. Listen for Android/iOS Hardware Back-Swipes
+            window.addEventListener('popstate', function (event) {
+                // If this popstate was triggered by our own software "X" button, ignore it so it doesn't double-close!
+                if (isSoftwareCloseInProgress) {
+                    isSoftwareCloseInProgress = false;
+                    return;
                 }
 
-                if (uiIntercepted) {
-                    // STRICT ERP LOGIC: We saved them from closing a menu! 
-                    // Instantly re-arm the trap for the next time they swipe back.
-                    history.pushState({ sollo: true }, document.title, window.location.href);
+                // Otherwise, it was a physical hardware swipe-back. Find all open screens.
+                const openScreens = Array.from(document.querySelectorAll('.bottom-sheet.open, .activity-screen.open'));
+                if (openScreens.length > 0) {
+                    // Grab the exact top-most screen and forcefully close it safely
+                    const topScreen = openScreens[openScreens.length - 1];
+                    topScreen.classList.remove('open');
+                    
+                    // If it is a temporary PDF viewer, destroy it from memory
+                    if (topScreen.id && topScreen.id.includes('viewer')) {
+                        setTimeout(() => topScreen.remove(), 350);
+                    }
                 } else {
-                    // ENTERPRISE UX: "Double-Tap to Exit" at the Home Screen
-                    const currentTime = new Date().getTime();
-                    if (currentTime - lastBackPressTime < 2000) {
-                        // User pressed back twice within 2 seconds. Let the app close normally!
+                    // We are on the home screen! Ask to exit.
+                    if (confirm("Do you want to exit the app?")) {
+                        window.history.back(); // Let them exit
                     } else {
-                        // First time pressing back on the home screen. Trap it and warn them!
-                        lastBackPressTime = currentTime;
-                        if (window.Utils) window.Utils.showToast("Tap Back again to exit app");
-                        history.pushState({ sollo: true }, document.title, window.location.href);
+                        window.history.pushState({ id: 'home' }, '', window.location.href); // Restore the lock
                     }
                 }
             });
+
+            // 2. Secretly watch every single menu and form in the entire app. 
+            // It perfectly syncs the app's visuals with the phone's internal hardware history stack!
+            const navObserver = new MutationObserver((mutations) => {
+                mutations.forEach(m => {
+                    if (m.attributeName === 'class') {
+                        const el = m.target;
+                        // Only intercept major screens and bottom sheets
+                        if (el.classList.contains('bottom-sheet') || el.classList.contains('activity-screen')) {
+                            const isOpenNow = el.classList.contains('open');
+                            const wasOpenBefore = m.oldValue && m.oldValue.includes('open');
+                            
+                            // SCENARIO A: The form just opened! Lock it into the phone's history stack.
+                            if (isOpenNow && !wasOpenBefore) {
+                                // Only push if the UI engine hasn't already pushed it
+                                if (!history.state || (history.state.id !== el.id && history.state.modal !== el.id)) {
+                                    history.pushState({ id: el.id, type: 'modal' }, '', '');
+                                }
+                            } 
+                            // SCENARIO B: The form just closed via a software "X" button! 
+                            // Erase it from the history stack so the NEXT hardware swipe back doesn't crash the app.
+                            else if (!isOpenNow && wasOpenBefore) {
+                                // Check if the phone's history still falsely thinks this form is open
+                                if (history.state && (history.state.id === el.id || history.state.modal === el.id)) {
+                                    if (Date.now() - lastBackCallTime > 300) { // Prevent double-firing collisions
+                                        isSoftwareCloseInProgress = true;
+                                        lastBackCallTime = Date.now();
+                                        history.back(); 
+                                        setTimeout(() => { isSoftwareCloseInProgress = false; }, 100);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+
+            // Start watching the entire app body for opening/closing screens
+            navObserver.observe(document.body, { attributes: true, attributeOldValue: true, attributeFilter: ['class'], subtree: true });
 
         }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK
     </script>
@@ -2797,31 +2836,9 @@
     </script>
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const observer = new MutationObserver((mutations) => {
-            document.querySelectorAll('.list-view li').forEach(li => {
-                const text = li.innerText || '';
-                // Strict check: If the row contains "Due" or a negative sign on a balance
-                if (text.includes('Due') || text.match(/Balance:.*[1-9]/) || text.match(/₹\s*-\d/)) {
-                    // Paint the right-side amount container red
-                    const amtDiv = li.querySelector('div:last-child');
-                    if (amtDiv) {
-                        amtDiv.style.color = '#ba1a1a'; // Strict Enterprise Red
-                    }
-                }
-            });
-        });
         
-        // Silently watch all major data grids
-        const config = { childList: true, subtree: true };
-        setTimeout(() => {
-            const salesContainer = document.getElementById('sales-history-container');
-            const purchaseContainer = document.getElementById('purchase-history-container');
-            const masterContainer = document.getElementById('master-list-container');
-            
-            if (salesContainer) observer.observe(salesContainer, config);
-            if (purchaseContainer) observer.observe(purchaseContainer, config);
-            if (masterContainer) observer.observe(masterContainer, config);
-        }, 1000);
+        // ENTERPRISE FIX: Destroyed the memory-leaking MutationObserver. 
+        // List colors are now natively handled by the GPU-accelerated ui.js render engine!
 
         // ==========================================
         // ENTERPRISE UPGRADE: LEDGER TOTALS CALCULATOR
@@ -2865,16 +2882,6 @@
             };
         }
     });
-    </script>
-        <script>
-        let isRefreshing = false;
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (!isRefreshing) {
-                isRefreshing = true;
-                window.Utils && window.Utils.showToast ? window.Utils.showToast("🔄 Applying new app update...") : alert("Applying new update...");
-                setTimeout(() => window.location.reload(), 1000);
-            }
-        });
     </script>
     <div id="sheet-smart-search" class="bottom-sheet" style="height: 90vh; max-height: 90vh; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; padding: 0; z-index: 6000;">
         <div style="padding: 16px; background: var(--md-surface); border-bottom: 1px solid var(--md-surface-variant); position: sticky; top: 0; z-index: 10; border-radius: 16px 16px 0 0;">

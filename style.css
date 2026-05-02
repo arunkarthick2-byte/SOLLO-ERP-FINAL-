@@ -3382,3 +3382,250 @@ body, html {
 .activity-content, .bottom-sheet, .list-view, #smart-search-results {
     overscroll-behavior-y: contain !important;
 }
+/* ==========================================
+   ENTERPRISE UI UPGRADE: TRUE SAAS AESTHETIC
+   ========================================== */
+
+/* 1. TABULAR NUMBERS: Forces all numbers to be the exact same width so decimals align perfectly in lists! */
+body, input, table, .m3-card, .list-view {
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* 2. FLAT ARCHITECTURE: Kills the bulky drop-shadows and replaces them with crisp, premium ultra-thin borders */
+.m3-card, .bottom-sheet, .activity-screen .activity-header {
+    box-shadow: none !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 3. SUBTLE BACKGROUNDS: Softens the main app background to make the white cards pop cleanly */
+body {
+    background-color: #F7F9FC !important;
+}
+
+/* 4. CLEANER LISTS: Removes background noise from list items and adds sharp separating lines */
+.virtual-item {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* 5. PREMIUM BUTTONS: Flattens main buttons for a modern, matte finish */
+.btn-primary, .btn-primary-small, .floating-action-button {
+    box-shadow: none !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+/* ==========================================
+   ENTERPRISE UI: PHASE 2 & 3
+   ========================================== */
+
+/* PHASE 2: PREMIUM SAAS INPUTS (Focus Rings & Clean Borders) */
+input[type="text"], input[type="number"], input[type="tel"], input[type="date"], select, textarea {
+    background-color: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.15) !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+/* Creates that beautiful "Stripe-style" soft blue glow when a user taps a text box */
+input:focus, select:focus, textarea:focus {
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important; 
+    outline: none !important;
+}
+
+/* PHASE 3: COMPACT MODE (High-Density Data Grids for Power Users) */
+/* When 'compact-mode' is active, everything shrinks by 30% to fit massive amounts of data on screen */
+body.compact-mode .m3-card, body.compact-mode .virtual-item {
+    padding: 8px 12px !important;
+    margin-bottom: 4px !important;
+}
+body.compact-mode .large-text {
+    font-size: 14px !important;
+}
+body.compact-mode small {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+}
+body.compact-mode .icon-circle {
+    width: 32px !important;
+    height: 32px !important;
+}
+body.compact-mode .icon-circle span {
+    font-size: 18px !important;
+}
+/* ==========================================
+   ENTERPRISE UI: APPLE-STYLE FROSTED GLASS & ANIMATIONS
+   ========================================== */
+
+/* 1. The iOS Background Blur (Hardware Accelerated) */
+.sheet-overlay.open {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important; /* Forces iOS Safari to render the blur */
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+/* 2. Premium Translucent Bottom Sheets */
+.bottom-sheet {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.8) !important; /* Creates a subtle glass rim */
+}
+
+/* Dark Mode Support for the Glass Effect */
+body.dark-theme .bottom-sheet {
+    background-color: rgba(30, 30, 30, 0.85) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 3. Cinematic "Slide & Scale" Animations for Full Screens */
+.activity-screen.open {
+    animation: cinematicEntry 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+}
+
+@keyframes cinematicEntry {
+    from { 
+        transform: translateY(30px) scale(0.98); 
+        opacity: 0; 
+    }
+    to { 
+        transform: translateY(0) scale(1); 
+        opacity: 1; 
+    }
+}
+/* ==========================================
+   ENTERPRISE UI: SMART FORM VALIDATION
+   ========================================== */
+
+/* 1. Untouched required fields get a subtle red hint */
+input:required:placeholder-shown, select:required:invalid, textarea:required:placeholder-shown {
+    border-left: 4px solid #ffb4ab !important;
+}
+
+/* 2. When a user clicks an empty required field, it glows red to warn them */
+input:required:placeholder-shown:focus, select:required:invalid:focus, textarea:required:placeholder-shown:focus {
+    background-color: #fff0f2 !important;
+    border-color: var(--md-error) !important;
+    box-shadow: 0 0 0 4px rgba(186, 26, 26, 0.12) !important;
+}
+
+/* 3. When the user types correctly, it instantly locks in with a green indicator! */
+input:required:not(:placeholder-shown):valid, select:required:valid, textarea:required:not(:placeholder-shown):valid {
+    border-left: 4px solid var(--md-success) !important;
+}
+
+/* 4. Correctly filled focused fields glow green */
+input:required:not(:placeholder-shown):valid:focus, select:required:valid:focus, textarea:required:not(:placeholder-shown):valid:focus {
+    background-color: #e8f5e9 !important;
+    border-color: var(--md-success) !important;
+    box-shadow: 0 0 0 4px rgba(20, 108, 46, 0.12) !important;
+}
+/* ==========================================
+   ENTERPRISE UI: NATIVE MOBILE FEEL (PHYSICS & GLASS)
+   ========================================== */
+
+/* 1. PHYSICAL TOUCH ENGINE (Button Physics) */
+/* When pressed, buttons and cards physically shrink into the screen by 4% */
+.tap-target:active, .btn-primary:active, .btn-primary-small:active, .m3-card.tap-target:active, .floating-action-button:active {
+    transform: scale(0.96) !important;
+    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    opacity: 0.85 !important;
+}
+
+/* Ensures they smoothly bounce back to normal size when you let go */
+.tap-target, .btn-primary, .btn-primary-small, .m3-card.tap-target, .floating-action-button {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, background-color 0.2s ease !important;
+    will-change: transform; /* Hardware accelerates the animation so it never lags */
+}
+
+/* 2. INFINITE SCROLL GLASS HEADERS */
+/* Makes top headers sticky and applies the iOS blur effect so items scroll underneath */
+.activity-header, .sheet-header, .top-app-bar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Dark Mode Support for Glass Headers */
+body.dark-theme .activity-header, body.dark-theme .sheet-header, body.dark-theme .top-app-bar {
+    background-color: rgba(30, 30, 30, 0.85) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+/* ==========================================
+   ENTERPRISE UI: SMART SCROLL MENU
+   ========================================== */
+/* Hardware-accelerated sliding transition for the bottom navigation */
+.tab-menu {
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    will-change: transform; /* Tells the mobile GPU to prepare for animation */
+}
+
+/* This class is injected by the JavaScript engine when you scroll down */
+.nav-hidden {
+    transform: translateY(150%) !important; 
+}
+/* ==========================================
+   ENTERPRISE UI: DECLUTTERING ENGINE
+   ========================================== */
+
+/* 1. PROGRESSIVE DISCLOSURE FORMS (Accordions) */
+details.advanced-options {
+    background: #f8fafc !important;
+    border: 1px solid rgba(0,0,0,0.06) !important;
+    border-radius: 12px !important;
+    margin-bottom: 16px !important;
+}
+details.advanced-options summary {
+    padding: 14px 16px !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    color: var(--md-primary) !important;
+    cursor: pointer !important;
+    list-style: none !important;
+    display: flex !important;
+    align-items: center !important;
+    user-select: none !important;
+}
+details.advanced-options summary::-webkit-details-marker { display: none !important; }
+details.advanced-options summary::after {
+    content: 'add';
+    font-family: 'Material Symbols Outlined';
+    margin-left: auto;
+    font-size: 20px;
+    transition: transform 0.3s ease;
+}
+details.advanced-options[open] summary::after {
+    transform: rotate(45deg);
+    color: var(--md-error);
+}
+details.advanced-options > div {
+    padding: 0 16px 16px 16px !important;
+    animation: cinematicEntry 0.3s ease forwards;
+}
+
+/* 2. KEBAB MENU POPUPS */
+.kebab-dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 45px;
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
+    border: 1px solid rgba(255,255,255,0.8) !important;
+    padding: 8px !important;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 1000 !important;
+    min-width: 130px;
+    animation: cinematicEntry 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+.kebab-dropdown-menu.active { display: flex !important; }

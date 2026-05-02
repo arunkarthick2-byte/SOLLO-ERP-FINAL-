@@ -336,7 +336,7 @@ const UI = {
     openActivity: (activityId) => {
         const a = document.getElementById(activityId);
         if(a) {
-            history.pushState({ modalOpen: true }, ''); 
+            // ENTERPRISE FIX: Removed manual history push to prevent Double-Brain collisions!
             
             let highestZ = 4000;
             document.querySelectorAll('.activity-screen.open').forEach(el => {
@@ -346,8 +346,7 @@ const UI = {
             a.style.zIndex = highestZ + 10;
 
             a.classList.remove('hidden'); 
-            a.style.display = 'flex'; /* FIX: Changed to flex so scrolling content doesn't stretch infinitely */
-            // FIX: Removed 'willChange' which was locking Android WebView scrolling!
+            a.style.display = 'flex'; 
             void a.offsetWidth; 
             
             requestAnimationFrame(() => { a.classList.add('open'); });
@@ -374,7 +373,7 @@ const UI = {
                 UI.state.activeActivity = null;
             }
             
-            if (history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); } 
+            // ENTERPRISE FIX: Removed manual history pop! (index.html handles this automatically)
         }
     },
 
@@ -560,18 +559,21 @@ const UI = {
         const typeEl = document.getElementById('sales-invoice-type');
         const isGST = typeEl ? typeEl.value !== 'Non-GST' : true;
 
+        // ENTERPRISE FIX: Bulletproof Math Parser that ignores commas and text!
+        const safeNum = (val) => (window.Utils && window.Utils.safeNumber) ? window.Utils.safeNumber(val) : (parseFloat(String(val || '0').replace(/,/g, '')) || 0);
+
         const rows = document.querySelectorAll('#sales-items-body .item-entry-card');
         
         rows.forEach(tr => {
-            const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
-            const rate = parseFloat(tr.querySelector('.row-rate').value) || 0;
+            const qty = safeNum(tr.querySelector('.row-qty').value);
+            const rate = safeNum(tr.querySelector('.row-rate').value);
             // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift
             const lineTotal = qty * rate;
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
         // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the invoice total!
-        const discountInput = Math.abs(parseFloat(document.getElementById('sales-discount').value) || 0);
+        const discountInput = Math.abs(safeNum(document.getElementById('sales-discount').value));
         const discountTypeEl = document.getElementById('sales-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -588,9 +590,10 @@ const UI = {
         let totalGst = 0;
 
         rows.forEach(tr => {
-            const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
-            const rate = parseFloat(tr.querySelector('.row-rate').value) || 0;
-            const gstPercent = isGST ? (parseFloat(tr.querySelector('.row-gst').value) || 0) : 0;
+            // ENTERPRISE FIX: Apply the safe math parser here too!
+            const qty = safeNum(tr.querySelector('.row-qty').value);
+            const rate = safeNum(tr.querySelector('.row-rate').value);
+            const gstPercent = isGST ? safeNum(tr.querySelector('.row-gst').value) : 0;
             
             const baseAmount = qty * rate;
             const discountedBase = baseAmount - (baseAmount * discountRatio);
@@ -617,7 +620,8 @@ const UI = {
             }
         });
 
-        const freight = parseFloat(document.getElementById('sales-freight').value) || 0;
+        // ENTERPRISE FIX: Apply safeNum to Sales Freight so commas don't break the grand total!
+        const freight = safeNum(document.getElementById('sales-freight').value);
         const exactTotal = finalSubtotal + totalGst + freight;
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
@@ -638,18 +642,21 @@ const UI = {
         const typeEl = document.getElementById('purchase-invoice-type');
         const isGST = typeEl ? typeEl.value !== 'Non-GST' : true;
 
+        // ENTERPRISE FIX: Bulletproof Math Parser that ignores commas and text!
+        const safeNum = (val) => (window.Utils && window.Utils.safeNumber) ? window.Utils.safeNumber(val) : (parseFloat(String(val || '0').replace(/,/g, '')) || 0);
+
         const rows = document.querySelectorAll('#purchase-items-body .item-entry-card');
         
         rows.forEach(tr => {
-            const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
-            const rate = parseFloat(tr.querySelector('.row-rate').value) || 0;
+            const qty = safeNum(tr.querySelector('.row-qty').value);
+            const rate = safeNum(tr.querySelector('.row-rate').value);
             // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift
             const lineTotal = qty * rate;
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
         // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the PO total!
-        const discountInput = Math.abs(parseFloat(document.getElementById('purchase-discount').value) || 0);
+        const discountInput = Math.abs(safeNum(document.getElementById('purchase-discount').value));
         const discountTypeEl = document.getElementById('purchase-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -666,9 +673,10 @@ const UI = {
         let totalGst = 0;
 
         rows.forEach(tr => {
-            const qty = parseFloat(tr.querySelector('.row-qty').value) || 0;
-            const rate = parseFloat(tr.querySelector('.row-rate').value) || 0;
-            const gstPercent = isGST ? (parseFloat(tr.querySelector('.row-gst').value) || 0) : 0;
+            // ENTERPRISE FIX: Apply the safe math parser here too!
+            const qty = safeNum(tr.querySelector('.row-qty').value);
+            const rate = safeNum(tr.querySelector('.row-rate').value);
+            const gstPercent = isGST ? safeNum(tr.querySelector('.row-gst').value) : 0;
             
             const baseAmount = qty * rate;
             const discountedBase = baseAmount - (baseAmount * discountRatio);
@@ -684,7 +692,7 @@ const UI = {
             totalGst += roundedGst;
         });
 
-        const freight = parseFloat(document.getElementById('purchase-freight').value) || 0;
+        const freight = safeNum(document.getElementById('purchase-freight').value);
         const exactTotal = finalSubtotal + totalGst + freight;
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
@@ -1036,7 +1044,8 @@ const UI = {
 
             if (activeTab === 'products') {
                 data = UI.state.rawData.items.filter(i => {
-                    const matchSearch = (i.name || '').toLowerCase().includes(searchTerm) || (i.sku || '').toLowerCase().includes(searchTerm);
+                    // ENTERPRISE UI: Fuzzy Search applied to Master Product List
+                    const matchSearch = window.fuzzyMatch(searchTerm, i.name) || window.fuzzyMatch(searchTerm, i.sku);
                     let matchFilter = true;
                     
                     // Bulletproof Math
@@ -1105,8 +1114,8 @@ const UI = {
 
                 data = UI.state.rawData.ledgers.filter(l => {
                     const safeType = String(l.type).toLowerCase();
-                    // STRICT ERP LOGIC: Case-insensitive matching so no parties become ghosts!
-                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && ((l.name || '').toLowerCase().includes(searchTerm) || (l.phone || '').toLowerCase().includes(searchTerm));
+                    // ENTERPRISE UI: Fuzzy Search applied to Master Party List
+                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && (window.fuzzyMatch(searchTerm, l.name) || window.fuzzyMatch(searchTerm, l.phone));
                     let matchFilter = true;
                     const bal = getBal(l.id, l.type);
 
@@ -1471,6 +1480,7 @@ const UI = {
     // ==========================================
     renderDashboard: () => {
         const filterEl = document.getElementById('dashboard-date-filter');
+        const customMonthEl = document.getElementById('dashboard-custom-month');
         const dateFilter = filterEl ? filterEl.value : 'all';
         const todayStr = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
         
@@ -1488,6 +1498,22 @@ const UI = {
             const itemMonth = parseInt(monthStr, 10) - 1;
             
             if (dateFilter === 'month') return itemMonth === currentMonth && itemYear === currentYear;
+            
+            // NEW ENGINE: Instantly jumps to the previous calendar month
+            if (dateFilter === 'last_month') {
+                let targetMonth = currentMonth - 1;
+                let targetYear = currentYear;
+                if (targetMonth < 0) { targetMonth = 11; targetYear -= 1; }
+                return itemMonth === targetMonth && itemYear === targetYear;
+            }
+            
+            // NEW ENGINE: Reads the exact month selected from the native HTML picker!
+            if (dateFilter === 'custom') {
+                if (!customMonthEl || !customMonthEl.value) return true;
+                const [cYear, cMonth] = customMonthEl.value.split('-');
+                return itemYear === parseInt(cYear, 10) && itemMonth === (parseInt(cMonth, 10) - 1);
+            }
+            
             if (dateFilter === 'year') return itemYear === currentYear;
             return true;
         };
@@ -1871,7 +1897,7 @@ const UI = {
         
         if (sheet && sheet.classList.contains('open')) return; 
 
-        history.pushState({ modalOpen: true }, ''); 
+        // ENTERPRISE FIX: Removed manual history push! index.html handles this automatically.
 
         if (overlay) {
             overlay.classList.remove('hidden');
@@ -2018,8 +2044,7 @@ const UI = {
         // Returning here prevents the search menu from stealing the Cashbook's state and closing the entire form!
         if (sheetId === 'sheet-smart-search') return;
         
-        // FIXED: Added an ignore flag to prevent double-closing
-        if (history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); }
+        // ENTERPRISE FIX: Removed manual history pop! index.html handles this automatically.
     },
 
     // ==========================================
@@ -2069,7 +2094,8 @@ const UI = {
         if (targetType === 'customer' || targetType === 'supplier') {
             const isCust = targetType === 'customer';
             const dbType = isCust ? 'Customer' : 'Supplier';
-            results = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === dbType.toLowerCase() && (l.name || '').toLowerCase().includes(query));
+            // ENTERPRISE UI: Fuzzy Search applied to Customer/Supplier billing selection
+            results = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === dbType.toLowerCase() && window.fuzzyMatch(query, l.name));
             
             results.slice(0, 30).forEach(l => {
                 const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -2096,7 +2122,8 @@ const UI = {
                 }
             });
 
-            results = UI.state.rawData.items.filter(i => (i.name || '').toLowerCase().includes(query) || (i.sku || '').toLowerCase().includes(query));
+            // ENTERPRISE UI: Fuzzy Search applied to Product billing selection
+            results = UI.state.rawData.items.filter(i => window.fuzzyMatch(query, i.name) || window.fuzzyMatch(query, i.sku));
             
             // Sort by most frequently used first, falling back to alphabetical order
             results.sort((a, b) => {
@@ -2186,7 +2213,7 @@ const UI = {
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
                 <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
                     ${name}
-                    <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${hsn}" style="border:none; background:transparent; width:60px; color:inherit;" readonly></div>
+                    <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${hsn}" style="border:none; background:transparent; width:100px; color:inherit;" readonly></div>
                 </div>
                 <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
             </div>
@@ -2209,7 +2236,7 @@ const UI = {
                     ${prefix === 'sales' ? `
                     <div>
                         <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
-                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:70px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
                     </div>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
                 </div>
@@ -2250,8 +2277,7 @@ const UI = {
             closedSomething = true;
         }
         
-        // FIXED: Restored the missing closing logic!
-        if (closedSomething && history.state && history.state.modalOpen) { window._ignoreNextPop = true; history.back(); }
+        // ENTERPRISE FIX: Removed manual history pop! index.html handles this automatically.
     },
         
     // UPGRADE: iOS-Style Haptic Context Menu
@@ -2606,7 +2632,7 @@ const UI = {
     renderPnL: () => {
         const startEl = document.getElementById('report-pnl-start');
         const endEl = document.getElementById('report-pnl-end');
-        
+
         if (!startEl.value || !endEl.value) {
             const d = new Date();
             endEl.value = typeof Utils !== 'undefined' ? Utils.getLocalDate() : d.toISOString().split('T')[0];
@@ -2618,41 +2644,47 @@ const UI = {
         const endDate = endEl.value;
         const container = document.getElementById('pnl-container');
 
-        // ENTERPRISE FIX: Multi-Company Data Isolation for PnL
+        if (!window.UI.state.rawData) return;
+
         const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
 
-        let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
+        let gstSales = 0, nonGstSales = 0;
+        let gstPurchases = 0, nonGstPurchases = 0;
+        let totalExpenses = 0;
+        let indirectIncome = 0;
+        let stockLoss = 0;
 
-        // 1. Calculate Accrual Revenue & COGS
-        UI.state.rawData.sales.forEach(s => {
+        // 1. CALCULATE SALES & COGS (Split by Tax Type)
+        (window.UI.state.rawData.sales || []).forEach(s => {
             if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= startDate && s.date <= endDate && s.status !== 'Open') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
-                const netSales = (parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0); // Profit excludes tax
-                totalRevenue += netSales * modifier;
+                const netSales = (parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0);
+                const isGST = (s.invoiceType === 'B2B' || s.invoiceType === 'B2C');
+
+                if (isGST) gstSales += netSales * modifier;
+                else nonGstSales += netSales * modifier;
 
                 (s.items || []).forEach(item => {
                     const cost = parseFloat(item.buyPrice) || 0;
-                    totalCOGS += ((parseFloat(item.qty) || 0) * cost) * modifier;
+                    const lineCOGS = ((parseFloat(item.qty) || 0) * cost) * modifier;
+                    if (isGST) gstPurchases += lineCOGS;
+                    else nonGstPurchases += lineCOGS;
                 });
             }
         });
 
-        // 2. Calculate Expenses
-        UI.state.rawData.expenses.forEach(e => {
+        // 2. CALCULATE EXPENSES
+        (window.UI.state.rawData.expenses || []).forEach(e => {
             if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= startDate && e.date <= endDate) {
                 totalExpenses += parseFloat(e.amount) || 0;
             }
         });
 
-        let indirectIncome = 0;
-        let stockLoss = 0;
-        
-        UI.state.rawData.cashbook.forEach(c => {
-            // ENTERPRISE FIX: Enforce Firm ID isolation so Shop B's income doesn't mathematically merge into Shop A's live PnL!
+        // 3. INDIRECT INCOME
+        (window.UI.state.rawData.cashbook || []).forEach(c => {
             if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= startDate && c.date <= endDate && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
-                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) ||
+                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) ||
                                              UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
                 if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
@@ -2661,9 +2693,9 @@ const UI = {
             }
         });
 
+        // 4. STOCK LOSS
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
                 if (adj.type === 'reduce' && adj.date >= startDate && adj.date <= endDate) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
                     stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
@@ -2671,10 +2703,13 @@ const UI = {
             });
         }
 
-        const grossProfit = (totalRevenue + indirectIncome) - totalCOGS;
-        const netProfit = grossProfit - (totalExpenses + stockLoss);
-        const isProfitable = netProfit >= 0;
+        // 5. CALCULATE EXACT MARGINS
+        const gstGrossProfit = gstSales - gstPurchases;
+        const nonGstGrossProfit = nonGstSales - nonGstPurchases;
+        const totalGrossProfit = gstGrossProfit + nonGstGrossProfit + indirectIncome;
+        const trueNetProfit = totalGrossProfit - (totalExpenses + stockLoss);
 
+        // 6. RENDER THE PREMIUM SPLIT UI
         container.innerHTML = `
             <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
                 <button class="btn-primary-small tap-target" onclick="UI.exportPnLCSV()" style="display:flex; align-items:center; gap:4px; background: #e8f5e9; color: #146c2e; border: 1px solid rgba(20, 108, 46, 0.3);">
@@ -2682,24 +2717,44 @@ const UI = {
                 </button>
             </div>
 
-            <div class="m3-card" style="padding: 16px; margin-bottom: 12px; border-left: 4px solid var(--md-success);">
-                <small style="color: var(--md-text-muted);">Trading Account</small>
-                <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>Total Net Revenue</span><strong>&#8377;${totalRevenue.toFixed(2)}</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-top:4px;"><span>Cost of Goods Sold (COGS)</span><strong style="color:var(--md-error);">-&#8377;${totalCOGS.toFixed(2)}</strong></div>
-                <hr style="border:0; border-top:1px dashed var(--md-outline-variant); margin: 8px 0;">
-                <div style="display:flex; justify-content:space-between; font-size:16px;"><strong>Gross Profit</strong><strong style="color:var(--md-success);">&#8377;${grossProfit.toFixed(2)}</strong></div>
+            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #0061a4; background: #e3f2fd; padding: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #0061a4; font-size: 14px; text-transform: uppercase;">GST Operations (B2B/B2C)</h4>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>GST Net Sales:</span> <strong>₹${gstSales.toFixed(2)}</strong></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--md-error);"><span>GST COGS:</span> <strong>- ₹${gstPurchases.toFixed(2)}</strong></div>
+                <hr style="border:0; border-top: 1px dashed #90caf9; margin: 8px 0;">
+                <div style="display: flex; justify-content: space-between; font-size: 15px; color: #0061a4;"><strong>GST Gross Profit:</strong> <strong>₹${gstGrossProfit.toFixed(2)}</strong></div>
             </div>
 
-            <div class="m3-card" style="padding: 16px; margin-bottom: 12px; border-left: 4px solid var(--md-error);">
-                <small style="color: var(--md-text-muted);">Operating Account</small>
-                <div style="display:flex; justify-content:space-between; margin-top:8px;"><span>Total Operating Expenses</span><strong>&#8377;${totalExpenses.toFixed(2)}</strong></div>
+            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #f57f17; background: #fff8e1; padding: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #f57f17; font-size: 14px; text-transform: uppercase;">Non-GST Operations</h4>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Non-GST Net Sales:</span> <strong>₹${nonGstSales.toFixed(2)}</strong></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--md-error);"><span>Non-GST COGS:</span> <strong>- ₹${nonGstPurchases.toFixed(2)}</strong></div>
+                <hr style="border:0; border-top: 1px dashed #ffe082; margin: 8px 0;">
+                <div style="display: flex; justify-content: space-between; font-size: 15px; color: #d84315;"><strong>Non-GST Gross Profit:</strong> <strong>₹${nonGstGrossProfit.toFixed(2)}</strong></div>
             </div>
 
-            <div class="m3-card" style="padding: 16px; background: ${isProfitable ? '#e8f5e9' : '#fff0f2'}; border: 1px solid ${isProfitable ? 'var(--md-success)' : 'var(--md-error)'};">
-                <small style="color: ${isProfitable ? 'var(--md-success)' : 'var(--md-error)'}; font-weight:bold; text-transform:uppercase;">Bottom Line Summary</small>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                    <strong style="font-size:18px;">Net ${isProfitable ? 'Profit' : 'Loss'}</strong>
-                    <strong style="font-size:24px; color:${isProfitable ? 'var(--md-success)' : 'var(--md-error)'};">&#8377;${Math.abs(netProfit).toFixed(2)}</strong>
+            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid var(--md-error); padding: 16px;">
+                <div style="display: flex; justify-content: space-between; color: var(--md-error); margin-bottom: 4px;">
+                    <strong>Operating Expenses:</strong>
+                    <strong>- ₹${totalExpenses.toFixed(2)}</strong>
+                </div>
+                ${stockLoss > 0 ? `<div style="display: flex; justify-content: space-between; color: var(--md-error);">
+                    <strong>Stock Loss:</strong>
+                    <strong>- ₹${stockLoss.toFixed(2)}</strong>
+                </div>` : ''}
+                ${indirectIncome > 0 ? `<div style="display: flex; justify-content: space-between; color: var(--md-success); margin-top: 4px;">
+                    <strong>Indirect Income:</strong>
+                    <strong>+ ₹${indirectIncome.toFixed(2)}</strong>
+                </div>` : ''}
+            </div>
+
+            <div class="m3-card" style="padding: 16px; background: ${trueNetProfit >= 0 ? '#e8f5e9' : '#fff0f2'}; border: 1px solid ${trueNetProfit >= 0 ? '#c8e6c9' : '#ffcdd2'};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="font-size: 14px; color: ${trueNetProfit >= 0 ? '#146c2e' : '#ba1a1a'}; display: block;">TRUE NET PROFIT</strong>
+                        <small style="color: var(--md-text-muted);">After all costs and expenses</small>
+                    </div>
+                    <strong style="font-size: 22px; color: ${trueNetProfit >= 0 ? '#146c2e' : '#ba1a1a'};">₹${trueNetProfit.toFixed(2)}</strong>
                 </div>
             </div>
         `;
@@ -3074,65 +3129,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if(input) input.addEventListener('input', window.Utils.debounce((e) => {
             const term = (e.target.value || '').toLowerCase();
             document.querySelectorAll(`#list-${type} li`).forEach(li => {
-                li.style.display = (li.innerText || '').toLowerCase().includes(term) ? '' : 'none';
+                // ENTERPRISE UI: Fuzzy Search applied to Bottom Sheets!
+                li.style.display = window.fuzzyMatch(term, li.innerText) ? '' : 'none';
             });
         }, 300)); // UPGRADE: 300ms Debounce for instant bottom sheet typing
     });
 
     // (Swipe Gesture Engine Removed to prevent accidental deletions)
-
-    // ==========================================
-    // HARDWARE BACK BUTTON GESTURE INTERCEPTOR
-    // ==========================================
-    window.addEventListener('popstate', () => {
-        if (window._ignoreNextPop) {
-            window._ignoreNextPop = false;
-            return;
-        }
-
-        // ENTERPRISE FIX: Unified Z-Index Back Stack Manager
-        // Grabs every open layer (sheets AND activities) and kills ONLY the absolute top one
-        const openSheets = Array.from(document.querySelectorAll('.bottom-sheet.open'));
-        const openActivities = Array.from(document.querySelectorAll('.activity-screen.open'));
-        const allOpenLayers = [...openSheets, ...openActivities];
-
-        if (allOpenLayers.length > 0) {
-            // Sort by absolute Z-Index so we always kill what the user is currently looking at
-            allOpenLayers.sort((a, b) => {
-                const zA = parseInt(window.getComputedStyle(a).zIndex, 10) || 0;
-                const zB = parseInt(window.getComputedStyle(b).zIndex, 10) || 0;
-                return zA - zB; 
-            });
-            
-            // Pop only the topmost layer
-            const topLayer = allOpenLayers.pop(); 
-            topLayer.classList.remove('open');
-            setTimeout(() => topLayer.classList.add('hidden'), 300);
-            
-            // If we closed a bottom sheet, check if we need to drop the dark overlay
-            if (topLayer.classList.contains('bottom-sheet')) {
-                const remainingSheets = openSheets.filter(s => s !== topLayer && s.classList.contains('open'));
-                if (remainingSheets.length === 0) {
-                    const overlay = document.getElementById('sheet-overlay');
-                    if (overlay) {
-                        overlay.classList.remove('open');
-                        setTimeout(() => {
-                            // STRICT ERP LOGIC: Re-check dynamically
-                            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
-                            if (currentlyOpen === 0) overlay.classList.add('hidden');
-                        }, 300);
-                    }
-                }
-                if (typeof app !== 'undefined' && app.state) app.state.currentReceiptId = null;
-            }
-            
-            // If we closed a main form activity, clear the UI active state tracker
-            if (topLayer.id === 'activity-sales-form' || topLayer.id === 'activity-purchase-form') {
-                UI.state.activeActivity = null;
-            }
-        }
-    });
-});
+}); // <--- CRITICAL FIX: This closes the massive event listener!
 
 // ==========================================
 // NEW CODE: ES MODULE EXPORT & GLOBAL MAP

@@ -72,25 +72,6 @@ window.addEventListener('beforeunload', (event) => {
     }
 });
 
-// --- ENTERPRISE UPGRADE: NATIVE ANDROID BACK BUTTON INTERCEPTOR ---
-// Prevents the app from closing when the user presses the hardware back button while a menu is open!
-window.addEventListener('popstate', (event) => {
-    const openSheets = document.querySelectorAll('.bottom-sheet.open, .activity-screen.open');
-    if (openSheets.length > 0) {
-        openSheets.forEach(sheet => {
-            sheet.classList.remove('open');
-            // Remove dark overlays if they exist
-            const overlayId = sheet.id.replace('sheet-', 'overlay-');
-            const overlay = document.getElementById(overlayId) || document.querySelector('.sheet-overlay.open');
-            if (overlay) overlay.classList.remove('open');
-        });
-        // Push a fake state back into history so the app doesn't actually close
-        history.pushState(null, document.title, location.href);
-    }
-});
-// Seed the initial history state so the popstate event has something to bounce off of
-history.pushState(null, document.title, location.href);
-
 // --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT BANNER ---
 const updateNetworkStatus = () => {
     let banner = document.getElementById('offline-banner');
@@ -160,6 +141,127 @@ document.addEventListener('click', (e) => {
         }, 1500);
     }
 });
+
+// --- ENTERPRISE UI: REAL-TIME FORM VALIDATION LOCK ---
+// Watches every keystroke and prevents clicking "Save" until required fields are filled!
+document.addEventListener('input', (e) => {
+    const form = e.target.closest('form');
+    if (!form) return;
+    
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (!submitBtn) return;
+
+    // Check if the HTML5 form is perfectly valid
+    if (form.checkValidity()) {
+        submitBtn.style.opacity = '1';
+        submitBtn.style.filter = 'grayscale(0%)';
+        submitBtn.style.transform = 'scale(1)';
+        submitBtn.style.pointerEvents = 'auto';
+    } else {
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.filter = 'grayscale(100%)';
+        submitBtn.style.pointerEvents = 'none';
+        submitBtn.style.transform = 'scale(0.98)';
+    }
+});
+
+// Force validation check the moment any form is opened
+document.addEventListener('click', (e) => {
+    if (e.target.closest('.tap-target') || e.target.closest('.floating-action-button')) {
+        setTimeout(() => {
+            document.querySelectorAll('form').forEach(f => {
+                if (f.closest('.open')) f.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        }, 350);
+    }
+});
+
+// --- ENTERPRISE UI: AUTO-KEBAB MENU ENGINE ---
+// Instantly declutters lists by turning scattered buttons into a clean 3-dot popup menu!
+document.addEventListener('click', (e) => {
+    // Close menus if we tap outside
+    if (!e.target.closest('.kebab-container')) {
+        document.querySelectorAll('.kebab-dropdown-menu').forEach(m => m.classList.remove('active'));
+    }
+});
+
+// The MutationObserver watches the app draw lists and automatically cleans them up
+new MutationObserver(() => {
+    document.querySelectorAll('ul li').forEach(li => {
+        const buttons = Array.from(li.querySelectorAll('button')).filter(b => !b.classList.contains('kebab-btn'));
+        
+        if (buttons.length > 0 && !li.querySelector('.kebab-container')) {
+            const container = document.createElement('div');
+            container.className = 'kebab-container';
+            container.style.cssText = 'position: absolute; right: 12px; top: 50%; transform: translateY(-50%);';
+
+            const kebabBtn = document.createElement('button');
+            kebabBtn.className = 'kebab-btn material-symbols-outlined tap-target';
+            kebabBtn.innerHTML = 'more_vert';
+            kebabBtn.style.cssText = 'background:transparent; border:none; color:var(--md-secondary); font-size:24px; padding:8px;';
+            
+            const dropdown = document.createElement('div');
+            dropdown.className = 'kebab-dropdown-menu';
+            
+            // Morph the old buttons to look like premium iOS menu items
+            buttons.forEach(btn => {
+                btn.style.width = '100%';
+                btn.style.padding = '10px 16px';
+                btn.style.borderRadius = '8px';
+                btn.style.textAlign = 'left';
+                btn.style.fontSize = '14px';
+                btn.style.fontWeight = '600';
+                btn.style.background = btn.innerText.toLowerCase().includes('delete') ? '#fff0f2' : 'var(--md-surface-variant)';
+                btn.style.color = btn.innerText.toLowerCase().includes('delete') ? 'var(--md-error)' : 'var(--md-on-surface)';
+                btn.style.border = 'none';
+                btn.style.boxShadow = 'none';
+                dropdown.appendChild(btn);
+            });
+
+            kebabBtn.onclick = (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.kebab-dropdown-menu').forEach(m => m !== dropdown && m.classList.remove('active'));
+                dropdown.classList.toggle('active');
+            };
+
+            // Hide the old HTML wrappers to shrink the list height!
+            const oldWrapper = li.querySelector('div[style*="display: flex"]');
+            if (oldWrapper && oldWrapper.contains(buttons[0])) oldWrapper.style.display = 'none';
+
+            li.style.position = 'relative';
+            li.style.paddingRight = '45px'; // Leave room for the 3-dots
+            
+            container.appendChild(kebabBtn);
+            container.appendChild(dropdown);
+            li.appendChild(container);
+        }
+    });
+}).observe(document.body, { childList: true, subtree: true });
+// ---------------------------------------------
+
+// --- ENTERPRISE UI: SMART SCROLL MENU (AUTO-HIDE) ---
+// Hides the bottom navigation bar when scrolling down to give 100% screen reading space!
+let lastScrollY = 0;
+// We use { capture: true, passive: true } so the 120hz mobile scrolling never lags
+document.addEventListener('scroll', (e) => {
+    const bottomNav = document.querySelector('.tab-menu');
+    if (!bottomNav) return;
+
+    const target = e.target;
+    // Get the scroll position of whatever container is currently scrolling
+    const currentScroll = target.scrollTop || window.scrollY;
+
+    if (currentScroll === undefined || currentScroll < 0) return;
+
+    // Only hide if we've scrolled down past the top header, and ignore tiny accidental thumb twitches
+    if (currentScroll > lastScrollY && currentScroll > 60) {
+        bottomNav.classList.add('nav-hidden'); // Scrolling Down = Hide Menu
+    } else if (currentScroll < lastScrollY - 5 || currentScroll < 50) {
+        bottomNav.classList.remove('nav-hidden'); // Scrolling Up = Show Menu
+    }
+    
+    lastScrollY = currentScroll;
+}, { capture: true, passive: true });
 
 // --- NEW CODE: Import all our modules ---
 // STRICT ERP LOGIC: Synchronized to v6.1 to prevent catastrophic double-booting of the database!
@@ -259,11 +361,14 @@ const app = {
             await app.loadFirms();
             
             await app.loadAllData(); 
-            await app.cleanupDuplicates(); // <-- ENTERPRISE FIX: Scans and merges duplicates on boot!
             app.setupForms();
             
-            // 3. Render the UI
+            // 3. Render the UI instantly so the user doesn't wait
             UI.renderDashboard();
+            
+            // ENTERPRISE FIX: Run the heavy database deduplication silently in the background!
+            // This prevents the splash screen from freezing as your database grows to thousands of records.
+            setTimeout(() => { app.cleanupDuplicates(); }, 2000);
             UI.applyFilters('sales');
             UI.applyFilters('purchases');
             UI.applyFilters('masters');
@@ -446,7 +551,8 @@ const app = {
                 if (r.firmId === app.state.firmId && r.invoiceRef && r.type === 'in') {
                     const refs = String(r.invoiceRef).split(',').map(x => x.trim());
                     const splitAmt = (parseFloat(r.amount) || 0) / (refs.length || 1);
-                    refs.forEach(ref => paymentMap[ref] = (paymentMap[ref] || 0) + splitAmt);
+                    // ENTERPRISE FIX: Lock payment allocations to the specific customer ID to prevent cross-contamination!
+                    refs.forEach(ref => paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + splitAmt);
                 }
             });
 
@@ -455,7 +561,8 @@ const app = {
                 if (sale.firmId === app.state.firmId && sale.status !== 'Completed' && sale.status !== 'Open' && sale.documentType !== 'return') {
                     // Match the precise true balance using the core payment map
                     const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean))];
-                    const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
+                    // ENTERPRISE FIX: Check the map using the customer ID prefix!
+                    const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${sale.customerId}_${ref}`] || 0), 0);
                     
                     // ENTERPRISE FIX: Subtract Credit Notes so returned items don't falsely inflate dashboard debt!
                     const linkedReturns = UI.state.rawData.sales.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
@@ -652,6 +759,24 @@ const app = {
             // 2. Merge Duplicate Bank Accounts & Enforce Official Cash Drawer
             const accMap = {};
             let realCash = accounts.find(a => a.id === 'cash' && a.firmId === app.state.firmId);
+
+            // ENTERPRISE FIX: Catch Ghost / Orphaned Receipts and Expenses FIRST and bind them to Cash!
+            for (const r of receipts) {
+                // Wrapped in String() to prevent .trim() from crashing on older records
+                if (!r.accountId || String(r.accountId).trim() === '') {
+                    r.accountId = 'cash';
+                    await saveRecord('receipts', r); // REAL FIX: The IndexedDB table is actually named 'receipts'!
+                    cleaned = true;
+                }
+            }
+            const expenses = await getAllRecords('expenses');
+            for (const e of expenses) {
+                if (!e.accountId || String(e.accountId).trim() === '') {
+                    e.accountId = 'cash';
+                    await saveRecord('expenses', e);
+                    cleaned = true;
+                }
+            }
 
             for (const a of accounts) {
                 if (a.firmId !== app.state.firmId) continue;
@@ -1644,8 +1769,10 @@ const app = {
             
             // --- ENTERPRISE UPGRADE: NESTED MEMORY SHIELD ---
             // Do NOT overwrite memory if we are opening a Master form on top of an active invoice!
-            const salesOpen = document.getElementById('activity-sales-form')?.classList.contains('open');
-            const purchOpen = document.getElementById('activity-purchase-form')?.classList.contains('open');
+            const sFormNode = document.getElementById('activity-sales-form');
+            const pFormNode = document.getElementById('activity-purchase-form');
+            const salesOpen = sFormNode ? sFormNode.classList.contains('open') : false;
+            const purchOpen = pFormNode ? pFormNode.classList.contains('open') : false;
             const isMaster = (type === 'ledger' || type === 'product' || type === 'account');
             
             if (!(isMaster && (salesOpen || purchOpen))) {
@@ -1726,6 +1853,13 @@ const app = {
                 if(dateInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
                     dateInput.value = Utils.getLocalDate();
                     if (dateInput._flatpickr) dateInput._flatpickr.setDate(Utils.getLocalDate()); // FIX: Sync Flatpickr
+                }
+                
+                // ENTERPRISE FIX: Force status to "Open" for brand new documents
+                const statusEl = document.getElementById(`${type}-order-status`);
+                if (statusEl) {
+                    statusEl.value = 'Open';
+                    if (window.UI) window.UI.toggleDates(type); // Hide the shipped/completed dates!
                 }
                 
                 // Injecting the Editable Auto-Numbering Engine
@@ -1857,12 +1991,12 @@ const app = {
                         <div style="flex: 1;">
                             <strong style="font-size: 15px; color: var(--md-on-surface);">${item.name}</strong>
                             ${maxLabel}
-                            <div style="font-size: 11px; color: var(--md-text-muted); margin-top: 2px;">HSN/SAC: <input type="text" class="row-hsn" value="${item.hsn || ''}" placeholder="HSN" style="width: 60px; border:none; border-bottom: 1px solid var(--md-outline-variant); background:transparent; font-size: 11px; padding: 2px;"></div>
+                            <div style="font-size: 11px; color: var(--md-text-muted); margin-top: 2px;">HSN/SAC: <input type="text" class="row-hsn" value="${item.hsn || ''}" placeholder="HSN" style="width: 100px; border:none; border-bottom: 1px solid var(--md-outline-variant); background:transparent; font-size: 11px; padding: 2px;"></div>
                             
                             ${type === 'sales' && record.documentType !== 'return' ? `
                             <div style="display:flex; align-items:center; gap:4px; margin-top:6px;">
                                 <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
+                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:100px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
                             </div>
                             <small class="live-margin" style="font-size:10px; display:block; margin-top:4px; color:var(--md-success);"></small>
                             ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
@@ -2438,14 +2572,16 @@ const app = {
 
                 // --- ENTERPRISE UPGRADE: SMART AUTO-SELECT FOR NESTED FORMS ---
                 // If the user was in the middle of an invoice, automatically drop the new item/party in!
-                const salesOpen = document.getElementById('activity-sales-form')?.classList.contains('open');
-                const purchOpen = document.getElementById('activity-purchase-form')?.classList.contains('open');
+                const sFormNode = document.getElementById('activity-sales-form');
+                const pFormNode = document.getElementById('activity-purchase-form');
+                const isSalesFormOpen = sFormNode ? sFormNode.classList.contains('open') : false;
+                const isPurchFormOpen = pFormNode ? pFormNode.classList.contains('open') : false;
                 
-                if (salesOpen || purchOpen) {
-                    const prefix = salesOpen ? 'sales' : 'purchase';
+                if (isSalesFormOpen || isPurchFormOpen) {
+                    const prefix = isSalesFormOpen ? 'sales' : 'purchase';
                     
                     if (type === 'ledger') {
-                        const partyKey = salesOpen ? 'customer' : 'supplier';
+                        const partyKey = isSalesFormOpen ? 'customer' : 'supplier';
                         const idEl = document.getElementById(`${prefix}-${partyKey}-id`);
                         const displayEl = document.getElementById(`${prefix}-${partyKey}-display`);
                         if (idEl) idEl.value = data.id;
@@ -2494,8 +2630,14 @@ const app = {
                     await saveRecord('receipts', expenseReceipt);
                 }
                 
+                // ENTERPRISE FIX: Prevent nested Master forms from closing the Invoice behind them!
                 UI.closeActivity(`activity-${type}-form`);
-                app.refreshAll();
+                
+                // Only trigger a full UI refresh if we are NOT inside a nested invoice! 
+                // A full refresh while an invoice is open would wipe out the unsaved invoice data.
+                if (!(isSalesFormOpen || isPurchFormOpen)) {
+                    app.refreshAll();
+                }
                 
                 } catch (error) {
                     console.error("Save failed:", error);
@@ -3450,7 +3592,8 @@ const app = {
         `;
         
         // ENTERPRISE UPGRADE: Interactive Receipt PDF Viewer
-        const safeFilename = `${title.replace(/ /g, '_')}_${safeDocNo}.pdf`;
+        // FIX: Replaces slashes with dashes so the OS doesn't think the first half of the receipt number is a folder!
+        const safeFilename = `${title.replace(/ /g, '_')}_${safeDocNo.replace(/[\/\\]/g, '-')}.pdf`;
         
         let oldViewer = document.getElementById('activity-receipt-viewer');
         if (oldViewer) oldViewer.remove();
@@ -3494,47 +3637,44 @@ const app = {
     // 9. GST DASHBOARD CONTROLLER
     // ==========================================
     openGSTReport: async () => {
-        // Default to the current month
-        const dateInput = document.getElementById('gst-month-selector');
-        if (dateInput && !dateInput.value) {
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            dateInput.value = `${yyyy}-${mm}`;
-        }
+        const d = new Date();
+        const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const selector = document.getElementById('gst-month-selector');
+        if (selector) selector.value = monthStr;
         
-        await app.refreshGSTReport();
-        if (typeof UI !== 'undefined') UI.openActivity('activity-gst-report');
+        if (window.UI) window.UI.openActivity('activity-gst-report');
+        await window.app.refreshGSTReport();
     },
 
     refreshGSTReport: async () => {
         const monthVal = document.getElementById('gst-month-selector').value;
         if (!monthVal) return;
-        
-        if (typeof generateGSTReport !== 'function') {
-            return alert("GST engine not found in db.js! Please make sure you saved the db.js file updates.");
-        }
-        
-        // 1. Run the heavy math engine we built in db.js
-        const report = await generateGSTReport(monthVal, app.state.firmId);
-        
-        // 2. Update GSTR-3B UI Cards
-        document.getElementById('gst-out-tax').innerText = `\u20B9${report.gstr3b.outputTax.toFixed(2)}`;
-        document.getElementById('gst-in-tax').innerText = `\u20B9${report.gstr3b.inputTax.toFixed(2)}`;
-        document.getElementById('gst-net-payable').innerText = `\u20B9${report.gstr3b.netPayable.toFixed(2)}`;
-        
-        // 3. Update GSTR-1 UI Cards
+
+        // Fetches the raw tax math from your db.js engine
+        const report = await window.generateGSTReport(monthVal, app.state.firmId);
+
+        // GSTR-1: Sales Breakdown (Splits GST and Non-GST)
         document.getElementById('gst-b2b-taxable').innerText = `\u20B9${report.gstr1.b2bTaxable.toFixed(2)}`;
         document.getElementById('gst-b2b-tax').innerText = `\u20B9${report.gstr1.b2bTax.toFixed(2)}`;
         document.getElementById('gst-b2c-taxable').innerText = `\u20B9${report.gstr1.b2cTaxable.toFixed(2)}`;
         document.getElementById('gst-b2c-tax').innerText = `\u20B9${report.gstr1.b2cTax.toFixed(2)}`;
+
+        // GSTR-3B: Net Summary
+        document.getElementById('gst-out-tax').innerText = `\u20B9${report.gstr3b.outputTax.toFixed(2)}`;
+        document.getElementById('gst-in-tax').innerText = `\u20B9${report.gstr3b.inputTax.toFixed(2)}`;
         
-        // 4. Bind the Export CSV Button
+        const netPayableEl = document.getElementById('gst-net-payable');
+        if (netPayableEl) {
+            netPayableEl.innerText = `\u20B9${report.gstr3b.netPayable.toFixed(2)}`;
+            netPayableEl.style.color = report.gstr3b.netPayable > 0 ? '#ba1a1a' : '#146c2e';
+        }
+
+        // Bind the Export CSV Button
         const exportBtn = document.getElementById('btn-export-gst');
         if (exportBtn) {
-            exportBtn.onclick = () => { Utils.exportGSTCSV(report); };
+            exportBtn.onclick = () => { window.Utils.exportGSTCSV(report); };
         }
-    }, // <--- ADDED THE MISSING COMMA HERE!
+    },
 
     // ==========================================
     // NEW: EXPENSE LINK SEARCH ENGINE
@@ -3681,11 +3821,11 @@ const app = {
 
     filterLinkedDocs: (term) => {
         const listItems = document.querySelectorAll('#list-linked-docs li');
-        const lowerTerm = term.toLowerCase();
         listItems.forEach(li => {
             if(li.style.pointerEvents === 'none') return; // Skip headers
-            const text = li.innerText.toLowerCase();
-            li.style.display = text.includes(lowerTerm) ? 'flex' : 'none';
+            const text = li.innerText;
+            // ENTERPRISE UX: Powered by the new Fuzzy Search Engine!
+            li.style.display = window.fuzzyMatch(term, text) ? 'flex' : 'none';
         });
     },
 
@@ -4018,9 +4158,20 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         }
 
         // STRICT ERP LOGIC: Reduced vertical padding to 5px to remove the empty gap between rows!
+        
+        // ENTERPRISE UI: Smart Date Wrapper (Forces DD MMM 'YY so month and year never truncate on mobile)
+        let displayDate = row.date;
+        if (displayDate && displayDate !== 'Opening') {
+            const d = new Date(displayDate);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = d.toLocaleString('en-IN', { month: 'short' });
+            const year = String(d.getFullYear()).slice(-2);
+            displayDate = `${day} ${month} '${year}`;
+        }
+
         html += `
                 <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${row.date}</td>
+                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${displayDate}</td>
                     <td style="padding: 5px 4px; word-break: break-word; vertical-align: top; color: #1e293b; line-height: 1.4;">${row.desc || row.particulars || 'Opening Balance'}</td>
                     <td style="padding: 5px 4px; text-align: right; color: #e11d48; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${drText}</td>
                     <td style="padding: 5px 4px; text-align: right; color: #16a34a; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${crText}</td>
@@ -4083,6 +4234,9 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
     let oldViewer = document.getElementById('activity-khata-viewer');
     if (oldViewer) oldViewer.remove();
 
+    // ENTERPRISE FIX: Aggressive Regex strips slashes from "M/S" names to prevent OS truncation!
+    const safeFilename = `Ledger_Statement_${partyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+
     let viewerHTML = `
     <div id="activity-khata-viewer" class="activity-screen" style="z-index: 5500; display: flex; flex-direction: column;">
         <div class="activity-header">
@@ -4093,11 +4247,11 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             
             <div style="display: flex; align-items: center; gap: 12px;">
                 
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('khata-render-target', 'Ledger_Statement_${partyName.replace(/\s+/g, '_')}.pdf', 'Here is your Ledger Statement from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('khata-render-target', '${safeFilename}', 'Here is your Ledger Statement from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                 </div>
 
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('khata-render-target', 'Ledger_Statement_${partyName.replace(/\s+/g, '_')}.pdf')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('khata-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
                 </div>
 
@@ -4251,9 +4405,19 @@ window.executeAccountReport = async (accountId) => {
         if (row.partyName) fullDesc += `<br><span style="color:#555; font-size:9px;">Party: ${row.partyName}</span>`;
         if (row.ref) fullDesc += `<br><span style="color:#555; font-size:9px;">Ref: ${row.ref}</span>`;
 
+        // ENTERPRISE UI: Smart Date Wrapper (Forces DD MMM 'YY so month and year never truncate on mobile)
+        let displayDate = row.date;
+        if (displayDate && displayDate !== 'Opening') {
+            const d = new Date(displayDate);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = d.toLocaleString('en-IN', { month: 'short' });
+            const year = String(d.getFullYear()).slice(-2);
+            displayDate = `${day} ${month} '${year}`;
+        }
+
         html += `
                 <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${row.date}</td>
+                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${displayDate}</td>
                     <td style="padding: 5px 4px; word-break: break-word; vertical-align: top; color: #1e293b; line-height: 1.4;">${fullDesc}</td>
                     <td style="padding: 5px 4px; text-align: right; color: #16a34a; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${inText}</td>
                     <td style="padding: 5px 4px; text-align: right; color: #e11d48; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${outText}</td>
@@ -4289,7 +4453,8 @@ window.executeAccountReport = async (accountId) => {
     let oldViewer = document.getElementById('activity-account-viewer');
     if (oldViewer) oldViewer.remove();
 
-    const safeFilename = `Account_Statement_${account.name.replace(/\\s+/g, '_')}.pdf`;
+    // ENTERPRISE FIX: Aggressive Regex strips slashes from bank names to prevent OS truncation!
+    const safeFilename = `Account_Statement_${account.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
 
     let viewerHTML = `
     <div id="activity-account-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column;">
@@ -4334,27 +4499,43 @@ window.app = app; // Explicitly map to window to protect your HTML buttons
 window.exportDatabase = exportDatabase;
 window.importDatabase = importDatabase;
 // --- END OF NEW CODE ---
-// ==========================================
-// ENTERPRISE UPGRADE: PWA GHOST-CACHE DETECTOR
-// ==========================================
-// Constantly scans the server in the background. If you upload a new version of the app,
-// it instantly downloads it and alerts the user to refresh!
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then(registration => {
-            registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                newWorker.addEventListener('statechange', () => {
-                    // When the new code is fully downloaded and ready...
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        if (window.Utils && typeof window.Utils.showToast === 'function') {
-                            window.Utils.showToast("🚀 App Update Downloaded! Applying now...", 3000);
-                            // Force the phone to drop the old code and load the new code
-                            setTimeout(() => window.location.reload(), 2500);
-                        }
-                    }
-                });
-            });
-        });
-    });
-}
+/* ==========================================
+   ENTERPRISE UI: FUZZY SEARCH ENGINE
+   ========================================== */
+// Mathematically calculates if a word is a typo of another word (Max 2 mistakes)
+window.fuzzyMatch = function(searchQuery, targetText) {
+    if (!searchQuery) return true; // Empty search shows everything
+    
+    // Remove spaces and make lowercase for easy comparison
+    const search = searchQuery.toLowerCase().replace(/\s+/g, '');
+    const target = targetText.toLowerCase().replace(/\s+/g, '');
+    
+    // 1. If it's a perfect match or a perfect partial match, instant win!
+    if (target.includes(search)) return true; 
+    
+    // 2. If the search is less than 3 letters, don't guess typos (too risky)
+    if (search.length < 3) return false; 
+    
+    // 3. Typo Tolerance Math (Allows up to 2 mistakes)
+    let mistakes = 0;
+    let s = 0, t = 0;
+    
+    while (s < search.length && t < target.length) {
+        if (search[s] === target[t]) {
+            s++; t++; // Letters match, move forward
+        } else {
+            mistakes++;
+            if (mistakes > 2) return false; // Too many mistakes, reject it
+            
+            // Guess what kind of typo the user made:
+            if (search[s + 1] === target[t]) {
+                s++; // User typed an extra letter (e.g. Sammsung)
+            } else if (search[s] === target[t + 1]) {
+                t++; // User missed a letter (e.g. Sasung)
+            } else {
+                s++; t++; // User typed the wrong letter (e.g. Samsing)
+            }
+        }
+    }
+    return true; // If it survives with 2 or fewer mistakes, it's a match!
+};

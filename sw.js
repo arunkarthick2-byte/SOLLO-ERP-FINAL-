@@ -1,7 +1,8 @@
 // ==========================================
-// SOLLO ERP - SMART OFFLINE ENGINE (v6.1)
+// SOLLO ERP - SMART OFFLINE ENGINE (v6.3)
 // ==========================================
-const CACHE_NAME = 'sollo-erp-v6.1-offline';
+// ENTERPRISE RULE: Every time you change your code, you MUST change this version number (e.g., to 6.3, 6.4)!
+const CACHE_NAME = 'sollo-erp-v6.3-offline';
 
 const ASSETS_TO_CACHE = [
     './',
@@ -27,7 +28,7 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-    self.skipWaiting();
+    // We removed skipWaiting() here so it doesn't force an aggressive update loop!
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             // STRICT ERP LOGIC: Force { cache: 'reload' } to bypass the browser's HTTP cache.
