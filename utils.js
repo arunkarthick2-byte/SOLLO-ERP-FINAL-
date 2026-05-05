@@ -35,6 +35,39 @@ const Utils = {
         };
     },
 
+    // ==========================================
+    // ENTERPRISE UPGRADE: DOM CHUNKING ENGINE
+    // ==========================================
+    // Prevents the app from freezing when loading massive lists (like 5,000 invoices)
+    renderInChunks: (dataArray, renderCallback, onComplete, batchSize = 50) => {
+        if (!dataArray || dataArray.length === 0) {
+            if (onComplete) onComplete();
+            return;
+        }
+        
+        let index = 0;
+        const processBatch = () => {
+            // Grab the next set of items
+            const chunk = dataArray.slice(index, index + batchSize);
+            
+            // Render this specific batch
+            chunk.forEach(item => renderCallback(item));
+            index += batchSize;
+            
+            if (index < dataArray.length) {
+                // Enterprise Magic: requestAnimationFrame lets the phone's CPU rest and draw the UI 
+                // before locking up the main thread with the next batch!
+                requestAnimationFrame(processBatch);
+            } else {
+                // The entire massive list is finished rendering
+                if (onComplete) onComplete();
+            }
+        };
+        
+        // Start the engine
+        requestAnimationFrame(processBatch);
+    },
+
     // --- ENTERPRISE UPGRADE: OFFLINE IMAGE COMPRESSOR ---
     compressImage: (file, maxWidth = 800, quality = 0.7) => {
         return new Promise((resolve) => {
@@ -1436,8 +1469,11 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
     let firmName = "My Business";
     
+    // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Ledger!
+    const uniquePdfId = 'pdf-item-ledger-' + Date.now();
+
     const html = `
-        <div id="print-item-ledger" style="padding: 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; background: #fff;">
+        <div id="${uniquePdfId}" style="padding: 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; background: #fff;">
             <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0061a4; padding-bottom: 20px;">
                 <h1 style="margin: 0 0 10px 0; color: #0061a4; font-size: 28px; text-transform: uppercase;">Stock Ledger</h1>
                 <h2 style="margin: 0 0 5px 0; font-size: 20px; color: #333;">${itemName}</h2>
@@ -1462,26 +1498,14 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
         </div>
     `;
 
-    const container = document.createElement('div');
-    container.innerHTML = html;
-    document.body.appendChild(container);
-
-    const opt = {
-        margin: 0.3,
-        filename: `Stock_Ledger_${itemName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-    };
-
-    try {
-        await window.html2pdf().set(opt).from(container.firstElementChild).save();
-        if (window.Utils) window.Utils.showToast("✅ PDF Downloaded Successfully!");
-    } catch (e) {
-        console.error(e);
-        alert("Failed to generate PDF.");
-    } finally {
-        document.body.removeChild(container);
+    // ENTERPRISE FIX: Route the HTML into the Universal In-App PDF Viewer instead of forcing a blind download!
+    const printArea = document.getElementById('print-area');
+    if (printArea) {
+        printArea.innerHTML = html;
+        setTimeout(() => {
+            const safeFilename = `Stock_Ledger_${itemName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+            window.Utils.processPDFExport(uniquePdfId, safeFilename);
+        }, 100);
     }
 };
 

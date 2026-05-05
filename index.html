@@ -2409,11 +2409,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=21.3"></script>
-    <script src="utils.js?v=21.3"></script>
-    <script src="ui.js?v=21.3"></script>
-    <script src="cloud.js?v=21.3"></script>
-    <script src="app.js?v=21.3"></script>
+    <script src="db.js?v=23.0"></script>
+    <script src="utils.js?v=23.0"></script>
+    <script src="ui.js?v=23.0"></script>
+    <script src="cloud.js?v=23.0"></script>
+    <script src="app.js?v=23.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -2442,8 +2442,8 @@
         let newWorker;
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // ENTERPRISE FIX: Bumped to v12.0 to forcefully destroy the cached broken app.js!
-                navigator.serviceWorker.register('sw.js?v=21.3').then(reg => {
+                // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
+                navigator.serviceWorker.register(`sw.js?v=${window.APP_VERSION || '23.0'}`).then(reg => {
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {

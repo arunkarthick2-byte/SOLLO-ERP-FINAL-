@@ -297,26 +297,33 @@ window.Cloud = Cloud;
 // ==========================================
 // ENTERPRISE UPGRADE: SILENT BACKGROUND SYNC
 // ==========================================
-// Exactly 15 seconds after the app opens, it checks if 24 hours have passed since the last backup.
-// If yes, it quietly zips the database and sends it to Google Drive without interrupting the user.
-setTimeout(async () => {
+setTimeout(() => {
     if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
-        // ENTERPRISE FIX: Wrap in try/catch to prevent Unhandled Promise Rejections from crashing the background thread!
-        try {
-            // STRICT ERP LOGIC: Prevent uploading an empty database if local storage was cleared!
-            const firms = await window.getAllRecords('firms');
-            if (firms && firms.length > 0) {
-                // ENTERPRISE FIX: Do NOT ambush the user with a popup 15 seconds after boot!
-                if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
-                    window.Cloud.autoBackup();
+        
+        const executeBackup = async () => {
+            try {
+                const firms = await window.getAllRecords('firms');
+                if (firms && firms.length > 0) {
+                    if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
+                        window.Cloud.autoBackup();
+                    } else {
+                        console.warn("Cloud Sync pending: User not authenticated yet.");
+                    }
                 } else {
-                    console.warn("Cloud Sync pending: User not authenticated yet. Skipping silent boot backup.");
+                    console.warn("Local database is empty. Auto-backup aborted.");
                 }
-            } else {
-                console.warn("Local database is empty. Auto-backup aborted to protect Google Drive data.");
+            } catch (err) {
+                console.warn("Database not ready for auto-backup yet.");
             }
-        } catch (err) {
-            console.warn("Database not ready for auto-backup yet, will retry next session.");
+        };
+
+        // STRICT ERP LOGIC: Only attempt backup if the phone has an active internet connection!
+        if (navigator.onLine) {
+            executeBackup();
+        } else {
+            console.warn("Device is offline. Queuing Cloud Sync for when connection is restored...");
+            // The { once: true } ensures this only fires exactly once when the internet comes back!
+            window.addEventListener('online', executeBackup, { once: true });
         }
     }
 }, 15000);

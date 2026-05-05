@@ -5247,3 +5247,35 @@ document.addEventListener('input', (e) => {
         }
     }
 });
+// ==========================================
+// ENTERPRISE UPGRADE: BANK-GRADE PRIVACY SHIELD
+// ==========================================
+// Blurs the screen when the app is minimized to the background to protect financial data!
+(function() {
+    const shield = document.createElement('div');
+    shield.id = 'privacy-shield';
+    // Deep blur with the brand's primary container color
+    shield.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(244, 246, 250, 0.85); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:9999999; display:flex; justify-content:center; align-items:center; flex-direction:column; opacity:0; pointer-events:none; transition:opacity 0.2s ease;';
+    
+    shield.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size: 56px; color: #0061a4; margin-bottom: 16px;">lock</span>
+        <strong style="font-size: 22px; color: #001d36; letter-spacing: 1px;">SOLLO ERP</strong>
+        <p style="color: #535f70; margin-top: 8px; font-weight: 500;">Securely Locked</p>
+    `;
+    
+    // Attach the shield to the very top of the app
+    document.body.appendChild(shield);
+
+    // Watch the phone's native hardware visibility state
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // App is swiped to the background (Recent Apps) -> INSTANT LOCK
+            shield.style.transition = 'none'; 
+            shield.style.opacity = '1';
+        } else {
+            // User opened the app again -> SMOOTH FADE OUT
+            shield.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => shield.style.opacity = '0', 100); 
+        }
+    });
+})();
