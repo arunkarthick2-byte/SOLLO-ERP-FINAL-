@@ -2,15 +2,38 @@
 // SOLLO ERP - UTILITY, EXPORT & PDF ENGINE (v6.1 Enterprise)
 // ==========================================
 
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=6.1';
-
 const Utils = {
+    // ==========================================
+    // ENTERPRISE FIX: THE APPLE/IOS DATE SANITIZER
+    // ==========================================
+    safeDate: (dateString) => {
+        if (!dateString) return new Date();
+        // iPhones physically cannot process YYYY-MM-DD HH:MM:SS. 
+        // We MUST convert dashes to slashes (YYYY/MM/DD HH:MM:SS) for Safari to survive!
+        let safeString = String(dateString).replace(/-/g, '/');
+        // Strip out the 'T' if it's an ISO string so it doesn't break older iOS versions
+        safeString = safeString.replace('T', ' ').split('.')[0]; 
+        
+        const d = new Date(safeString);
+        return isNaN(d.getTime()) ? new Date(dateString) : d; // Fallback just in case
+    },
+
     // ==========================================
     // 1. CORE UTILITIES & STRICT MATH
     // ==========================================
     // STRICT ERP LOGIC: Forces a UNIX timestamp to the end of EVERY UUID so Daybook sorting never scrambles same-day transactions!
     // STRICT ERP LOGIC: Added the missing parentheses so Date.now() mathematically attaches to EVERY id!
     generateId: () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'sollo-' + Math.random().toString(36).substr(2, 9)) + '-' + Date.now(),
+
+    // 🟢 ENTERPRISE FIX: Native Anti-Freeze Engine
+    // Prevents mobile keyboards from crashing by waiting 300ms before filtering huge lists!
+    debounce: (func, delay) => {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    },
 
     // --- ENTERPRISE UPGRADE: OFFLINE IMAGE COMPRESSOR ---
     compressImage: (file, maxWidth = 800, quality = 0.7) => {
@@ -76,17 +99,6 @@ const Utils = {
         if (isNaN(d.getTime())) return dateString; 
         // Converts "2026-03-25" into "25 Mar 2026"
         return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-    },
-
-    // --- ENTERPRISE UPGRADE: PERFORMANCE DEBOUNCE ---
-    debounce: (func, delay) => {
-        let timeoutId;
-        return function (...args) {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                func.apply(this, args);
-            }, delay);
-        };
     },
 
     // --- ENTERPRISE FORMATTING ENGINES ---
@@ -251,7 +263,12 @@ const Utils = {
 
     formatWhatsAppNumber: (phone) => {
         let clean = String(phone || '').replace(/\D/g, ''); 
-        if (clean.length === 10) clean = '91' + clean; 
+        // ENTERPRISE FIX: Intercept numbers saved with a '0' and convert to standard +91
+        if (clean.length === 11 && clean.startsWith('0')) {
+            clean = '91' + clean.substring(1);
+        } else if (clean.length === 10) {
+            clean = '91' + clean; 
+        }
         return clean;
     },
     
@@ -259,8 +276,13 @@ const Utils = {
         if (!phone) return alert("No phone number saved for this customer.");
         const cleanPhone = Utils.formatWhatsAppNumber(phone);
         
-        // STRICT ERP LOGIC: Removed pre-written text & open in new tab to prevent app crash!
-        const whatsappUrl = `https://wa.me/${cleanPhone}`;
+        // ENTERPRISE FIX: Injected dynamic URL-encoded text so the user doesn't have to manually type the reminder!
+        const message = encodeURIComponent(`Hello ${customerName || 'Customer'},
+
+A payment of ₹${parseFloat(balanceAmount || 0).toFixed(2)} is currently pending for Document No: ${invoiceNo || 'N/A'}.
+
+Please arrange the payment at your earliest convenience. Thank you!`);
+        const whatsappUrl = `https://wa.me/${cleanPhone}?text=${message}`;
         window.open(whatsappUrl, '_blank');
     },
 
@@ -429,10 +451,13 @@ const Utils = {
             
             const imgSrc = canvas.toDataURL('image/png');
             
-            // Instantly restore mobile layout behind the scenes
-            element.style.width = origWidth;
-            element.style.minWidth = origMinWidth;
-            element.style.maxWidth = origMaxWidth;
+            // ENTERPRISE FIX: Absolute Garbage Collection! 
+            // Wipe the print area completely so the NEXT receipt or invoice doesn't pull a ghost!
+            const printArea = document.getElementById('print-area');
+            if (printArea) printArea.innerHTML = '';
+            
+            // Wipe any lingering viewer overlays to prevent stacking
+            document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
 
             const viewer = document.createElement('div');
             viewer.id = 'in-app-pdf-viewer';
@@ -571,9 +596,12 @@ const Utils = {
             `;
         });
         const safeDocNo = doc.invoiceNo || doc.poNo || 'DRAFT';
+        // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost PDF!
+        const uniquePdfId = 'pdf-invoice-' + Date.now();
 
-        const html = `
-            <div id="pdf-invoice-wrapper" class="a4-document" style="font-family: Arial, sans-serif; font-size: 12px; color: #000; background: #fff; line-height: 1.4; box-sizing: border-box; padding: 10px;">
+        // ENTERPRISE FIX: Changed 'const' to 'let' so the Split-Payment Tracker doesn't crash the engine!
+        let html = `
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: Arial, sans-serif; font-size: 12px; color: #000; background: #fff; line-height: 1.4; box-sizing: border-box; padding: 10px;">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
@@ -581,7 +609,7 @@ const Utils = {
                     #pdf-invoice-wrapper * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
                     #pdf-invoice-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 15px; page-break-inside: auto; border: 1px solid #000; }
                     #pdf-invoice-wrapper th { background-color: #e5e5e5; border: 1px solid #000; padding: 6px 4px; text-align: center; font-weight: bold; font-size: 11px; text-transform: uppercase; }
-                    #pdf-invoice-wrapper td { border: 1px solid #000; padding: 6px 4px; font-size: 11px; vertical-align: middle; }
+                    #pdf-invoice-wrapper td { border: 1px solid #000; padding: 6px 4px; font-size: 11px; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-width: 250px; }
                     #pdf-invoice-wrapper tr { page-break-inside: avoid !important; break-inside: avoid !important; }
                     #pdf-invoice-wrapper thead { display: table-header-group; }
                     .border-box { border: 1px solid #000; padding: 8px; margin-bottom: 15px; }
@@ -595,7 +623,7 @@ const Utils = {
                         <strong style="font-size: 16px; text-transform: uppercase;">${biz.name || 'Company Name'}</strong>
                         <div style="margin-top: 4px; white-space: pre-wrap;">${biz.address || ''}</div>
                         <div>Ph: ${biz.phone || ''}</div>
-                        <div style="margin-top: 4px;"><strong>GSTIN: ${bizGst}</strong></div>
+                        ${!isNonGST ? `<div style="margin-top: 4px;"><strong>GSTIN: ${bizGst}</strong></div>` : ''}
                     </div>
                     <div style="width: 50%; padding: 0; display: flex; flex-direction: column;">
                         <div style="display: flex; border-bottom: 1px solid #000; flex: 1;">
@@ -610,6 +638,19 @@ const Utils = {
                             <div style="width: 50%; padding: 8px; border-right: 1px solid #000;"><strong>Dispatch Date:</strong><br>${Utils.formatDateDisplay(doc.shippedDate) || '-'}</div>
                             <div style="width: 50%; padding: 8px;"><strong>Status:</strong><br>${doc.status || '-'}</div>
                         </div>
+                        
+                        ${biz.cf1Name && doc.cf1Val ? `
+                        <div style="display: flex; border-top: 1px solid #000; flex: 1; background: #f8f9fa;">
+                            <div style="width: 100%; padding: 6px 8px;"><strong>${biz.cf1Name}:</strong> ${doc.cf1Val}</div>
+                        </div>` : ''}
+                        ${biz.cf2Name && doc.cf2Val ? `
+                        <div style="display: flex; border-top: 1px solid #000; flex: 1; background: #f8f9fa;">
+                            <div style="width: 100%; padding: 6px 8px;"><strong>${biz.cf2Name}:</strong> ${doc.cf2Val}</div>
+                        </div>` : ''}
+                        ${biz.cf3Name && doc.cf3Val ? `
+                        <div style="display: flex; border-top: 1px solid #000; flex: 1; background: #f8f9fa;">
+                            <div style="width: 100%; padding: 6px 8px;"><strong>${biz.cf3Name}:</strong> ${doc.cf3Val}</div>
+                        </div>` : ''}
                     </div>
                 </div>
 
@@ -643,7 +684,7 @@ const Utils = {
                             <strong>Total Amount in Words:</strong><br>
                             <span style="text-transform: capitalize; font-size: 11px;">${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span>
                         </div>
-                        ${biz.bankDetails ? `
+                        ${!isNonGST && biz.bankDetails ? `
                         <div style="margin-bottom: 12px;">
                             <strong>Bank Details:</strong><br>
                             <span style="white-space: pre-wrap; font-size: 11px;">${biz.bankDetails}</span>
@@ -685,25 +726,72 @@ const Utils = {
             </div>
         `;
         
-        // --- ENTERPRISE UPGRADE: PREMIUM PDF THEMES ---
+        // --- ENTERPRISE UPGRADE: SPLIT PAYMENT / INSTALLMENT TRACKER ---
+        // ENTERPRISE FIX: Removed the illegal 'await' that caused a fatal Syntax Error Crash!
+        // We also eliminated the massive memory leak by using the pre-calculated 'trueTotalPaid' instead of scanning the whole database!
+        let totalPaid = parseFloat(doc.trueTotalPaid) || 0;
+
+        // If the customer has paid even a single rupee, print the Tracker!
+        if (totalPaid > 0) {
+            // ENTERPRISE FIX: Added parseFloat() so the PDF engine doesn't crash if the database saved the total as a string!
+            const safeGrandTotal = parseFloat(doc.grandTotal) || 0;
+            const balanceDue = Math.max(0, safeGrandTotal - totalPaid);
+            const paidPercent = safeGrandTotal > 0 ? Math.min(100, (totalPaid / safeGrandTotal) * 100) : 0;
+            
+            const progressHtml = `
+            <div style="margin-top: 16px; margin-bottom: 16px; border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #f8fafc; page-break-inside: avoid;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h4 style="margin: 0; color: #334155; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Installment / Payment Status</h4>
+                    <span style="font-size: 14px; font-weight: bold; color: #0f172a;">Invoice Total: ${safeGrandTotal.toFixed(2)}</span>
+                </div>
+                <div style="width: 100%; background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 10px;">
+                    <div style="width: ${paidPercent}%; height: 100%; background: #16a34a;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold;">
+                    <span style="color: #16a34a;">Total Paid: ${totalPaid.toFixed(2)}</span>
+                    <span style="color: #dc2626;">Balance Due: ${balanceDue.toFixed(2)}</span>
+                </div>
+            </div>`;
+
+            // Inject the tracker perfectly right above the Terms & Conditions / Signature box!
+            const anchorIndex = html.lastIndexOf('<div class="border-box">');
+            if (anchorIndex !== -1) {
+                html = html.substring(0, anchorIndex) + progressHtml + html.substring(anchorIndex);
+            } else {
+                html += progressHtml; 
+            }
+        }
+        // --- END SPLIT PAYMENT ENGINE ---
+
+        // --- ENTERPRISE UPGRADE: DYNAMIC PDF THEME BUILDER ---
         let themedHtml = html;
-        const theme = localStorage.getItem('sollo_invoice_theme') || 'modern';
-        
-        if (theme === 'classic') {
-            // Classic Black & White
-            themedHtml = themedHtml.replace(/#0061a4/g, '#000000').replace(/#f0f4f8/g, '#f2f2f2').replace(/#f8fafc/g, '#ffffff');
-        } else if (theme === 'elegant') {
-            // Dark Slate & Minimalist
-            themedHtml = themedHtml.replace(/#0061a4/g, '#2c3e50').replace(/#f0f4f8/g, '#ecf0f1').replace(/#f8fafc/g, '#fdfdfd');
+        const brandColor = localStorage.getItem('sollo_brand_color') || '#000000';
+        const pdfFont = localStorage.getItem('sollo_pdf_font') || 'inter';
+
+        // 1. Inject Custom Typography
+        if (pdfFont === 'serif') {
+            themedHtml = themedHtml.replace(/font-family: Arial, sans-serif;/g, "font-family: 'Times New Roman', Times, serif;");
+        } else if (pdfFont === 'mono') {
+            themedHtml = themedHtml.replace(/font-family: Arial, sans-serif;/g, "font-family: 'Courier New', Courier, monospace;");
+        }
+
+        // 2. Inject Custom Brand Color
+        // If the user picked a color other than black, replace the default grey backgrounds with their brand color!
+        if (brandColor !== '#000000' && brandColor !== '#e5e5e5') {
+            // Make headers the brand color, text white, and apply border color
+            themedHtml = themedHtml.replace(/background-color: #e5e5e5;/g, `background-color: ${brandColor}; color: #ffffff; border: 1px solid ${brandColor};`);
+            themedHtml = themedHtml.replace(/background: #e5e5e5;/g, `background: ${brandColor}; color: #ffffff; border: 1px solid ${brandColor};`);
+            // Soften standard text so the brand color pops more
+            themedHtml = themedHtml.replace(/color: #000;/g, `color: #1a1c1e;`); 
         }
         // --- END OF THEME ENGINE ---
 
         const printArea = document.getElementById('print-area');
         if (printArea) {
-            printArea.innerHTML = themedHtml; // FIX: Pushing the themed HTML instead of the default!
+            printArea.innerHTML = themedHtml; 
             setTimeout(() => {
                 const safeFilenameDocNo = String(safeDocNo).replace(/[^a-zA-Z0-9_.-]/g, '-');
-                Utils.processPDFExport('pdf-invoice-wrapper', `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`);
+                Utils.processPDFExport(uniquePdfId, `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`);
             }, 100);
         }
     },
@@ -792,7 +880,8 @@ const Utils = {
         
         if (!party) return alert("Could not identify details for: " + partyName);
 
-        const biz = (party.firmId) ? await getRecordById('businessProfile', party.firmId) || {} : {};
+        // ENTERPRISE FIX: Added 'window.' prefix to prevent ReferenceError crashes on older devices!
+        const biz = (party.firmId) ? await window.getRecordById('businessProfile', party.firmId) || {} : {};
         
         // Harness the timeline that is already populated in the UI to prevent bugs
         const timeline = window.UI.state.rawData.timeline || [];
@@ -846,9 +935,11 @@ const Utils = {
 
         const safeDocNo = Utils.getLocalDate();
         const balSuffix = isAccount ? 'Available' : (finalBal > 0 ? (party.type === 'Customer' ? 'Dr (Due)' : 'Cr (To Pay)') : (party.type === 'Customer' ? 'Cr (Advance)' : 'Dr (Advance)'));
+        // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Statement!
+        const uniquePdfId = 'pdf-statement-' + Date.now();
 
         const html = `
-            <div id="pdf-statement-wrapper" class="a4-document" style="font-family: Arial, sans-serif; font-size: 12px; color: #000; background: #fff; line-height: 1.4; box-sizing: border-box; padding: 10px;">
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: Arial, sans-serif; font-size: 12px; color: #000; background: #fff; line-height: 1.4; box-sizing: border-box; padding: 10px;">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
@@ -921,7 +1012,7 @@ const Utils = {
             // STRICT ERP LOGIC: Safely generate the title and target the correct statement wrapper!
             const docTitle = isAccount ? 'Account_Statement' : 'Ledger_Statement';
             setTimeout(() => {
-                Utils.processPDFExport('pdf-statement-wrapper', `${docTitle}_${safeDocNo}.pdf`);
+                Utils.processPDFExport(uniquePdfId, `${docTitle}_${safeDocNo}.pdf`);
             }, 100);
         }
     },
@@ -957,7 +1048,10 @@ const Utils = {
                 ["Date", "Invoice No", "Customer Name", "Customer GSTIN", "Taxable Value", "GST Amount", "Total Invoice Value"]
             ];
             
-            const ledgers = await getAllRecords('ledgers');
+            // ENTERPRISE FIX: Passed the firmId to prevent a Full Table Scan RAM Crash during heavy Excel exports!
+            const activeFirmId = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
+            // ENTERPRISE FIX: Added window. prefix and || [] shield to prevent Excel Engine crashes!
+            const ledgers = (await window.getAllRecords('ledgers', 'firmId', activeFirmId).catch(() => [])) || [];
             reportData.rawSales.forEach(s => {
                 if (s.invoiceType === 'Non-GST') return;
                 let cust = ledgers.find(l => l.id === s.customerId);
@@ -1253,10 +1347,146 @@ const Utils = {
 }; // <--- THIS CLOSES THE UTILS OBJECT
 
 // ==========================================
-// NEW CODE: ES MODULE EXPORT & GLOBAL MAP
+// ENTERPRISE UPGRADE: ITEM LEDGER PDF
 // ==========================================
-// 1. Export the module so app.js can import it safely
-export default Utils; 
+window.executeItemLedgerReport = async (itemId, itemName) => {
+    // 🟢 ENTERPRISE FIX: Auto-load the PDF library if it isn't loaded yet!
+    if (typeof window.html2pdf === 'undefined' && typeof html2pdf === 'undefined') {
+        if (window.Utils) window.Utils.showToast("Loading PDF Engine... Please tap Print again in 2 seconds.");
+        const s2 = document.createElement('script');
+        s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+        document.head.appendChild(s2);
+        return;
+    }
 
+    if (window.Utils) window.Utils.showToast("Generating Stock Ledger PDF...");
+    
+    const product = await window.getRecordById('items', itemId);
+    const openingStock = product ? (parseFloat(product.openingStock) || 0) : 0;
+
+    let timeline = [];
+    const sales = await window.getAllRecords('sales');
+    sales.forEach(s => {
+        if(s.status !== 'Open') {
+            (s.items || []).forEach(row => {
+                if(row.itemId === itemId) {
+                    const isReturn = s.documentType === 'return';
+                    const qty = parseFloat(row.qty) || 0;
+                    timeline.push({ id: s.id, date: s.date, type: isReturn ? 'Sales Return' : 'Sale', desc: s.customerName || 'Unknown Party', ref: s.invoiceNo || s.orderNo || s.id.slice(-4).toUpperCase(), inQty: isReturn ? qty : 0, outQty: isReturn ? 0 : qty });
+                }
+            });
+        }
+    });
+
+    const purchases = await window.getAllRecords('purchases');
+    purchases.forEach(p => {
+        if(p.status !== 'Open') {
+            (p.items || []).forEach(row => {
+                if(row.itemId === itemId) {
+                    const isReturn = p.documentType === 'return';
+                    const qty = parseFloat(row.qty) || 0;
+                    timeline.push({ id: p.id, date: p.date, type: isReturn ? 'Purchase Return' : 'Purchase', desc: p.supplierName || 'Unknown Party', ref: p.invoiceNo || p.poNo || p.id.slice(-4).toUpperCase(), inQty: isReturn ? 0 : qty, outQty: isReturn ? qty : 0 });
+                }
+            });
+        }
+    });
+
+    const adjustments = await window.getAllRecords('adjustments');
+    adjustments.forEach(a => {
+        if(a.itemId === itemId) {
+            const qty = parseFloat(a.qty) || 0;
+            timeline.push({ id: a.id, date: a.date, type: 'Adjustment', desc: a.notes || 'Manual', ref: 'ADJ-' + a.id.slice(-4).toUpperCase(), inQty: a.type === 'add' ? qty : 0, outQty: a.type === 'reduce' ? qty : 0 });
+        }
+    });
+
+    timeline.sort((a, b) => {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        const timeA = parseInt(String(a.id || '').split('-').pop()) || 0;
+        const timeB = parseInt(String(b.id || '').split('-').pop()) || 0;
+        return timeA - timeB;
+    });
+
+    let runningStock = openingStock;
+    let rowsHtml = `
+        <tr style="background:#f1f3f4; font-weight:bold;">
+            <td style="padding:10px; border:1px solid #ddd;" colspan="3">Opening Stock</td>
+            <td style="padding:10px; border:1px solid #ddd; text-align:center;">-</td>
+            <td style="padding:10px; border:1px solid #ddd; text-align:center;">-</td>
+            <td style="padding:10px; border:1px solid #ddd; text-align:right;">${openingStock.toFixed(2)}</td>
+        </tr>
+    `;
+
+    timeline.forEach(t => {
+        runningStock += t.inQty;
+        runningStock -= t.outQty;
+        rowsHtml += `
+            <tr>
+                <td style="padding:10px; border:1px solid #ddd;">${t.date}</td>
+                <td style="padding:10px; border:1px solid #ddd;">${t.type}</td>
+                <td style="padding:10px; border:1px solid #ddd;">${t.desc}<br><small style="color:#666;">Ref: ${t.ref}</small></td>
+                <td style="padding:10px; border:1px solid #ddd; text-align:center; color:#146c2e;">${t.inQty > 0 ? t.inQty.toFixed(2) : ''}</td>
+                <td style="padding:10px; border:1px solid #ddd; text-align:center; color:#ba1a1a;">${t.outQty > 0 ? t.outQty.toFixed(2) : ''}</td>
+                <td style="padding:10px; border:1px solid #ddd; text-align:right; font-weight:bold;">${runningStock.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+
+    const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+    let firmName = "My Business";
+    
+    const html = `
+        <div id="print-item-ledger" style="padding: 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; background: #fff;">
+            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0061a4; padding-bottom: 20px;">
+                <h1 style="margin: 0 0 10px 0; color: #0061a4; font-size: 28px; text-transform: uppercase;">Stock Ledger</h1>
+                <h2 style="margin: 0 0 5px 0; font-size: 20px; color: #333;">${itemName}</h2>
+                <p style="margin: 0; font-size: 14px; color: #666;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <thead>
+                    <tr style="background: #0061a4; color: #fff; text-align: left;">
+                        <th style="padding: 12px 10px; border: 1px solid #004a80; width: 12%;">Date</th>
+                        <th style="padding: 12px 10px; border: 1px solid #004a80; width: 16%;">Type</th>
+                        <th style="padding: 12px 10px; border: 1px solid #004a80; width: 36%;">Particulars</th>
+                        <th style="padding: 12px 10px; border: 1px solid #004a80; text-align: center; width: 12%;">IN (+)</th>
+                        <th style="padding: 12px 10px; border: 1px solid #004a80; text-align: center; width: 12%;">OUT (-)</th>
+                        <th style="padding: 12px 10px; border: 1px solid #004a80; text-align: right; width: 12%;">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    const opt = {
+        margin: 0.3,
+        filename: `Stock_Ledger_${itemName.replace(/[^a-z0-9]/gi, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+        await window.html2pdf().set(opt).from(container.firstElementChild).save();
+        if (window.Utils) window.Utils.showToast("✅ PDF Downloaded Successfully!");
+    } catch (e) {
+        console.error(e);
+        alert("Failed to generate PDF.");
+    } finally {
+        document.body.removeChild(container);
+    }
+};
+
+// ==========================================
+// NEW CODE: GLOBAL MAP
+// ==========================================
 // 2. Attach to window so index.html onclick="Utils..." buttons don't break!
 window.Utils = Utils; 

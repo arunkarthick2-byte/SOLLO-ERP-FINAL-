@@ -2,9 +2,6 @@
 // SOLLO ERP - UI & ANIMATION CONTROLLER (v6.1 Enterprise)
 // ==========================================
 
-// ENTERPRISE FIX: Securely import the database engine to prevent background crashes!
-import { getRecordById, getAllRecords, getKhataStatement } from './db.js?v=6.1';
-
 const UI = {
 
     // --- PREMIUM UX: NATIVE HAPTICS & SCROLL NAV ---
@@ -573,7 +570,9 @@ const UI = {
         });
 
         // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the invoice total!
-        const discountInput = Math.abs(safeNum(document.getElementById('sales-discount').value));
+        // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors if the DOM elements are hidden or removed!
+        // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
+        const discountInput = Math.abs(safeNum((document.getElementById('sales-discount') || {}).value));
         const discountTypeEl = document.getElementById('sales-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -608,7 +607,10 @@ const UI = {
             finalSubtotal += roundedDiscountedBase;
             totalGst += roundedGst;
 
-            const buyPrice = parseFloat(tr.querySelector('.row-item-buyprice').value) || 0;
+            // 🟢 ENTERPRISE FIX: Safe Null Check! Prevents fatal crashes when editing older invoices that lack this field.
+            const buyPriceInput = tr.querySelector('.row-item-buyprice');
+            const buyPrice = buyPriceInput ? (parseFloat(buyPriceInput.value) || 0) : 0;
+            
             const marginSpan = tr.querySelector('.live-margin');
             if (marginSpan) {
                 const effectiveRate = rate - (rate * discountRatio); 
@@ -621,7 +623,9 @@ const UI = {
         });
 
         // ENTERPRISE FIX: Apply safeNum to Sales Freight so commas don't break the grand total!
-        const freight = safeNum(document.getElementById('sales-freight').value);
+        // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
+        // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
+        const freight = safeNum((document.getElementById('sales-freight') || {}).value);
         const exactTotal = finalSubtotal + totalGst + freight;
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
@@ -656,7 +660,9 @@ const UI = {
         });
 
         // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the PO total!
-        const discountInput = Math.abs(safeNum(document.getElementById('purchase-discount').value));
+        // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
+        // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
+        const discountInput = Math.abs(safeNum((document.getElementById('purchase-discount') || {}).value));
         const discountTypeEl = document.getElementById('purchase-discount-type');
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
         // ENTERPRISE FIX: Strict rounding on percentage discounts
@@ -692,7 +698,9 @@ const UI = {
             totalGst += roundedGst;
         });
 
-        const freight = safeNum(document.getElementById('purchase-freight').value);
+        // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
+        // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
+        const freight = safeNum((document.getElementById('purchase-freight') || {}).value);
         const exactTotal = finalSubtotal + totalGst + freight;
         const roundedTotal = Math.round(exactTotal);
         const roundOff = roundedTotal - exactTotal;
@@ -713,8 +721,15 @@ const UI = {
     // ==========================================
     highlightText: (text, term) => {
         if (!term || !text) return text;
-        const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')})`, 'gi');
-        return String(text).replace(regex, '<span style="background: rgba(0,97,164,0.15); color: var(--md-primary); border-radius: 3px; font-weight: bold; padding: 0 2px;">$1</span>');
+        try {
+            // ENTERPRISE FIX: Safe Regex Escaping! Prevents older Mobile WebViews from crashing and clearing the screen!
+            const safeTerm = String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(`(${safeTerm})`, 'gi');
+            return String(text).replace(regex, '<span style="background: rgba(0,97,164,0.15); color: var(--md-primary); border-radius: 3px; font-weight: bold; padding: 0 2px;">$1</span>');
+        } catch (err) {
+            // Failsafe: If the phone's text-engine panics, safely abort the highlight and just return the normal text!
+            return text; 
+        }
     },
 
     setFilter: (tab, filterValue, chipElement) => {
@@ -837,6 +852,15 @@ const UI = {
         // ------------------ SALES ------------------
         if (tab === 'sales') {
             containerId = 'sales-history-container';
+            
+            // ENTERPRISE FIX: Create an O(1) Map for Returns to prevent an O(N^2) "Death Loop" that freezes the app while typing!
+            const returnMap = {};
+            UI.state.rawData.sales.forEach(d => {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                    returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                }
+            });
+
             data = UI.state.rawData.sales.filter(s => {
                 // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, Order, and Database ID) are fully searchable!
                 const matchSearch = (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || s.orderNo || s.id || '').toLowerCase().includes(searchTerm);
@@ -846,9 +870,8 @@ const UI = {
                 const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
                 const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
                 
-                // ENTERPRISE FIX: Subtract Returns so honest customers don't show a red "Due" badge in the main list!
-                const linkedReturns = UI.state.rawData.sales.filter(d => d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
-                const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
+                // ENTERPRISE FIX: O(1) Instant Lookup instead of iterating through the whole database!
+                const returnTotal = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
                 
                 const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid - returnTotal);
                 
@@ -1098,15 +1121,33 @@ const UI = {
                         <span style="font-size: 11px; color: var(--md-text-muted); display: block; margin-top: 2px;">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
                     `;
 
-                    return UI.renderRowWiseItem(
-                        UI.highlightText(i.name || 'Unnamed Product', searchTerm), 
-                        stockLabel, 
-                        `\u20B9${(i.sellPrice || 0).toFixed(2)}`, 
-                        `Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}`, 
-                        'inventory_2', 
-                        isLowStock ? 'var(--md-error)' : 'var(--md-primary)', 
-                        `app.openForm('product', '${i.id}')`
-                    );
+                    const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    return `
+                    <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <div class="tap-target" style="display: flex; align-items: center; gap: 12px;" onclick="app.openForm('product', '${i.id}')">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
+                            </div>
+                            <div style="flex: 1; min-width: 0; overflow: hidden;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${stockLabel}</small>
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface);">\u20B9${(i.sellPrice || 0).toFixed(2)}</strong><br>
+                                <small style="color: var(--md-text-muted);">Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}</small>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #e3f2fd; color: #1565c0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.app.openItemLedger('${i.id}', '${safeName}')">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+                            </div>
+                            
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeItemLedgerReport('${i.id}', '${safeName}')">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                            </div>
+                        </div>
+                    </div>`;
                 }, emptyHTML);
             } 
             else if (activeTab === 'customers' || activeTab === 'suppliers' || activeTab === 'contacts') {
@@ -1740,6 +1781,14 @@ const UI = {
         // --- END OF NEW CODE ---
 
         // --- OVERDUE REMINDERS SAFELY INSIDE THE FUNCTION ---
+        // ENTERPRISE FIX: O(1) Return Map to prevent Dashboard rendering from lagging on huge databases!
+        const dashboardReturnMap = {};
+        sales.forEach(d => {
+            if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+            }
+        });
+
         const overdueSales = sales.filter(s => {
             if (s.status === 'Open' || s.documentType === 'return') return false;
             
@@ -1747,9 +1796,8 @@ const UI = {
             const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
             const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
             
-            // ENTERPRISE FIX: Subtract Credit Notes so returned items don't turn honest customers into false Defaulters!
-            const linkedReturns = sales.filter(d => d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
-            const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
+            // ENTERPRISE FIX: O(1) Instant Lookup instead of a nested loop!
+            const returnTotal = uniqueRefs.reduce((sum, ref) => sum + (dashboardReturnMap[ref] || 0), 0);
             
             const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived - returnTotal);
             if (balance <= 0) return false;
@@ -1899,19 +1947,31 @@ const UI = {
 
         // ENTERPRISE FIX: Removed manual history push! index.html handles this automatically.
 
+        if (sheet) {
+            // ENTERPRISE UPGRADE: Z-Index Auto-Incrementer for Stacked Sheets!
+            let highestZ = 5100; // Base sheet level
+            document.querySelectorAll('.bottom-sheet.open').forEach(el => {
+                const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+                if (!isNaN(z) && z > highestZ) highestZ = z;
+            });
+            
+            // Push the new sheet higher than anything currently open
+            sheet.style.zIndex = highestZ + 10;
+            
+            // Push the dark overlay right between the old sheet and the new sheet
+            if (overlay) overlay.style.zIndex = highestZ + 5;
+
+            sheet.classList.remove('hidden'); 
+            sheet.style.display = 'flex'; 
+            void sheet.offsetWidth; 
+            requestAnimationFrame(() => { sheet.classList.add('open'); });
+        }
+
         if (overlay) {
             overlay.classList.remove('hidden');
             overlay.style.display = 'block';
             void overlay.offsetWidth; 
             requestAnimationFrame(() => overlay.classList.add('open'));
-        }
-
-        if (sheet) {
-            sheet.classList.remove('hidden'); 
-            sheet.style.display = 'flex'; /* FIX: Restores bottom-sheet flex layout */
-            // FIX: Removed 'willChange' which was locking Android WebView scrolling!
-            void sheet.offsetWidth; 
-            requestAnimationFrame(() => { sheet.classList.add('open'); });
         }
         
         // UPGRADE: Dynamic Status Bar Colors!
@@ -2026,10 +2086,22 @@ const UI = {
         if (remainingSheets.length === 0 && overlay) {
             overlay.classList.remove('open');
             UI.resetStatusBarColor(); // Only reset the status bar if ALL sheets are gone
+            setTimeout(() => { overlay.style.zIndex = ''; }, 300); // Reset Z-index to default CSS
+        } else if (remainingSheets.length > 0 && overlay) {
+            // Drop the dark overlay back down to sit behind the remaining open sheet
+            let highestZ = 5100;
+            remainingSheets.forEach(el => {
+                const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+                if (!isNaN(z) && z > highestZ) highestZ = z;
+            });
+            overlay.style.zIndex = highestZ - 5;
         }
 
         setTimeout(() => { 
-            if (sheet) sheet.classList.add('hidden');
+            if (sheet) {
+                sheet.classList.add('hidden');
+                sheet.style.zIndex = ''; // Reset sheet z-index
+            }
             // STRICT ERP LOGIC: Re-check the DOM dynamically to prevent vanishing overlays on rapid switching, and ignore the haptic menu!
             const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
             if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden'); 
@@ -2194,11 +2266,46 @@ const UI = {
         UI.closeBottomSheet('sheet-smart-search');
     },
 
+    // ENTERPRISE UPGRADE: SMART PRICING MEMORY ENGINE
+    getSmartRate: (prefix, itemId, defaultPrice) => {
+        const isSales = prefix === 'sales';
+        const partyInput = document.getElementById(isSales ? 'sales-customer-id' : 'purchase-supplier-id');
+        const partyId = partyInput ? partyInput.value : null;
+
+        if (!partyId) return { price: defaultPrice, msg: '' };
+
+        const historyData = isSales ? UI.state.rawData.sales : UI.state.rawData.purchases;
+        let lastRate = null;
+        let lastDate = 0;
+
+        // Scan history to find the most recent price charged to THIS specific party
+        historyData.forEach(doc => {
+            if (doc.status !== 'Open' && doc.documentType !== 'return' && (isSales ? doc.customerId === partyId : doc.supplierId === partyId)) {
+                const docTime = new Date(doc.date || 0).getTime();
+                (doc.items || []).forEach(row => {
+                    const rId = row.itemId || row.id; 
+                    if (rId === itemId && docTime >= lastDate) {
+                        lastRate = parseFloat(row.rate);
+                        lastDate = docTime;
+                    }
+                });
+            }
+        });
+
+        if (lastRate !== null && lastRate !== parseFloat(defaultPrice)) {
+            return { price: lastRate, msg: `<span style="color:var(--md-success); font-weight:800; font-size:10px; margin-left:4px;">(Last: ₹${lastRate.toFixed(2)})</span>` };
+        }
+        return { price: defaultPrice, msg: '' };
+    },
+
     addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice) => {
         const container = document.getElementById(`${prefix}-items-body`);
         const emptyState = document.getElementById(`${prefix}-empty-items`);
         if(!container) return;
         if(emptyState) emptyState.style.display = 'none';
+        
+        // Trigger Smart Pricing Memory
+        const smart = UI.getSmartRate(prefix, id, price);
         
         const itemCard = document.createElement('div');
         itemCard.className = 'item-entry-card m3-card';
@@ -2206,7 +2313,12 @@ const UI = {
         itemCard.style.marginBottom = '0';
         itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
         
-        const hiddenInputs = `<input type="hidden" class="row-item-id" value="${id}"><input type="hidden" class="row-item-name" value="${name.replace(/"/g, '&quot;')}"><input type="hidden" class="row-uom" value="${uom}">`;
+        const hiddenInputs = `
+            <input type="hidden" class="row-item-id" value="${id}">
+            <input type="hidden" class="row-item-name" value="${name.replace(/"/g, '&quot;')}">
+            <input type="hidden" class="row-uom" value="${uom}">
+            <input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">
+        `;
 
         itemCard.innerHTML = `
             ${hiddenInputs}
@@ -2223,12 +2335,12 @@ const UI = {
                     <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;" onfocus="this.select()">
                 </div>
                 <div>
-                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
-                    <input type="number" inputmode="decimal" class="row-rate" value="${price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
+                    <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
                 </div>
                 <div>
                     <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                    <input type="number" inputmode="decimal" class="row-gst" value="${gst}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                    <input type="number" inputmode="decimal" class="row-gst" value="${gst || 0}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
                 </div>
             </div>
             <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
@@ -2424,9 +2536,14 @@ const UI = {
     confirmProducts: () => {
         const prefix = UI.state.activeActivity;
         const container = document.getElementById(`${prefix}-items-body`);
+        const emptyState = document.getElementById(`${prefix}-empty-items`);
         if(!container) return;
+        if(emptyState) emptyState.style.display = 'none';
         
         UI.state.selectedProducts.forEach(p => {
+            // Trigger Smart Pricing Memory
+            const smart = UI.getSmartRate(prefix, p.id, p.price);
+
             const itemCard = document.createElement('div');
             itemCard.className = 'item-entry-card m3-card';
             itemCard.style.padding = '14px';
@@ -2437,6 +2554,7 @@ const UI = {
                 <input type="hidden" class="row-item-id" value="${p.id}">
                 <input type="hidden" class="row-item-name" value="${(p.name || '').replace(/"/g, '&quot;')}">
                 <input type="hidden" class="row-uom" value="${p.uom || ''}">
+                <input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">
             `;
 
             itemCard.innerHTML = `
@@ -2456,8 +2574,8 @@ const UI = {
                         <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
                     </div>
                     <div>
-                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Rate (₹)</small>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${p.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
+                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
@@ -2909,6 +3027,17 @@ const UI = {
 // Bind Listeners for Live Search Filtering
 document.addEventListener('DOMContentLoaded', () => {
     
+    // 🟢 ENTERPRISE FIX: Failsafe Search Timer Injector
+    // Instantly patches the missing search timer so the Inventory Master search bar NEVER crashes!
+    if (!window.Utils) window.Utils = {};
+    window.Utils.debounce = window.Utils.debounce || function(func, delay) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    };
+
     // ==========================================
     // FINAL POLISH: MATERIAL RIPPLES & HAPTICS
     // ==========================================
@@ -3151,26 +3280,116 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// 2. Strict Fallback Observer: Wrapped in an event listener to prevent DOM Race Conditions!
-document.addEventListener('DOMContentLoaded', () => {
-    ['sales-customer', 'purchase-supplier'].forEach(prefix => {
-        const display = document.getElementById(`${prefix}-display`);
-        const search = document.getElementById(`${prefix}-search`);
-        if(display && search) {
-            new MutationObserver(() => {
-                if(display.innerText && display.innerText !== 'Select Customer...' && display.innerText !== 'Select Supplier...') {
-                    search.value = display.innerText;
+// ENTERPRISE FIX: Removed the buggy MutationObserver that caused the "Ghost Filter" lockout.
+// Instead, we ensure search boxes are wiped clean every time a bottom sheet opens!
+document.addEventListener('click', (e) => {
+    const target = e.target.closest('[onclick*="openBottomSheet"]');
+    if (target) {
+        // Find the specific sheet being opened
+        const clickLogic = target.getAttribute('onclick') || '';
+        const sheetIdMatch = clickLogic.match(/openBottomSheet\(['"]([^'"]+)['"]/);
+        if (sheetIdMatch && sheetIdMatch[1]) {
+            const sheet = document.getElementById(sheetIdMatch[1]);
+            // If the sheet has a search box, wipe it completely clean!
+            if (sheet) {
+                const searchBox = sheet.querySelector('input[type="text"]');
+                if (searchBox) {
+                    searchBox.value = '';
+                    // Trigger an input event to reset the V2 Universal Search Engine
+                    searchBox.dispatchEvent(new Event('input', { bubbles: true }));
                 }
-            }).observe(display, { childList: true, characterData: true, subtree: true });
+            }
         }
-    });
+    }
 });
 
-// 1. Export the module so app.js can import it
-export default UI;
+// ==========================================
+// ENTERPRISE FIX 1: THE ANTI-CLONE BUTTON SHIELD
+// ==========================================
+document.addEventListener('click', (e) => {
+    // Target all major action buttons in the app
+    const btn = e.target.closest('.btn-primary, .btn-primary-small, #main-fab');
+    if (btn) {
+        // If the button is already processing a click, physically KILL the second click!
+        if (btn.getAttribute('data-locked') === 'true') {
+            e.preventDefault();
+            e.stopPropagation(); // Stops the double-save exploit dead in its tracks
+            return;
+        }
+        
+        // Lock the button instantly
+        btn.setAttribute('data-locked', 'true');
+        btn.style.opacity = '0.7';
+        btn.style.transform = 'scale(0.98)';
+        
+        // Auto-unlock the button after the database finishes saving
+        setTimeout(() => {
+            btn.removeAttribute('data-locked');
+            btn.style.opacity = '1';
+            btn.style.transform = 'none';
+        }, 1500);
+    }
+}, true); // TRUE = 'Capture Phase'. We intercept the click before the app even knows it happened!
+
+// ==========================================
+// ENTERPRISE FIX 2: SMART KEYBOARD DISMISSAL
+// ==========================================
+document.addEventListener('click', (e) => {
+    // If the user taps ANY clickable list item or card in the app
+    const target = e.target.closest('.tap-target, .m3-card, li');
+    if (target) {
+        // ENTERPRISE FIX: If they tap the 'Clear Search' (X) button, let the keyboard stay open!
+        if (target.innerText && target.innerText.trim() === 'close') return;
+
+        // If a search box is currently focused and the keyboard is up, FORCE it to close!
+        if (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') {
+            document.activeElement.blur();
+        }
+    }
+});
 
 // 2. Attach to window so index.html inline scripts don't break
 window.UI = UI;
 
 // 3. Boot up the Premium UX Engine automatically
 document.addEventListener('DOMContentLoaded', UI.initPremiumUX);
+
+// ==========================================
+// ENTERPRISE FIX 3: THE ANDROID BACK-BUTTON SHIELD
+// ==========================================
+// Secretly push a safe history state whenever a user opens any form or sheet
+document.addEventListener('click', (e) => {
+    const target = e.target.closest('[onclick*="openBottomSheet"], [onclick*="openActivity"], [onclick*="openForm"]');
+    if (target) {
+        window.history.pushState({ internalRoute: true }, '');
+    }
+});
+
+// Intercept the physical phone back button
+window.addEventListener('popstate', (e) => {
+    let trapped = false;
+    
+    // 1. Catch and close any open bottom sheets
+    const sheets = document.querySelectorAll('.bottom-sheet');
+    sheets.forEach(s => {
+        if (s.style.bottom === '0px' || s.classList.contains('active')) {
+            if (window.UI) window.UI.closeBottomSheet(s.id);
+            trapped = true;
+        }
+    });
+
+    // 2. Catch and close any open full-screen activities
+    const screens = document.querySelectorAll('.activity-screen:not(.hidden)');
+    screens.forEach(s => {
+        // Never close the main dashboard!
+        if (s.id !== 'activity-dashboard' && s.id !== 'dashboard' && s.id !== '') {
+            if (window.UI) window.UI.closeActivity(s.id);
+            trapped = true;
+        }
+    });
+
+    // If we saved the app from closing, inject another shield for the next click!
+    if (trapped) {
+        window.history.pushState({ internalRoute: true }, '');
+    }
+});

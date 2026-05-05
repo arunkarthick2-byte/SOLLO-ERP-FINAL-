@@ -10,6 +10,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <title>SOLLO ERP</title>
+
+    <script>
+        // Cache cleanup is now safely managed natively by sw.js during the 'activate' event.
+    </script>
+
         <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
@@ -49,6 +54,28 @@
         }
         .search-bar input:focus {
             outline: none !important;
+        }
+
+        /* Force Flatpickr Date text to be visible */
+        .flatpickr-input[readonly], 
+        .flatpickr-input[type="text"], 
+        .flatpickr-alt-input {
+            background-color: var(--md-surface) !important;
+            color: var(--md-on-surface) !important;
+        }
+
+        /* 🟢 ENTERPRISE SHIELD: Protect remaining forms (Sales, Purchase, Profile) from layout bugs */
+        .form-group input, .form-group select, .form-group textarea {
+            box-sizing: border-box !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+        }
+        
+        .form-group label {
+            display: block !important;
+            position: relative !important;
+            transform: none !important; /* Prevents Material UI floating label hijacking */
+            margin-bottom: 6px !important;
         }
     </style>
 
@@ -346,6 +373,30 @@
                         <div style="flex: 1;"><strong style="font-size:15px;">Monthly GST Reports</strong></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
+                    
+                    <div class="m3-card tap-target" onclick="app.openPartyTaxReport()" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0;">
+                        <span class="material-symbols-outlined" style="color: #0061a4;">person_search</span>
+                        <div style="flex: 1;"><strong style="font-size:15px;">Party-Wise Tax Report</strong></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+
+                    <div class="m3-card tap-target" onclick="app.openItemProfitReport()" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;">
+                        <span class="material-symbols-outlined" style="color: #0061a4;">monitoring</span>
+                        <div style="flex: 1;"><strong style="font-size:15px;">Item-Wise Profitability</strong></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+
+                    <div class="m3-card tap-target" onclick="app.openExpenseReport()" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;">
+                        <span class="material-symbols-outlined" style="color: #e11d48;">receipt_long</span>
+                        <div style="flex: 1;"><strong style="font-size:15px;">Expense Leakage Report</strong></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+
+                    <div class="m3-card tap-target" onclick="app.openReorderReport()" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;">
+                        <span class="material-symbols-outlined" style="color: #f59e0b;">inventory_2</span>
+                        <div style="flex: 1;"><strong style="font-size:15px;">Low Stock Reorder</strong></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openActivity('activity-advanced-reports'); UI.renderDayBook();">
                         <span class="material-symbols-outlined" style="color: #2e7d32;">analytics</span>
                         <div style="flex: 1;"><strong style="font-size:15px;">Advanced Reports (PnL)</strong></div>
@@ -519,7 +570,7 @@
                     <div>
                         <small style="color: var(--md-text-muted);">Billed To *</small>
                         <div id="sales-customer-display" class="large-text" style="color: var(--md-text-muted);">Select Customer...</div>
-                        <input type="hidden" id="sales-customer-id" required>
+                        <input type="hidden" id="sales-customer-id">
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
                 </div>
@@ -583,12 +634,53 @@
                     </div>
                     <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="sales-grand-total">&#8377;0.00</strong></div>
+                    
+                    <div id="sales-installment-tracker" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--md-outline-variant);">
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px;">
+                            <span style="color: var(--md-success);">Total Paid: <span id="sales-tracker-paid">₹0.00</span></span>
+                            <span style="color: var(--md-error);">Balance Due: <span id="sales-tracker-due">₹0.00</span></span>
+                        </div>
+                        <div style="width: 100%; background: #e3e3e3; border-radius: 6px; height: 8px; overflow: hidden;">
+                            <div id="sales-tracker-bar" style="width: 0%; height: 100%; background: var(--md-success); border-radius: 6px; transition: width 0.8s ease;"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="sales-payment-history-card" class="m3-card hidden" style="margin-bottom: 24px; border: 1px solid var(--md-outline-variant);">
                     <strong style="display: block; margin-bottom: 12px; color: var(--md-primary);">Linked Payments & Receipts</strong>
                     <div id="sales-payment-history-list"></div>
                 </div>
+                
+                <script>
+                    setTimeout(() => {
+                        const historyList = document.getElementById('sales-payment-history-list');
+                        if (historyList) {
+                            new MutationObserver(() => {
+                                const tracker = document.getElementById('sales-installment-tracker');
+                                const grandTotalEl = document.getElementById('sales-grand-total');
+                                const card = document.getElementById('sales-payment-history-card');
+                                
+                                if (card && !card.classList.contains('hidden')) {
+                                    let totalPaid = 0;
+                                    historyList.querySelectorAll('.list-view li, .tap-target').forEach(li => {
+                                        const match = li.innerText.match(/(?:₹|Rs\.?)\s*([\d,.]+)/i);
+                                        if (match) totalPaid += parseFloat(match[1].replace(/,/g, ''));
+                                    });
+                                    const grandTotal = parseFloat(grandTotalEl.innerText.replace(/[^\d.-]/g, '')) || 0;
+                                    const balanceDue = Math.max(0, grandTotal - totalPaid);
+                                    const percent = grandTotal > 0 ? Math.min(100, (totalPaid / grandTotal) * 100) : 0;
+                                    
+                                    document.getElementById('sales-tracker-paid').innerText = '₹' + totalPaid.toFixed(2);
+                                    document.getElementById('sales-tracker-due').innerText = '₹' + balanceDue.toFixed(2);
+                                    document.getElementById('sales-tracker-bar').style.width = percent + '%';
+                                    tracker.style.display = 'block';
+                                } else {
+                                    tracker.style.display = 'none';
+                                }
+                            }).observe(historyList, { childList: true, subtree: true });
+                        }
+                    }, 2000);
+                </script>
 
                 <div id="sales-expense-history-card" class="m3-card hidden" style="margin-bottom: 24px; border: 1px solid var(--md-outline-variant);">
                     <strong style="display: block; margin-bottom: 12px; color: var(--md-error);">Linked Job Expenses</strong>
@@ -598,6 +690,12 @@
                 <details class="advanced-options">
                     <summary>Advanced Options & Notes</summary>
                     <div>
+                        <div id="sales-custom-fields-container" style="display: none; background: #e3f2fd; padding: 12px; border-radius: 8px; margin-top: 16px; border: 1px solid #90caf9;">
+                            <div id="sales-cf1-group" class="form-group" style="display: none; margin-bottom: 8px;"><label id="sales-cf1-label" style="color: #0277bd; font-weight: 600;">Custom 1</label><input type="text" id="sales-cf1-val" style="background: white;"></div>
+                            <div id="sales-cf2-group" class="form-group" style="display: none; margin-bottom: 8px;"><label id="sales-cf2-label" style="color: #0277bd; font-weight: 600;">Custom 2</label><input type="text" id="sales-cf2-val" style="background: white;"></div>
+                            <div id="sales-cf3-group" class="form-group" style="display: none; margin-bottom: 8px;"><label id="sales-cf3-label" style="color: #0277bd; font-weight: 600;">Custom 3</label><input type="text" id="sales-cf3-val" style="background: white;"></div>
+                        </div>
+
                         <div class="form-group" style="margin-top: 16px; margin-bottom: 8px;">
                             <label style="color: #f57f17; font-weight: bold;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
                             <textarea id="sales-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 8px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
@@ -641,7 +739,7 @@
                     <div>
                         <small style="color: var(--md-text-muted);">Purchased From *</small>
                         <div id="purchase-supplier-display" class="large-text" style="color: var(--md-text-muted);">Select Supplier...</div>
-                        <input type="hidden" id="purchase-supplier-id" required>
+                        <input type="hidden" id="purchase-supplier-id">
                     </div>
                     <span class="material-symbols-outlined" style="color: #d84315;">search</span>
                 </div>
@@ -750,46 +848,60 @@
                     AI Scan Expense Receipt
                 </button>
 
-                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Expense No *</label><input type="text" id="expense-no" name="expenseNo" required></div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Date *</label><input type="date" id="expense-date" name="date" required></div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="expense-category-select">Category *</label>
-                    <div style="display: flex; gap: 8px;">
-                        <select name="category" id="expense-category-select" style="flex: 1;" required>
-                            <option value="">Loading...</option>
-                        </select>
-                        <button type="button" class="btn-primary-small" style="padding: 0 12px; border-radius: 8px;" onclick="app.manageSimpleMaster('expenseCategories', 'Expense Categories')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Expense No *</div>
+                        <input type="text" id="expense-no" name="expenseNo" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
+                        <input type="date" id="expense-date" name="date" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
                 </div>
-                <div class="form-group"><label for="exp-amount">Amount (&#8377;) *</label><input type="number" id="exp-amount" inputmode="decimal" name="amount" min="0" step="0.01" required></div>
                 
-                <div class="form-group">
-                    <label>Paid From Account *</label>
-                    <select id="expense-account-id" name="accountId">
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Category *</div>
+                    <div style="display: flex; gap: 8px;">
+                        <select name="category" id="expense-category-select" required style="box-sizing: border-box; flex: 1; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                            <option value="">Loading...</option>
+                        </select>
+                        <button type="button" class="btn-primary-small" style="padding: 0 16px; border-radius: 8px; background: var(--md-primary-container); color: var(--md-primary);" onclick="app.manageSimpleMaster('expenseCategories', 'Expense Categories')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Amount (₹) *</div>
+                    <input type="number" id="exp-amount" inputmode="decimal" name="amount" min="0" step="0.01" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Paid From Account *</div>
+                    <select id="expense-account-id" name="accountId" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                         <option value="cash">Cash Drawer</option>
                     </select>
                 </div>
 
-                <div class="m3-card tap-target" style="margin-bottom: 16px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-linked-docs')">
+                <div class="m3-card tap-target" style="margin-bottom: 16px; padding: 12px 16px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-linked-docs')">
                     <div>
-                        <small style="color: var(--md-text-muted);">Link to Invoice / PO (Optional)</small>
-                        <div id="expense-linked-display" class="large-text" style="color: var(--md-text-muted);">-- No Link (General Expense) --</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--md-text-muted); margin-bottom: 4px;">Link to Invoice / PO (Optional)</div>
+                        <div id="expense-linked-display" style="font-size: 15px; font-weight: 500; color: var(--md-text-muted);">-- No Link (General Expense) --</div>
                         <input type="hidden" id="expense-linked-invoice" name="linkedInvoice">
                     </div>
-                    <span class="material-symbols-outlined">chevron_right</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
                 </div>
-                <div class="form-group"><label>Notes / Ref</label><input type="text" name="notes" placeholder="e.g., March Electricity Bill"></div>
                 
-                <div class="form-group">
-                    <label>Attach Bill / Receipt</label>
-                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('expense-attachment-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Notes / Ref</div>
+                    <input type="text" name="notes" placeholder="e.g., March Electricity Bill" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
+                
+                <div style="margin-bottom: 24px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Attach Bill / Receipt</div>
+                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('expense-attachment-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px dashed var(--md-outline-variant); border-radius: 8px; background: var(--md-surface);">
                     <img id="expense-attachment-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">Save Expense</button>
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600;">Save Expense</button>
             </form>
         </div>
     </div>
@@ -815,7 +927,7 @@
 
                 <div id="product-valuation-card" class="m3-card hidden" style="background: #e3f2fd; border-left: 4px solid #0061a4; margin-bottom: 16px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <small style="color: #0061a4; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Current Valuation</small>
+                        <div style="color: #0061a4; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px;">Current Valuation</div>
                         <div id="product-total-stock-display" style="font-size: 13px; color: var(--md-on-surface); margin-top: 4px;">0.00 Units in Stock</div>
                     </div>
                     <div style="text-align: right;">
@@ -823,35 +935,56 @@
                     </div>
                 </div>
 
-                <div class="form-group"><label for="prod-name">Product Name *</label><input type="text" id="prod-name" name="name" required></div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Product Name *</div>
+                    <input type="text" id="prod-name" name="name" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
 
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label for="prod-sell">Sell Price (&#8377;) *</label><input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="0.01" required></div>
-                    <div class="form-group" style="flex: 1;"><label for="prod-buy">Buy Price (&#8377;)</label><input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="0.01"></div>
-                </div>
-                <div style="display: flex; gap: 12px; background: var(--md-surface-variant); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="color: var(--md-primary);">Opening Stock (GST)</label>
-                        <input type="number" id="prod-stock-gst" inputmode="decimal" name="stockGst" value="0" step="0.01" style="border: 1px solid var(--md-primary);">
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Sell Price (₹) *</div>
+                        <input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="0.01" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label style="color: var(--md-error);">Opening Stock (Non-GST)</label>
-                        <input type="number" id="prod-stock-nongst" inputmode="decimal" name="stockNonGst" value="0" step="0.01" style="border: 1px solid var(--md-error);">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Buy Price (₹)</div>
+                        <input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="0.01" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
                 </div>
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label>Unit (UOM) *</label>
+                
+                <div style="display: flex; gap: 12px; background: var(--md-surface-variant); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-primary); margin-bottom: 6px;">Opening Stock (GST)</div>
+                        <input type="number" id="prod-stock-gst" inputmode="decimal" name="stockGst" value="0" step="0.01" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-primary); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-error); margin-bottom: 6px;">Opening Stock (Non-GST)</div>
+                        <input type="number" id="prod-stock-nongst" inputmode="decimal" name="stockNonGst" value="0" step="0.01" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-error); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Unit (UOM) *</div>
                         <div style="display: flex; gap: 8px;">
-                            <select name="uom" id="product-uom-select" style="flex: 1;" required></select>
-                            <button type="button" class="btn-primary-small" style="padding: 0 8px; border-radius: 8px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
+                            <select name="uom" id="product-uom-select" required style="box-sizing: border-box; flex: 1; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
+                            <button type="button" class="btn-primary-small" style="padding: 0 12px; border-radius: 8px; background: var(--md-primary-container); color: var(--md-primary);" onclick="app.manageSimpleMaster('units', 'Units of Measure')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
                         </div>
                     </div>
-                    <div class="form-group" style="flex: 1;"><label>Low Stock Alert</label><input type="number" inputmode="decimal" name="minStock" value="5" step="any"></div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Low Stock Alert</div>
+                        <input type="number" inputmode="decimal" name="minStock" value="5" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
                 </div>
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1;"><label>GST %</label><input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any"></div>
-                    <div class="form-group" style="flex: 1;"><label>HSN / SAC Code</label><input type="text" name="hsn"></div>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">GST %</div>
+                        <input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">HSN / SAC Code</div>
+                        <input type="text" name="hsn" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
                 </div>
                 
                 <div class="form-bottom-spacer"></div>
@@ -860,7 +993,7 @@
                     <span class="material-symbols-outlined" style="color: #0277bd; font-size: 28px;">inventory_2</span>
                     <div style="flex: 1;">
                         <strong style="font-size:16px; color: #0277bd; display: block;">View Stock Ledger</strong>
-                        <small style="color: #01579b;">Track all Purchases & Sales</small>
+                        <div style="font-size: 12px; color: #01579b;">Track all Purchases & Sales</div>
                     </div>
                     <span class="material-symbols-outlined" style="color: #0277bd;">chevron_right</span>
                 </div>
@@ -887,35 +1020,67 @@
         </div>
         <div class="activity-content">
             <form id="form-ledger">
-                <div class="form-group"><label>Party Name *</label><input type="text" name="name" id="ledger-name" required></div>
-                <div class="form-group">
-                    <label>Type *</label>
-                    <select name="type" required><option value="Customer">Customer</option><option value="Supplier">Supplier</option></select>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Party Name *</div>
+                    <input type="text" name="name" id="ledger-name" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                 </div>
-                <div class="form-group"><label>Phone Number</label><input type="tel" name="phone"></div>
-                <div class="form-group">
-                    <label>GSTIN (Optional)</label>
+                
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Type *</div>
+                    <select name="type" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                        <option value="Customer">Customer</option>
+                        <option value="Supplier">Supplier</option>
+                    </select>
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Phone Number</div>
+                    <input type="tel" name="phone" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">GSTIN (Optional)</div>
                     <div style="display: flex; gap: 8px;">
-                        <input type="text" name="gst" id="ledger-gst" style="text-transform: uppercase; flex: 1; margin-bottom: 0;">
-                        <button type="button" id="btn-verify-gst" onclick="window.verifyGSTIN()" style="background: var(--md-secondary); color: white; border: none; border-radius: 8px; padding: 0 16px; font-weight: bold; cursor: pointer;">Verify</button>
+                        <input type="text" name="gst" id="ledger-gst" style="text-transform: uppercase; flex: 1; box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                        <button type="button" id="btn-verify-gst" onclick="window.verifyGSTIN()" style="background: var(--md-primary-container); color: var(--md-primary); border: none; border-radius: 8px; padding: 0 16px; font-weight: bold; cursor: pointer;">Verify</button>
                     </div>
-                    <small id="gst-status" style="color: var(--md-text-muted); font-size: 11px; margin-top: 4px; display: block;">Tap verify to auto-fill details</small>
+                    <div id="gst-status" style="color: var(--md-text-muted); font-size: 11px; margin-top: 6px;">Tap verify to auto-fill details</div>
                 </div>
                 
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Pincode</label><input type="number" inputmode="decimal" name="pincode" id="ledger-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'ledger')"></div>
-                    <div class="form-group" style="flex: 2; margin-bottom: 0;"><label>City / District</label><input type="text" name="city" id="ledger-city"></div>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Pincode</div>
+                        <input type="number" inputmode="decimal" name="pincode" id="ledger-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'ledger')" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
+                    <div style="flex: 2; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">City / District</div>
+                        <input type="text" name="city" id="ledger-city" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
                 </div>
-                <div class="form-group" style="margin-top: 12px;"><label>State</label><input type="text" name="state" id="ledger-state"></div>
-                <div class="form-group"><label>Street Address</label><textarea name="address" id="ledger-address" rows="2" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px;"></textarea></div>
                 
-                <div class="m3-card" style="margin-bottom: 16px; background: #e3f2fd;">
-                    <strong style="display:block; margin-bottom:8px; color: var(--md-primary);">Opening Balance</strong>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">State</div>
+                    <input type="text" name="state" id="ledger-state" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
+                
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Street Address</div>
+                    <textarea name="address" id="ledger-address" rows="2" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none; resize: none;"></textarea>
+                </div>
+                
+                <div class="m3-card" style="margin-bottom: 16px; background: #e3f2fd; padding: 16px; border-radius: 12px;">
+                    <strong style="display:block; margin-bottom:12px; color: var(--md-primary);">Opening Balance</strong>
                     <div style="display: flex; gap: 12px;">
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Amount (&#8377;)</label><input type="number" inputmode="decimal" name="openingBalance" value="0" min="0" step="any"></div>
-                        <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                            <label>Balance Type</label>
-                            <select name="balanceType"><option value="To Receive / Debit">To Receive (Debit)</option><option value="To Pay / Credit">To Pay (Credit)</option></select>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 13px; font-weight: 600; color: var(--md-primary); margin-bottom: 6px;">Amount (₹)</div>
+                            <input type="number" inputmode="decimal" name="openingBalance" value="0" min="0" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid #90caf9; border-radius: 8px; font-size: 15px; background: white; color: var(--md-on-surface); outline: none;">
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 13px; font-weight: 600; color: var(--md-primary); margin-bottom: 6px;">Balance Type</div>
+                            <select name="balanceType" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid #90caf9; border-radius: 8px; font-size: 15px; background: white; color: var(--md-on-surface); outline: none;">
+                                <option value="To Receive / Debit">To Receive (Debit)</option>
+                                <option value="To Pay / Credit">To Pay (Credit)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -926,7 +1091,7 @@
                     <span class="material-symbols-outlined" style="color: #f57f17; font-size: 28px;">menu_book</span>
                     <div style="flex: 1;">
                         <strong style="font-size:16px; color: #f57f17; display: block;">View Khata Ledger</strong>
-                        <small style="color: #d84315;">Print or PDF Statement</small>
+                        <div style="font-size: 12px; color: #d84315;">Print or PDF Statement</div>
                     </div>
                     <span class="material-symbols-outlined" style="color: #f57f17;">print</span>
                 </div>
@@ -953,18 +1118,27 @@
         </div>
         <div class="activity-content">
             <form id="form-account">
-                <div class="form-group"><label>Account Name *</label><input type="text" id="account-name" name="name" placeholder="e.g., HDFC Current" required></div>
-                <div class="form-group">
-                    <label>Account Type *</label>
-                    <select id="account-type" name="type" required>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Account Name *</div>
+                    <input type="text" id="account-name" name="name" placeholder="e.g., HDFC Current" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Account Type *</div>
+                    <select id="account-type" name="type" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                         <option value="Bank">Bank Account</option>
                         <option value="Cash">Cash Drawer</option>
                         <option value="Wallet">Digital Wallet</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Account Number / UPI ID</label><input type="text" id="account-number" name="accountNumber"></div>
-                <div class="form-group"><label>Opening Balance (&#8377;)</label><input type="number" inputmode="decimal" id="account-opening-balance" name="openingBalance" step="any" value="0"></div>
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">Save Account</button>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Account Number / UPI ID</div>
+                    <input type="text" id="account-number" name="accountNumber" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Opening Balance (₹)</div>
+                    <input type="number" inputmode="decimal" id="account-opening-balance" name="openingBalance" step="any" value="0" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600;">Save Account</button>
             </form>
         </div>
     </div>
@@ -1027,21 +1201,45 @@
                 
                 <div class="form-group"><label>Bank Details (For Invoices)</label><textarea id="profile-bank" rows="2" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px;"></textarea></div>
                 <div class="form-group"><label>Terms & Conditions</label><textarea id="profile-terms" rows="2" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px;"></textarea></div>
+                                <details class="advanced-options" style="margin-top: 24px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant);">
+                    <summary style="padding: 14px 16px; font-weight: 700; color: var(--md-primary); cursor: pointer;">Invoice Custom Fields</summary>
+                    <div style="padding: 0 16px 16px 16px;">
+                        <p style="font-size: 12px; color: var(--md-text-muted); margin-bottom: 12px;">Define custom fields (like E-Way Bill, Vehicle No, or Sales Rep) to appear on your sales invoices.</p>
+                        <div class="form-group"><label>Custom Field 1 Name</label><input type="text" id="profile-cf1-name" placeholder="e.g., E-Way Bill No"></div>
+                        <div class="form-group"><label>Custom Field 2 Name</label><input type="text" id="profile-cf2-name" placeholder="e.g., Vehicle No"></div>
+                        <div class="form-group"><label>Custom Field 3 Name</label><input type="text" id="profile-cf3-name" placeholder="e.g., Sales Rep"></div>
+                    </div>
+                </details>
                 
-                <div class="form-group">
-                    <label>Invoice PDF Theme</label>
-                    <select id="profile-invoice-theme" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; background: var(--md-surface);">
-                        <option value="modern">Modern Blue (Default)</option>
-                        <option value="classic">Classic (Black & White)</option>
-                        <option value="elegant">Elegant (Dark Slate)</option>
-                    </select>
-                </div>
+                <details class="advanced-options" style="margin-top: 24px; border: 1px solid #c2e0ff; border-radius: 8px; background: #f0f8ff;">
+                    <summary style="padding: 14px 16px; font-weight: 700; color: #0061a4; cursor: pointer; display: flex; align-items: center;">
+                        <span class="material-symbols-outlined" style="margin-right: 8px; font-size: 20px;">palette</span> PDF Theme Designer
+                    </summary>
+                    <div style="padding: 0 16px 16px 16px;">
+                        <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 12px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; font-weight: bold; color: #333;">Brand Color</label>
+                                <p style="font-size: 10px; color: #666; margin: 2px 0 6px 0;">This will replace the default grey headers on your A4 Invoice.</p>
+                                <input type="color" id="profile-brand-color" value="#000000" style="width: 100%; height: 44px; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; background: #fff;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 12px; font-weight: bold; color: #333;">Typography Font</label>
+                                <p style="font-size: 10px; color: #666; margin: 2px 0 6px 0;">Select the text style for your printed documents.</p>
+                                <select id="profile-pdf-font" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px;">
+                                    <option value="inter">Modern (Sans-Serif)</option>
+                                    <option value="serif">Classic (Serif)</option>
+                                    <option value="mono">Typewriter (Monospace)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </details>
 
                 <div class="form-bottom-spacer"></div>
 
                 <div class="thumb-action-bar">
                     <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-business-profile')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
-                    <button type="submit" class="btn-primary" onclick="localStorage.setItem('sollo_invoice_theme', document.getElementById('profile-invoice-theme').value)">Save Settings</button>
+                    <button type="submit" class="btn-primary">Save Settings</button>
                 </div>
             </form>
         </div>
@@ -1274,33 +1472,42 @@
         </div>
         <div style="padding: 16px;">
             <form id="form-stock-adjustment">
-                <div class="form-group">
-                    <label>Select Product *</label>
-                    <select id="adj-product-id" required></select>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Select Product *</div>
+                    <select id="adj-product-id" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
                 </div>
                 
-                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Stock Pool *</label>
-                        <select id="adj-pool" required>
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Stock Pool *</div>
+                        <select id="adj-pool" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                             <option value="gst">GST Stock</option>
                             <option value="nongst">Non-GST Stock</option>
                         </select>
                     </div>
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
-                        <label>Action *</label>
-                        <select id="adj-type" required>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Action *</div>
+                        <select id="adj-type" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                             <option value="add">Add (+)</option>
                             <option value="reduce">Reduce (-)</option>
                         </select>
                     </div>
                 </div>
-                <div class="form-group"><label>Quantity *</label><input type="number" inputmode="decimal" id="adj-qty" min="0.01" step="any" required></div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Quantity *</div>
+                    <input type="number" inputmode="decimal" id="adj-qty" min="0.01" step="any" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
                 
-                <div class="form-group"><label>Date *</label><input type="date" id="adj-date" required></div>
-                <div class="form-group"><label>Reason / Notes *</label><input type="text" id="adj-notes" placeholder="e.g., Damaged, Audit Correction" required></div>
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
+                    <input type="date" id="adj-date" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Reason / Notes *</div>
+                    <input type="text" id="adj-notes" placeholder="e.g., Damaged, Audit Correction" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                </div>
                 
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 16px;">Save Adjustment</button>
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600;">Save Adjustment</button>
             </form>
         </div>
     </div>
@@ -1631,165 +1838,149 @@
     </div>
 
     <div id="sheet-payment-in" class="bottom-sheet">
-        <div class="sheet-header" style="background: var(--md-surface); border-bottom: 1px solid var(--md-surface-variant);">
-            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Receive Payment</span>
+        <div class="sheet-header">
+            <span style="font-size: 18px; font-weight: 500;">Receive Payment</span>
             <div style="display: flex; gap: 8px;">
-                
-                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentEditId || window.app.state.currentReceiptId; if(id) { window.app.state.currentEditId = id; window.app.state.currentReceiptId = id; if(window.app.generateReceiptPDF) window.app.generateReceiptPDF(id); else window.app.generatePDF('receipt-in'); } else { alert('Please save the receipt first before printing!'); } }" style="color: #146c2e; background: #e8f5e9; padding: 8px; border-radius: 50%; font-size: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">picture_as_pdf</span>
-
-                <span id="btn-delete-receipt-in" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); background: #fff0f2; padding: 8px; border-radius: 50%; font-size: 20px;" onclick="app.deleteRecord('receipt-in')">delete</span>
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%; font-size: 20px;">close</span>
+                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { window.app.generateReceiptPDF(id); } else { alert('Please save the receipt first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
+                <span id="btn-delete-receipt-in" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); padding: 4px;" onclick="app.deleteRecord('receipt-in')">delete</span>
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')" style="padding: 4px;">close</span>
             </div>
         </div>
         <div style="padding: 16px; overflow-y: auto;">
             <form id="form-payment-in">
-
-                <div class="m3-card tap-target" style="margin-bottom: 16px; border: 1px solid var(--md-outline-variant); border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; background: var(--md-surface); box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onclick="if(window.UI) UI.openSmartSearch('customer', 'pay-in')">
-                    <div style="display: flex; align-items: center; gap: 14px;">
-                        <div class="icon-circle" style="background: #e3f2fd; color: #0061a4; width: 44px; height: 44px; font-size: 22px;"><span class="material-symbols-outlined">person</span></div>
-                        <div>
-                            <small style="color: var(--md-text-muted); font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">From Customer</small>
-                            <div id="pay-in-customer-display" style="font-size: 16px; font-weight: 800; color: var(--md-on-surface); margin-top: 2px;">Select Customer...</div>
-                            <input type="hidden" id="pay-in-customer-id" required>
-                        </div>
+                <div class="m3-card tap-target" style="margin-bottom: 16px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('customer', 'pay-in')">
+                    <div>
+                        <div style="color: var(--md-on-surface); font-weight: 600; font-size: 13px; margin-bottom: 4px;">From Customer *</div>
+                        <div id="pay-in-customer-display" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface);">Select Customer...</div>
+                        <input type="hidden" id="pay-in-customer-id">
                     </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-primary); background: #e3f2fd; padding: 6px; border-radius: 50%; font-size: 18px;">search</span>
+                    <span class="material-symbols-outlined" style="color: #0061a4;">search</span>
                 </div>
 
-                <div style="margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px dashed var(--md-outline-variant);">
-                    <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 8px;">
-                        <span>Select Invoices to Settle</span>
-                        <span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Optional</span>
-                    </label>
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;"><span>Select Invoices to Settle</span> <span style="font-weight: normal; font-size: 11px;">Optional</span></div>
                     <select id="pay-in-invoice-ref" multiple style="display: none;">
                         <option value="">On Account / Advance</option>
                     </select>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Amount (₹) *</label>
-                        <input type="number" id="pay-in-amount" required inputmode="decimal" step="any" min="0.01" placeholder="0.00" style="width: 100%; padding: 12px; border: 2px solid #4caf50; border-radius: 8px; font-size: 16px; background: #f1f8e9; font-weight: 800; color: #1b5e20;">
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Amount (₹) *</div>
+                        <input type="number" id="pay-in-amount" required inputmode="decimal" step="any" min="0.01" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Date</label>
-                        <input type="date" id="pay-in-date" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
+                        <input type="date" id="pay-in-date" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Receipt No.</label>
-                        <input type="text" id="pay-in-no" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); font-weight: 800; color: var(--md-primary);">
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Mode</label>
-                        <select id="pay-in-mode" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Mode *</div>
+                        <select id="pay-in-mode" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                             <option value="Cash">Cash</option>
                             <option value="Bank Transfer">Bank Transfer</option>
                             <option value="UPI">UPI / QR</option>
                             <option value="Cheque">Cheque</option>
                         </select>
                     </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Receipt No. *</div>
+                        <input type="text" id="pay-in-no" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
                 </div>
                 
                 <div style="margin-bottom: 16px;">
-                    <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Deposit To</label>
-                    <select id="pay-in-account" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
-                    </select>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Deposit To *</div>
+                    <select id="pay-in-account" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
                 </div>
                 
                 <div style="margin-bottom: 16px;">
-                    <input type="text" id="pay-in-ref" placeholder="Transaction ID / Cheque No (Optional)" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 600;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Reference / Txn ID <span style="font-weight: normal; font-size: 11px;">(Optional)</span></div>
+                    <input type="text" id="pay-in-ref" placeholder="Transaction ID / Cheque No" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                 </div>
                 
                 <div style="margin-bottom: 24px;">
-                    <textarea id="pay-in-notes" placeholder="Add a note or remark..." rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; resize: none; font-family: inherit; font-weight: 500;"></textarea>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Internal Notes</div>
+                    <textarea id="pay-in-notes" rows="2" placeholder="Add a note or remark..." style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none; resize: none; font-family: inherit;"></textarea>
                 </div>
                 
-                <button type="submit" class="btn-primary tap-target" style="width: 100%; padding: 16px; font-size: 16px; font-weight: 800; border-radius: 12px; letter-spacing: 0.5px; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.3);">SAVE RECEIPT</button>
+                <button type="submit" class="btn-primary tap-target" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.2);">Save Receipt</button>
             </form>
-        </div>
+            </div>
     </div>
 
     <div id="sheet-payment-out" class="bottom-sheet">
-        <div class="sheet-header" style="background: var(--md-surface); border-bottom: 1px solid var(--md-surface-variant);">
-            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Make Payment</span>
+        <div class="sheet-header">
+            <span style="font-size: 18px; font-weight: 500;">Make Payment</span>
             <div style="display: flex; gap: 8px;">
-
-                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentEditId || window.app.state.currentReceiptId; if(id) { window.app.state.currentEditId = id; window.app.state.currentReceiptId = id; if(window.app.generateReceiptPDF) window.app.generateReceiptPDF(id); else window.app.generatePDF('receipt-out'); } else { alert('Please save the payment voucher first before printing!'); } }" style="color: #b71c1c; background: #ffebee; padding: 8px; border-radius: 50%; font-size: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">picture_as_pdf</span>
-
-                <span id="btn-delete-receipt-out" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); background: #fff0f2; padding: 8px; border-radius: 50%; font-size: 20px;" onclick="app.deleteRecord('receipt-out')">delete</span>
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%; font-size: 20px;">close</span>
+                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { window.app.generateReceiptPDF(id); } else { alert('Please save the payment first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
+                <span id="btn-delete-receipt-out" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); padding: 4px;" onclick="app.deleteRecord('receipt-out')">delete</span>
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')" style="padding: 4px;">close</span>
             </div>
         </div>
         <div style="padding: 16px; overflow-y: auto;">
             <form id="form-payment-out">
-
-                <div class="m3-card tap-target" style="margin-bottom: 16px; border: 1px solid var(--md-outline-variant); border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; background: var(--md-surface); box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onclick="if(window.UI) UI.openSmartSearch('supplier', 'pay-out')">
-                    <div style="display: flex; align-items: center; gap: 14px;">
-                        <div class="icon-circle" style="background: #fff0f2; color: #ba1a1a; width: 44px; height: 44px; font-size: 22px;"><span class="material-symbols-outlined">storefront</span></div>
-                        <div>
-                            <small style="color: var(--md-text-muted); font-weight: 800; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Paid To Supplier</small>
-                            <div id="pay-out-supplier-display" style="font-size: 16px; font-weight: 800; color: var(--md-on-surface); margin-top: 2px;">Select Supplier...</div>
-                            <input type="hidden" id="pay-out-supplier-id" required>
-                        </div>
+                <div class="m3-card tap-target" style="margin-bottom: 16px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'pay-out')">
+                    <div>
+                        <div style="color: var(--md-on-surface); font-weight: 600; font-size: 13px; margin-bottom: 4px;">Paid To Supplier *</div>
+                        <div id="pay-out-supplier-display" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface);">Select Supplier...</div>
+                        <input type="hidden" id="pay-out-supplier-id">
                     </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-error); background: #fff0f2; padding: 6px; border-radius: 50%; font-size: 18px;">search</span>
+                    <span class="material-symbols-outlined" style="color: #e11d48;">search</span>
                 </div>
 
-                <div style="margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px dashed var(--md-outline-variant);">
-                    <label style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 8px;">
-                        <span>Select Bills to Clear</span>
-                        <span style="background: #e2e8f0; color: #475569; padding: 2px 6px; border-radius: 4px; font-size: 10px;">Optional</span>
-                    </label>
+                <div style="margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;"><span>Select Bills to Clear</span> <span style="font-weight: normal; font-size: 11px;">Optional</span></div>
                     <select id="pay-out-invoice-ref" multiple style="display: none;">
                         <option value="">On Account / Advance</option>
                     </select>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Amount (₹) *</label>
-                        <input type="number" id="pay-out-amount" required inputmode="decimal" step="any" min="0.01" placeholder="0.00" style="width: 100%; padding: 12px; border: 2px solid #f44336; border-radius: 8px; font-size: 16px; background: #ffebee; font-weight: 800; color: #b71c1c;">
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Amount (₹) *</div>
+                        <input type="number" id="pay-out-amount" required inputmode="decimal" step="any" min="0.01" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Date</label>
-                        <input type="date" id="pay-out-date" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
+                        <input type="date" id="pay-out-date" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Voucher No.</label>
-                        <input type="text" id="pay-out-no" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); font-weight: 800; color: var(--md-error);">
-                    </div>
-                    <div>
-                        <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Mode</label>
-                        <select id="pay-out-mode" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Mode *</div>
+                        <select id="pay-out-mode" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                             <option value="Cash">Cash</option>
                             <option value="Bank Transfer">Bank Transfer</option>
                             <option value="UPI">UPI / QR</option>
                             <option value="Cheque">Cheque</option>
                         </select>
                     </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Voucher No. *</div>
+                        <input type="text" id="pay-out-no" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    </div>
                 </div>
                 
                 <div style="margin-bottom: 16px;">
-                    <label style="display: block; font-size: 11px; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px; text-transform: uppercase;">Paid From</label>
-                    <select id="pay-out-account" required style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 700;">
-                    </select>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Paid From *</div>
+                    <select id="pay-out-account" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
                 </div>
                 
                 <div style="margin-bottom: 16px;">
-                    <input type="text" id="pay-out-ref" placeholder="Transaction ID / Cheque No (Optional)" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; font-weight: 600;">
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Reference / Txn ID <span style="font-weight: normal; font-size: 11px;">(Optional)</span></div>
+                    <input type="text" id="pay-out-ref" placeholder="Transaction ID / Cheque No" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                 </div>
                 
                 <div style="margin-bottom: 24px;">
-                    <textarea id="pay-out-notes" placeholder="Add a note or remark..." rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: white; resize: none; font-family: inherit; font-weight: 500;"></textarea>
+                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Internal Notes</div>
+                    <textarea id="pay-out-notes" rows="2" placeholder="Add a note or remark..." style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none; resize: none; font-family: inherit;"></textarea>
                 </div>
                 
-                <button type="submit" class="btn-primary tap-target" style="width: 100%; padding: 16px; font-size: 16px; font-weight: 800; border-radius: 12px; letter-spacing: 0.5px; background: var(--md-error); box-shadow: 0 4px 12px rgba(186, 26, 26, 0.3);">SAVE PAYMENT</button>
+                <button type="submit" class="btn-primary tap-target" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; background: #e11d48; box-shadow: 0 4px 12px rgba(186, 26, 26, 0.2);">Save Payment</button>
             </form>
         </div>
     </div>
@@ -1847,6 +2038,155 @@
         
         <ul class="list-view" id="list-linked-docs" style="margin: 0; padding: 0; padding-bottom: 40px;"></ul>
     </div>
+        <div id="activity-expense-report" class="activity-screen hidden">
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Leakage</span>
+        </div>
+        <div class="activity-content" style="background-color: #f4f6fa; padding: 16px; overflow-y: auto;">
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+                <button type="button" onclick="app.setReportDates('today')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: white; color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
+                <button type="button" onclick="app.setReportDates('month')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: white; color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="app.setReportDates('year')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: white; color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
+            </div>
+
+            <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
+                <div style="display: flex; gap: 12px;">
+                    <div style="flex: 1;">
+                        <label style="font-weight: 500; color: #43474e; display: block; margin-bottom: 8px;">From Date:</label>
+                        <input type="date" id="expense-report-from" onchange="app.generateExpenseReport()" style="width: 100%; padding: 8px; border: 1px solid #c3c7cf; border-radius: 4px; font-size: 16px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-weight: 500; color: #43474e; display: block; margin-bottom: 8px;">To Date:</label>
+                        <input type="date" id="expense-report-to" onchange="app.generateExpenseReport()" style="width: 100%; padding: 8px; border: 1px solid #c3c7cf; border-radius: 4px; font-size: 16px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="m3-card" style="background: #fff0f2; border: 1px solid #fda4af; padding: 16px; text-align: center; margin-bottom: 16px;">
+                <span style="color: #e11d48; font-weight: bold;">Total Expenses (Selected Dates)</span>
+                <div id="expense-report-total" style="font-size: 24px; font-weight: 900; color: #9f1239; margin-top: 4px;">&#8377;0.00</div>
+            </div>
+
+            <h3 style="margin-top:0; color: #0061a4; font-size: 14px; text-transform: uppercase;">Category Breakdown</h3>
+            <div id="expense-report-list" style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px;"></div>
+        </div>
+    </div>
+
+    <div id="activity-reorder-report" class="activity-screen hidden">
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-reorder-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Auto Reorder List</span>
+            <span class="material-symbols-outlined tap-target" onclick="window.print()" style="position: absolute; right: 16px; color: #0061a4;">print</span>
+        </div>
+        <div class="activity-content" style="background-color: #f4f6fa; padding: 16px; overflow-y: auto;">
+            
+            <div class="m3-card" style="background: #fffbeb; border: 1px solid #fcd34d; padding: 16px; text-align: center; margin-bottom: 16px;">
+                <span style="color: #d97706; font-weight: bold;">Estimated Restock Cost</span>
+                <div id="reorder-report-total" style="font-size: 24px; font-weight: 900; color: #b45309; margin-top: 4px;">&#8377;0.00</div>
+                <small style="color: #d97706;">Cost to bring all items back to minimum stock</small>
+            </div>
+
+            <h3 style="margin-top:0; color: #0061a4; font-size: 14px; text-transform: uppercase;">Items to Order</h3>
+            <div id="reorder-report-list" style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px;"></div>
+        </div>
+    </div>
+
+    <div id="activity-item-profit-report" class="activity-screen hidden">
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-item-profit-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Item Profitability</span>
+        </div>
+        <div class="activity-content" style="background-color: #f4f6fa; padding: 16px; overflow-y: auto;">
+            
+            <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
+                <div style="display: flex; gap: 12px;">
+                    <div style="flex: 1;">
+                        <label style="font-weight: 500; color: #43474e; display: block; margin-bottom: 8px;">From Date:</label>
+                        <input type="date" id="item-profit-from" onchange="app.generateItemProfitReport()" style="width: 100%; padding: 8px; border: 1px solid #c3c7cf; border-radius: 4px; font-size: 16px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-weight: 500; color: #43474e; display: block; margin-bottom: 8px;">To Date:</label>
+                        <input type="date" id="item-profit-to" onchange="app.generateItemProfitReport()" style="width: 100%; padding: 8px; border: 1px solid #c3c7cf; border-radius: 4px; font-size: 16px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="m3-card" style="background: #e8f5e9; border: 1px solid #81c784; padding: 16px; text-align: center; margin-bottom: 16px;">
+                <span style="color: #2e7d32; font-weight: bold;">Total Gross Profit (Selected Date Range)</span>
+                <div id="item-profit-total" style="font-size: 24px; font-weight: 900; color: #1b5e20; margin-top: 4px;">&#8377;0.00</div>
+            </div>
+
+            <h3 style="margin-top:0; color: #0061a4; font-size: 14px; text-transform: uppercase;">Product Ranking (Highest Profit First)</h3>
+            <div id="item-profit-list" style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px;">
+                </div>
+
+        </div>
+    </div>
+
+    <div id="activity-party-tax-report" class="activity-screen hidden">
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-party-tax-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Party-Wise Tax Report</span>
+        </div>
+        <div class="activity-content" style="background-color: #f4f6fa; padding: 16px; overflow-y: auto;">
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+                <button type="button" onclick="app.setReportDates('today')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: white; color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
+                <button type="button" onclick="app.setReportDates('month')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: white; color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="app.setReportDates('year')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: white; color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
+            </div>
+
+            <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
+                <label style="font-weight: 500; color: #43474e; display: block; margin-bottom: 8px;">Select Customer:</label>
+                <select id="tax-report-customer" onchange="app.generatePartyTaxReport()" style="width: 100%; padding: 8px; border: 1px solid #c3c7cf; border-radius: 4px; font-size: 16px; margin-bottom: 12px;"></select>
+                
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <label style="font-weight: 500; color: #43474e; display: block; margin-bottom: 8px;">From Date:</label>
+                        <input type="date" id="tax-report-from" onchange="app.generatePartyTaxReport()" style="width: 100%; padding: 8px; border: 1px solid #c3c7cf; border-radius: 4px; font-size: 16px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-weight: 500; color: #43474e; display: block; margin-bottom: 8px;">To Date:</label>
+                        <input type="date" id="tax-report-to" onchange="app.generatePartyTaxReport()" style="width: 100%; padding: 8px; border: 1px solid #c3c7cf; border-radius: 4px; font-size: 16px;">
+                    </div>
+                </div>
+            </div>
+
+            <h3 style="margin-top:0; color: #0061a4; font-size: 16px; text-transform: uppercase;">Tax Breakdown</h3>
+            <div class="m3-card" style="margin-bottom: 16px; padding: 16px; border-left: 4px solid var(--md-primary);">
+                <div style="display:flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: #43474e; font-weight: bold;">GST Billed (B2B)</span>
+                </div>
+                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #73777f;">Taxable:</span> <strong id="tax-report-b2b" style="color: #1a1c1e;">&#8377;0.00</strong>
+                </div>
+                <div style="display:flex; justify-content: space-between;">
+                    <span style="color: #73777f;">Tax:</span> <strong id="tax-report-b2b-tax" style="color: var(--md-error);">&#8377;0.00</strong>
+                </div>
+            </div>
+
+            <div class="m3-card" style="margin-bottom: 16px; padding: 16px; border-left: 4px solid #f57f17;">
+                <div style="display:flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: #43474e; font-weight: bold;">Non-GST (B2C)</span>
+                </div>
+                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #73777f;">Taxable:</span> <strong id="tax-report-b2c" style="color: #1a1c1e;">&#8377;0.00</strong>
+                </div>
+                <div style="display:flex; justify-content: space-between;">
+                    <span style="color: #73777f;">Tax:</span> <strong id="tax-report-b2c-tax" style="color: var(--md-error);">&#8377;0.00</strong>
+                </div>
+            </div>
+            
+            <div class="m3-card" style="background: #e3f2fd; border: 1px solid #90caf9; padding: 16px; text-align: center;">
+                <span style="color: #0061a4; font-weight: bold;">Total Taxable Value</span>
+                <div id="tax-report-total" style="font-size: 24px; font-weight: 900; color: #0061a4; margin-top: 4px;">&#8377;0.00</div>
+            </div>
+
+        </div>
+    </div>
+
     <div id="activity-gst-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-gst-report')" style="position: absolute; left: 16px;">arrow_back</span>
@@ -2053,17 +2393,32 @@
         <button id="btn-refresh-app" style="background: var(--md-on-primary); color: var(--md-primary); border: none; padding: 6px 16px; border-radius: 4px; font-weight: bold; outline: none; cursor: pointer;">UPDATE</button>
     </div>
 
-    <script src="cloud.js?v=81"></script>
+    <div id="activity-item-ledger" class="activity-screen hidden">
+        <div class="app-header">
+            <span class="material-symbols-outlined nav-btn tap-target" onclick="window.UI.closeActivity('activity-item-ledger')">arrow_back</span>
+            <div class="header-title">
+                <strong id="item-ledger-title" style="font-size: 18px; color: var(--md-on-primary);">Item Ledger</strong>
+            </div>
+            <span class="material-symbols-outlined nav-btn tap-target" onclick="window.executeItemLedgerReport(document.getElementById('item-ledger-hidden-id').value, document.getElementById('item-ledger-hidden-name').value)">print</span>
+        </div>
+        <div class="activity-content" style="padding: 16px; background: var(--md-background);">
+            <input type="hidden" id="item-ledger-hidden-id">
+            <input type="hidden" id="item-ledger-hidden-name">
+            <div id="item-ledger-list">
+                </div>
+        </div>
+    </div>
 
-        <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <script src="db.js?v=21.3"></script>
+    <script src="utils.js?v=21.3"></script>
+    <script src="ui.js?v=21.3"></script>
+    <script src="cloud.js?v=21.3"></script>
+    <script src="app.js?v=21.3"></script>
 
-    <script type="module" src="app.js?v=6.1"></script>
-    <script type="module">
-        import Utils from './utils.js?v=6.1';
-        window.Utils = Utils;
-    </script>
-    <script type="module">
+    <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
+    <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
+
+    <script>
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -2087,8 +2442,8 @@
         let newWorker;
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // v=7.0 forces the phone to dump the old broken cache!
-                navigator.serviceWorker.register('sw.js?v=7.0').then(reg => {
+                // ENTERPRISE FIX: Bumped to v12.0 to forcefully destroy the cached broken app.js!
+                navigator.serviceWorker.register('sw.js?v=21.3').then(reg => {
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {

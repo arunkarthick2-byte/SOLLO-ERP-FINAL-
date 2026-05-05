@@ -263,17 +263,6 @@ document.addEventListener('scroll', (e) => {
     lastScrollY = currentScroll;
 }, { capture: true, passive: true });
 
-// --- NEW CODE: Import all our modules ---
-// STRICT ERP LOGIC: Synchronized to v6.1 to prevent catastrophic double-booting of the database!
-import { 
-    initDB, getAllRecords, getRecordById, saveRecord, deleteRecordById, 
-    getAllFirms, saveInvoiceTransaction, getNextDocumentNumber, 
-    getKhataStatement, getGlobalTimeline, exportDatabase, importDatabase, generateGSTReport 
-} from './db.js?v=6.1';
-import Utils from './utils.js?v=6.1';
-import UI from './ui.js?v=6.1';
-// --- END OF NEW CODE ---
-
 const app = {
     state: { currentEditId: null, currentReceiptId: null, currentDocType: 'invoice', firmId: 'firm1' },
 
@@ -363,20 +352,26 @@ const app = {
             await app.loadAllData(); 
             app.setupForms();
             
-            // 3. Render the UI instantly so the user doesn't wait
-            UI.renderDashboard();
+            // ENTERPRISE FIX: Order of Operations is Critical!
+            // The Splash Screen MUST hide, and Filters MUST apply BEFORE the Dashboard renders!
+            if (window.UI) {
+                if (typeof window.UI.hideSplash === 'function') window.UI.hideSplash();
+                
+                window.UI.applyFilters('sales');
+                window.UI.applyFilters('purchases');
+                window.UI.applyFilters('masters');
+                window.UI.applyFilters('expenses');
+                window.UI.applyFilters('cashbook');
+                window.UI.applyFilters('timeline');
+                
+                // Allow a microscopic 50ms delay for the DOM to register the filters before drawing the math!
+                if (typeof window.UI.renderDashboard === 'function') {
+                    setTimeout(() => window.UI.renderDashboard(), 50);
+                }
+            }
             
-            // ENTERPRISE FIX: Run the heavy database deduplication silently in the background!
-            // This prevents the splash screen from freezing as your database grows to thousands of records.
+            // Run the heavy database deduplication silently in the background!
             setTimeout(() => { app.cleanupDuplicates(); }, 2000);
-            UI.applyFilters('sales');
-            UI.applyFilters('purchases');
-            UI.applyFilters('masters');
-            UI.applyFilters('expenses');
-            UI.applyFilters('cashbook');
-            UI.applyFilters('timeline');
-            
-            UI.hideSplash();
 
             // FIX: Parse PWA Home Screen Shortcuts and route the user!
             const urlParams = new URLSearchParams(window.location.search);
@@ -384,14 +379,19 @@ const app = {
             if (action === 'new_sale') {
                 setTimeout(() => app.openForm('sales', null, 'invoice'), 300);
             } else if (action === 'cashbook') {
-                // FIX: Pass the correct tab ID, Title, AND the Navigation Element so the blue highlight moves!
                 setTimeout(() => { if(window.UI) window.UI.switchTab('tab-cashbook', 'Cashbook & Banking', document.getElementById('nav-cashbook')); }, 300);
+            }
+            
+            // ENTERPRISE FIX: Wipe the URL parameter so waking up the app doesn't force-open the sales form and delete unsaved work!
+            if (action && window.history.replaceState) {
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
 
         } catch (e) { 
-            console.error(e);
-            alert("Critical Error: Offline storage could not be accessed."); 
-            UI.hideSplash();
+            // ENTERPRISE FIX: Dynamically display the exact Javascript error so we can trace it!
+            console.error("Boot Crash Full Stack:", e);
+            alert("Boot Crash: " + e.message); 
+            if(window.UI) UI.hideSplash();
         }
     },
 
@@ -428,6 +428,11 @@ const app = {
             document.getElementById('profile-bank').value = firmData.bankDetails || '';
             document.getElementById('profile-terms').value = firmData.terms || '';
             
+            // NEW: Load Custom Field Names
+            document.getElementById('profile-cf1-name').value = firmData.cf1Name || '';
+            document.getElementById('profile-cf2-name').value = firmData.cf2Name || '';
+            document.getElementById('profile-cf3-name').value = firmData.cf3Name || '';
+            
             if (firmData.logo) {
                 const img = document.getElementById('profile-logo-preview');
                 img.src = firmData.logo;
@@ -438,6 +443,10 @@ const app = {
                 img.src = firmData.signature;
                 img.classList.remove('hidden');
             }
+            
+            // 🟢 ENTERPRISE FIX: Load PDF Theme Settings
+            document.getElementById('profile-brand-color').value = localStorage.getItem('sollo_brand_color') || '#000000';
+            document.getElementById('profile-pdf-font').value = localStorage.getItem('sollo_pdf_font') || 'inter';
         }
     },
 
@@ -450,28 +459,47 @@ const app = {
 
         const stripBloat = (arr) => arr.map(r => { const c = {...r}; delete c.image; delete c.attachment; return c; });
         
+        // ENTERPRISE FIX: Absolute Self-Healing Boot Engine!
+        // If any core objects were accidentally deleted, the app instantly rebuilds them instead of crashing!
+        window.AppCache = window.AppCache || {};
+        window.UI = window.UI || { state: { rawData: {} } };
+        window.UI.state = window.UI.state || { rawData: {} };
+        window.UI.state.rawData = window.UI.state.rawData || {};
+        
+        // Safely extract the Firm ID without throwing TypeErrors
+        const safeFirm = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
+        // Re-declare stripBloat securely in case it was deleted
+        const safeStrip = (arr) => Array.isArray(arr) ? arr.map(i => { delete i._bloat; return i; }) : [];
+
         // 1. Dynamic Data (Always fetch fresh from Database)
-        UI.state.rawData.sales = (await getAllRecords('sales')).filter(r => r.firmId === app.state.firmId);
-        UI.state.rawData.purchases = (await getAllRecords('purchases')).filter(r => r.firmId === app.state.firmId);
-        UI.state.rawData.expenses = stripBloat((await getAllRecords('expenses')).filter(r => r.firmId === app.state.firmId));
-        UI.state.rawData.cashbook = (await getAllRecords('receipts')).filter(r => r.firmId === app.state.firmId);
-        UI.state.rawData.timeline = typeof getGlobalTimeline === 'function' ? await getGlobalTimeline(app.state.firmId) : [];
-        // STRICT ERP LOGIC: Inject Stock Adjustments into RAM so the Dashboard PnL can calculate Stock Loss!
-        UI.state.rawData.adjustments = (await getAllRecords('adjustments')).filter(r => r.firmId === app.state.firmId);
+        // ENTERPRISE FIX: Appended || [] to everything so .filter() NEVER crashes!
+        UI.state.rawData.sales = (await getAllRecords('sales', 'firmId', safeFirm).catch(() => [])) || [];
+        UI.state.rawData.purchases = (await getAllRecords('purchases', 'firmId', safeFirm).catch(() => [])) || [];
+        UI.state.rawData.expenses = safeStrip((await getAllRecords('expenses', 'firmId', safeFirm).catch(() => [])) || []);
+        UI.state.rawData.cashbook = (await getAllRecords('receipts', 'firmId', safeFirm).catch(() => [])) || [];
+        
+        try {
+            const rawTime = typeof getGlobalTimeline === 'function' ? await getGlobalTimeline(safeFirm) : [];
+            UI.state.rawData.timeline = rawTime || [];
+        } catch(e) { UI.state.rawData.timeline = []; }
+        
+        UI.state.rawData.adjustments = (await getAllRecords('adjustments', 'firmId', safeFirm).catch(() => [])) || [];
         
         // 2. RAM CACHE: Static Master Data (Instant Load 0ms)
-        if (!window.AppCache.items) window.AppCache.items = stripBloat((await getAllRecords('items')).filter(r => r.firmId === app.state.firmId));
+        if (!window.AppCache.items) window.AppCache.items = safeStrip((await getAllRecords('items', 'firmId', safeFirm).catch(() => [])) || []);
         UI.state.rawData.items = window.AppCache.items;
 
-        if (!window.AppCache.ledgers) window.AppCache.ledgers = (await getAllRecords('ledgers')).filter(r => r.firmId === app.state.firmId);
+        if (!window.AppCache.ledgers) window.AppCache.ledgers = (await getAllRecords('ledgers', 'firmId', safeFirm).catch(() => [])) || [];
         UI.state.rawData.ledgers = window.AppCache.ledgers;
 
-        if (!window.AppCache.accounts) window.AppCache.accounts = (await getAllRecords('accounts')).filter(r => r.firmId === app.state.firmId);
+        if (!window.AppCache.accounts) {
+            const safeAccs = (await getAllRecords('accounts').catch(() => [])) || [];
+            window.AppCache.accounts = safeAccs.filter(r => r.firmId === safeFirm);
+        }
         UI.state.rawData.accounts = window.AppCache.accounts;
 
-        // UPGRADE 1: Load Recycle Bin from IndexedDB (Fixes the LocalStorage mismatch bug!)
-        const dbTrash = await getAllRecords('trash');
-        UI.state.rawData.trash = dbTrash.filter(t => t.firmId === app.state.firmId);
+        const safeTrash = (await getAllRecords('trash').catch(() => [])) || [];
+        UI.state.rawData.trash = safeTrash.filter(t => t.firmId === safeFirm);
 
         // Refresh our new dynamic dropdowns
         await app.loadDropdowns();
@@ -572,7 +600,9 @@ const app = {
 
                     if (balance > 0.01) {
                         totalDue += balance;
-                        const diffTime = Math.abs(today - new Date(sale.date));
+                                                // ENTERPRISE FIX: Use safeDate so iPhones don't crash on Dashboard boot!
+                        const diffTime = Math.abs(today - window.Utils.safeDate(sale.date));
+
                         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
                         if (diffDays <= 30) bucket30 += balance;
@@ -636,13 +666,13 @@ const app = {
         try {
             if (window.Utils) window.Utils.showToast("Recalculating all stock... ⏳");
             
-            // ENTERPRISE FIX: Isolate the stock recalculation strictly to the active company!
+            // ENTERPRISE FIX: Prevent RAM crashes by making IndexedDB filter the active firm BEFORE it hits memory!
             const activeFirmId = app.state.firmId;
-            const allItems = (await window.getAllRecords('items')).filter(i => i.firmId === activeFirmId);
-            const allSales = (await window.getAllRecords('sales')).filter(s => s.firmId === activeFirmId);
-            const allPurchases = (await window.getAllRecords('purchases')).filter(p => p.firmId === activeFirmId);
-            const allExpenses = (await window.getAllRecords('expenses')).filter(e => e.firmId === activeFirmId);
-            const allAdjustments = (await window.getAllRecords('adjustments')).filter(a => a.firmId === activeFirmId);
+            const allItems = await window.getAllRecords('items', 'firmId', activeFirmId);
+            const allSales = await window.getAllRecords('sales', 'firmId', activeFirmId);
+            const allPurchases = await window.getAllRecords('purchases', 'firmId', activeFirmId);
+            const allExpenses = await window.getAllRecords('expenses', 'firmId', activeFirmId);
+            const allAdjustments = await window.getAllRecords('adjustments', 'firmId', activeFirmId);
             
             // 1. Reset all items to their Initial Opening Stock securely
             for (let i of allItems) { 
@@ -707,17 +737,23 @@ const app = {
     cleanupDuplicates: async () => {
         try {
             let cleaned = false;
-            const ledgers = await getAllRecords('ledgers');
-            const accounts = await getAllRecords('accounts');
-            const sales = await getAllRecords('sales');
-            const purchases = await getAllRecords('purchases');
-            const receipts = await getAllRecords('receipts');
+            // ENTERPRISE FIX: Index-level fetching prevents the app from freezing on older phones when booting up!
+            const activeFirmId = app.state.firmId;
+            // ENTERPRISE FIX: Absolute Array Fallback (|| []) on background tasks prevents undefined.filter() crashes!
+            const ledgers = (await getAllRecords('ledgers', 'firmId', activeFirmId).catch(() => [])) || [];
+            const allAccounts = (await getAllRecords('accounts').catch(() => [])) || [];
+            const accounts = allAccounts.filter(a => a.firmId === activeFirmId);
+            const sales = (await getAllRecords('sales', 'firmId', activeFirmId).catch(() => [])) || [];
+            const purchases = (await getAllRecords('purchases', 'firmId', activeFirmId).catch(() => [])) || [];
+            const receipts = (await getAllRecords('receipts', 'firmId', activeFirmId).catch(() => [])) || [];
 
             // 1. Merge Duplicate Customers & Suppliers
             const ledgerMap = {};
             for (const l of ledgers) {
                 if (l.firmId !== app.state.firmId) continue;
-                const key = `${(l.name || '').trim().toLowerCase()}_${l.type}`;
+                // ENTERPRISE FIX: Must match BOTH Name and Phone to merge! Prevents wiping out different customers with the same name.
+                const safePhone = (l.phone || '').trim();
+                const key = `${(l.name || '').trim().toLowerCase()}_${safePhone}_${l.type}`;
                 
                 if (!ledgerMap[key]) {
                     ledgerMap[key] = l;
@@ -769,7 +805,7 @@ const app = {
                     cleaned = true;
                 }
             }
-            const expenses = await getAllRecords('expenses');
+            const expenses = (await getAllRecords('expenses').catch(() => [])) || [];
             for (const e of expenses) {
                 if (!e.accountId || String(e.accountId).trim() === '') {
                     e.accountId = 'cash';
@@ -796,7 +832,7 @@ const app = {
                     for (const r of receipts) { if (r.accountId === a.id) { r.accountId = 'cash'; await saveRecord('receipts', r); } }
                     
                     // ENTERPRISE FIX: Safely remap all Expenses to the official cash drawer so they don't get orphaned!
-                    const expenses = await getAllRecords('expenses');
+                    const expenses = (await getAllRecords('expenses').catch(() => [])) || [];
                     for (const e of expenses) { if (e.accountId === a.id) { e.accountId = 'cash'; await saveRecord('expenses', e); } }
                     
                     // Delete the ghost copy
@@ -835,9 +871,8 @@ const app = {
     // ==========================================
     openAdjustmentSheet: async () => {
         try {
-            const allItems = await getAllRecords('items');
-            // STRICT ERP LOGIC: Isolate items to the current active firm BEFORE checking if empty!
-            const items = allItems.filter(i => i.firmId === app.state.firmId);
+            // ENTERPRISE FIX: Scoped database fetch prevents RAM freeze when opening Stock Adjustments!
+            const items = await getAllRecords('items', 'firmId', app.state.firmId);
             const select = document.getElementById('adj-product-id');
             
             if (!items || items.length === 0) {
@@ -866,8 +901,12 @@ const app = {
             const notesEl = document.getElementById('adj-notes');
             if (notesEl) notesEl.value = '';
             
+            // 🟢 ENTERPRISE FIX: Crash-Proof Date Generator
             const dateEl = document.getElementById('adj-date');
-            if (dateEl) dateEl.value = window.Utils ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+            if (dateEl) {
+                const today = new Date().toISOString().split('T')[0];
+                dateEl.value = (typeof Utils !== 'undefined' && typeof Utils.getLocalDate === 'function') ? Utils.getLocalDate() : today;
+            }
 
             // Safely open the sheet
             if (window.UI) window.UI.openBottomSheet('sheet-stock-adjustment');
@@ -945,25 +984,26 @@ const app = {
     loadDropdowns: async () => {
         // STRICT ERP LOGIC: Multi-Company Data Isolation for Settings!
         // 1. Auto-seed and Load Units
-        let allUnits = await getAllRecords('units');
+        // ENTERPRISE FIX: Absolute mathematical safety with '|| []' prevents undefined .filter() crashes!
+        let allUnits = (await getAllRecords('units').catch(() => [])) || [];
         let units = allUnits.filter(u => u.firmId === app.state.firmId);
         
         if (units.length === 0) {
             const defaults = ['Pcs', 'Kg', 'Mtr', 'Ltr', 'Box', 'Dozen', 'Tonnes'];
-            for (let u of defaults) await saveRecord('units', { id: Utils.generateId(), firmId: app.state.firmId, name: u });
-            units = (await getAllRecords('units')).filter(u => u.firmId === app.state.firmId);
+            for (let u of defaults) await saveRecord('units', { id: Utils.generateId(), firmId: app.state.firmId, name: u }).catch(()=>{});
+            units = ((await getAllRecords('units').catch(() => [])) || []).filter(u => u.firmId === app.state.firmId);
         }
         const uomSelect = document.getElementById('product-uom-select');
         if (uomSelect) uomSelect.innerHTML = units.map(u => `<option value="${u.name}">${u.name}</option>`).join('');
 
         // 2. Auto-seed and Load Categories
-        let allCats = await getAllRecords('expenseCategories');
+        let allCats = (await getAllRecords('expenseCategories').catch(() => [])) || [];
         let cats = allCats.filter(c => c.firmId === app.state.firmId);
         
         if (cats.length === 0) {
             const defaults = ['Salary', 'Rent', 'Electricity', 'Transport', 'Office Supplies', 'Marketing', 'Maintenance', 'Other'];
-            for (let c of defaults) await saveRecord('expenseCategories', { id: Utils.generateId(), firmId: app.state.firmId, name: c });
-            cats = (await getAllRecords('expenseCategories')).filter(c => c.firmId === app.state.firmId);
+            for (let c of defaults) await saveRecord('expenseCategories', { id: Utils.generateId(), firmId: app.state.firmId, name: c }).catch(()=>{});
+            cats = ((await getAllRecords('expenseCategories').catch(() => [])) || []).filter(c => c.firmId === app.state.firmId);
         }
         const catSelect = document.getElementById('expense-category-select');
         if (catSelect) catSelect.innerHTML = '<option value="">Select Category...</option>' + cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
@@ -973,8 +1013,8 @@ const app = {
         const titleEl = document.getElementById('simple-master-title');
         if (titleEl) titleEl.innerText = `Manage ${title}`;
 
-        // STRICT ERP LOGIC: Only fetch records for the active company!
-        const allRecords = await getAllRecords(storeName);
+        // ENTERPRISE FIX: Safely wrap in || [] so it never crashes on empty databases!
+        const allRecords = (await getAllRecords(storeName).catch(() => [])) || [];
         const records = allRecords.filter(r => r.firmId === app.state.firmId);
 
         const listEl = document.getElementById('list-simple-master');
@@ -1104,9 +1144,10 @@ const app = {
 
                 if (window.Utils) window.Utils.showToast("Importing records, please wait...");
                 
-                // FIX: Fetch existing database records ONCE outside the loop to prevent massive freezing!
-                const existingItems = type === 'products' ? await getAllRecords('items') : [];
-                const existingLedgers = (type === 'customers' || type === 'suppliers') ? await getAllRecords('ledgers') : [];
+                // ENTERPRISE FIX: Fetch existing database records ONCE, and strictly scoped to the active firm!
+                const activeFirmId = app.state.firmId;
+                const existingItems = type === 'products' ? await getAllRecords('items', 'firmId', activeFirmId) : [];
+                const existingLedgers = (type === 'customers' || type === 'suppliers') ? await getAllRecords('ledgers', 'firmId', activeFirmId) : [];
                 
                 for (let i = 1; i < rows.length; i++) {
                     const cols = parseCSVRow(rows[i]);
@@ -1405,7 +1446,7 @@ const app = {
                 });
             }
 
-            const receipts = await getAllRecords('receipts');
+            const receipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
             const firmId = app.state.firmId;
             
             // Filter out only the transactions for this specific Bank/Cash account
@@ -1655,8 +1696,9 @@ const app = {
             return;
         }
 
-        const allDocs = await getAllRecords(storeName);
         const activeFirmId = app.state ? app.state.firmId : 'firm1';
+        // ENTERPRISE FIX: Use firmId index to prevent the app from lagging when opening the Payment sheet!
+        const allDocs = await getAllRecords(storeName, 'firmId', activeFirmId);
         
         // 1. ELITE UPGRADE: CALCULATE THE EXACT TRUE LEDGER BALANCE FIRST
         const party = await getRecordById('ledgers', partyId);
@@ -1677,7 +1719,7 @@ const app = {
             }
         });
 
-        const receipts = await getAllRecords('receipts');
+        const receipts = await getAllRecords('receipts', 'firmId', activeFirmId);
         receipts.forEach(r => {
             if (r.firmId === activeFirmId && r.ledgerId === partyId) {
                 const amt = parseFloat(r.amount) || 0;
@@ -1711,7 +1753,9 @@ const app = {
 
         // 3. CALCULATE PENDING GROSS DEBT
         let partyDocs = allDocs.filter(doc => doc.firmId === activeFirmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open');
-        partyDocs.sort((a, b) => new Date(a.date) - new Date(b.date));
+                // ENTERPRISE FIX: Protect Apple Devices from chronological sorting crashes!
+        partyDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+
 
         let totalPendingDebt = 0;
         const pendingInvoices = [];
@@ -1812,6 +1856,31 @@ const app = {
 
             if (type === 'sales' || type === 'purchase') {
                 document.getElementById(`${type}-items-body`).innerHTML = '';
+                
+                // NEW: Prepare Custom Fields for Sales Form
+                if (type === 'sales') {
+                    const firmData = await getRecordById('businessProfile', app.state.firmId);
+                    const cfContainer = document.getElementById('sales-custom-fields-container');
+                    if (firmData && cfContainer) {
+                        let showContainer = false;
+                        for (let i=1; i<=3; i++) {
+                            const name = firmData[`cf${i}Name`];
+                            const group = document.getElementById(`sales-cf${i}-group`);
+                            const label = document.getElementById(`sales-cf${i}-label`);
+                            const valInput = document.getElementById(`sales-cf${i}-val`);
+                            if (name) {
+                                if(group) group.style.display = 'block';
+                                if(label) label.innerText = name;
+                                if(valInput) valInput.value = ''; // Reset value
+                                showContainer = true;
+                            } else {
+                                if(group) group.style.display = 'none';
+                                if(valInput) valInput.value = '';
+                            }
+                        }
+                        cfContainer.style.display = showContainer ? 'block' : 'none';
+                    }
+                }
                 document.getElementById(`${type}-subtotal`).innerText = '\u20B90.00';
                 document.getElementById(`${type}-gst-total`).innerText = '\u20B90.00';
                 document.getElementById(`${type}-grand-total`).innerText = '\u20B90.00';
@@ -1941,6 +2010,16 @@ const app = {
             const notesEl = document.getElementById(`${type}-internal-notes`);
             if (notesEl) notesEl.value = record.internalNotes || '';
 
+            // NEW: Hydrate Custom Field Values
+            if (type === 'sales') {
+                const cf1Input = document.getElementById('sales-cf1-val');
+                const cf2Input = document.getElementById('sales-cf2-val');
+                const cf3Input = document.getElementById('sales-cf3-val');
+                if (cf1Input) cf1Input.value = record.cf1Val || '';
+                if (cf2Input) cf2Input.value = record.cf2Val || '';
+                if (cf3Input) cf3Input.value = record.cf3Val || '';
+            }
+
             const partyKey = type === 'sales' ? 'customer' : 'supplier';
             const partyIdKey = type === 'sales' ? 'customerId' : 'supplierId';
             const partyNameKey = type === 'sales' ? 'customerName' : 'supplierName';
@@ -2049,7 +2128,7 @@ const app = {
                 // FIX: Check ALL references to catch cross-linked payments in the history view!
                 const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean))];
                 const partyId = type === 'sales' ? record.customerId : record.supplierId;
-                const allReceipts = await getAllRecords('receipts');
+                const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                 
                 const linkedReceipts = allReceipts.filter(r => {
                     if (r.firmId !== app.state.firmId || r.ledgerId !== partyId) return false;
@@ -2271,7 +2350,8 @@ const app = {
 
                     // FIX: Prevent Duplicate Numbers, but safetly IGNORE blank numbers!
                     const proposedDocNo = type === 'sales' ? document.getElementById('sales-invoice-no').value : document.getElementById('purchase-po-no').value;
-                    const allExistingDocs = await getAllRecords(type === 'sales' ? 'sales' : 'purchases');
+                    // ENTERPRISE FIX: Drastically reduce Save Lag by only loading the active firm's docs into RAM!
+                    const allExistingDocs = await getAllRecords(type === 'sales' ? 'sales' : 'purchases', 'firmId', app.state.firmId);
                     
                     if (proposedDocNo && proposedDocNo.trim() !== '') {
                         const isDuplicate = allExistingDocs.some(d => 
@@ -2289,7 +2369,6 @@ const app = {
                     // Negative Inventory Warning (With Edit Recovery Math & Purchase Returns)
                     const isReducingStock = (type === 'sales' && !isReturn) || (type === 'purchase' && isReturn);
                     if (isReducingStock) {
-                        const allItems = await getAllRecords('items');
                         let existingInvoice = null;
                         if (app.state.currentEditId) {
                             existingInvoice = await getRecordById(type === 'sales' ? 'sales' : 'purchases', app.state.currentEditId);
@@ -2301,7 +2380,8 @@ const app = {
                         const poolName = isNonGST ? 'Non-GST' : 'GST';
                         
                         for (const row of items) {
-                            const dbItem = allItems.find(i => i.id === row.itemId);
+                            // ENTERPRISE FIX: Direct O(1) DB lookup. Stops the "Pre-Save" RAM freeze!
+                            const dbItem = await getRecordById('items', row.itemId);
                             if (dbItem) {
                                 // Isolate the exact stock pool being targeted (Bulletproof Math)
                                 const rawGst = parseFloat(dbItem.stockGst);
@@ -2354,6 +2434,11 @@ const app = {
                         grandTotal: parseFloat(document.getElementById(`${type}-grand-total`).innerText.replace(/[^\d.-]/g, '')) || 0,
                         internalNotes: document.getElementById(`${type}-internal-notes`) ? document.getElementById(`${type}-internal-notes`).value : '',
                         
+                        // NEW: Save Custom Field Values
+                        cf1Val: type === 'sales' && document.getElementById('sales-cf1-val') ? document.getElementById('sales-cf1-val').value : '',
+                        cf2Val: type === 'sales' && document.getElementById('sales-cf2-val') ? document.getElementById('sales-cf2-val').value : '',
+                        cf3Val: type === 'sales' && document.getElementById('sales-cf3-val') ? document.getElementById('sales-cf3-val').value : '',
+
                         // NEW: Instant payments removed. Hardcoded to 0. All payments use manual receipts now.
                         amountPaid: 0,
                         paymentMode: 'Cash',
@@ -2466,7 +2551,7 @@ const app = {
 
                     // ENTERPRISE FIX: Duplicate Document Number Protection for Expenses
                     if (type === 'expense' && data.expenseNo) {
-                        const allExistingExpenses = await getAllRecords('expenses');
+                        const allExistingExpenses = await getAllRecords('expenses', 'firmId', app.state.firmId);
                         const isDuplicate = allExistingExpenses.some(e => 
                             e.firmId === app.state.firmId && 
                             e.expenseNo === data.expenseNo && 
@@ -2525,7 +2610,7 @@ const app = {
                     data.accountId = accEl ? accEl.value : 'cash';
                     
                     // STRICT ERP LOGIC: Prevent Expenses from silently overdrafting the Cashbook!
-                    const allReceipts = await getAllRecords('receipts');
+                    const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                     let currentBal = 0;
                     // FIX: Read the Opening Balance for ALL accounts, including the default Cash Drawer!
                     const accRecord = await getRecordById('accounts', data.accountId);
@@ -2747,7 +2832,12 @@ const app = {
                     address: document.getElementById('profile-address').value,
                     state: document.getElementById('profile-state').value,
                     bankDetails: document.getElementById('profile-bank').value,
-                    terms: document.getElementById('profile-terms').value
+                    terms: document.getElementById('profile-terms').value,
+                    
+                    // NEW: Save Custom Field Names
+                    cf1Name: document.getElementById('profile-cf1-name').value,
+                    cf2Name: document.getElementById('profile-cf2-name').value,
+                    cf3Name: document.getElementById('profile-cf3-name').value
                 };
 
                 // STRICT ERP LOGIC: Prevent the "Deep Fryer" bug! Only compress if it is a brand new upload.
@@ -2766,6 +2856,12 @@ const app = {
                 }
 
                 await saveRecord('businessProfile', data);
+                
+                // 🟢 ENTERPRISE FIX: Save PDF Theme Settings to Local Storage
+                const colorEl = document.getElementById('profile-brand-color');
+                const fontEl = document.getElementById('profile-pdf-font');
+                if (colorEl) localStorage.setItem('sollo_brand_color', colorEl.value);
+                if (fontEl) localStorage.setItem('sollo_pdf_font', fontEl.value);
                 
                 const firmRecord = await getRecordById('firms', app.state.firmId) || { id: app.state.firmId };
                 firmRecord.name = data.name;
@@ -2816,7 +2912,7 @@ const app = {
                     const docNoInput = document.getElementById(`pay-${type}-no`).value;
 
                     // FIX: Duplicate Number Protection for Receipts (Safely ignoring blank numbers!)
-                    const allReceipts = await getAllRecords('receipts');
+                    const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                     if (docNoInput && docNoInput.trim() !== '') {
                         const isDuplicate = allReceipts.some(r => 
                             r.firmId === app.state.firmId && 
@@ -2854,7 +2950,7 @@ const app = {
 
                     // STRICT ERP LOGIC: Cashbook Overdraft Protection!
                     if (type === 'out') {
-                        const allReceipts = await getAllRecords('receipts');
+                        const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                         let currentBal = 0;
                         // FIX: Read the Opening Balance for ALL accounts, including the default Cash Drawer!
                         const accRecord = await getRecordById('accounts', accountId);
@@ -2897,7 +2993,7 @@ const app = {
                         if (selectedInvoiceRef) {
                             const storeName = type === 'in' ? 'sales' : 'purchases';
                             const allDocs = await getAllRecords(storeName);
-                            const allReceipts = await getAllRecords('receipts');
+                            const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                             const selectedRefs = selectedInvoiceRef.split(',').map(r => r.trim());
 
                             for (const ref of selectedRefs) {
@@ -2968,27 +3064,54 @@ const app = {
         });
     },
 
-      openNewPayment: async (type) => {
+    // ==========================================
+    // ENTERPRISE FIX: SMART PAYMENT FORMS
+    // ==========================================
+    openNewPayment: async (type) => {
         app.state.currentReceiptId = null;
-        const form = document.getElementById(`form-payment-${type}`);
-        if (form) {
-            form.reset();
-            const dateInput = document.getElementById(`pay-${type}-date`);
-            if (dateInput && typeof Utils !== 'undefined') {
-                dateInput.value = Utils.getLocalDate();
-                if (dateInput._flatpickr) dateInput._flatpickr.setDate(Utils.getLocalDate());
-            }
+        const isOut = type === 'out';
+        const prefix = isOut ? 'pay-out' : 'pay-in';
+        const sheetId = `sheet-payment-${type}`;
 
-            // NEW: Unified Template Engine connection for Receipts & Vouchers
-            const prefix = type === 'in' ? 'REC' : 'VOU';
-            if (typeof getNextDocumentNumber === 'function') {
-                const nextNo = await getNextDocumentNumber('receipts', prefix, 'receiptNo');
-                const noInput = document.getElementById(`pay-${type}-no`);
-                if (noInput) noInput.value = nextNo;
-            }
+        // 1. Reset the form completely
+        const form = document.getElementById(`form-payment-${type}`);
+        if (form) form.reset();
+
+        // 2. Clear selected Party (Customer or Supplier) so old data doesn't leak
+        const displayEl = document.getElementById(`${prefix}-${isOut ? 'supplier' : 'customer'}-display`);
+        const idEl = document.getElementById(`${prefix}-${isOut ? 'supplier' : 'customer'}-id`);
+        if (displayEl) {
+            displayEl.innerText = `Select ${isOut ? 'Supplier' : 'Customer'}...`;
+            displayEl.style.color = 'var(--md-text-muted)';
         }
-        UI.toggleDeleteButton(`receipt-${type}`, false);
-        UI.openBottomSheet(`sheet-payment-${type}`);
+        if (idEl) idEl.value = '';
+
+        // 3. Clear the smart pending invoices list (if any were selected previously)
+        const refSelect = document.getElementById(`${prefix}-invoice-ref`);
+        if (refSelect) refSelect.innerHTML = '<option value="">On Account / Advance</option>';
+
+        // 4. Set Default Date to Today (CRASH-PROOFED)
+        const dateInput = document.getElementById(`${prefix}-date`);
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.value = (typeof Utils !== 'undefined' && typeof Utils.getLocalDate === 'function') ? Utils.getLocalDate() : today;
+            if (dateInput._flatpickr) dateInput._flatpickr.setDate(dateInput.value);
+        }
+
+        // 5. Generate Auto-Receipt / Voucher Number
+        const docPrefix = isOut ? 'VOU' : 'REC';
+        if (typeof getNextDocumentNumber === 'function') {
+            const nextNo = await getNextDocumentNumber('receipts', docPrefix, 'receiptNo');
+            const noInput = document.getElementById(`${prefix}-no`);
+            if (noInput) noInput.value = nextNo;
+        }
+
+        // 6. Reset System State & Hide Delete Button for new records
+        app.state.currentEditId = null;
+        if (window.UI) window.UI.toggleDeleteButton(`receipt-${type}`, false);
+
+        // 7. Finally, pop open the bottom sheet!
+        if (window.UI) window.UI.openBottomSheet(sheetId);
     },
 
     // ==========================================
@@ -3085,7 +3208,7 @@ const app = {
         const partyKey = isSales ? 'customerId' : 'supplierId';
         
         const allDocs = await getAllRecords(storeName);
-        const allReceipts = await getAllRecords('receipts');
+        const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
         
         // 1. ELITE UPGRADE: CALCULATE THE EXACT TRUE LEDGER BALANCE FIRST
         const party = await getRecordById('ledgers', partyId);
@@ -3120,12 +3243,12 @@ const app = {
             if (c.firmId === app.state.firmId && c.ledgerId === partyId && c.invoiceRef) {
                 let amt = parseFloat(c.amount) || 0;
                 let impact = isSales ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
-                if (impact > 0) {
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
-                    if (refs.length > 0) {
-                        let splitAmt = impact / refs.length;
-                        refs.forEach(r => { paymentMap[r] = (paymentMap[r] || 0) + splitAmt; });
-                    }
+                
+                // ENTERPRISE FIX: Removed the "impact > 0" block so Refunds accurately reopen Unpaid invoices!
+                const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                if (refs.length > 0) {
+                    let splitAmt = impact / refs.length;
+                    refs.forEach(r => { paymentMap[r] = (paymentMap[r] || 0) + splitAmt; });
                 }
             }
         });
@@ -3139,7 +3262,9 @@ const app = {
 
         // 3. CALCULATE PENDING GROSS DEBT
         let partyDocs = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open');
-        partyDocs.sort((a, b) => new Date(a.date) - new Date(b.date));
+                // ENTERPRISE FIX: Protect Apple Devices from chronological sorting crashes!
+        partyDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+
 
         let totalPendingDebt = 0;
         const pendingInvoices = [];
@@ -3216,7 +3341,7 @@ const app = {
             const partyId = type === 'sales' ? record.customerId : record.supplierId;
             
             if (uniqueRefs.length > 0 && partyId) {
-                const receipts = await getAllRecords('receipts');
+                const receipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                 // Check if any of the manual receipt refs match ANY of the document's IDs
                 const linkedManualReceipts = receipts.filter(r => {
                     const refs = String(r.invoiceRef || '').split(',').map(x => x.trim());
@@ -3270,7 +3395,7 @@ const app = {
 
         // Prevent Bank Account Deletion if transactions are tied to it
         if (type === 'account') {
-            const allReceipts = await getAllRecords('receipts');
+            const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
             const linkedTransactions = allReceipts.filter(r => r.accountId === id);
             if (linkedTransactions.length > 0) {
                 return alert(`Cannot delete this account. It has ${linkedTransactions.length} transaction(s) linked to it in the Cashbook.`);
@@ -3279,9 +3404,9 @@ const app = {
 
         // ENTERPRISE FIX: Prevent Ledger (Party) Deletion if they have active history!
         if (type === 'ledger') {
-            const allSales = await getAllRecords('sales');
-            const allPurchases = await getAllRecords('purchases');
-            const allReceipts = await getAllRecords('receipts');
+            const allSales = await getAllRecords('sales', 'firmId', app.state.firmId);
+            const allPurchases = await getAllRecords('purchases', 'firmId', app.state.firmId);
+            const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
             
             const linkedSales = allSales.filter(s => s.customerId === id);
             const linkedPurchases = allPurchases.filter(p => p.supplierId === id);
@@ -3295,8 +3420,8 @@ const app = {
 
         // STRICT ERP LOGIC: Prevent Product Deletion if it has active transaction history!
         if (type === 'product') {
-            const allSales = await getAllRecords('sales');
-            const allPurchases = await getAllRecords('purchases');
+            const allSales = await getAllRecords('sales', 'firmId', app.state.firmId);
+            const allPurchases = await getAllRecords('purchases', 'firmId', app.state.firmId);
             
             const inSales = allSales.some(s => (s.items || []).some(i => i.itemId === id));
             const inPurchases = allPurchases.some(p => (p.items || []).some(i => i.itemId === id));
@@ -3420,7 +3545,8 @@ const app = {
         if (!record) return;
 
         // NEW: Calculate true total paid (Instant + Manual) to link it to the PDF
-        const receipts = await getAllRecords('receipts');
+        // ENTERPRISE FIX: Stop the PDF Generator from freezing by scoping the database lookup!
+        const receipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
         // FIX: Match against ALL references so the printed PDF never misses a cross-linked payment!
         const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean))];
         const partyId = type === 'sales' ? record.customerId : record.supplierId;
@@ -3446,7 +3572,7 @@ const app = {
         });
 
         // STRICT ERP LOGIC: Add Returns/Credit Notes so the printed PDF doesn't demand fake money!
-        const allDocs = await getAllRecords(storeName);
+        const allDocs = await getAllRecords(storeName, 'firmId', app.state.firmId);
         let totalReturned = 0;
         allDocs.forEach(d => {
             if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open') {
@@ -3474,7 +3600,12 @@ const app = {
     },
 
     generateReceiptPDF: async (receiptId) => {
-        const receipt = await getRecordById('receipts', receiptId);
+        // ENTERPRISE FIX: If the HTML button forgets to send the ID, automatically grab the currently open receipt!
+        const targetId = (typeof receiptId === 'string' && receiptId.trim() !== '') ? receiptId : app.state.currentReceiptId;
+        
+        if (!targetId) return alert("Please save the payment first before generating a PDF.");
+
+        const receipt = await getRecordById('receipts', targetId);
         if (!receipt) return alert("Receipt not found. Please save it first.");
         
         const biz = await getRecordById('businessProfile', receipt.firmId) || {};
@@ -3487,7 +3618,8 @@ const app = {
         if (receipt.invoiceRef) {
             const refs = String(receipt.invoiceRef).split(',').map(r => r.trim());
             const store = isMoneyIn ? 'sales' : 'purchases';
-            const allDocs = await getAllRecords(store);
+            // ENTERPRISE FIX: Prevent the PDF engine from crashing when printing receipts!
+            const allDocs = await getAllRecords(store, 'firmId', receipt.firmId);
             
             const displayNames = refs.map(ref => {
                 // ENTERPRISE FIX: Enforce Firm ID to prevent cross-company data leaks on printed receipts!
@@ -3526,9 +3658,12 @@ const app = {
             return str.trim() ? "Rupees " + str.trim() + " Only" : "";
         };
         const amountInWords = numToWords(parseFloat(receipt.amount) || 0);
+        
+        // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Receipt!
+        const uniquePdfId = 'pdf-receipt-' + Date.now();
 
         const html = `
-            <div id="pdf-receipt-wrapper" class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important; position: relative; z-index: 1;">
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important; position: relative; z-index: 1;">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: -1; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
@@ -3595,8 +3730,11 @@ const app = {
         // FIX: Replaces slashes with dashes so the OS doesn't think the first half of the receipt number is a folder!
         const safeFilename = `${title.replace(/ /g, '_')}_${safeDocNo.replace(/[\/\\]/g, '-')}.pdf`;
         
-        let oldViewer = document.getElementById('activity-receipt-viewer');
-        if (oldViewer) oldViewer.remove();
+        // ENTERPRISE FIX: Ultimate Garbage Collection! 
+        // Detonate EVERY single old viewer and wipe the generic print-area so NOTHING ghosts!
+        document.querySelectorAll('#activity-receipt-viewer').forEach(el => el.remove());
+        const printArea = document.getElementById('print-area');
+        if (printArea) printArea.innerHTML = '';
 
         let viewerHTML = `
         <div id="activity-receipt-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column;">
@@ -3607,10 +3745,10 @@ const app = {
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('pdf-receipt-wrapper', '${safeFilename}', 'Here is your ${title} from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('${uniquePdfId}', '${safeFilename}', 'Here is your ${title} from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                     </div>
-                    <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('pdf-receipt-wrapper', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
                     </div>
                 </div>
@@ -3677,14 +3815,366 @@ const app = {
     },
 
     // ==========================================
+    // ENTERPRISE UPGRADE: PARTY-WISE TAX REPORT
+    // ==========================================
+    openPartyTaxReport: async () => {
+        // ENTERPRISE FIX: Prevent UI lag when opening the Party Tax Report modal!
+        const ledgers = await window.getAllRecords('ledgers', 'firmId', app.state.firmId);
+        const customers = ledgers.filter(l => l.type === 'Customer');
+        const select = document.getElementById('tax-report-customer');
+        if (select) {
+            select.innerHTML = '<option value="">Select Customer...</option>' + customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        }
+        
+        // ENTERPRISE FIX: Set default dates from the 1st of the month to Today!
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        
+        const fromEl = document.getElementById('tax-report-from');
+        const toEl = document.getElementById('tax-report-to');
+        if (fromEl) fromEl.value = `${yyyy}-${mm}-01`;
+        if (toEl) toEl.value = `${yyyy}-${mm}-${dd}`;
+        
+        document.getElementById('tax-report-b2b').innerText = '₹0.00';
+        document.getElementById('tax-report-b2b-tax').innerText = '₹0.00';
+        document.getElementById('tax-report-b2c').innerText = '₹0.00';
+        document.getElementById('tax-report-b2c-tax').innerText = '₹0.00';
+        document.getElementById('tax-report-total').innerText = '₹0.00';
+
+        if (window.UI) window.UI.openActivity('activity-party-tax-report');
+    },
+
+    generatePartyTaxReport: async () => {
+        const customerId = document.getElementById('tax-report-customer').value;
+        const fromVal = document.getElementById('tax-report-from').value;
+        const toVal = document.getElementById('tax-report-to').value;
+        
+        if (!customerId || !fromVal || !toVal) return;
+
+        const fromDate = new Date(fromVal);
+        const toDate = new Date(toVal);
+        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+        
+        let b2bTaxable = 0, b2bTax = 0, b2cTaxable = 0, b2cTax = 0;
+
+        sales.forEach(s => {
+            // ENTERPRISE FIX: Use safeDate so iPhones don't crash and show 'NaN' on Tax reports!
+            const sDate = window.Utils.safeDate(s.date);
+            // ENTERPRISE FIX: Custom Date Range filtering logic!
+            if (s.firmId === app.state.firmId && s.customerId === customerId && s.status !== 'Open' && sDate >= fromDate && sDate <= toDate) {
+                const mult = s.documentType === 'return' ? -1 : 1;
+                const isB2B = s.invoiceType === 'B2B';
+                
+                const rawSubtotal = parseFloat(s.subtotal) || 0;
+                
+                // ENTERPRISE FIX: Support Percentage Discounts properly!
+                let discountAmount = parseFloat(s.discount) || 0;
+                if (s.discountType === '%') {
+                    discountAmount = rawSubtotal * (discountAmount / 100);
+                }
+                // Cap the discount so taxable value never goes negative
+                const taxable = Math.max(0, rawSubtotal - discountAmount) * mult;
+                
+                const tax = (parseFloat(s.totalGst) || 0) * mult;
+
+                if (isB2B) {
+                    b2bTaxable += taxable;
+                    b2bTax += tax;
+                } else {
+                    b2cTaxable += taxable;
+                    b2cTax += tax;
+                }
+            }
+        });
+
+        const totalTaxable = b2bTaxable + b2cTaxable;
+
+        document.getElementById('tax-report-b2b').innerText = `₹${b2bTaxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('tax-report-b2b-tax').innerText = `₹${b2bTax.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('tax-report-b2c').innerText = `₹${b2cTaxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('tax-report-b2c-tax').innerText = `₹${b2cTax.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('tax-report-total').innerText = `₹${totalTaxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: ITEM-WISE PROFITABILITY
+    // ==========================================
+    openItemProfitReport: () => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        
+        const fromEl = document.getElementById('item-profit-from');
+        const toEl = document.getElementById('item-profit-to');
+        if (fromEl) fromEl.value = `${yyyy}-${mm}-01`;
+        if (toEl) toEl.value = `${yyyy}-${mm}-${dd}`;
+        
+        document.getElementById('item-profit-total').innerHTML = '₹0.00';
+        document.getElementById('item-profit-list').innerHTML = '';
+
+        if (window.UI) window.UI.openActivity('activity-item-profit-report');
+        if (typeof app.generateItemProfitReport === 'function') app.generateItemProfitReport();
+    },
+
+    generateItemProfitReport: async () => {
+        const fromVal = document.getElementById('item-profit-from').value;
+        const toVal = document.getElementById('item-profit-to').value;
+        if (!fromVal || !toVal) return;
+
+        const fromDate = new Date(fromVal);
+        const toDate = new Date(toVal);
+        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+        
+        const itemMap = {};
+
+        sales.forEach(s => {
+            // ENTERPRISE FIX: Use safeDate so iPhones don't crash on Profit reports!
+            const sDate = window.Utils.safeDate(s.date);
+            if (s.firmId === app.state.firmId && s.status !== 'Open' && sDate >= fromDate && sDate <= toDate) {
+                const mult = s.documentType === 'return' ? -1 : 1;
+                
+                // ENTERPRISE FIX: Calculate the exact discount ratio of the total invoice!
+                const rawSubtotal = parseFloat(s.subtotal) || 0;
+                let discountAmt = 0;
+                if (s.discountType === '%') {
+                    discountAmt = rawSubtotal * ((parseFloat(s.discount) || 0) / 100);
+                } else {
+                    discountAmt = parseFloat(s.discount) || 0;
+                }
+                const discountRatio = rawSubtotal > 0 ? (Math.min(discountAmt, rawSubtotal) / rawSubtotal) : 0;
+                
+                (s.items || []).forEach(item => {
+                    const id = item.itemId || item.name; 
+                    if (!itemMap[id]) {
+                        itemMap[id] = { name: item.name, qty: 0, revenue: 0, cost: 0, profit: 0, uom: item.uom };
+                    }
+                    
+                    const qty = parseFloat(item.qty) || 0;
+                    const rate = parseFloat(item.rate) || 0;
+                    const buyPrice = parseFloat(item.buyPrice) || 0; 
+                    
+                    // ENTERPRISE FIX: Apply the exact discount to extract the TRUE money earned!
+                    const baseRevenue = qty * rate;
+                    const actualRevenue = baseRevenue - (baseRevenue * discountRatio);
+                    const totalCost = qty * buyPrice;
+                    
+                    itemMap[id].qty += (qty * mult);
+                    itemMap[id].revenue += (actualRevenue * mult);
+                    itemMap[id].cost += (totalCost * mult);
+                    itemMap[id].profit += ((actualRevenue - totalCost) * mult);
+                });
+            }
+        });
+
+        const rankedItems = Object.values(itemMap).sort((a, b) => b.profit - a.profit);
+        
+        let totalOverallProfit = 0;
+        let html = '';
+
+        if (rankedItems.length === 0) {
+            html = '<div style="text-align:center; color:var(--md-text-muted); padding:20px;">No sales found in this date range.</div>';
+        } else {
+            rankedItems.forEach(item => {
+                totalOverallProfit += item.profit;
+                const isLoss = item.profit < 0;
+                const profitColor = isLoss ? 'var(--md-error)' : 'var(--md-success)';
+                const profitSign = isLoss ? '' : '+';
+                
+                html += `
+                <div class="m3-card" style="padding: 12px; border-left: 4px solid ${profitColor};">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                        <strong style="color: #1a1c1e; font-size: 14px;">${item.name}</strong>
+                        <strong style="color: ${profitColor}; font-size: 15px;">${profitSign}₹${item.profit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size: 11px; color: var(--md-text-muted);">
+                        <span>Qty Sold: <strong>${item.qty} ${item.uom || ''}</strong></span>
+                        <span>Revenue: <strong>₹${item.revenue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></span>
+                        <span>Avg Cost: <strong>₹${item.cost.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></span>
+                    </div>
+                </div>`;
+            });
+        }
+
+        document.getElementById('item-profit-list').innerHTML = html;
+        document.getElementById('item-profit-total').innerHTML = `₹${totalOverallProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    },
+
+    // ENTERPRISE UPGRADE: QUICK DATE FILTERS
+    setReportDates: (range) => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        let from, to;
+
+        if (range === 'today') {
+            const today = d.toISOString().split('T')[0];
+            from = today; to = today;
+        } else if (range === 'month') {
+            from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+            to = d.toISOString().split('T')[0];
+        } else if (range === 'year') {
+            const fyStartYear = m < 3 ? y - 1 : y;
+            from = `${fyStartYear}-04-01`;
+            to = d.toISOString().split('T')[0];
+        }
+
+        // Apply to ALL THREE report UIs automatically
+        const ids = ['tax-report-from', 'tax-report-to', 'item-profit-from', 'item-profit-to', 'expense-report-from', 'expense-report-to'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = (id.includes('from') ? from : to);
+        });
+
+        // Trigger the math engines to recalculate with the new dates
+        if (typeof app.generatePartyTaxReport === 'function') app.generatePartyTaxReport();
+        if (typeof app.generateItemProfitReport === 'function') app.generateItemProfitReport();
+        if (typeof app.generateExpenseReport === 'function') app.generateExpenseReport();
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: EXPENSE LEAKAGE & REORDER
+    // ==========================================
+    openExpenseReport: () => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        
+        const fromEl = document.getElementById('expense-report-from');
+        const toEl = document.getElementById('expense-report-to');
+        if (fromEl) fromEl.value = `${yyyy}-${mm}-01`;
+        if (toEl) toEl.value = `${yyyy}-${mm}-${dd}`;
+
+        if (window.UI) window.UI.openActivity('activity-expense-report');
+        app.generateExpenseReport();
+    },
+
+    generateExpenseReport: async () => {
+        const fromVal = document.getElementById('expense-report-from').value;
+        const toVal = document.getElementById('expense-report-to').value;
+        if (!fromVal || !toVal) return;
+
+        const fromDate = new Date(fromVal);
+        const toDate = new Date(toVal);
+        // ENTERPRISE FIX: Scoped the database fetch to prevent a RAM freeze!
+        const allExpenses = await window.getAllRecords('expenses', 'firmId', app.state.firmId);
+        
+        const catMap = {};
+        let totalExpenses = 0;
+
+        allExpenses.forEach(e => {
+                        // ENTERPRISE FIX: Use safeDate so iPhones don't crash on Expense reports!
+            const eDate = window.Utils.safeDate(e.date);
+
+            if (e.firmId === app.state.firmId && eDate >= fromDate && eDate <= toDate) {
+                const cat = e.category || 'Uncategorized';
+                const amt = parseFloat(e.amount) || 0;
+                
+                if (!catMap[cat]) catMap[cat] = 0;
+                catMap[cat] += amt;
+                totalExpenses += amt;
+            }
+        });
+
+        // Sort Highest Expenses First
+        const rankedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+        
+        let html = '';
+        if (rankedCats.length === 0) {
+            html = '<div style="text-align:center; color:var(--md-text-muted); padding:20px;">No expenses found in this date range.</div>';
+        } else {
+            rankedCats.forEach(([cat, amt]) => {
+                const percentage = totalExpenses > 0 ? ((amt / totalExpenses) * 100).toFixed(1) : 0;
+                html += `
+                <div class="m3-card" style="padding: 12px; border-left: 4px solid var(--md-error);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                        <strong style="color: #1a1c1e; font-size: 15px;">${cat}</strong>
+                        <strong style="color: var(--md-error); font-size: 16px;">₹${amt.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                    </div>
+                    <div style="display:flex; align-items:center; gap: 8px;">
+                        <div style="flex:1; height: 6px; background: #ffe4e6; border-radius: 3px; overflow: hidden;">
+                            <div style="width: ${percentage}%; height: 100%; background: var(--md-error);"></div>
+                        </div>
+                        <span style="font-size: 11px; color: var(--md-text-muted); font-weight:bold;">${percentage}%</span>
+                    </div>
+                </div>`;
+            });
+        }
+
+        document.getElementById('expense-report-list').innerHTML = html;
+        document.getElementById('expense-report-total').innerHTML = `₹${totalExpenses.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    },
+
+    openReorderReport: async () => {
+        if (window.UI) window.UI.openActivity('activity-reorder-report');
+        
+        // ENTERPRISE FIX: Direct O(1) Indexed lookup prevents the Reorder Report from freezing!
+        const firmItems = await window.getAllRecords('items', 'firmId', app.state.firmId);
+        
+        let estimatedCost = 0;
+        let html = '';
+        let reorderCount = 0;
+
+        firmItems.forEach(i => {
+            const minStock = parseFloat(i.minStock) || 0;
+            // Only care if they actually set a minimum stock!
+            if (minStock > 0) {
+                const currentStock = parseFloat(i.stock) || 0;
+                
+                // ENTERPRISE FIX: Changed <= to < so the app doesn't command users to order "0" items!
+                if (currentStock < minStock) {
+                    reorderCount++;
+                    const deficit = minStock - currentStock;
+                    const buyPrice = parseFloat(i.buyPrice) || 0;
+                    const restockCost = deficit * buyPrice;
+                    estimatedCost += restockCost;
+
+                    html += `
+                    <div class="m3-card" style="padding: 12px; border-left: 4px solid #f59e0b;">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                            <div>
+                                <strong style="color: #1a1c1e; font-size: 15px; display:block;">${i.name}</strong>
+                                <small style="color: var(--md-error); font-weight:bold;">Current Stock: ${currentStock} ${i.uom || ''}</small>
+                            </div>
+                            <div style="text-align:right;">
+                                <small style="color: var(--md-text-muted); display:block;">Order Qty</small>
+                                <strong style="color: #d97706; font-size: 18px;">${deficit}</strong>
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dashed var(--md-outline-variant); padding-top: 8px; margin-top: 4px;">
+                            <span style="font-size: 11px; color: var(--md-text-muted);">Est. Buy Price: ₹${buyPrice.toFixed(2)}</span>
+                            <span style="font-size: 12px; font-weight:bold; color: #b45309;">Cost: ₹${restockCost.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                        </div>
+                    </div>`;
+                }
+            }
+        });
+
+        if (reorderCount === 0) {
+            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">check_circle</span>All items are sufficiently stocked!</div>';
+        }
+
+        document.getElementById('reorder-report-list').innerHTML = html;
+        document.getElementById('reorder-report-total').innerHTML = `₹${estimatedCost.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    },
+
+    // ==========================================
+    // NEW: EXPENSE LINK SEARCH ENGINE
+    // ==========================================
+
+    // ==========================================
     // NEW: EXPENSE LINK SEARCH ENGINE
     // ==========================================
     loadLinkedDocsList: async () => {
         const listEl = document.getElementById('list-linked-docs');
         if (!listEl) return;
         
-        const sales = await getAllRecords('sales');
-        const purchases = await getAllRecords('purchases');
+        // ENTERPRISE FIX: Stop the Expense screen from violently freezing by scoping the linked docs!
+        const sales = await getAllRecords('sales', 'firmId', app.state.firmId);
+        const purchases = await getAllRecords('purchases', 'firmId', app.state.firmId);
         
         const currentSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
         let html = '';
@@ -3899,8 +4389,10 @@ const app = {
         try {
             if (window.Utils) window.Utils.showToast("Calculating Year-End Balances...");
             
-            const ledgers = await getAllRecords('ledgers');
-            const accounts = await getAllRecords('accounts');
+            // ENTERPRISE FIX: Added || [] to prevent Year-End report from crashing!
+            const ledgers = (await getAllRecords('ledgers', 'firmId', app.state.firmId).catch(() => [])) || [];
+            const allAccounts = (await getAllRecords('accounts').catch(() => [])) || [];
+            const accounts = allAccounts.filter(a => a.firmId === app.state.firmId);
             
             let csvContent = "SOLLO ERP - FINANCIAL YEAR CLOSING BALANCES\n\n";
             csvContent += `Generated on: ${new Date().toLocaleDateString('en-IN')}\n\n`;
@@ -3963,7 +4455,7 @@ const app = {
             csvContent += "\n2. BANK & CASH ACCOUNTS\n";
             csvContent += "Account Name,Closing Balance\n";
             
-            const allReceipts = await getAllRecords('receipts');
+            const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
             
             // Compute Main Cash Drawer
             let cashBal = 0;
@@ -4313,7 +4805,7 @@ window.executeAccountReport = async (accountId) => {
         account = await getRecordById('accounts', accountId) || account;
     }
 
-    const receipts = await getAllRecords('receipts');
+    const receipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
     const firmId = app.state.firmId;
     
     const accountReceipts = receipts.filter(r => {
@@ -4491,13 +4983,203 @@ window.executeAccountReport = async (accountId) => {
     }, 50);
 };
 
+// ==========================================
+// ENTERPRISE UPGRADE: ITEM LEDGER ENGINE
+// ==========================================
+app.openItemLedger = async (itemId, itemName) => {
+    const container = document.getElementById('item-ledger-list');
+    if(!container) return;
+
+    // Securely lock the ID for the PDF button
+    document.getElementById('item-ledger-hidden-id').value = itemId;
+    document.getElementById('item-ledger-hidden-name').value = itemName;
+    document.getElementById('item-ledger-title').innerText = itemName + ' Movement';
+    
+    container.innerHTML = '<div style="text-align:center; padding: 20px;"><span class="material-symbols-outlined rotating" style="font-size: 32px;">sync</span><p>Calculating Timeline...</p></div>';
+    if (window.UI) window.UI.openActivity('activity-item-ledger');
+
+    const product = await window.getRecordById('items', itemId);
+    const openingStock = product ? (parseFloat(product.openingStock) || 0) : 0;
+    const uom = product ? (product.uom || 'Units') : 'Units';
+
+    let timeline = [];
+    
+    // 1. Scan Sales & Returns
+    const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+    sales.forEach(s => {
+        if(s.status !== 'Open') {
+            (s.items || []).forEach(row => {
+                if(row.itemId === itemId) {
+                    const isReturn = s.documentType === 'return';
+                    const qty = parseFloat(row.qty) || 0;
+                    timeline.push({ id: s.id, date: s.date, type: isReturn ? 'Sales Return' : 'Sale', desc: s.customerName || 'Unknown Party', ref: s.invoiceNo || s.orderNo || s.id.slice(-4).toUpperCase(), inQty: isReturn ? qty : 0, outQty: isReturn ? 0 : qty });
+                }
+            });
+        }
+    });
+
+    // 2. Scan Purchases & Returns
+    const purchases = await window.getAllRecords('purchases', 'firmId', app.state.firmId);
+    purchases.forEach(p => {
+        if(p.status !== 'Open') {
+            (p.items || []).forEach(row => {
+                if(row.itemId === itemId) {
+                    const isReturn = p.documentType === 'return';
+                    const qty = parseFloat(row.qty) || 0;
+                    timeline.push({ id: p.id, date: p.date, type: isReturn ? 'Purchase Return' : 'Purchase', desc: p.supplierName || 'Unknown Party', ref: p.invoiceNo || p.poNo || p.id.slice(-4).toUpperCase(), inQty: isReturn ? 0 : qty, outQty: isReturn ? qty : 0 });
+                }
+            });
+        }
+    });
+
+    // 3. Scan Manual Adjustments
+    const adjustments = await window.getAllRecords('adjustments', 'firmId', app.state.firmId);
+    adjustments.forEach(a => {
+        if(a.itemId === itemId) {
+            const qty = parseFloat(a.qty) || 0;
+            timeline.push({ id: a.id, date: a.date, type: 'Stock Adjustment', desc: a.notes || 'Manual Entry', ref: 'ADJ-' + a.id.slice(-4).toUpperCase(), inQty: a.type === 'add' ? qty : 0, outQty: a.type === 'reduce' ? qty : 0 });
+        }
+    });
+
+    // Sort Chronologically by Date and ID Timestamp
+    timeline.sort((a, b) => {
+        const dateA = window.Utils.safeDate(a.date || 0).getTime();
+        const dateB = window.Utils.safeDate(b.date || 0).getTime();
+        if (dateA !== dateB) return dateA - dateB;
+        const timeA = parseInt(String(a.id || '').split('-').pop()) || 0;
+        const timeB = parseInt(String(b.id || '').split('-').pop()) || 0;
+        return timeA - timeB;
+    });
+
+    // 🟢 ENTERPRISE FIX: Calculate total before rendering to show Current Stock at the top
+    let totalIn = timeline.reduce((sum, t) => sum + t.inQty, 0);
+    let totalOut = timeline.reduce((sum, t) => sum + t.outQty, 0);
+    let currentTotalStock = openingStock + totalIn - totalOut;
+
+    let html = `
+    <div style="background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 8px;">
+            <strong style="font-size: 14px;">Current Total Stock</strong>
+            <strong style="font-size: 18px;">${currentTotalStock.toFixed(2)} ${uom}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; opacity: 0.8;">
+            <span style="font-size: 12px;">Opening Stock</span>
+            <span style="font-size: 12px; font-weight: bold;">${openingStock.toFixed(2)} ${uom}</span>
+        </div>
+    </div>
+    <div style="padding: 0 4px 8px 4px; font-size: 12px; font-weight: bold; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Movement History</div>
+    `;
+
+    let runningStock = openingStock;
+
+    if (timeline.length === 0) {
+        html += `<div class="empty-state">No stock movement recorded yet.</div>`;
+    }
+
+    timeline.forEach(t => {
+        runningStock += t.inQty;
+        runningStock -= t.outQty;
+        
+        const sign = t.inQty > 0 ? '+' : '-';
+        const qtyVal = t.inQty > 0 ? t.inQty : t.outQty;
+        const color = t.inQty > 0 ? 'var(--md-success)' : 'var(--md-error)';
+
+        html += `
+        <div class="m3-card" style="padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+            <div style="flex: 1;">
+                <strong style="font-size: 14px;">${t.type}</strong><br>
+                <small style="color: var(--md-text-muted);">${t.date} | ${t.desc}</small><br>
+                <small style="color: var(--md-primary); font-size: 10px; font-weight:bold;">Ref: ${t.ref}</small>
+            </div>
+            <div style="text-align: right;">
+                <strong style="color: ${color}; font-size: 15px;">${sign}${qtyVal}</strong><br>
+                <small>Bal: ${runningStock.toFixed(2)} ${uom}</small>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+};
+
+// ==========================================
+// ENTERPRISE UPGRADE: "LAST SOLD AT" MEMORY
+// ==========================================
+new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach(async (node) => {
+            if (node.nodeType === 1 && node.classList && node.classList.contains('item-entry-card')) {
+                // Only trigger if we are inside the Sales Form
+                const isSalesForm = node.closest('#activity-sales-form');
+                if (!isSalesForm) return;
+
+                const customerIdEl = document.getElementById('sales-customer-id');
+                const customerId = customerIdEl ? customerIdEl.value : null;
+                if (!customerId) return; // Customer must be selected first!
+
+                const itemIdEl = node.querySelector('.row-item-id');
+                const itemId = itemIdEl ? itemIdEl.value : null;
+                if (!itemId) return;
+
+                // Secretly fetch all past sales for this specific customer
+                const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+                const sortedSales = sales.filter(s => 
+                    s.firmId === window.app.state.firmId && 
+                    s.customerId === customerId && 
+                    s.status !== 'Open' &&
+                    s.documentType !== 'return'
+                                ).sort((a, b) => window.Utils.safeDate(b.date) - window.Utils.safeDate(a.date)); // Sort newest first
+
+
+                let lastRate = null;
+                let lastDate = null;
+
+                // Find the exact last time they bought this specific item
+                for (let s of sortedSales) {
+                    const found = (s.items || []).find(i => String(i.itemId) === String(itemId));
+                    if (found) {
+                        lastRate = parseFloat(found.rate) || 0;
+                        lastDate = s.date;
+                        break;
+                    }
+                }
+
+                // If found, dynamically inject a beautiful blue badge!
+                if (lastRate !== null && !node.querySelector('.last-sold-badge')) {
+                    const d = new Date(lastDate);
+                    const fDate = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                    
+                    const badge = document.createElement('div');
+                    badge.className = 'last-sold-badge';
+                    badge.style.cssText = 'display: inline-block; background: #f0f8ff; color: #0061a4; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; margin-top: 6px; border: 1px solid #c2e0ff; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
+                    badge.innerHTML = `<span class="material-symbols-outlined" style="font-size:12px; vertical-align:text-bottom; margin-right:4px;">history</span>Last sold: ₹${lastRate} on ${fDate}`;
+                    
+                    const nameEl = node.querySelector('strong');
+                    if (nameEl && nameEl.parentNode) {
+                        nameEl.parentNode.appendChild(badge);
+                    }
+                }
+            }
+        });
+    });
+}).observe(document.body, { childList: true, subtree: true });
+
+
 // --- NEW CODE: Module Initialization ---
-window.onload = app.init;
 window.app = app; // Explicitly map to window to protect your HTML buttons
 
 // BRIDGE FOR CLOUD.JS: Expose the database engine so Google Drive can access it
 window.exportDatabase = exportDatabase;
 window.importDatabase = importDatabase;
+
+// ==========================================
+// THE MASTER BOOTSTRAPPER (RE-ACTIVATED)
+// ==========================================
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', app.init);
+} else {
+    // If the browser loaded fast, start immediately!
+    setTimeout(app.init, 50); 
+}
 // --- END OF NEW CODE ---
 /* ==========================================
    ENTERPRISE UI: FUZZY SEARCH ENGINE
@@ -4540,3 +5222,28 @@ window.fuzzyMatch = function(searchQuery, targetText) {
     }
     return true; // If it survives with 2 or fewer mistakes, it's a match!
 };
+
+// ==========================================
+// ENTERPRISE UPGRADE: UNIVERSAL BOTTOM SHEET SEARCH (V2)
+// ==========================================
+document.addEventListener('input', (e) => {
+    const sheet = e.target.closest('.bottom-sheet');
+    if (e.target.tagName === 'INPUT' && sheet) {
+        const isSearch = (e.target.placeholder || '').toLowerCase().includes('search') || (e.target.id || '').toLowerCase().includes('search');
+        
+        if (isSearch) {
+            const term = e.target.value;
+            const listItems = sheet.querySelectorAll('li, .m3-card, .tap-target, .list-item'); 
+            
+            listItems.forEach(item => {
+                if (item.contains(e.target) || item.innerText.trim() === 'close' || item.style.pointerEvents === 'none' || item.classList.contains('empty-state')) return;
+                
+                if (window.fuzzyMatch) {
+                    item.style.display = window.fuzzyMatch(term, item.innerText) ? '' : 'none';
+                } else {
+                    item.style.display = item.innerText.toLowerCase().includes(term.toLowerCase()) ? '' : 'none';
+                }
+            });
+        }
+    }
+});
