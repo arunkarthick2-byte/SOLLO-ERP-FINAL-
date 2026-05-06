@@ -3,7 +3,7 @@
 <head>
     <meta name="color-scheme" content="light">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <meta name="theme-color" id="meta-theme-color" content="#0061a4">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2831,12 +2831,9 @@
                         setTimeout(() => topScreen.remove(), 350);
                     }
                 } else {
-                    // We are on the home screen! Ask to exit.
-                    if (confirm("Do you want to exit the app?")) {
-                        window.history.back(); // Let them exit
-                    } else {
-                        window.history.pushState({ id: 'home' }, '', window.location.href); // Restore the lock
-                    }
+                    // We are on the home screen! INSTANT EXIT (No annoying popups)
+                    window.close();
+                    window.location.replace('about:blank');
                 }
             });
 

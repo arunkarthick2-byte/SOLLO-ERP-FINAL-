@@ -5279,3 +5279,64 @@ document.addEventListener('input', (e) => {
         }
     });
 })();
+// ==========================================
+// ENTERPRISE UPGRADE: 3D TOUCH EMULATOR (LONG PRESS)
+// ==========================================
+// Simulates an iOS long-press context menu for rapid document management!
+(function() {
+    let pressTimer;
+    let isPressing = false;
+    let startY = 0;
+
+    document.addEventListener('touchstart', (e) => {
+        const target = e.target.closest('.m3-card.tap-target');
+        if (!target) return;
+        
+        const clickAction = target.getAttribute('onclick');
+        // Only trigger on actual actionable documents!
+        if (!clickAction || (!clickAction.includes('openForm') && !clickAction.includes('openReceipt') && !clickAction.includes('openPartyLedger'))) return;
+
+        isPressing = true;
+        startY = e.touches[0].clientY;
+
+        pressTimer = setTimeout(() => {
+            if (isPressing) {
+                isPressing = false;
+                
+                // 1. Trigger Heavy Haptic to simulate a physical "click" into the screen
+                if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([40, 50, 40]);
+                
+                // 2. Visual Lift Effect (Mimics Apple iOS)
+                target.style.transform = 'scale(0.96)';
+                target.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                target.style.opacity = '0.7';
+                setTimeout(() => {
+                    target.style.transform = 'scale(1)';
+                    target.style.opacity = '1';
+                }, 250);
+
+                // 3. Lock the button so releasing the thumb doesn't accidentally open the document
+                target.setAttribute('data-locked', 'true');
+                setTimeout(() => target.removeAttribute('data-locked'), 800);
+
+                // 4. Call the upgraded Context Menu
+                if (window.UI && typeof window.UI.showContextMenu === 'function') {
+                    window.UI.showContextMenu(clickAction);
+                }
+            }
+        }, 450); // 450ms is the perfect psychological long-press duration
+    }, { passive: true });
+
+    document.addEventListener('touchend', () => {
+        isPressing = false;
+        clearTimeout(pressTimer);
+    });
+
+    document.addEventListener('touchmove', (e) => {
+        // Cancel the press if they are just scrolling down the list!
+        if (isPressing && Math.abs(e.touches[0].clientY - startY) > 15) {
+            isPressing = false;
+            clearTimeout(pressTimer); 
+        }
+    }, { passive: true });
+})();

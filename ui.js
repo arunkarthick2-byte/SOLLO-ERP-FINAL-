@@ -216,8 +216,9 @@ const UI = {
             receipts.forEach(r => {
                 // Included a fallback logic in case older receipts don't have an explicit accountId
                 if (r.accountId === acc.id || (acc.id === 'cash' && !r.accountId)) {
-                    if (r.type === 'in') balance += parseFloat(r.amount);
-                    else if (r.type === 'out') balance -= parseFloat(r.amount);
+                    // ENTERPRISE FIX: Safe Math prevents 'NaN' from permanently corrupting the Bank Balance!
+                    if (r.type === 'in') balance += (parseFloat(r.amount) || 0);
+                    else if (r.type === 'out') balance -= (parseFloat(r.amount) || 0);
                 }
             });
             
@@ -263,6 +264,16 @@ const UI = {
     // 1. SPLASH SCREEN & INSTANT NAVIGATION
     // ==========================================
     showSuccess: () => {
+        // --- ENTERPRISE UPGRADE: BUTTON MORPHING ---
+        // Find the loading button and smoothly transition it to the green checkmark!
+        document.querySelectorAll('.btn-loading').forEach(btn => {
+            btn.classList.remove('btn-loading');
+            btn.classList.add('btn-success');
+            // Hold the green checkmark for a moment before expanding back to normal
+            setTimeout(() => btn.classList.remove('btn-success'), 1200);
+        });
+        // -------------------------------------------
+
         const el = document.getElementById('success-animation');
         if(el) {
             el.classList.remove('hidden');
@@ -308,16 +319,15 @@ const UI = {
                 navElement.classList.add('active');
             }
 
-            // --- ENTERPRISE FIX: THREAD YIELDING ---
-            // 20ms delay lets the browser paint the button animation FIRST before doing heavy math!
-            setTimeout(() => {
-                if (tabId === 'tab-dashboard') UI.renderDashboard();
-                else if (tabId === 'tab-documents') { UI.applyFilters('sales'); UI.applyFilters('purchases'); }
-                else if (tabId === 'tab-cashbook') UI.applyFilters('cashbook');
-                else if (tabId === 'tab-expenses') UI.applyFilters('expenses');
-                else if (tabId === 'tab-masters') UI.applyFilters('masters');
-                else if (tabId === 'tab-timeline') UI.applyFilters('timeline'); // STRICT ERP LOGIC: Fixed Dead Tab!
-            }, 20); 
+            // ENTERPRISE FIX: Removed the 20ms delay!
+            // View Transitions automatically pause the DOM paint for you. If you delay the render, 
+            // the transition will accidentally capture a blank screen and ruin the cinematic effect!
+            if (tabId === 'tab-dashboard') UI.renderDashboard();
+            else if (tabId === 'tab-documents') { UI.applyFilters('sales'); UI.applyFilters('purchases'); }
+            else if (tabId === 'tab-cashbook') UI.applyFilters('cashbook');
+            else if (tabId === 'tab-expenses') UI.applyFilters('expenses');
+            else if (tabId === 'tab-masters') UI.applyFilters('masters');
+            else if (tabId === 'tab-timeline') UI.applyFilters('timeline'); 
         };
 
         // UPGRADE 4: Cinematic View Transitions
@@ -1427,7 +1437,7 @@ const UI = {
             const endDate = endEl ? endEl.value : '';
 
             data = UI.state.rawData.timeline.filter(t => {
-                const descStr = t.desc || (t.type === 'IN' ? 'Purchase' : (t.type === 'OUT' ? 'Sale' : ''));
+                const descStr = t.desc || (t.type === 'IN' ? 'Sale / Receipt' : (t.type === 'OUT' ? 'Purchase / Payment' : ''));
                 // STRICT ERP LOGIC: Allow accountants to instantly search the global timeline by exact Transaction Amount or Balance!
                 const matchSearch = descStr.toLowerCase().includes(searchTerm) || String(t.amount || 0).includes(searchTerm) || String(t.runningBalance || 0).includes(searchTerm);
                 let matchFilter = true;
@@ -1440,11 +1450,15 @@ const UI = {
                 
                 // 2. Universal Type Check (Works for Banks, Parties, AND Expenses)
                 if (activeFilter === 'Money In') {
-                    if (t.hasOwnProperty('isInvoice')) matchFilter = t.isInvoice === false; 
-                    else matchFilter = String(t.type).toUpperCase() === 'IN'; // STRICT ERP LOGIC: Fix case sensitivity and remove broken fallback
+                    const rec = UI.state.rawData.cashbook.find(c => c.id === t.id);
+                    if (rec) matchFilter = rec.type === 'in'; // Explicitly a Receipt (Money In)
+                    else if (t.hasOwnProperty('isInvoice')) matchFilter = false; // Hide Bills/Invoices from Income
+                    else matchFilter = String(t.type).toUpperCase() === 'IN'; 
                 } else if (activeFilter === 'Money Out') {
-                    if (t.hasOwnProperty('isInvoice')) matchFilter = t.isInvoice === true; 
-                    else matchFilter = String(t.type).toUpperCase() === 'OUT'; // STRICT ERP LOGIC: Fix case sensitivity and remove broken fallback
+                    const rec = UI.state.rawData.cashbook.find(c => c.id === t.id);
+                    if (rec) matchFilter = rec.type === 'out'; // Explicitly a Payment (Money Out)
+                    else if (t.hasOwnProperty('isInvoice')) matchFilter = false; // Hide Bills/Invoices from Payments
+                    else matchFilter = String(t.type).toUpperCase() === 'OUT'; 
                 } else if (activeFilter === 'Expenses') {
                     matchFilter = descStr.toLowerCase().includes('expense');
                 }
@@ -1501,7 +1515,8 @@ const UI = {
                         const sign = isMoneyIn ? '+' : '-';
                         const color = isMoneyIn ? 'var(--md-success)' : 'var(--md-error)';
                         
-                        const title = t.party ? `${isMoneyIn ? 'Purchase' : 'Sale'} - ${t.party}` : (t.desc || 'Transaction');
+                        // ENTERPRISE FIX: Corrected Accounting Semantic Labels
+                        const title = t.party ? `${isMoneyIn ? 'Sale' : 'Purchase'} - ${t.party}` : (t.desc || 'Transaction');
                         const subtitle = t.ref ? `${t.date} | Ref: ${t.ref}` : `${t.date} | Mode: ${t.mode || 'Cash'}`;
                         const rightVal = t.qty ? t.qty : `${sign}\u20B9${parseFloat(t.amount || 0).toFixed(2)}`;
 
@@ -1589,7 +1604,8 @@ const UI = {
 
         cashbook.forEach(c => {
             if (c.ledgerId) {
-                let amt = c.type === 'in' ? parseFloat(c.amount) : -parseFloat(c.amount);
+                // ENTERPRISE FIX: Safe Math prevents 'NaN' from destroying the Dashboard Overdue Allocator!
+                let amt = c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
                 ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
 
                 if (c.invoiceRef) {
@@ -2395,57 +2411,78 @@ const UI = {
     // UPGRADE: iOS-Style Haptic Context Menu
     showContextMenu: (clickAction) => {
         let overlay = document.getElementById('haptic-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'haptic-overlay';
-            overlay.className = 'sheet-overlay hidden'; // Reuses your premium blur effect!
-            overlay.style.zIndex = '6500'; // STRICT ERP LOGIC: Must be higher than standard bottom-sheets (5100)
-            
-            overlay.innerHTML = `
-                <div id="haptic-menu" class="bottom-sheet" style="z-index: 6501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
-                    
-                    <div style="margin: 0 16px 16px 16px; background: var(--md-surface); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); overflow: hidden;">
-                        <div style="padding: 14px; text-align: center; font-size: 12px; font-weight: bold; color: var(--md-text-muted); border-bottom: 1px solid var(--md-surface-variant); background: rgba(0,0,0,0.02);">
-                            DOCUMENT OPTIONS
-                        </div>
-                        
-                        <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${clickAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-on-surface); border-bottom: 1px solid var(--md-surface-variant); background: var(--md-surface);">
-                            <div class="icon-circle" style="width:36px; height:36px; background: var(--md-primary-container); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size:20px;">edit_document</span></div>
-                            Open & Edit Document
-                        </div>
-                        
-                        <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { if(window.Utils) window.Utils.showToast('Open the document to generate a PDF'); }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-on-surface); background: var(--md-surface);">
-                            <div class="icon-circle" style="width:36px; height:36px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined" style="font-size:20px;">picture_as_pdf</span></div>
-                            Generate PDF
-                        </div>
-                    </div>
+        if (overlay) overlay.remove(); // Force rebuild to update dynamic IDs
 
-                    <div class="tap-target" onclick="document.getElementById('haptic-overlay').click();" style="margin: 0 16px; padding: 16px; text-align: center; background: var(--md-surface); border-radius: 20px; font-size: 16px; font-weight: bold; color: var(--md-error); box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
-                        Cancel
-                    </div>
+        let pdfAction = "if(window.Utils) window.Utils.showToast('Open the document to generate a PDF');";
+        let deleteAction = "if(window.Utils) window.Utils.showToast('Open the document to delete it');";
 
-                </div>
-            `;
-            document.body.appendChild(overlay);
-            
-            // Close logic
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) {
-                    document.getElementById('haptic-menu').classList.remove('open');
-                    overlay.classList.remove('open');
-                    setTimeout(() => overlay.classList.add('hidden'), 300);
-                }
-            });
+        // Secretly extract the ID and Type from the HTML click action!
+        const formMatch = clickAction.match(/openForm\('([^']+)',\s*'([^']+)'/);
+        const receiptMatch = clickAction.match(/openReceipt\('([^']+)',\s*'([^']+)'/);
+
+        if (formMatch) {
+            const formType = formMatch[1]; // 'sales' or 'purchase'
+            const docId = formMatch[2];
+            pdfAction = `if(window.app) { window.app.state.currentEditId = '${docId}'; window.app.generatePDF('${formType}'); }`;
+            deleteAction = `if(window.app) { window.app.state.currentEditId = '${docId}'; window.app.deleteRecord('${formType}'); }`;
+        } else if (receiptMatch) {
+            const receiptId = receiptMatch[1];
+            const receiptType = receiptMatch[2]; // 'in' or 'out'
+            pdfAction = `if(window.app) { window.app.generateReceiptPDF('${receiptId}'); }`;
+            deleteAction = `if(window.app) { window.app.state.currentReceiptId = '${receiptId}'; window.app.deleteRecord('receipt-${receiptType}'); }`;
         }
+
+        overlay = document.createElement('div');
+        overlay.id = 'haptic-overlay';
+        overlay.className = 'sheet-overlay hidden'; 
+        overlay.style.zIndex = '6500'; 
         
-        // Show the menu
+        overlay.innerHTML = `
+            <div id="haptic-menu" class="bottom-sheet" style="z-index: 6501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
+                
+                <div style="margin: 0 16px 16px 16px; background: var(--md-surface); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); overflow: hidden;">
+                    <div style="padding: 14px; text-align: center; font-size: 12px; font-weight: bold; color: var(--md-text-muted); border-bottom: 1px solid var(--md-surface-variant); background: rgba(0,0,0,0.02);">
+                        DOCUMENT OPTIONS
+                    </div>
+                    
+                    <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${clickAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-on-surface); border-bottom: 1px solid var(--md-surface-variant); background: var(--md-surface);">
+                        <div class="icon-circle" style="width:36px; height:36px; background: var(--md-primary-container); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size:20px;">edit_document</span></div>
+                        Open & Edit
+                    </div>
+                    
+                    <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${pdfAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-on-surface); border-bottom: 1px solid var(--md-surface-variant); background: var(--md-surface);">
+                        <div class="icon-circle" style="width:36px; height:36px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined" style="font-size:20px;">picture_as_pdf</span></div>
+                        Generate PDF
+                    </div>
+
+                    <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${deleteAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-error); background: var(--md-surface);">
+                        <div class="icon-circle" style="width:36px; height:36px; background: #fff0f2; color: var(--md-error);"><span class="material-symbols-outlined" style="font-size:20px;">delete</span></div>
+                        Delete Document
+                    </div>
+                </div>
+
+                <div class="tap-target" onclick="document.getElementById('haptic-overlay').click();" style="margin: 0 16px; padding: 16px; text-align: center; background: var(--md-surface); border-radius: 20px; font-size: 16px; font-weight: bold; color: var(--md-primary); box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+                    Cancel
+                </div>
+
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                document.getElementById('haptic-menu').classList.remove('open');
+                overlay.classList.remove('open');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        });
+        
         overlay.classList.remove('hidden');
         requestAnimationFrame(() => {
             overlay.classList.add('open');
             document.getElementById('haptic-menu').classList.add('open');
         });
         
-        // Micro-vibration when the menu pops up
         if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(15);
     },
     renderLedgerList: (containerId, ledgers, prefix) => {
@@ -3044,12 +3081,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('pointerdown', (e) => {
         const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .nav-item, .list-view li, .chip');
         if (target) {
-            // 1. Trigger Micro-Haptic Vibration (15ms tick for physical weight)
-            if (window.navigator && window.navigator.vibrate) {
-                try { window.navigator.vibrate(15); } catch(err){}
-            }
+            // ENTERPRISE FIX: Removed the 'Bee Swarm' vibration here! 
+            // Vibrations should ONLY happen on deliberate 'clicks', not when a user touches the screen to scroll.
 
-            // 2. True Material Touch Ripple (Calculates exact X/Y finger coordinates)
+            // True Material Touch Ripple (Calculates exact X/Y finger coordinates)
             const rect = target.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
@@ -3369,24 +3404,34 @@ document.addEventListener('click', (e) => {
 window.addEventListener('popstate', (e) => {
     let trapped = false;
     
-    // 1. Catch and close any open bottom sheets
-    const sheets = document.querySelectorAll('.bottom-sheet');
-    sheets.forEach(s => {
-        if (s.style.bottom === '0px' || s.classList.contains('active')) {
-            if (window.UI) window.UI.closeBottomSheet(s.id);
-            trapped = true;
+    // 1. Catch any sheets that are OPEN or ANIMATING CLOSED (missing .hidden)
+    const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet:not(.hidden)'));
+    
+    if (visibleSheets.length > 0) {
+        // Find the top-most sheet
+        const topSheet = visibleSheets[visibleSheets.length - 1];
+        
+        // If it is fully open, trigger the close command
+        if (topSheet.classList.contains('open') || topSheet.classList.contains('active')) {
+            if (window.UI) window.UI.closeBottomSheet(topSheet.id);
         }
-    });
-
-    // 2. Catch and close any open full-screen activities
-    const screens = document.querySelectorAll('.activity-screen:not(.hidden)');
-    screens.forEach(s => {
-        // Never close the main dashboard!
-        if (s.id !== 'activity-dashboard' && s.id !== 'dashboard' && s.id !== '') {
-            if (window.UI) window.UI.closeActivity(s.id);
-            trapped = true;
+        // If it is already sliding away, do nothing and let it finish!
+        trapped = true; 
+    } 
+    else {
+        // 2. ONLY if NO sheets are visible, check for open full-screen activities
+        const visibleScreens = Array.from(document.querySelectorAll('.activity-screen:not(.hidden)'));
+        
+        if (visibleScreens.length > 0) {
+            const topScreen = visibleScreens[visibleScreens.length - 1];
+            
+            // Only close it if it's actually fully open
+            if (topScreen.classList.contains('open') && topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
+                if (window.UI) window.UI.closeActivity(topScreen.id);
+                trapped = true;
+            }
         }
-    });
+    }
 
     // If we saved the app from closing, inject another shield for the next click!
     if (trapped) {

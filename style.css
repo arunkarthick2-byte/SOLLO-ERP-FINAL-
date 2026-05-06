@@ -3629,3 +3629,64 @@ details.advanced-options > div {
     animation: cinematicEntry 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 .kebab-dropdown-menu.active { display: flex !important; }
+/* ==========================================
+   ENTERPRISE UPGRADE: STRIPE-STYLE BUTTON MORPHING
+   ========================================== */
+button[type="submit"], .btn-primary {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-loading {
+    color: transparent !important; /* Instantly hide the text */
+    opacity: 1 !important; /* Override the old JS opacity fade */
+    border-radius: 50px !important; /* Morph into a circle */
+    width: 48px !important;
+    min-width: 48px !important;
+    padding: 0 !important;
+    margin: 0 auto !important; /* Center the circle in the screen */
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    top: 50%;
+    left: 50%;
+    margin-top: -11px;
+    margin-left: -11px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: stripe-spin 0.6s linear infinite;
+}
+
+@keyframes stripe-spin {
+    to { transform: rotate(360deg); }
+}
+
+.btn-success {
+    background-color: var(--md-success) !important;
+    color: transparent !important;
+    border-radius: 50px !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    pointer-events: none;
+}
+
+.btn-success::after {
+    content: "done";
+    font-family: 'Material Symbols Outlined';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+}
