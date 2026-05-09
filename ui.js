@@ -17,8 +17,11 @@ const UI = {
         // Automatically highlights the entire number when a user taps a quantity or rate box.
         document.addEventListener('focusin', (e) => {
             if (e.target.tagName === 'INPUT' && (e.target.type === 'number' || e.target.inputMode === 'decimal')) {
-                // A 50ms delay ensures mobile keyboards don't instantly un-select the text
-                setTimeout(() => e.target.select(), 50);
+                // ENTERPRISE FIX: The Keyboard Rubber-Band Shield!
+                // Only select the text if the user hasn't already tapped away to close the keyboard.
+                setTimeout(() => {
+                    if (document.activeElement === e.target) e.target.select();
+                }, 50);
             }
         });
 
@@ -778,6 +781,11 @@ const UI = {
             UI.state.rawData.sales.forEach(d => { docMap[d.id] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
             UI.state.rawData.purchases.forEach(d => { docMap[d.id] = d; if(d.poNo) docMap[d.poNo] = d; if(d.invoiceNo) docMap[d.invoiceNo] = d; if(d.orderNo) docMap[d.orderNo] = d; });
 
+            // ENTERPRISE FIX: We MUST pre-calculate Returns BEFORE processing explicit payments so refund money isn't blackholed!
+            const globalReturnMap = {};
+            UI.state.rawData.sales.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) globalReturnMap[d.orderNo] = (globalReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
+            UI.state.rawData.purchases.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) globalReturnMap[d.orderNo] = (globalReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
+
             // ENTERPRISE FIX: Inject Opening Balances into the allocation pool so they can pay off invoices!
             UI.state.rawData.ledgers.forEach(l => {
                 let ob = parseFloat(l.openingBalance) || 0;
@@ -807,7 +815,11 @@ const UI = {
                             if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for refunds!
                             const key = `${c.ledgerId}_${doc.id}`;
                             const currentPaid = paymentMap[key] || 0;
-                            const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
+                            
+                            // ENTERPRISE FIX: The Blackhole Credit Note Trap!
+                            // Deduct the return from the docTotal. This forces the overpayment to legally overflow into the Advance Pool!
+                            const returned = [doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean).reduce((sum, ref) => sum + (globalReturnMap[ref] || 0), 0);
+                            const docTotal = doc.grandTotal === Infinity ? Infinity : Math.max(0, (parseFloat(doc.grandTotal) || 0) - returned);
                             
                             let allocation = 0;
                             if (remainingAmt > 0) {
@@ -828,6 +840,7 @@ const UI = {
             });
 
             // --- ENTERPRISE UPGRADE: AUTO-KNOCKOFF (FIFO) FOR ADVANCE PAYMENTS ---
+            // (globalReturnMap was safely moved to the top of the function to protect explicit payments!)
             const advancePool = {};
             Object.keys(ledgerTotalPaid).forEach(ledgerId => {
                 const totalPaid = ledgerTotalPaid[ledgerId] || 0;
@@ -846,9 +859,11 @@ const UI = {
                     if (advancePool[partyId] > 0.01) {
                         const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
                         const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${partyId}_${ref}`] || 0), 0);
-                        const due = (parseFloat(doc.grandTotal) || 0) - explicitPaid;
+                        // ENTERPRISE FIX: Deduct returns from the gross debt so advance money isn't wasted on dead invoices!
+                        const returned = uniqueRefs.reduce((sum, ref) => sum + (globalReturnMap[ref] || 0), 0);
+                        const due = Math.max(0, (parseFloat(doc.grandTotal) || 0) - explicitPaid - returned);
                         
-                        // If invoice is due, consume the advance pool to pay it off automatically
+                        // If invoice is still due after returns, safely consume the advance pool
                         if (due > 0.01) {
                             const allocated = Math.min(due, advancePool[partyId]);
                             advancePool[partyId] -= allocated;
@@ -888,7 +903,9 @@ const UI = {
                 if (activeFilter === 'Open') matchFilter = s.status === 'Open';
                 else if (activeFilter === 'Completed') matchFilter = s.status === 'Completed'; // Removed balance restriction
                 else if (activeFilter === 'Shipped') matchFilter = s.status === 'Shipped';
-                else if (activeFilter === 'To Receive') matchFilter = balance > 0 && s.status !== 'Open' && s.documentType !== 'return';
+                // ENTERPRISE FIX: The "Ghost Penny" Floating Point Trap!
+                // Javascript math can leave a balance of 0.00000001, permanently trapping the invoice with a "Due: ₹0.00" label!
+                else if (activeFilter === 'To Receive') matchFilter = balance > 0.01 && s.status !== 'Open' && s.documentType !== 'return';
                 else if (activeFilter === 'GST') matchFilter = s.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = s.invoiceType === 'Non-GST';
                 
@@ -950,6 +967,15 @@ const UI = {
         // ------------------ PURCHASES ------------------
         else if (tab === 'purchases') {
             containerId = 'purchase-history-container';
+            
+            // ENTERPRISE FIX: Create the missing Return Map for Purchases so Debit Notes actually reduce supplier debt!
+            const purchaseReturnMap = {};
+            UI.state.rawData.purchases.forEach(d => {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                    purchaseReturnMap[d.orderNo] = (purchaseReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                }
+            });
+
             data = UI.state.rawData.purchases.filter(p => {
                 // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, PO, and Internal Order) are fully searchable!
                 const matchSearch = (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || p.orderNo || '').toLowerCase().includes(searchTerm);
@@ -958,9 +984,13 @@ const UI = {
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
                 const uniqueRefs = [...new Set([p.orderNo, p.poNo, p.invoiceNo, p.id].filter(Boolean))];
                 const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
-                const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid);
+                
+                // ENTERPRISE FIX: Deduct the Debit Notes from the total debt!
+                const returnTotal = uniqueRefs.reduce((sum, ref) => sum + (purchaseReturnMap[ref] || 0), 0);
+                const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid - returnTotal);
 
-                if (activeFilter === 'To Pay') matchFilter = balance > 0 && p.status !== 'Open' && p.documentType !== 'return';
+                // ENTERPRISE FIX: The "Ghost Penny" Shield for Purchases!
+                if (activeFilter === 'To Pay') matchFilter = balance > 0.01 && p.status !== 'Open' && p.documentType !== 'return';
                 else if (activeFilter === 'Completed') matchFilter = p.status === 'Completed'; // Removed balance restriction
                 else if (activeFilter === 'GST') matchFilter = p.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = p.invoiceType === 'Non-GST';
@@ -1336,8 +1366,12 @@ const UI = {
 
         // ------------------ CASHBOOK ------------------
         else if (tab === 'cashbook') {
-            // CRITICAL FIX: Ensure the Live Balance Bank calculator fires when tab is rendered
-            UI.renderBankBalances(); 
+            // ENTERPRISE FIX: CPU Thrashing Shield!
+            // We ONLY recalculate the heavy Bank Balances if the user is NOT actively typing in the search bar!
+            // Recalculating thousands of records on every keystroke was causing massive battery drain and lag!
+            if (!searchTerm) {
+                UI.renderBankBalances(); 
+            }
             
             containerId = 'cashbook-container';
             data = UI.state.rawData.cashbook.filter(c => {
@@ -1816,7 +1850,8 @@ const UI = {
             const returnTotal = uniqueRefs.reduce((sum, ref) => sum + (dashboardReturnMap[ref] || 0), 0);
             
             const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived - returnTotal);
-            if (balance <= 0) return false;
+            // ENTERPRISE FIX: The Permanent Overdue Bug! Floating-point math forces fully paid invoices to show up as "Overdue: ₹0.00"!
+            if (balance <= 0.01) return false;
             
             if (!s.date) return false;
             // BULLETPROOF DATE MATH: Manually parse YYYY-MM-DD so old WebViews don't panic!
@@ -2087,12 +2122,21 @@ const UI = {
         }
     },
 
-        closeBottomSheet: (sheetId) => {
+    closeBottomSheet: (sheetId) => {
         const sheet = document.getElementById(sheetId);
         // ENTERPRISE FIX: Prevent double-tapping from popping multiple history states and crashing the main form!
         if (!sheet || !sheet.classList.contains('open')) return;
         
         sheet.classList.remove('open');
+
+        // ENTERPRISE FIX: Destroy the custom Haptic Overlay if the Android Back Button kills the menu!
+        if (sheetId === 'haptic-menu') {
+            const hOverlay = document.getElementById('haptic-overlay');
+            if (hOverlay) {
+                hOverlay.classList.remove('open');
+                setTimeout(() => hOverlay.classList.add('hidden'), 300);
+            }
+        }
 
         // --- ENTERPRISE FIX: MULTI-LAYER OVERLAY PROTECTOR ---
         // Only close the dark overlay if NO OTHER bottom sheets are currently open
@@ -2333,7 +2377,6 @@ const UI = {
             <input type="hidden" class="row-item-id" value="${id}">
             <input type="hidden" class="row-item-name" value="${name.replace(/"/g, '&quot;')}">
             <input type="hidden" class="row-uom" value="${uom}">
-            <input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">
         `;
 
         itemCard.innerHTML = `
@@ -2591,7 +2634,6 @@ const UI = {
                 <input type="hidden" class="row-item-id" value="${p.id}">
                 <input type="hidden" class="row-item-name" value="${(p.name || '').replace(/"/g, '&quot;')}">
                 <input type="hidden" class="row-uom" value="${p.uom || ''}">
-                <input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">
             `;
 
             itemCard.innerHTML = `
@@ -2638,9 +2680,12 @@ const UI = {
             `;
             container.appendChild(itemCard);
         });
-        
+
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         UI.closeBottomSheet('sheet-products');
+        
+        // ENTERPRISE FIX: Wipe the array so reopening the menu doesn't duplicate the old products!
+        UI.state.selectedProducts = []; 
     },
 
     // ==========================================
@@ -2859,6 +2904,9 @@ const UI = {
         }
 
         // 5. CALCULATE EXACT MARGINS
+        // ENTERPRISE FIX: The Fatal ReferenceError Crash!
+        // The original loop was already calculating exact COGS, it just named the variables 'Purchases'!
+        // Reverting this prevents a massive Javascript crash when opening the P&L Tab!
         const gstGrossProfit = gstSales - gstPurchases;
         const nonGstGrossProfit = nonGstSales - nonGstPurchases;
         const totalGrossProfit = gstGrossProfit + nonGstGrossProfit + indirectIncome;
@@ -3140,18 +3188,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // UPGRADE 4: Enter-to-Next Data Entry Engine
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'submit') {
-            e.preventDefault(); // Prevent accidental form submission
-            
             // Find all focusable inputs inside the current active screen/modal
             const activeContainer = e.target.closest('.activity-screen.open') || e.target.closest('.bottom-sheet.open') || document;
             const focusable = Array.from(activeContainer.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled])'));
             
             const index = focusable.indexOf(e.target);
             if (index > -1 && index + 1 < focusable.length) {
+                // ENTERPRISE FIX: Only block the native 'Enter' key if there is actually a next input to jump to!
+                e.preventDefault(); 
                 focusable[index + 1].focus(); // Jump to next input
                 if (focusable[index + 1].select) focusable[index + 1].select(); // Highlight text for fast replacing
             } else {
-                e.target.blur(); // If it's the last input, close the keyboard
+                // If it's a standalone input (like Add Unit) or the final input, let the 'Enter' key work normally!
+                e.target.blur(); // Close the keyboard
             }
         }
     });
@@ -3403,19 +3452,26 @@ document.addEventListener('click', (e) => {
 // Intercept the physical phone back button
 window.addEventListener('popstate', (e) => {
     let trapped = false;
+
+    // ENTERPRISE FIX: Z-Index Engine
+    // Forces the shield to mathematically find the visual "top" screen, completely ignoring HTML file order!
+    const getTopElement = (elements) => {
+        return elements.reduce((top, el) => {
+            const z = parseInt(window.getComputedStyle(el).zIndex, 10) || 0;
+            const topZ = parseInt(window.getComputedStyle(top).zIndex, 10) || 0;
+            return z > topZ ? el : top;
+        });
+    };
     
     // 1. Catch any sheets that are OPEN or ANIMATING CLOSED (missing .hidden)
     const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet:not(.hidden)'));
     
     if (visibleSheets.length > 0) {
-        // Find the top-most sheet
-        const topSheet = visibleSheets[visibleSheets.length - 1];
+        const topSheet = getTopElement(visibleSheets);
         
-        // If it is fully open, trigger the close command
         if (topSheet.classList.contains('open') || topSheet.classList.contains('active')) {
             if (window.UI) window.UI.closeBottomSheet(topSheet.id);
         }
-        // If it is already sliding away, do nothing and let it finish!
         trapped = true; 
     } 
     else {
@@ -3423,9 +3479,9 @@ window.addEventListener('popstate', (e) => {
         const visibleScreens = Array.from(document.querySelectorAll('.activity-screen:not(.hidden)'));
         
         if (visibleScreens.length > 0) {
-            const topScreen = visibleScreens[visibleScreens.length - 1];
+            const topScreen = getTopElement(visibleScreens);
             
-            // Only close it if it's actually fully open
+            // Protect the main dashboard, but safely close the topmost activity
             if (topScreen.classList.contains('open') && topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
                 if (window.UI) window.UI.closeActivity(topScreen.id);
                 trapped = true;

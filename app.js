@@ -100,8 +100,10 @@ const updateNetworkStatus = () => {
         // The moment internet is restored, silently push all offline work to Google Drive!
         if (typeof Cloud !== 'undefined' && typeof Cloud.autoBackup === 'function') {
             if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
-                // Wait 2 seconds to ensure the 4G/WiFi connection is stable, then sync
-                setTimeout(() => Cloud.autoBackup(), 2000);
+                // ENTERPRISE FIX: Debounce the connection! 
+                // If 4G flickers rapidly, this prevents 5 simultaneous backups from corrupting the Google Drive file!
+                if (window.cloudSyncTimeout) clearTimeout(window.cloudSyncTimeout);
+                window.cloudSyncTimeout = setTimeout(() => Cloud.autoBackup(), 2000);
             }
         }
     }
@@ -123,24 +125,9 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// --- ENTERPRISE UX: DOUBLE-CHARGE PREVENTER ---
-// Globally stops users from accidentally creating duplicate records by double-tapping save buttons
-document.addEventListener('click', (e) => {
-    const btn = e.target.closest('.btn-primary, .btn-primary-small');
-    // If it's a primary action button and it's not already disabled...
-    if (btn && !btn.disabled && btn.style.pointerEvents !== 'none') {
-        
-        // Freeze the button
-        btn.style.pointerEvents = 'none';
-        btn.style.opacity = '0.7';
-        
-        // Unfreeze it after 1.5 seconds (plenty of time for the database to finish saving)
-        setTimeout(() => {
-            btn.style.pointerEvents = 'auto';
-            btn.style.opacity = '1';
-        }, 1500);
-    }
-});
+// ENTERPRISE FIX: Removed the hazardous 'DOUBLE-CHARGE PREVENTER' from app.js!
+// ui.js already contains a vastly superior 'Anti-Clone Shield' that doesn't break HTML form validators.
+// Having both running simultaneously was causing permanent button freezes!
 
 // --- ENTERPRISE UI: REAL-TIME FORM VALIDATION LOCK ---
 // Watches every keystroke and prevents clicking "Save" until required fields are filled!
@@ -156,12 +143,12 @@ document.addEventListener('input', (e) => {
         submitBtn.style.opacity = '1';
         submitBtn.style.filter = 'grayscale(0%)';
         submitBtn.style.transform = 'scale(1)';
-        submitBtn.style.pointerEvents = 'auto';
     } else {
-        submitBtn.style.opacity = '0.5';
+        submitBtn.style.opacity = '0.7';
         submitBtn.style.filter = 'grayscale(100%)';
-        submitBtn.style.pointerEvents = 'none';
         submitBtn.style.transform = 'scale(0.98)';
+        // ENTERPRISE FIX: Removed pointer-events:none! 
+        // We want them to click the grey button so the browser can show the "Required Field" tooltip!
     }
 });
 
@@ -176,67 +163,9 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// --- ENTERPRISE UI: AUTO-KEBAB MENU ENGINE ---
-// Instantly declutters lists by turning scattered buttons into a clean 3-dot popup menu!
-document.addEventListener('click', (e) => {
-    // Close menus if we tap outside
-    if (!e.target.closest('.kebab-container')) {
-        document.querySelectorAll('.kebab-dropdown-menu').forEach(m => m.classList.remove('active'));
-    }
-});
-
-// The MutationObserver watches the app draw lists and automatically cleans them up
-new MutationObserver(() => {
-    document.querySelectorAll('ul li').forEach(li => {
-        const buttons = Array.from(li.querySelectorAll('button')).filter(b => !b.classList.contains('kebab-btn'));
-        
-        if (buttons.length > 0 && !li.querySelector('.kebab-container')) {
-            const container = document.createElement('div');
-            container.className = 'kebab-container';
-            container.style.cssText = 'position: absolute; right: 12px; top: 50%; transform: translateY(-50%);';
-
-            const kebabBtn = document.createElement('button');
-            kebabBtn.className = 'kebab-btn material-symbols-outlined tap-target';
-            kebabBtn.innerHTML = 'more_vert';
-            kebabBtn.style.cssText = 'background:transparent; border:none; color:var(--md-secondary); font-size:24px; padding:8px;';
-            
-            const dropdown = document.createElement('div');
-            dropdown.className = 'kebab-dropdown-menu';
-            
-            // Morph the old buttons to look like premium iOS menu items
-            buttons.forEach(btn => {
-                btn.style.width = '100%';
-                btn.style.padding = '10px 16px';
-                btn.style.borderRadius = '8px';
-                btn.style.textAlign = 'left';
-                btn.style.fontSize = '14px';
-                btn.style.fontWeight = '600';
-                btn.style.background = btn.innerText.toLowerCase().includes('delete') ? '#fff0f2' : 'var(--md-surface-variant)';
-                btn.style.color = btn.innerText.toLowerCase().includes('delete') ? 'var(--md-error)' : 'var(--md-on-surface)';
-                btn.style.border = 'none';
-                btn.style.boxShadow = 'none';
-                dropdown.appendChild(btn);
-            });
-
-            kebabBtn.onclick = (e) => {
-                e.stopPropagation();
-                document.querySelectorAll('.kebab-dropdown-menu').forEach(m => m !== dropdown && m.classList.remove('active'));
-                dropdown.classList.toggle('active');
-            };
-
-            // Hide the old HTML wrappers to shrink the list height!
-            const oldWrapper = li.querySelector('div[style*="display: flex"]');
-            if (oldWrapper && oldWrapper.contains(buttons[0])) oldWrapper.style.display = 'none';
-
-            li.style.position = 'relative';
-            li.style.paddingRight = '45px'; // Leave room for the 3-dots
-            
-            container.appendChild(kebabBtn);
-            container.appendChild(dropdown);
-            li.appendChild(container);
-        }
-    });
-}).observe(document.body, { childList: true, subtree: true });
+// ENTERPRISE FIX: Completely annihilated the Global MutationObserver!
+// The app uses high-speed Virtual Lists (M3 Cards) now. This legacy observer was scanning the entire HTML body 
+// every single time a pixel changed, causing severe CPU lag, battery drain, and stuttering scrolling!
 // ---------------------------------------------
 
 // --- ENTERPRISE UI: SMART SCROLL MENU (AUTO-HIDE) ---
@@ -326,13 +255,11 @@ const app = {
                     });
                 });
                 
-                // STRICT ERP LOGIC: Listen for the exact moment the new worker takes over, and force a hard reload!
-                let refreshing = false;
+                // ENTERPRISE FIX: Removed the Violent Auto-Reload!
+                // Force-reloading the DOM while a user is typing an invoice will destroy their data!
+                // We let the Service Worker install silently, and it will apply naturally the next time they open the app.
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    if (!refreshing) {
-                        refreshing = true;
-                        window.location.reload();
-                    }
+                    if (window.Utils) window.Utils.showToast("✨ App updated in background! Restart later to apply.");
                 });
             }
 
@@ -468,8 +395,8 @@ const app = {
         
         // Safely extract the Firm ID without throwing TypeErrors
         const safeFirm = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
-        // Re-declare stripBloat securely in case it was deleted
-        const safeStrip = (arr) => Array.isArray(arr) ? arr.map(i => { delete i._bloat; return i; }) : [];
+        // ENTERPRISE FIX: Prevent massive Out-of-Memory (OOM) crashes by securely deleting Base64 images from RAM!
+        const safeStrip = (arr) => Array.isArray(arr) ? arr.map(i => { const c = {...i}; delete c.image; delete c.attachment; return c; }) : [];
 
         // 1. Dynamic Data (Always fetch fresh from Database)
         // ENTERPRISE FIX: Appended || [] to everything so .filter() NEVER crashes!
@@ -600,14 +527,18 @@ const app = {
 
                     if (balance > 0.01) {
                         totalDue += balance;
-                                                // ENTERPRISE FIX: Use safeDate so iPhones don't crash on Dashboard boot!
-                        const diffTime = Math.abs(today - window.Utils.safeDate(sale.date));
+                        // ENTERPRISE FIX: Use safeDate so iPhones don't crash on Dashboard boot!
+                        const diffTime = today - window.Utils.safeDate(sale.date);
+                        
+                        // ENTERPRISE FIX: The "Post-Dated" Aging Panic Shield!
+                        // The old 'Math.abs' converted future invoices into past-due invoices, triggering fake High-Risk 90+ Day alerts!
+                        if (diffTime >= 0) {
+                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
 
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
-                        if (diffDays <= 30) bucket30 += balance;
-                        else if (diffDays <= 60) bucket60 += balance;
-                        else bucket90 += balance;
+                            if (diffDays <= 30) bucket30 += balance;
+                            else if (diffDays <= 60) bucket60 += balance;
+                            else bucket90 += balance;
+                        }
                     }
                 }
             });
@@ -708,8 +639,10 @@ const app = {
                 if (dbItem) {
                     const qty = parseFloat(adj.qty) || 0;
                     const impact = adj.type === 'add' ? qty : -qty;
-                    if (adj.pool === 'nongst') dbItem.stockNonGst += impact;
-                    else dbItem.stockGst += impact;
+                    // ENTERPRISE FIX: If the dropdown saved 'non-gst', the strict 'nongst' check fails and dumps it into the GST pool!
+                    // Safely route anything that isn't explicitly 'gst' to the Non-GST pool to perfectly match the save engine!
+                    if (adj.pool === 'gst') dbItem.stockGst += impact;
+                    else dbItem.stockNonGst += impact;
                 }
             });
             
@@ -859,6 +792,13 @@ const app = {
 
             if (cleaned) {
                 if (window.Utils) window.Utils.showToast("Database optimized: Duplicates merged! 🧹");
+                
+                // ENTERPRISE FIX: Wipe the RAM Cache so the merged duplicates ACTUALLY disappear from the screen!
+                if (window.AppCache) {
+                    window.AppCache.ledgers = null;
+                    window.AppCache.accounts = null;
+                }
+                
                 await app.loadAllData(); // Reload clean data into RAM
             }
         } catch (e) {
@@ -1054,7 +994,12 @@ const app = {
                 window.Utils.showToast("Added successfully! ✅");
                 
                 app.manageSimpleMaster(storeName, title); 
-                app.loadDropdowns(); 
+                await app.loadDropdowns(); 
+                
+                // ENTERPRISE FIX: Auto-Select the newly created option!
+                // Rebuilding the dropdown resets the selection, so we forcefully select the new item for the user.
+                const targetSelect = storeName === 'units' ? document.getElementById('product-uom-select') : document.getElementById('expense-category-select');
+                if (targetSelect) targetSelect.value = newName;
             };
         }
 
@@ -1169,7 +1114,8 @@ const app = {
                         const match = existingItems.find(i => String(i.name || '').toLowerCase() === String(cols[nameIdx] || '').toLowerCase() && i.firmId === app.state.firmId);
 
                         // STRICT ERP LOGIC: Strip commas from Excel CSV exports before parsing to prevent data corruption!
-                        const cleanNum = (val) => parseFloat(String(val || '0').replace(/,/g, '')) || 0;
+                        // ENTERPRISE FIX: Route through the bulletproof math parser to prevent currency symbols (₹, $) from wiping data to 0!
+                        const cleanNum = (val) => window.Utils.safeNumber(val);
 
                         const data = {
                             id: match ? match.id : Utils.generateId(),
@@ -1222,7 +1168,8 @@ const app = {
                             (String(l.name || '').toLowerCase() === String(cols[nameIdx] || '').toLowerCase() || (cols[phoneIdx] && l.phone === cols[phoneIdx]))
                         );
 
-                        const cleanNum = (val) => parseFloat(String(val || '0').replace(/,/g, '')) || 0;
+                        // ENTERPRISE FIX: Route through the bulletproof math parser to prevent currency symbols (₹, $) from wiping data to 0!
+                        const cleanNum = (val) => window.Utils.safeNumber(val);
 
                         const data = {
                             id: match ? match.id : Utils.generateId(), // Re-use ID if they already exist
@@ -1397,10 +1344,8 @@ const app = {
     },
         openAccountLedger: async (accountId) => {
         // Fetch Account Details
-        let account = { name: 'Cash Drawer', openingBalance: 0 };
-        if (accountId !== 'cash') {
-            account = await getRecordById('accounts', accountId) || account;
-        }
+        // ENTERPRISE FIX: Query the DB for the Cash Drawer so we don't wipe out the user's true Opening Balance!
+        let account = await getRecordById('accounts', accountId) || { name: 'Cash Drawer', openingBalance: 0 };
 
         document.getElementById('report-party-name').innerText = account.name;
         const timelineContainer = document.getElementById('timeline-list');
@@ -2318,11 +2263,22 @@ const app = {
                     rows.forEach(tr => {
                         const qtyInput = tr.querySelector('.row-qty');
                         let qty = parseFloat(qtyInput.value) || 0;
+
+                        // ENTERPRISE FIX: The Negative Quantity Exploit Shield!
+                        // Prevents users from typing negative numbers to artificially shrink their taxable revenue and illegally inflate stock!
+                        if (qty <= 0) {
+                            alert("Error: Quantity must be greater than zero. To refund an item, please use a proper Credit/Debit Note!");
+                            throw new Error("Invalid negative or zero quantity detected.");
+                        }
                         
-                        // STRICT ERP LOGIC: Enforce the max limit for Returns to protect inventory
+                        // ENTERPRISE FIX: The Infinite Return Guard!
+                        // Prevents users from manually bypassing the UI to return more items than originally purchased.
                         if (qtyInput.hasAttribute('max')) {
                             const maxAllowable = parseFloat(qtyInput.getAttribute('max'));
-                            if (qty > maxAllowable) qty = maxAllowable;
+                            if (qty > maxAllowable) {
+                                alert(`Error: You are trying to return ${qty}, but only ${maxAllowable} are available from the original document.`);
+                                throw new Error("Return quantity exceeds original purchase.");
+                            }
                         }
                         
                         if (qty <= 0) return; // FIX: Prevent saving empty "0 qty" items from Returns or accidental inputs
@@ -2405,6 +2361,22 @@ const app = {
                         }
                     }
 
+                    // ENTERPRISE FIX: The "Negative Invoice" Embezzlement Shield!
+                    // Prevent malicious users from typing a flat discount larger than the subtotal to create a negative invoice and steal money!
+                    const checkSubtotal = parseFloat(document.getElementById(`${type}-subtotal`).innerText.replace(/[^\d.-]/g, '')) || 0;
+                    const checkDiscount = Math.abs(parseFloat(document.getElementById(`${type}-discount`).value) || 0);
+                    if (discTypeEl && discTypeEl.value === '\u20B9' && checkDiscount > checkSubtotal) {
+                        alert("Error: Flat discount cannot be greater than the subtotal! This creates an illegal negative invoice.");
+                        throw new Error("Discount exceeds subtotal.");
+                    } else if (discTypeEl && discTypeEl.value === '%' && checkDiscount > 100) {
+                        alert("Error: Percentage discount cannot exceed 100%!");
+                        throw new Error("Discount exceeds 100%.");
+                    }
+
+                    // ENTERPRISE FIX: Fetch the live ledger to snapshot the GSTIN onto the invoice!
+                    const targetLedger = await getRecordById('ledgers', partyId);
+                    const partyGst = targetLedger ? targetLedger.gst : '';
+
                     const data = {
                         id: app.state.currentEditId || Utils.generateId(),
                         firmId: app.state.firmId,
@@ -2416,6 +2388,7 @@ const app = {
                         
                         [type === 'sales' ? 'customerId' : 'supplierId']: partyId,
                         [type === 'sales' ? 'customerName' : 'supplierName']: document.getElementById(`${type}-${partyKey}-display`).innerText,
+                        [type === 'sales' ? 'customerGst' : 'supplierGst']: partyGst,
                         
                         invoiceNo: type === 'sales' ? document.getElementById('sales-invoice-no').value : (document.getElementById('purchase-po-no').value), 
                         poNo: type === 'purchase' ? document.getElementById('purchase-po-no').value : '',
@@ -2639,8 +2612,10 @@ const app = {
                     data.openingBalance = parseFloat(data.openingBalance) || 0;
                 }
 
-                // ENTERPRISE FIX: Safely route Expenses through the Transaction Engine so Inventory is actually consumed!
-                if (type === 'expense' && data.items && data.items.length > 0) {
+                // ENTERPRISE FIX: The Invisible Expense Cashbook Blackhole!
+                // ALL expenses (even those without inventory items, like Rent or Salary) MUST route through the Transaction Engine!
+                // Otherwise, the money never leaves the Bank/Cashbook, causing massive artificial inflation of company funds!
+                if (type === 'expense') {
                     if (typeof saveInvoiceTransaction === 'function') await saveInvoiceTransaction(storeName, data);
                     else if (window.saveInvoiceTransaction) await window.saveInvoiceTransaction(storeName, data);
                     else await saveRecord(storeName, data);
@@ -3374,8 +3349,14 @@ const app = {
         // STRICT ERP LOGIC 1: Revert Invoice Status when Payment is Deleted
         if (type === 'receipt-in' || type === 'receipt-out') {
             if (record.invoiceRef && !record.isAutoGenerated) {
-                const docStore = type === 'receipt-in' ? 'sales' : 'purchases';
-                const allDocs = await getAllRecords(docStore);
+                // ENTERPRISE FIX: The Cross-Table Refund Trap!
+                // Hardcoding 'receipt-out' to 'purchases' completely breaks Sales Refunds and Purchase Refunds!
+                // We MUST dynamically check the party type to route the status reversal to the correct table!
+                const party = await getRecordById('ledgers', record.ledgerId);
+                const docStore = (party && party.type === 'Customer') ? 'sales' : 'purchases';
+                
+                // ENTERPRISE FIX: Scoped DB fetch prevents the app from crashing when deleting a payment!
+                const allDocs = await getAllRecords(docStore, 'firmId', record.firmId);
                 const refs = String(record.invoiceRef).split(',').map(r => r.trim());
                 
                 for (const ref of refs) {
@@ -3423,11 +3404,18 @@ const app = {
             const allSales = await getAllRecords('sales', 'firmId', app.state.firmId);
             const allPurchases = await getAllRecords('purchases', 'firmId', app.state.firmId);
             
+            // ENTERPRISE FIX: The Ghost Deletion Inventory Orphan!
+            // We must also check Expenses and Adjustments. If a product was consumed internally, deleting it will break the audit trail!
+            const allExpenses = await getAllRecords('expenses', 'firmId', app.state.firmId);
+            const allAdjustments = await getAllRecords('adjustments', 'firmId', app.state.firmId);
+            
             const inSales = allSales.some(s => (s.items || []).some(i => i.itemId === id));
             const inPurchases = allPurchases.some(p => (p.items || []).some(i => i.itemId === id));
+            const inExpenses = allExpenses.some(e => (e.items || []).some(i => i.itemId === id));
+            const inAdjustments = allAdjustments.some(a => a.itemId === id);
             
-            if (inSales || inPurchases) {
-                return alert(`Cannot delete this product. It is permanently linked to past invoices or bills. To protect your audit trail and PnL, please edit the product and rename it to "Inactive - [Product Name]" instead.`);
+            if (inSales || inPurchases || inExpenses || inAdjustments) {
+                return alert(`Cannot delete this product. It is permanently linked to past invoices, bills, expenses, or stock adjustments. To protect your PnL, please edit the product and rename it to "Inactive - [Product Name]" instead.`);
             }
         }
 
@@ -3867,15 +3855,9 @@ const app = {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const isB2B = s.invoiceType === 'B2B';
                 
-                const rawSubtotal = parseFloat(s.subtotal) || 0;
-                
-                // ENTERPRISE FIX: Support Percentage Discounts properly!
-                let discountAmount = parseFloat(s.discount) || 0;
-                if (s.discountType === '%') {
-                    discountAmount = rawSubtotal * (discountAmount / 100);
-                }
-                // Cap the discount so taxable value never goes negative
-                const taxable = Math.max(0, rawSubtotal - discountAmount) * mult;
+                // ENTERPRISE FIX: Match the global database logic! 
+                // Subtotal is ALREADY Net Taxable. Do NOT double-deduct discounts, or the Party Tax Report will deflate the user's revenue!
+                const taxable = (parseFloat(s.subtotal) || 0) * mult;
                 
                 const tax = (parseFloat(s.totalGst) || 0) * mult;
 
@@ -4825,10 +4807,37 @@ window.executeAccountReport = async (accountId) => {
         const isMoneyIn = r.type === 'in';
         const impact = isMoneyIn ? parseFloat(r.amount) : -parseFloat(r.amount);
         
+        // ENTERPRISE FIX: PDF Bank Statement Link Translation
+        // The PDF engine was printing ugly database IDs instead of actual Invoice Numbers!
         let displayRefs = '';
         if (r.invoiceRef) {
             const refs = String(r.invoiceRef).split(',').map(x => x.trim());
-            displayRefs = refs.map(ref => ref.startsWith('sollo-') ? ref.slice(-4).toUpperCase() : ref).join(', ');
+            const names = refs.map(ref => {
+                const s = UI.state.rawData.sales.find(doc => doc.id === ref || doc.invoiceNo === ref || doc.orderNo === ref);
+                if (s) return s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
+                
+                const p = UI.state.rawData.purchases.find(doc => doc.id === ref || doc.invoiceNo === ref || doc.poNo === ref || doc.orderNo === ref);
+                if (p) return p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
+                
+                const e = UI.state.rawData.expenses.find(doc => doc.id === ref || doc.expenseNo === ref);
+                if (e) {
+                    if (e.linkedInvoice) {
+                        const eLinks = String(e.linkedInvoice).split(',').map(x => x.trim());
+                        const eNames = eLinks.map(el => {
+                            const ls = UI.state.rawData.sales.find(doc => doc.id === el || doc.invoiceNo === el || doc.orderNo === el);
+                            if (ls) return ls.orderNo || ls.invoiceNo || String(ls.id).slice(-4).toUpperCase();
+                            const lp = UI.state.rawData.purchases.find(doc => doc.id === el || doc.invoiceNo === el || doc.poNo === el || doc.orderNo === el);
+                            if (lp) return lp.orderNo || lp.poNo || lp.invoiceNo || String(lp.id).slice(-4).toUpperCase();
+                            return el.startsWith('sollo-') ? el.slice(-4).toUpperCase() : el;
+                        });
+                        return (e.expenseNo || String(e.id).slice(-4).toUpperCase()) + ' (🔗 ' + eNames.join(', ') + ')';
+                    }
+                    return e.expenseNo || String(e.id).slice(-4).toUpperCase();
+                }
+                
+                return ref.startsWith('sollo-') ? ref.slice(-4).toUpperCase() : ref;
+            });
+            displayRefs = [...new Set(names)].join(', ');
         }
         let refText = r.ref || '';
         if (displayRefs) refText = refText ? `${refText} | Docs: ${displayRefs}` : `Docs: ${displayRefs}`;
@@ -5041,6 +5050,18 @@ app.openItemLedger = async (itemId, itemName) => {
         }
     });
 
+    // ENTERPRISE FIX: 4. Scan Expenses (The Ghost Consumption Leak!)
+    // If raw materials were consumed in an Expense, they MUST appear on the audit trail!
+    const expenses = await window.getAllRecords('expenses', 'firmId', app.state.firmId);
+    expenses.forEach(e => {
+        (e.items || []).forEach(row => {
+            if(row.itemId === itemId) {
+                const qty = parseFloat(row.qty) || 0;
+                timeline.push({ id: e.id, date: e.date, type: 'Internal Expense', desc: e.category || 'Consumed', ref: e.expenseNo || 'EXP-' + e.id.slice(-4).toUpperCase(), inQty: 0, outQty: qty });
+            }
+        });
+    });
+
     // Sort Chronologically by Date and ID Timestamp
     timeline.sort((a, b) => {
         const dateA = window.Utils.safeDate(a.date || 0).getTime();
@@ -5120,14 +5141,16 @@ new MutationObserver((mutations) => {
                 const itemId = itemIdEl ? itemIdEl.value : null;
                 if (!itemId) return;
 
-                // Secretly fetch all past sales for this specific customer
-                const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+                // ENTERPRISE FIX: The "N+1 Database Bomb" RAM Crash Shield!
+                // Fetching the physical disk database inside a loop will crash the phone if an invoice has many items!
+                // We MUST use the lightning-fast RAM Cache instead for O(1) instant memory lookup!
+                const sales = (window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.sales) || [];
                 const sortedSales = sales.filter(s => 
                     s.firmId === window.app.state.firmId && 
                     s.customerId === customerId && 
                     s.status !== 'Open' &&
                     s.documentType !== 'return'
-                                ).sort((a, b) => window.Utils.safeDate(b.date) - window.Utils.safeDate(a.date)); // Sort newest first
+                ).sort((a, b) => window.Utils.safeDate(b.date) - window.Utils.safeDate(a.date)); // Sort newest first
 
 
                 let lastRate = null;
@@ -5315,9 +5338,12 @@ document.addEventListener('input', (e) => {
                     target.style.opacity = '1';
                 }, 250);
 
-                // 3. Lock the button so releasing the thumb doesn't accidentally open the document
+                // ENTERPRISE FIX: We must restore the 'onclick' attribute, or the document card becomes permanently dead!
                 target.setAttribute('data-locked', 'true');
-                setTimeout(() => target.removeAttribute('data-locked'), 800);
+                setTimeout(() => {
+                    target.removeAttribute('data-locked');
+                    target.setAttribute('onclick', clickAction); // Safely restores the ability to tap the invoice!
+                }, 800);
 
                 // 4. Call the upgraded Context Menu
                 if (window.UI && typeof window.UI.showContextMenu === 'function') {

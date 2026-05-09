@@ -95,6 +95,9 @@ self.addEventListener('fetch', (event) => {
     }
     // ---------------------------------
 
+    // ENTERPRISE FIX: The Cache API violently crashes on POST requests. We MUST ignore them!
+    if (event.request.method !== 'GET') return;
+
     // STRICT ERP LOGIC: Network-First with a 3-second abort timeout.
     // If the network is slow or hanging, it instantly drops to the high-speed cache!
     event.respondWith(

@@ -8,6 +8,15 @@ const Utils = {
     // ==========================================
     safeDate: (dateString) => {
         if (!dateString) return new Date();
+        
+        // ENTERPRISE FIX: The Timezone Shift Shield!
+        // If the date is already a secure UTC ISO string (ends with Z), let modern browsers parse it natively!
+        // Stripping the Z forces the browser into Local Time, shifting midnight invoices into the wrong day and ruining GST returns!
+        if (String(dateString).includes('T') && String(dateString).endsWith('Z')) {
+            const utcDate = new Date(dateString);
+            if (!isNaN(utcDate.getTime())) return utcDate;
+        }
+
         // iPhones physically cannot process YYYY-MM-DD HH:MM:SS. 
         // We MUST convert dashes to slashes (YYYY/MM/DD HH:MM:SS) for Safari to survive!
         let safeString = String(dateString).replace(/-/g, '/');
@@ -160,7 +169,9 @@ const Utils = {
             return str.trim();
         };
 
-        const safeNum = parseFloat(num) || 0;
+        // ENTERPRISE FIX: The "Negative Amount in Words" Breakdown!
+        // Credit Notes and Refunds use negative totals. Math.floor(-500) breaks the regex and prints blank words!
+        const safeNum = Math.abs(parseFloat(num) || 0);
         const rupees = Math.floor(safeNum);
         const paise = Math.round((safeNum - rupees) * 100);
 
@@ -184,11 +195,11 @@ const Utils = {
         
         setTimeout(() => toast.classList.add('show'), 10); // Trigger animation
         
-        // Remove after 3 seconds
+        // ENTERPRISE FIX: Increased the timeout to 3000ms so users can actually read AI and Error messages!
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
-        }, 1000);
+        }, 3000);
     },
     // --- END OF NEW CODE ---
 
@@ -236,10 +247,17 @@ const Utils = {
     downloadFile: (content, filename, contentType) => {
         const a = document.createElement("a");
         const file = new Blob([content], { type: contentType });
-        a.href = URL.createObjectURL(file);
+        const url = URL.createObjectURL(file);
+        a.href = url;
         a.download = filename;
+        document.body.appendChild(a); // Mobile WebKit safety
         a.click();
-        URL.revokeObjectURL(a.href);
+        
+        // ENTERPRISE FIX: Give mobile download managers 1 second to grab the file before destroying the URL!
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+            if (a.parentNode) document.body.removeChild(a);
+        }, 1000);
     },
     // ==========================================
     // NEW CODE: UNIVERSAL SHARE ENGINE
@@ -275,13 +293,21 @@ const Utils = {
                         files: [file]
                     });
                 } else {
-                    // 3. Fallback: If sharing isn't supported (like on older desktop browsers), just download it
+                    // ENTERPRISE FIX: Added DOM Appending and RAM Garbage Collection to prevent silent download failures and Memory Leaks!
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement("a");
                     link.href = url;
                     link.download = `${documentTitle}.png`;
+                    document.body.appendChild(link); // Required for strict mobile browsers
                     link.click();
+                    
                     alert("Universal sharing is not supported on this device. The document has been downloaded instead.");
+                    
+                    // Safely destroy the Base64 Blob from the phone's RAM after 1 second!
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                        if (link.parentNode) document.body.removeChild(link);
+                    }, 1000);
                 }
             }, 'image/png');
 
@@ -348,7 +374,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
             // STRICT ERP LOGIC: Inject exact timestamp to prevent OS-level file overwriting!
             const timestamp = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
-            const fileName = `SOLLO_Backup_${new Date().toISOString().split('T')[0]}_${timestamp}.json`;
+            // ENTERPRISE FIX: The Timezone File-Naming Shift!
+            // 'toISOString()' converts to UTC. A backup at 2 AM IST will mathematically label the file with yesterday's date!
+            const fileName = `SOLLO_Backup_${Utils.getLocalDate()}_${timestamp}.json`;
             const blob = new Blob(blobParts, { type: "application/json" });
             const file = new File([blob], fileName, { type: "application/json" });
 
@@ -580,6 +608,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const partyName = safeParty.name ? safeParty.name : (isSales ? doc.customerName : doc.supplierName);
         const partyAddress = safeParty.address || safeParty.billingAddress || '';
         
+        // ENTERPRISE FIX: Compile the City, State, and Pincode into a clean string for the PDF!
+        const partyLocationStr = [safeParty.city, safeParty.state].filter(Boolean).join(', ') + (safeParty.pincode ? ' - ' + safeParty.pincode : '');
+        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+        
         const partyGst = safeParty.gst ? safeParty.gst.toUpperCase() : '';
         const bizGst = biz && biz.gst ? biz.gst.toUpperCase() : 'N/A';
         
@@ -655,6 +687,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         ${biz.logo ? `<img src="${biz.logo}" style="max-height: 50px; margin-bottom: 8px;" />` : ''}
                         <strong style="font-size: 16px; text-transform: uppercase;">${biz.name || 'Company Name'}</strong>
                         <div style="margin-top: 4px; white-space: pre-wrap;">${biz.address || ''}</div>
+                        ${bizLocationStr ? `<div style="margin-bottom: 4px;">${bizLocationStr}</div>` : ''}
                         <div>Ph: ${biz.phone || ''}</div>
                         ${!isNonGST ? `<div style="margin-top: 4px;"><strong>GSTIN: ${bizGst}</strong></div>` : ''}
                     </div>
@@ -668,8 +701,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             <div style="width: 50%; padding: 8px;"><strong>Order Date:</strong><br>${Utils.formatDateDisplay(doc.orderDate) || '-'}</div>
                         </div>
                         <div style="display: flex; flex: 1;">
-                            <div style="width: 50%; padding: 8px; border-right: 1px solid #000;"><strong>Dispatch Date:</strong><br>${Utils.formatDateDisplay(doc.shippedDate) || '-'}</div>
-                            <div style="width: 50%; padding: 8px;"><strong>Status:</strong><br>${doc.status || '-'}</div>
+                            <div style="width: 50%; padding: 8px; border-right: 1px solid #000;"><strong>Dispatch Date:</strong><br>${(doc.status === 'Open' || !doc.shippedDate) ? '-' : Utils.formatDateDisplay(doc.shippedDate)}</div>
+                            <div style="width: 50%; padding: 8px;"><strong>Status:</strong><br>${doc.status === 'Open' ? 'Draft' : (doc.status || '-')}</div>
                         </div>
                         
                         ${biz.cf1Name && doc.cf1Val ? `
@@ -691,6 +724,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     <strong style="text-transform: uppercase; font-size: 11px; background: #e5e5e5; padding: 2px 6px; border: 1px solid #000; display: inline-block; margin-bottom: 6px;">${isSales ? 'Billed To / Party Details' : 'Billed By / Supplier Details'}</strong>
                     <div style="font-size: 14px; font-weight: bold; text-transform: uppercase;">${partyName}</div>
                     ${partyAddress ? `<div style="margin-top: 4px; white-space: pre-wrap;">${partyAddress}</div>` : ''}
+                    ${partyLocationStr ? `<div style="margin-top: 2px;">${partyLocationStr}</div>` : ''}
                     ${!isNonGST && partyGst ? `<div style="margin-top: 4px;"><strong>GSTIN: ${partyGst}</strong></div>` : ''}
                 </div>
 
@@ -740,8 +774,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             </tr>
                             ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
                                 <tr>
-                                    <td style="border: none; border-bottom: 1px dashed #ccc; padding: 4px 8px; font-size: 10px;">Paid (${r.date}):</td>
-                                    <td style="border: none; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; padding: 4px 8px; font-size: 10px;">-${parseFloat(r.amount).toFixed(2)}</td>
+                                    <td style="border: none; border-bottom: 1px dashed #ccc; padding: 4px 8px; font-size: 10px;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Paid'} (${r.date}):</td>
+                                    <td style="border: none; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; padding: 4px 8px; font-size: 10px;">${parseFloat(r.amount) < 0 ? '+' : '-'}${Math.abs(parseFloat(r.amount)).toFixed(2)}</td>
                                 </tr>
                             `).join('') : ''}
                             ${((parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)) > 0.01 ? `
@@ -786,8 +820,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 </div>
             </div>`;
 
-            // Inject the tracker perfectly right above the Terms & Conditions / Signature box!
-            const anchorIndex = html.lastIndexOf('<div class="border-box">');
+            // ENTERPRISE FIX: Target the bottom Terms & Conditions block so the tracker doesn't split the Customer Header!
+            const anchorIndex = html.lastIndexOf('<div style="display: flex; border: 1px solid #000; page-break-inside: avoid;">');
             if (anchorIndex !== -1) {
                 html = html.substring(0, anchorIndex) + progressHtml + html.substring(anchorIndex);
             } else {
@@ -939,12 +973,21 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 if (t.impact > 0) debit = Math.abs(t.impact).toFixed(2);
                 else credit = Math.abs(t.impact).toFixed(2);
             } else {
+                // ENTERPRISE FIX: The Opening Balance Reversal Trap!
+                // Opening balances lack the 'isInvoice' flag, so the old code blindly dumped them into the wrong accounting column!
+                // We MUST check 't.id === open-bal' and map it using its mathematical impact!
                 if (party.type === 'Customer') {
-                    if (t.isInvoice) debit = t.amount.toFixed(2);
-                    else credit = t.amount.toFixed(2);
+                    if (t.id === 'open-bal') {
+                        if (t.impact > 0) debit = parseFloat(t.amount || 0).toFixed(2);
+                        else credit = parseFloat(t.amount || 0).toFixed(2);
+                    } else if (t.isInvoice) debit = parseFloat(t.amount || 0).toFixed(2);
+                    else credit = parseFloat(t.amount || 0).toFixed(2);
                 } else {
-                    if (t.isInvoice) credit = t.amount.toFixed(2);
-                    else debit = t.amount.toFixed(2);
+                    if (t.id === 'open-bal') {
+                        if (t.impact < 0) credit = parseFloat(t.amount || 0).toFixed(2);
+                        else debit = parseFloat(t.amount || 0).toFixed(2);
+                    } else if (t.isInvoice) credit = parseFloat(t.amount || 0).toFixed(2);
+                    else debit = parseFloat(t.amount || 0).toFixed(2);
                 }
             }
 
@@ -960,14 +1003,29 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     <td style="text-align:right; color:#146c2e;">${credit ? '\u20B9' + credit : ''}</td>
                     <td style="text-align:right; font-weight:bold; color:#1a1c1e;">
                         \u20B9${Math.abs(t.runningBalance || 0).toFixed(2)} 
-                        <span style="font-size:11px; color:#73777f;">${(t.runningBalance || 0) > 0 ? (party.type === 'Customer' ? 'Dr' : 'Cr') : (party.type === 'Customer' ? 'Cr' : 'Dr')}</span>
+                        <span style="font-size:11px; color:#73777f;">${(t.runningBalance || 0) >= 0 ? 'Dr' : 'Cr'}</span>
                     </td>
                 </tr>
             `;
         });
 
         const safeDocNo = Utils.getLocalDate();
-        const balSuffix = isAccount ? 'Available' : (finalBal > 0 ? (party.type === 'Customer' ? 'Dr (Due)' : 'Cr (To Pay)') : (party.type === 'Customer' ? 'Cr (Advance)' : 'Dr (Advance)'));
+        
+        // ENTERPRISE FIX: The "Inverted Supplier Suffix" Trap!
+        // Because Purchases are properly stored as Liabilities (Negative), the old logic printed "Advance" when we actually owed money!
+        let balSuffix = 'Available';
+        if (!isAccount) {
+            if (party.type === 'Customer') {
+                balSuffix = finalBal > 0 ? 'Dr (Due)' : 'Cr (Advance)';
+            } else {
+                // For Suppliers: Negative = We owe them (To Pay). Positive = Overpayment (Advance)!
+                balSuffix = finalBal < 0 ? 'Cr (To Pay)' : 'Dr (Advance)';
+            }
+        }
+        // ENTERPRISE FIX: Compile the City, State, and Pincode for the Statement PDF!
+        const statementBizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+        const statementPartyLocationStr = [party.city, party.state].filter(Boolean).join(', ') + (party.pincode ? ' - ' + party.pincode : '');
+        
         // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Statement!
         const uniquePdfId = 'pdf-statement-' + Date.now();
 
@@ -993,6 +1051,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         ${biz.logo ? `<img src="${biz.logo}" style="max-height: 50px; margin-bottom: 8px;" />` : ''}
                         <strong style="font-size: 16px; text-transform: uppercase;">${biz.name || 'Company Name'}</strong>
                         <div style="margin-top: 4px; white-space: pre-wrap;">${biz.address || ''}</div>
+                        ${statementBizLocationStr ? `<div style="margin-bottom: 4px;">${statementBizLocationStr}</div>` : ''}
                         <div>Ph: ${biz.phone || ''}</div>
                     </div>
                     <div style="width: 50%; padding: 0; display: flex; flex-direction: column;">
@@ -1011,6 +1070,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 <div class="border-box">
                     <strong style="text-transform: uppercase; font-size: 11px; background: #e5e5e5; padding: 2px 6px; border: 1px solid #000; display: inline-block; margin-bottom: 6px;">${isAccount ? 'ACCOUNT DETAILS' : 'PARTY DETAILS'}</strong>
                     <div style="font-size: 14px; font-weight: bold; text-transform: uppercase;">${party.name}</div>
+                    ${party.address ? `<div style="margin-top: 4px; white-space: pre-wrap;">${party.address}</div>` : ''}
+                    ${statementPartyLocationStr ? `<div style="margin-top: 2px;">${statementPartyLocationStr}</div>` : ''}
                     ${party.phone ? `<div style="margin-top: 4px;">Ph: ${party.phone}</div>` : ''}
                     ${party.gst ? `<div style="margin-top: 4px;"><strong>GSTIN: ${party.gst.toUpperCase()}</strong></div>` : ''}
                 </div>
@@ -1089,13 +1150,18 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 if (s.invoiceType === 'Non-GST') return;
                 let cust = ledgers.find(l => l.id === s.customerId);
                 let gstin = cust ? cust.gst : '';
-                if (gstin && gstin.trim() !== '') {
-                    // ENTERPRISE FIX: Strict Discount Deduction to prevent massive GST Portal liability inflation!
-                    let rawSubtotal = parseFloat(s.subtotal) || 0;
-                    let discountAmount = parseFloat(s.discount) || 0;
-                    if (s.discountType === '%') discountAmount = rawSubtotal * (discountAmount / 100);
+                // CRITICAL TAX FIX: Match db.js! A valid GSTIN must be exactly 15 characters to enter the B2B Sheet!
+                if (gstin && gstin.trim().length === 15) {
+                    // ENTERPRISE FIX: The Blank B2B Taxable Value Exploit!
+                    // 's.subtotal' is often undefined in the database, causing the Excel file to export ₹0.00!
+                    // We MUST mathematically extract the exact Net Taxable value by reading the invoice items!
+                    let rawSubtotal = 0;
+                    (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
+                    let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                    if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                    let exactTaxable = rawSubtotal - discountAmt;
                     
-                    let taxable = Math.max(0, rawSubtotal - discountAmount) * (s.documentType === 'return' ? -1 : 1);
+                    let taxable = exactTaxable * (s.documentType === 'return' ? -1 : 1);
                     let tax = (parseFloat(s.totalGst) || 0) * (s.documentType === 'return' ? -1 : 1);
                     let total = (parseFloat(s.grandTotal) || 0) * (s.documentType === 'return' ? -1 : 1);
                     b2bData.push([s.date, s.invoiceNo, s.customerName || '', gstin.toUpperCase(), taxable, tax, total]);
@@ -1250,11 +1316,25 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const invMatch = text.match(/(?:inv|invoice|bill|receipt|ref|no|po)[\s:.-]*([A-Z0-9-/]+)/i);
         const dateMatch = text.match(/\b(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\b/);
 
+        // ENTERPRISE FIX: The AI Date Flipper!
+        // HTML forms will crash and stay blank if we don't flip DD/MM/YYYY into YYYY-MM-DD!
+        let cleanDate = '';
+        if (dateMatch) {
+            let parts = dateMatch[1].replace(/[-/.]/g, '-').split('-');
+            if (parts[0].length <= 2 && parts[2].length === 4) {
+                // If it found DD-MM-YYYY, flip it to YYYY-MM-DD
+                cleanDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            } else if (parts[0].length === 4) {
+                // Already YYYY-MM-DD, just pad the zeros
+                cleanDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+        }
+
         const extracted = {
             gstin: gstinMatch ? gstinMatch[1].toUpperCase() : '',
             amount: amountMatch ? amountMatch[1].replace(/[^0-9.]/g, '') : '',
             invNo: invMatch ? invMatch[1].toUpperCase() : '',
-            date: dateMatch ? dateMatch[1].replace(/\./g, '-') : ''
+            date: cleanDate
         };
 
         // 3. THE REVIEW STEP: Alert the user with what the AI found
@@ -1503,7 +1583,11 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     if (printArea) {
         printArea.innerHTML = html;
         setTimeout(() => {
-            const safeFilename = `Stock_Ledger_${itemName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+            // ENTERPRISE FIX: The Fatal PDF Freeze Shield!
+            // If an item was deleted but remains in historical ledgers, 'itemName' will be undefined.
+            // Calling .replace() on undefined instantly crashes the entire app!
+            const safeItemName = itemName ? String(itemName) : 'Unknown_Item';
+            const safeFilename = `Stock_Ledger_${safeItemName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
             window.Utils.processPDFExport(uniquePdfId, safeFilename);
         }, 100);
     }

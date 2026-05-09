@@ -13,9 +13,15 @@ let gisInited = false;
 // 1. Initialize Google API Client
 window.gapiLoaded = () => {
     gapi.load('client', async () => {
-        await gapi.client.init({ discoveryDocs: [DISCOVERY_DOC] });
-        gapiInited = true;
-        maybeEnableButtons();
+        try {
+            // ENTERPRISE FIX: Wrap the Google API in a shield to prevent ad-blockers from crashing the app!
+            await gapi.client.init({ discoveryDocs: [DISCOVERY_DOC] });
+            gapiInited = true;
+            maybeEnableButtons();
+        } catch (err) {
+            console.error("Google API Blocked by Firewall/Ad-Blocker:", err);
+            if (window.Utils) window.Utils.showToast("⚠️ Cloud Sync blocked by your network or ad-blocker!");
+        }
     });
 };
 
@@ -119,18 +125,29 @@ const Cloud = {
                 });
 
                 let fileId = response.result.files.length > 0 ? response.result.files[0].id : null;
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                form.append('file', file);
-
-                const url = fileId ? 
-                    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : 
-                    `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+                // ENTERPRISE FIX: Applied the Safe-Split Upload to the Auto-Backup engine!
+                let finalFileId = fileId;
                 
-                let uploadRes = await fetch(url, {
-                    method: fileId ? 'PATCH' : 'POST',
-                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
-                    body: form,
+                if (!finalFileId) {
+                    const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                        method: 'POST',
+                        headers: new Headers({ 
+                            'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                            'Content-Type': 'application/json'
+                        }),
+                        body: JSON.stringify(metadata)
+                    });
+                    const metaData = await metaRes.json();
+                    finalFileId = metaData.id;
+                }
+
+                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
+                    method: 'PATCH',
+                    headers: new Headers({ 
+                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                        'Content-Type': 'application/json'
+                    }),
+                    body: file
                 });
 
                 if (uploadRes.ok) {
@@ -200,19 +217,31 @@ const Cloud = {
                 }
                 window.Utils.showToast("Uploading to Google Drive...");
 
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                form.append('file', file);
+                // ENTERPRISE FIX: Bypass the Google Drive API 'multipart' crash by splitting the upload!
+                let finalFileId = fileId;
+                
+                if (!finalFileId) {
+                    // Step 1: Create a perfectly named empty shell file first
+                    const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                        method: 'POST',
+                        headers: new Headers({ 
+                            'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                            'Content-Type': 'application/json'
+                        }),
+                        body: JSON.stringify(metadata)
+                    });
+                    const metaData = await metaRes.json();
+                    finalFileId = metaData.id;
+                }
 
-                const url = fileId ? 
-                    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : 
-                    `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-                const method = fileId ? 'PATCH' : 'POST';
-
-                let uploadRes = await fetch(url, {
-                    method: method,
-                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
-                    body: form,
+                // Step 2: Inject the raw JSON database directly into that file shell
+                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
+                    method: 'PATCH',
+                    headers: new Headers({ 
+                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                        'Content-Type': 'application/json'
+                    }),
+                    body: file
                 });
 
                 if (uploadRes.ok) {
