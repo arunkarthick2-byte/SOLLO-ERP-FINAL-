@@ -463,6 +463,40 @@ Please arrange the payment at your earliest convenience. Thank you!`);
     // ==========================================
     // 4. IN-APP INVOICE VIEWER (TRUE PDF UPGRADE)
     // ==========================================
+    shareNativePDF: async (elementId, filename, textMsg) => {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        if (window.Utils && window.Utils.showToast) window.Utils.showToast("Preparing PDF... ⏳");
+        
+        try {
+            const opt = {
+                margin: 0,
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
+            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+            
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: filename,
+                    text: textMsg,
+                    files: [file]
+                });
+            } else {
+                if (window.Utils && window.Utils.showToast) window.Utils.showToast("Native share not supported on this device. Downloading...");
+                html2pdf().set(opt).from(element).save();
+            }
+        } catch (err) {
+            console.error("PDF Share Error:", err);
+            alert("Could not share PDF. Please download it instead.");
+        }
+    },
+
     processPDFExport: async (elementId, filename) => {
         const element = document.getElementById(elementId);
         if (!element) return;
