@@ -666,141 +666,144 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
         // ENTERPRISE FIX: Changed 'const' to 'let' so the Split-Payment Tracker doesn't crash the engine!
         let html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: Arial, sans-serif; font-size: 12px; color: #000; background: #fff; line-height: 1.4; box-sizing: border-box; padding: 10px;">
+        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; color: #333; background: #fff; line-height: 1.5; box-sizing: border-box; padding: 40px; position: relative;">
+            
+            ${biz.logo ? `<div style="position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: 0; width: 50%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+
+            <div style="position: relative; z-index: 1;">
                 
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
-
-                <style>
-                    #pdf-invoice-wrapper * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
-                    #pdf-invoice-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 15px; page-break-inside: auto; border: 1px solid #000; }
-                    #pdf-invoice-wrapper th { background-color: #e5e5e5; border: 1px solid #000; padding: 6px 4px; text-align: center; font-weight: bold; font-size: 11px; text-transform: uppercase; }
-                    #pdf-invoice-wrapper td { border: 1px solid #000; padding: 6px 4px; font-size: 11px; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; max-width: 250px; }
-                    #pdf-invoice-wrapper tr { page-break-inside: avoid !important; break-inside: avoid !important; }
-                    #pdf-invoice-wrapper thead { display: table-header-group; }
-                    .border-box { border: 1px solid #000; padding: 8px; margin-bottom: 15px; }
-                </style>
-
-                <h2 style="text-align: center; font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; border: 1px solid #000; padding: 6px; background: #e5e5e5;">${title}</h2>
-
-                <div style="display: flex; width: 100%; border: 1px solid #000; margin-bottom: 15px;">
-                    <div style="width: 50%; padding: 10px; border-right: 1px solid #000;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 50px; margin-bottom: 8px;" />` : ''}
-                        <strong style="font-size: 16px; text-transform: uppercase;">${biz.name || 'Company Name'}</strong>
-                        <div style="margin-top: 4px; white-space: pre-wrap;">${biz.address || ''}</div>
-                        ${bizLocationStr ? `<div style="margin-bottom: 4px;">${bizLocationStr}</div>` : ''}
-                        <div>Ph: ${biz.phone || ''}</div>
-                        ${!isNonGST ? `<div style="margin-top: 4px;"><strong>GSTIN: ${bizGst}</strong></div>` : ''}
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #f0f0f0; padding-bottom: 25px; margin-bottom: 25px;">
+                    <div style="max-width: 50%;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 65px; margin-bottom: 12px;" />` : `<h2 style="font-size: 24px; font-weight: bold; color: #111; margin-bottom: 12px; text-transform: uppercase;">${biz.name || 'Company Name'}</h2>`}
+                        ${biz.logo ? `<strong style="font-size: 14px; text-transform: uppercase; color: #111;">${biz.name || 'Company Name'}</strong>` : ''}
+                        <div style="color: #666; margin-top: 4px; white-space: pre-wrap; font-size: 11px;">${biz.address || ''}</div>
+                        ${bizLocationStr ? `<div style="color: #666; font-size: 11px; margin-top: 2px;">${bizLocationStr}</div>` : ''}
+                        <div style="color: #666; font-size: 11px; margin-top: 2px;">Ph: ${biz.phone || ''}</div>
+                        ${!isNonGST ? `<div style="margin-top: 6px; font-size: 11px;"><strong style="color:#333;">GSTIN:</strong> ${bizGst}</div>` : ''}
                     </div>
-                    <div style="width: 50%; padding: 0; display: flex; flex-direction: column;">
-                        <div style="display: flex; border-bottom: 1px solid #000; flex: 1;">
-                            <div style="width: 50%; padding: 8px; border-right: 1px solid #000;"><strong>Invoice No:</strong><br><span style="font-size: 14px;">${safeDocNo}</span></div>
-                            <div style="width: 50%; padding: 8px;"><strong>Date:</strong><br><span style="font-size: 14px;">${Utils.formatDateDisplay(doc.date)}</span></div>
-                        </div>
-                        <div style="display: flex; border-bottom: 1px solid #000; flex: 1;">
-                            <div style="width: 50%; padding: 8px; border-right: 1px solid #000;"><strong>Order Ref:</strong><br>${doc.orderNo || '-'}</div>
-                            <div style="width: 50%; padding: 8px;"><strong>Order Date:</strong><br>${Utils.formatDateDisplay(doc.orderDate) || '-'}</div>
-                        </div>
-                        <div style="display: flex; flex: 1;">
-                            <div style="width: 50%; padding: 8px; border-right: 1px solid #000;"><strong>Dispatch Date:</strong><br>${(doc.status === 'Open' || !doc.shippedDate) ? '-' : Utils.formatDateDisplay(doc.shippedDate)}</div>
-                            <div style="width: 50%; padding: 8px;"><strong>Status:</strong><br>${doc.status === 'Open' ? 'Draft' : (doc.status || '-')}</div>
-                        </div>
-                        
-                        ${biz.cf1Name && doc.cf1Val ? `
-                        <div style="display: flex; border-top: 1px solid #000; flex: 1; background: #f8f9fa;">
-                            <div style="width: 100%; padding: 6px 8px;"><strong>${biz.cf1Name}:</strong> ${doc.cf1Val}</div>
-                        </div>` : ''}
-                        ${biz.cf2Name && doc.cf2Val ? `
-                        <div style="display: flex; border-top: 1px solid #000; flex: 1; background: #f8f9fa;">
-                            <div style="width: 100%; padding: 6px 8px;"><strong>${biz.cf2Name}:</strong> ${doc.cf2Val}</div>
-                        </div>` : ''}
-                        ${biz.cf3Name && doc.cf3Val ? `
-                        <div style="display: flex; border-top: 1px solid #000; flex: 1; background: #f8f9fa;">
-                            <div style="width: 100%; padding: 6px 8px;"><strong>${biz.cf3Name}:</strong> ${doc.cf3Val}</div>
-                        </div>` : ''}
+                    <div style="text-align: right; max-width: 45%;">
+                        <h1 style="font-size: 32px; font-weight: 300; letter-spacing: 2px; color: #0061a4; margin-bottom: 15px; text-transform: uppercase;">${title}</h1>
+                        <table style="width: 100%; text-align: right; font-size: 11px; border: none;">
+                            <tr><td style="padding: 3px 0; color: #666;">Document No:</td><td style="padding: 3px 0 3px 15px; font-weight: bold; color: #111; font-size: 13px;">${safeDocNo}</td></tr>
+                            <tr><td style="padding: 3px 0; color: #666;">Date:</td><td style="padding: 3px 0 3px 15px; font-weight: bold; color: #111;">${Utils.formatDateDisplay(doc.date)}</td></tr>
+                            ${doc.orderNo ? `<tr><td style="padding: 3px 0; color: #666;">Order Ref:</td><td style="padding: 3px 0 3px 15px; font-weight: bold; color: #111;">${doc.orderNo}</td></tr>` : ''}
+                            <tr><td style="padding: 3px 0; color: #666;">Dispatch Date:</td><td style="padding: 3px 0 3px 15px; font-weight: bold; color: #111;">${(doc.status === 'Open' || !doc.shippedDate) ? '-' : Utils.formatDateDisplay(doc.shippedDate)}</td></tr>
+                        </table>
                     </div>
                 </div>
 
-                <div class="border-box">
-                    <strong style="text-transform: uppercase; font-size: 11px; background: #e5e5e5; padding: 2px 6px; border: 1px solid #000; display: inline-block; margin-bottom: 6px;">${isSales ? 'Billed To / Party Details' : 'Billed By / Supplier Details'}</strong>
-                    <div style="font-size: 14px; font-weight: bold; text-transform: uppercase;">${partyName}</div>
-                    ${partyAddress ? `<div style="margin-top: 4px; white-space: pre-wrap;">${partyAddress}</div>` : ''}
-                    ${partyLocationStr ? `<div style="margin-top: 2px;">${partyLocationStr}</div>` : ''}
-                    ${!isNonGST && partyGst ? `<div style="margin-top: 4px;"><strong>GSTIN: ${partyGst}</strong></div>` : ''}
+                <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
+                    <div style="width: 48%;">
+                        <div style="font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px;">${isSales ? 'Billed To' : 'Billed By'}</div>
+                        <div style="font-size: 14px; font-weight: bold; color: #111; text-transform: uppercase; margin-bottom: 4px;">${partyName}</div>
+                        ${partyAddress ? `<div style="color: #666; font-size: 11px; white-space: pre-wrap; margin-bottom: 2px;">${partyAddress}</div>` : ''}
+                        ${partyLocationStr ? `<div style="color: #666; font-size: 11px; margin-bottom: 6px;">${partyLocationStr}</div>` : ''}
+                        ${!isNonGST && partyGst ? `<div style="font-size: 11px;"><strong style="color:#333;">GSTIN:</strong> ${partyGst}</div>` : ''}
+                    </div>
+                    <div style="width: 48%;">
+                        ${biz.cf1Name && doc.cf1Val || biz.cf2Name && doc.cf2Val || biz.cf3Name && doc.cf3Val ? `
+                            <div style="font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px;">Additional Details</div>
+                            <table style="width: 100%; font-size: 11px; border: none;">
+                                ${biz.cf1Name && doc.cf1Val ? `<tr><td style="padding: 3px 0; color: #666; width: 40%;">${biz.cf1Name}:</td><td style="padding: 3px 0; font-weight: bold; color: #111;">${doc.cf1Val}</td></tr>` : ''}
+                                ${biz.cf2Name && doc.cf2Val ? `<tr><td style="padding: 3px 0; color: #666; width: 40%;">${biz.cf2Name}:</td><td style="padding: 3px 0; font-weight: bold; color: #111;">${doc.cf2Val}</td></tr>` : ''}
+                                ${biz.cf3Name && doc.cf3Val ? `<tr><td style="padding: 3px 0; color: #666; width: 40%;">${biz.cf3Name}:</td><td style="padding: 3px 0; font-weight: bold; color: #111;">${doc.cf3Val}</td></tr>` : ''}
+                            </table>
+                        ` : ''}
+                    </div>
                 </div>
 
-                <table>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
                     <thead>
                         <tr>
-                            <th style="width: 5%;">#</th>
-                            <th style="width: ${!isNonGST ? '35%' : '45%'}; text-align: left;">Description of Goods</th>
-                            ${!isNonGST ? `<th style="width: 10%;">HSN/SAC</th>` : ''}
-                            <th style="width: ${!isNonGST ? '10%' : '15%'};">Qty</th>
-                            <th style="width: ${!isNonGST ? '15%' : '15%'}; text-align: right;">Rate</th>
-                            ${!isNonGST ? `<th style="width: 10%;">GST%</th>` : ''}
-                            <th style="width: ${!isNonGST ? '15%' : '20%'}; text-align: right;">Total Amount</th>
+                            <th style="padding: 10px 8px; background: #f8f9fa; border-bottom: 2px solid #ddd; text-align: center; font-size: 10px; text-transform: uppercase; color: #555; width: 5%;">#</th>
+                            <th style="padding: 10px 8px; background: #f8f9fa; border-bottom: 2px solid #ddd; text-align: left; font-size: 10px; text-transform: uppercase; color: #555; width: ${!isNonGST ? '35%' : '45%'};">Description of Goods</th>
+                            ${!isNonGST ? `<th style="padding: 10px 8px; background: #f8f9fa; border-bottom: 2px solid #ddd; text-align: center; font-size: 10px; text-transform: uppercase; color: #555; width: 10%;">HSN/SAC</th>` : ''}
+                            <th style="padding: 10px 8px; background: #f8f9fa; border-bottom: 2px solid #ddd; text-align: center; font-size: 10px; text-transform: uppercase; color: #555; width: ${!isNonGST ? '10%' : '15%'};">Qty</th>
+                            <th style="padding: 10px 8px; background: #f8f9fa; border-bottom: 2px solid #ddd; text-align: right; font-size: 10px; text-transform: uppercase; color: #555; width: ${!isNonGST ? '15%' : '15%'};">Rate</th>
+                            ${!isNonGST ? `<th style="padding: 10px 8px; background: #f8f9fa; border-bottom: 2px solid #ddd; text-align: center; font-size: 10px; text-transform: uppercase; color: #555; width: 10%;">GST%</th>` : ''}
+                            <th style="padding: 10px 8px; background: #f8f9fa; border-bottom: 2px solid #ddd; text-align: right; font-size: 10px; text-transform: uppercase; color: #555; width: ${!isNonGST ? '15%' : '20%'};">Total Amount</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${itemsHtml}
+                        ${itemsHtml.replace(/<td style="/g, '<td style="padding: 12px 8px; border-bottom: 1px solid #eee; ')}
                     </tbody>
                 </table>
 
-                <div style="display: flex; border: 1px solid #000; page-break-inside: avoid;">
-                    <div style="width: 60%; padding: 10px; border-right: 1px solid #000;">
-                        <div style="margin-bottom: 12px;">
-                            <strong>Total Amount in Words:</strong><br>
-                            <span style="text-transform: capitalize; font-size: 11px;">${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="width: 55%; padding-right: 20px;">
+                        <div style="margin-bottom: 15px;">
+                            <span style="font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px;">Total Amount in Words</span>
+                            <strong style="font-size: 11px; color: #111; text-transform: capitalize;">${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</strong>
                         </div>
-                        ${!isNonGST && biz.bankDetails ? `
-                        <div style="margin-bottom: 12px;">
-                            <strong>Bank Details:</strong><br>
-                            <span style="white-space: pre-wrap; font-size: 11px;">${biz.bankDetails}</span>
+                        ${biz.bankDetails ? `
+                        <div style="margin-bottom: 15px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
+                            <span style="font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px;">Bank Details</span>
+                            <div style="font-size: 11px; color: #333; white-space: pre-wrap; line-height: 1.4;">${biz.bankDetails}</div>
                         </div>` : ''}
-                        <div>
-                            <strong>Terms & Conditions:</strong><br>
-                            <span style="white-space: pre-wrap; font-size: 10px;">${biz.terms ? biz.terms : '1. Subject to local jurisdiction.\\n2. Goods once sold cannot be returned.\\n3. E.&O.E.'}</span>
-                        </div>
+                        
+                        ${biz.upiId ? `
+                        <div style="margin-bottom: 15px; display: flex; align-items: center; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #ffffff;">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=upi%3A%2F%2Fpay%3Fpa%3D${biz.upiId}%26pn%3D${encodeURIComponent(biz.name || 'Business')}%26am%3D${parseFloat(doc.grandTotal || 0).toFixed(2)}%26cu%3DINR" style="width: 65px; height: 65px; margin-right: 12px; border-radius: 4px;" />
+                            <div>
+                                <span style="font-size: 10px; color: #0061a4; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Scan to Pay via UPI</span>
+                                <div style="font-size: 11px; color: #333;"><strong>UPI ID:</strong> ${biz.upiId}</div>
+                                <div style="font-size: 11px; color: #333;"><strong>Amount:</strong> ₹${parseFloat(doc.grandTotal || 0).toFixed(2)}</div>
+                            </div>
+                        </div>` : ''}
+
                     </div>
-                    <div style="width: 40%; padding: 0;">
-                        <table style="width: 100%; border: none; margin: 0;">
-                            <tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Subtotal:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">${rawSubtotal.toFixed(2)}</td></tr>
-                            ${discountAmt > 0 ? `<tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Discount:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">-${discountAmt.toFixed(2)}</td></tr>` : ''}
-                            ${!isNonGST ? `<tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Total GST:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
-                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Freight / Extra Charges:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
-                            ${Math.abs((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))) > 0.01 ? `<tr><td style="border: none; border-bottom: 1px solid #000; padding: 6px 8px;">Round Off:</td><td style="border: none; border-bottom: 1px solid #000; text-align: right; font-weight: bold; padding: 6px 8px;">${((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))).toFixed(2)}</td></tr>` : ''}
+                    
+                    <div style="width: 40%;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                            <tr><td style="padding: 6px 8px; color: #555;">Subtotal:</td><td style="padding: 6px 8px; text-align: right; font-weight: bold; color: #111;">${rawSubtotal.toFixed(2)}</td></tr>
+                            ${discountAmt > 0 ? `<tr><td style="padding: 6px 8px; color: #555;">Discount:</td><td style="padding: 6px 8px; text-align: right; font-weight: bold; color: #dc2626;">-${discountAmt.toFixed(2)}</td></tr>` : ''}
+                            ${!isNonGST ? `<tr><td style="padding: 6px 8px; color: #555;">Total GST:</td><td style="padding: 6px 8px; text-align: right; font-weight: bold; color: #111;">${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
+                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 6px 8px; color: #555;">Freight / Extra:</td><td style="padding: 6px 8px; text-align: right; font-weight: bold; color: #111;">${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
+                            ${Math.abs((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))) > 0.01 ? `<tr><td style="padding: 6px 8px; color: #555;">Round Off:</td><td style="padding: 6px 8px; text-align: right; font-weight: bold; color: #111;">${((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))).toFixed(2)}</td></tr>` : ''}
+                            
                             <tr>
-                                <td style="border: none; border-bottom: 1px solid #000; background: #e5e5e5; font-weight: bold; font-size: 14px; padding: 10px 8px;">GRAND TOTAL</td>
-                                <td style="border: none; border-bottom: 1px solid #000; background: #e5e5e5; font-weight: bold; font-size: 16px; text-align: right; padding: 10px 8px;">&#8377;${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</td>
+                                <td colspan="2" style="padding: 0;">
+                                    <div style="display: flex; justify-content: space-between; margin-top: 8px; padding: 12px 8px; background: #f4f6fa; border-top: 2px solid #0061a4; border-radius: 4px;">
+                                        <strong style="font-size: 14px; color: #0061a4;">GRAND TOTAL</strong>
+                                        <strong style="font-size: 16px; color: #0061a4;">&#8377;${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</strong>
+                                    </div>
+                                </td>
                             </tr>
+                            
                             ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
                                 <tr>
-                                    <td style="border: none; border-bottom: 1px dashed #ccc; padding: 4px 8px; font-size: 10px;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Paid'} (${r.date}):</td>
-                                    <td style="border: none; border-bottom: 1px dashed #ccc; text-align: right; font-weight: bold; padding: 4px 8px; font-size: 10px;">${parseFloat(r.amount) < 0 ? '+' : '-'}${Math.abs(parseFloat(r.amount)).toFixed(2)}</td>
+                                    <td style="padding: 6px 8px; font-size: 10px; color: #666;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Paid'} (${r.date}):</td>
+                                    <td style="padding: 6px 8px; text-align: right; font-weight: bold; font-size: 10px; color: #16a34a;">${parseFloat(r.amount) < 0 ? '+' : '-'}${Math.abs(parseFloat(r.amount)).toFixed(2)}</td>
                                 </tr>
                             `).join('') : ''}
+                            
                             ${((parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)) > 0.01 ? `
-                            <tr><td style="border: none; padding: 6px 8px; font-weight: bold;">Balance Due:</td><td style="border: none; text-align: right; font-weight: bold; padding: 6px 8px;">&#8377;${Math.max(0, (parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)).toFixed(2)}</td></tr>
+                            <tr><td style="padding: 8px 8px 0 8px; font-weight: bold; color: #333;">Balance Due:</td><td style="padding: 8px 8px 0 8px; text-align: right; font-weight: bold; color: #dc2626;">&#8377;${Math.max(0, (parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)).toFixed(2)}</td></tr>
                             ` : `
-                            <tr><td style="border: none; padding: 6px 8px; font-weight: bold;">Balance Due:</td><td style="border: none; text-align: right; font-weight: bold; padding: 6px 8px;">&#8377;0.00 (PAID)</td></tr>
+                            <tr><td style="padding: 8px 8px 0 8px; font-weight: bold; color: #333;">Balance Due:</td><td style="padding: 8px 8px 0 8px; text-align: right; font-weight: bold; color: #16a34a;">&#8377;0.00 (PAID)</td></tr>
                             `}
                         </table>
-                        <div style="text-align: center; margin-top: 25px; padding: 10px;">
-                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 45px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 45px; margin-bottom: 5px;"></div>'}
-                            <div style="border-top: 1px solid #000; padding-top: 4px; font-size: 11px; font-weight: bold; width: 80%; margin: 0 auto;">Authorized Signatory</div>
-                        </div>
                     </div>
                 </div>
+
+                <div style="margin-top: 30px; border-top: 2px solid #f0f0f0; padding-top: 15px; page-break-inside: avoid;">
+                    <span style="font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px;">Terms & Conditions</span>
+                    <div style="font-size: 10px; color: #666; white-space: pre-wrap; line-height: 1.4;">${biz.terms ? biz.terms : '1. Subject to local jurisdiction.\n2. Goods once sold cannot be returned.\n3. E.&O.E.'}</div>
+                </div>
+
+                <div style="margin-top: 40px; text-align: right; padding-right: 20px; page-break-inside: avoid;">
+                    ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; margin-bottom: 8px; object-fit: contain; display: inline-block;" />` : '<div style="height: 60px; margin-bottom: 8px;"></div>'}
+                    <div style="border-top: 1px solid #ddd; padding-top: 8px; font-size: 11px; font-weight: bold; color: #333; width: 200px; display: inline-block; text-align: center;">Authorized Signatory</div>
+                </div>
             </div>
+        </div>
         `;
         
         // --- ENTERPRISE UPGRADE: SPLIT PAYMENT / INSTALLMENT TRACKER ---
-        // ENTERPRISE FIX: Removed the illegal 'await' that caused a fatal Syntax Error Crash!
-        // We also eliminated the massive memory leak by using the pre-calculated 'trueTotalPaid' instead of scanning the whole database!
         let totalPaid = parseFloat(doc.trueTotalPaid) || 0;
 
         // If the customer has paid even a single rupee, print the Tracker!
         if (totalPaid > 0) {
-            // ENTERPRISE FIX: Added parseFloat() so the PDF engine doesn't crash if the database saved the total as a string!
             const safeGrandTotal = parseFloat(doc.grandTotal) || 0;
             const balanceDue = Math.max(0, safeGrandTotal - totalPaid);
             const paidPercent = safeGrandTotal > 0 ? Math.min(100, (totalPaid / safeGrandTotal) * 100) : 0;
@@ -820,8 +823,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 </div>
             </div>`;
 
-            // ENTERPRISE FIX: Target the bottom Terms & Conditions block so the tracker doesn't split the Customer Header!
-            const anchorIndex = html.lastIndexOf('<div style="display: flex; border: 1px solid #000; page-break-inside: avoid;">');
+            // ENTERPRISE FIX: The "Orphaned Tracker" PDF Bug!
+            // The SaaS upgrade changed the signature block's design, breaking the anchor text!
+            // We MUST target the new signature div so the tracker stays cleanly INSIDE the A4 page!
+            const anchorIndex = html.lastIndexOf('<div style="margin-top: 40px; text-align: right; padding-right: 20px; page-break-inside: avoid;">');
             if (anchorIndex !== -1) {
                 html = html.substring(0, anchorIndex) + progressHtml + html.substring(anchorIndex);
             } else {
@@ -843,15 +848,11 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         }
 
         // 2. Inject Custom Brand Color
-        // If the user picked a color other than black, replace the default grey backgrounds with their brand color!
         if (brandColor !== '#000000' && brandColor !== '#e5e5e5') {
-            // Make headers the brand color, text white, and apply border color
             themedHtml = themedHtml.replace(/background-color: #e5e5e5;/g, `background-color: ${brandColor}; color: #ffffff; border: 1px solid ${brandColor};`);
             themedHtml = themedHtml.replace(/background: #e5e5e5;/g, `background: ${brandColor}; color: #ffffff; border: 1px solid ${brandColor};`);
-            // Soften standard text so the brand color pops more
             themedHtml = themedHtml.replace(/color: #000;/g, `color: #1a1c1e;`); 
         }
-        // --- END OF THEME ENGINE ---
 
         const printArea = document.getElementById('print-area');
         if (printArea) {

@@ -353,6 +353,9 @@ const app = {
             document.getElementById('profile-address').value = firmData.address || '';
             document.getElementById('profile-state').value = firmData.state || '';
             document.getElementById('profile-bank').value = firmData.bankDetails || '';
+            // ENTERPRISE FIX: Load the UPI ID into the UI
+            const upiEl = document.getElementById('profile-upi');
+            if (upiEl) upiEl.value = firmData.upiId || '';
             document.getElementById('profile-terms').value = firmData.terms || '';
             
             // NEW: Load Custom Field Names
@@ -2807,6 +2810,8 @@ const app = {
                     address: document.getElementById('profile-address').value,
                     state: document.getElementById('profile-state').value,
                     bankDetails: document.getElementById('profile-bank').value,
+                    // ENTERPRISE FIX: Save the UPI ID to trigger the QR Engine!
+                    upiId: document.getElementById('profile-upi') ? document.getElementById('profile-upi').value : '',
                     terms: document.getElementById('profile-terms').value,
                     
                     // NEW: Save Custom Field Names
@@ -3733,7 +3738,7 @@ const app = {
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('${uniquePdfId}', '${safeFilename}', 'Here is your ${title} from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div class="tap-target" onclick="if(window.Utils) window.Utils.shareDocumentAsImage('${uniquePdfId}', '${title}_${safeDocNo}')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                     </div>
                     <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -3841,17 +3846,14 @@ const app = {
         
         if (!customerId || !fromVal || !toVal) return;
 
-        const fromDate = new Date(fromVal);
-        const toDate = new Date(toVal);
         const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
         
         let b2bTaxable = 0, b2bTax = 0, b2cTaxable = 0, b2cTax = 0;
 
         sales.forEach(s => {
-            // ENTERPRISE FIX: Use safeDate so iPhones don't crash and show 'NaN' on Tax reports!
-            const sDate = window.Utils.safeDate(s.date);
-            // ENTERPRISE FIX: Custom Date Range filtering logic!
-            if (s.firmId === app.state.firmId && s.customerId === customerId && s.status !== 'Open' && sDate >= fromDate && sDate <= toDate) {
+            // ENTERPRISE FIX: The Timezone Trap Shield!
+            // Direct string comparison natively ignores timezones, preventing missing invoices!
+            if (s.firmId === app.state.firmId && s.customerId === customerId && s.status !== 'Open' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const isB2B = s.invoiceType === 'B2B';
                 
@@ -3906,16 +3908,14 @@ const app = {
         const toVal = document.getElementById('item-profit-to').value;
         if (!fromVal || !toVal) return;
 
-        const fromDate = new Date(fromVal);
-        const toDate = new Date(toVal);
         const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
         
         const itemMap = {};
 
         sales.forEach(s => {
-            // ENTERPRISE FIX: Use safeDate so iPhones don't crash on Profit reports!
-            const sDate = window.Utils.safeDate(s.date);
-            if (s.firmId === app.state.firmId && s.status !== 'Open' && sDate >= fromDate && sDate <= toDate) {
+            // ENTERPRISE FIX: The Timezone Trap Shield!
+            // Direct string comparison natively ignores timezones, preventing missing invoices!
+            if (s.firmId === app.state.firmId && s.status !== 'Open' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 
                 // ENTERPRISE FIX: Calculate the exact discount ratio of the total invoice!
@@ -4039,8 +4039,6 @@ const app = {
         const toVal = document.getElementById('expense-report-to').value;
         if (!fromVal || !toVal) return;
 
-        const fromDate = new Date(fromVal);
-        const toDate = new Date(toVal);
         // ENTERPRISE FIX: Scoped the database fetch to prevent a RAM freeze!
         const allExpenses = await window.getAllRecords('expenses', 'firmId', app.state.firmId);
         
@@ -4048,10 +4046,9 @@ const app = {
         let totalExpenses = 0;
 
         allExpenses.forEach(e => {
-                        // ENTERPRISE FIX: Use safeDate so iPhones don't crash on Expense reports!
-            const eDate = window.Utils.safeDate(e.date);
-
-            if (e.firmId === app.state.firmId && eDate >= fromDate && eDate <= toDate) {
+            // ENTERPRISE FIX: The Timezone Trap Shield!
+            // Direct string comparison natively ignores timezones, preventing missing expenses!
+            if (e.firmId === app.state.firmId && e.date >= fromVal && e.date <= toVal) {
                 const cat = e.category || 'Uncategorized';
                 const amt = parseFloat(e.amount) || 0;
                 
@@ -4721,7 +4718,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             
             <div style="display: flex; align-items: center; gap: 12px;">
                 
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('khata-render-target', '${safeFilename}', 'Here is your Ledger Statement from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.shareDocumentAsImage('khata-render-target', 'Ledger_Statement_${partyName.replace(/[^a-zA-Z0-9]/g, '_')}')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                 </div>
 
@@ -4966,7 +4963,7 @@ window.executeAccountReport = async (accountId) => {
             </div>
             
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('account-render-target', '${safeFilename}', 'Here is your Bank Statement from SOLLO ERP.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.shareDocumentAsImage('account-render-target', 'Bank_Statement_${account.name.replace(/[^a-zA-Z0-9]/g, '_')}')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                 </div>
                 <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('account-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
