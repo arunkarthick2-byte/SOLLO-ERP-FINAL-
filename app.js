@@ -3656,21 +3656,21 @@ const app = {
         const uniquePdfId = 'pdf-receipt-' + Date.now();
 
         const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important; position: relative; z-index: 1;">
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; max-width: 100%; padding: 40px; box-sizing: border-box; position: relative; z-index: 1;">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: -1; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; gap: 10px;">
-                    <div style="display: flex; align-items: center; gap: 12px; max-width: 60%;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 45px; border-radius: 4px; object-fit: contain;" />` : ''}
-                        <div>
-                            <h2 style="margin: 0; font-size: 16px; color: #0f172a; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">${biz.name || 'Company Name'}</h2>
-                            <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b; line-height: 1.3;">${biz.address || ''}<br>Ph: ${biz.phone || ''}</p>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;">
+                    <div style="display: flex; align-items: center; gap: 12px; max-width: 55%;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 50px; border-radius: 4px; object-fit: contain;" />` : ''}
+                        <div style="min-width: 0;">
+                            <h2 style="margin: 0; font-size: 16px; color: #0f172a; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; word-wrap: break-word;">${biz.name || 'Company Name'}</h2>
+                            <p style="margin: 4px 0 0 0; font-size: 10px; color: #64748b; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word;">${biz.address || ''}<br>Ph: ${biz.phone || ''}</p>
                         </div>
                     </div>
-                    <div style="text-align: right; flex-shrink: 0;">
-                        <h2 style="margin: 0; font-size: 18px; color: #0061a4; font-weight: 800; letter-spacing: 0.5px;">${title}</h2>
-                        <h3 style="margin: 4px 0 0 0; color: #475569; font-size: 11px; font-weight: 700;"># ${safeDocNo}</h3>
+                    <div style="text-align: right; max-width: 40%;">
+                        <h2 style="margin: 0; font-size: 18px; color: #0061a4; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; word-wrap: break-word;">${title}</h2>
+                        <h3 style="margin: 6px 0 0 0; color: #475569; font-size: 11px; font-weight: 700; word-break: break-all;"># ${safeDocNo}</h3>
                     </div>
                 </div>
 
@@ -4571,14 +4571,14 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 
     // Build Professional A4 Print Template (Now perfectly mobile responsive!)
     let html = `
-    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important;">
+    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; max-width: 100%; padding: 40px; box-sizing: border-box;">
         
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
-            <div>
-                <h2 style="margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: 0.5px;">LEDGER STATEMENT</h2>
-                <h3 style="margin: 6px 0 0 0; color: #0061a4; font-size: 16px; font-weight: 700;">${partyName}</h3>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; gap: 10px;">
+            <div style="max-width: 65%; min-width: 0;">
+                <h2 style="margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: 0.5px; word-wrap: break-word;">LEDGER STATEMENT</h2>
+                <h3 style="margin: 6px 0 0 0; color: #0061a4; font-size: 16px; font-weight: 700; word-wrap: break-word;">${partyName}</h3>
             </div>
-            <div style="text-align: right;">
+            <div style="text-align: right; flex-shrink: 0; max-width: 30%;">
                 <p style="margin: 0; font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Generated On</p>
                 <p style="margin: 2px 0 0 0; font-size: 12px; color: #0f172a; font-weight: 700;">${new Date().toLocaleDateString('en-IN')}</p>
             </div>
@@ -4670,23 +4670,23 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             </tbody>
         </table>
         
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px;">
-            <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; gap: 20px;">
-                <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px; gap: 10px;">
+            <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; gap: 15px; max-width: 50%; overflow: hidden;">
+                <div style="min-width: 0;">
                     <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600;">Total Debit</span><br>
-                    <strong style="font-size: 14px; color: #e11d48;">₹ ${totalDebit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                    <strong style="font-size: 13px; color: #e11d48; word-wrap: break-word;">₹ ${totalDebit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
                 </div>
-                <div style="width: 1px; background: #cbd5e1;"></div>
-                <div>
+                <div style="width: 1px; background: #cbd5e1; flex-shrink: 0;"></div>
+                <div style="min-width: 0;">
                     <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600;">Total Credit</span><br>
-                    <strong style="font-size: 14px; color: #16a34a;">₹ ${totalCredit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                    <strong style="font-size: 13px; color: #16a34a; word-wrap: break-word;">₹ ${totalCredit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
                 </div>
             </div>
 
-            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${statusColor}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${statusColor}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-shrink: 0; max-width: 45%;">
                 <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Closing Balance</span><br>
-                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px;">₹ ${finalBalText}</strong>
-                <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${statusColor}40; display: inline-block;">${finalBalStatus}</span>
+                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px; word-wrap: break-word;">₹ ${finalBalText}</strong>
+                <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${statusColor}40; display: inline-block; white-space: normal; text-align: right; line-height: 1.2;">${finalBalStatus}</span>
             </div>
         </div>
     </div>`;
@@ -4861,7 +4861,7 @@ window.executeAccountReport = async (accountId) => {
     });
 
     let html = `
-    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #000; max-width: 100%; padding: 0 !important; margin: 0 !important;">
+    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; max-width: 100%; padding: 40px; box-sizing: border-box;">
         
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
             <div>

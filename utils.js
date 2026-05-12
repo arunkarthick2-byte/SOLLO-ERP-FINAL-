@@ -683,7 +683,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             const rowTotal = roundedDiscountedBase + roundedGst;
             
             itemsHtml += `
-                <tr>
+                <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
                     <td style="text-align:center;">${index + 1}</td>
                     <td style="font-weight: bold;">${item.name}</td>
                     ${!isNonGST ? `<td style="text-align:center;">${item.hsn || '-'}</td>` : ''}
@@ -828,6 +828,11 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 <div style="margin-top: 40px; text-align: right; padding-right: 20px; page-break-inside: avoid;">
                     ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; margin-bottom: 8px; object-fit: contain; display: inline-block;" />` : '<div style="height: 60px; margin-bottom: 8px;"></div>'}
                     <div style="border-top: 1px solid #ddd; padding-top: 8px; font-size: 11px; font-weight: bold; color: #333; width: 200px; display: inline-block; text-align: center;">Authorized Signatory</div>
+                </div>
+
+                <div style="margin-top: 50px; text-align: center; border-top: 1px dashed #e2e8f0; padding-top: 15px; font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; page-break-inside: avoid;">
+                    &mdash; End of Document &mdash;<br>
+                    <span style="font-size: 8px; opacity: 0.7; letter-spacing: 0.5px; display: inline-block; margin-top: 4px;">Generatated via SOLLO ERP</span>
                 </div>
             </div>
         </div>
