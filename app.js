@@ -3738,7 +3738,7 @@ const app = {
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="tap-target" onclick="if(window.Utils) window.Utils.shareNativePDF('${uniquePdfId}', '${safeFilename}', 'Here is your ${title}.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('${uniquePdfId}', '${safeFilename}', 'Here is your ${title}.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                     </div>
                     <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
@@ -4718,7 +4718,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             
             <div style="display: flex; align-items: center; gap: 12px;">
                 
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.shareNativePDF('khata-render-target', '${safeFilename}', 'Here is your Ledger Statement.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('khata-render-target', '${safeFilename}', 'Here is your Ledger Statement.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                 </div>
 
@@ -4963,7 +4963,7 @@ window.executeAccountReport = async (accountId) => {
             </div>
             
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.shareNativePDF('account-render-target', '${safeFilename}', 'Here is your Bank Statement.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('account-render-target', '${safeFilename}', 'Here is your Bank Statement.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                 </div>
                 <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('account-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
