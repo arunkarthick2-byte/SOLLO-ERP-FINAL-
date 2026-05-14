@@ -473,9 +473,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             const opt = {
                 margin: 0,
                 filename: filename,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                image: { type: 'jpeg', quality: 1.0 },
+                html2canvas: { scale: 4, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: false }
             };
             
             const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
@@ -527,7 +527,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             element.style.maxWidth = '800px';
 
             const canvas = await html2canvas(element, { 
-                scale: 2, 
+                scale: 4, // ENTERPRISE FIX: Retina Quality Preview!
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -592,35 +592,12 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
-                    if (window.Utils) window.Utils.showToast("Preparing Document...");
+                    if (window.Utils) window.Utils.showToast("Preparing True PDF...");
 
-                    // THE ULTIMATE FIX: YOU WERE 100% CORRECT!
-                    // Sharing as a native Image (PNG) bypasses all the iOS/Android PDF rendering bugs.
-                    // We take the flawless Preview image and share it directly to WhatsApp/Email!
+                    // ENTERPRISE FIX: Route the Main Invoice Share Button to the Universal PDF Engine!
+                    // This ensures Sales Invoices share as crystal-clear A4 PDFs, not blurry PNGs!
+                    window.Utils.sharePDF(elementId, filename, `Here is your document: ${filename.replace('.pdf', '')}`);
                     
-                    const res = await fetch(imgSrc);
-                    const blob = await res.blob();
-                    const imageFilename = filename.replace('.pdf', '.png');
-                    const file = new File([blob], imageFilename, { type: 'image/png' });
-
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                        await navigator.share({
-                            title: imageFilename.replace('.png', ''),
-                            files: [file]
-                        });
-                    } else {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.href = url;
-                        link.download = imageFilename;
-                        document.body.appendChild(link);
-                        link.click();
-                        setTimeout(() => {
-                            URL.revokeObjectURL(url);
-                            document.body.removeChild(link);
-                        }, 1000);
-                        alert("Native sharing is blocked by this device. The image has been downloaded to your files instead.");
-                    }
                 } catch (err) {
                     console.log("Share cancelled or failed", err);
                     alert("Sharing was cancelled or is unsupported on this device.");
@@ -1451,16 +1428,14 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             const opt = {
                 margin: [0.4, 0.4, 0.4, 0.4],
                 filename: filename,
-                image: { type: 'jpeg', quality: 1.0 },
                 pagebreak: { mode: ['css', 'legacy'] },
                 html2canvas: { 
-                    scale: 2, 
+                    scale: 4, // ENTERPRISE FIX: Bumped scale from 2 to 4 for razor-sharp Print Quality text!
                     useCORS: true, 
                     logging: false, 
                     windowWidth: 800,
                     width: 800,
                     onclone: (clonedDoc) => {
-                        // Original safe logic for Ledgers
                         const target = clonedDoc.getElementById(elementId);
                         if (target) {
                             target.style.width = '800px'; 
@@ -1474,9 +1449,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         }
                     }
                 },
-                // ENTERPRISE SPEED UPGRADE: Aggressive JPEG compression makes the PDF build and share instantly!
-                image: { type: 'jpeg', quality: 0.92 },
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress: true }
+                // ENTERPRISE FIX: Removed aggressive compression. Set Quality to 1.0 for perfect clarity!
+                image: { type: 'jpeg', quality: 1.0 },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress: false }
             };
 
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
