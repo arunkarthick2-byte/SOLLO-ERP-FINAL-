@@ -546,11 +546,6 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             
             const imgSrc = canvas.toDataURL('image/png');
             
-            // ENTERPRISE FIX: Absolute Garbage Collection! 
-            // Wipe the print area completely so the NEXT receipt or invoice doesn't pull a ghost!
-            const printArea = document.getElementById('print-area');
-            if (printArea) printArea.innerHTML = '';
-            
             // Wipe any lingering viewer overlays to prevent stacking
             document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
 
@@ -570,12 +565,14 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 <div style="background:#0061a4; color:white; padding:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.2); flex-shrink:0;">
                     <div>
                         <div style="font-weight:bold; font-size:18px;">Document Preview</div>
-                        <div style="font-size:12px; opacity:0.9; margin-top:2px;">Share PDF or Print</div>
+                        <div style="font-size:12px; opacity:0.9; margin-top:2px;">Share PDF or Download</div>
                     </div>
                     <div style="display: flex; gap: 20px; align-items: center;">
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-print-preview">print</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
-                        <span class="material-symbols-outlined tap-target" style="font-size:28px;" onclick="document.getElementById('in-app-pdf-viewer').remove()">close</span>
+                        
+                        <span class="material-symbols-outlined tap-target" style="font-size:28px;" onclick="document.getElementById('in-app-pdf-viewer').remove(); const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = '';">close</span>
                     </div>
                 </div>
                 <div style="flex:1; overflow-y:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start;">
@@ -583,6 +580,12 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 </div>
             `;
             document.body.appendChild(viewer);
+            
+            // Wire up the PDF Icon to trigger Native Share instead of downloading!
+            document.getElementById('btn-download-pdf').onclick = async () => {
+                window.Utils.showToast("Preparing True PDF...");
+                window.Utils.sharePDF(elementId, filename, `Here is your document: ${filename.replace('.pdf', '')}`);
+            };
 
             document.getElementById('btn-print-preview').onclick = () => {
                 document.getElementById('in-app-pdf-viewer').style.display = 'none';
