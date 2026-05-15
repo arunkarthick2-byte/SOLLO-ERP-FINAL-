@@ -37,6 +37,7 @@
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
@@ -2410,11 +2411,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=23.0"></script>
-    <script src="utils.js?v=23.0"></script>
-    <script src="ui.js?v=23.0"></script>
-    <script src="cloud.js?v=23.0"></script>
-    <script src="app.js?v=23.0"></script>
+    <script src="db.js?v=40.0"></script>
+    <script src="utils.js?v=40.0"></script>
+    <script src="ui.js?v=40.0"></script>
+    <script src="cloud.js?v=40.0"></script>
+    <script src="app.js?v=40.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -2444,7 +2445,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                navigator.serviceWorker.register(`sw.js?v=${window.APP_VERSION || '23.0'}`).then(reg => {
+                navigator.serviceWorker.register(`sw.js?v=40.0`).then(reg => {
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {

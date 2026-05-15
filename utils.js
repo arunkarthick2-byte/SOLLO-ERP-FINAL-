@@ -474,7 +474,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 margin: 0,
                 filename: filename,
                 image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 4, useCORS: true },
+                html2canvas: { scale: 4, useCORS: true, windowWidth: 1000 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: false }
             };
             
@@ -678,6 +678,37 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost PDF!
         const uniquePdfId = 'pdf-invoice-' + Date.now();
 
+        // ENTERPRISE UPGRADE: TRUE OFFLINE DYNAMIC UPI QR GENERATOR
+        let qrCodeHtml = '';
+        if (isSales && !isReturn && biz.upiId && (parseFloat(doc.grandTotal) || 0) > 0) {
+            const trueTotalPaid = parseFloat(doc.trueTotalPaid) || 0;
+            const remainingBalance = (parseFloat(doc.grandTotal) || 0) - trueTotalPaid;
+            
+            if (remainingBalance > 0.5) {
+                try {
+                    const upiString = `upi://pay?pa=${biz.upiId}&pn=${encodeURIComponent(biz.name || 'Business')}&am=${remainingBalance.toFixed(2)}&cu=INR`;
+                    const qrCanvas = document.createElement('canvas');
+                    new QRious({
+                        element: qrCanvas,
+                        value: upiString,
+                        size: 250, // High Resolution for crisp printing
+                        level: 'M'
+                    });
+                    const qrImage = qrCanvas.toDataURL('image/png');
+                    
+                    qrCodeHtml = `
+                    <div style="margin-bottom: 15px; display: flex; align-items: center; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #ffffff;">
+                        <img src="${qrImage}" style="width: 65px; height: 65px; margin-right: 12px; border-radius: 4px;" />
+                        <div>
+                            <span style="font-size: 10px; color: #0061a4; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Scan to Pay via UPI</span>
+                            <div style="font-size: 11px; color: #333;"><strong>UPI ID:</strong> ${biz.upiId}</div>
+                            <div style="font-size: 11px; color: #333;"><strong>Amount:</strong> ₹${remainingBalance.toFixed(2)}</div>
+                        </div>
+                    </div>`;
+                } catch(e) { console.warn("QR Engine skipped:", e); }
+            }
+        }
+
         // ENTERPRISE FIX: Changed 'const' to 'let' so the Split-Payment Tracker doesn't crash the engine!
         let html = `
         <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; color: #333; background: #fff; line-height: 1.5; box-sizing: border-box; padding: 40px; position: relative;">
@@ -755,15 +786,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             <div style="font-size: 11px; color: #333; white-space: pre-wrap; line-height: 1.4;">${biz.bankDetails}</div>
                         </div>` : ''}
                         
-                        ${biz.upiId ? `
-                        <div style="margin-bottom: 15px; display: flex; align-items: center; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #ffffff;">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=upi%3A%2F%2Fpay%3Fpa%3D${biz.upiId}%26pn%3D${encodeURIComponent(biz.name || 'Business')}%26am%3D${parseFloat(doc.grandTotal || 0).toFixed(2)}%26cu%3DINR" style="width: 65px; height: 65px; margin-right: 12px; border-radius: 4px;" />
-                            <div>
-                                <span style="font-size: 10px; color: #0061a4; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Scan to Pay via UPI</span>
-                                <div style="font-size: 11px; color: #333;"><strong>UPI ID:</strong> ${biz.upiId}</div>
-                                <div style="font-size: 11px; color: #333;"><strong>Amount:</strong> ₹${parseFloat(doc.grandTotal || 0).toFixed(2)}</div>
-                            </div>
-                        </div>` : ''}
+                        ${qrCodeHtml}
 
                     </div>
                     

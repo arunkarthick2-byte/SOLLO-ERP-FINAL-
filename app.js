@@ -2250,7 +2250,7 @@ const app = {
                     // STRICT ERP LOGIC: Block Future Dates to protect PnL and Aging Reports!
                     const docDate = document.getElementById(`${type}-date`).value;
                     if (docDate) {
-                        const selectedDate = new Date(docDate);
+                        const selectedDate = window.Utils.safeDate(docDate); // ENTERPRISE FIX: Protect Apple/iOS
                         const today = new Date();
                         today.setDate(today.getDate() + 1); // Allow up to 1 day for timezone safety
                         if (selectedDate > today) {
@@ -4571,7 +4571,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 
     // Build Professional A4 Print Template (Now perfectly mobile responsive!)
     let html = `
-    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; max-width: 100%; padding: 40px; box-sizing: border-box;">
+    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box;">
         
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; gap: 10px;">
             <div style="max-width: 65%; min-width: 0;">
@@ -4633,7 +4633,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         // ENTERPRISE UI: Smart Date Wrapper (Forces DD MMM 'YY so month and year never truncate on mobile)
         let displayDate = row.date;
         if (displayDate && displayDate !== 'Opening') {
-            const d = new Date(displayDate);
+            const d = window.Utils.safeDate(displayDate); // ENTERPRISE FIX: Protect Apple/iOS
             const day = String(d.getDate()).padStart(2, '0');
             const month = d.toLocaleString('en-IN', { month: 'short' });
             const year = String(d.getFullYear()).slice(-2);
@@ -4659,11 +4659,11 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
     let statusColor = '#146c2e'; // Dark Green
 
     if (String(partyType).toLowerCase() === 'customer') {
-        if (runBal > 0) { finalBalStatus = 'Due to Receive (Dr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
-        else if (runBal < 0) { finalBalStatus = 'Advance Received (Cr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
+        if (runBal > 0.01) { finalBalStatus = 'Due to Receive (Dr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
+        else if (runBal < -0.01) { finalBalStatus = 'Advance Received (Cr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
     } else {
-        if (runBal > 0) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
-        else if (runBal < 0) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
+        if (runBal > 0.01) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
+        else if (runBal < -0.01) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
     }
 
     html += `
@@ -4861,7 +4861,7 @@ window.executeAccountReport = async (accountId) => {
     });
 
     let html = `
-    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; max-width: 100%; padding: 40px; box-sizing: border-box;">
+    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box;">
         
         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
             <div>
@@ -4906,7 +4906,7 @@ window.executeAccountReport = async (accountId) => {
         // ENTERPRISE UI: Smart Date Wrapper (Forces DD MMM 'YY so month and year never truncate on mobile)
         let displayDate = row.date;
         if (displayDate && displayDate !== 'Opening') {
-            const d = new Date(displayDate);
+            const d = window.Utils.safeDate(displayDate); // ENTERPRISE FIX: Protect Apple/iOS
             const day = String(d.getDate()).padStart(2, '0');
             const month = d.toLocaleString('en-IN', { month: 'short' });
             const year = String(d.getFullYear()).slice(-2);
@@ -5165,7 +5165,7 @@ new MutationObserver((mutations) => {
 
                 // If found, dynamically inject a beautiful blue badge!
                 if (lastRate !== null && !node.querySelector('.last-sold-badge')) {
-                    const d = new Date(lastDate);
+                    const d = window.Utils.safeDate(lastDate); // ENTERPRISE FIX: Protect Apple/iOS
                     const fDate = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
                     
                     const badge = document.createElement('div');

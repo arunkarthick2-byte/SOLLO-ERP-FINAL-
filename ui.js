@@ -2512,11 +2512,10 @@ const UI = {
         `;
         document.body.appendChild(overlay);
         
+        // ENTERPRISE FIX: Route overlay clicks through the official Android Back-Button system to prevent history corruption!
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
-                document.getElementById('haptic-menu').classList.remove('open');
-                overlay.classList.remove('open');
-                setTimeout(() => overlay.classList.add('hidden'), 300);
+                window.history.back(); // Triggers popstate, which cleanly closes the haptic menu
             }
         });
         
@@ -2525,6 +2524,9 @@ const UI = {
             overlay.classList.add('open');
             document.getElementById('haptic-menu').classList.add('open');
         });
+        
+        // ENTERPRISE FIX: Manually push a history state since a Long-Press isn't caught by the global click tracker!
+        window.history.pushState({ internalRoute: true }, '');
         
         if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(15);
     },
@@ -3441,11 +3443,21 @@ document.addEventListener('DOMContentLoaded', UI.initPremiumUX);
 // ==========================================
 // ENTERPRISE FIX 3: THE ANDROID BACK-BUTTON SHIELD
 // ==========================================
-// Secretly push a safe history state whenever a user opens any form or sheet
+// Secretly push a safe history state whenever a user opens ANY form, sheet, or report
 document.addEventListener('click', (e) => {
-    const target = e.target.closest('[onclick*="openBottomSheet"], [onclick*="openActivity"], [onclick*="openForm"]');
+    // Catch every single routing action so the user never accidentally swipes out of the app!
+    const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"]');
     if (target) {
-        window.history.pushState({ internalRoute: true }, '');
+        const action = target.getAttribute('onclick') || '';
+        if (action.includes('openBottomSheet') || action.includes('openActivity') || action.includes('openForm') || 
+            action.includes('openNewPayment') || action.includes('openReceipt') || action.includes('openPartyLedger') || 
+            action.includes('openAccountLedger') || action.includes('openSmartSearch') || action.includes('triggerKhataReport') || 
+            action.includes('executeKhataReport') || action.includes('executeAccountReport') || action.includes('openMasterView') || 
+            action.includes('openExpenseReport') || action.includes('openReorderReport') || action.includes('openItemProfitReport') || 
+            action.includes('openPartyTaxReport') || action.includes('openGSTReport') || action.includes('manageSimpleMaster') || 
+            action.includes('openAdjustmentSheet')) {
+            window.history.pushState({ internalRoute: true }, '');
+        }
     }
 });
 
@@ -3463,26 +3475,24 @@ window.addEventListener('popstate', (e) => {
         });
     };
     
-    // 1. Catch any sheets that are OPEN or ANIMATING CLOSED (missing .hidden)
-    const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet:not(.hidden)'));
+    // ENTERPRISE FIX: 1. Catch ONLY sheets that are mathematically OPEN! 
+    // Ignoring sheets that are animating closed or ghosting in the DOM prevents the Infinite Back Trap!
+    const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
     
     if (visibleSheets.length > 0) {
         const topSheet = getTopElement(visibleSheets);
-        
-        if (topSheet.classList.contains('open') || topSheet.classList.contains('active')) {
-            if (window.UI) window.UI.closeBottomSheet(topSheet.id);
-        }
+        if (window.UI) window.UI.closeBottomSheet(topSheet.id);
         trapped = true; 
     } 
     else {
-        // 2. ONLY if NO sheets are visible, check for open full-screen activities
-        const visibleScreens = Array.from(document.querySelectorAll('.activity-screen:not(.hidden)'));
+        // 2. Catch ONLY screens that are mathematically OPEN
+        const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
         
         if (visibleScreens.length > 0) {
             const topScreen = getTopElement(visibleScreens);
             
             // Protect the main dashboard, but safely close the topmost activity
-            if (topScreen.classList.contains('open') && topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
+            if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
                 if (window.UI) window.UI.closeActivity(topScreen.id);
                 trapped = true;
             }
