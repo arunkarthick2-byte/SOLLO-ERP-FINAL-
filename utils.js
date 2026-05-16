@@ -133,13 +133,13 @@ const Utils = {
     // --- ENTERPRISE UPGRADE: PROFESSIONAL DATE DISPLAY ---
     formatDateDisplay: (dateString) => {
         if (!dateString) return '';
-        // ENTERPRISE FIX: Strip any existing Timezones first, then forcefully lock to Local High Noon!
-        const cleanDate = dateString.split('T')[0];
-        const safeString = cleanDate + 'T12:00:00';
+        const cleanDate = String(dateString).split('T')[0];
         
-        const d = new Date(safeString);
+        // ENTERPRISE FIX: Route the display date through our Apple-Safe engine!
+        // Using 'new Date()' directly crashes on older iPhones and prints ugly raw database strings!
+        const d = Utils.safeDate(cleanDate + 'T12:00:00');
+        
         if (isNaN(d.getTime())) return dateString; 
-        // Converts "2026-03-25" into "25 Mar 2026"
         return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     },
 
@@ -221,26 +221,36 @@ const Utils = {
         return gstRegex.test(String(gstin).trim().toUpperCase());
     },
 
+    // --- ENTERPRISE UPGRADE: BANK-GRADE ROUNDING ENGINE ---
+    // Forces JavaScript to calculate fractions like a real accounting firm (e.g., 1.005 becomes 1.01, not 1.00)
+    roundFinancial: (num) => {
+        const n = Utils.safeNumber(num);
+        // ENTERPRISE FIX: Apply Negative Epsilon to Negative Numbers! 
+        // Otherwise, Credit Notes mathematically drift by ₹0.01 because a positive Epsilon pushes them in the wrong direction!
+        const epsilon = n >= 0 ? Number.EPSILON : -Number.EPSILON;
+        return Math.round((n + epsilon) * 100) / 100;
+    },
+
     calculateRowTotal: (qty, rate, gstPercent, discountPercent = 0) => {
-        // ENTERPRISE UPGRADE: Safe Numbers + Item-Level Discount processing BEFORE taxes
-        let grossAmount = Math.round((Utils.safeNumber(qty) * Utils.safeNumber(rate)) * 100) / 100;
-        let discountAmount = Math.round((grossAmount * (Utils.safeNumber(discountPercent) / 100)) * 100) / 100;
+        let grossAmount = Utils.roundFinancial(Utils.safeNumber(qty) * Utils.safeNumber(rate));
+        let discountAmount = Utils.roundFinancial(grossAmount * (Utils.safeNumber(discountPercent) / 100));
         
         let baseAmount = grossAmount - discountAmount;
-        let gstAmount = Math.round((baseAmount * (Utils.safeNumber(gstPercent) / 100)) * 100) / 100;
-        let finalTotal = Math.round((baseAmount + gstAmount) * 100) / 100;
+        let gstAmount = Utils.roundFinancial(baseAmount * (Utils.safeNumber(gstPercent) / 100));
+        let finalTotal = Utils.roundFinancial(baseAmount + gstAmount);
         
         return { baseAmount, gstAmount, finalTotal, discountAmount, grossAmount };
     },
 
     // --- ENTERPRISE UPGRADE: REVERSE GST (INCLUSIVE TAX) ---
     calculateReverseGST: (mrp, gstPercent) => {
-        // UPGRADE: Replaced basic parseFloat with safeNumber
         let finalTotal = Utils.safeNumber(mrp);
         let taxRate = Utils.safeNumber(gstPercent);
+        
         // Formula: Base = Total / (1 + (GST / 100))
-        let baseAmount = Math.round((finalTotal / (1 + (taxRate / 100))) * 100) / 100;
-        let gstAmount = Math.round((finalTotal - baseAmount) * 100) / 100;
+        let baseAmount = Utils.roundFinancial(finalTotal / (1 + (taxRate / 100)));
+        let gstAmount = Utils.roundFinancial(finalTotal - baseAmount);
+        
         return { baseAmount, gstAmount, finalTotal };
     },
 
@@ -279,8 +289,26 @@ const Utils = {
                 return;
             }
 
-            // 1. Convert the HTML element (like an invoice) into an image
-            const canvas = await html2canvas(element, { scale: 2, useCORS: true }); // FIX: Lowered back to 2 to prevent Mobile Out-Of-Memory crashes!
+            // ENTERPRISE FIX: Added the 800px Math Lock to the Image Engine!
+            // Without this, sharing an invoice as a PNG to WhatsApp violently squishes the layout on narrow phones!
+            const canvas = await html2canvas(element, { 
+                scale: 2, 
+                useCORS: true,
+                windowWidth: 800,
+                onclone: (clonedDoc) => {
+                    const target = clonedDoc.getElementById(elementId);
+                    if (target) {
+                        target.style.width = '800px'; 
+                        target.style.minWidth = '800px'; 
+                        target.style.maxWidth = '800px';
+                        target.style.position = 'relative';
+                        target.style.margin = '0 auto';
+                        target.style.transform = 'none'; 
+                        clonedDoc.body.style.width = '800px';
+                        clonedDoc.body.style.overflow = 'visible';
+                    }
+                }
+            }); 
             
             canvas.toBlob(async (blob) => {
                 const file = new File([blob], `${documentTitle}.png`, { type: 'image/png' });
@@ -425,7 +453,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
         // STRICT ERP LOGIC: Replaced 'prompt()' with a native HTML text area to prevent the browser from truncating massive database strings!
         const overlay = document.createElement('div');
+        overlay.id = 'manual-restore-overlay'; // ENTERPRISE FIX: Added ID so the Android Back Button can see it!
         overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;';
+        document.body.style.overflow = 'hidden'; // ENTERPRISE FIX: Lock background from rubber-banding!
         overlay.innerHTML = `
             <div style="background:var(--md-surface, #fff); padding:20px; border-radius:12px; width:100%; max-width:500px; display:flex; flex-direction:column; gap:16px; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
                 <h3 style="margin:0; color:var(--md-on-surface, #000); font-family:sans-serif;">Manual Text Restore</h3>
@@ -439,7 +469,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         `;
         document.body.appendChild(overlay);
 
-        document.getElementById('btn-cancel-restore').onclick = () => document.body.removeChild(overlay);
+        document.getElementById('btn-cancel-restore').onclick = () => {
+            document.body.removeChild(overlay);
+            document.body.style.overflow = ''; // ENTERPRISE FIX: Release the scroll lock!
+        };
         document.getElementById('btn-confirm-restore').onclick = async () => {
             const jsonStr = document.getElementById('restore-textarea').value;
             if (!jsonStr) return alert("Please paste the backup text first.");
@@ -476,7 +509,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 enableLinks: true, 
                 image: { type: 'jpeg', quality: 1.0 },
                 html2canvas: { 
-                    scale: 4, 
+                    scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
                     useCORS: true, 
                     windowWidth: 800, // ENTERPRISE FIX: Lock to exactly 800px!
                     letterRendering: true,
@@ -494,7 +527,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         }
                     }
                 },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, 
+                // ENTERPRISE FIX: Removed 'avoid-all' so massive Bank Statements can safely split across pages!
+                pagebreak: { mode: ['css', 'legacy'] }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
             };
             
@@ -547,7 +581,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             element.style.maxWidth = '800px';
 
             const canvas = await html2canvas(element, { 
-                scale: 4, // ENTERPRISE FIX: Retina Quality Preview!
+                scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -592,13 +626,14 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
                         
-                        <span class="material-symbols-outlined tap-target" style="font-size:28px;" onclick="document.getElementById('in-app-pdf-viewer').remove(); const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = '';">close</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:28px;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = '';">close</span>
                     </div>
                 </div>
                 <div style="flex:1; overflow-y:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start;">
                     <img src="${imgSrc}" style="max-width:100%; height:auto; box-shadow:0 4px 8px rgba(0,0,0,0.2); border-radius:4px; display:block;" />
                 </div>
             `;
+            document.body.style.overflow = 'hidden'; // ENTERPRISE FIX: Lock background from rubber-banding!
             document.body.appendChild(viewer);
             
             // Wire up the PDF Icon to trigger Native Share instead of downloading!
@@ -1124,7 +1159,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const uniquePdfId = 'pdf-statement-' + Date.now();
 
         const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: 1050px;">
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative;">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
@@ -1513,9 +1548,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 margin: [5, 0, 5, 0], 
                 filename: filename,
                 enableLinks: true, 
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, 
+                // ENTERPRISE FIX: Removed 'avoid-all' so massive Bank Statements can safely split across pages without freezing the app!
+                pagebreak: { mode: ['css', 'legacy'] }, 
                 html2canvas: { 
-                    scale: 4, 
+                    scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
                     useCORS: true, 
                     logging: false, 
                     windowWidth: 800, // ENTERPRISE FIX: Lock exactly to 800px so mobile share doesn't misalign!
@@ -1652,7 +1688,7 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     const uniquePdfId = 'pdf-item-ledger-' + Date.now();
 
     const html = `
-        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; margin: 0 auto; position: relative; overflow: hidden; min-height: 1050px;">
+        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; margin: 0 auto; position: relative;">
             
             <style>
                 #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }

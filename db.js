@@ -194,8 +194,8 @@ const deleteRecordById = async (storeName, id) => {
             // ENTERPRISE FIX: Force all references to Strings so we don't strand numeric ghost receipts in the trash!
             const safeRefs = uniqueRefs.map(String);
             
-            // CRITICAL SHIELD: Only search for receipts if a partyId exists! Prevents cross-fire deletion where deleting Expense #1 wipes out the payment for Sale #1!
-            if (partyId && safeRefs.length > 0) {
+            // CRITICAL SHIELD: Safely clean up Cashbook entries for both Invoices AND Expenses!
+            if ((partyId || storeName === 'expenses') && safeRefs.length > 0) {
                 // ENTERPRISE FIX: Use the native index to prevent a massive RAM spike when deleting invoices!
                 const receipts = await getAllRecords('receipts', 'firmId', oldRecord.firmId);
                 const receiptsToDelete = receipts.filter(r => 
@@ -224,6 +224,25 @@ const deleteRecordById = async (storeName, id) => {
                     });
                 }
             }
+        } 
+        else if (storeName === 'accounts') {
+            // ENTERPRISE FIX: If you delete a bank account, safely orphan the cashbook receipts to 'cash' to prevent money from disappearing!
+            const receipts = await getAllRecords('receipts', 'firmId', oldRecord.firmId);
+            for (const r of receipts) {
+                if (String(r.accountId) === String(actualId)) {
+                    r.accountId = 'cash';
+                    await saveRecord('receipts', r);
+                }
+            }
+            
+            // ENTERPRISE FIX: Safely remap Expenses to 'cash' to prevent the Expense Ledger from permanently breaking!
+            const expenses = await getAllRecords('expenses', 'firmId', oldRecord.firmId);
+            for (const e of expenses) {
+                if (String(e.accountId) === String(actualId)) {
+                    e.accountId = 'cash';
+                    await saveRecord('expenses', e);
+                }
+            }
         }
 
         // 4. Finally, delete the actual document only after all reversals finish
@@ -246,7 +265,9 @@ const getAllFirms = () => getAllRecords('firms');
 // STRICT INVENTORY & INVOICE ENGINE
 // ==========================================
 const reverseStockImpact = async (storeName, record) => {
-    if (record.status === 'Open') return; // Drafts do not reverse Stock
+    // ENTERPRISE FIX: The Phantom Cancelled Leak!
+    // Cancelled invoices must not impact physical warehouse stock!
+    if (record.status === 'Open' || record.status === 'Cancelled') return; 
     const isReturn = record.documentType === 'return';
     const isNonGST = record.invoiceType === 'Non-GST'; 
     
@@ -297,7 +318,8 @@ const reverseStockImpact = async (storeName, record) => {
 };
 
 const applyStockImpact = async (storeName, record) => {
-    if (record.status === 'Open') return; // Drafts do not apply Stock
+    // ENTERPRISE FIX: The Phantom Cancelled Leak!
+    if (record.status === 'Open' || record.status === 'Cancelled') return; 
     const isReturn = record.documentType === 'return';
     const isNonGST = record.invoiceType === 'Non-GST'; 
     
@@ -599,7 +621,8 @@ const getKhataStatement = async (partyId, partyType) => {
     const rawSales = (await getAllRecords('sales', 'firmId', firmId).catch(() => [])) || [];
     rawSales.forEach(s => {
         // ENTERPRISE FIX: Force String comparison to prevent missing ledger entries!
-        if (s.firmId === firmId && String(s.customerId) === String(partyId) && s.status !== 'Open') {
+        // Prevent Cancelled Invoices from demanding fake money in the Ledger!
+        if (s.firmId === firmId && String(s.customerId) === String(partyId) && s.status !== 'Open' && s.status !== 'Cancelled') {
             const isReturn = s.documentType === 'return';
             const isNonGST = s.invoiceType === 'Non-GST';
             const docLabel = isReturn ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
@@ -620,7 +643,7 @@ const getKhataStatement = async (partyId, partyType) => {
     const rawPurchases = (await getAllRecords('purchases', 'firmId', firmId).catch(() => [])) || [];
     rawPurchases.forEach(p => {
         // ENTERPRISE FIX: Force String comparison to prevent missing ledger entries!
-        if (p.firmId === firmId && String(p.supplierId) === String(partyId) && p.status !== 'Open') {
+        if (p.firmId === firmId && String(p.supplierId) === String(partyId) && p.status !== 'Open' && p.status !== 'Cancelled') {
             const isReturn = p.documentType === 'return';
             const isNonGST = p.invoiceType === 'Non-GST';
             const docLabel = isReturn ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
@@ -666,9 +689,14 @@ const getKhataStatement = async (partyId, partyType) => {
         if (b.id === 'open-bal') return 1;
         
         // STRICT ERP LOGIC: Sort by Date AND ID to prevent same-day running balance scrambling!
-        const dateA = new Date(a.date || 0).getTime();
-        const dateB = new Date(b.date || 0).getTime();
-        if (dateA !== dateB) return dateA - dateB;
+        // ENTERPRISE FIX: Use safeDate! 'new Date("")' returns NaN and permanently scrambles the ledger!
+        const dateA = (window.Utils ? window.Utils.safeDate(a.date) : new Date(a.date || 0)).getTime();
+        const dateB = (window.Utils ? window.Utils.safeDate(b.date) : new Date(b.date || 0)).getTime();
+        
+        // Final NaN fallback check just in case!
+        const validTimeA = isNaN(dateA) ? 0 : dateA;
+        const validTimeB = isNaN(dateB) ? 0 : dateB;
+        if (validTimeA !== validTimeB) return validTimeA - validTimeB;
         // ENTERPRISE FIX: Extract the actual timestamp from the end of the UUID to guarantee chronological precision!
         const timeA = parseInt(String(a.id || '').split('-').pop()) || 0;
         const timeB = parseInt(String(b.id || '').split('-').pop()) || 0;
@@ -694,7 +722,7 @@ const getGlobalTimeline = async (firmId) => {
     // 1. Process Sales & Wipe RAM
     const rawSales = (await getAllRecords('sales', 'firmId', firmId).catch(() => [])) || [];
     rawSales.forEach(s => {
-        if (s.firmId === firmId && s.status !== 'Open') {
+        if (s.firmId === firmId && s.status !== 'Open' && s.status !== 'Cancelled') {
             const isReturn = s.documentType === 'return';
             // ENTERPRISE FIX: Sales bring money IN. Refunds send money OUT.
             timeline.push({ id: s.id, date: s.date, type: isReturn ? 'OUT' : 'IN', party: s.customerName, ref: s.invoiceNo, qty: `${isReturn ? '+' : ''}${(s.items || []).length} items`, amount: s.grandTotal, mode: 'Credit', desc: `${isReturn ? 'Return from' : 'Sale to'} ${s.customerName}` });
@@ -705,7 +733,7 @@ const getGlobalTimeline = async (firmId) => {
     // 2. Process Purchases & Wipe RAM
     const rawPurchases = (await getAllRecords('purchases', 'firmId', firmId).catch(() => [])) || [];
     rawPurchases.forEach(p => {
-        if (p.firmId === firmId && p.status !== 'Open') {
+        if (p.firmId === firmId && p.status !== 'Open' && p.status !== 'Cancelled') {
             const isReturn = p.documentType === 'return';
             // ENTERPRISE FIX: Purchases send money OUT. Refunds bring money IN.
             timeline.push({ id: p.id, date: p.date, type: isReturn ? 'IN' : 'OUT', party: p.supplierName, ref: p.poNo || p.invoiceNo, qty: `${isReturn ? '-' : ''}${(p.items || []).length} items`, amount: p.grandTotal, mode: 'Credit', desc: `${isReturn ? 'Return to' : 'Purchase from'} ${p.supplierName}` });
@@ -736,9 +764,13 @@ const getGlobalTimeline = async (firmId) => {
 
     // ENTERPRISE FIX: Extract the actual timestamp from the UUID so same-day transactions stay perfectly chronological!
     return timeline.sort((a, b) => {
-        const dateA = new Date(a.date || 0).getTime();
-        const dateB = new Date(b.date || 0).getTime();
-        if (dateA !== dateB) return dateB - dateA; // Descending Date
+        // ENTERPRISE FIX: NaN Scramble Shield for the Cashbook!
+        const dateA = (window.Utils ? window.Utils.safeDate(a.date) : new Date(a.date || 0)).getTime();
+        const dateB = (window.Utils ? window.Utils.safeDate(b.date) : new Date(b.date || 0)).getTime();
+        
+        const validTimeA = isNaN(dateA) ? 0 : dateA;
+        const validTimeB = isNaN(dateB) ? 0 : dateB;
+        if (validTimeA !== validTimeB) return validTimeB - validTimeA; // Descending Date
         
         // Extract the absolute timestamp physically appended to the end of the UUID
         const timeA = parseInt(String(a.id || '').split('-').pop()) || 0;
@@ -847,17 +879,30 @@ const importDatabase = async (parsedData) => {
         
         transaction.onerror = () => reject(transaction.error);
 
+        // ENTERPRISE FIX: The Multi-Firm Annihilation Shield!
         validStores.forEach(storeName => {
             const store = transaction.objectStore(storeName);
-            store.clear(); // Wipe the temporary local data to make room
             
-            if (Array.isArray(parsedData[storeName])) {
-                parsedData[storeName].forEach(record => {
-                    // STRICT ERP LOGIC: NEVER tamper with the backup's firmId!
-                    // The old code maliciously overwrote this with the phone's new random ID, making all data invisible!
-                    store.put(record);
+            // 1. Fetch ALL existing records to selectively delete
+            const request = store.getAll();
+            request.onsuccess = () => {
+                const existingRecords = request.result || [];
+                
+                // 2. SURGICAL WIPE: Only delete records that belong to the Firm we are restoring!
+                existingRecords.forEach(record => {
+                    // If the record belongs to the backup's firm, or it's a global setting, delete it to make room.
+                    if (record.firmId === backupFirmId || record.id === backupFirmId || storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
+                        store.delete(record.id || record.firmId); 
+                    }
                 });
-            }
+
+                // 3. Inject the restored data safely!
+                if (Array.isArray(parsedData[storeName])) {
+                    parsedData[storeName].forEach(record => {
+                        store.put(record);
+                    });
+                }
+            };
         });
     });
 };
@@ -872,8 +917,9 @@ async function generateGSTReport(yearMonth, firmId) {
     const ledgers = (await getAllRecords('ledgers', 'firmId', firmId).catch(() => [])) || [];
 
     // Filter specific month, and EXCLUDE DRAFTS (With Blank-Date Crash Protection)
-    const monthSales = sales.filter(s => (s.date || '').startsWith(yearMonth) && s.status !== 'Open');
-    const monthPurchases = purchases.filter(p => (p.date || '').startsWith(yearMonth) && p.status !== 'Open');
+    // ENTERPRISE FIX: Strip Cancelled orders so they don't artificially inflate CA Tax filings!
+    const monthSales = sales.filter(s => (s.date || '').startsWith(yearMonth) && s.status !== 'Open' && s.status !== 'Cancelled');
+    const monthPurchases = purchases.filter(p => (p.date || '').startsWith(yearMonth) && p.status !== 'Open' && p.status !== 'Cancelled');
 
     let gstr1 = { b2bTaxable: 0, b2bTax: 0, b2cTaxable: 0, b2cTax: 0, totalTaxable: 0, totalTax: 0 };
     let gstr2 = { totalTaxable: 0, totalTax: 0 }; 

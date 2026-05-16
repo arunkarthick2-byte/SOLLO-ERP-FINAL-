@@ -117,3 +117,13 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
+
+// ==========================================
+// ENTERPRISE FIX: THE PWA UPDATE LISTENER
+// ==========================================
+// Listens for the "SKIP_WAITING" signal from app.js so the app actually updates when a new version drops!
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});

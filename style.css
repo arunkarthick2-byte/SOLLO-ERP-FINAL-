@@ -2,7 +2,8 @@
    PREMIUM APP POLISH: "ANTI-WEB" SHIELD
    ========================================== */
 body {
-    /* REMOVED overscroll-behavior-y to prevent scroll trapping */
+    /* ENTERPRISE FIX: Locked the viewport to permanently prevent Pull-To-Refresh Data Loss! */
+    overscroll-behavior-y: none;
     /* Disable text selection on UI elements */
     user-select: none;
     -webkit-user-select: none;

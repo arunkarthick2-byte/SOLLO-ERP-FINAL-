@@ -515,15 +515,16 @@ const app = {
             });
 
             UI.state.rawData.sales.forEach(sale => {
-                // STRICT ERP LOGIC: Ignore 'Open' (Draft) invoices so they don't create phantom debt!
-                if (sale.firmId === app.state.firmId && sale.status !== 'Completed' && sale.status !== 'Open' && sale.documentType !== 'return') {
+                // ENTERPRISE FIX: The Phantom Debt Shield!
+                // Added 'Cancelled' to the ignore list so voided invoices don't permanently bloat the High-Risk aging bucket!
+                if (sale.firmId === app.state.firmId && sale.status !== 'Completed' && sale.status !== 'Open' && sale.status !== 'Cancelled' && sale.documentType !== 'return') {
                     // Match the precise true balance using the core payment map
                     const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean))];
                     // ENTERPRISE FIX: Check the map using the customer ID prefix!
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${sale.customerId}_${ref}`] || 0), 0);
                     
                     // ENTERPRISE FIX: Subtract Credit Notes so returned items don't falsely inflate dashboard debt!
-                    const linkedReturns = UI.state.rawData.sales.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo));
+                    const linkedReturns = UI.state.rawData.sales.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && uniqueRefs.includes(d.orderNo));
                     const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
                     
                     const balance = (parseFloat(sale.grandTotal) || 0) - paid - returnTotal;
@@ -618,14 +619,16 @@ const app = {
             // 2. Mathematically rebuild stock step-by-step
             const processDocs = (docs, isSale) => {
                 docs.forEach(doc => {
-                    if (doc.status === 'Open') return; // Skip Drafts!
+                    if (doc.status === 'Open' || doc.status === 'Cancelled') return; // Skip Drafts & Cancelled!
                     const isReturn = doc.documentType === 'return';
                     const isNonGST = doc.invoiceType === 'Non-GST';
                     (doc.items || []).forEach(row => {
                         const dbItem = allItems.find(item => String(item.id) === String(row.itemId || row.id));
                         if (dbItem) {
-                            const qty = parseFloat(row.qty) || 0;
-                            const impact = isSale ? (isReturn ? qty : -qty) : (isReturn ? -qty : qty);
+                            // ENTERPRISE FIX: Absolute Math prevents Inverted Returns!
+                            // Because Return invoices use negative quantities in the UI, we MUST convert them to absolute numbers first!
+                            const absQty = Math.abs(parseFloat(row.qty) || 0);
+                            const impact = isSale ? (isReturn ? absQty : -absQty) : (isReturn ? -absQty : absQty);
                             if (isNonGST) dbItem.stockNonGst += impact;
                             else dbItem.stockGst += impact;
                         }
@@ -1538,10 +1541,12 @@ const app = {
         const rawData = storeName === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases;
         const partyKey = type === 'sales' ? 'customerId' : 'supplierId';
 
+        // ENTERPRISE FIX: Prevent Cancelled Invoices from showing up in the Returns/Refunds list!
         const validInvoices = rawData.filter(doc => 
             doc[partyKey] === partyId && 
             doc.documentType !== 'return' && 
-            doc.status !== 'Open'
+            doc.status !== 'Open' && 
+            doc.status !== 'Cancelled'
         );
 
         const selectEl = document.getElementById(`${type}-original-ref`);
@@ -3915,7 +3920,8 @@ const app = {
         sales.forEach(s => {
             // ENTERPRISE FIX: The Timezone Trap Shield!
             // Direct string comparison natively ignores timezones, preventing missing invoices!
-            if (s.firmId === app.state.firmId && s.status !== 'Open' && s.date >= fromVal && s.date <= toVal) {
+            // ENTERPRISE FIX: Strip Cancelled orders so they don't artificially inflate Item Profits!
+            if (s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 
                 // ENTERPRISE FIX: Calculate the exact discount ratio of the total invoice!

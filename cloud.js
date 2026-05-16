@@ -351,7 +351,6 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// 3. ENTERPRISE FIX: The "Offline Recovery" Trigger!
-// Automatically syncs the moment the phone reconnects to Wi-Fi/4G.
-window.addEventListener('online', executeBackgroundBackup);
+// 3. (REMOVED) The "Offline Recovery" Trigger was causing a Race Condition! 
+// It is now strictly handled by the safe 2-second debouncer in app.js.
 

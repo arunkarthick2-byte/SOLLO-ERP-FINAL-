@@ -2814,7 +2814,8 @@
             window.history.pushState({ id: 'home' }, '', window.location.href);
 
             // 1. Listen for Android/iOS Hardware Back-Swipes
-            window.addEventListener('popstate', function (event) {
+        window.addEventListener('popstate', function(event) {
+            if (window.softwareBackLock) { window.history.pushState({ page: 1 }, "", ""); return; }
                 // If this popstate was triggered by our own software "X" button, ignore it so it doesn't double-close!
                 if (isSoftwareCloseInProgress) {
                     isSoftwareCloseInProgress = false;

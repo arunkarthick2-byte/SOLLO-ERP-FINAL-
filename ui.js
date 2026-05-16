@@ -370,6 +370,8 @@ const UI = {
     },
 
     closeActivity: (activityId) => {
+        // ENTERPRISE FIX: Lock the back button shield so it doesn't close the entire form!
+        window.softwareBackLock = true;
         const a = document.getElementById(activityId);
         if(a) {
             a.classList.remove('open'); 
@@ -377,6 +379,7 @@ const UI = {
                 a.classList.add('hidden');
                 a.style.display = '';
                 a.style.zIndex = ''; 
+                window.softwareBackLock = false;
             }, 300); 
             
             if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
@@ -2123,9 +2126,10 @@ const UI = {
     },
 
     closeBottomSheet: (sheetId) => {
+        window.softwareBackLock = true;
         const sheet = document.getElementById(sheetId);
         // ENTERPRISE FIX: Prevent double-tapping from popping multiple history states and crashing the main form!
-        if (!sheet || !sheet.classList.contains('open')) return;
+        if (!sheet || !sheet.classList.contains('open')) { window.softwareBackLock = false; return; }
         
         sheet.classList.remove('open');
 
@@ -2164,7 +2168,8 @@ const UI = {
             }
             // STRICT ERP LOGIC: Re-check the DOM dynamically to prevent vanishing overlays on rapid switching, and ignore the haptic menu!
             const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
-            if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden'); 
+            if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden');
+            window.softwareBackLock = false;
         }, 300);
 
         // ENTERPRISE FIX: Only clear the Receipt ID if we are actually closing the Cashbook form!
@@ -3463,6 +3468,7 @@ document.addEventListener('click', (e) => {
 
 // Intercept the physical phone back button
 window.addEventListener('popstate', (e) => {
+    if (window.softwareBackLock) return;
     let trapped = false;
 
     // ENTERPRISE FIX: Z-Index Engine
