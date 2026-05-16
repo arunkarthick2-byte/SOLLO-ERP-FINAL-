@@ -471,12 +471,30 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         
         try {
             const opt = {
-                margin: [5, 0, 5, 0], // ENTERPRISE FIX: 5mm top/bottom margin prevents the content from hitting the bleed edge
+                margin: [5, 0, 5, 0], 
                 filename: filename,
-                enableLinks: true, // ENTERPRISE UPGRADE: Creates invisible clickable layers over <a> tags!
+                enableLinks: true, 
                 image: { type: 'jpeg', quality: 1.0 },
-                html2canvas: { scale: 4, useCORS: true, windowWidth: 1000, letterRendering: true },
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, // ENTERPRISE FIX: Mathematically prevents the 2-page spill!
+                html2canvas: { 
+                    scale: 4, 
+                    useCORS: true, 
+                    windowWidth: 800, // ENTERPRISE FIX: Lock to exactly 800px!
+                    letterRendering: true,
+                    onclone: (clonedDoc) => {
+                        const target = clonedDoc.getElementById(elementId);
+                        if (target) {
+                            target.style.width = '800px'; 
+                            target.style.minWidth = '800px'; 
+                            target.style.maxWidth = '800px';
+                            target.style.position = 'relative';
+                            target.style.margin = '0 auto';
+                            target.style.transform = 'none'; // ENTERPRISE FIX: Prevent iOS/Android from downscaling the clone!
+                            clonedDoc.body.style.width = '800px';
+                            clonedDoc.body.style.overflow = 'visible';
+                        }
+                    }
+                },
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
             };
             
@@ -833,6 +851,20 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                                 <td style="padding: 15px; font-size: 18px; font-weight: 900; text-align: right; border-bottom: 1px solid #475569;">₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</td>
                             </tr>
                             
+                            ${(() => {
+                                let linkedSum = 0;
+                                if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
+                                let upfrontPaid = (parseFloat(doc.trueTotalPaid) || 0) - linkedSum;
+                                if (upfrontPaid > 0.01) {
+                                    return `
+                                    <tr>
+                                        <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 12px; color: #475569; font-weight: 800;">Advance / Upfront Payment</td>
+                                        <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">- ₹${upfrontPaid.toFixed(2)}</td>
+                                    </tr>`;
+                                }
+                                return '';
+                            })()}
+
                             ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
                             <tr>
                                 <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 11px; color: #475569; font-weight: 700;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Payment'} on ${r.date}</td>
@@ -1478,15 +1510,15 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
             // ENTERPRISE FIX: Synchronized the Native Share Engine with the Enterprise Desktop Engine!
             const opt = {
-                margin: [5, 0, 5, 0], // 5mm top/bottom, 0mm sides perfectly aligns the 800px wrapper
+                margin: [5, 0, 5, 0], 
                 filename: filename,
-                enableLinks: true, // ENTERPRISE UPGRADE: Activates Interactive Tap-To-Pay Links!
-                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, // Carries over the Anti-Split algorithm!
+                enableLinks: true, 
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, 
                 html2canvas: { 
                     scale: 4, 
                     useCORS: true, 
                     logging: false, 
-                    windowWidth: 1000, // Forces the mobile engine to behave like a Desktop
+                    windowWidth: 800, // ENTERPRISE FIX: Lock exactly to 800px so mobile share doesn't misalign!
                     letterRendering: true,
                     onclone: (clonedDoc) => {
                         const target = clonedDoc.getElementById(elementId);
@@ -1494,9 +1526,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             target.style.width = '800px'; 
                             target.style.minWidth = '800px'; 
                             target.style.maxWidth = '800px';
-                            // ENTERPRISE ALIGNMENT FIX: Remove absolute anchoring so the document centers correctly!
                             target.style.position = 'relative';
                             target.style.margin = '0 auto';
+                            target.style.transform = 'none'; // ENTERPRISE FIX: Prevent iOS/Android from downscaling the clone!
                             clonedDoc.body.style.width = '800px';
                             clonedDoc.body.style.overflow = 'visible';
                         }

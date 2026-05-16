@@ -326,34 +326,32 @@ window.Cloud = Cloud;
 // ==========================================
 // ENTERPRISE UPGRADE: SILENT BACKGROUND SYNC
 // ==========================================
-setTimeout(() => {
-    if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
-        
-        const executeBackup = async () => {
-            try {
-                const firms = await window.getAllRecords('firms');
-                if (firms && firms.length > 0) {
-                    if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
-                        window.Cloud.autoBackup();
-                    } else {
-                        console.warn("Cloud Sync pending: User not authenticated yet.");
-                    }
-                } else {
-                    console.warn("Local database is empty. Auto-backup aborted.");
-                }
-            } catch (err) {
-                console.warn("Database not ready for auto-backup yet.");
-            }
-        };
+const executeBackgroundBackup = async () => {
+    if (!window.Cloud || typeof window.Cloud.autoBackup !== 'function') return;
+    if (!navigator.onLine) return; // Don't try if offline
 
-        // STRICT ERP LOGIC: Only attempt backup if the phone has an active internet connection!
-        if (navigator.onLine) {
-            executeBackup();
-        } else {
-            console.warn("Device is offline. Queuing Cloud Sync for when connection is restored...");
-            // The { once: true } ensures this only fires exactly once when the internet comes back!
-            window.addEventListener('online', executeBackup, { once: true });
+    try {
+        const firms = await window.getAllRecords('firms');
+        if (firms && firms.length > 0) {
+            if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
+                window.Cloud.autoBackup();
+            }
         }
+    } catch (err) { console.warn("Database not ready for auto-backup yet."); }
+};
+
+// 1. Initial boot backup (Runs 15 seconds after app opens)
+setTimeout(executeBackgroundBackup, 15000);
+
+// 2. ENTERPRISE FIX: The "App Switch" Trigger!
+// Instantly backs up the data to Google Drive the moment the user minimizes the app or switches to WhatsApp!
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        executeBackgroundBackup();
     }
-}, 15000);
+});
+
+// 3. ENTERPRISE FIX: The "Offline Recovery" Trigger!
+// Automatically syncs the moment the phone reconnects to Wi-Fi/4G.
+window.addEventListener('online', executeBackgroundBackup);
 
