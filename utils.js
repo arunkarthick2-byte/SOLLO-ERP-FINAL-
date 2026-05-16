@@ -473,6 +473,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             const opt = {
                 margin: [5, 0, 5, 0], // ENTERPRISE FIX: 5mm top/bottom margin prevents the content from hitting the bleed edge
                 filename: filename,
+                enableLinks: true, // ENTERPRISE UPGRADE: Creates invisible clickable layers over <a> tags!
                 image: { type: 'jpeg', quality: 1.0 },
                 html2canvas: { scale: 4, useCORS: true, windowWidth: 1000, letterRendering: true },
                 pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, // ENTERPRISE FIX: Mathematically prevents the 2-page spill!
@@ -698,15 +699,18 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     });
                     const qrImage = qrCanvas.toDataURL('image/png');
                     
+                    // ENTERPRISE UPGRADE: Wrapped the QR Code in an interactive UPI Link!
                     qrCodeHtml = `
-                    <div style="margin-bottom: 15px; display: flex; align-items: center; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #ffffff;">
-                        <img src="${qrImage}" style="width: 65px; height: 65px; margin-right: 12px; border-radius: 4px;" />
-                        <div>
-                            <span style="font-size: 10px; color: #0061a4; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Scan to Pay via UPI</span>
-                            <div style="font-size: 11px; color: #333;"><strong>UPI ID:</strong> ${biz.upiId}</div>
-                            <div style="font-size: 11px; color: #333;"><strong>Amount:</strong> ₹${remainingBalance.toFixed(2)}</div>
+                    <a href="${upiString}" style="text-decoration: none; display: inline-block;">
+                        <div style="margin-bottom: 15px; display: flex; align-items: center; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer;">
+                            <img src="${qrImage}" style="width: 65px; height: 65px; margin-right: 12px; border-radius: 4px;" />
+                            <div>
+                                <span style="font-size: 10px; color: #0061a4; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Tap or Scan to Pay</span>
+                                <div style="font-size: 11px; color: #333;"><strong>UPI ID:</strong> ${biz.upiId}</div>
+                                <div style="font-size: 11px; color: #333;"><strong>Amount:</strong> ₹${remainingBalance.toFixed(2)}</div>
+                            </div>
                         </div>
-                    </div>`;
+                    </a>`;
                 } catch(e) { console.warn("QR Engine skipped:", e); }
             }
         }
@@ -828,6 +832,25 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                                 <td style="padding: 15px; font-size: 15px; font-weight: 900; text-transform: uppercase; border-bottom: 1px solid #475569;">Grand Total</td>
                                 <td style="padding: 15px; font-size: 18px; font-weight: 900; text-align: right; border-bottom: 1px solid #475569;">₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</td>
                             </tr>
+                            
+                            ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
+                            <tr>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 11px; color: #475569; font-weight: 700;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Payment'} on ${r.date}</td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">${parseFloat(r.amount) < 0 ? '+' : '-'} ₹${Math.abs(parseFloat(r.amount)).toFixed(2)}</td>
+                            </tr>
+                            `).join('') : ''}
+                            
+                            ${((parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)) > 0.01 ? `
+                            <tr>
+                                <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</td>
+                                <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #dc2626;">₹${Math.max(0, (parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)).toFixed(2)}</td>
+                            </tr>
+                            ` : (doc.trueTotalPaid > 0 ? `
+                            <tr>
+                                <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</td>
+                                <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #16a34a;">₹0.00 (PAID)</td>
+                            </tr>
+                            ` : '')}
                         </table>
 
                         <div id="signature-anchor" style="padding: 20px 15px; text-align: right;">
@@ -1069,74 +1092,80 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const uniquePdfId = 'pdf-statement-' + Date.now();
 
         const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: Arial, sans-serif; font-size: 12px; color: #000; background: #fff; line-height: 1.4; box-sizing: border-box; padding: 10px;">
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: 1050px;">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
                 <style>
-                    #pdf-statement-wrapper * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
-                    #pdf-statement-wrapper table { width: 100%; border-collapse: collapse; margin-bottom: 15px; page-break-inside: auto; border: 1px solid #000; }
-                    #pdf-statement-wrapper th { background-color: #e5e5e5; border: 1px solid #000; padding: 6px 4px; text-align: center; font-weight: bold; font-size: 11px; text-transform: uppercase; }
-                    #pdf-statement-wrapper td { border: 1px solid #000; padding: 6px 4px; font-size: 11px; vertical-align: middle; }
-                    #pdf-statement-wrapper tr { page-break-inside: avoid !important; break-inside: avoid !important; }
-                    #pdf-statement-wrapper thead { display: table-header-group; }
-                    .border-box { border: 1px solid #000; padding: 8px; margin-bottom: 15px; }
+                    #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
+                    #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
+                    #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 10px !important; font-weight: 800 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; }
+                    #${uniquePdfId} td { border-bottom: 1px solid #cbd5e1 !important; border-right: 1px solid #94a3b8 !important; border-top: none !important; border-left: none !important; padding: 10px !important; font-size: 11px !important; color: #1e293b !important; vertical-align: middle !important; }
+                    #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
+                    #${uniquePdfId} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+                    #${uniquePdfId} thead { display: table-header-group; }
                 </style>
 
-                <h2 style="text-align: center; font-size: 18px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; border: 1px solid #000; padding: 6px; background: #e5e5e5;">${isAccount ? 'ACCOUNT STATEMENT' : 'LEDGER STATEMENT'}</h2>
-
-                <div style="display: flex; width: 100%; border: 1px solid #000; margin-bottom: 15px;">
-                    <div style="width: 50%; padding: 10px; border-right: 1px solid #000;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 50px; margin-bottom: 8px;" />` : ''}
-                        <strong style="font-size: 16px; text-transform: uppercase;">${biz.name || 'Company Name'}</strong>
-                        <div style="margin-top: 4px; white-space: pre-wrap;">${biz.address || ''}</div>
-                        ${statementBizLocationStr ? `<div style="margin-bottom: 4px;">${statementBizLocationStr}</div>` : ''}
-                        <div>Ph: ${biz.phone || ''}</div>
-                    </div>
-                    <div style="width: 50%; padding: 0; display: flex; flex-direction: column;">
-                        <div style="display: flex; border-bottom: 1px solid #000; flex: 1;">
-                            <div style="width: 100%; padding: 8px;"><strong>Date Generated:</strong><br><span style="font-size: 14px;">${Utils.getLocalDate()}</span></div>
+                <div style="border: 2px solid #475569; padding: 2px;">
+                <div style="border: 1px solid #475569;">
+                    
+                    <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">${isAccount ? 'ACCOUNT STATEMENT' : 'LEDGER STATEMENT'}</h2>
+                        <div style="font-size: 12px; font-weight: 700; color: #475569;">
+                            DATE: ${Utils.getLocalDate()}
                         </div>
-                        <div style="display: flex; flex: 1;">
-                            <div style="width: 100%; padding: 8px; background: #e5e5e5;">
-                                <strong style="text-transform: uppercase;">Closing Balance:</strong><br>
-                                <span style="font-size: 18px; font-weight: bold;">₹${Math.abs(finalBal).toFixed(2)} ${balSuffix}</span>
+                    </div>
+
+                    <div style="display: flex; border-bottom: 1px solid #475569;">
+                        <div style="width: 50%; padding: 20px; border-right: 1px solid #475569;">
+                            ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
+                            <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">${biz.name || 'Company Name'}</h1>
+                            <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+                                ${biz.address || ''}<br>
+                                ${statementBizLocationStr ? statementBizLocationStr + '<br>' : ''}
+                                Ph: ${biz.phone || ''}
                             </div>
                         </div>
+                        <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; background: #f8fafc; text-align: right;">
+                            <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Closing Balance</strong>
+                            <span style="font-size: 24px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">₹${Math.abs(finalBal).toFixed(2)}</span>
+                            <span style="font-size: 14px; font-weight: 700; color: ${finalBal > 0 ? '#16a34a' : '#ef4444'};">${balSuffix}</span>
+                        </div>
                     </div>
-                </div>
 
-                <div class="border-box">
-                    <strong style="text-transform: uppercase; font-size: 11px; background: #e5e5e5; padding: 2px 6px; border: 1px solid #000; display: inline-block; margin-bottom: 6px;">${isAccount ? 'ACCOUNT DETAILS' : 'PARTY DETAILS'}</strong>
-                    <div style="font-size: 14px; font-weight: bold; text-transform: uppercase;">${party.name}</div>
-                    ${party.address ? `<div style="margin-top: 4px; white-space: pre-wrap;">${party.address}</div>` : ''}
-                    ${statementPartyLocationStr ? `<div style="margin-top: 2px;">${statementPartyLocationStr}</div>` : ''}
-                    ${party.phone ? `<div style="margin-top: 4px;">Ph: ${party.phone}</div>` : ''}
-                    ${party.gst ? `<div style="margin-top: 4px;"><strong>GSTIN: ${party.gst.toUpperCase()}</strong></div>` : ''}
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 12%;">Date</th>
-                            <th style="width: 43%; text-align: left;">Particulars / Voucher Type</th>
-                            <th style="width: 15%; text-align: right;">Debit (Dr)</th>
-                            <th style="width: 15%; text-align: right;">Credit (Cr)</th>
-                            <th style="width: 15%; text-align: right;">Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows.length > 0 ? tableRows : '<tr><td colspan="5" style="padding:20px; text-align:center;">No transactions found.</td></tr>'}
-                    </tbody>
-                </table>
-                
-                <div class="avoid-break" style="margin-top: 25px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
-                    <div style="width: 200px; text-align: center;">
-                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 45px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 45px; margin-bottom: 5px;"></div>'}
-                        <div style="border-top: 1px solid #000; padding-top: 4px; font-size: 11px; font-weight: bold;">Authorized Signatory</div>
+                    <div style="padding: 15px 20px; border-bottom: 1px solid #475569;">
+                        <strong style="text-transform: uppercase; font-size: 11px; background: #e2e8f0; padding: 4px 8px; border-radius: 4px; color: #0f172a; display: inline-block; margin-bottom: 8px;">${isAccount ? 'ACCOUNT DETAILS' : 'PARTY DETAILS'}</strong>
+                        <div style="font-size: 16px; font-weight: 800; text-transform: uppercase; color: #0f172a;">${party.name}</div>
+                        <div style="font-size: 12px; color: #334155; margin-top: 4px; line-height: 1.5;">
+                            ${party.address || ''} ${party.address ? '<br>' : ''}
+                            ${statementPartyLocationStr || ''} ${statementPartyLocationStr ? '<br>' : ''}
+                            ${party.phone ? `Ph: ${party.phone}<br>` : ''}
+                            ${party.gst ? `<strong style="color:#0f172a;">GSTIN: ${party.gst.toUpperCase()}</strong>` : ''}
+                        </div>
                     </div>
-                </div>
-            </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 12%;">Date</th>
+                                <th style="width: 43%; text-align: left;">Particulars / Voucher Type</th>
+                                <th style="width: 15%; text-align: right;">Debit (Dr)</th>
+                                <th style="width: 15%; text-align: right;">Credit (Cr)</th>
+                                <th style="width: 15%; text-align: right;">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows.length > 0 ? tableRows : '<tr><td colspan="5" style="padding:20px; text-align:center;">No transactions found.</td></tr>'}
+                        </tbody>
+                    </table>
+                    
+                    <div class="avoid-break" style="padding: 20px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
+                        <div style="width: 200px; text-align: center;">
+                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
+                        </div>
+                    </div>
+                </div> </div> </div>
         `;
 
         const printArea = document.getElementById('print-area');
@@ -1447,33 +1476,34 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             
             window.Utils.showToast("⏳ Preparing PDF for Print...");
 
+            // ENTERPRISE FIX: Synchronized the Native Share Engine with the Enterprise Desktop Engine!
             const opt = {
-                margin: [0.4, 0.4, 0.4, 0.4],
+                margin: [5, 0, 5, 0], // 5mm top/bottom, 0mm sides perfectly aligns the 800px wrapper
                 filename: filename,
-                pagebreak: { mode: ['css', 'legacy'] },
+                enableLinks: true, // ENTERPRISE UPGRADE: Activates Interactive Tap-To-Pay Links!
+                pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }, // Carries over the Anti-Split algorithm!
                 html2canvas: { 
-                    scale: 4, // ENTERPRISE FIX: Bumped scale from 2 to 4 for razor-sharp Print Quality text!
+                    scale: 4, 
                     useCORS: true, 
                     logging: false, 
-                    windowWidth: 800,
-                    width: 800,
+                    windowWidth: 1000, // Forces the mobile engine to behave like a Desktop
+                    letterRendering: true,
                     onclone: (clonedDoc) => {
                         const target = clonedDoc.getElementById(elementId);
                         if (target) {
                             target.style.width = '800px'; 
                             target.style.minWidth = '800px'; 
                             target.style.maxWidth = '800px';
-                            target.style.position = 'absolute';
-                            target.style.top = '0';
-                            target.style.left = '0';
+                            // ENTERPRISE ALIGNMENT FIX: Remove absolute anchoring so the document centers correctly!
+                            target.style.position = 'relative';
+                            target.style.margin = '0 auto';
                             clonedDoc.body.style.width = '800px';
                             clonedDoc.body.style.overflow = 'visible';
                         }
                     }
                 },
-                // ENTERPRISE FIX: Removed aggressive compression. Set Quality to 1.0 for perfect clarity!
                 image: { type: 'jpeg', quality: 1.0 },
-                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait', compress: false }
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
             };
 
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
@@ -1590,28 +1620,45 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     const uniquePdfId = 'pdf-item-ledger-' + Date.now();
 
     const html = `
-        <div id="${uniquePdfId}" style="padding: 40px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; background: #fff;">
-            <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #0061a4; padding-bottom: 20px;">
-                <h1 style="margin: 0 0 10px 0; color: #0061a4; font-size: 28px; text-transform: uppercase;">Stock Ledger</h1>
-                <h2 style="margin: 0 0 5px 0; font-size: 20px; color: #333;">${itemName}</h2>
-                <p style="margin: 0; font-size: 14px; color: #666;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
-            </div>
+        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; margin: 0 auto; position: relative; overflow: hidden; min-height: 1050px;">
             
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                <thead>
-                    <tr style="background: #0061a4; color: #fff; text-align: left;">
-                        <th style="padding: 12px 10px; border: 1px solid #004a80; width: 12%;">Date</th>
-                        <th style="padding: 12px 10px; border: 1px solid #004a80; width: 16%;">Type</th>
-                        <th style="padding: 12px 10px; border: 1px solid #004a80; width: 36%;">Particulars</th>
-                        <th style="padding: 12px 10px; border: 1px solid #004a80; text-align: center; width: 12%;">IN (+)</th>
-                        <th style="padding: 12px 10px; border: 1px solid #004a80; text-align: center; width: 12%;">OUT (-)</th>
-                        <th style="padding: 12px 10px; border: 1px solid #004a80; text-align: right; width: 12%;">Balance</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
+            <style>
+                #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
+                #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 10px !important; font-weight: 800 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; text-align: left; }
+                #${uniquePdfId} td { border-bottom: 1px solid #cbd5e1 !important; border-right: 1px solid #94a3b8 !important; border-top: none !important; border-left: none !important; padding: 10px !important; font-size: 11px !important; color: #1e293b !important; vertical-align: top !important; }
+                #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
+                #${uniquePdfId} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+            </style>
+
+            <div style="border: 2px solid #475569; padding: 2px;">
+            <div style="border: 1px solid #475569;">
+                
+                <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">STOCK LEDGER</h2>
+                    <div style="font-size: 12px; font-weight: 700; color: #475569;">DATE: ${new Date().toLocaleDateString('en-IN')}</div>
+                </div>
+
+                <div style="padding: 20px; border-bottom: 1px solid #475569; text-align: center;">
+                    <h1 style="margin: 0 0 5px 0; font-size: 20px; color: #0f172a; font-weight: 800;">${itemName}</h1>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 12%;">Date</th>
+                            <th style="width: 16%;">Type</th>
+                            <th style="width: 36%;">Particulars</th>
+                            <th style="text-align: center; width: 12%;">IN (+)</th>
+                            <th style="text-align: center; width: 12%;">OUT (-)</th>
+                            <th style="text-align: right; width: 12%;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+            </div>
         </div>
     `;
 
