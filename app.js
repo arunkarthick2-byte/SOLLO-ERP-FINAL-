@@ -5145,7 +5145,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             </tbody>
         </table>
         
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px; gap: 15px;">
+        <div class="avoid-break" style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px; gap: 15px; page-break-inside: avoid;">
             
             <div style="flex: 1; background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: block; margin-bottom: 10px;">Transaction Summary</span>

@@ -531,8 +531,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         }
                     }
                 },
-                // 🚨 ENTERPRISE FIX: 'legacy' mode aggressively creates blank 2nd pages! We now strictly respect CSS page breaks.
-                pagebreak: { mode: 'css', avoid: ['tr', '.avoid-break'] }, 
+                // 🚨 ENTERPRISE FIX: Force the PDF engine to shrink and lock everything into exactly ONE professional A4 page!
+                pagebreak: { mode: 'avoid-all' }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
             };
             
@@ -1287,7 +1287,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const uniquePdfId = 'pdf-statement-' + Date.now();
 
         const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative;">
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto;">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
@@ -1680,8 +1680,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 margin: 0, // 🚨 CRITICAL FIX: Set to 0 so the internal 40px HTML padding perfectly maps to A4 edges without squeezing!
                 filename: filename,
                 enableLinks: true, 
-                // 🚨 ENTERPRISE FIX: 'legacy' mode aggressively creates blank 2nd pages! We now strictly respect CSS page breaks.
-                pagebreak: { mode: 'css', avoid: ['tr', '.avoid-break'] }, 
+                // 🚨 ENTERPRISE FIX: Force the PDF engine to shrink and lock everything into exactly ONE professional A4 page!
+                pagebreak: { mode: 'avoid-all' }, 
                 html2canvas: { 
                     scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
                     useCORS: true, 
