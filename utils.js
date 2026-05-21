@@ -171,7 +171,8 @@ const Utils = {
 
         // ENTERPRISE FIX: The "Negative Amount in Words" Breakdown!
         // Credit Notes and Refunds use negative totals. Math.floor(-500) breaks the regex and prints blank words!
-        const safeNum = Math.abs(parseFloat(num) || 0);
+        // 🚨 CRITICAL FIX: safeNumber() prevents "1,50,000" from evaluating as "1" and printing "One Rupee Only"!
+        const safeNum = Math.abs(Utils.safeNumber(num));
         const rupees = Math.floor(safeNum);
         const paise = Math.round((safeNum - rupees) * 100);
 
@@ -364,9 +365,10 @@ const Utils = {
         const cleanPhone = Utils.formatWhatsAppNumber(phone);
         
         // ENTERPRISE FIX: Injected dynamic URL-encoded text so the user doesn't have to manually type the reminder!
+        // 🚨 CRITICAL FIX: Passed through safeNumber() so "1,500.00" doesn't parse as "1.00"!
         const message = encodeURIComponent(`Hello ${customerName || 'Customer'},
 
-A payment of ₹${parseFloat(balanceAmount || 0).toFixed(2)} is currently pending for Document No: ${invoiceNo || 'N/A'}.
+A payment of ₹${Utils.safeNumber(balanceAmount).toFixed(2)} is currently pending for Document No: ${invoiceNo || 'N/A'}.
 
 Please arrange the payment at your earliest convenience. Thank you!`);
         const whatsappUrl = `https://wa.me/${cleanPhone}?text=${message}`;
@@ -504,7 +506,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         
         try {
             const opt = {
-                margin: [5, 0, 5, 0], 
+                margin: 0, // 🚨 CRITICAL FIX: Let HTML padding act as the true A4 margin
                 filename: filename,
                 enableLinks: true, 
                 image: { type: 'jpeg', quality: 1.0 },
@@ -512,6 +514,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
                     useCORS: true, 
                     windowWidth: 800, // ENTERPRISE FIX: Lock to exactly 800px!
+                    scrollY: 0, // 🚨 CRITICAL FIX: Reset scroll position to prevent offset bugs
+                    scrollX: 0,
                     letterRendering: true,
                     onclone: (clonedDoc) => {
                         const target = clonedDoc.getElementById(elementId);
@@ -527,8 +531,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         }
                     }
                 },
-                // ENTERPRISE FIX: Removed 'avoid-all' so massive Bank Statements can safely split across pages!
-                pagebreak: { mode: ['css', 'legacy'] }, 
+                // 🚨 ENTERPRISE FIX: 'legacy' mode aggressively creates blank 2nd pages! We now strictly respect CSS page breaks.
+                pagebreak: { mode: 'css', avoid: ['tr', '.avoid-break'] }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
             };
             
@@ -586,6 +590,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 logging: false,
                 backgroundColor: '#ffffff',
                 windowWidth: 800, // Force engine to render as a desktop screen
+                scrollY: 0, // 🚨 CRITICAL FIX: Prevents white gaps at the top if the user was scrolled down!
+                scrollX: 0,
                 onclone: (clonedDoc) => {
                     const printArea = clonedDoc.getElementById('print-area');
                     if (printArea) {
@@ -733,6 +739,65 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost PDF!
         const uniquePdfId = 'pdf-invoice-' + Date.now();
 
+        // --- ENTERPRISE UPGRADE: CA-LEVEL GST SUMMARY TABLE ENGINE ---
+        let gstSummaryHtml = '';
+        if (!isNonGST && (parseFloat(doc.totalGst) || 0) > 0) {
+            let taxGroups = {};
+            let isIGST = biz.state && safeParty.state && (biz.state.trim().toLowerCase() !== safeParty.state.trim().toLowerCase());
+            
+            (doc.items || []).forEach(item => {
+                const g = parseFloat(item.gstPercent) || 0;
+                if (g > 0) {
+                    const bAmt = (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
+                    const dBase = bAmt - (bAmt * discountRatio);
+                    if (!taxGroups[g]) taxGroups[g] = { taxable: 0, tax: 0 };
+                    taxGroups[g].taxable += dBase;
+                    taxGroups[g].tax += (dBase * (g / 100));
+                }
+            });
+
+            if (Object.keys(taxGroups).length > 0) {
+                let rows = '';
+                let tTaxable = 0, tTax = 0;
+                Object.keys(taxGroups).forEach(rate => {
+                    let r = parseFloat(rate), t = taxGroups[rate].taxable, tx = taxGroups[rate].tax;
+                    tTaxable += t; tTax += tx;
+                    rows += `<tr>
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center;">${r}%</td>
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${t.toFixed(2)}</td>
+                        ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${(tx/2).toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${(tx/2).toFixed(2)}</td>`}
+                        ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tx.toFixed(2)}</td>` : ''}
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tx.toFixed(2)}</td>
+                    </tr>`;
+                });
+                gstSummaryHtml = `
+                <div style="margin-bottom: 15px; page-break-inside: avoid;">
+                    <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #475569; margin-bottom: 4px;">Tax Summary (GST Breakdown)</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th style="padding: 4px; border: 1px solid #cbd5e1;">Tax Rate</th>
+                                <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">Taxable Value</th>
+                                ${isIGST ? '' : `<th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">CGST Amount</th><th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">SGST Amount</th>`}
+                                ${isIGST ? `<th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">IGST Amount</th>` : ''}
+                                <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">Total Tax</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                            <tr style="background: #f8fafc; font-weight: 800;">
+                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center;">Total</td>
+                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tTaxable.toFixed(2)}</td>
+                                ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${(tTax/2).toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${(tTax/2).toFixed(2)}</td>`}
+                                ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tTax.toFixed(2)}</td>` : ''}
+                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tTax.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>`;
+            }
+        }
+
         // ENTERPRISE UPGRADE: TRUE OFFLINE DYNAMIC UPI QR GENERATOR
         let qrCodeHtml = '';
         // STRICT ERP LOGIC: Only render the UPI QR Code for Non-GST Sales! GST Invoices skip the QR.
@@ -770,7 +835,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
         // ENTERPRISE FIX: Changed 'const' to 'let' so the Split-Payment Tracker doesn't crash the engine!
         let html = `
-        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: 1050px;">
+        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto;">
             
             <div style="border: 2px solid #475569; padding: 2px;">
             <div style="border: 1px solid #475569;">
@@ -853,6 +918,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                                 <strong style="text-transform: uppercase; color: #475569;">Amount in Words:</strong><br>
                                 <span style="font-style: italic; font-weight: 600; font-size: 13px;">Rupees ${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span>
                             </div>
+
+                            ${gstSummaryHtml}
                             
                             <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 15px;">
                                 ${qrCodeHtml}
@@ -920,7 +987,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             ` : '')}
                         </table>
 
-                        <div id="signature-anchor" style="padding: 20px 15px; text-align: right;">
+                        <div id="signature-anchor" class="avoid-break" style="padding: 20px 15px; text-align: right; page-break-inside: avoid;">
                             ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; max-width: 160px; margin-bottom: 8px; object-fit: contain; display: inline-block;">` : `<div style="height: 60px;"></div>`}
                             <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
                             <div style="font-size: 10px; color: #475569; margin-top: 4px;">For ${biz.name || 'Company Name'}</div>
@@ -939,7 +1006,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             const paidPercent = safeGrandTotal > 0 ? Math.min(100, (totalPaid / safeGrandTotal) * 100) : 0;
             
             const progressHtml = `
-            <div style="margin-top: 16px; margin-bottom: 16px; border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #f8fafc; page-break-inside: avoid;">
+            <div class="avoid-break" style="margin-top: 16px; margin-bottom: 16px; border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #f8fafc; page-break-inside: avoid;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <h4 style="margin: 0; color: #334155; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Installment / Payment Status</h4>
                     <span style="font-size: 14px; font-weight: bold; color: #0f172a;">Invoice Total: ${safeGrandTotal.toFixed(2)}</span>
@@ -993,12 +1060,15 @@ Please arrange the payment at your earliest convenience. Thank you!`);
     },
 
     printReceivablesReport: (reportData, grandTotal) => {
+        // 🚨 ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Report!
+        const uniquePdfId = 'pdf-receivables-' + Date.now();
+        
         let html = `
-            <div id="pdf-rec-wrapper" style="padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1c1e; background: #ffffff;">
+            <div id="${uniquePdfId}" style="padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1c1e; background: #ffffff;">
                 <style>
-                    #pdf-rec-wrapper table { width: 100%; border-collapse: collapse; margin-top: 20px; page-break-inside: auto; }
-                    #pdf-rec-wrapper tr { page-break-inside: avoid; page-break-after: auto; break-inside: avoid; }
-                    #pdf-rec-wrapper thead { display: table-header-group; }
+                    #${uniquePdfId} table { width: 100%; border-collapse: collapse; margin-top: 20px; page-break-inside: auto; }
+                    #${uniquePdfId} tr { page-break-inside: avoid; page-break-after: auto; break-inside: avoid; }
+                    #${uniquePdfId} thead { display: table-header-group; }
                 </style>
                 <h1 style="text-align: center; color: #0061a4; text-transform: uppercase;">Receivables Report</h1>
                 <p style="text-align: center; color: #73777f;">Generated on: ${Utils.getLocalDate()}</p>
@@ -1035,7 +1105,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         if (printArea) {
             printArea.innerHTML = html;
             setTimeout(() => {
-                Utils.processPDFExport('pdf-rec-wrapper', `Receivables_${Utils.getLocalDate()}.pdf`);
+                Utils.processPDFExport(uniquePdfId, `Receivables_${Utils.getLocalDate()}.pdf`);
             }, 100);
         }
     },
@@ -1143,6 +1213,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         // ENTERPRISE FIX: The "Inverted Supplier Suffix" Trap!
         // Because Purchases are properly stored as Liabilities (Negative), the old logic printed "Advance" when we actually owed money!
         let balSuffix = 'Available';
+        let splitHtml = ''; // 🚀 ENTERPRISE GST SPLIT ENGINE FOR PDF
+
         if (!isAccount) {
             if (party.type === 'Customer') {
                 balSuffix = finalBal > 0 ? 'Dr (Due)' : 'Cr (Advance)';
@@ -1150,7 +1222,63 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 // For Suppliers: Negative = We owe them (To Pay). Positive = Overpayment (Advance)!
                 balSuffix = finalBal < 0 ? 'Cr (To Pay)' : 'Dr (Advance)';
             }
+
+            // 🚀 Execute the precise FIFO Tax-Split mathematically for this specific party!
+            if ((party.type === 'Customer' && finalBal > 0.01) || (party.type === 'Supplier' && finalBal < -0.01)) {
+                let ob = parseFloat(party.openingBalance) || 0;
+                let isAdv = party.type === 'Customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
+                
+                let credits = isAdv ? ob : 0;
+                let debitsGst = !isAdv ? ob : 0;
+                let debitsNon = 0;
+                let invoices = [];
+
+                if (party.type === 'Customer') {
+                    window.UI.state.rawData.sales.forEach(s => {
+                        if (s.status !== 'Open' && s.customerId === party.id) {
+                            if (s.documentType === 'return') credits += parseFloat(s.grandTotal || 0);
+                            else invoices.push({ type: s.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(s.grandTotal || 0), date: s.date });
+                        }
+                    });
+                    window.UI.state.rawData.cashbook.forEach(c => {
+                        if (c.ledgerId === party.id) credits += (c.type === 'in' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
+                    });
+                } else {
+                    window.UI.state.rawData.purchases.forEach(p => {
+                        if (p.status !== 'Open' && p.supplierId === party.id) {
+                            if (p.documentType === 'return') credits += parseFloat(p.grandTotal || 0);
+                            else invoices.push({ type: p.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(p.grandTotal || 0), date: p.date });
+                        }
+                    });
+                    window.UI.state.rawData.cashbook.forEach(c => {
+                        if (c.ledgerId === party.id) credits += (c.type === 'out' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
+                    });
+                }
+
+                invoices.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+                
+                if (credits >= debitsGst) { credits -= debitsGst; debitsGst = 0; }
+                else { debitsGst -= credits; credits = 0; }
+
+                invoices.forEach(inv => {
+                    let unpaid = inv.amt;
+                    if (credits >= unpaid) { credits -= unpaid; unpaid = 0; }
+                    else { unpaid -= credits; credits = 0; }
+                    if (unpaid > 0.01) {
+                        if (inv.type === 'gst') debitsGst += unpaid;
+                        else debitsNon += unpaid;
+                    }
+                });
+
+                if (debitsGst > 0.01 || debitsNon > 0.01) {
+                    splitHtml = `<div style="margin-top: 12px; background: #e2e8f0; padding: 8px; border-radius: 6px; border: 1px dashed #94a3b8; display: inline-block; text-align: right;">`;
+                    if (debitsGst > 0.01) splitHtml += `<div style="font-size: 11px; color: #0f172a; font-weight: 800; margin-bottom: 2px;">GST Due: ₹${debitsGst.toFixed(2)}</div>`;
+                    if (debitsNon > 0.01) splitHtml += `<div style="font-size: 11px; color: #0f172a; font-weight: 800;">Non-GST Due: ₹${debitsNon.toFixed(2)}</div>`;
+                    splitHtml += `</div>`;
+                }
+            }
         }
+        
         // ENTERPRISE FIX: Compile the City, State, and Pincode for the Statement PDF!
         const statementBizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
         const statementPartyLocationStr = [party.city, party.state].filter(Boolean).join(', ') + (party.pincode ? ' - ' + party.pincode : '');
@@ -1193,10 +1321,11 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                                 Ph: ${biz.phone || ''}
                             </div>
                         </div>
-                        <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; background: #f8fafc; text-align: right;">
+                        <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #f8fafc; text-align: right;">
                             <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Closing Balance</strong>
                             <span style="font-size: 24px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">₹${Math.abs(finalBal).toFixed(2)}</span>
                             <span style="font-size: 14px; font-weight: 700; color: ${finalBal > 0 ? '#16a34a' : '#ef4444'};">${balSuffix}</span>
+                            ${splitHtml}
                         </div>
                     </div>
 
@@ -1459,6 +1588,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             if (parts[0].length <= 2 && parts[2].length === 4) {
                 // If it found DD-MM-YYYY, flip it to YYYY-MM-DD
                 cleanDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            } else if (parts[0].length <= 2 && parts[2].length === 2) {
+                // 🚨 ENTERPRISE FIX: Catch 2-Digit Years (e.g., 15/05/26) and auto-prefix '20'!
+                cleanDate = `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
             } else if (parts[0].length === 4) {
                 // Already YYYY-MM-DD, just pad the zeros
                 cleanDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
@@ -1545,16 +1677,18 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
             // ENTERPRISE FIX: Synchronized the Native Share Engine with the Enterprise Desktop Engine!
             const opt = {
-                margin: [5, 0, 5, 0], 
+                margin: 0, // 🚨 CRITICAL FIX: Set to 0 so the internal 40px HTML padding perfectly maps to A4 edges without squeezing!
                 filename: filename,
                 enableLinks: true, 
-                // ENTERPRISE FIX: Removed 'avoid-all' so massive Bank Statements can safely split across pages without freezing the app!
-                pagebreak: { mode: ['css', 'legacy'] }, 
+                // 🚨 ENTERPRISE FIX: 'legacy' mode aggressively creates blank 2nd pages! We now strictly respect CSS page breaks.
+                pagebreak: { mode: 'css', avoid: ['tr', '.avoid-break'] }, 
                 html2canvas: { 
                     scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
                     useCORS: true, 
                     logging: false, 
                     windowWidth: 800, // ENTERPRISE FIX: Lock exactly to 800px so mobile share doesn't misalign!
+                    scrollY: 0, // 🚨 CRITICAL FIX: Prevents the PDF from being cut off at the bottom if the user scrolled down!
+                    scrollX: 0,
                     letterRendering: true,
                     onclone: (clonedDoc) => {
                         const target = clonedDoc.getElementById(elementId);

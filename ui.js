@@ -54,6 +54,74 @@ const UI = {
         // Changes the default mobile "Go/Search" button to a smooth "Next" button
         document.querySelectorAll('input[type="text"], input[type="date"]').forEach(input => {
             if(!input.getAttribute('enterkeyhint')) input.setAttribute('enterkeyhint', 'next');
+            
+            // ENTERPRISE FIX 1: The Accounting Time-Lock (Physically prevents logging future dates)
+            if(input.type === 'date') input.setAttribute('max', new Date().toISOString().split('T')[0]);
+        });
+
+        // ENTERPRISE FIX 2: Dirty Form Tracker & Double-Billing Spinner Shield
+        // ENTERPRISE FIX 4: The Dictionary Shield (Disable Autocorrect on Names & Items)
+        document.querySelectorAll('input[type="text"]').forEach(input => {
+            const id = (input.id || '').toLowerCase();
+            if (id.includes('name') || id.includes('particular') || id.includes('city')) {
+                input.setAttribute('spellcheck', 'false');
+                input.setAttribute('autocorrect', 'off');
+                input.setAttribute('autocomplete', 'off');
+            }
+        });
+
+        // ENTERPRISE FIX 5: Tax Auto-Capitalizer & Negative Number Blocker
+        document.addEventListener('input', (e) => {
+            if (e.target.tagName === 'INPUT') {
+                const id = (e.target.id || '').toLowerCase();
+                // 1. Force Uppercase for GST and IFSC
+                if (id.includes('gst') || id.includes('ifsc') || id.includes('pan')) {
+                    const start = e.target.selectionStart;
+                    e.target.value = e.target.value.toUpperCase();
+                    e.target.setSelectionRange(start, start);
+                }
+                // 2. Block negative signs in standard forms (except specifically allowed math fields)
+                if (e.target.type === 'number' && e.target.value.includes('-')) {
+                    e.target.value = Math.abs(e.target.value);
+                }
+            }
+        });
+
+        // ENTERPRISE FIX 6: Auto-Expanding Notes & Particulars
+        document.addEventListener('input', (e) => {
+            if (e.target.tagName === 'TEXTAREA') {
+                e.target.style.height = 'auto';
+                e.target.style.height = (e.target.scrollHeight) + 'px';
+            }
+        });
+
+        // ENTERPRISE FIX 7: Smart Error Finder (Auto-scrolls to missing required fields!)
+        document.addEventListener('invalid', (e) => {
+            e.preventDefault(); 
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            e.target.style.border = '2px solid red';
+            setTimeout(() => e.target.style.border = '', 2500);
+            if (window.Utils) window.Utils.showToast("⚠️ Missing required field!");
+            if (window.UI) window.UI.triggerHaptic('heavy');
+        }, true);
+
+        // ENTERPRISE FIX 8: Accidental Refresh / Swipe-Down Shield
+        window.addEventListener('beforeunload', (e) => {
+            if (window.isFormDirty) {
+                e.preventDefault();
+                e.returnValue = ''; // Forces the browser to show the Native Exit Warning
+            }
+        });
+
+        window.isFormDirty = false;
+        document.addEventListener('input', (e) => { if (e.target.closest('form')) window.isFormDirty = true; });
+        document.addEventListener('submit', (e) => { 
+            window.isFormDirty = false; // Reset tracker on save
+            const btn = e.target.querySelector('button[type="submit"]');
+            if (btn) {
+                btn.classList.add('btn-loading'); // Instantly turns the save button into a loading spinner
+                setTimeout(() => btn.classList.remove('btn-loading'), 3000); // Failsafe unlock after 3 seconds
+            }
         });
         
         // --- ENTERPRISE FIX: PREMIUM EMPTY STATES ---
@@ -118,6 +186,11 @@ const UI = {
             
             // Unlock safely when the cinematic transition completely finishes
             animation.onfinish = () => { UI.isAnimatingTheme = false; };
+            
+            // 🚨 ENTERPRISE FIX: The Interruption Shield!
+            // If the user rotates the screen or the OS aborts the animation, forcefully unlock the button so it doesn't freeze permanently!
+            animation.oncancel = () => { UI.isAnimatingTheme = false; };
+            
         }).catch(() => {
             // Failsafe unlock if the browser forcibly aborts the transition
             UI.isAnimatingTheme = false; 
@@ -187,7 +260,15 @@ const UI = {
                 btnContainer.id = 'btn-load-more-virtual';
                 btnContainer.style.cssText = 'text-align: center; padding: 16px; width: 100%;';
                 btnContainer.innerHTML = `<button class="btn-primary-small" style="padding: 8px 16px; background: var(--md-surface-variant); color: var(--md-on-surface);">Load More Records...</button>`;
-                btnContainer.onclick = renderNextChunk;
+                
+                // ENTERPRISE FIX: The Ghost-Chunk Double-Tap Shield!
+                // Instantly lock the button on the first millisecond of contact so it can't double-fire!
+                btnContainer.onclick = function(e) {
+                    if (this.getAttribute('data-locked') === 'true') return;
+                    this.setAttribute('data-locked', 'true');
+                    this.style.opacity = '0.5';
+                    renderNextChunk();
+                };
                 container.appendChild(btnContainer);
             }
         };
@@ -370,6 +451,12 @@ const UI = {
     },
 
     closeActivity: (activityId) => {
+        // ENTERPRISE FIX 3: The Unsaved Changes Warning!
+        if (activityId.includes('-form') && window.isFormDirty) {
+            if (!confirm("⚠️ You have unsaved changes! Are you sure you want to close and lose your work?")) return;
+        }
+
+        window.isFormDirty = false;
         // ENTERPRISE FIX: Lock the back button shield so it doesn't close the entire form!
         window.softwareBackLock = true;
         const a = document.getElementById(activityId);
@@ -596,8 +683,10 @@ const UI = {
             ? Math.round((rawSubtotal * (discountInput / 100)) * 100) / 100 
             : discountInput;
         
-        // FIX: Prevent negative invoices by capping the discount at the subtotal maximum
-        if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+        // 🚨 ENTERPRISE FIX: The Credit Note Discount Trap!
+        // Flat discounts on negative subtotals must become negative, and the cap must safely evaluate absolute values!
+        if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
+        if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
         
         const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
         
@@ -686,8 +775,10 @@ const UI = {
             ? Math.round((rawSubtotal * (discountInput / 100)) * 100) / 100 
             : discountInput;
         
-        // FIX: Prevent negative invoices by capping the discount at the subtotal maximum
-        if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+        // 🚨 ENTERPRISE FIX: The Credit Note Discount Trap!
+        // Flat discounts on negative subtotals must become negative, and the cap must safely evaluate absolute values!
+        if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
+        if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
         
         const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
 
@@ -1072,41 +1163,81 @@ const UI = {
                 <p style="margin: 8px 0 0 0; color: var(--md-text-muted);">Try adjusting your search or filters.</p>
             </div>`;
 
-            // 🚀 ENTERPRISE UPGRADE: O(1) HASH MAP BALANCE ENGINE
-            // Prevents 600+ Million loop iterations from freezing the phone!
-            const balanceCache = {};
-            const isCustCache = {};
+            // 🚀 ENTERPRISE UPGRADE: O(1) FIFO TAX-SPLIT BALANCE ENGINE
+            // Mathematically allocates cash payments to the oldest invoices to perfectly split GST & Non-GST outstanding balances!
+            const partyStats = {};
+            const splitBalances = {};
             
             UI.state.rawData.ledgers.forEach(l => {
                 const isCustomer = String(l.type).toLowerCase() === 'customer';
-                isCustCache[l.id] = isCustomer;
                 let ob = parseFloat(l.openingBalance) || 0;
                 const balType = (l.balanceType || '').toLowerCase();
-                let bal = 0;
-                if (isCustomer) bal += (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-                else bal += (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
-                balanceCache[l.id] = bal;
+                let isAdv = isCustomer ? (balType.includes('pay') || balType.includes('credit')) : (balType.includes('receive') || balType.includes('debit'));
+                
+                partyStats[l.id] = {
+                    isCust: isCustomer,
+                    ob: isAdv ? -ob : ob,
+                    credits: isAdv ? ob : 0, // Total money paid or refunded
+                    debitsGst: !isAdv ? ob : 0, // Assume Opening Balance is GST unless configured otherwise
+                    debitsNon: 0,
+                    invoices: []
+                };
             });
 
             UI.state.rawData.sales.forEach(s => { 
-                if (s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
-                    balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
+                if (s.status !== 'Open' && partyStats[s.customerId]) {
+                    if (s.documentType === 'return') partyStats[s.customerId].credits += parseFloat(s.grandTotal || 0);
+                    else partyStats[s.customerId].invoices.push({ type: s.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(s.grandTotal || 0), date: s.date });
                 }
             });
             UI.state.rawData.purchases.forEach(p => { 
-                if (p.status !== 'Open' && balanceCache[p.supplierId] !== undefined) {
-                    balanceCache[p.supplierId] += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0)); 
+                if (p.status !== 'Open' && partyStats[p.supplierId]) {
+                    if (p.documentType === 'return') partyStats[p.supplierId].credits += parseFloat(p.grandTotal || 0);
+                    else partyStats[p.supplierId].invoices.push({ type: p.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(p.grandTotal || 0), date: p.date });
                 }
             });
             UI.state.rawData.cashbook.forEach(c => { 
-                if (c.ledgerId && balanceCache[c.ledgerId] !== undefined) {
+                if (c.ledgerId && partyStats[c.ledgerId]) {
                     let amt = parseFloat(c.amount || 0);
-                    if (isCustCache[c.ledgerId]) balanceCache[c.ledgerId] += (c.type === 'in' ? -amt : amt);
-                    else balanceCache[c.ledgerId] += (c.type === 'out' ? -amt : amt);
+                    if (partyStats[c.ledgerId].isCust) partyStats[c.ledgerId].credits += (c.type === 'in' ? amt : -amt);
+                    else partyStats[c.ledgerId].credits += (c.type === 'out' ? amt : -amt);
                 }
             });
 
-            const getBal = (id, type) => balanceCache[id] || 0;
+            // Execute FIFO Allocation Algorithm
+            Object.keys(partyStats).forEach(id => {
+                const stats = partyStats[id];
+                let remainingCredit = stats.credits;
+                let gstDue = stats.debitsGst;
+                let nonDue = stats.debitsNon;
+                
+                // 1. Pay off Opening Balance first
+                if (remainingCredit >= gstDue) { remainingCredit -= gstDue; gstDue = 0; } 
+                else { gstDue -= remainingCredit; remainingCredit = 0; }
+                
+                // 2. Sort invoices oldest to newest
+                stats.invoices.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+                
+                // 3. Systematically knock off invoices
+                stats.invoices.forEach(inv => {
+                    let unpaid = inv.amt;
+                    if (remainingCredit >= unpaid) { remainingCredit -= unpaid; unpaid = 0; } 
+                    else { unpaid -= remainingCredit; remainingCredit = 0; }
+                    
+                    if (unpaid > 0.01) {
+                        if (inv.type === 'gst') gstDue += unpaid;
+                        else nonDue += unpaid;
+                    }
+                });
+                
+                splitBalances[id] = {
+                    gst: gstDue,
+                    non: nonDue,
+                    total: (gstDue + nonDue) - remainingCredit
+                };
+            });
+
+            const getBal = (id, type) => splitBalances[id] ? splitBalances[id].total : 0;
 
             if (activeTab === 'products') {
                 data = UI.state.rawData.items.filter(i => {
@@ -1220,22 +1351,30 @@ const UI = {
 
                 UI.renderVirtualList(container, data, (l) => {
                     const isCustomer = String(l.type).toLowerCase() === 'customer';
-                    let bal = getBal(l.id, l.type);
+                    const split = splitBalances[l.id] || { gst: 0, non: 0, total: 0 };
+                    let bal = split.total;
                     let balText = '';
                     let balColor = 'var(--md-text-muted)';
+                    let subText = '';
                     
-                    if (isCustomer) {
-                        if (bal > 0.01) { balText = `\u20B9${bal.toFixed(2)} (Receive)`; balColor = 'var(--md-error)'; }
-                        else if (bal < -0.01) { balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
-                        else { balText = `\u20B90.00`; }
-                    } else {
-                        if (bal > 0.01) { balText = `\u20B9${bal.toFixed(2)} (Pay)`; balColor = 'var(--md-error)'; }
-                        else if (bal < -0.01) { balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
-                        else { balText = `\u20B90.00`; }
+                    if (bal > 0.01) { 
+                        balText = `\u20B9${bal.toFixed(2)} (${isCustomer ? 'Receive' : 'Pay'})`; 
+                        balColor = 'var(--md-error)'; 
+                        
+                        // Extract exact split data dynamically!
+                        if (split.gst > 0.01 && split.non > 0.01) subText = `GST: \u20B9${split.gst.toFixed(0)} | Non: \u20B9${split.non.toFixed(0)}`;
+                        else if (split.gst > 0.01) subText = `GST Due: \u20B9${split.gst.toFixed(2)}`;
+                        else if (split.non > 0.01) subText = `Non-GST Due: \u20B9${split.non.toFixed(2)}`;
                     }
+                    else if (bal < -0.01) { 
+                        balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; 
+                        balColor = 'var(--md-success)'; 
+                    }
+                    else { balText = `\u20B90.00`; }
                     
                     const rowIcon = isCustomer ? 'person' : 'storefront';
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
+                    const subTextHTML = subText ? `<small style="display:block; color:var(--md-error); font-weight:600; font-size:10px; margin-top:2px;">${subText}</small>` : '';
 
                     // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
                     const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -1251,6 +1390,7 @@ const UI = {
                             </div>
                             <div style="text-align: right; flex-shrink: 0;">
                                 <strong style="font-size: 15px; color: ${balColor};">${balText}</strong>
+                                ${subTextHTML}
                             </div>
                         </div>
                         
@@ -1829,9 +1969,51 @@ const UI = {
         if(document.getElementById('dash-orders-open')) document.getElementById('dash-orders-open').innerHTML = `${openCount} Orders <strong style="color:var(--md-error); margin-left:8px;">\u20B9${openOrders.toFixed(2)}</strong>`;
         if(document.getElementById('dash-orders-shipped')) document.getElementById('dash-orders-shipped').innerHTML = `${shippedCount} Orders <strong style="color:#f57f17; margin-left:8px;">\u20B9${shippedOrders.toFixed(2)}</strong>`;
         if(document.getElementById('dash-orders-completed')) document.getElementById('dash-orders-completed').innerHTML = `${completedCount} Orders <strong style="color:var(--md-success); margin-left:8px;">\u20B9${completedOrders.toFixed(2)}</strong>`;
+        
         // --- NEW CODE: Call the chart updater ---
         UI.updateChart(totalSales, totalPurchases, totalExpenses);
-        // --- END OF NEW CODE ---
+        
+        // ==========================================
+        // ENTERPRISE UPGRADE: AI TREND ANALYSIS
+        // ==========================================
+        const aiCard = document.getElementById('dash-ai-insights');
+        const aiText = document.getElementById('ai-insight-text');
+        if (aiCard && aiText) {
+            // Only show insights if the user is looking at Monthly or Today's data
+            if (dateFilter === 'month' || dateFilter === 'today') {
+                aiCard.style.display = 'block';
+                
+                let prevSales = 0;
+                let prevTargetMonth = currentMonth - 1;
+                let prevTargetYear = currentYear;
+                if (prevTargetMonth < 0) { prevTargetMonth = 11; prevTargetYear -= 1; }
+                
+                sales.forEach(s => {
+                    if (s.status !== 'Open' && s.date) {
+                        const sDate = new Date(s.date);
+                        if (sDate.getMonth() === prevTargetMonth && sDate.getFullYear() === prevTargetYear) {
+                            prevSales += (s.documentType === 'return' ? -1 : 1) * (parseFloat(s.grandTotal) || 0);
+                        }
+                    }
+                });
+
+                if (prevSales > 0 && totalSales > 0) {
+                    const growth = ((totalSales - prevSales) / prevSales) * 100;
+                    if (growth >= 0) {
+                        aiText.innerHTML = `Great job! Sales are up <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">+${growth.toFixed(1)}%</strong> compared to last month. Keep up the momentum! 🚀`;
+                    } else {
+                        aiText.innerHTML = `Heads up! Sales are down <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">${growth.toFixed(1)}%</strong> compared to last month. Follow up on open quotes! 📉`;
+                    }
+                } else if (totalSales > 0 && prevSales === 0) {
+                    aiText.innerHTML = `You've made <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">₹${totalSales.toFixed(0)}</strong> in sales this period! Excellent start! 🌟`;
+                } else {
+                    aiText.innerHTML = `Log your sales to unlock AI trend analysis! 📊`;
+                }
+            } else {
+                aiCard.style.display = 'none'; // Hide if looking at All Time or Yearly views
+            }
+        }
+        // ==========================================
 
         // --- OVERDUE REMINDERS SAFELY INSIDE THE FUNCTION ---
         // ENTERPRISE FIX: O(1) Return Map to prevent Dashboard rendering from lagging on huge databases!
@@ -3112,9 +3294,38 @@ const UI = {
         // FIX: Memory optimization disabled! Pruning arrays from RAM breaks the Address Book's running balance math. 
         // Modern devices have plenty of RAM for text arrays, so we keep all data loaded for perfect accuracy.
         return;
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: SKELETONS & DENSITY
+    // ==========================================
+    
+    // The Skeleton Injector: Call this before fetching data from the database!
+    showSkeletons: (containerId, count = 5) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        let skeletons = '';
+        for(let i = 0; i < count; i++) {
+            skeletons += `<div class="skeleton-loader"></div>`;
+        }
+        container.innerHTML = skeletons;
+    },
+
+    // The Density Toggle: Shrinks or expands the UI and saves it to memory!
+    toggleDataDensity: () => {
+        const isCompact = document.body.classList.toggle('compact-mode');
+        localStorage.setItem('sollo_density', isCompact ? 'compact' : 'comfortable');
+        
+        if (window.Utils) window.Utils.showToast(isCompact ? "📏 Compact View Activated" : "📱 Comfortable View Activated");
+        if (window.UI) window.UI.triggerHaptic('medium');
     }
 
 }; // <--- MAKE SURE YOU HAVE THIS CLOSING BRACKET AND SEMICOLON!
+
+// Auto-Restore the user's density preference the millisecond the app boots!
+if (localStorage.getItem('sollo_density') === 'compact') {
+    document.body.classList.add('compact-mode');
+}
 
 // Bind Listeners for Live Search Filtering
 document.addEventListener('DOMContentLoaded', () => {
@@ -3481,6 +3692,12 @@ window.addEventListener('popstate', (e) => {
         });
     };
     
+    // 🚨 ENTERPRISE FIX: The "Double-Fire" Hardware Shield!
+    // Prevents index.html and ui.js from executing the back swipe at the exact same millisecond!
+    if (window.isHardwareSwiping) return;
+    window.isHardwareSwiping = true;
+    setTimeout(() => { window.isHardwareSwiping = false; }, 400);
+
     // ENTERPRISE FIX: 1. Catch ONLY sheets that are mathematically OPEN! 
     // Ignoring sheets that are animating closed or ghosting in the DOM prevents the Infinite Back Trap!
     const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));

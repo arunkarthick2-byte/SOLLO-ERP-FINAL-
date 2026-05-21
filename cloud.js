@@ -330,14 +330,24 @@ const executeBackgroundBackup = async () => {
     if (!window.Cloud || typeof window.Cloud.autoBackup !== 'function') return;
     if (!navigator.onLine) return; // Don't try if offline
 
+    // 🚨 ENTERPRISE FIX: The Multi-Thread Sync Shield!
+    // Physically locks the engine so it cannot fire multiple simultaneous uploads if the internet flickers!
+    if (window.isCloudSyncing) return;
+    window.isCloudSyncing = true; 
+
     try {
         const firms = await window.getAllRecords('firms');
         if (firms && firms.length > 0) {
             if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
-                window.Cloud.autoBackup();
+                await window.Cloud.autoBackup();
             }
         }
-    } catch (err) { console.warn("Database not ready for auto-backup yet."); }
+    } catch (err) { 
+        console.warn("Database not ready for auto-backup yet."); 
+    } finally {
+        // Safely unlock the engine exactly 10 seconds later to allow for a proper cooldown!
+        setTimeout(() => { window.isCloudSyncing = false; }, 10000);
+    }
 };
 
 // 1. Initial boot backup (Runs 15 seconds after app opens)

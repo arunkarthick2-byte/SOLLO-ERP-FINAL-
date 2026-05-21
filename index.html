@@ -147,12 +147,22 @@
                         </div>
                     </div>
                     
-                    <div class="tap-target" id="dash-low-stock-btn" onclick="UI.switchTab('tab-masters', 'Master Data', document.getElementById('nav-masters')); setTimeout(() => { UI.openMasterView('products', 'Inventory Master'); setTimeout(() => { document.getElementById('filter-master-view').value = 'Low Stock'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--md-surface-variant); background: var(--md-surface);">
+                    <div class="tap-target" id="dash-low-stock-btn" onclick="UI.switchTab('tab-masters', 'Master Data', document.getElementById('nav-masters')); setTimeout(() => { UI.openMasterView('products', 'Inventory Master'); setTimeout(() => { if(window.UI) window.UI.state.activeFilters['masters'] = 'Low Stock'; document.getElementById('filter-master-view').value = 'Low Stock'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--md-surface-variant); background: var(--md-surface);">
                         <span style="font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                             <span class="material-symbols-outlined" id="dash-low-stock-icon" style="font-size: 20px;">check_circle</span>
                             <span id="dash-low-stock-text">Stock Levels Optimal</span>
                         </span>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
+
+                <div id="dash-ai-insights" class="m3-card" style="margin-bottom: 24px; background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border: 1px solid #ce93d8; display: none;">
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <div class="icon-circle" style="background: #ffffff; color: #6a1b9a; width: 48px; height: 48px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(106, 27, 154, 0.2);"><span class="material-symbols-outlined">auto_awesome</span></div>
+                        <div style="flex: 1;">
+                            <strong style="color: #4a148c; font-size: 14px; display: block; margin-bottom: 4px;">AI Business Insight</strong>
+                            <span id="ai-insight-text" style="font-size: 13px; color: #4a148c; font-weight: 600; line-height: 1.4;">Analyzing data...</span>
+                        </div>
                     </div>
                 </div>
 
@@ -316,13 +326,22 @@
 
             <div id="tab-menu" class="screen-section hidden">
                 
-                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 20px;" onclick="UI.openActivity('activity-business-profile')">
+                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 20px;" onclick="UI.openActivity('activity-business-profile')">
                     <div class="icon-circle" style="background: var(--md-primary); color: white; width: 56px; height: 56px; flex-shrink: 0;"><span class="material-symbols-outlined" style="font-size: 28px;">domain</span></div>
                     <div style="flex: 1;">
                         <strong class="large-text" style="font-size: 18px;">Business Profile</strong>
                         <small style="display:block; color: var(--md-text-muted); margin-top: 4px;">Edit Company Details & Logo</small>
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                </div>
+
+                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 1px solid #81c784;" onclick="window.openBankShareSheet()">
+                    <div class="icon-circle" style="background: #ffffff; color: #2e7d32; width: 40px; height: 40px; flex-shrink: 0; box-shadow: 0 2px 4px rgba(46, 125, 50, 0.2);"><span class="material-symbols-outlined" style="font-size: 24px;">qr_code_2</span></div>
+                    <div style="flex: 1;">
+                        <strong class="large-text" style="font-size: 16px; color: #1b5e20;">Share Payment Details</strong>
+                        <small style="display:block; color: #2e7d32; margin-top: 2px;">QR Code & Bank Info</small>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: #2e7d32;">share</span>
                 </div>
 
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Cash Recovery & Aging</strong>
@@ -362,7 +381,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="tap-target" onclick="UI.switchTab('tab-masters', 'Master Data', document.getElementById('nav-masters')); setTimeout(() => { UI.openMasterView('customers', 'Customer Master'); setTimeout(() => { document.getElementById('filter-master-view').value = 'To Receive'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 12px 16px; background: var(--md-surface-variant); text-align: center; color: var(--md-primary); font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                    <div class="tap-target" onclick="UI.switchTab('tab-masters', 'Master Data', document.getElementById('nav-masters')); setTimeout(() => { UI.openMasterView('customers', 'Customer Master'); setTimeout(() => { if(window.UI) window.UI.state.activeFilters['masters'] = 'To Receive'; document.getElementById('filter-master-view').value = 'To Receive'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 12px 16px; background: var(--md-surface-variant); text-align: center; color: var(--md-primary); font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;">
                         View Defaulters <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
                     </div>
                 </div>
@@ -450,7 +469,7 @@
                         </div>
                     </div>
 
-                    <div class="m3-card tap-target" onclick="document.body.classList.toggle('compact-mode'); window.Utils.showToast('Density Updated');" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;">
+                    <div class="m3-card tap-target" onclick="if(window.UI) UI.toggleDataDensity()" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;">
                         <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-primary); width: 40px; height: 40px; flex-shrink: 0;">
                             <span class="material-symbols-outlined">format_line_spacing</span>
                         </div>
@@ -1296,7 +1315,75 @@
         </div>
     </div>
 
-    <div id="sheet-overlay" class="sheet-overlay hidden" onclick="UI.closeAllBottomSheets()"></div>
+    <div id="sheet-share-bank" class="bottom-sheet">
+        <div class="sheet-header">
+            <span style="font-size: 18px; font-weight: 500;">Receive Payment</span>
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-share-bank')">close</span>
+        </div>
+        <div style="padding: 24px 16px; text-align: center;">
+            <div id="bank-qr-container" style="background: white; padding: 16px; border-radius: 16px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 16px;">
+                <canvas id="bank-qr-canvas" width="200" height="200"></canvas>
+            </div>
+            <h3 id="bank-share-name" style="margin: 0 0 8px 0; color: var(--md-on-surface);">Business Name</h3>
+            <p id="bank-share-upi" style="margin: 0 0 16px 0; color: var(--md-primary); font-weight: bold; font-size: 18px; letter-spacing: 0.5px;">UPI: Not Set</p>
+            <div id="bank-share-details" style="background: var(--md-surface-variant); padding: 12px; border-radius: 8px; font-size: 14px; text-align: left; margin-bottom: 24px; color: var(--md-on-surface-variant); white-space: pre-wrap; font-family: monospace;">Bank details not configured.</div>
+            
+            <button class="btn-primary tap-target" style="width: 100%; padding: 14px; font-size: 16px; display: flex; justify-content: center; align-items: center; gap: 8px;" onclick="window.executeNativeBankShare()">
+                <span class="material-symbols-outlined">share</span> Share via WhatsApp / SMS
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // THE NATIVE SHARE ENGINE
+        window.openBankShareSheet = async () => {
+            if (window.UI) window.UI.openBottomSheet('sheet-share-bank');
+            
+            const firms = (typeof window.getAllRecords === 'function') ? await window.getAllRecords('firms') : [];
+            const firm = firms[0] || {};
+            const bName = firm.name || 'Our Business';
+            const upi = firm.upiId || '';
+            const bankStr = firm.bankDetails || '';
+            
+            document.getElementById('bank-share-name').innerText = bName;
+            document.getElementById('bank-share-upi').innerText = upi ? `UPI ID: ${upi}` : 'No UPI Configured';
+            document.getElementById('bank-share-details').innerText = bankStr || 'No bank details configured. Edit your Business Profile to add them!';
+            
+            const canvas = document.getElementById('bank-qr-canvas');
+            if (window.QRious && upi) {
+                new QRious({
+                    element: canvas,
+                    value: `upi://pay?pa=${upi}&pn=${encodeURIComponent(bName)}`,
+                    size: 200,
+                    level: 'H'
+                });
+                canvas.style.display = 'block';
+            } else {
+                canvas.style.display = 'none';
+            }
+            
+            // Generate the clean WhatsApp formatting string!
+            window._currentShareText = `*${bName} - Payment Details*\n\n`;
+            if (upi) window._currentShareText += `*UPI ID:* ${upi}\n\n`;
+            if (bankStr) window._currentShareText += `*Bank Details:*\n${bankStr}\n`;
+        };
+
+        window.executeNativeBankShare = async () => {
+            const shareText = window._currentShareText || 'No payment details available.';
+            // Trigger the native OS share popup!
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: 'Payment Details', text: shareText });
+                } catch (err) { console.log("Share cancelled or failed.", err); }
+            } else {
+                // Fallback for desktop computers: Copy to clipboard
+                navigator.clipboard.writeText(shareText);
+                if (window.Utils) window.Utils.showToast("✅ Payment details copied to clipboard!");
+            }
+        };
+    </script>
+
+    <div id="sheet-overlay" class="sheet-overlay hidden" onclick="const sheets = Array.from(document.querySelectorAll('.bottom-sheet.open')).sort((a,b) => (parseInt(window.getComputedStyle(b).zIndex)||0) - (parseInt(window.getComputedStyle(a).zIndex)||0)); if(sheets.length > 0 && window.UI) window.UI.closeBottomSheet(sheets[0].id);"></div>
     
     <div id="sheet-document-formats" class="bottom-sheet">
         <div class="sheet-header">
@@ -2822,12 +2909,27 @@
                     return;
                 }
 
+                // 🚨 ENTERPRISE FIX: The "Double-Fire" Hardware Shield!
+                // If ui.js already intercepted this swipe, instantly kill this duplicate event!
+                if (window.isHardwareSwiping) return;
+                window.isHardwareSwiping = true;
+                setTimeout(() => { window.isHardwareSwiping = false; }, 400);
+
                 // Otherwise, it was a physical hardware swipe-back. Find all open screens.
                 const openScreens = Array.from(document.querySelectorAll('.bottom-sheet.open, .activity-screen.open'));
                 if (openScreens.length > 0) {
                     // Grab the exact top-most screen and forcefully close it safely
                     const topScreen = openScreens[openScreens.length - 1];
-                    topScreen.classList.remove('open');
+                    
+                    // ENTERPRISE FIX: Route the hardware close through the official UI Engine!
+                    // This ensures the dark overlays, z-indexes, and hardware locks are properly cleaned up!
+                    if (topScreen.classList.contains('bottom-sheet')) {
+                        if (window.UI) window.UI.closeBottomSheet(topScreen.id);
+                        else topScreen.classList.remove('open');
+                    } else {
+                        if (window.UI) window.UI.closeActivity(topScreen.id);
+                        else topScreen.classList.remove('open');
+                    }
                     
                     // If it is a temporary PDF viewer, destroy it from memory
                     if (topScreen.id && topScreen.id.includes('viewer')) {

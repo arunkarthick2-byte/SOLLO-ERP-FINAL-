@@ -173,7 +173,8 @@ document.addEventListener('click', (e) => {
 let lastScrollY = 0;
 // We use { capture: true, passive: true } so the 120hz mobile scrolling never lags
 document.addEventListener('scroll', (e) => {
-    const bottomNav = document.querySelector('.tab-menu');
+    // ENTERPRISE FIX: Target the correct HTML class so the immersive scroll-hide actually works!
+    const bottomNav = document.querySelector('.bottom-nav');
     if (!bottomNav) return;
 
     const target = e.target;
@@ -214,8 +215,12 @@ const app = {
             
             // 3. Wait 150ms for the screen to slide over, then apply the native filter!
             setTimeout(() => {
-                if (window.UI && typeof window.UI.setFilter === 'function') {
-                    window.UI.setFilter('sales', status, null);
+                // 🚨 ENTERPRISE FIX: Engage the new high-speed Native State Filter!
+                if (window.UI) {
+                    window.UI.state.activeFilters = window.UI.state.activeFilters || {};
+                    window.UI.state.activeFilters['sales'] = status;
+                    if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('sales');
+                    if (window.Utils) window.Utils.showToast(`Filtered: ${status} Orders`);
                 }
             }, 150);
         }
@@ -451,14 +456,13 @@ const app = {
         });
 
         // ==========================================
-        // NEW: WAREHOUSE HEALTH ENGINE
+        // ENTERPRISE UPGRADE: WAREHOUSE MINI-TABLE ENGINE
         // ==========================================
         if (UI.state.rawData.items) {
             let totalValuation = 0;
-            let lowStockCount = 0;
+            let lowStockItems = []; // ENTERPRISE FIX: Collect actual items instead of just a number!
 
             UI.state.rawData.items.forEach(i => {
-                // STRICT ERP LOGIC: Bulletproof Math to prevent NaN wiping out the whole dashboard!
                 const rawGst = parseFloat(i.stockGst);
                 const rawNon = parseFloat(i.stockNonGst);
                 const stockGst = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
@@ -469,7 +473,9 @@ const app = {
                 totalValuation += (totalStock * buyPrice);
 
                 const minStock = parseFloat(i.minStock) || 0;
-                if (minStock > 0 && totalStock <= minStock) lowStockCount++;
+                if (minStock > 0 && totalStock <= minStock) {
+                    lowStockItems.push({ name: i.name, stock: totalStock, min: minStock, uom: i.uom || 'Pcs' });
+                }
             });
 
             const valEl = document.getElementById('dash-inventory-value');
@@ -480,18 +486,56 @@ const app = {
             const lsBtn = document.getElementById('dash-low-stock-btn');
 
             if (lsText && lsIcon && lsBtn) {
-                if (lowStockCount > 0) {
-                    lsText.innerText = `${lowStockCount} Items Low on Stock!`;
+                // Wipe any old tables to prevent duplication on refresh
+                const oldTable = document.getElementById('dash-mini-table');
+                if (oldTable) oldTable.remove();
+
+                if (lowStockItems.length > 0) {
+                    // Restore button visibility if it was previously hidden
+                    lsBtn.style.display = '';
+                    
+                    // Sort items mathematically so the most critical are at the absolute top
+                    lowStockItems.sort((a, b) => a.stock - b.stock);
+                    const topItems = lowStockItems.slice(0, 3);
+                    
+                    let tableRows = topItems.map(item => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 6px 0; border-bottom: 1px dashed rgba(186, 26, 26, 0.2);">
+                            <span style="color: #410002; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; font-weight: 600;">${item.name}</span>
+                            <span style="color: var(--md-error); font-weight: 800; background: #ffe4e6; padding: 2px 6px; border-radius: 4px;">${item.stock} / ${item.min}</span>
+                        </div>
+                    `).join('');
+                    
+                    let extraCount = lowStockItems.length - 3;
+                    let extraText = extraCount > 0 ? `<div style="text-align: center; font-size: 10px; color: var(--md-error); margin-top: 8px; font-weight: 800; text-transform: uppercase;">+${extraCount} MORE ITEMS CRITICAL</div>` : '';
+
+                    lsText.innerHTML = `<span style="font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">RESTOCK REQUIRED</span>`;
                     lsText.style.color = 'var(--md-error)';
                     lsIcon.innerText = 'warning';
                     lsIcon.style.color = 'var(--md-error)';
                     lsBtn.style.borderLeft = '4px solid var(--md-error)';
+                    lsBtn.style.background = '#fff0f2'; // Tint the entire card red for extreme visibility!
+                    
+                    // Inject the gorgeous Mini-Table right into the dashboard
+                    const tableHTML = `<div id="dash-mini-table" style="width: 100%; margin-top: 12px; background: rgba(255,255,255,0.8); border-radius: 6px; padding: 4px 12px; border: 1px solid rgba(186,26,26,0.2); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${tableRows}${extraText}</div>`;
+                    lsBtn.insertAdjacentHTML('beforeend', tableHTML);
+                    
+                    // Keep the Smart Router attached so tapping the card still works!
+                    lsBtn.onclick = () => {
+                        if (window.UI) {
+                            window.UI.state.currentMasterType = 'products'; 
+                            window.UI.openBottomSheet('sheet-products');
+                            setTimeout(() => {
+                                window.UI.state.activeFilters = window.UI.state.activeFilters || {};
+                                window.UI.state.activeFilters['masters'] = 'Low Stock';
+                                if (window.Utils) window.Utils.showToast("Filtered: Critical Restock ⚠️");
+                                if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('masters');
+                            }, 150);
+                        }
+                    };
+
                 } else {
-                    lsText.innerText = `Stock Levels Optimal`;
-                    lsText.style.color = 'var(--md-success)';
-                    lsIcon.innerText = 'check_circle';
-                    lsIcon.style.color = 'var(--md-success)';
-                    lsBtn.style.borderLeft = '4px solid var(--md-success)';
+                    // THE GHOST UI: Completely hide the card to save screen space when stock is perfect!
+                    lsBtn.style.display = 'none';
                 }
             }
         }
@@ -1279,18 +1323,74 @@ const app = {
             const balEl = document.getElementById('report-party-balance');
             let balText = '';
             let balColor = 'var(--md-text-muted)';
+            let subText = ''; // 🚀 ENTERPRISE GST SPLIT ENGINE FOR UI HEADER
 
             if (partyType === 'Customer') {
                 if (bal > 0.01) { balText = `Closing Balance: \u20B9${bal.toFixed(2)} (To Receive)`; balColor = 'var(--md-error)'; }
                 else if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
                 else { balText = `Closing Balance: \u20B90.00`; balColor = 'var(--md-on-surface)'; }
             } else {
-                if (bal > 0.01) { balText = `Closing Balance: \u20B9${bal.toFixed(2)} (To Pay)`; balColor = 'var(--md-error)'; }
-                else if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
+                // 🚨 ENTERPRISE FIX: Supplier debt is a Liability (Negative). We must invert the math!
+                if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} (To Pay)`; balColor = 'var(--md-error)'; }
+                else if (bal > 0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
                 else { balText = `Closing Balance: \u20B90.00`; balColor = 'var(--md-on-surface)'; }
             }
             
-            balEl.innerText = balText;
+            // 🚀 Execute the precise FIFO Tax-Split mathematically for the internal Ledger screen!
+            // 🚨 ENTERPRISE FIX: Safely trigger the engine for Customer Debts (>0) AND Supplier Debts (<0)!
+            if ((partyType === 'Customer' && bal > 0.01) || (partyType !== 'Customer' && bal < -0.01)) {
+                const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
+                let ob = parseFloat(party.openingBalance) || 0;
+                let isAdv = partyType === 'Customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
+                
+                let credits = isAdv ? ob : 0;
+                let debitsGst = !isAdv ? ob : 0;
+                let debitsNon = 0;
+                let invoices = [];
+
+                if (partyType === 'Customer') {
+                    window.UI.state.rawData.sales.forEach(s => {
+                        if (s.status !== 'Open' && s.customerId === partyId) {
+                            if (s.documentType === 'return') credits += parseFloat(s.grandTotal || 0);
+                            else invoices.push({ type: s.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(s.grandTotal || 0), date: s.date });
+                        }
+                    });
+                    window.UI.state.rawData.cashbook.forEach(c => {
+                        if (c.ledgerId === partyId) credits += (c.type === 'in' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
+                    });
+                } else {
+                    window.UI.state.rawData.purchases.forEach(p => {
+                        if (p.status !== 'Open' && p.supplierId === partyId) {
+                            if (p.documentType === 'return') credits += parseFloat(p.grandTotal || 0);
+                            else invoices.push({ type: p.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(p.grandTotal || 0), date: p.date });
+                        }
+                    });
+                    window.UI.state.rawData.cashbook.forEach(c => {
+                        if (c.ledgerId === partyId) credits += (c.type === 'out' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
+                    });
+                }
+
+                invoices.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+                
+                if (credits >= debitsGst) { credits -= debitsGst; debitsGst = 0; }
+                else { debitsGst -= credits; credits = 0; }
+
+                invoices.forEach(inv => {
+                    let unpaid = inv.amt;
+                    if (credits >= unpaid) { credits -= unpaid; unpaid = 0; }
+                    else { unpaid -= credits; credits = 0; }
+                    if (unpaid > 0.01) {
+                        if (inv.type === 'gst') debitsGst += unpaid;
+                        else debitsNon += unpaid;
+                    }
+                });
+
+                if (debitsGst > 0.01 && debitsNon > 0.01) subText = `<br><span style="font-size:12px; color:var(--md-error); font-weight: 800;">GST Due: \u20B9${debitsGst.toFixed(2)} | Non-GST Due: \u20B9${debitsNon.toFixed(2)}</span>`;
+                else if (debitsGst > 0.01) subText = `<br><span style="font-size:12px; color:var(--md-error); font-weight: 800;">GST Due: \u20B9${debitsGst.toFixed(2)}</span>`;
+                else if (debitsNon > 0.01) subText = `<br><span style="font-size:12px; color:var(--md-error); font-weight: 800;">Non-GST Due: \u20B9${debitsNon.toFixed(2)}</span>`;
+            }
+
+            balEl.innerHTML = balText + subText; // Upgraded to innerHTML so the span tags safely render!
             balEl.style.color = balColor;
 
             // Move state assignment ABOVE the early return to clear previous memory!
@@ -2271,12 +2371,20 @@ const app = {
                     rows.forEach(tr => {
                         const qtyInput = tr.querySelector('.row-qty');
                         let qty = parseFloat(qtyInput.value) || 0;
+                        const rateInput = tr.querySelector('.row-rate');
+                        let rate = parseFloat(rateInput.value) || 0;
 
                         // ENTERPRISE FIX: The Negative Quantity Exploit Shield!
                         // Prevents users from typing negative numbers to artificially shrink their taxable revenue and illegally inflate stock!
                         if (qty <= 0) {
                             alert("Error: Quantity must be greater than zero. To refund an item, please use a proper Credit/Debit Note!");
                             throw new Error("Invalid negative or zero quantity detected.");
+                        }
+                        
+                        // ENTERPRISE FIX: The Negative Rate (Price) Shield!
+                        if (rate < 0) {
+                            alert("Error: Item Rate (Price) cannot be a negative number!");
+                            throw new Error("Invalid negative rate detected.");
                         }
                         
                         // ENTERPRISE FIX: The Infinite Return Guard!
@@ -2436,8 +2544,121 @@ const app = {
                             window.AppCache[storeName] = null;
                         }
 
-                        // Execute the perfect database math
+                        // ==========================================
+                        // ENTERPRISE UPGRADE 4: SPLIT-TENDER ENGINE
+                        // ==========================================
+                        if (type === 'sale' && data.status !== 'Open' && data.status !== 'Cancelled') {
+                            const splitConfirmed = await new Promise((resolve) => {
+                                const total = parseFloat(data.grandTotal) || 0;
+                                const existing = document.getElementById('split-tender-modal');
+                                if (existing) existing.remove();
+
+                                // Dynamically construct the gorgeous Split-Tender Bottom Sheet
+                                const modalHTML = `
+                                <div id="split-tender-modal" class="bottom-sheet" style="z-index: 99999; display: flex; flex-direction: column; background: var(--md-surface); border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2);">
+                                    <div style="padding: 20px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center;">
+                                        <h3 style="margin: 0; color: var(--md-primary); font-weight: 800;">Split Payment</h3>
+                                        <h3 style="margin: 0; color: var(--md-on-surface); font-weight: 900;">Total: ₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</h3>
+                                    </div>
+                                    <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+                                        <div>
+                                            <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">CASH RECEIVED (₹)</label>
+                                            <input type="number" id="split-cash" placeholder="0.00" style="width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold; margin-top: 6px;" oninput="window.calcSplit()">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">BANK / UPI RECEIVED (₹)</label>
+                                            <input type="number" id="split-bank" placeholder="0.00" style="width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold; margin-top: 6px;" oninput="window.calcSplit()">
+                                        </div>
+                                        <div style="background: #fff0f2; padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
+                                            <span style="color: var(--md-error); font-weight: 900; font-size: 14px; letter-spacing: 0.5px;">PENDING CREDIT:</span>
+                                            <span id="split-credit" style="color: var(--md-error); font-size: 24px; font-weight: 900;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                                        </div>
+                                        <button id="split-confirm-btn" class="btn-primary" style="padding: 16px; font-size: 18px; border-radius: 12px; margin-top: 12px; font-weight: 900;">Finalize Split Invoice</button>
+                                        <button id="split-cancel-btn" style="padding: 12px; font-size: 14px; background: transparent; border: none; color: var(--md-secondary); font-weight: bold;">Cancel</button>
+                                    </div>
+                                </div>
+                                <div id="split-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99998; backdrop-filter: blur(3px);"></div>
+                                `;
+                                
+                                document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+                                // The Live Math Engine
+                                window.calcSplit = () => {
+                                    const c = parseFloat(document.getElementById('split-cash').value) || 0;
+                                    const b = parseFloat(document.getElementById('split-bank').value) || 0;
+                                    let credit = total - (c + b);
+                                    if (credit < 0) credit = 0;
+                                    document.getElementById('split-credit').innerText = `₹${credit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                                };
+
+                                // Animate it up smoothly
+                                setTimeout(() => document.getElementById('split-tender-modal').classList.add('open'), 10);
+
+                                const cleanup = () => {
+                                    document.getElementById('split-tender-modal').remove();
+                                    document.getElementById('split-overlay').remove();
+                                };
+
+                                // Listeners
+                                document.getElementById('split-cancel-btn').onclick = () => { cleanup(); resolve(false); };
+                                document.getElementById('split-confirm-btn').onclick = () => {
+                                    const c = parseFloat(document.getElementById('split-cash').value) || 0;
+                                    const b = parseFloat(document.getElementById('split-bank').value) || 0;
+                                    cleanup();
+                                    resolve({ cash: c, bank: b, credit: (total - (c + b)) });
+                                };
+                            });
+
+                            // If they clicked 'Cancel' on the popup, physically abort the database save!
+                            if (!splitConfirmed) {
+                                if (window.Utils) window.Utils.showToast("⚠️ Save Cancelled.");
+                                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                                return; 
+                            }
+
+                            // Inject the multi-tender data permanently into the invoice
+                            data.splitData = splitConfirmed;
+                            data.paymentMethod = 'Split';
+                            
+                            if (splitConfirmed.credit > 0) {
+                                data.status = 'Credit';
+                                data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Pending: ₹${splitConfirmed.credit}]`;
+                            } else {
+                                data.status = 'Paid';
+                                data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Fully Paid.]`;
+                            }
+                        }
+
+                        // Execute the perfect database math with the upgraded data payload
                         await saveInvoiceTransaction(storeName, data);
+
+                        // --- ENTERPRISE UPGRADE 1: MOVING AVERAGE COST (MAC) ENGINE ---
+                        if (type === 'purchase' && data.status !== 'Open' && data.status !== 'Cancelled') {
+                            const allItems = await window.getAllRecords('items', 'firmId', app.state.firmId);
+                            for (const row of data.items) {
+                                const dbItem = allItems.find(i => String(i.id) === String(row.itemId));
+                                // Only calculate MAC on brand new purchases to avoid recursive loop distortion
+                                if (dbItem && !app.state.currentEditId) { 
+                                    const oldStock = (parseFloat(dbItem.stock) || 0);
+                                    const oldPrice = (parseFloat(dbItem.buyPrice) || 0);
+                                    const newQty = (parseFloat(row.qty) || 0);
+                                    const newPrice = (parseFloat(row.rate) || 0); // Purchase Rate
+
+                                    if (newQty > 0 && newPrice > 0) {
+                                        // MAC Formula: (Old Value + New Value) / (Old Qty + New Qty)
+                                        const totalOldValue = Math.max(0, oldStock * oldPrice);
+                                        const totalNewValue = newQty * newPrice;
+                                        const newTotalStock = Math.max(0, oldStock) + newQty;
+
+                                        const newMacPrice = newTotalStock > 0 ? ((totalOldValue + totalNewValue) / newTotalStock) : newPrice;
+                                        
+                                        dbItem.buyPrice = Math.round(newMacPrice * 100) / 100;
+                                        await window.saveRecord('items', dbItem);
+                                    }
+                                }
+                            }
+                        }
+                        // --- END MAC ENGINE ---
                         
                         // THE STATE TRANSITION LOCK
                         app.state.currentEditId = data.id;
@@ -2458,7 +2679,8 @@ const app = {
                         
                         // NEW: Auto-Complete Advance Payments Engine
                         if (typeof app.autoCompleteInvoices === 'function') {
-                            await app.autoCompleteInvoices(partyId, type);
+                            // ENTERPRISE FIX: Pass the exact Invoice Date into the background engine!
+                            await app.autoCompleteInvoices(partyId, type, data.date);
                         }
                         
                         UI.showSuccess(); 
@@ -2586,7 +2808,13 @@ const app = {
                     data.openingBalance = parseFloat(data.openingBalance) || 0;
                 } 
                 else if (type === 'expense') {
+                    // ENTERPRISE FIX: The Negative Expense Shield!
+                    // Prevents users from logging negative expenses to artificially inject fake money into the Cashbook!
                     data.amount = parseFloat(data.amount) || 0;
+                    if (data.amount < 0) {
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                        return alert("Error: Expense amount cannot be negative. If you received a refund, please log it as 'Money In' in the Cashbook.");
+                    }
                     const accEl = document.getElementById('expense-account-id');
                     data.accountId = accEl ? accEl.value : 'cash';
                     
@@ -2741,7 +2969,15 @@ const app = {
                     
                     const pool = document.getElementById('adj-pool').value;
                     const type = document.getElementById('adj-type').value;
-                    const qty = parseFloat(document.getElementById('adj-qty').value) || 0;
+                    
+                    // ENTERPRISE FIX: The Inverted Stock Exploit Shield!
+                    // Math.abs() forces the quantity to be positive. Prevents users from typing '-50' on a 'Reduce' adjustment to secretly ADD stock!
+                    const qty = Math.abs(parseFloat(document.getElementById('adj-qty').value) || 0);
+                    
+                    if (qty <= 0) {
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                        return alert("Error: Adjustment quantity must be strictly greater than zero.");
+                    }
                     
                     const item = await getRecordById('items', itemId);
                     if (!item) throw new Error("Product not found in database.");
@@ -2885,6 +3121,25 @@ const app = {
                             return alert("Please select a party.");
                         }
 
+                        // ENTERPRISE FIX: The Cashbook "Time-Travel" Shield!
+                        const docDate = document.getElementById(`pay-${type}-date`).value;
+                        if (docDate) {
+                            const selectedDate = window.Utils.safeDate(docDate);
+                            const today = new Date();
+                            today.setDate(today.getDate() + 1); // 1-day timezone buffer
+                            if (selectedDate > today) {
+                                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                                return alert("Error: You cannot log a future date in the Cashbook. Please use today or a past date.");
+                            }
+                        }
+
+                        // ENTERPRISE FIX: The Cashbook "Zero-Value" Shield!
+                        const checkAmt = parseFloat(document.getElementById(`pay-${type}-amount`).value) || 0;
+                        if (checkAmt <= 0) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            return alert("Error: Payment amount must be strictly greater than zero.");
+                        }
+
                     const ledger = await getRecordById('ledgers', targetPartyId);
                     const accountId = document.getElementById(`pay-${type}-account`).value;
 
@@ -3016,7 +3271,17 @@ const app = {
                                     // If the split manual payments + returns cover the grand total, mark as Completed
                                     if ((totalPaid + totalReturned) >= parseFloat(linkedInvoice.grandTotal) - 0.5) { 
                                         linkedInvoice.status = 'Completed';
+                                        // ENTERPRISE FIX: Lock the Invoice Completed Date to the EXACT date of this specific payment!
+                                        linkedInvoice.completedDate = data.date;
                                         await saveRecord(storeName, linkedInvoice);
+                                    } else {
+                                        // ENTERPRISE FIX: The Ghost Completion Shield!
+                                        // If a user edits a receipt and LOWERS the amount, we MUST revert the invoice back to Unpaid!
+                                        if (linkedInvoice.status === 'Completed') {
+                                            linkedInvoice.status = 'Unpaid';
+                                            linkedInvoice.completedDate = '';
+                                            await saveRecord(storeName, linkedInvoice);
+                                        }
                                     }
                                 }
                             }
@@ -3024,7 +3289,8 @@ const app = {
                         
                         // NEW: Auto-Complete Advance Payments Engine
                         if (typeof app.autoCompleteInvoices === 'function') {
-                            await app.autoCompleteInvoices(targetPartyId, type === 'in' ? 'sales' : 'purchases');
+                            // ENTERPRISE FIX: Pass the exact Payment Date into the background engine!
+                            await app.autoCompleteInvoices(targetPartyId, type === 'in' ? 'sales' : 'purchases', data.date);
                         }
 
                         UI.showSuccess(); // UPGRADE: Trigger GPay Animation!
@@ -3187,7 +3453,8 @@ const app = {
     // ==========================================
     // AUTO-COMPLETE ADVANCE PAYMENT ENGINE
     // ==========================================
-    autoCompleteInvoices: async (partyId, type) => {
+    // ENTERPRISE FIX: Engine now accepts the 'triggerDate' from forms!
+    autoCompleteInvoices: async (partyId, type, triggerDate = null) => {
         const isSales = (type === 'sales');
         const storeName = isSales ? 'sales' : 'purchases';
         const partyKey = isSales ? 'customerId' : 'supplierId';
@@ -3282,7 +3549,8 @@ const app = {
             if (finalBal <= 0.01) {
                 if (item.doc.status !== 'Completed') {
                     item.doc.status = 'Completed';
-                    if (typeof Utils !== 'undefined' && Utils.getLocalDate) item.doc.completedDate = item.doc.completedDate || Utils.getLocalDate();
+                    // ENTERPRISE FIX: Inherit the exact back-dated Receipt Date so Cash Flow reports are perfect!
+                    item.doc.completedDate = triggerDate || ((typeof Utils !== 'undefined' && Utils.getLocalDate) ? Utils.getLocalDate() : '');
                     await saveRecord(storeName, item.doc);
                 }
             } else {
@@ -4479,6 +4747,145 @@ const app = {
             console.error("Year End Engine Error:", error);
             alert("An error occurred while closing the books.");
         }
+    }, // <-- Notice the comma here!
+
+    // ==========================================
+    // ENTERPRISE UPGRADE 2: DEAD STOCK CAPITAL ANALYZER
+    // ==========================================
+    generateDeadStockReport: async () => {
+        if (!confirm("Run Dead Stock Analysis? This will scan all items and identify capital trapped in inventory not sold in the last 90 days.")) return;
+        
+        if (window.Utils) window.Utils.showToast("Analyzing Warehouse Capital... ⏳");
+        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+        const items = await window.getAllRecords('items', 'firmId', app.state.firmId);
+        
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        
+        let deadStockCapital = 0;
+        let csvContent = "SOLLO ERP - DEAD STOCK ANALYSIS (90+ DAYS)\n\nItem Name,Current Stock,Buy Price,Trapped Capital,Last Sold Date\n";
+        
+        items.forEach(item => {
+            const stock = parseFloat(item.stock) || 0;
+            if (stock <= 0) return; 
+            
+            let lastSoldDate = new Date(0); 
+            sales.forEach(s => {
+                if (s.status !== 'Open' && s.documentType !== 'return' && s.firmId === app.state.firmId) {
+                    const found = (s.items || []).find(i => String(i.itemId) === String(item.id));
+                    if (found) {
+                        const sDate = window.Utils.safeDate(s.date);
+                        if (sDate > lastSoldDate) lastSoldDate = sDate;
+                    }
+                }
+            });
+            
+            if (lastSoldDate < ninetyDaysAgo) {
+                const buyPrice = parseFloat(item.buyPrice) || 0;
+                const trappedValue = stock * buyPrice;
+                deadStockCapital += trappedValue;
+                
+                const dateStr = lastSoldDate.getTime() === 0 ? "Never Sold" : lastSoldDate.toLocaleDateString('en-IN');
+                csvContent += `"${item.name.replace(/"/g, '""')}",${stock},${buyPrice},${trappedValue.toFixed(2)},"${dateStr}"\n`;
+            }
+        });
+        
+        csvContent += `\nTOTAL TRAPPED CAPITAL,,,${deadStockCapital.toFixed(2)}\n`;
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const file = new File([blob], `Dead_Stock_Report_${window.Utils.getLocalDate()}.csv`, { type: 'text/csv' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ title: "Dead Stock Report", files: [file] });
+        } else if (window.Utils) {
+            window.Utils.downloadFile(csvContent, file.name, 'text/csv');
+        }
+        if (window.Utils) window.Utils.showToast("✅ Analysis Complete!");
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE 3: TIME-MACHINE STOCK SNAPSHOT
+    // ==========================================
+    generateTimeMachineSnapshot: async () => {
+        const targetDateStr = prompt("Enter the historical date for the Stock Snapshot (YYYY-MM-DD):", window.Utils.getLocalDate());
+        if (!targetDateStr) return;
+        
+        const targetDate = window.Utils.safeDate(targetDateStr);
+        if (isNaN(targetDate.getTime())) return alert("Invalid date format. Please use YYYY-MM-DD.");
+        
+        if (window.Utils) window.Utils.showToast("Reversing Timeline... ⏳");
+        
+        const items = await window.getAllRecords('items', 'firmId', app.state.firmId);
+        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+        const purchases = await window.getAllRecords('purchases', 'firmId', app.state.firmId);
+        const adjustments = await window.getAllRecords('adjustments', 'firmId', app.state.firmId);
+        const expenses = await window.getAllRecords('expenses', 'firmId', app.state.firmId);
+        
+        let totalValuation = 0;
+        let csvContent = `SOLLO ERP - HISTORICAL STOCK VALUATION AS OF ${targetDateStr}\n\nItem Name,Historical Stock,Buy Price,Total Value\n`;
+        
+        items.forEach(item => {
+            let historicalStock = parseFloat(item.stock) || 0;
+            const buyPrice = parseFloat(item.buyPrice) || 0;
+            
+            // REVERSE EVERY TRANSACTION THAT HAPPENED *AFTER* THE TARGET DATE
+            sales.forEach(s => {
+                if (s.status !== 'Open' && s.status !== 'Cancelled' && window.Utils.safeDate(s.date) > targetDate) {
+                    const isReturn = s.documentType === 'return';
+                    (s.items || []).forEach(row => {
+                        if (String(row.itemId) === String(item.id)) {
+                            const qty = parseFloat(row.qty) || 0;
+                            historicalStock += isReturn ? -qty : qty;
+                        }
+                    });
+                }
+            });
+            
+            purchases.forEach(p => {
+                if (p.status !== 'Open' && p.status !== 'Cancelled' && window.Utils.safeDate(p.date) > targetDate) {
+                    const isReturn = p.documentType === 'return';
+                    (p.items || []).forEach(row => {
+                        if (String(row.itemId) === String(item.id)) {
+                            const qty = parseFloat(row.qty) || 0;
+                            historicalStock += isReturn ? qty : -qty;
+                        }
+                    });
+                }
+            });
+            
+            adjustments.forEach(a => {
+                if (window.Utils.safeDate(a.date) > targetDate && String(a.itemId) === String(item.id)) {
+                    const qty = parseFloat(a.qty) || 0;
+                    historicalStock += (a.type === 'add') ? -qty : qty;
+                }
+            });
+            
+            expenses.forEach(e => {
+                if (window.Utils.safeDate(e.date) > targetDate) {
+                    (e.items || []).forEach(row => {
+                        if (String(row.itemId) === String(item.id)) {
+                            historicalStock += parseFloat(row.qty) || 0;
+                        }
+                    });
+                }
+            });
+            
+            if (historicalStock !== 0) {
+                const itemValue = historicalStock * buyPrice;
+                totalValuation += itemValue;
+                csvContent += `"${item.name.replace(/"/g, '""')}",${historicalStock.toFixed(2)},${buyPrice},${itemValue.toFixed(2)}\n`;
+            }
+        });
+        
+        csvContent += `\nTOTAL HISTORICAL VALUATION,,,${totalValuation.toFixed(2)}\n`;
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const file = new File([blob], `Stock_Snapshot_${targetDateStr}.csv`, { type: 'text/csv' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ title: "Historical Stock Snapshot", files: [file] });
+        } else if (window.Utils) {
+            window.Utils.downloadFile(csvContent, file.name, 'text/csv');
+        }
+        if (window.Utils) window.Utils.showToast("✅ Snapshot Generated!");
     }
 
 }; // <--- THIS IS THE CRITICAL CLOSING BRACKET FOR THE APP OBJECT
@@ -4668,31 +5075,95 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         if (runBal > 0.01) { finalBalStatus = 'Due to Receive (Dr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
         else if (runBal < -0.01) { finalBalStatus = 'Advance Received (Cr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
     } else {
-        if (runBal > 0.01) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
-        else if (runBal < -0.01) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
+        // 🚨 ENTERPRISE FIX: Supplier debt is a Liability (Negative). We must invert the math!
+        if (runBal < -0.01) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
+        else if (runBal > 0.01) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
+    }
+
+    // 🚀 ENTERPRISE GST SPLIT ENGINE FOR KHATA STATEMENT PDF
+    let splitHtml = '';
+    if ((String(partyType).toLowerCase() === 'customer' && runBal > 0.01) || (String(partyType).toLowerCase() !== 'customer' && runBal < -0.01)) {
+        const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
+        let ob = parseFloat(party.openingBalance) || 0;
+        let isAdv = String(partyType).toLowerCase() === 'customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
+        
+        let credits = isAdv ? ob : 0;
+        let debitsGst = !isAdv ? ob : 0;
+        let debitsNon = 0;
+        let invoices = [];
+
+        if (String(partyType).toLowerCase() === 'customer') {
+            const allSales = await getAllRecords('sales', 'firmId', window.app.state.firmId);
+            allSales.forEach(s => {
+                if (s.status !== 'Open' && s.customerId === partyId) {
+                    if (s.documentType === 'return') credits += parseFloat(s.grandTotal || 0);
+                    else invoices.push({ type: s.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(s.grandTotal || 0), date: s.date });
+                }
+            });
+            const allReceipts = await getAllRecords('receipts', 'firmId', window.app.state.firmId);
+            allReceipts.forEach(c => {
+                if (c.ledgerId === partyId) credits += (c.type === 'in' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
+            });
+        } else {
+            const allPurchases = await getAllRecords('purchases', 'firmId', window.app.state.firmId);
+            allPurchases.forEach(p => {
+                if (p.status !== 'Open' && p.supplierId === partyId) {
+                    if (p.documentType === 'return') credits += parseFloat(p.grandTotal || 0);
+                    else invoices.push({ type: p.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(p.grandTotal || 0), date: p.date });
+                }
+            });
+            const allReceipts = await getAllRecords('receipts', 'firmId', window.app.state.firmId);
+            allReceipts.forEach(c => {
+                if (c.ledgerId === partyId) credits += (c.type === 'out' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
+            });
+        }
+
+        invoices.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+        
+        if (credits >= debitsGst) { credits -= debitsGst; debitsGst = 0; }
+        else { debitsGst -= credits; credits = 0; }
+
+        invoices.forEach(inv => {
+            let unpaid = inv.amt;
+            if (credits >= unpaid) { credits -= unpaid; unpaid = 0; }
+            else { unpaid -= credits; credits = 0; }
+            if (unpaid > 0.01) {
+                if (inv.type === 'gst') debitsGst += unpaid;
+                else debitsNon += unpaid;
+            }
+        });
+
+        if (debitsGst > 0.01 || debitsNon > 0.01) {
+            splitHtml = `<div style="margin-top: 12px; background: #f1f5f9; padding: 10px; border-radius: 6px; border: 1px dashed #cbd5e1; width: 100%; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">`;
+            if (debitsGst > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f172a; font-weight: 800;"><span>GST Due:</span><span>₹${debitsGst.toFixed(2)}</span></div>`;
+            if (debitsNon > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f172a; font-weight: 800;"><span>Non-GST Due:</span><span>₹${debitsNon.toFixed(2)}</span></div>`;
+            splitHtml += `</div>`;
+        }
     }
 
     html += `
             </tbody>
         </table>
         
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px; gap: 10px;">
-            <div style="background: #f8fafc; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; gap: 15px; max-width: 50%; overflow: hidden;">
-                <div style="min-width: 0;">
-                    <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600;">Total Debit</span><br>
-                    <strong style="font-size: 13px; color: #e11d48; word-wrap: break-word;">₹ ${totalDebit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px; gap: 15px;">
+            
+            <div style="flex: 1; background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: block; margin-bottom: 10px;">Transaction Summary</span>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; align-items: center;">
+                    <span style="font-size: 12px; color: #475569; font-weight: 600;">Total Debit (Dr)</span>
+                    <strong style="font-size: 13px; color: #e11d48;">₹ ${totalDebit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
                 </div>
-                <div style="width: 1px; background: #cbd5e1; flex-shrink: 0;"></div>
-                <div style="min-width: 0;">
-                    <span style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 600;">Total Credit</span><br>
-                    <strong style="font-size: 13px; color: #16a34a; word-wrap: break-word;">₹ ${totalCredit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 12px; color: #475569; font-weight: 600;">Total Credit (Cr)</span>
+                    <strong style="font-size: 13px; color: #16a34a;">₹ ${totalCredit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
                 </div>
             </div>
 
-            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${statusColor}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-shrink: 0; max-width: 45%;">
-                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Closing Balance</span><br>
-                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px; word-wrap: break-word;">₹ ${finalBalText}</strong>
-                <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${statusColor}40; display: inline-block; white-space: normal; text-align: right; line-height: 1.2;">${finalBalStatus}</span>
+            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${statusColor}; display: flex; flex-direction: column; align-items: flex-end; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-shrink: 0; min-width: 200px;">
+                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; text-align: right;">Closing Balance</span>
+                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px; word-wrap: break-word; text-align: right;">₹ ${finalBalText}</strong>
+                <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${statusColor}40; display: inline-block; text-align: right; line-height: 1.2;">${finalBalStatus}</span>
+                ${splitHtml}
             </div>
         </div>
     </div>`;

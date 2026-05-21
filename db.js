@@ -161,7 +161,13 @@ const saveRecord = (storeName, data) => {
         
         const request = store.put(data);
         request.onsuccess = () => resolve(data.id || data.firmId);
-        request.onerror = () => reject(request.error);
+        request.onerror = (event) => {
+            // 🚨 ENTERPRISE FIX: The Quota Data-Loss Shield!
+            if (event.target.error && event.target.error.name === 'QuotaExceededError') {
+                alert("🚨 CRITICAL: Device storage is completely full! Empty your recycle bin or delete photos to save data.");
+            }
+            reject(request.error);
+        };
     });
 };
 

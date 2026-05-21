@@ -3699,3 +3699,54 @@ button[type="submit"], .btn-primary {
         padding: 15px !important;
     }
 }
+/* ==========================================
+   ENTERPRISE UPGRADE: 3-IN-1 UI ENGINE
+   ========================================== */
+
+/* 1. TABULAR LINING (Wall Street Typography) */
+/* Forces all numbers and decimals to perfectly align in vertical columns */
+input[type="number"], .list-view span, td, th, .currency, .amount, .balance-text {
+    font-variant-numeric: tabular-nums !important;
+    font-feature-settings: "tnum" !important;
+    letter-spacing: 0.3px;
+}
+
+/* 2. SKELETON LOADING ENGINE */
+/* Creates the cinematic pulsing grey boxes while data loads */
+.skeleton-loader {
+    display: block;
+    width: 100%;
+    height: 68px;
+    background: linear-gradient(90deg, var(--md-surface-variant) 25%, var(--md-outline-variant) 50%, var(--md-surface-variant) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite linear;
+    border-radius: 12px;
+    margin-bottom: 8px;
+    opacity: 0.6;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* 3. DATA DENSITY ENGINE (Compact Mode) */
+/* Mathematically shrinks padding and fonts to fit 2x more data on screen */
+body.compact-mode .list-view li {
+    padding: 6px 12px !important;
+    min-height: auto !important;
+}
+body.compact-mode .list-view .material-symbols-outlined {
+    font-size: 20px !important;
+}
+body.compact-mode h3 {
+    font-size: 14px !important;
+    margin-bottom: 2px !important;
+}
+body.compact-mode p {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+}
+body.compact-mode input, body.compact-mode select {
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+}
