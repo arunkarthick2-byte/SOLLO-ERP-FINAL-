@@ -526,8 +526,16 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             target.style.position = 'relative';
                             target.style.margin = '0 auto';
                             target.style.transform = 'none'; // ENTERPRISE FIX: Prevent iOS/Android from downscaling the clone!
+                            
+                            // 🚨 CRITICAL FIX: Destroy Mobile Viewport Stretching!
+                            // Forces the background canvas to tightly shrink-wrap short receipts so they never spill onto page 2!
+                            target.style.height = 'max-content';
+                            target.style.minHeight = '0px';
+                            
                             clonedDoc.body.style.width = '800px';
                             clonedDoc.body.style.overflow = 'visible';
+                            clonedDoc.body.style.height = 'max-content';
+                            clonedDoc.body.style.minHeight = '0px';
                         }
                     }
                 },
@@ -600,6 +608,12 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         printArea.style.position = 'relative';
                         printArea.style.visibility = 'visible';
                         printArea.style.width = '800px';
+
+                        // 🚨 CRITICAL FIX: Destroy Mobile Viewport Stretching!
+                        printArea.style.height = 'max-content';
+                        printArea.style.minHeight = '0px';
+                        clonedDoc.body.style.height = 'max-content';
+                        clonedDoc.body.style.minHeight = '0px';
                     }
                 }
             });
@@ -1699,8 +1713,16 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             target.style.position = 'relative';
                             target.style.margin = '0 auto';
                             target.style.transform = 'none'; // ENTERPRISE FIX: Prevent iOS/Android from downscaling the clone!
+                            
+                            // 🚨 CRITICAL FIX: Destroy Mobile Viewport Stretching!
+                            // Forces the background canvas to tightly shrink-wrap short receipts so they never spill onto page 2!
+                            target.style.height = 'max-content';
+                            target.style.minHeight = '0px';
+                            
                             clonedDoc.body.style.width = '800px';
                             clonedDoc.body.style.overflow = 'visible';
+                            clonedDoc.body.style.height = 'max-content';
+                            clonedDoc.body.style.minHeight = '0px';
                         }
                     }
                 },

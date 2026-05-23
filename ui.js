@@ -37,27 +37,29 @@ const UI = {
             }
         }, { passive: true });
         
-        // --- ENTERPRISE FIX: SMART MOBILE KEYBOARDS ---
-        // Automatically forces native Number Pads and "Next" buttons across the entire app
-        document.querySelectorAll('input[type="number"]').forEach(input => {
-            input.setAttribute('inputmode', 'decimal');
-            input.setAttribute('enterkeyhint', 'next');
-        });
-        
-        // Forces the pure phone dialer keyboard for all phone number inputs
-        document.querySelectorAll('input[id*="phone"], input[name*="phone"]').forEach(input => {
-            input.setAttribute('type', 'tel');
-            input.setAttribute('inputmode', 'tel');
-            input.setAttribute('enterkeyhint', 'next');
-        });
-        
-        // Changes the default mobile "Go/Search" button to a smooth "Next" button
-        document.querySelectorAll('input[type="text"], input[type="date"]').forEach(input => {
-            if(!input.getAttribute('enterkeyhint')) input.setAttribute('enterkeyhint', 'next');
+        // 🚨 ENTERPRISE UPGRADE: DYNAMIC MOBILE KEYBOARD ENGINE
+        // This intercepts every input globally the millisecond it is tapped! 
+        // It guarantees dynamically added Invoice Rows get the proper Numpad and strict Date Locks.
+        document.addEventListener('focusin', (e) => {
+            if (e.target.tagName !== 'INPUT') return;
             
-            // ENTERPRISE FIX 1: The Accounting Time-Lock (Physically prevents logging future dates)
-            if(input.type === 'date') input.setAttribute('max', new Date().toISOString().split('T')[0]);
-        });
+            if (!e.target.getAttribute('enterkeyhint')) e.target.setAttribute('enterkeyhint', 'next');
+            
+            if (e.target.type === 'number') {
+                if (!e.target.getAttribute('inputmode')) e.target.setAttribute('inputmode', 'decimal');
+            }
+            else if (e.target.type === 'date') {
+                // 🚨 CRITICAL FIX: UTC Timezone Bug! 
+                // new Date().toISOString() runs in London Time, preventing users from invoicing between 12AM and 5:30AM!
+                if (window.Utils && typeof window.Utils.getLocalDate === 'function') {
+                    e.target.setAttribute('max', window.Utils.getLocalDate());
+                }
+            }
+            else if (e.target.id.includes('phone') || e.target.name.includes('phone')) {
+                e.target.setAttribute('type', 'tel');
+                e.target.setAttribute('inputmode', 'tel');
+            }
+        }, { capture: true });
 
         // ENTERPRISE FIX 2: Dirty Form Tracker & Double-Billing Spinner Shield
         // ENTERPRISE FIX 4: The Dictionary Shield (Disable Autocorrect on Names & Items)
@@ -70,7 +72,7 @@ const UI = {
             }
         });
 
-        // ENTERPRISE FIX 5: Tax Auto-Capitalizer & Negative Number Blocker
+        // 🚨 ENTERPRISE FIX 5: Tax Auto-Capitalizer & Safe Negative Math
         document.addEventListener('input', (e) => {
             if (e.target.tagName === 'INPUT') {
                 const id = (e.target.id || '').toLowerCase();
@@ -80,9 +82,11 @@ const UI = {
                     e.target.value = e.target.value.toUpperCase();
                     e.target.setSelectionRange(start, start);
                 }
-                // 2. Block negative signs in standard forms (except specifically allowed math fields)
-                if (e.target.type === 'number' && e.target.value.includes('-')) {
-                    e.target.value = Math.abs(e.target.value);
+                // 2. 🚨 CRITICAL FIX: Allow negative numbers for Stock Adjustments and Refunds!
+                if (e.target.type === 'number' && String(e.target.value).includes('-')) {
+                    if (!id.includes('adjust') && !id.includes('discount') && !id.includes('return')) {
+                        e.target.value = Math.abs(e.target.value);
+                    }
                 }
             }
         });

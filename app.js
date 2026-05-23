@@ -65,7 +65,8 @@ requestWakeLock(); // Request immediately on boot
 window.addEventListener('beforeunload', (event) => {
     // STRICT ERP LOGIC: Only trap the user if they are inside a DATA ENTRY form, not a read-only PDF or Ledger report!
     const openForms = Array.from(document.querySelectorAll('.activity-screen.open')).filter(el => el.id.includes('-form'));
-    if (openForms.length > 0) {
+    // 🚨 CRITICAL FIX: Ensure we only trap the user if they have ACTUALLY typed something!
+    if (openForms.length > 0 && window.isFormDirty) {
         event.preventDefault();
         event.returnValue = "You have unsaved changes. Are you sure you want to leave?";
         return event.returnValue;
@@ -129,6 +130,52 @@ document.addEventListener('visibilitychange', () => {
 // ui.js already contains a vastly superior 'Anti-Clone Shield' that doesn't break HTML form validators.
 // Having both running simultaneously was causing permanent button freezes!
 
+// --- ENTERPRISE UPGRADE: SMART PINCODE AUTO-FETCH ---
+// Automatically looks up the City and State when a 6-digit Indian Pincode is entered!
+document.addEventListener('input', async (e) => {
+    if (e.target.tagName === 'INPUT' && (e.target.id.toLowerCase().includes('pincode') || e.target.name === 'pincode')) {
+        const pincode = e.target.value.trim();
+        
+        // Only trigger the API when exactly 6 digits are typed
+        if (pincode.length === 6) {
+            try {
+                if (window.Utils) window.Utils.showToast("Fetching location... 📍");
+                
+                const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
+                const data = await response.json();
+                
+                if (data && data[0] && data[0].Status === 'Success') {
+                    const location = data[0].PostOffice[0];
+                    const form = e.target.closest('form');
+                    
+                    if (form) {
+                        const cityInput = form.querySelector('[id*="city"], [name*="city"]');
+                        const stateInput = form.querySelector('[id*="state"], [name*="state"]');
+                        
+                        // Auto-fill only if the fields are currently empty (so we don't overwrite manual edits)
+                        if (cityInput && !cityInput.value) {
+                            cityInput.value = location.District || location.Block || location.Region;
+                            cityInput.dispatchEvent(new Event('input', { bubbles: true })); 
+                        }
+                        
+                        if (stateInput && !stateInput.value) {
+                            stateInput.value = location.State;
+                            stateInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                        
+                        if (window.Utils) window.Utils.showToast("Location auto-filled! ✨");
+                        if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('medium');
+                    }
+                } else {
+                    if (window.Utils) window.Utils.showToast("⚠️ Invalid Pincode");
+                }
+            } catch (err) {
+                console.warn("Pincode API Error:", err);
+            }
+        }
+    }
+});
+
 // --- ENTERPRISE UI: REAL-TIME FORM VALIDATION LOCK ---
 // Watches every keystroke and prevents clicking "Save" until required fields are filled!
 document.addEventListener('input', (e) => {
@@ -138,8 +185,18 @@ document.addEventListener('input', (e) => {
     const submitBtn = form.querySelector('button[type="submit"]');
     if (!submitBtn) return;
 
-    // Check if the HTML5 form is perfectly valid
-    if (form.checkValidity()) {
+    // 🚨 ENTERPRISE FIX: The "Auto-Scream" Bug!
+    // form.checkValidity() violently fires the "invalid" event on every empty field.
+    // We must check each element manually so the form doesn't scream at the user the second they open it!
+    let isValid = true;
+    for (let i = 0; i < form.elements.length; i++) {
+        if (form.elements[i].willValidate && !form.elements[i].validity.valid) {
+            isValid = false;
+            break;
+        }
+    }
+
+    if (isValid) {
         submitBtn.style.opacity = '1';
         submitBtn.style.filter = 'grayscale(0%)';
         submitBtn.style.transform = 'scale(1)';
@@ -1325,15 +1382,15 @@ const app = {
             let balColor = 'var(--md-text-muted)';
             let subText = ''; // 🚀 ENTERPRISE GST SPLIT ENGINE FOR UI HEADER
 
+            // 🚨 ENTERPRISE FIX: Drop "To Pay/Receive" to a new line as a beautiful badge so long Party Names don't get squished!
             if (partyType === 'Customer') {
-                if (bal > 0.01) { balText = `Closing Balance: \u20B9${bal.toFixed(2)} (To Receive)`; balColor = 'var(--md-error)'; }
-                else if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
-                else { balText = `Closing Balance: \u20B90.00`; balColor = 'var(--md-on-surface)'; }
+                if (bal > 0.01) { balText = `Closing Balance: \u20B9${bal.toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#fff0f2; color:var(--md-error); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(186,26,26,0.2);">TO RECEIVE</span>`; balColor = 'var(--md-error)'; }
+                else if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#e8f5e9; color:var(--md-success); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(20,108,46,0.2);">ADVANCE</span>`; balColor = 'var(--md-success)'; }
+                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#f1f5f9; color:var(--md-text-muted); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(100,116,139,0.2);">SETTLED</span>`; balColor = 'var(--md-on-surface)'; }
             } else {
-                // 🚨 ENTERPRISE FIX: Supplier debt is a Liability (Negative). We must invert the math!
-                if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} (To Pay)`; balColor = 'var(--md-error)'; }
-                else if (bal > 0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} (Advance)`; balColor = 'var(--md-success)'; }
-                else { balText = `Closing Balance: \u20B90.00`; balColor = 'var(--md-on-surface)'; }
+                if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#fff0f2; color:var(--md-error); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(186,26,26,0.2);">TO PAY</span>`; balColor = 'var(--md-error)'; }
+                else if (bal > 0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#e8f5e9; color:var(--md-success); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(20,108,46,0.2);">ADVANCE</span>`; balColor = 'var(--md-success)'; }
+                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#f1f5f9; color:var(--md-text-muted); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(100,116,139,0.2);">SETTLED</span>`; balColor = 'var(--md-on-surface)'; }
             }
             
             // 🚀 Execute the precise FIFO Tax-Split mathematically for the internal Ledger screen!
