@@ -77,10 +77,11 @@ const UI = {
             if (e.target.tagName === 'INPUT') {
                 const id = (e.target.id || '').toLowerCase();
                 // 1. Force Uppercase for GST and IFSC
-                if (id.includes('gst') || id.includes('ifsc') || id.includes('pan')) {
+                // 🚨 CRITICAL FIX: Only run on TEXT inputs! Running selectionStart on a NUMBER input causes a fatal DOMException crash!
+                if ((id.includes('gst') || id.includes('ifsc') || id.includes('pan')) && e.target.type === 'text') {
                     const start = e.target.selectionStart;
                     e.target.value = e.target.value.toUpperCase();
-                    e.target.setSelectionRange(start, start);
+                    if (start !== null) e.target.setSelectionRange(start, start); // Added iOS null safety
                 }
                 // 2. 🚨 CRITICAL FIX: Allow negative numbers for Stock Adjustments and Refunds!
                 if (e.target.type === 'number' && String(e.target.value).includes('-')) {
@@ -1049,8 +1050,8 @@ const UI = {
                     <div class="m3-card tap-target list-card" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                             <div style="flex:1; min-width:0; overflow:hidden;">
-                                <div class="large-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
+                                <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
+                                <small class="color-primary" style="display:block; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
@@ -1135,8 +1136,8 @@ const UI = {
                     <div class="m3-card tap-target" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('purchase', '${p.id}', '${p.documentType}')">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                             <div style="flex:1; min-width:0; overflow:hidden;">
-                                <div class="large-text" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${p.date || 'Unknown Date'}</small>
+                                <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
+                                <small class="color-primary" style="display:block; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${p.date || 'Unknown Date'}</small>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
@@ -1306,9 +1307,9 @@ const UI = {
                             <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
                             </div>
-                            <div style="flex: 1; min-width: 0; overflow: hidden;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${stockLabel}</small>
+                            <div style="flex: 1; min-width: 0; padding-right: 12px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px;">${stockLabel}</small>
                             </div>
                             <div style="text-align: right; flex-shrink: 0;">
                                 <strong style="font-size: 15px; color: var(--md-on-surface);">\u20B9${(i.sellPrice || 0).toFixed(2)}</strong><br>
@@ -1361,24 +1362,27 @@ const UI = {
                     let balColor = 'var(--md-text-muted)';
                     let subText = '';
                     
+                    // 🚨 ENTERPRISE FIX: Stacked balances & Width Limits to guarantee the Name stays horizontal!
                     if (bal > 0.01) { 
-                        balText = `\u20B9${bal.toFixed(2)} (${isCustomer ? 'Receive' : 'Pay'})`; 
+                        balText = `\u20B9${bal.toFixed(2)}`; 
                         balColor = 'var(--md-error)'; 
-                        
-                        // Extract exact split data dynamically!
-                        if (split.gst > 0.01 && split.non > 0.01) subText = `GST: \u20B9${split.gst.toFixed(0)} | Non: \u20B9${split.non.toFixed(0)}`;
-                        else if (split.gst > 0.01) subText = `GST Due: \u20B9${split.gst.toFixed(2)}`;
-                        else if (split.non > 0.01) subText = `Non-GST Due: \u20B9${split.non.toFixed(2)}`;
+                        let statusBadge = `<span style="background:#fff0f2; color:#ba1a1a; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; margin-bottom:4px; display:inline-block;">TO ${isCustomer ? 'RECEIVE' : 'PAY'}</span><br>`;
+                        // FIX: Replaced " | " with "<br>" to stack the taxes and halve the width!
+                        if (split.gst > 0.01 && split.non > 0.01) subText = statusBadge + `GST: \u20B9${split.gst.toFixed(0)}<br>Non: \u20B9${split.non.toFixed(0)}`;
+                        else if (split.gst > 0.01) subText = statusBadge + `GST Due: \u20B9${split.gst.toFixed(2)}`;
+                        else if (split.non > 0.01) subText = statusBadge + `Non-GST Due: \u20B9${split.non.toFixed(2)}`;
+                        else subText = statusBadge;
                     }
                     else if (bal < -0.01) { 
-                        balText = `\u20B9${Math.abs(bal).toFixed(2)} (Advance)`; 
+                        balText = `\u20B9${Math.abs(bal).toFixed(2)}`; 
                         balColor = 'var(--md-success)'; 
+                        subText = `<span style="background:#e8f5e9; color:#146c2e; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">ADVANCE</span>`;
                     }
-                    else { balText = `\u20B90.00`; }
+                    else { balText = `\u20B90.00`; subText = '';}
                     
                     const rowIcon = isCustomer ? 'person' : 'storefront';
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
-                    const subTextHTML = subText ? `<small style="display:block; color:var(--md-error); font-weight:600; font-size:10px; margin-top:2px;">${subText}</small>` : '';
+                    const subTextHTML = subText ? `<small style="display:block; color:var(--md-error); font-weight:600; font-size:10px; margin-top:2px; line-height:1.2;">${subText}</small>` : '';
 
                     // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
                     const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -1388,11 +1392,11 @@ const UI = {
                             <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                             </div>
-                            <div style="flex: 1; min-width: 0; overflow: hidden;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
+                            <div style="flex: 1; min-width: 0; padding-right: 12px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
                             </div>
-                            <div style="text-align: right; flex-shrink: 0;">
+                            <div style="text-align: right; flex-shrink: 0; max-width: 45%;">
                                 <strong style="font-size: 15px; color: ${balColor};">${balText}</strong>
                                 ${subTextHTML}
                             </div>
@@ -1500,12 +1504,12 @@ const UI = {
                     }
                     
                     return `
-                    <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:center;" onclick="app.openForm('expense', '${e.id}')">
-                        <div>
-                            <strong class="large-text">${e.expenseNo ? e.expenseNo + ' - ' : ''}${e.category || 'General Expense'}</strong><br>
-                            <small>${e.date || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''} | ${e.notes || 'No notes'}</small>
+                    <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;" onclick="app.openForm('expense', '${e.id}')">
+                        <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                            <strong class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${e.expenseNo ? e.expenseNo + ' - ' : ''}${e.category || 'General Expense'}</strong>
+                            <small style="display: block; margin-top: 4px;">${e.date || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''} | ${e.notes || 'No notes'}</small>
                         </div>
-                        <strong style="color:var(--md-error);">\u20B9${(parseFloat(e.amount) || 0).toFixed(2)}</strong>
+                        <strong style="color:var(--md-error); flex-shrink: 0; padding-top: 2px;">\u20B9${(parseFloat(e.amount) || 0).toFixed(2)}</strong>
                     </div>`;
                 }, emptyHTML);
             }
@@ -3731,3 +3735,35 @@ window.addEventListener('popstate', (e) => {
         window.history.pushState({ internalRoute: true }, '');
     }
 });
+// ==========================================
+// 🚨 ENTERPRISE FIX: GLOBAL ANTI-DOUBLE-TAP SHIELD
+// ==========================================
+// Locks ALL forms instantly upon submission so impatient users cannot create duplicate database entries!
+document.addEventListener('submit', (e) => {
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    if (submitBtn) {
+        // If the form is already processing, violently stop any extra clicks!
+        if (form.getAttribute('data-is-submitting') === 'true') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return false;
+        }
+        
+        // Lock the form on the very first click!
+        form.setAttribute('data-is-submitting', 'true');
+        const originalText = submitBtn.innerHTML;
+        
+        // Give the user a visual cue that it is saving
+        submitBtn.style.opacity = '0.5';
+        submitBtn.innerHTML = 'Processing...';
+        
+        // Auto-unlock after 2.5 seconds (Safety fallback in case of internet/database delay)
+        setTimeout(() => {
+            form.removeAttribute('data-is-submitting');
+            submitBtn.style.opacity = '1';
+            submitBtn.innerHTML = originalText;
+        }, 2500);
+    }
+}, { capture: true });

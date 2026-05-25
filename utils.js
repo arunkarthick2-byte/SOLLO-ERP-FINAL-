@@ -296,6 +296,9 @@ const Utils = {
                 scale: 2, 
                 useCORS: true,
                 windowWidth: 800,
+                // 🚨 ENTERPRISE FIX: Shrink-wrap the canvas to the receipt height to kill the blank 2nd page!
+                windowHeight: element.scrollHeight,
+                height: element.scrollHeight,
                 onclone: (clonedDoc) => {
                     const target = clonedDoc.getElementById(elementId);
                     if (target) {
@@ -514,7 +517,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
                     useCORS: true, 
                     windowWidth: 800, // ENTERPRISE FIX: Lock to exactly 800px!
-                    scrollY: 0, // 🚨 CRITICAL FIX: Reset scroll position to prevent offset bugs
+                    // 🚨 ENTERPRISE FIX: Shrink-wrap the canvas to the receipt height to kill the blank 2nd page!
+                    windowHeight: element.scrollHeight,
+                    height: element.scrollHeight,
+                    scrollY: 0, 
                     scrollX: 0,
                     letterRendering: true,
                     onclone: (clonedDoc) => {
@@ -598,7 +604,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 logging: false,
                 backgroundColor: '#ffffff',
                 windowWidth: 800, // Force engine to render as a desktop screen
-                scrollY: 0, // 🚨 CRITICAL FIX: Prevents white gaps at the top if the user was scrolled down!
+                // 🚨 ENTERPRISE FIX: Shrink-wrap the canvas to the receipt height to kill the blank 2nd page!
+                windowHeight: element.scrollHeight,
+                height: element.scrollHeight,
+                scrollY: 0, 
                 scrollX: 0,
                 onclone: (clonedDoc) => {
                     const printArea = clonedDoc.getElementById('print-area');
@@ -1701,7 +1710,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     useCORS: true, 
                     logging: false, 
                     windowWidth: 800, // ENTERPRISE FIX: Lock exactly to 800px so mobile share doesn't misalign!
-                    scrollY: 0, // 🚨 CRITICAL FIX: Prevents the PDF from being cut off at the bottom if the user scrolled down!
+                    // 🚨 ENTERPRISE FIX: Shrink-wrap the canvas to the receipt height to kill the blank 2nd page!
+                    windowHeight: el.scrollHeight,
+                    height: el.scrollHeight,
+                    scrollY: 0, 
                     scrollX: 0,
                     letterRendering: true,
                     onclone: (clonedDoc) => {

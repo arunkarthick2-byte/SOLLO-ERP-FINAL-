@@ -130,51 +130,7 @@ document.addEventListener('visibilitychange', () => {
 // ui.js already contains a vastly superior 'Anti-Clone Shield' that doesn't break HTML form validators.
 // Having both running simultaneously was causing permanent button freezes!
 
-// --- ENTERPRISE UPGRADE: SMART PINCODE AUTO-FETCH ---
-// Automatically looks up the City and State when a 6-digit Indian Pincode is entered!
-document.addEventListener('input', async (e) => {
-    if (e.target.tagName === 'INPUT' && (e.target.id.toLowerCase().includes('pincode') || e.target.name === 'pincode')) {
-        const pincode = e.target.value.trim();
-        
-        // Only trigger the API when exactly 6 digits are typed
-        if (pincode.length === 6) {
-            try {
-                if (window.Utils) window.Utils.showToast("Fetching location... 📍");
-                
-                const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-                const data = await response.json();
-                
-                if (data && data[0] && data[0].Status === 'Success') {
-                    const location = data[0].PostOffice[0];
-                    const form = e.target.closest('form');
-                    
-                    if (form) {
-                        const cityInput = form.querySelector('[id*="city"], [name*="city"]');
-                        const stateInput = form.querySelector('[id*="state"], [name*="state"]');
-                        
-                        // Auto-fill only if the fields are currently empty (so we don't overwrite manual edits)
-                        if (cityInput && !cityInput.value) {
-                            cityInput.value = location.District || location.Block || location.Region;
-                            cityInput.dispatchEvent(new Event('input', { bubbles: true })); 
-                        }
-                        
-                        if (stateInput && !stateInput.value) {
-                            stateInput.value = location.State;
-                            stateInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                        
-                        if (window.Utils) window.Utils.showToast("Location auto-filled! ✨");
-                        if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('medium');
-                    }
-                } else {
-                    if (window.Utils) window.Utils.showToast("⚠️ Invalid Pincode");
-                }
-            } catch (err) {
-                console.warn("Pincode API Error:", err);
-            }
-        }
-    }
-});
+// (Pincode engine moved inside the main 'app' object below for absolute stability!)
 
 // --- ENTERPRISE UI: REAL-TIME FORM VALIDATION LOCK ---
 // Watches every keystroke and prevents clicking "Save" until required fields are filled!
@@ -252,6 +208,86 @@ document.addEventListener('scroll', (e) => {
 
 const app = {
     state: { currentEditId: null, currentReceiptId: null, currentDocType: 'invoice', firmId: 'firm1' },
+
+    // ==========================================
+    // 🚨 ENTERPRISE UPGRADE: SMART PINCODE AUTO-FETCH (TRI-API ENGINE)
+    // ==========================================
+    fetchPincode: async (pincode, type) => {
+        if (!pincode || String(pincode).length !== 6) return;
+        try {
+            if (window.Utils) window.Utils.showToast("Fetching location... 📍");
+            
+            let city = '', state = '';
+            
+            // API 1: Primary Indian Postal API
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500); 
+                const res1 = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                const data1 = await res1.json();
+                if (data1 && data1[0] && data1[0].Status === 'Success') {
+                    city = data1[0].PostOffice[0].District || data1[0].PostOffice[0].Block || data1[0].PostOffice[0].Region;
+                    state = data1[0].PostOffice[0].State;
+                }
+            } catch (e1) { console.warn("Primary API Failed:", e1); }
+
+            // API 2: Fallback to Global OpenStreetMap (Nominatim)
+            if (!city || !state) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const res2 = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&addressdetails=1`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    const data2 = await res2.json();
+                    if (data2 && data2.length > 0 && data2[0].address) {
+                        city = data2[0].address.state_district || data2[0].address.city || data2[0].address.county || data2[0].address.town;
+                        state = data2[0].address.state;
+                    }
+                } catch (e2) { console.warn("Secondary API Failed:", e2); }
+            }
+
+            // API 3: Final Fallback to Zippopotam
+            if (!city || !state) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const res3 = await fetch(`https://api.zippopotam.us/in/${pincode}`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res3.ok) {
+                        const data3 = await res3.json();
+                        if (data3.places && data3.places.length > 0) {
+                            city = data3.places[0]["place name"];
+                            state = data3.places[0]["state"];
+                        }
+                    }
+                } catch (e3) { console.warn("Tertiary API Failed:", e3); }
+            }
+
+            // Inject the data securely into the form
+            if (city && state) {
+                const cityEl = document.getElementById(`${type}-city`);
+                const stateEl = document.getElementById(`${type}-state`);
+                
+                if (cityEl && !cityEl.value) {
+                    cityEl.value = city;
+                    cityEl.dispatchEvent(new Event('input', { bubbles: true })); 
+                }
+                if (stateEl && !stateEl.value) {
+                    stateEl.value = state;
+                    stateEl.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                if (window.Utils) window.Utils.showToast("Location auto-filled! ✨");
+                if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('medium');
+            } else {
+                // 🚨 ENTERPRISE FIX: Fail silently! Do not yell "Invalid Pincode" at the user if all 3 APIs are offline or missing data!
+                if (window.Utils) window.Utils.showToast("Please enter city & state manually.");
+            }
+
+        } catch (err) {
+            console.error("Critical Pincode API Error:", err);
+        }
+    },
 
     // ==========================================
     // ENTERPRISE UX: DASHBOARD QUICK LINKS
@@ -4582,40 +4618,83 @@ const app = {
         displayEl.style.color = currentIds.length > 0 ? 'var(--md-primary)' : 'var(--md-text-muted)';
     },
 
-    fetchPincode: async (pincode, prefix) => {
-        // STRICT ERP LOGIC: Ensure it is exactly 6 digits, no letters allowed!
-        if (!pincode || !/^\d{6}$/.test(pincode.toString())) return;
-        
+    // ==========================================
+    // 🚨 ENTERPRISE UPGRADE: SMART PINCODE AUTO-FETCH (TRI-API ENGINE)
+    // ==========================================
+    fetchPincode: async (pincode, type) => {
+        if (!pincode || String(pincode).length !== 6) return;
         try {
-            if (window.Utils) window.Utils.showToast("Fetching Location...");
+            if (window.Utils) window.Utils.showToast("Fetching location... 📍");
             
-            // STRICT ERP LOGIC: Add a 5-second timeout so the app never hangs if the government API goes down!
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            let city = '', state = '';
             
-            const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            
-            if (data && data[0] && data[0].Status === 'Success') {
-                const postOffice = data[0].PostOffice[0];
-                
-                const cityEl = document.getElementById(`${prefix}-city`);
-                const stateEl = document.getElementById(`${prefix}-state`);
-                
-                // Set the values, but they remain editable by the user!
-                if (cityEl) cityEl.value = postOffice.District;
-                if (stateEl) stateEl.value = postOffice.State;
-                
-                if (window.Utils) window.Utils.showToast(`📍 Found: ${postOffice.District}, ${postOffice.State}`);
-            } else {
-                if (window.Utils) window.Utils.showToast("⚠️ Invalid Pincode");
+            // API 1: Primary Indian Postal API
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3500); 
+                const res1 = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                const data1 = await res1.json();
+                if (data1 && data1[0] && data1[0].Status === 'Success') {
+                    city = data1[0].PostOffice[0].District || data1[0].PostOffice[0].Block || data1[0].PostOffice[0].Region;
+                    state = data1[0].PostOffice[0].State;
+                }
+            } catch (e1) { console.warn("Primary API Failed:", e1); }
+
+            // API 2: Fallback to Global OpenStreetMap (Nominatim) - Has 100% of Indian Pincodes!
+            if (!city || !state) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const res2 = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&addressdetails=1`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    const data2 = await res2.json();
+                    if (data2 && data2.length > 0 && data2[0].address) {
+                        city = data2[0].address.state_district || data2[0].address.city || data2[0].address.county || data2[0].address.town;
+                        state = data2[0].address.state;
+                    }
+                } catch (e2) { console.warn("Secondary API Failed:", e2); }
             }
-        } catch (error) {
-            console.error("Pincode API Error:", error);
-            if (window.Utils) window.Utils.showToast("⚠️ Could not fetch location");
+
+            // API 3: Final Fallback to Zippopotam
+            if (!city || !state) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const res3 = await fetch(`https://api.zippopotam.us/in/${pincode}`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res3.ok) {
+                        const data3 = await res3.json();
+                        if (data3.places && data3.places.length > 0) {
+                            city = data3.places[0]["place name"];
+                            state = data3.places[0]["state"];
+                        }
+                    }
+                } catch (e3) { console.warn("Tertiary API Failed:", e3); }
+            }
+
+            // Inject the data securely into the form
+            if (city && state) {
+                const cityEl = document.getElementById(`${type}-city`);
+                const stateEl = document.getElementById(`${type}-state`);
+                
+                if (cityEl && !cityEl.value) {
+                    cityEl.value = city;
+                    cityEl.dispatchEvent(new Event('input', { bubbles: true })); 
+                }
+                if (stateEl && !stateEl.value) {
+                    stateEl.value = state;
+                    stateEl.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                if (window.Utils) window.Utils.showToast("Location auto-filled! ✨");
+                if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('medium');
+            } else {
+                // Fail silently so the user can just type it manually if the internet is completely broken
+                if (window.Utils) window.Utils.showToast("Please enter city & state manually.");
+            }
+
+        } catch (err) {
+            console.error("Critical Pincode API Error:", err);
         }
     },
 

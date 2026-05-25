@@ -3750,36 +3750,60 @@ body.compact-mode input, body.compact-mode select {
     padding: 10px 12px !important;
     font-size: 14px !important;
 }
-/* 🚨 ENTERPRISE FIX: Master View List Item Vertical Stack */
+/* 🚨 ENTERPRISE FIX: Premium Horizontal Master List Layout */
+
+/* 1. Restore the side-by-side (Horizontal) layout */
 .list-view li {
     display: flex !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    padding: 14px 16px !important;
-    height: auto !important;
-    gap: 6px !important;
+    flex-direction: row !important; /* Back to horizontal */
+    justify-content: space-between !important;
+    align-items: center !important; /* Vertically centers the row */
+    padding: 16px !important;
+    min-height: 72px !important;
+    gap: 16px !important; /* Ensures a strict physical gap between name and balance */
 }
 
-/* 1. Party Name Row (Top) - Takes full width */
+/* 2. Left Side (Name & Phone) - Allows it to grow, but stops it from crushing the right side */
 .list-view li > div:first-child {
-    width: 100% !important;
-    display: block !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important; /* Magic property: Prevents horizontal blowout */
+    width: auto !important;
+}
+
+/* 3. The Party Name - Premium 2-Line Text Clamp */
+.list-view li > div:first-child > strong {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important; /* Allows max 2 lines, then adds "..." */
+    -webkit-box-orient: vertical !important;
     white-space: normal !important;
+    overflow: hidden !important;
     word-wrap: break-word !important;
     font-size: 16px !important;
     font-weight: 600 !important;
     line-height: 1.3 !important;
 }
 
-/* 2. Financial Row (Bottom) - Right aligned */
+/* 4. Right Side (Balances) - Never shrink, stay pinned to the right */
 .list-view li > div:last-child {
-    width: 100% !important;
+    flex: 0 0 auto !important; /* Forbids the balance from shrinking */
+    width: auto !important;
     text-align: right !important;
-    font-size: 12px !important;
-    color: var(--md-text-muted) !important;
-    border-top: 1px dashed var(--md-outline-variant) !important;
-    padding-top: 6px !important;
-    display: flex !important;
-    justify-content: flex-end !important;
-    gap: 10px !important;
+    border-top: none !important; /* Remove the dashed line from the old vertical layout */
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+/* 🚨 ENTERPRISE FIX: Apple iPhone Safe Area Shield */
+/* Prevents the Bottom Navigation and Bottom Sheets from being crushed by the iPhone Home Bar! */
+
+.bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+.bottom-sheet {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+/* Ensure the floating Action Button (FAB) doesn't get hidden under the Apple bar */
+.fab {
+    margin-bottom: env(safe-area-inset-bottom, 0px) !important;
 }

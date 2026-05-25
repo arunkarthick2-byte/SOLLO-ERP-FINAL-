@@ -2281,7 +2281,7 @@
             <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-gst-report')" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Monthly GST Report</span>
             <div style="display: flex; gap: 16px; position: absolute; right: 16px; align-items: center;">
-                <span class="tap-target" id="btn-export-gst" style="display:flex; align-items:center; gap:4px; color:var(--md-primary); font-size:14px; font-weight:500;">
+                <span class="tap-target" id="btn-export-gst" onclick="if(window.app && typeof window.app.exportGSTCSV === 'function') window.app.exportGSTCSV(); else alert('Export function not linked in app.js!');" style="display:flex; align-items:center; gap:4px; color:var(--md-primary); font-size:14px; font-weight:500;">
                     <span class="material-symbols-outlined">download</span> Export CSV
                 </span>
             </div>
@@ -2483,12 +2483,10 @@
     </div>
 
     <div id="activity-item-ledger" class="activity-screen hidden">
-        <div class="app-header">
-            <span class="material-symbols-outlined nav-btn tap-target" onclick="window.UI.closeActivity('activity-item-ledger')">arrow_back</span>
-            <div class="header-title">
-                <strong id="item-ledger-title" style="font-size: 18px; color: var(--md-on-primary);">Item Ledger</strong>
-            </div>
-            <span class="material-symbols-outlined nav-btn tap-target" onclick="window.executeItemLedgerReport(document.getElementById('item-ledger-hidden-id').value, document.getElementById('item-ledger-hidden-name').value)">print</span>
+        <div class="activity-header" style="display: flex; align-items: center; padding: 12px 16px; background: var(--md-primary-container); color: var(--md-on-primary-container);">
+            <span class="material-symbols-outlined tap-target" onclick="window.UI.closeActivity('activity-item-ledger')" style="padding: 4px; margin-right: 12px;">arrow_back</span>
+            <strong id="item-ledger-title" style="flex: 1; font-size: 18px; font-weight: 600;">Item Ledger</strong>
+            <span class="material-symbols-outlined tap-target" onclick="window.executeItemLedgerReport(document.getElementById('item-ledger-hidden-id').value, document.getElementById('item-ledger-hidden-name').value)" style="padding: 4px;">print</span>
         </div>
         <div class="activity-content" style="padding: 16px; background: var(--md-background);">
             <input type="hidden" id="item-ledger-hidden-id">
@@ -2498,11 +2496,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=41.0"></script>
-    <script src="utils.js?v=41.0"></script>
-    <script src="ui.js?v=41.0"></script>
-    <script src="cloud.js?v=41.0"></script>
-    <script src="app.js?v=41.0"></script>
+    <script src="db.js?v=43.0"></script>
+    <script src="utils.js?v=43.0"></script>
+    <script src="ui.js?v=43.0"></script>
+    <script src="cloud.js?v=43.0"></script>
+    <script src="app.js?v=43.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -2532,7 +2530,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                navigator.serviceWorker.register(`sw.js?v=40.0`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Removed hardcoded version so the browser natively detects PWA updates!
+                navigator.serviceWorker.register(`sw.js`).then(reg => {
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {
