@@ -449,6 +449,8 @@ const app = {
             document.getElementById('profile-email').value = firmData.email || '';
             document.getElementById('profile-gst').value = firmData.gst || '';
             document.getElementById('profile-address').value = firmData.address || '';
+            // 🚨 ENTERPRISE FIX: Load the missing City field so the form doesn't stay blank!
+            if (document.getElementById('profile-city')) document.getElementById('profile-city').value = firmData.city || '';
             document.getElementById('profile-state').value = firmData.state || '';
             document.getElementById('profile-bank').value = firmData.bankDetails || '';
             // ENTERPRISE FIX: Load the UPI ID into the UI
@@ -3142,6 +3144,8 @@ const app = {
                     email: document.getElementById('profile-email').value,
                     gst: document.getElementById('profile-gst').value,
                     address: document.getElementById('profile-address').value,
+                    // 🚨 ENTERPRISE FIX: Save the missing City field into the database!
+                    city: document.getElementById('profile-city') ? document.getElementById('profile-city').value : '',
                     state: document.getElementById('profile-state').value,
                     bankDetails: document.getElementById('profile-bank').value,
                     // ENTERPRISE FIX: Save the UPI ID to trigger the QR Engine!
@@ -3183,6 +3187,8 @@ const app = {
                 firmRecord.email = data.email;
                 firmRecord.gst = data.gst;
                 firmRecord.address = data.address;
+                // 🚨 ENTERPRISE FIX: Sync the city to the master firm record!
+                firmRecord.city = data.city;
                 firmRecord.state = data.state;
                 await saveRecord('firms', firmRecord);
 

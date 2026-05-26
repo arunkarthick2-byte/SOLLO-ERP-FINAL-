@@ -509,17 +509,16 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         
         try {
             const opt = {
-                margin: 0, // 🚨 CRITICAL FIX: Let HTML padding act as the true A4 margin
+                margin: [0, 0, 0, 0], // True A4 edge-to-edge
                 filename: filename,
                 enableLinks: true, 
+                pagebreak: { mode: ['css', 'legacy'] }, // 🚨 ENTERPRISE FIX: Allow natural multi-page pagination!
                 image: { type: 'jpeg', quality: 1.0 },
                 html2canvas: { 
-                    scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
+                    scale: 2, 
                     useCORS: true, 
-                    windowWidth: 800, // ENTERPRISE FIX: Lock to exactly 800px!
-                    // 🚨 ENTERPRISE FIX: Shrink-wrap the canvas to the receipt height to kill the blank 2nd page!
-                    windowHeight: element.scrollHeight,
-                    height: element.scrollHeight,
+                    windowWidth: 800, 
+                    // 🚨 ENTERPRISE FIX: Removed hardcoded mobile heights so the engine measures naturally!
                     scrollY: 0, 
                     scrollX: 0,
                     letterRendering: true,
@@ -531,13 +530,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             target.style.maxWidth = '800px';
                             target.style.position = 'relative';
                             target.style.margin = '0 auto';
-                            target.style.transform = 'none'; // ENTERPRISE FIX: Prevent iOS/Android from downscaling the clone!
-                            
-                            // 🚨 CRITICAL FIX: Destroy Mobile Viewport Stretching!
-                            // Forces the background canvas to tightly shrink-wrap short receipts so they never spill onto page 2!
+                            target.style.transform = 'none'; 
                             target.style.height = 'max-content';
                             target.style.minHeight = '0px';
-                            
                             clonedDoc.body.style.width = '800px';
                             clonedDoc.body.style.overflow = 'visible';
                             clonedDoc.body.style.height = 'max-content';
@@ -545,8 +540,6 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         }
                     }
                 },
-                // 🚨 ENTERPRISE FIX: Force the PDF engine to shrink and lock everything into exactly ONE professional A4 page!
-                pagebreak: { mode: 'avoid-all' }, 
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
             };
             
@@ -604,9 +597,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 logging: false,
                 backgroundColor: '#ffffff',
                 windowWidth: 800, // Force engine to render as a desktop screen
-                // 🚨 ENTERPRISE FIX: Shrink-wrap the canvas to the receipt height to kill the blank 2nd page!
-                windowHeight: element.scrollHeight,
-                height: element.scrollHeight,
+                // 🚨 ENTERPRISE FIX: Removed hardcoded mobile height! Let the engine natively measure the clone!
                 scrollY: 0, 
                 scrollX: 0,
                 onclone: (clonedDoc) => {
@@ -860,6 +851,13 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         let html = `
         <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto;">
             
+            <style>
+                #${uniquePdfId} table { page-break-inside: auto; }
+                #${uniquePdfId} tr { page-break-inside: avoid; page-break-after: auto; }
+                #${uniquePdfId} thead { display: table-header-group; }
+                .avoid-break { page-break-inside: avoid; }
+            </style>
+
             <div style="border: 2px solid #475569; padding: 2px;">
             <div style="border: 1px solid #475569;">
                 
@@ -1700,19 +1698,16 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
             // ENTERPRISE FIX: Synchronized the Native Share Engine with the Enterprise Desktop Engine!
             const opt = {
-                margin: 0, // 🚨 CRITICAL FIX: Set to 0 so the internal 40px HTML padding perfectly maps to A4 edges without squeezing!
+                margin: [0, 0, 0, 0], // True A4 edge-to-edge
                 filename: filename,
                 enableLinks: true, 
-                // 🚨 ENTERPRISE FIX: Force the PDF engine to shrink and lock everything into exactly ONE professional A4 page!
-                pagebreak: { mode: 'avoid-all' }, 
+                pagebreak: { mode: ['css', 'legacy'] }, // 🚨 ENTERPRISE FIX: Allow natural multi-page pagination!
                 html2canvas: { 
-                    scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
+                    scale: 2, 
                     useCORS: true, 
                     logging: false, 
-                    windowWidth: 800, // ENTERPRISE FIX: Lock exactly to 800px so mobile share doesn't misalign!
-                    // 🚨 ENTERPRISE FIX: Shrink-wrap the canvas to the receipt height to kill the blank 2nd page!
-                    windowHeight: el.scrollHeight,
-                    height: el.scrollHeight,
+                    windowWidth: 800, 
+                    // 🚨 ENTERPRISE FIX: Removed hardcoded mobile heights so the engine measures naturally!
                     scrollY: 0, 
                     scrollX: 0,
                     letterRendering: true,
@@ -1724,13 +1719,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             target.style.maxWidth = '800px';
                             target.style.position = 'relative';
                             target.style.margin = '0 auto';
-                            target.style.transform = 'none'; // ENTERPRISE FIX: Prevent iOS/Android from downscaling the clone!
-                            
-                            // 🚨 CRITICAL FIX: Destroy Mobile Viewport Stretching!
-                            // Forces the background canvas to tightly shrink-wrap short receipts so they never spill onto page 2!
+                            target.style.transform = 'none'; 
                             target.style.height = 'max-content';
                             target.style.minHeight = '0px';
-                            
                             clonedDoc.body.style.width = '800px';
                             clonedDoc.body.style.overflow = 'visible';
                             clonedDoc.body.style.height = 'max-content';
