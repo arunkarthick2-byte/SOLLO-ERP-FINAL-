@@ -296,9 +296,7 @@ const Utils = {
                 scale: 2, 
                 useCORS: true,
                 windowWidth: 800,
-                // 🚨 ENTERPRISE FIX: Shrink-wrap the canvas to the receipt height to kill the blank 2nd page!
-                windowHeight: element.scrollHeight,
-                height: element.scrollHeight,
+                // 🚨 ENTERPRISE FIX: Removed hardcoded mobile heights so the engine measures naturally!
                 onclone: (clonedDoc) => {
                     const target = clonedDoc.getElementById(elementId);
                     if (target) {
@@ -308,8 +306,13 @@ const Utils = {
                         target.style.position = 'relative';
                         target.style.margin = '0 auto';
                         target.style.transform = 'none'; 
+                        target.style.height = 'max-content';
+                        
                         clonedDoc.body.style.width = '800px';
                         clonedDoc.body.style.overflow = 'visible';
+                        clonedDoc.body.style.height = 'max-content';
+                        // 🚨 CRITICAL FIX: Kill the Mobile Viewport Stretching!
+                        clonedDoc.documentElement.style.height = 'max-content';
                     }
                 }
             }); 
@@ -537,6 +540,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             clonedDoc.body.style.overflow = 'visible';
                             clonedDoc.body.style.height = 'max-content';
                             clonedDoc.body.style.minHeight = '0px';
+                            // 🚨 CRITICAL FIX: Kill the Mobile Viewport Stretching!
+                            clonedDoc.documentElement.style.height = 'max-content';
+                            clonedDoc.documentElement.style.minHeight = '0px';
                         }
                     }
                 },
@@ -614,6 +620,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         printArea.style.minHeight = '0px';
                         clonedDoc.body.style.height = 'max-content';
                         clonedDoc.body.style.minHeight = '0px';
+                        // 🚨 CRITICAL FIX: Kill the Mobile Viewport Stretching!
+                        clonedDoc.documentElement.style.height = 'max-content';
+                        clonedDoc.documentElement.style.minHeight = '0px';
                     }
                 }
             });
@@ -1726,6 +1735,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             clonedDoc.body.style.overflow = 'visible';
                             clonedDoc.body.style.height = 'max-content';
                             clonedDoc.body.style.minHeight = '0px';
+                            // 🚨 CRITICAL FIX: Kill the Mobile Viewport Stretching!
+                            clonedDoc.documentElement.style.height = 'max-content';
+                            clonedDoc.documentElement.style.minHeight = '0px';
                         }
                     }
                 },
