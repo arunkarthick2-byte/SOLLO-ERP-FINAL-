@@ -750,8 +750,12 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         if (isReturn) title = isSales ? 'CREDIT NOTE' : 'DEBIT NOTE';
 
         let rawSubtotal = 0;
+        let totalQty = 0;
+        let totalItems = 0;
         (doc.items || []).forEach(item => {
             rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
+            totalQty += parseFloat(item.qty) || 0;
+            totalItems++;
         });
 
         let discountAmt = doc.discountType === '%' ? (rawSubtotal * ((parseFloat(doc.discount) || 0) / 100)) : (parseFloat(doc.discount) || 0);
@@ -966,6 +970,11 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     </thead>
                     <tbody>
                         ${itemsHtml.replace(/<td style="/g, '<td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; color: #1e293b; ').replace(/border-right: 1px solid #94a3b8; color: #1e293b; ">([^<]*)$/gm, 'color: #1e293b; ">$1')}
+                        <tr style="background: #f1f5f9; font-weight: 800; border-top: 2px solid #475569;">
+                            <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 10px; text-align: right; text-transform: uppercase;">Total Items: ${totalItems}</td>
+                            <td style="padding: 10px; text-align: center;">${totalQty.toFixed(2)}</td>
+                            <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 10px;"></td>
+                        </tr>
                     </tbody>
                 </table>
 
@@ -1016,14 +1025,32 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                                 let linkedSum = 0;
                                 if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
                                 let upfrontPaid = (parseFloat(doc.trueTotalPaid) || 0) - linkedSum;
+                                
+                                // THE FIX: Sync the PDF mathematically with the UI's Smart FIFO Engine!
+                                let displayTotalPaid = parseFloat(doc.trueTotalPaid) || 0;
+                                const displayGrandTotal = parseFloat(doc.grandTotal) || 0;
+                                let autoKnockoffRow = '';
+                                
+                                if (doc.status === 'Completed' && displayTotalPaid < displayGrandTotal) {
+                                    const advanceApplied = displayGrandTotal - displayTotalPaid;
+                                    displayTotalPaid = displayGrandTotal; // Force balance to sync with UI
+                                    autoKnockoffRow = `
+                                    <tr>
+                                        <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 11px; color: #475569; font-weight: 700;">Payment from Advance Pool</td>
+                                        <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">- ₹${advanceApplied.toFixed(2)}</td>
+                                    </tr>`;
+                                }
+
+                                let htmlStr = '';
                                 if (upfrontPaid > 0.01) {
-                                    return `
+                                    htmlStr += `
                                     <tr>
                                         <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 12px; color: #475569; font-weight: 800;">Advance / Upfront Payment</td>
                                         <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">- ₹${upfrontPaid.toFixed(2)}</td>
                                     </tr>`;
                                 }
-                                return '';
+                                htmlStr += autoKnockoffRow;
+                                return htmlStr;
                             })()}
 
                             ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
@@ -1033,17 +1060,46 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             </tr>
                             `).join('') : ''}
                             
-                            ${((parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)) > 0.01 ? `
-                            <tr>
-                                <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</td>
-                                <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #dc2626;">₹${Math.max(0, (parseFloat(doc.grandTotal) || 0) - (doc.trueTotalPaid || 0)).toFixed(2)}</td>
-                            </tr>
-                            ` : (doc.trueTotalPaid > 0 ? `
-                            <tr>
-                                <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</td>
-                                <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #16a34a;">₹0.00 (PAID)</td>
-                            </tr>
-                            ` : '')}
+                            ${(() => {
+                                let displayTotalPaid = parseFloat(doc.trueTotalPaid) || 0;
+                                const displayGrandTotal = parseFloat(doc.grandTotal) || 0;
+                                if (doc.status === 'Completed') displayTotalPaid = displayGrandTotal;
+                                
+                                let finalHtml = '';
+                                const thisInvoiceDue = Math.max(0, displayGrandTotal - displayTotalPaid);
+
+                                if (thisInvoiceDue > 0.01) {
+                                    finalHtml += `
+                                    <tr>
+                                        <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</td>
+                                        <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #dc2626;">₹${thisInvoiceDue.toFixed(2)}</td>
+                                    </tr>`;
+                                } else if (displayTotalPaid > 0) {
+                                    finalHtml += `
+                                    <tr>
+                                        <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</td>
+                                        <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #16a34a;">₹0.00 (PAID)</td>
+                                    </tr>`;
+                                }
+
+                                // 🚨 THE FIX: DYNAMIC PREVIOUS BALANCE INJECTION!
+                                const partyBalance = parseFloat(safeParty.balance) || 0;
+                                if (isSales && partyBalance > 0.01) {
+                                    const previousDues = partyBalance - thisInvoiceDue;
+                                    if (previousDues > 0.01) {
+                                        finalHtml += `
+                                        <tr>
+                                            <td style="padding: 10px 15px; border-bottom: 1px dashed #cbd5e1; font-size: 12px; color: #475569; font-weight: 800;">Previous Outstanding Dues</td>
+                                            <td style="padding: 10px 15px; border-bottom: 1px dashed #cbd5e1; text-align: right; font-weight: 800; color: #dc2626;">₹${previousDues.toFixed(2)}</td>
+                                        </tr>
+                                        <tr style="background: #fee2e2;">
+                                            <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #991b1b; border-bottom: 1px solid #475569;">Total Net Payable</td>
+                                            <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #991b1b; border-bottom: 1px solid #475569;">₹${partyBalance.toFixed(2)}</td>
+                                        </tr>`;
+                                    }
+                                }
+                                return finalHtml;
+                            })()}
                         </table>
 
                         <div id="signature-anchor" class="avoid-break" style="padding: 20px 15px; text-align: right; page-break-inside: avoid;">
@@ -1058,6 +1114,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         
         // --- ENTERPRISE UPGRADE: SPLIT PAYMENT / INSTALLMENT TRACKER ---
         let totalPaid = parseFloat(doc.trueTotalPaid) || 0;
+        // THE FIX: Sync the tracker with the UI FIFO logic
+        if (doc.status === 'Paid') totalPaid = parseFloat(doc.grandTotal) || 0; 
 
         if (totalPaid > 0) {
             const safeGrandTotal = parseFloat(doc.grandTotal) || 0;
@@ -1143,9 +1201,29 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         `;
 
         reportData.forEach(row => {
+            // 🚨 THE FIX: DYNAMIC AGING (DAYS OVERDUE) CALCULATOR!
+            let overdueTag = '';
+            try {
+                if (window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.sales) {
+                    const partySales = window.UI.state.rawData.sales.filter(s => s.customerId === row.id && s.status !== 'Completed' && s.status !== 'Paid');
+                    if (partySales.length > 0) {
+                        partySales.sort((a,b) => new Date(a.date) - new Date(b.date));
+                        const oldestDate = new Date(partySales[0].date);
+                        const daysOverdue = Math.floor(Math.abs(new Date() - oldestDate) / (1000 * 60 * 60 * 24));
+                        
+                        if (daysOverdue > 60) overdueTag = `<span style="background:#fef2f2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #f87171; margin-left:8px; display:inline-block; vertical-align:middle;">${daysOverdue} Days Overdue</span>`;
+                        else if (daysOverdue > 30) overdueTag = `<span style="background:#fff7ed; color:#c2410c; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #fb923c; margin-left:8px; display:inline-block; vertical-align:middle;">${daysOverdue} Days Overdue</span>`;
+                        else if (daysOverdue > 0) overdueTag = `<span style="background:#f8fafc; color:#475569; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #cbd5e1; margin-left:8px; display:inline-block; vertical-align:middle;">${daysOverdue} Days</span>`;
+                    }
+                }
+            } catch(e) { console.warn("Aging calculation skipped for", row.name); }
+
             html += `
                 <tr>
-                    <td style="border: 1px solid #ccc; padding: 10px; font-weight: bold;">${row.name}</td>
+                    <td style="border: 1px solid #ccc; padding: 10px; font-weight: bold;">
+                        ${row.name} 
+                        ${overdueTag}
+                    </td>
                     <td style="border: 1px solid #ccc; padding: 10px;">${row.phone || 'N/A'}</td>
                     <td style="border: 1px solid #ccc; padding: 10px; text-align: right; color: #ba1a1a; font-weight: bold;">${parseFloat(row.balance || 0).toFixed(2)}</td>
                 </tr>
@@ -1223,6 +1301,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         if (openEntry) openingBal = openEntry.impact || openEntry.amount || 0;
         
         let tableRows = '';
+        let totalDebit = 0;
+        let totalCredit = 0;
         timeline.forEach(t => {
             let debit = '';
             let credit = '';
@@ -1265,7 +1345,22 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     </td>
                 </tr>
             `;
+            
+            if (debit) totalDebit += parseFloat(debit);
+            if (credit) totalCredit += parseFloat(credit);
         });
+
+        // THE FIX: Inject the Total Summary Row at the end!
+        if (timeline.length > 0) {
+            tableRows += `
+                <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569;">
+                    <td colspan="2" style="padding:10px 15px; text-align:right; text-transform:uppercase; font-size:12px; color:#0f172a;">Total Summary</td>
+                    <td style="padding:10px; text-align:right; color:#ba1a1a; font-size:13px;">₹${totalDebit.toFixed(2)}</td>
+                    <td style="padding:10px; text-align:right; color:#146c2e; font-size:13px;">₹${totalCredit.toFixed(2)}</td>
+                    <td style="padding:10px;"></td>
+                </tr>
+            `;
+        }
 
         const safeDocNo = Utils.getLocalDate();
         
@@ -1870,6 +1965,8 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     });
 
     let runningStock = openingStock;
+    let totalIn = 0;
+    let totalOut = 0;
     let rowsHtml = `
         <tr style="background:#f1f3f4; font-weight:bold;">
             <td style="padding:10px; border:1px solid #ddd;" colspan="3">Opening Stock</td>
@@ -1882,6 +1979,8 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     timeline.forEach(t => {
         runningStock += t.inQty;
         runningStock -= t.outQty;
+        totalIn += t.inQty;
+        totalOut += t.outQty;
         rowsHtml += `
             <tr>
                 <td style="padding:10px; border:1px solid #ddd;">${t.date}</td>
@@ -1893,6 +1992,16 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
             </tr>
         `;
     });
+
+    // THE FIX: Add the final Total row at the bottom of the table
+    rowsHtml += `
+        <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569;">
+            <td style="padding:10px; border:1px solid #ddd; text-align:right; text-transform:uppercase;" colspan="3">Total Summary</td>
+            <td style="padding:10px; border:1px solid #ddd; text-align:center; color:#16a34a;">${totalIn.toFixed(2)}</td>
+            <td style="padding:10px; border:1px solid #ddd; text-align:center; color:#dc2626;">${totalOut.toFixed(2)}</td>
+            <td style="padding:10px; border:1px solid #ddd; text-align:right;">${runningStock.toFixed(2)}</td>
+        </tr>
+    `;
 
     const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
     let firmName = "My Business";

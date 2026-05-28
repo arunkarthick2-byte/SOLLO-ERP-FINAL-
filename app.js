@@ -3956,6 +3956,25 @@ const app = {
             }
         });
         
+        // --- ENTERPRISE FIX: INJECT THE FIFO ADVANCE POOL INTO THE PDF! ---
+        // If the invoice is marked as Completed, but explicit payments don't equal the grand total,
+        // it means the UI's smart FIFO engine used Advance Money to pay it off!
+        const grandTotal = parseFloat(record.grandTotal) || 0;
+        const explicitCoverage = totalPaid + totalReturned;
+        
+        if (record.status === 'Completed' && explicitCoverage < grandTotal) {
+            const advanceUsed = grandTotal - explicitCoverage;
+            totalPaid += advanceUsed; // mathematically satisfy the PDF engine
+            
+            // Push a fake receipt into the array so it prints beautifully on the invoice!
+            linkedReceipts.push({
+                receiptNo: 'ADV-POOL',
+                date: record.completedDate || record.date,
+                mode: 'Adjusted from Advance Balance',
+                amount: advanceUsed
+            });
+        }
+        
         // Inject the total paid + returns AND the detailed history into the record object
         record.trueTotalPaid = totalPaid + totalReturned;
         record.linkedReceipts = linkedReceipts;
