@@ -2123,6 +2123,16 @@ const app = {
             
             // NEW: Expense form specific logic
             if (type === 'expense') {
+                const titleEl = document.getElementById('expense-form-title');
+                if (titleEl) titleEl.innerText = id ? 'Edit Expense' : 'Log Expense';
+
+                // 🚨 Show the Print button ONLY if this is a saved expense!
+                const printBtn = document.getElementById('btn-print-expense');
+                if (printBtn) {
+                    if (id) printBtn.classList.remove('hidden');
+                    else printBtn.classList.add('hidden');
+                }
+
                 if (!id) {
                     // STRICT ERP LOGIC: Only reset the labels and hidden inputs if we are creating a BRAND NEW expense!
                     if (typeof getNextDocumentNumber === 'function') {
@@ -6191,158 +6201,185 @@ document.addEventListener('input', (e) => {
 
 })();
 // ==========================================
-// ENTERPRISE UPGRADE: LIVE CUSTOMER INSIGHT & RISK ENGINE
+// ENTERPRISE UPGRADE: LIVE CUSTOMER INSIGHT & RISK ENGINE (V2)
 // ==========================================
 (function() {
+    let lastCalculatedHash = ""; // 🚨 Prevents screen flickering by only redrawing when numbers change!
+
     setInterval(async () => {
-        // Supports BOTH Sales (Customers) and Purchases (Suppliers)
         const sForm = document.getElementById('activity-sales-form');
         const pForm = document.getElementById('activity-purchase-form');
         
         let form = null;
         let partyId = null;
         let partyType = null;
+        let draftTotal = 0; 
         
         if (sForm && sForm.classList.contains('open')) {
             form = sForm;
             partyId = document.getElementById('sales-customer-id') ? document.getElementById('sales-customer-id').value : null;
             partyType = 'Customer';
+            // Live DOM read of the current invoice being typed
+            const totalEl = document.getElementById('sales-grand-total');
+            if (totalEl) draftTotal = parseFloat(totalEl.innerText.replace(/[^0-9.-]+/g,"")) || 0;
+            
         } else if (pForm && pForm.classList.contains('open')) {
             form = pForm;
             partyId = document.getElementById('purchase-supplier-id') ? document.getElementById('purchase-supplier-id').value : null;
             partyType = 'Supplier';
+            // Live DOM read of the current bill being typed
+            const totalEl = document.getElementById('purchase-grand-total');
+            if (totalEl) draftTotal = parseFloat(totalEl.innerText.replace(/[^0-9.-]+/g,"")) || 0;
         }
         
-        if (!form || !partyId) return;
-        
-        // Prevent running the heavy math 10 times a second!
-        if (form.getAttribute('data-risk-checked') !== partyId) {
-            form.setAttribute('data-risk-checked', partyId);
-            
-            // Clean up old banners
+        if (!form || !partyId) {
             const oldBanner = document.getElementById('risk-banner');
             if (oldBanner) oldBanner.remove();
+            lastCalculatedHash = "";
+            return;
+        }
 
-            try {
-                // Fetch real-time data directly from the hard drive
-                const ledgers = await window.getAllRecords('ledgers', 'firmId', window.app.state.firmId);
-                const sales = await window.getAllRecords('sales', 'firmId', window.app.state.firmId);
-                const purchases = await window.getAllRecords('purchases', 'firmId', window.app.state.firmId);
-                const receipts = await window.getAllRecords('receipts', 'firmId', window.app.state.firmId);
-                
-                const party = ledgers.find(l => l.id === partyId);
-                if (!party) return;
+        try {
+            // 🚨 ENTERPRISE RAM OPTIMIZATION: Pull from RAM instead of SSD to save battery!
+            const rawData = window.UI && window.UI.state ? window.UI.state.rawData : null;
+            if (!rawData || !rawData.ledgers) return;
 
-                let ob = parseFloat(party.openingBalance) || 0;
-                const balType = (party.balanceType || '').toLowerCase();
-                let trueBalance = 0;
-                
-                // Calculate Opening Balance Dr/Cr
-                if (partyType === 'Customer') {
-                    trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-                } else {
-                    trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
-                }
-                
-                let oldestDueDays = 0;
-                const today = new Date();
+            const party = rawData.ledgers.find(l => l.id === partyId);
+            if (!party) return;
 
-                // Process Invoice Math
-                if (partyType === 'Customer') {
-                    sales.forEach(s => {
-                        if (s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled') {
-                            trueBalance += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
-                            if (s.status !== 'Completed' && s.documentType !== 'return') {
-                                const ageDays = Math.floor((today - window.Utils.safeDate(s.date)) / (1000 * 60 * 60 * 24));
-                                if (ageDays > oldestDueDays) oldestDueDays = ageDays;
-                            }
-                        }
-                    });
-                } else {
-                    purchases.forEach(p => {
-                        if (p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled') {
-                            trueBalance += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
-                            if (p.status !== 'Completed' && p.documentType !== 'return') {
-                                const ageDays = Math.floor((today - window.Utils.safeDate(p.date)) / (1000 * 60 * 60 * 24));
-                                if (ageDays > oldestDueDays) oldestDueDays = ageDays;
-                            }
-                        }
-                    });
-                }
+            let trueBalance = 0;
+            let oldestDueDays = 0;
+            const today = new Date();
 
-                // Process Payments
-                receipts.forEach(r => {
-                    if (r.ledgerId === partyId) {
-                        if (partyType === 'Customer') {
-                            trueBalance += (r.type === 'in' ? -parseFloat(r.amount || 0) : parseFloat(r.amount || 0));
-                        } else {
-                            trueBalance += (r.type === 'in' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0));
+            let ob = parseFloat(party.openingBalance) || 0;
+            const balType = (party.balanceType || '').toLowerCase();
+            
+            if (partyType === 'Customer') {
+                trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+            } else {
+                trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+            }
+            
+            const sales = rawData.sales || [];
+            const purchases = rawData.purchases || [];
+            const allReceipts = rawData.receipts || rawData.cashbook || [];
+
+            if (partyType === 'Customer') {
+                sales.forEach(s => {
+                    if (s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled') {
+                        trueBalance += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
+                        if (s.status !== 'Completed' && s.documentType !== 'return') {
+                            const ageDays = Math.floor((today - window.Utils.safeDate(s.date)) / (1000 * 60 * 60 * 24));
+                            if (ageDays > oldestDueDays) oldestDueDays = ageDays;
                         }
                     }
                 });
-                
-                // Determine Status and UI Styling
-                let statusText = 'Settled';
-                let bgColor = '#f8fafc';
-                let borderColor = '#e2e8f0';
-                let icon = 'account_balance_wallet';
-                let iconColor = '#64748b';
-                let warningHtml = '';
-
-                if (partyType === 'Customer') {
-                    if (trueBalance > 0.01) { 
-                        statusText = 'Due to Receive'; 
-                        bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
-                    } else if (trueBalance < -0.01) { 
-                        statusText = 'Advance Received'; 
-                        bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
+            } else {
+                purchases.forEach(p => {
+                    if (p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled') {
+                        trueBalance += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
+                        if (p.status !== 'Completed' && p.documentType !== 'return') {
+                            const ageDays = Math.floor((today - window.Utils.safeDate(p.date)) / (1000 * 60 * 60 * 24));
+                            if (ageDays > oldestDueDays) oldestDueDays = ageDays;
+                        }
                     }
-                } else {
-                    if (trueBalance > 0.01) { 
-                        statusText = 'Due to Pay'; 
-                        bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
-                    } else if (trueBalance < -0.01) { 
-                        statusText = 'Advance Paid'; 
-                        bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
+                });
+            }
+
+            allReceipts.forEach(r => {
+                if (r.ledgerId === partyId || r.accountId === partyId) {
+                    if (partyType === 'Customer') {
+                        trueBalance += (r.type === 'in' ? -parseFloat(r.amount || 0) : parseFloat(r.amount || 0));
+                    } else {
+                        trueBalance += (r.type === 'in' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0));
                     }
                 }
+            });
 
-                // Pulse animation for severe defaulters (Risk Management)
-                let pulseAnim = '';
-                if (trueBalance > 0.01 && oldestDueDays >= 45 && partyType === 'Customer') {
-                    pulseAnim = 'animation: pulseRisk 2s infinite;';
-                    warningHtml = `<div style="font-size: 11px; color: #ba1a1a; font-weight: 800; margin-top: 6px; border-top: 1px dashed #ffdad6; padding-top: 6px;">⚠️ HIGH RISK: Oldest unpaid invoice is ${oldestDueDays} days old!</div>`;
-                    if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
-                }
-                
-                if (!document.getElementById('risk-styles')) {
-                    const style = document.createElement('style');
-                    style.id = 'risk-styles';
-                    style.innerHTML = `@keyframes pulseRisk { 0% { box-shadow: 0 0 0 0 rgba(186,26,26,0.4); } 70% { box-shadow: 0 0 0 10px rgba(186,26,26,0); } 100% { box-shadow: 0 0 0 0 rgba(186,26,26,0); } }`;
-                    document.head.appendChild(style);
-                }
+            // Calculate Projected Balance!
+            const docTypeEl = document.getElementById(partyType === 'Customer' ? 'sales-doc-type' : 'purchase-doc-type');
+            const isReturn = docTypeEl && docTypeEl.value === 'return';
+            
+            let projectedBalance = trueBalance;
+            if (isReturn) {
+                projectedBalance -= draftTotal; 
+            } else {
+                projectedBalance += draftTotal;
+            }
 
-                // Inject the Gorgeous Dashboard Banner
-                const banner = document.createElement('div');
-                banner.id = 'risk-banner';
-                banner.style.cssText = `background: ${bgColor}; padding: 14px 16px; margin: 12px 16px 0 16px; border-radius: 8px; border: 1px solid ${borderColor}; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); ${pulseAnim}`;
-                
-                banner.innerHTML = `
-                    <span class="material-symbols-outlined" style="font-size: 28px; color: ${iconColor}; font-variation-settings: 'FILL' 1; margin-top: 2px;">${icon}</span>
-                    <div style="flex: 1;">
-                        <strong style="display: block; font-size: 11px; text-transform: uppercase; color: #475569; letter-spacing: 0.5px;">Live ${partyType} Balance</strong>
-                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px;">
-                            <span style="font-size: 20px; font-weight: 900; color: #0f172a; line-height: 1;">₹${Math.abs(trueBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                            <span style="font-size: 10px; font-weight: 800; color: ${iconColor}; background: ${iconColor}15; padding: 4px 8px; border-radius: 12px; border: 1px solid ${iconColor}40;">${statusText}</span>
-                        </div>
-                        ${warningHtml}
+            // Lock the DOM rendering so the screen doesn't lag 10 times a second!
+            const currentHash = `${partyId}_${trueBalance}_${projectedBalance}_${oldestDueDays}`;
+            if (lastCalculatedHash === currentHash) return; 
+            lastCalculatedHash = currentHash;
+            
+            const oldBanner = document.getElementById('risk-banner');
+            if (oldBanner) oldBanner.remove();
+            
+            // Base defaults (The Green "Safe" State)
+            let statusText = 'Clean Account (Safe)';
+            let bgColor = '#e8f5e9';
+            let borderColor = '#bbf7d0';
+            let icon = 'check_circle';
+            let iconColor = '#146c2e';
+            let warningHtml = '';
+
+            if (partyType === 'Customer') {
+                if (trueBalance > 0.01) {
+                    // They owe us money from PAST bills! (Real Risk)
+                    statusText = 'Previous Dues'; 
+                    bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
+                } else if (trueBalance < -0.01) {
+                    // They gave us an advance!
+                    statusText = 'Advance Available'; 
+                    bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
+                }
+            } else {
+                if (trueBalance > 0.01) {
+                    // We owe them money from PAST bills!
+                    statusText = 'Previous Payables'; 
+                    bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
+                } else if (trueBalance < -0.01) {
+                    statusText = 'Advance Given'; 
+                    bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
+                }
+            }
+
+            let pulseAnim = '';
+            if (trueBalance > 0.01 && oldestDueDays >= 45 && partyType === 'Customer') {
+                pulseAnim = 'animation: pulseRisk 2s infinite;';
+                warningHtml = `<div style="font-size: 11px; color: #ba1a1a; font-weight: 800; margin-top: 6px; border-top: 1px dashed #ffdad6; padding-top: 6px;">⚠️ HIGH RISK: Oldest unpaid invoice is ${oldestDueDays} days old!</div>`;
+                if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
+            }
+            
+            if (!document.getElementById('risk-styles')) {
+                const style = document.createElement('style');
+                style.id = 'risk-styles';
+                style.innerHTML = `@keyframes pulseRisk { 0% { box-shadow: 0 0 0 0 rgba(186,26,26,0.4); } 70% { box-shadow: 0 0 0 10px rgba(186,26,26,0); } 100% { box-shadow: 0 0 0 0 rgba(186,26,26,0); } }`;
+                document.head.appendChild(style);
+            }
+
+            const banner = document.createElement('div');
+            banner.id = 'risk-banner';
+            banner.style.cssText = `background: ${bgColor}; padding: 14px 16px; margin: 12px 16px 0 16px; border-radius: 8px; border: 1px solid ${borderColor}; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); ${pulseAnim}`;
+            
+            banner.innerHTML = `
+                <span class="material-symbols-outlined" style="font-size: 28px; color: ${iconColor}; font-variation-settings: 'FILL' 1; margin-top: 2px;">${icon}</span>
+                <div style="flex: 1;">
+                    <strong style="display: block; font-size: 11px; text-transform: uppercase; color: #475569; letter-spacing: 0.5px;">Live ${partyType} Insight</strong>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px;">
+                        <span style="font-size: 20px; font-weight: 900; color: #0f172a; line-height: 1;">₹${Math.abs(projectedBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                        <span style="font-size: 10px; font-weight: 800; color: ${iconColor}; background: ${iconColor}15; padding: 4px 8px; border-radius: 12px; border: 1px solid ${iconColor}40;">${statusText}</span>
                     </div>
-                `;
-                
-                const header = form.querySelector('.activity-header');
-                if (header) header.insertAdjacentElement('afterend', banner);
-                
-            } catch(e) { console.error("Insight Engine Failed:", e); }
-        }
-    }, 1000); // Scans the form every 1 second
+                    <div style="font-size: 10px; color: #64748b; margin-top: 6px; font-weight: 600;">
+                        Historical Due: ₹${Math.abs(trueBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})} | This Bill: ₹${draftTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                    </div>
+                    ${warningHtml}
+                </div>
+            `;
+            
+            const header = form.querySelector('.activity-header');
+            if (header) header.insertAdjacentElement('afterend', banner);
+            
+        } catch(e) { console.error("Insight Engine Failed:", e); }
+    }, 500); // Check 2 times a second for hyper-responsive typing!
 })();

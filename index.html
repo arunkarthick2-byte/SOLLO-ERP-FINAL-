@@ -634,7 +634,11 @@
                             <select id="sales-discount-type" onchange="UI.calcSalesTotals()" style="width: 30%; padding: 4px;"><option value="&#8377;">&#8377;</option><option value="%">%</option></select>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Total GST:</span><strong id="sales-gst-total">&#8377;0.00</strong></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Total GST:</span><strong id="sales-gst-total">&#8377;0.00</strong></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 8px; border-radius: 4px;">
+                        <span>CGST: <strong id="sales-cgst-total">&#8377;0.00</strong></span>
+                        <span>SGST: <strong id="sales-sgst-total">&#8377;0.00</strong></span>
+                    </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span>Freight:</span>
                         <input type="number" inputmode="decimal" id="sales-freight" value="0" step="any" oninput="UI.calcSalesTotals()" style="width: 100px; text-align: right;">
@@ -802,7 +806,11 @@
                             <select id="purchase-discount-type" onchange="UI.calcPurchaseTotals()" style="width: 30%; padding: 4px;"><option value="&#8377;">&#8377;</option><option value="%">%</option></select>
                         </div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Total Input GST:</span><strong id="purchase-gst-total" style="color:var(--md-success);">&#8377;0.00</strong></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Total Input GST:</span><strong id="purchase-gst-total" style="color:var(--md-success);">&#8377;0.00</strong></div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 11px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 8px; border-radius: 4px;">
+                        <span>CGST: <strong id="purchase-cgst-total">&#8377;0.00</strong></span>
+                        <span>SGST: <strong id="purchase-sgst-total">&#8377;0.00</strong></span>
+                    </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span>Freight / Extra Charges:</span>
                         <input type="number" inputmode="decimal" id="purchase-freight" value="0" step="any" oninput="UI.calcPurchaseTotals()" style="width: 100px; text-align: right;">
@@ -844,9 +852,12 @@
         <div class="activity-header">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-form')" style="padding: 4px;">close</span>
-                <span style="font-size: 18px; font-weight: 500;">Log Expense</span>
+                <span id="expense-form-title" style="font-size: 18px; font-weight: 500;">Log Expense</span>
             </div>
             <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-print-expense" class="icon-circle tap-target hidden" onclick="if(window.app && window.app.state.currentEditId) window.Utils.generateExpenseVoucherPDF(window.app.state.currentEditId)" style="width: 36px; height: 36px; background: #e3f2fd; color: var(--md-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">print</span>
+                </div>
                 <div id="btn-delete-expense" class="icon-circle tap-target hidden" onclick="app.deleteRecord('expense')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
@@ -2410,11 +2421,46 @@
         <div class="activity-header" style="display: flex; align-items: center; padding: 12px 16px; background: var(--md-primary-container); color: var(--md-on-primary-container);">
             <span class="material-symbols-outlined tap-target" onclick="window.UI.closeActivity('activity-item-ledger')" style="padding: 4px; margin-right: 12px;">arrow_back</span>
             <strong id="item-ledger-title" style="flex: 1; font-size: 18px; font-weight: 600;">Item Ledger</strong>
-            <span class="material-symbols-outlined tap-target" onclick="window.executeItemLedgerReport(document.getElementById('item-ledger-hidden-id').value, document.getElementById('item-ledger-hidden-name').value)" style="padding: 4px;">print</span>
+            <span id="btn-print-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;">print</span>
         </div>
         <div class="activity-content" style="padding: 16px; background: var(--md-background);">
             <input type="hidden" id="item-ledger-hidden-id">
             <input type="hidden" id="item-ledger-hidden-name">
+            
+            <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('party', 'item-ledger-party')">
+                <div>
+                    <small style="color: var(--md-primary); font-weight: 800; text-transform: uppercase;">Filter by Party</small>
+                    <div id="item-ledger-party-display" class="large-text" style="color: var(--md-text-muted);">All Parties (Global Ledger)</div>
+                    <input type="hidden" id="item-ledger-party-id">
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-error); display: none; padding: 4px;" id="btn-clear-item-ledger-party" onclick="event.stopPropagation(); document.getElementById('item-ledger-party-id').value=''; document.getElementById('item-ledger-party-display').innerText='All Parties (Global Ledger)'; document.getElementById('item-ledger-party-display').style.color='var(--md-text-muted)'; this.style.display='none'; window.triggerItemLedgerFromForm();">close</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <div style="flex: 1; background: #e8f5e9; padding: 12px; border-radius: 8px; border: 1px solid #bbf7d0; text-align: center;">
+                    <div style="font-size: 10px; font-weight: 800; color: #146c2e; text-transform: uppercase;">Total Units IN</div>
+                    <div id="item-ledger-total-in" style="font-size: 18px; font-weight: 900; color: #146c2e; margin-top: 4px;">0.00</div>
+                </div>
+                <div style="flex: 1; background: #fff0f2; padding: 12px; border-radius: 8px; border: 1px solid #fecaca; text-align: center;">
+                    <div style="font-size: 10px; font-weight: 800; color: #ba1a1a; text-transform: uppercase;">Total Units OUT</div>
+                    <div id="item-ledger-total-out" style="font-size: 18px; font-weight: 900; color: #ba1a1a; margin-top: 4px;">0.00</div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 6px; margin-bottom: 16px; align-items: center; background: #f8fafc; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; overflow-x: auto;">
+                <input type="text" id="adv-item-search" placeholder="Search Ref..." oninput="window.applyAdvancedItemFilters()" style="min-width: 100px; flex: 1; padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 12px; outline: none;">
+                <select id="adv-item-type" onchange="window.applyAdvancedItemFilters()" style="min-width: 100px; padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 12px; outline: none; background: white;">
+                    <option value="ALL">All Types</option>
+                    <option value="IN">Stock IN Only</option>
+                    <option value="OUT">Stock OUT Only</option>
+                    <option value="Expense">Expense Only</option>
+                </select>
+                <input type="date" id="adv-item-date" onchange="window.applyAdvancedItemFilters()" style="min-width: 120px; padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 12px; outline: none;">
+            </div>
+
             <div id="item-ledger-list">
                 </div>
         </div>
@@ -3076,144 +3122,239 @@
     </script>
 
     <script>
-    window.triggerItemLedgerFromForm = async () => {
-        const id = window.app.state.currentEditId;
-        const name = document.getElementById('prod-name').value;
-        
-        if (!id) {
-            return window.Utils.showToast("⚠️ Please save this product first before viewing its ledger!");
+    // 🚀 ENTERPRISE UPGRADE: SMART SEARCH OVERRIDE HOOKS
+    // We dynamically patch the UI.js Smart Search engine to support our new "Party" filter!
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.UI) {
+            const originalExecute = window.UI.executeSmartSearch;
+            window.UI.executeSmartSearch = function() {
+                if (window.UI.state.smartSearchTarget === 'party') {
+                    const query = (document.getElementById('smart-search-input').value || '').toLowerCase();
+                    const resultsContainer = document.getElementById('smart-search-results');
+                    const prefix = window.UI.state.smartSearchPrefix;
+                    
+                    let results = window.UI.state.rawData.ledgers.filter(l => window.fuzzyMatch(query, l.name) || (l.phone && l.phone.includes(query)));
+                    let html = '';
+                    results.slice(0, 30).forEach(l => {
+                        const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        const icon = String(l.type).toLowerCase() === 'customer' ? 'person' : 'storefront';
+                        html += `
+                        <div class="tap-target" onclick="UI.selectSmartParty('${prefix}', '${l.id}', '${safeName}')" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span></div>
+                            <div><strong style="display: block; font-size: 16px;">${window.UI.highlightText(l.name, query)}</strong><small style="color: var(--md-text-muted);">${l.phone || 'No Phone'}</small></div>
+                        </div>`;
+                    });
+                    if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No matches found.</div>`;
+                    resultsContainer.innerHTML = html;
+                } else {
+                    originalExecute.apply(this, arguments);
+                }
+            };
+
+            const originalSelect = window.UI.selectSmartParty;
+            window.UI.selectSmartParty = async function(typeId, id, name) {
+                if (typeId === 'item-ledger-party') {
+                    document.getElementById('item-ledger-party-id').value = id;
+                    document.getElementById('item-ledger-party-display').innerText = name;
+                    document.getElementById('item-ledger-party-display').style.color = 'var(--md-on-surface)';
+                    document.getElementById('btn-clear-item-ledger-party').style.display = 'block';
+                    window.UI.closeBottomSheet('sheet-smart-search');
+                    // Automatically reload the ledger with the new party!
+                    if (typeof window.triggerItemLedgerFromForm === 'function') window.triggerItemLedgerFromForm();
+                } else {
+                    originalSelect.apply(this, [typeId, id, name]);
+                }
+            };
         }
+    });
+
+    window.triggerItemLedgerFromForm = async () => {
+        const id = window.app.state.currentEditId || document.getElementById('item-ledger-hidden-id').value;
+        const name = document.getElementById('prod-name').value || document.getElementById('item-ledger-hidden-name').value;
         
-        // Hijack the UI to show Product Details instead of Party Details
-        document.getElementById('report-party-name').innerText = "Item Ledger: " + name;
-        const timelineContainer = document.getElementById('timeline-list');
+        if (!id) return window.Utils.showToast("⚠️ Please save this product first before viewing its ledger!");
+        
+        document.getElementById('item-ledger-hidden-id').value = id;
+        document.getElementById('item-ledger-hidden-name').value = name;
+        document.getElementById('item-ledger-title').innerText = name + ' Movement';
+
+        // 🚨 Read the exact Party ID from the new UI selection block!
+        const filterPartyId = document.getElementById('item-ledger-party-id') ? document.getElementById('item-ledger-party-id').value : null;
+        const filterPartyName = document.getElementById('item-ledger-party-display') ? document.getElementById('item-ledger-party-display').innerText : '';
+
+        const timelineContainer = document.getElementById('item-ledger-list');
         timelineContainer.innerHTML = '<div class="skeleton-card"></div><div class="skeleton-card" style="animation-delay: 0.1s"></div>';
         
-        // Hide the edit & share buttons since this is a dynamic product view
-        const editBtn = document.getElementById('btn-edit-ledger');
-        const shareBtn = document.getElementById('btn-share-ledger');
-        if(editBtn) editBtn.style.display = 'none';
-        if(shareBtn) shareBtn.style.display = 'none';
+        window.UI.openActivity('activity-item-ledger');
         
-        window.UI.openActivity('activity-report-viewer');
-        
-        setTimeout(() => {
+        setTimeout(async () => {
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+            const product = await window.getRecordById('items', id);
+            
+            // If filtering by party, they don't own the global opening stock!
+            const openingStock = (product && !filterPartyId) ? (parseFloat(product.openingStock) || 0) : 0;
+            
+            const ledgers = window.UI.state.rawData.ledgers || [];
+            const getPartyName = (partyId, fallbackName) => {
+                const party = ledgers.find(l => l.id === partyId);
+                return party ? party.name : (fallbackName || 'Unknown Party');
+            };
+            
             let timeline = [];
             
-            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
-            
-            // 1. Scan all Purchases (Adds to Stock)
             const purchases = window.UI.state.rawData.purchases || [];
             purchases.forEach(p => {
                 if(p.status === 'Open' || p.firmId !== activeFirmId) return;
+                if(filterPartyId && p.supplierId !== filterPartyId) return; // 🛡️ STRICT PARTY FILTER SHIELD
+                
                 (p.items || []).forEach(i => {
                     if(i.itemId === id) {
                         const isReturn = p.documentType === 'return';
                         const qty = parseFloat(i.qty) || 0;
-                        timeline.push({
-                            date: p.date,
-                            desc: isReturn ? 'Purchase Return (Debit Note)' : 'Purchase Bill',
-                            partyName: p.supplierName,
-                            ref: p.poNo || p.invoiceNo,
-                            impact: isReturn ? -qty : qty,
-                            rate: parseFloat(i.rate) || 0
-                        });
+                        const realName = getPartyName(p.supplierId, p.supplierName);
+                        timeline.push({ date: p.date, type: 'Purchase', desc: isReturn ? 'Purchase Return' : 'Purchase Bill', partyName: realName, ref: p.poNo || p.invoiceNo, impact: isReturn ? -qty : qty, rate: parseFloat(i.rate) || 0 });
                     }
                 });
             });
             
-            // 2. Scan all Sales (Reduces Stock)
             const sales = window.UI.state.rawData.sales || [];
             sales.forEach(s => {
-                if(s.status === 'Open') return;
+                if(s.status === 'Open' || s.firmId !== activeFirmId) return;
+                if(filterPartyId && s.customerId !== filterPartyId) return; // 🛡️ STRICT PARTY FILTER SHIELD
+                
                 (s.items || []).forEach(i => {
                     if(i.itemId === id) {
                         const isReturn = s.documentType === 'return';
                         const qty = parseFloat(i.qty) || 0;
-                        timeline.push({
-                            date: s.date,
-                            desc: isReturn ? 'Sales Return (Credit Note)' : 'Sales Invoice',
-                            partyName: s.customerName,
-                            ref: s.invoiceNo || s.orderNo,
-                            impact: isReturn ? qty : -qty,
-                            rate: parseFloat(i.rate) || 0
-                        });
+                        const realName = getPartyName(s.customerId, s.customerName);
+                        timeline.push({ date: s.date, type: 'Sale', desc: isReturn ? 'Sales Return' : 'Sales Invoice', partyName: realName, ref: s.invoiceNo || s.orderNo, impact: isReturn ? qty : -qty, rate: parseFloat(i.rate) || 0 });
                     }
                 });
             });
             
-            // STRICT ERP LOGIC: 2.5 Scan all Manual Stock Adjustments!
-            const adjustments = window.UI.state.rawData.adjustments || [];
-            adjustments.forEach(a => {
-                if (a.itemId === id) {
-                    const qty = parseFloat(a.qty) || 0;
-                    const isAdd = a.type === 'add';
-                    timeline.push({
-                        date: a.date,
-                        desc: `Stock Adjustment (${a.pool === 'gst' ? 'GST' : 'Non-GST'})`,
-                        partyName: 'Manual Correction',
-                        ref: a.notes || 'Audit',
-                        impact: isAdd ? qty : -qty,
-                        rate: 0 // Adjustments don't have a buy/sell rate
+            // Adjustments & Expenses NEVER apply to a specific party's isolated ledger!
+            if (!filterPartyId) {
+                const adjustments = window.UI.state.rawData.adjustments || [];
+                adjustments.forEach(a => {
+                    if (a.itemId === id) {
+                        const qty = parseFloat(a.qty) || 0;
+                        timeline.push({ date: a.date, type: 'Adjustment', desc: `Stock Adj (${a.pool === 'gst' ? 'GST' : 'Non-GST'})`, partyName: 'Manual Correction', ref: a.notes || 'Audit', impact: a.type === 'add' ? qty : -qty, rate: 0 });
+                    }
+                });
+                
+                const expenses = window.UI.state.rawData.expenses || [];
+                expenses.forEach(e => {
+                    (e.items || []).forEach(row => {
+                        if(row.itemId === id) {
+                            timeline.push({ date: e.date, type: 'Expense', desc: 'Internal Expense', partyName: e.category || 'Consumed', ref: e.expenseNo || 'EXP', impact: -(parseFloat(row.qty) || 0), rate: 0 });
+                        }
                     });
-                }
-            });
+                });
+            }
             
-            // 3. Sort chronologically by Date (and ID for same-day precision)
             timeline.sort((a,b) => {
                 const dateA = new Date(a.date || 0).getTime();
                 const dateB = new Date(b.date || 0).getTime();
                 if (dateA !== dateB) return dateA - dateB;
-                // STRICT ERP LOGIC: Fallback to ID sorting to fix same-day balance scrambling!
-                return ((a.id || '') > (b.id || '')) ? 1 : -1;
+                return ((a.ref || '') > (b.ref || '')) ? 1 : -1;
             });
             
-            // Calculate Movement Math
-            let runningBal = 0;
-            timeline.forEach(t => {
-                runningBal += t.impact;
-                t.runningBalance = runningBal; 
-            });
+            // Save the Base Party Timeline to RAM
+            window.UI.state.currentItemTimeline = timeline;
+            window.UI.state.currentItemOpening = openingStock;
+            window.UI.state.currentPartyId = filterPartyId;
+            window.UI.state.currentPartyName = filterPartyName === 'All Parties (Global Ledger)' ? null : filterPartyName;
+
+            // Reset Sub-Filters on load
+            document.getElementById('adv-item-search').value = '';
+            document.getElementById('adv-item-type').value = 'ALL';
+            document.getElementById('adv-item-date').value = '';
+
+            // Trigger the engine!
+            window.applyAdvancedItemFilters();
             
-            // Update Top Screen Balances
-            const balEl = document.getElementById('report-party-balance');
-            balEl.innerText = `Net Movement: ${runningBal > 0 ? '+' : ''}${runningBal} Units`;
-            balEl.style.color = runningBal >= 0 ? 'var(--md-success)' : 'var(--md-error)';
-            
-            const emptyHTML = '<p class="empty-state">No transaction history found for this item.</p>';
-            
-            // Render the UI List
-            window.UI.renderVirtualList(timelineContainer, timeline, (t) => {
-                const isPositive = t.impact > 0;
-                const icon = isPositive ? 'add_shopping_cart' : 'remove_shopping_cart';
-                const iconColor = isPositive ? '#146c2e' : '#ba1a1a';
-                const iconBg = isPositive ? '#e8f5e9' : '#fff0f2';
-                const sign = isPositive ? '+' : '';
-                
-                return `
-                <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
-                    <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; flex-shrink: 0;">
-                        <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
-                    </div>
-                    <div style="flex: 1;">
-                        <strong class="large-text">${t.desc}</strong><br>
-                        <small style="color: var(--md-text-muted);">${t.date} | ${t.partyName || 'Cash'} ${t.ref ? '| Ref: ' + t.ref : ''}</small>
-                    </div>
-                    <div style="text-align:right;">
-                        <strong style="font-size: 15px; color: ${iconColor};">${sign}${t.impact} Units</strong><br>
-                        <small style="color: var(--md-text-muted);">Rate: ₹${t.rate.toFixed(2)}</small>
-                    </div>
-                </div>`;
-            }, emptyHTML);
-            
-            // Ensure the back button restores the standard Ledger Screen settings
-            const closeBtn = document.querySelector('#activity-report-viewer .activity-header .material-symbols-outlined');
-            closeBtn.onclick = () => {
-                if(editBtn) editBtn.style.display = 'flex';
-                if(shareBtn) shareBtn.style.display = 'flex';
-                window.UI.closeActivity('activity-report-viewer');
-            };
         }, 100); 
+    };
+
+    window.applyAdvancedItemFilters = () => {
+        const fullTimeline = window.UI.state.currentItemTimeline || [];
+        const openingStock = window.UI.state.currentItemOpening || 0;
+        
+        const searchText = (document.getElementById('adv-item-search').value || '').toLowerCase();
+        const typeFilter = document.getElementById('adv-item-type').value;
+        const dateFilter = document.getElementById('adv-item-date').value;
+
+        // 🚨 CRITICAL FIX: Calculate the TRUE Running Balance on the ENTIRE timeline BEFORE filtering!
+        // Otherwise, the math starts from 0 on the filtered view and destroys the audit trail!
+        let runBal = openingStock;
+        fullTimeline.forEach(t => {
+            runBal += t.impact;
+            t.runningBalance = runBal; 
+        });
+
+        let totalIn = 0;
+        let totalOut = 0;
+
+        let filtered = fullTimeline.filter(t => {
+            // 1. Check Search (Ref & Desc)
+            if (searchText && !String(t.ref || '').toLowerCase().includes(searchText) && !String(t.desc || '').toLowerCase().includes(searchText)) return false;
+            
+            // 2. Check Type
+            if (typeFilter === 'IN' && t.impact <= 0) return false;
+            if (typeFilter === 'OUT' && t.impact >= 0) return false;
+            if (typeFilter === 'Expense' && t.type !== 'Expense') return false;
+
+            // 3. Check Date
+            if (dateFilter && t.date !== dateFilter) return false;
+
+            return true;
+        });
+
+        // Only tally the IN/OUT totals for the specifically visible rows
+        filtered.forEach(t => {
+            if (t.impact > 0) totalIn += t.impact;
+            if (t.impact < 0) totalOut += Math.abs(t.impact);
+        });
+
+        // Update the UI Cards
+        document.getElementById('item-ledger-total-in').innerText = totalIn.toFixed(2);
+        document.getElementById('item-ledger-total-out').innerText = totalOut.toFixed(2);
+
+        // Update Print Button to pass filters to PDF
+        const printBtn = document.getElementById('btn-print-item-ledger');
+        if (printBtn) {
+            printBtn.onclick = () => {
+                const id = document.getElementById('item-ledger-hidden-id').value;
+                const name = document.getElementById('item-ledger-hidden-name').value;
+                window.executeItemLedgerReport(id, name, window.UI.state.currentPartyId, window.UI.state.currentPartyName, searchText, typeFilter, dateFilter);
+            };
+        }
+
+        const timelineContainer = document.getElementById('item-ledger-list');
+        const emptyHTML = '<p class="empty-state">No transactions match these filters.</p>';
+        
+        window.UI.renderVirtualList(timelineContainer, filtered, (t) => {
+            const isPositive = t.impact > 0;
+            const icon = isPositive ? 'add_shopping_cart' : 'remove_shopping_cart';
+            const iconColor = isPositive ? '#146c2e' : '#ba1a1a';
+            const iconBg = isPositive ? '#e8f5e9' : '#fff0f2';
+            const sign = isPositive ? '+' : '';
+            
+            return `
+            <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
+                <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; flex-shrink: 0;">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                </div>
+                <div style="flex: 1;">
+                    <strong class="large-text">${t.desc}</strong><br>
+                    <small style="color: var(--md-text-muted);">${t.date} | ${t.partyName || 'System'} ${t.ref ? '| Ref: ' + t.ref : ''}</small>
+                </div>
+                <div style="text-align:right;">
+                    <strong style="font-size: 15px; color: ${iconColor};">${sign}${t.impact} Units</strong><br>
+                    <small style="color: var(--md-text-muted);">Bal: ${t.runningBalance.toFixed(2)}</small>
+                </div>
+            </div>`;
+        }, emptyHTML);
     };
     </script>
     <script>

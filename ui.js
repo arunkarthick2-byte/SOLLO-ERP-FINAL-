@@ -764,6 +764,13 @@ const UI = {
         document.getElementById('sales-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
         document.getElementById('sales-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
         
+        // 🚀 ENTERPRISE UPGRADE: Live CGST/SGST Splitter
+        const halfSalesGst = totalGst / 2;
+        const sCgstEl = document.getElementById('sales-cgst-total');
+        if (sCgstEl) sCgstEl.innerText = `\u20B9${halfSalesGst.toFixed(2)}`;
+        const sSgstEl = document.getElementById('sales-sgst-total');
+        if (sSgstEl) sSgstEl.innerText = `\u20B9${halfSalesGst.toFixed(2)}`;
+        
         const roundOffEl = document.getElementById('sales-round-off');
         if (roundOffEl) {
             roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
@@ -840,6 +847,13 @@ const UI = {
 
         document.getElementById('purchase-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
         document.getElementById('purchase-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
+        
+        // 🚀 ENTERPRISE UPGRADE: Live CGST/SGST Splitter
+        const halfPurchGst = totalGst / 2;
+        const pCgstEl = document.getElementById('purchase-cgst-total');
+        if (pCgstEl) pCgstEl.innerText = `\u20B9${halfPurchGst.toFixed(2)}`;
+        const pSgstEl = document.getElementById('purchase-sgst-total');
+        if (pSgstEl) pSgstEl.innerText = `\u20B9${halfPurchGst.toFixed(2)}`;
         
         const roundOffEl = document.getElementById('purchase-round-off');
         if (roundOffEl) {
@@ -1072,7 +1086,7 @@ const UI = {
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                             <div style="flex:1; min-width:0; overflow:hidden;">
                                 <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${s.date || 'Unknown Date'}</small>
+                                <small class="color-primary" style="display:block; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</small>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
@@ -1158,7 +1172,7 @@ const UI = {
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                             <div style="flex:1; min-width:0; overflow:hidden;">
                                 <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${p.date || 'Unknown Date'}</small>
+                                <small class="color-primary" style="display:block; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(p.date) || 'Unknown Date'}</small>
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
@@ -1528,7 +1542,7 @@ const UI = {
                     <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;" onclick="app.openForm('expense', '${e.id}')">
                         <div style="flex: 1; min-width: 0; padding-right: 8px;">
                             <strong class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${e.expenseNo ? e.expenseNo + ' - ' : ''}${e.category || 'General Expense'}</strong>
-                            <small style="display: block; margin-top: 4px;">${e.date || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''} | ${e.notes || 'No notes'}</small>
+                            <small style="display: block; margin-top: 4px;">${window.Utils.formatDateDisplay(e.date) || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''} | ${e.notes || 'No notes'}</small>
                         </div>
                         <strong style="color:var(--md-error); flex-shrink: 0; padding-top: 2px;">\u20B9${(parseFloat(e.amount) || 0).toFixed(2)}</strong>
                     </div>`;
@@ -1622,7 +1636,7 @@ const UI = {
                     <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:center;" onclick="app.openReceipt('${t.id}', '${t.type}')">
                         <div>
                             <strong class="large-text">${t.receiptNo ? t.receiptNo + ' - ' : ''}${t.desc || 'Transaction'}</strong><br>
-                            <small>${t.date || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>${thirdLine}
+                            <small>${window.Utils.formatDateDisplay(t.date) || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>${thirdLine}
                         </div>
                         <strong style="font-size:16px; color:${t.type === 'in' ? 'var(--md-success)' : 'var(--md-error)'};">
                             ${t.type === 'in' ? '+' : '-'}\u20B9${(parseFloat(t.amount) || 0).toFixed(2)}
@@ -1707,7 +1721,7 @@ const UI = {
                         <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
                             <div>
                                 <strong class="large-text">${t.desc || 'Document'}</strong><br>
-                                <small>${t.date} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>
+                                <small>${window.Utils.formatDateDisplay(t.date)} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>
                             </div>
                             <div style="text-align:right;">
                                 <strong style="color:${t.isInvoice ? 'var(--md-error)' : 'var(--md-success)'};">\u20B9${parseFloat(t.amount || 0).toFixed(2)}</strong><br>
@@ -1723,7 +1737,7 @@ const UI = {
                         
                         // ENTERPRISE FIX: Corrected Accounting Semantic Labels
                         const title = t.party ? `${isMoneyIn ? 'Sale' : 'Purchase'} - ${t.party}` : (t.desc || 'Transaction');
-                        const subtitle = t.ref ? `${t.date} | Ref: ${t.ref}` : `${t.date} | Mode: ${t.mode || 'Cash'}`;
+                        const subtitle = t.ref ? `${window.Utils.formatDateDisplay(t.date)} | Ref: ${t.ref}` : `${window.Utils.formatDateDisplay(t.date)} | Mode: ${t.mode || 'Cash'}`;
                         const rightVal = t.qty ? t.qty : `${sign}\u20B9${parseFloat(t.amount || 0).toFixed(2)}`;
 
                         return `
@@ -3039,7 +3053,7 @@ const UI = {
         html += dailyActivity.map(t => `
             <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
                 <div class="icon-circle" style="background: var(--md-surface-variant); color: ${t.color}; width: 40px; height: 40px; flex-shrink: 0;"><span class="material-symbols-outlined" style="font-size:20px;">${t.icon}</span></div>
-                <div style="flex: 1;"><strong class="large-text">${t.type}</strong><br><small style="color: var(--md-text-muted);">${t.desc}</small></div>
+                <div style="flex: 1;"><strong class="large-text">${t.type}</strong><br><small style="color: var(--md-text-muted);">${t.desc} | ${window.Utils.formatDateDisplay(targetDate)}</small></div>
                 <strong style="font-size: 16px; color: ${t.color};">${t.sign}&#8377;${(t.amount || 0).toFixed(2)}</strong>
             </div>
         `).join('');

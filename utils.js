@@ -130,17 +130,22 @@ const Utils = {
         return `${year}-${month}-${day}`;
     },
 
-    // --- ENTERPRISE UPGRADE: PROFESSIONAL DATE DISPLAY ---
+    // --- ENTERPRISE UPGRADE: PROFESSIONAL DATE DISPLAY (DD/MM/YYYY) ---
     formatDateDisplay: (dateString) => {
         if (!dateString) return '';
         const cleanDate = String(dateString).split('T')[0];
         
         // ENTERPRISE FIX: Route the display date through our Apple-Safe engine!
-        // Using 'new Date()' directly crashes on older iPhones and prints ugly raw database strings!
         const d = Utils.safeDate(cleanDate + 'T12:00:00');
         
         if (isNaN(d.getTime())) return dateString; 
-        return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        
+        // 🚨 CRITICAL FIX: Force strict DD/MM/YYYY format across the entire ERP
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        
+        return `${day}/${month}/${year}`;
     },
 
     // --- ENTERPRISE FORMATTING ENGINES ---
@@ -612,12 +617,13 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             return;
         }
         
+        // 🚨 CRITICAL FIX: Save original dimensions OUTSIDE the try block!
+        const origWidth = element.style.width;
+        const origMinWidth = element.style.minWidth;
+        const origMaxWidth = element.style.maxWidth;
+
         try {
             // STRICT ERP LOGIC: Physically lock the DOM to A4 Desktop dimensions BEFORE taking the snapshot!
-            const origWidth = element.style.width;
-            const origMinWidth = element.style.minWidth;
-            const origMaxWidth = element.style.maxWidth;
-            
             element.style.width = '800px';
             element.style.minWidth = '800px';
             element.style.maxWidth = '800px';
@@ -722,6 +728,12 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         } catch (err) {
             console.error("Preview Generation Failed", err);
             alert("Failed to generate preview.");
+        } finally {
+            // 🚨 CRITICAL FIX: The Finally Block! 
+            // Guarantees the mobile UI is restored even if the PDF engine crashes, preventing a permanently frozen screen!
+            element.style.width = origWidth;
+            element.style.minWidth = origMinWidth;
+            element.style.maxWidth = origMaxWidth;
         }
     },
 
@@ -1055,7 +1067,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
                             ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
                             <tr>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 11px; color: #475569; font-weight: 700;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Payment'} on ${r.date}</td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 11px; color: #475569; font-weight: 700;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Payment'} on ${Utils.formatDateDisplay(r.date)}</td>
                                 <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">${parseFloat(r.amount) < 0 ? '+' : '-'} ₹${Math.abs(parseFloat(r.amount)).toFixed(2)}</td>
                             </tr>
                             `).join('') : ''}
@@ -1928,13 +1940,168 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             console.error("Share API Error:", err);
             window.Utils.showToast("❌ Share cancelled or failed.");
         }
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: EXPENSE VOUCHER PDF
+    // ==========================================
+    generateExpenseVoucherPDF: async (expenseId) => {
+        if (typeof window.html2pdf === 'undefined' && typeof html2canvas === 'undefined') {
+            if (window.Utils) window.Utils.showToast("Loading PDF Engine... Please wait 2 seconds.");
+            const s2 = document.createElement('script');
+            s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+            document.head.appendChild(s2);
+            return;
+        }
+
+        if (window.Utils) window.Utils.showToast("Generating Expense Voucher...");
+        
+        const expense = await window.getRecordById('expenses', expenseId);
+        if (!expense) return window.Utils.showToast("Error: Expense record not found!");
+
+        const activeFirmId = expense.firmId || (window.app && window.app.state ? window.app.state.firmId : 'firm1');
+        const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
+        const accounts = await window.getAllRecords('accounts');
+        const payAccount = accounts.find(a => a.id === expense.accountId) || { name: 'Cash Drawer' };
+        
+        const safeDate = window.Utils.formatDateDisplay(expense.date);
+        const uniquePdfId = 'pdf-expense-' + Date.now();
+        
+        let itemsHtml = '';
+        let totalAmt = 0;
+        
+        // Ensure items array exists to prevent crashes if it's a simple expense
+        const itemsToProcess = (expense.items && expense.items.length > 0) ? expense.items : [{ name: expense.category || 'General Expense', qty: 1, rate: expense.amount, uom: 'Units' }];
+
+        itemsToProcess.forEach((item, index) => {
+            const qty = parseFloat(item.qty) || 1;
+            const rate = parseFloat(item.rate) || 0;
+            const total = qty * rate;
+            totalAmt += total;
+            
+            itemsHtml += `
+                <tr>
+                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#475569; font-weight:600;">${index + 1}</td>
+                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#0f172a; font-weight:700;">${item.name || 'Expense Item'}</td>
+                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#475569;">${qty} ${item.uom || ''}</td>
+                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:right; color:#475569;">${rate.toFixed(2)}</td>
+                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; text-align:right; font-weight:800; color:#0f172a;">${total.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        const finalTotalAmt = totalAmt > 0 ? totalAmt : (parseFloat(expense.amount) || 0);
+        const amountInWords = window.Utils.numberToWords(finalTotalAmt);
+
+        const html = `
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
+                
+                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+
+                <style>
+                    #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
+                    #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
+                    #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 12px !important; font-weight: 800 !important; font-size: 12px !important; text-transform: uppercase !important; color: #0f172a !important; text-align: left; }
+                    #${uniquePdfId} td { font-size: 13px !important; vertical-align: middle !important; }
+                    #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
+                </style>
+
+                <div style="border: 2px solid #475569; padding: 2px;">
+                <div style="border: 1px solid #475569;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #475569;">
+                        <div style="width: 65%; padding: 20px; border-right: 1px solid #475569;">
+                            <h1 style="margin: 0 0 4px 0; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${biz.name || 'Company Name'}</h1>
+                            <div style="font-size: 12px; color: #475569;">Internal Expense & Payment Record</div>
+                        </div>
+                        <div style="width: 35%; padding: 20px; background: #f8fafc; text-align: center;">
+                            <h2 style="margin: 0; font-size: 22px; color: #0f172a; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">PAYMENT VOUCHER</h2>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; padding: 20px; background: #ffffff; border-bottom: 1px solid #475569;">
+                        <div style="flex: 1;">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Voucher No</div>
+                            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${expense.expenseNo || 'EXP-AUTO'}</div>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Date</div>
+                            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${safeDate}</div>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Category</div>
+                            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${expense.category || 'General'}</div>
+                        </div>
+                        <div style="flex: 1; text-align: right;">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Payment Mode</div>
+                            <div style="font-size: 14px; font-weight: 800; background: #e2e8f0; padding: 4px 10px; border-radius: 4px; display: inline-block;">${payAccount.name}</div>
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 8%; text-align: center;">#</th>
+                                <th style="width: 47%;">Description of Expense</th>
+                                <th style="text-align: center; width: 15%;">Qty</th>
+                                <th style="text-align: right; width: 15%;">Rate (₹)</th>
+                                <th style="text-align: right; width: 15%;">Total (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHtml}
+                        </tbody>
+                    </table>
+                    
+                    <div style="display: flex; border-top: 2px solid #475569; border-bottom: 1px solid #475569;">
+                        <div style="width: 70%; padding: 16px 20px; border-right: 1px solid #475569; background: #f8fafc; display: flex; align-items: center;">
+                            <div>
+                                <div style="font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Amount in Words</div>
+                                <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${amountInWords}</div>
+                            </div>
+                        </div>
+                        <div style="width: 30%; padding: 16px 20px; text-align: right; display: flex; flex-direction: column; justify-content: center;">
+                            <div style="font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Total Paid</div>
+                            <div style="font-size: 24px; font-weight: 900; color: #0f172a;">₹${finalTotalAmt.toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <div style="padding: 20px; font-size: 13px; color: #334155; line-height: 1.5; border-bottom: 1px solid #475569; background: #f8fafc;">
+                        <strong>Remarks / Notes:</strong><br>
+                        ${expense.notes ? expense.notes.replace(/\\n/g, '<br>') : 'No additional remarks.'}
+                    </div>
+
+                    <div style="display: flex; padding: 40px 20px 20px 20px; justify-content: space-between; align-items: flex-end;">
+                        <div style="width: 250px; text-align: center;">
+                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #475569;">Receiver's Signature</div>
+                            <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">(Sign to confirm cash received)</div>
+                        </div>
+                        
+                        <div style="width: 250px; text-align: center;">
+                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; margin-bottom: 5px; object-fit: contain; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized By</div>
+                        </div>
+                    </div>
+
+                </div></div>
+            </div>
+        `;
+
+        const printArea = document.getElementById('print-area');
+        if (printArea) {
+            printArea.innerHTML = html;
+            setTimeout(() => {
+                const safeFilename = `Voucher_${expense.expenseNo || 'EXP'}.pdf`;
+                window.Utils.processPDFExport(uniquePdfId, safeFilename);
+            }, 100);
+        }
     }
 }; // <--- THIS CLOSES THE UTILS OBJECT
 
 // ==========================================
-// ENTERPRISE UPGRADE: ITEM LEDGER PDF
+// ENTERPRISE UPGRADE: PARTY-FILTERED ITEM LEDGER PDF
 // ==========================================
-window.executeItemLedgerReport = async (itemId, itemName) => {
+window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyName = null, searchText = '', typeFilter = 'ALL', dateFilter = '') => {
     if (typeof window.html2pdf === 'undefined' && typeof html2pdf === 'undefined') {
         if (window.Utils) window.Utils.showToast("Loading PDF Engine... Please tap Print again in 2 seconds.");
         const s2 = document.createElement('script');
@@ -1951,12 +2118,16 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
 
     const product = await window.getRecordById('items', itemId);
-    const openingStock = product ? (parseFloat(product.openingStock) || 0) : 0;
+    
+    // 🚨 ENTERPRISE FIX: If checking a specific party's ledger, the Global Opening Stock is strictly 0!
+    const openingStock = (product && !partyId) ? (parseFloat(product.openingStock) || 0) : 0;
 
     let timeline = [];
+    
+    // 2. Safely Filter Sales
     const sales = await window.getAllRecords('sales');
     sales.forEach(s => {
-        if(s.status !== 'Open') {
+        if(s.status !== 'Open' && s.firmId === activeFirmId && (!partyId || s.customerId === partyId)) {
             (s.items || []).forEach(row => {
                 if(row.itemId === itemId) {
                     const isReturn = s.documentType === 'return';
@@ -1967,9 +2138,10 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
         }
     });
 
+    // 3. Safely Filter Purchases
     const purchases = await window.getAllRecords('purchases');
     purchases.forEach(p => {
-        if(p.status !== 'Open') {
+        if(p.status !== 'Open' && p.firmId === activeFirmId && (!partyId || p.supplierId === partyId)) {
             (p.items || []).forEach(row => {
                 if(row.itemId === itemId) {
                     const isReturn = p.documentType === 'return';
@@ -1980,14 +2152,30 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
         }
     });
 
-    const adjustments = await window.getAllRecords('adjustments');
-    adjustments.forEach(a => {
-        if(a.itemId === itemId) {
-            const qty = parseFloat(a.qty) || 0;
-            timeline.push({ id: a.id, date: a.date, type: 'Adjustment', desc: a.notes || 'Manual', ref: 'ADJ-' + a.id.slice(-4).toUpperCase(), inQty: a.type === 'add' ? qty : 0, outQty: a.type === 'reduce' ? qty : 0 });
-        }
-    });
+    // 4. Manual Adjustments & Expenses are only shown if we are NOT filtering by a specific party
+    if (!partyId) {
+        const adjustments = await window.getAllRecords('adjustments');
+        adjustments.forEach(a => {
+            if(a.itemId === itemId && a.firmId === activeFirmId) {
+                const qty = parseFloat(a.qty) || 0;
+                timeline.push({ id: a.id, date: a.date, type: 'Adjustment', desc: 'Manual Correction', ref: a.notes || 'Audit', inQty: a.type === 'add' ? qty : 0, outQty: a.type === 'reduce' ? qty : 0 });
+            }
+        });
+        
+        const expenses = await window.getAllRecords('expenses');
+        expenses.forEach(e => {
+            if(e.firmId === activeFirmId) {
+                (e.items || []).forEach(row => {
+                    if(row.itemId === itemId) {
+                        const qty = parseFloat(row.qty) || 0;
+                        timeline.push({ id: e.id, date: e.date, type: 'Expense', desc: 'Internal Expense', ref: e.expenseNo || 'EXP', inQty: 0, outQty: qty });
+                    }
+                });
+            }
+        });
+    }
 
+    // 1. SORT CHRONOLOGICALLY FIRST!
     timeline.sort((a, b) => {
         const dateA = new Date(a.date || 0).getTime();
         const dateB = new Date(b.date || 0).getTime();
@@ -1997,21 +2185,46 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
         return timeA - timeB;
     });
 
+    // 2. CALCULATE TRUE RUNNING MATH ON FULL TIMELINE!
     let runningStock = openingStock;
-    let totalIn = 0;
-    let totalOut = 0;
-    let rowsHtml = `
-        <tr style="background:#f1f5f9; font-weight:800;">
-            <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#475569;" colspan="3">Opening Stock</td>
-            <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center;">-</td>
-            <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center;">-</td>
-            <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; color:#0f172a; font-weight:900;">${openingStock.toFixed(2)}</td>
-        </tr>
-    `;
-
-    timeline.forEach((t, index) => {
+    timeline.forEach(t => {
         runningStock += t.inQty;
         runningStock -= t.outQty;
+        t.trueRunningBalance = runningStock; // Save the permanent, mathematically correct balance
+    });
+
+    // 3. NOW APPLY FILTERS!
+    timeline = timeline.filter(t => {
+        if (searchText && !String(t.ref || '').toLowerCase().includes(searchText) && !String(t.type || '').toLowerCase().includes(searchText)) return false;
+        
+        const impact = (t.inQty || 0) - (t.outQty || 0);
+        if (typeFilter === 'IN' && impact <= 0) return false;
+        if (typeFilter === 'OUT' && impact >= 0) return false;
+        if (typeFilter === 'Expense' && t.type !== 'Expense') return false;
+        if (dateFilter && t.date !== dateFilter) return false;
+
+        return true;
+    });
+
+    let totalIn = 0;
+    let totalOut = 0;
+    let rowsHtml = '';
+    
+    // Hide Global Opening Stock if filtering by Party or Date
+    if (!partyId && !dateFilter) {
+        rowsHtml += `
+            <tr style="background:#f1f5f9; font-weight:800;">
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#475569;" colspan="3">Opening Stock</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center;">-</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center;">-</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; color:#0f172a; font-weight:900;">${openingStock.toFixed(2)}</td>
+            </tr>
+        `;
+    }
+
+    timeline.forEach((t, index) => {
+        totalIn += t.inQty;
+        totalOut += t.outQty;
         totalIn += t.inQty;
         totalOut += t.outQty;
         
@@ -2030,18 +2243,24 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
         `;
     });
 
+    // 🚨 CRITICAL FIX: Dynamically capture the exact closing balance for the filtered view!
+    const finalDisplayBalance = timeline.length > 0 ? timeline[timeline.length - 1].trueRunningBalance : (openingStock || 0);
+
     // 🚀 ENTERPRISE UPGRADE: Tally Double-Line Totals
     rowsHtml += `
         <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569; border-bottom: 4px double #475569;">
             <td style="padding:12px 10px; text-align:right; text-transform:uppercase; color:#0f172a;" colspan="3">Total Volume Summary</td>
             <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:center; color:#16a34a; font-size:13px;">${totalIn.toFixed(2)}</td>
             <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:center; color:#dc2626; font-size:13px;">${totalOut.toFixed(2)}</td>
-            <td style="padding:12px 10px; text-align:right; color:#0f172a; font-size:13px;">${runningStock.toFixed(2)}</td>
+            <td style="padding:12px 10px; text-align:right; color:#0f172a; font-size:13px;">${finalDisplayBalance.toFixed(2)}</td>
         </tr>
     `;
     
     const uniquePdfId = 'pdf-item-ledger-' + Date.now();
     const safeDocNo = Utils.getLocalDate();
+    
+    // Dynamic Legal Title based on Filter
+    const reportTitle = partyName ? `PARTY STOCK LEDGER` : `STOCK INVENTORY LEDGER`;
 
     // 🚀 ENTERPRISE UPGRADE: Official Letterhead HTML Injection
     const html = `
@@ -2063,7 +2282,7 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
             <div style="border: 1px solid #475569;">
                 
                 <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">STOCK INVENTORY LEDGER</h2>
+                    <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">${reportTitle}</h2>
                     <div style="font-size: 12px; font-weight: 700; color: #475569;">DATE: ${Utils.formatDateDisplay(safeDocNo)}</div>
                 </div>
 
@@ -2078,15 +2297,24 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
                         </div>
                     </div>
                     <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #f8fafc; text-align: right;">
-                        <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Current Stock in Hand</strong>
-                        <span style="font-size: 28px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">${runningStock.toFixed(2)}</span>
-                        <span style="background: ${runningStock > 0 ? '#e8f5e9' : '#fff0f2'}; color: ${runningStock > 0 ? '#146c2e' : '#ba1a1a'}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${runningStock > 0 ? '#bbf7d0' : '#fecaca'};">${runningStock > 0 ? 'In Stock Available' : 'Out of Stock'}</span>
+                        <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Net Movement Balance</strong>
+                        <span style="font-size: 28px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">${Math.abs(finalDisplayBalance).toFixed(2)}</span>
+                        <span style="background: ${finalDisplayBalance > 0 ? '#e8f5e9' : (finalDisplayBalance < 0 ? '#fff0f2' : '#f1f5f9')}; color: ${finalDisplayBalance > 0 ? '#146c2e' : (finalDisplayBalance < 0 ? '#ba1a1a' : '#475569')}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${finalDisplayBalance > 0 ? '#bbf7d0' : (finalDisplayBalance < 0 ? '#fecaca' : '#cbd5e1')};">${finalDisplayBalance > 0 ? 'Net Surplus (IN)' : (finalDisplayBalance < 0 ? 'Net Deficit (OUT)' : 'Zero Balance')}</span>
                     </div>
                 </div>
 
                 <div style="padding: 15px 20px; border-bottom: 1px solid #475569;">
-                    <strong style="text-transform: uppercase; font-size: 11px; background: #e2e8f0; padding: 4px 8px; border-radius: 4px; color: #0f172a; display: inline-block; margin-bottom: 8px;">Product / Item Details</strong>
-                    <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; color: #0061a4;">${itemName}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="text-transform: uppercase; font-size: 11px; background: #e2e8f0; padding: 4px 8px; border-radius: 4px; color: #0f172a; display: inline-block; margin-bottom: 8px;">Product / Item Details</strong>
+                            <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; color: #0061a4;">${itemName}</div>
+                        </div>
+                        ${partyName ? `
+                        <div style="text-align: right;">
+                            <strong style="text-transform: uppercase; font-size: 11px; background: #e3f2fd; border: 1px solid #bbdefb; padding: 4px 8px; border-radius: 4px; color: #0061a4; display: inline-block; margin-bottom: 8px;">Filtered By Party</strong>
+                            <div style="font-size: 16px; font-weight: 800; text-transform: uppercase; color: #0061a4;">${partyName}</div>
+                        </div>` : ''}
+                    </div>
                 </div>
 
                 <table>
@@ -2097,7 +2325,7 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
                             <th style="width: 36%;">Particulars</th>
                             <th style="text-align: center; width: 12%;">IN (+)</th>
                             <th style="text-align: center; width: 12%;">OUT (-)</th>
-                            <th style="text-align: right; width: 12%;">Balance</th>
+                            <th style="text-align: right; width: 12%;">Net Bal</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2120,7 +2348,8 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
         printArea.innerHTML = html;
         setTimeout(() => {
             const safeItemName = itemName ? String(itemName) : 'Unknown_Item';
-            const safeFilename = `Stock_Ledger_${safeItemName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+            const safePartyStr = partyName ? `_${String(partyName).replace(/[^a-z0-9]/gi, '')}` : '';
+            const safeFilename = `Stock_Ledger_${safeItemName.replace(/[^a-z0-9]/gi, '_')}${safePartyStr}.pdf`;
             window.Utils.processPDFExport(uniquePdfId, safeFilename);
         }, 100);
     }
