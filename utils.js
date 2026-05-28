@@ -1176,32 +1176,18 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         }
     },
 
-    printReceivablesReport: (reportData, grandTotal) => {
-        // 🚨 ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Report!
+    printReceivablesReport: async (reportData, grandTotal) => {
+        window.Utils.showToast("Generating Premium Report... ⏳");
         const uniquePdfId = 'pdf-receivables-' + Date.now();
+        const safeDocNo = Utils.getLocalDate();
         
-        let html = `
-            <div id="${uniquePdfId}" style="padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1a1c1e; background: #ffffff;">
-                <style>
-                    #${uniquePdfId} table { width: 100%; border-collapse: collapse; margin-top: 20px; page-break-inside: auto; }
-                    #${uniquePdfId} tr { page-break-inside: avoid; page-break-after: auto; break-inside: avoid; }
-                    #${uniquePdfId} thead { display: table-header-group; }
-                </style>
-                <h1 style="text-align: center; color: #0061a4; text-transform: uppercase;">Receivables Report</h1>
-                <p style="text-align: center; color: #73777f;">Generated on: ${Utils.getLocalDate()}</p>
-                <table>
-                    <thead>
-                        <tr style="background-color: #f3f3f3;">
-                            <th style="border: 1px solid #ccc; padding: 10px; text-align: left;">Customer Name</th>
-                            <th style="border: 1px solid #ccc; padding: 10px; text-align: left;">Contact</th>
-                            <th style="border: 1px solid #ccc; padding: 10px; text-align: right;">Outstanding Balance (&#8377;)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
+        // 1. Fetch Business Profile for the Letterhead
+        const firmId = typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1';
+        const biz = await window.getRecordById('businessProfile', firmId) || {};
+        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
 
-        reportData.forEach(row => {
-            // 🚨 THE FIX: DYNAMIC AGING (DAYS OVERDUE) CALCULATOR!
+        let rowsHtml = '';
+        reportData.forEach((row, index) => {
             let overdueTag = '';
             try {
                 if (window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.sales) {
@@ -1211,38 +1197,97 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         const oldestDate = new Date(partySales[0].date);
                         const daysOverdue = Math.floor(Math.abs(new Date() - oldestDate) / (1000 * 60 * 60 * 24));
                         
-                        if (daysOverdue > 60) overdueTag = `<span style="background:#fef2f2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #f87171; margin-left:8px; display:inline-block; vertical-align:middle;">${daysOverdue} Days Overdue</span>`;
-                        else if (daysOverdue > 30) overdueTag = `<span style="background:#fff7ed; color:#c2410c; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #fb923c; margin-left:8px; display:inline-block; vertical-align:middle;">${daysOverdue} Days Overdue</span>`;
-                        else if (daysOverdue > 0) overdueTag = `<span style="background:#f8fafc; color:#475569; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #cbd5e1; margin-left:8px; display:inline-block; vertical-align:middle;">${daysOverdue} Days</span>`;
+                        if (daysOverdue > 60) overdueTag = `<span style="background:#fff0f2; color:#ba1a1a; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #ffdad6; margin-left:8px; display:inline-block; vertical-align:middle; font-weight:800;">${daysOverdue} Days Overdue</span>`;
+                        else if (daysOverdue > 30) overdueTag = `<span style="background:#fff7ed; color:#c2410c; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #fb923c; margin-left:8px; display:inline-block; vertical-align:middle; font-weight:800;">${daysOverdue} Days Overdue</span>`;
+                        else if (daysOverdue > 0) overdueTag = `<span style="background:#f8fafc; color:#475569; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #cbd5e1; margin-left:8px; display:inline-block; vertical-align:middle; font-weight:800;">${daysOverdue} Days</span>`;
                     }
                 }
             } catch(e) { console.warn("Aging calculation skipped for", row.name); }
 
-            html += `
-                <tr>
-                    <td style="border: 1px solid #ccc; padding: 10px; font-weight: bold;">
-                        ${row.name} 
-                        ${overdueTag}
-                    </td>
-                    <td style="border: 1px solid #ccc; padding: 10px;">${row.phone || 'N/A'}</td>
-                    <td style="border: 1px solid #ccc; padding: 10px; text-align: right; color: #ba1a1a; font-weight: bold;">${parseFloat(row.balance || 0).toFixed(2)}</td>
+            // 🚀 ENTERPRISE UPGRADE: Zebra Striping
+            const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+            rowsHtml += `
+                <tr style="background-color: ${rowBg};">
+                    <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; font-weight: 800; color: #0f172a;">${row.name} ${overdueTag}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; color: #475569; font-weight: 600;">${row.phone || '-'}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #dc2626; font-weight: 900; font-size: 13px;">₹${parseFloat(row.balance || 0).toFixed(2)}</td>
                 </tr>
             `;
         });
 
-        html += `
-                    </tbody>
-                </table>
-                <div style="text-align: right; margin-top: 20px;">
-                    <h2 style="color: #0061a4;">Total Market Receivables: &#8377;${parseFloat(grandTotal || 0).toFixed(2)}</h2>
-                </div>
-            </div>
+        // 🚀 ENTERPRISE UPGRADE: Official Letterhead HTML Injection
+        const html = `
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
+                
+                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+
+                <style>
+                    #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
+                    #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
+                    #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 10px !important; font-weight: 800 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; text-align: left; }
+                    #${uniquePdfId} td { border-top: none !important; border-left: none !important; font-size: 11px !important; vertical-align: middle !important; }
+                    #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
+                    #${uniquePdfId} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+                    #${uniquePdfId} thead { display: table-header-group; }
+                </style>
+
+                <div style="border: 2px solid #475569; padding: 2px;">
+                <div style="border: 1px solid #475569;">
+                    
+                    <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">MARKET RECEIVABLES</h2>
+                        <div style="font-size: 12px; font-weight: 700; color: #475569;">DATE: ${Utils.formatDateDisplay(safeDocNo)}</div>
+                    </div>
+
+                    <div style="display: flex; border-bottom: 1px solid #475569;">
+                        <div style="width: 50%; padding: 20px; border-right: 1px solid #475569;">
+                            ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
+                            <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">${biz.name || 'Company Name'}</h1>
+                            <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+                                ${biz.address || ''}<br>
+                                ${bizLocationStr ? bizLocationStr + '<br>' : ''}
+                                Ph: ${biz.phone || ''}
+                            </div>
+                        </div>
+                        <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #fff0f2; text-align: right;">
+                            <strong style="font-size: 11px; text-transform: uppercase; color: #ba1a1a; margin-bottom: 4px;">Total Market Due</strong>
+                            <span style="font-size: 28px; font-weight: 900; color: #991b1b; display: block; margin-bottom: 4px;">₹${parseFloat(grandTotal || 0).toFixed(2)}</span>
+                            <span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid #fca5a5;">Outstanding Receivables</span>
+                        </div>
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 55%;">Customer / Party Name</th>
+                                <th style="width: 25%;">Contact No.</th>
+                                <th style="width: 20%; text-align: right;">Outstanding (₹)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="3" style="padding:20px; text-align:center;">No pending receivables found.</td></tr>'}
+                            <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569; border-bottom: 4px double #475569;">
+                                <td colspan="2" style="padding:15px 15px; text-align:right; text-transform:uppercase; font-size:13px; color:#0f172a;">Total Market Dues</td>
+                                <td style="padding:15px 10px; text-align:right; color:#dc2626; font-size:16px;">₹${parseFloat(grandTotal || 0).toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="avoid-break" style="padding: 20px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid;">
+                        <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">*** End of Report ***</div>
+                        <div style="width: 200px; text-align: center;">
+                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; margin-bottom: 5px; object-fit: contain; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
+                        </div>
+                    </div>
+                </div> </div> </div>
         `;
+
         const printArea = document.getElementById('print-area');
         if (printArea) {
             printArea.innerHTML = html;
             setTimeout(() => {
-                Utils.processPDFExport(uniquePdfId, `Receivables_${Utils.getLocalDate()}.pdf`);
+                Utils.processPDFExport(uniquePdfId, `Receivables_${safeDocNo}.pdf`);
             }, 100);
         }
     },
@@ -1252,25 +1297,19 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const balEl = document.getElementById('report-party-balance');
         if (!nameEl) return alert("Report data not found.");
 
-        // FIX 1: Trim invisible spaces to prevent match failures
         const partyName = nameEl.innerText.trim();
         let isAccount = false;
         
-        // SAFEGUARD: Case-insensitive search 
-        // STRICT ERP LOGIC: Added 'window.' prefix to prevent ES6 Module ReferenceError Crash!
         let party = window.UI.state.rawData.ledgers.find(l => (l.name || '').trim().toLowerCase() === partyName.toLowerCase());
         
-        // Check if this is a Bank Account/Cash Drawer/UPI instead of a Ledger Party
         if (!party) {
             party = window.UI.state.rawData.accounts.find(a => (a.name || '').trim().toLowerCase() === partyName.toLowerCase());
-            // Make Cash Drawer detection bulletproof
             if (!party && partyName.toLowerCase().includes('cash')) {
                 party = { id: 'cash', name: 'Cash Drawer', type: 'Account', firmId: typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1' };
             }
             if (party) isAccount = true;
         }
         
-        // ENTERPRISE FIX: Allow Item Stock Ledgers to bypass Customer/Bank validation!
         let isItem = false;
         if (!party && partyName.toLowerCase().startsWith('item ledger:')) {
             const rawItemName = partyName.replace(/item ledger:\s*/i, '').trim();
@@ -1283,19 +1322,14 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         
         if (!party) return alert("Could not identify details for: " + partyName);
 
-        // ENTERPRISE FIX: Added 'window.' prefix to prevent ReferenceError crashes on older devices!
         const biz = (party.firmId) ? await window.getRecordById('businessProfile', party.firmId) || {} : {};
-        
-        // Harness the timeline that is already populated in the UI to prevent bugs
         const timeline = window.UI.state.rawData.timeline || [];
         
-        // STRICT ERP LOGIC: NEVER scrape the UI string for financial math! It strips negative signs and causes legal printing errors!
         let finalBal = 0;
         if (timeline.length > 0) {
             finalBal = timeline[timeline.length - 1].runningBalance || 0;
         }
 
-        // FIX 2: Safely calculate Opening Balance from the timeline to prevent silent crashes!
         let openingBal = 0;
         const openEntry = timeline.find(t => t.id === 'open-bal');
         if (openEntry) openingBal = openEntry.impact || openEntry.amount || 0;
@@ -1303,7 +1337,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         let tableRows = '';
         let totalDebit = 0;
         let totalCredit = 0;
-        timeline.forEach(t => {
+        
+        timeline.forEach((t, index) => {
             let debit = '';
             let credit = '';
             
@@ -1311,9 +1346,6 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 if (t.impact > 0) debit = Math.abs(t.impact).toFixed(2);
                 else credit = Math.abs(t.impact).toFixed(2);
             } else {
-                // ENTERPRISE FIX: The Opening Balance Reversal Trap!
-                // Opening balances lack the 'isInvoice' flag, so the old code blindly dumped them into the wrong accounting column!
-                // We MUST check 't.id === open-bal' and map it using its mathematical impact!
                 if (party.type === 'Customer') {
                     if (t.id === 'open-bal') {
                         if (t.impact > 0) debit = parseFloat(t.amount || 0).toFixed(2);
@@ -1329,19 +1361,22 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 }
             }
 
+            // 🚀 ENTERPRISE UPGRADE: Zebra Striping Backgrounds
+            const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+
             tableRows += `
-                <tr>
-                    <td style="text-align:center;">${t.date}</td>
-                    <td style="font-weight: 500;">
+                <tr style="background-color: ${rowBg};">
+                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#475569; white-space:nowrap;">${t.date}</td>
+                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; font-weight: 500; color:#1e293b; line-height: 1.4;">
                         ${t.desc || '-'} 
-                        ${t.partyName && t.partyName !== 'Unknown' ? `<br><small style="color:#1a1c1e; font-weight:bold;">Party: ${t.partyName}</small>` : ''}
-                        ${t.ref ? `<br><small style="color:#73777f; font-weight:normal;">Ref: ${t.ref}</small>` : ''}
+                        ${t.partyName && t.partyName !== 'Unknown' ? `<br><small style="color:#475569; font-weight:bold;">Party: ${t.partyName}</small>` : ''}
+                        ${t.ref ? `<br><small style="color:#64748b; font-weight:normal;">Ref: ${t.ref}</small>` : ''}
                     </td>
-                    <td style="text-align:right; color:#ba1a1a;">${debit ? '\u20B9' + debit : ''}</td>
-                    <td style="text-align:right; color:#146c2e;">${credit ? '\u20B9' + credit : ''}</td>
-                    <td style="text-align:right; font-weight:bold; color:#1a1c1e;">
-                        \u20B9${Math.abs(t.runningBalance || 0).toFixed(2)} 
-                        <span style="font-size:11px; color:#73777f;">${(t.runningBalance || 0) >= 0 ? 'Dr' : 'Cr'}</span>
+                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:right; color:#dc2626; font-weight:600;">${debit ? '₹' + debit : ''}</td>
+                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:right; color:#16a34a; font-weight:600;">${credit ? '₹' + credit : ''}</td>
+                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; font-weight:bold; color:#0f172a;">
+                        ₹${Math.abs(t.runningBalance || 0).toFixed(2)} 
+                        <br><span style="font-size:9px; color:#64748b;">${(t.runningBalance || 0) >= 0 ? 'Dr' : 'Cr'}</span>
                     </td>
                 </tr>
             `;
@@ -1350,34 +1385,30 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             if (credit) totalCredit += parseFloat(credit);
         });
 
-        // THE FIX: Inject the Total Summary Row at the end!
+        // 🚀 ENTERPRISE UPGRADE: Tally Double-Line Totals
         if (timeline.length > 0) {
             tableRows += `
-                <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569;">
-                    <td colspan="2" style="padding:10px 15px; text-align:right; text-transform:uppercase; font-size:12px; color:#0f172a;">Total Summary</td>
-                    <td style="padding:10px; text-align:right; color:#ba1a1a; font-size:13px;">₹${totalDebit.toFixed(2)}</td>
-                    <td style="padding:10px; text-align:right; color:#146c2e; font-size:13px;">₹${totalCredit.toFixed(2)}</td>
-                    <td style="padding:10px;"></td>
+                <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569; border-bottom: 4px double #475569;">
+                    <td colspan="2" style="padding:12px 15px; text-align:right; text-transform:uppercase; font-size:12px; color:#0f172a;">Total Summary</td>
+                    <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:right; color:#dc2626; font-size:13px;">₹${totalDebit.toFixed(2)}</td>
+                    <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:right; color:#16a34a; font-size:13px;">₹${totalCredit.toFixed(2)}</td>
+                    <td style="padding:12px 10px;"></td>
                 </tr>
             `;
         }
 
         const safeDocNo = Utils.getLocalDate();
         
-        // ENTERPRISE FIX: The "Inverted Supplier Suffix" Trap!
-        // Because Purchases are properly stored as Liabilities (Negative), the old logic printed "Advance" when we actually owed money!
         let balSuffix = 'Available';
-        let splitHtml = ''; // 🚀 ENTERPRISE GST SPLIT ENGINE FOR PDF
+        let splitHtml = ''; 
 
         if (!isAccount) {
             if (party.type === 'Customer') {
                 balSuffix = finalBal > 0 ? 'Dr (Due)' : 'Cr (Advance)';
             } else {
-                // For Suppliers: Negative = We owe them (To Pay). Positive = Overpayment (Advance)!
                 balSuffix = finalBal < 0 ? 'Cr (To Pay)' : 'Dr (Advance)';
             }
 
-            // 🚀 Execute the precise FIFO Tax-Split mathematically for this specific party!
             if ((party.type === 'Customer' && finalBal > 0.01) || (party.type === 'Supplier' && finalBal < -0.01)) {
                 let ob = parseFloat(party.openingBalance) || 0;
                 let isAdv = party.type === 'Customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
@@ -1433,13 +1464,11 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             }
         }
         
-        // ENTERPRISE FIX: Compile the City, State, and Pincode for the Statement PDF!
         const statementBizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
         const statementPartyLocationStr = [party.city, party.state].filter(Boolean).join(', ') + (party.pincode ? ' - ' + party.pincode : '');
-        
-        // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Statement!
         const uniquePdfId = 'pdf-statement-' + Date.now();
 
+        // 🚀 ENTERPRISE UPGRADE: Official Letterhead HTML Injection
         const html = `
             <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
                 
@@ -1449,7 +1478,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
                     #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
                     #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 10px !important; font-weight: 800 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; }
-                    #${uniquePdfId} td { border-bottom: 1px solid #cbd5e1 !important; border-right: 1px solid #94a3b8 !important; border-top: none !important; border-left: none !important; padding: 10px !important; font-size: 11px !important; color: #1e293b !important; vertical-align: middle !important; }
+                    #${uniquePdfId} td { border-top: none !important; border-left: none !important; font-size: 11px !important; vertical-align: middle !important; }
                     #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
                     #${uniquePdfId} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
                     #${uniquePdfId} thead { display: table-header-group; }
@@ -1509,9 +1538,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         </tbody>
                     </table>
                     
-                    <div class="avoid-break" style="padding: 20px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
+                    <div class="avoid-break" style="padding: 20px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid;">
+                        <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">*** End of Statement ***</div>
                         <div style="width: 200px; text-align: center;">
-                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; margin-bottom: 5px; object-fit: contain; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
                             <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
                         </div>
                     </div>
@@ -1521,7 +1551,6 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const printArea = document.getElementById('print-area');
         if (printArea) {
             printArea.innerHTML = html;
-            // STRICT ERP LOGIC: Safely generate the title and target the correct statement wrapper!
             const docTitle = isAccount ? 'Account_Statement' : 'Ledger_Statement';
             setTimeout(() => {
                 Utils.processPDFExport(uniquePdfId, `${docTitle}_${safeDocNo}.pdf`);
@@ -1906,7 +1935,6 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 // ENTERPRISE UPGRADE: ITEM LEDGER PDF
 // ==========================================
 window.executeItemLedgerReport = async (itemId, itemName) => {
-    // 🟢 ENTERPRISE FIX: Auto-load the PDF library if it isn't loaded yet!
     if (typeof window.html2pdf === 'undefined' && typeof html2pdf === 'undefined') {
         if (window.Utils) window.Utils.showToast("Loading PDF Engine... Please tap Print again in 2 seconds.");
         const s2 = document.createElement('script');
@@ -1915,8 +1943,13 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
         return;
     }
 
-    if (window.Utils) window.Utils.showToast("Generating Stock Ledger PDF...");
+    if (window.Utils) window.Utils.showToast("Generating Premium Stock Ledger...");
     
+    // 1. Fetch Business Profile for the Letterhead
+    const activeFirmId = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
+    const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
+    const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+
     const product = await window.getRecordById('items', itemId);
     const openingStock = product ? (parseFloat(product.openingStock) || 0) : 0;
 
@@ -1968,75 +2001,99 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     let totalIn = 0;
     let totalOut = 0;
     let rowsHtml = `
-        <tr style="background:#f1f3f4; font-weight:bold;">
-            <td style="padding:10px; border:1px solid #ddd;" colspan="3">Opening Stock</td>
-            <td style="padding:10px; border:1px solid #ddd; text-align:center;">-</td>
-            <td style="padding:10px; border:1px solid #ddd; text-align:center;">-</td>
-            <td style="padding:10px; border:1px solid #ddd; text-align:right;">${openingStock.toFixed(2)}</td>
+        <tr style="background:#f1f5f9; font-weight:800;">
+            <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#475569;" colspan="3">Opening Stock</td>
+            <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center;">-</td>
+            <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center;">-</td>
+            <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; color:#0f172a; font-weight:900;">${openingStock.toFixed(2)}</td>
         </tr>
     `;
 
-    timeline.forEach(t => {
+    timeline.forEach((t, index) => {
         runningStock += t.inQty;
         runningStock -= t.outQty;
         totalIn += t.inQty;
         totalOut += t.outQty;
+        
+        // 🚀 ENTERPRISE UPGRADE: Zebra Striping
+        const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        
         rowsHtml += `
-            <tr>
-                <td style="padding:10px; border:1px solid #ddd;">${t.date}</td>
-                <td style="padding:10px; border:1px solid #ddd;">${t.type}</td>
-                <td style="padding:10px; border:1px solid #ddd;">${t.desc}<br><small style="color:#666;">Ref: ${t.ref}</small></td>
-                <td style="padding:10px; border:1px solid #ddd; text-align:center; color:#146c2e;">${t.inQty > 0 ? t.inQty.toFixed(2) : ''}</td>
-                <td style="padding:10px; border:1px solid #ddd; text-align:center; color:#ba1a1a;">${t.outQty > 0 ? t.outQty.toFixed(2) : ''}</td>
-                <td style="padding:10px; border:1px solid #ddd; text-align:right; font-weight:bold;">${runningStock.toFixed(2)}</td>
+            <tr style="background-color: ${rowBg};">
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#475569;">${t.date}</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#1e293b; font-weight:600;">${t.type}</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#1e293b; line-height:1.4;">${t.desc}<br><small style="color:#64748b; font-weight:700;">Ref: ${t.ref}</small></td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#16a34a; font-weight:800;">${t.inQty > 0 ? t.inQty.toFixed(2) : ''}</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#dc2626; font-weight:800;">${t.outQty > 0 ? t.outQty.toFixed(2) : ''}</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; font-weight:900; color:#0f172a;">${runningStock.toFixed(2)}</td>
             </tr>
         `;
     });
 
-    // THE FIX: Add the final Total row at the bottom of the table
+    // 🚀 ENTERPRISE UPGRADE: Tally Double-Line Totals
     rowsHtml += `
-        <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569;">
-            <td style="padding:10px; border:1px solid #ddd; text-align:right; text-transform:uppercase;" colspan="3">Total Summary</td>
-            <td style="padding:10px; border:1px solid #ddd; text-align:center; color:#16a34a;">${totalIn.toFixed(2)}</td>
-            <td style="padding:10px; border:1px solid #ddd; text-align:center; color:#dc2626;">${totalOut.toFixed(2)}</td>
-            <td style="padding:10px; border:1px solid #ddd; text-align:right;">${runningStock.toFixed(2)}</td>
+        <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569; border-bottom: 4px double #475569;">
+            <td style="padding:12px 10px; text-align:right; text-transform:uppercase; color:#0f172a;" colspan="3">Total Volume Summary</td>
+            <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:center; color:#16a34a; font-size:13px;">${totalIn.toFixed(2)}</td>
+            <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:center; color:#dc2626; font-size:13px;">${totalOut.toFixed(2)}</td>
+            <td style="padding:12px 10px; text-align:right; color:#0f172a; font-size:13px;">${runningStock.toFixed(2)}</td>
         </tr>
     `;
-
-    const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
-    let firmName = "My Business";
     
-    // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Ledger!
     const uniquePdfId = 'pdf-item-ledger-' + Date.now();
+    const safeDocNo = Utils.getLocalDate();
 
+    // 🚀 ENTERPRISE UPGRADE: Official Letterhead HTML Injection
     const html = `
-        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; margin: 0 auto; position: relative; min-height: auto !important;">
+        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
             
+            ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+
             <style>
+                #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
                 #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
                 #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 10px !important; font-weight: 800 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; text-align: left; }
-                #${uniquePdfId} td { border-bottom: 1px solid #cbd5e1 !important; border-right: 1px solid #94a3b8 !important; border-top: none !important; border-left: none !important; padding: 10px !important; font-size: 11px !important; color: #1e293b !important; vertical-align: top !important; }
+                #${uniquePdfId} td { border-top: none !important; border-left: none !important; font-size: 11px !important; vertical-align: middle !important; }
                 #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
                 #${uniquePdfId} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+                #${uniquePdfId} thead { display: table-header-group; }
             </style>
 
             <div style="border: 2px solid #475569; padding: 2px;">
             <div style="border: 1px solid #475569;">
                 
                 <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">STOCK LEDGER</h2>
-                    <div style="font-size: 12px; font-weight: 700; color: #475569;">DATE: ${new Date().toLocaleDateString('en-IN')}</div>
+                    <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">STOCK INVENTORY LEDGER</h2>
+                    <div style="font-size: 12px; font-weight: 700; color: #475569;">DATE: ${Utils.formatDateDisplay(safeDocNo)}</div>
                 </div>
 
-                <div style="padding: 20px; border-bottom: 1px solid #475569; text-align: center;">
-                    <h1 style="margin: 0 0 5px 0; font-size: 20px; color: #0f172a; font-weight: 800;">${itemName}</h1>
+                <div style="display: flex; border-bottom: 1px solid #475569;">
+                    <div style="width: 50%; padding: 20px; border-right: 1px solid #475569;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
+                        <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">${biz.name || 'Company Name'}</h1>
+                        <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+                            ${biz.address || ''}<br>
+                            ${bizLocationStr ? bizLocationStr + '<br>' : ''}
+                            Ph: ${biz.phone || ''}
+                        </div>
+                    </div>
+                    <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #f8fafc; text-align: right;">
+                        <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Current Stock in Hand</strong>
+                        <span style="font-size: 28px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">${runningStock.toFixed(2)}</span>
+                        <span style="background: ${runningStock > 0 ? '#e8f5e9' : '#fff0f2'}; color: ${runningStock > 0 ? '#146c2e' : '#ba1a1a'}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${runningStock > 0 ? '#bbf7d0' : '#fecaca'};">${runningStock > 0 ? 'In Stock Available' : 'Out of Stock'}</span>
+                    </div>
                 </div>
-                
+
+                <div style="padding: 15px 20px; border-bottom: 1px solid #475569;">
+                    <strong style="text-transform: uppercase; font-size: 11px; background: #e2e8f0; padding: 4px 8px; border-radius: 4px; color: #0f172a; display: inline-block; margin-bottom: 8px;">Product / Item Details</strong>
+                    <div style="font-size: 18px; font-weight: 900; text-transform: uppercase; color: #0061a4;">${itemName}</div>
+                </div>
+
                 <table>
                     <thead>
                         <tr>
                             <th style="width: 12%;">Date</th>
-                            <th style="width: 16%;">Type</th>
+                            <th style="width: 16%;">Voucher Type</th>
                             <th style="width: 36%;">Particulars</th>
                             <th style="text-align: center; width: 12%;">IN (+)</th>
                             <th style="text-align: center; width: 12%;">OUT (-)</th>
@@ -2047,19 +2104,21 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
                         ${rowsHtml}
                     </tbody>
                 </table>
-            </div>
-            </div>
-        </div>
+                
+                <div class="avoid-break" style="padding: 20px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid;">
+                    <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">*** End of Statement ***</div>
+                    <div style="width: 200px; text-align: center;">
+                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; margin-bottom: 5px; object-fit: contain; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
+                        <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
+                    </div>
+                </div>
+            </div> </div> </div>
     `;
 
-    // ENTERPRISE FIX: Route the HTML into the Universal In-App PDF Viewer instead of forcing a blind download!
     const printArea = document.getElementById('print-area');
     if (printArea) {
         printArea.innerHTML = html;
         setTimeout(() => {
-            // ENTERPRISE FIX: The Fatal PDF Freeze Shield!
-            // If an item was deleted but remains in historical ledgers, 'itemName' will be undefined.
-            // Calling .replace() on undefined instantly crashes the entire app!
             const safeItemName = itemName ? String(itemName) : 'Unknown_Item';
             const safeFilename = `Stock_Ledger_${safeItemName.replace(/[^a-z0-9]/gi, '_')}.pdf`;
             window.Utils.processPDFExport(uniquePdfId, safeFilename);
@@ -2071,4 +2130,4 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
 // NEW CODE: GLOBAL MAP
 // ==========================================
 // 2. Attach to window so index.html onclick="Utils..." buttons don't break!
-window.Utils = Utils; 
+window.Utils = Utils;

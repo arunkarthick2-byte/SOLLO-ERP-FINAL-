@@ -73,6 +73,32 @@ window.addEventListener('beforeunload', (event) => {
     }
 });
 
+// --- ENTERPRISE UPGRADE: SMART PINCH-TO-ZOOM ENGINE (V3 BULLETPROOF) ---
+// Unlocks native mobile zoom ONLY when looking at a PDF, and locks it back to protect the app UI!
+const setupSmartZoom = () => {
+    let meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+
+    const zoomObserver = new MutationObserver(() => {
+        // 🚨 V3 FIX: The Omniscient Radar!
+        // Scans for .open (Modals/Sheets) AND .active-screen (Full Tabs)
+        // using an expanded list of document keywords!
+        const isViewerOpen = document.querySelector('.open[id*="view"], .open[id*="preview"], .open[id*="report"], .open[id*="pdf"], .open[id*="doc"], .active-screen[id*="view"], .active-screen[id*="preview"], .active-screen[id*="report"], .active-screen[id*="pdf"], .active-screen[id*="doc"]');
+        
+        if (isViewerOpen) {
+            // Document is open: Unlock pinch-to-zoom (up to 5x zoom)
+            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+        } else {
+            // Document is closed: Lock zoom strictly to 1.0 to protect the ERP buttons and layout
+            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+        }
+    });
+
+    // Watch the whole app for screens opening and closing
+    zoomObserver.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
+};
+setupSmartZoom();
+
 // --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT BANNER ---
 const updateNetworkStatus = () => {
     let banner = document.getElementById('offline-banner');
@@ -4000,33 +4026,103 @@ const app = {
         const title = isMoneyIn ? 'PAYMENT RECEIPT' : 'PAYMENT VOUCHER';
         const safeDocNo = receipt.receiptNo || String(receipt.id).substring(0, 12).toUpperCase();
         
-        let invoiceRefDisplay = '';
+        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+        
+        let party = null;
+        let partyLocationStr = '';
+        if (receipt.ledgerId) {
+            party = await getRecordById('ledgers', receipt.ledgerId);
+            if (party) {
+                partyLocationStr = [party.city, party.state].filter(Boolean).join(', ') + (party.pincode ? ' - ' + party.pincode : '');
+            }
+        }
+
+        let linkedDocsTableHtml = '';
         if (receipt.invoiceRef) {
             const refs = String(receipt.invoiceRef).split(',').map(r => r.trim());
             const store = isMoneyIn ? 'sales' : 'purchases';
             // ENTERPRISE FIX: Prevent the PDF engine from crashing when printing receipts!
             const allDocs = await getAllRecords(store, 'firmId', receipt.firmId);
             
-            const displayNames = refs.map(ref => {
-                // ENTERPRISE FIX: Enforce Firm ID to prevent cross-company data leaks on printed receipts!
+            let tableRows = '';
+            refs.forEach((ref, index) => {
                 const doc = allDocs.find(d => d.firmId === receipt.firmId && (d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref));
                 if (doc) {
-                    if (isMoneyIn) return doc.invoiceNo ? doc.invoiceNo : ('Bill of Supply' + (doc.orderNo ? ` (Ref: ${doc.orderNo})` : ''));
-                    else return (doc.poNo || doc.invoiceNo) ? (doc.poNo || doc.invoiceNo) : ('Bill of Supply' + (doc.orderNo ? ` (Ref: ${doc.orderNo})` : ''));
+                    const docNo = isMoneyIn ? (doc.invoiceNo || doc.orderNo || 'Bill of Supply') : (doc.poNo || doc.invoiceNo || doc.orderNo || 'Bill of Supply');
+                    const docDate = window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(doc.date) : doc.date;
+                    const docTotal = parseFloat(doc.grandTotal) || 0;
+                    
+                    tableRows += `
+                    <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
+                        <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; text-align: center; color: #1e293b;">${index + 1}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; font-weight: bold; color: #1e293b;">${docNo}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; text-align: center; color: #1e293b;">${docDate}</td>
+                        <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #1e293b; font-weight: bold;">₹${docTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}</td>
+                    </tr>`;
                 }
-                return ref.startsWith('sollo-') ? 'Bill of Supply' : ref;
             });
-            invoiceRefDisplay = displayNames.join(', ');
+            
+            if (tableRows) {
+                linkedDocsTableHtml = `
+                <div style="margin-top: 20px;">
+                    <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 6px;">Linked Documents Settled</div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; border-top: 1px solid #475569;">
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 5%; text-align: center;">#</th>
+                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 45%;">Document No.</th>
+                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 25%; text-align: center;">Date</th>
+                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; width: 25%; text-align: right;">Invoice Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>`;
+            }
         }
         
-        let balanceText = '';
-        if (receipt.ledgerId && typeof getKhataStatement === 'function') {
-            const party = await getRecordById('ledgers', receipt.ledgerId);
-            if (party) {
-                const statement = await getKhataStatement(party.id, party.type);
-                // ENTERPRISE FIX: Styled the balance box to match the new Ledger layout perfectly!
-                balanceText = `<div style="display: inline-block; background: #f8fafc; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 10px; color: #475569; margin-bottom: 8px;">Current Balance: <strong style="color: #0f172a; font-size: 12px;">\u20B9${Math.abs(statement.finalBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})} ${statement.finalBalance > 0 ? (party.type === 'Customer' ? '(Due)' : '(To Pay)') : '(Advance)'}</strong></div>`;
-            }
+        let finalBalHtml = '';
+        if (party && typeof getKhataStatement === 'function') {
+            const statement = await getKhataStatement(party.id, party.type);
+            const bal = statement.finalBalance || 0;
+            
+            // 🚨 THE FIX: Calculate the math progression for a professional summary!
+            const receiptAmt = parseFloat(receipt.amount) || 0;
+            const prevBal = bal + (isMoneyIn ? receiptAmt : -receiptAmt);
+            
+            const getStatus = (b) => {
+                if (Math.abs(b) < 0.01) return '';
+                if (party.type === 'Customer') return b > 0.01 ? 'Due' : 'Advance';
+                return b < -0.01 ? 'To Pay' : 'Advance';
+            };
+            
+            const prevStatus = getStatus(prevBal);
+            const currStatus = getStatus(bal);
+            const currColor = (party.type === 'Customer' ? bal > 0.01 : bal < -0.01) ? '#dc2626' : '#16a34a';
+            
+            finalBalHtml = `
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-weight: 600; table-layout: fixed;">
+                <tr>
+                    <td style="padding: 8px 4px; border-bottom: 1px solid #cbd5e1; color: #475569; width: 40%; line-height: 1.2;">Previous Balance</td>
+                    <td style="padding: 8px 4px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #475569; width: 60%; line-height: 1.2; overflow-wrap: break-word;">
+                        <span style="letter-spacing: -0.2px;">₹${Math.abs(prevBal).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span> ${prevStatus ? `<span style="font-size: 9px; color: #64748b;">(${prevStatus})</span>` : ''}
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px 4px; border-bottom: 1px solid #cbd5e1; color: #475569; line-height: 1.2;">Amount ${isMoneyIn ? 'Received' : 'Paid'}</td>
+                    <td style="padding: 8px 4px; border-bottom: 1px solid #cbd5e1; text-align: right; color: ${isMoneyIn ? '#16a34a' : '#dc2626'}; line-height: 1.2; overflow-wrap: break-word;">
+                        <span style="letter-spacing: -0.2px;">- ₹${receiptAmt.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                    </td>
+                </tr>
+                <tr style="background: #f8fafc;">
+                    <td style="padding: 10px 4px; font-size: 11px; font-weight: 900; text-transform: uppercase; color: #0f172a; line-height: 1.2;">Current Balance</td>
+                    <td style="padding: 10px 4px; font-size: 14px; font-weight: 900; text-align: right; color: ${currColor}; line-height: 1.2; overflow-wrap: break-word;">
+                        <span style="letter-spacing: -0.5px;">₹${Math.abs(bal).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span> <span style="font-size: 10px; color: #475569; font-weight: 700;">${currStatus ? `(${currStatus})` : '(Settled)'}</span>
+                    </td>
+                </tr>
+            </table>`;
         }
 
         // ENTERPRISE UPGRADE: Indian Rupee Number-to-Words Engine
@@ -4049,67 +4145,117 @@ const app = {
         const uniquePdfId = 'pdf-receipt-' + Date.now();
 
         const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; max-width: 100%; padding: 40px; box-sizing: border-box; position: relative; z-index: 1;">
-                
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.03; z-index: -1; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; height: auto; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 100%; max-width: 100%; padding: 5%; box-sizing: border-box; position: relative; overflow-x: auto; min-height: auto !important;">
+            
+            <style>
+                #${uniquePdfId} table { page-break-inside: auto; }
+                #${uniquePdfId} tr { page-break-inside: avoid; page-break-after: auto; }
+                #${uniquePdfId} thead { display: table-header-group; }
+                .avoid-break { page-break-inside: avoid; }
+            </style>
 
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px;">
-                    <div style="display: flex; align-items: center; gap: 12px; max-width: 55%;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 50px; border-radius: 4px; object-fit: contain;" />` : ''}
-                        <div style="min-width: 0;">
-                            <h2 style="margin: 0; font-size: 16px; color: #0f172a; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; word-wrap: break-word;">${biz.name || 'Company Name'}</h2>
-                            <p style="margin: 4px 0 0 0; font-size: 10px; color: #64748b; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word;">${biz.address || ''}<br>Ph: ${biz.phone || ''}</p>
+            <div style="border: 2px solid #475569; padding: 2px;">
+            <div style="border: 1px solid #475569;">
+                
+                <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">${title}</h2>
+                    <div style="font-size: 12px; font-weight: 700;">
+                        ${isMoneyIn ? 'RECEIPT' : 'VOUCHER'}
+                    </div>
+                </div>
+
+                <div style="display: flex; border-bottom: 1px solid #475569;">
+                    <div style="width: 55%; padding: 20px; border-right: 1px solid #475569;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
+                        <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
+                        <div style="font-size: 12px; color: #334155; line-height: 1.5;">
+                            ${biz.address ? biz.address.replace(/\n/g, '<br>') + '<br>' : ''}
+                            ${bizLocationStr ? bizLocationStr + '<br>' : ''}
+                            ${biz.phone ? `<strong>Phone:</strong> ${biz.phone}` : ''} ${biz.email ? ` | <strong>Email:</strong> ${biz.email}` : ''}
                         </div>
                     </div>
-                    <div style="text-align: right; max-width: 40%;">
-                        <h2 style="margin: 0; font-size: 18px; color: #0061a4; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; word-wrap: break-word;">${title}</h2>
-                        <h3 style="margin: 6px 0 0 0; color: #475569; font-size: 11px; font-weight: 700; word-break: break-all;"># ${safeDocNo}</h3>
+                    <div style="width: 45%;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; height: 100%; table-layout: fixed; word-wrap: break-word;">
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; width: 50%; overflow: hidden;"><strong>Receipt No:</strong><br><span style="font-size: 13px; font-weight: 700; display: block; word-wrap: break-word;">${safeDocNo}</span></td>
+                                <td style="padding: 10px; border-bottom: 1px solid #475569; overflow: hidden;"><strong>Date:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word;">${window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(receipt.date) : receipt.date}</span></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; overflow: hidden;"><strong>Mode:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word;">${receipt.mode || 'Cash'}</span></td>
+                                <td style="padding: 10px; border-bottom: 1px solid #475569; overflow: hidden;"><strong>Ref:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word;">${receipt.ref || '-'}</span></td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
 
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed;">
-                        <tr>
-                            <td style="padding: 6px 4px; color: #64748b; width: 35%; font-weight: 600; text-transform: uppercase; font-size: 9px;">Date</td>
-                            <td style="padding: 6px 4px; color: #0f172a; font-weight: 700; text-align: right;">${receipt.date}</td>
-                        </tr>
-                        <tr style="border-top: 1px solid #f1f5f9;">
-                            <td style="padding: 6px 4px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px;">${isMoneyIn ? 'Received From' : 'Paid To'}</td>
-                            <td style="padding: 6px 4px; color: #0061a4; font-weight: 800; font-size: 12px; text-align: right; word-wrap: break-word;">${receipt.ledgerName}</td>
-                        </tr>
-                        <tr style="border-top: 1px solid #f1f5f9;">
-                            <td style="padding: 6px 4px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px;">Payment Mode</td>
-                            <td style="padding: 6px 4px; color: #0f172a; font-weight: 700; text-align: right;">${receipt.mode || 'Cash'} ${receipt.ref ? `<span style="color:#64748b; font-weight:500;">(Ref: ${receipt.ref})</span>` : ''}</td>
-                        </tr>
-                        ${invoiceRefDisplay ? `
-                        <tr style="border-top: 1px solid #f1f5f9;">
-                            <td style="padding: 6px 4px; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 9px;">Settled Docs</td>
-                            <td style="padding: 6px 4px; color: #0f172a; font-weight: 700; text-align: right; word-wrap: break-word;">${invoiceRefDisplay}</td>
-                        </tr>` : ''}
-                    </table>
+                <div style="display: flex; border-bottom: 1px solid #475569;">
+                    <div style="width: 100%; padding: 15px 20px; box-sizing: border-box; overflow: hidden;">
+                        <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 6px;">${isMoneyIn ? 'Received From' : 'Paid To'}</div>
+                        <strong style="font-size: 15px; display: block; margin-bottom: 4px; word-wrap: break-word;">${receipt.ledgerName}</strong>
+                        <div style="font-size: 12px; color: #334155; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word;">
+                            ${party ? (party.address ? party.address.replace(/\n/g, '<br>') + '<br>' : '') : ''}
+                            ${partyLocationStr ? partyLocationStr + '<br>' : ''}
+                            ${party && party.phone ? `Ph: ${party.phone}` : ''}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="padding: 0 20px;">
+                    ${linkedDocsTableHtml}
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 10px;">
-                    <div style="text-align: left; flex: 1;">
-                        ${balanceText}
-                        ${amountInWords ? `<div style="font-size: 9px; color: #64748b; font-weight: 600; text-transform: uppercase;">Amount in Words:</div><div style="font-size: 11px; color: #0f172a; font-weight: 700;">${amountInWords}</div>` : ''}
+                <div style="display: flex; border-top: 1px solid #475569; margin-top: 20px; page-break-inside: avoid;">
+                    <div style="width: 55%; border-right: 1px solid #475569; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+                        <div>
+                            <div style="font-size: 11px; margin-bottom: 18px; padding-bottom: 15px; border-bottom: 1px dashed #cbd5e1;">
+                                <strong style="text-transform: uppercase; color: #475569;">Formal Declaration:</strong><br>
+                                <span style="font-weight: 500; font-size: 13px; display: block; margin-top: 8px; line-height: 1.6; color: #1e293b; text-align: justify;">
+                                    ${isMoneyIn ? 'We acknowledge with thanks the receipt of' : 'This confirms the payment of'} 
+                                    <strong style="color: #0f172a;">₹${parseFloat(receipt.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong> 
+                                    ${isMoneyIn ? 'from' : 'to'} <strong style="color: #0f172a;">${receipt.ledgerName}</strong> 
+                                    via <strong style="color: #0f172a;">${receipt.mode || 'Cash'}</strong> 
+                                    on <strong style="color: #0f172a;">${window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(receipt.date) : receipt.date}</strong>.
+                                </span>
+                            </div>
+                            
+                            <div style="font-size: 11px; margin-bottom: 15px;">
+                                <strong style="text-transform: uppercase; color: #475569;">Amount in Words:</strong><br>
+                                <span style="font-style: italic; font-weight: 600; font-size: 13px; display: block; margin-top: 4px; line-height: 1.4;">${amountInWords}</span>
+                            </div>
+                            ${receipt.desc ? `
+                            <div style="font-size: 11px; margin-bottom: 15px;">
+                                <strong style="text-transform: uppercase; color: #475569;">Notes:</strong><br>
+                                <span style="font-weight: 500; font-size: 12px; display: block; margin-top: 4px; line-height: 1.4;">${receipt.desc}</span>
+                            </div>` : ''}
+                        </div>
                     </div>
-                    <div style="background: #f8fafc; padding: 12px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${isMoneyIn ? '#16a34a' : '#e11d48'}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-shrink: 0;">
-                        <span style="font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Amount ${isMoneyIn ? 'Received' : 'Paid'}</span><br>
-                        <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 2px;">₹ ${parseFloat(receipt.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                    </div>
-                </div>
 
-                <div class="avoid-break" style="margin-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid;">
-                    <div style="font-size: 9px; color: #64748b;">
-                        <p style="margin:0;">* This is a computer generated receipt.</p>
-                    </div>
-                    <div style="width: 120px; text-align: center;">
-                        ${biz.signature ? `<img src="${biz.signature}" style="max-height: 40px; margin-bottom: 5px; object-fit: contain;" />` : '<div style="height: 40px; margin-bottom: 5px;"></div>'}
-                        <div style="border-top: 1px solid #cbd5e0; padding-top: 5px; font-weight: bold; font-size: 9px; color: #0f172a; text-transform: uppercase;">Authorized Signatory</div>
+                    <div style="width: 45%; display: flex; flex-direction: column;">
+                        <div style="background: #f1f5f9; padding: 15px; text-align: right; border-bottom: 1px solid #475569; width: 100%; box-sizing: border-box;">
+                            <div style="font-size: 11px; font-weight: 900; text-transform: uppercase; color: #475569; letter-spacing: 0.5px; margin-bottom: 6px;">Amount ${isMoneyIn ? 'Received' : 'Paid'}</div>
+                            <div style="font-size: 18px; font-weight: 900; color: ${isMoneyIn ? '#16a34a' : '#dc2626'}; letter-spacing: -0.5px; word-break: break-all; line-height: 1.2;">₹${parseFloat(receipt.amount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+                        </div>
+
+                        <div style="padding: 0;">
+                            ${finalBalHtml}
+                        </div>
+
+                        <div id="signature-anchor" class="avoid-break" style="position: relative; padding: 20px 15px; text-align: right; page-break-inside: avoid; min-height: 100px;">
+                            
+                            <div style="position: absolute; bottom: 45px; right: 60px; width: 80px; height: 80px; border: 3px solid ${isMoneyIn ? '#16a34a' : '#0284c7'}; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; opacity: 0.6; transform: rotate(-15deg); z-index: 0; pointer-events: none;">
+                                <div style="font-size: 10px; font-weight: 900; color: ${isMoneyIn ? '#16a34a' : '#0284c7'}; text-transform: uppercase; line-height: 1.1; letter-spacing: 0.5px; margin-bottom: 2px;">${isMoneyIn ? 'RECEIVED' : 'VERIFIED'}</div>
+                                <div style="font-size: 8px; font-weight: 800; color: ${isMoneyIn ? '#16a34a' : '#0284c7'}; border-top: 1px solid ${isMoneyIn ? '#16a34a' : '#0284c7'}; padding-top: 3px; width: 70%;">${window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(receipt.date) : receipt.date}</div>
+                            </div>
+
+                            <div style="position: relative; z-index: 1;">
+                                ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; max-width: 160px; margin-bottom: 8px; object-fit: contain; display: inline-block; mix-blend-mode: multiply;">` : `<div style="height: 60px;"></div>`}
+                            </div>
+                            <div style="position: relative; z-index: 1; border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
+                            <div style="position: relative; z-index: 1; font-size: 10px; color: #475569; margin-top: 4px;">For ${biz.name || 'Company Name'}</div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </div> </div> </div>
         `;
         
         // ENTERPRISE UPGRADE: Interactive Receipt PDF Viewer
@@ -5147,6 +5293,24 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 
     // Build Professional A4 Print Template (Now perfectly mobile responsive!)
     let html = `
+    <style>
+        @media print {
+            @page { margin: 15mm 10mm; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .a4-document { width: 100% !important; padding: 0 !important; }
+            thead { display: table-header-group; }
+            tr { page-break-inside: avoid; }
+            /* Auto-inject page numbers at bottom center */
+            @page {
+                @bottom-center {
+                    content: "Page " counter(page);
+                    font-family: 'Inter', sans-serif;
+                    font-size: 10px;
+                    color: #94a3b8;
+                }
+            }
+        }
+    </style>
     <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box;">
         
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; gap: 10px;">
@@ -5328,6 +5492,11 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                 <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${statusColor}40; display: inline-block; text-align: right; line-height: 1.2;">${finalBalStatus}</span>
                 ${splitHtml}
             </div>
+        </div>
+        
+        <div class="avoid-break" style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px dashed #cbd5e1; page-break-inside: avoid;">
+            <span style="font-size: 11px; font-weight: 900; color: #94a3b8; letter-spacing: 3px; text-transform: uppercase;">*** End of Statement ***</span>
+            <div style="font-size: 9px; color: #cbd5e1; margin-top: 6px;">Generated securely via SOLLO ERP</div>
         </div>
     </div>`;
 
@@ -6020,4 +6189,160 @@ document.addEventListener('input', (e) => {
         }, 15000); // Check for memory leaks every 15 seconds in the background
     }
 
+})();
+// ==========================================
+// ENTERPRISE UPGRADE: LIVE CUSTOMER INSIGHT & RISK ENGINE
+// ==========================================
+(function() {
+    setInterval(async () => {
+        // Supports BOTH Sales (Customers) and Purchases (Suppliers)
+        const sForm = document.getElementById('activity-sales-form');
+        const pForm = document.getElementById('activity-purchase-form');
+        
+        let form = null;
+        let partyId = null;
+        let partyType = null;
+        
+        if (sForm && sForm.classList.contains('open')) {
+            form = sForm;
+            partyId = document.getElementById('sales-customer-id') ? document.getElementById('sales-customer-id').value : null;
+            partyType = 'Customer';
+        } else if (pForm && pForm.classList.contains('open')) {
+            form = pForm;
+            partyId = document.getElementById('purchase-supplier-id') ? document.getElementById('purchase-supplier-id').value : null;
+            partyType = 'Supplier';
+        }
+        
+        if (!form || !partyId) return;
+        
+        // Prevent running the heavy math 10 times a second!
+        if (form.getAttribute('data-risk-checked') !== partyId) {
+            form.setAttribute('data-risk-checked', partyId);
+            
+            // Clean up old banners
+            const oldBanner = document.getElementById('risk-banner');
+            if (oldBanner) oldBanner.remove();
+
+            try {
+                // Fetch real-time data directly from the hard drive
+                const ledgers = await window.getAllRecords('ledgers', 'firmId', window.app.state.firmId);
+                const sales = await window.getAllRecords('sales', 'firmId', window.app.state.firmId);
+                const purchases = await window.getAllRecords('purchases', 'firmId', window.app.state.firmId);
+                const receipts = await window.getAllRecords('receipts', 'firmId', window.app.state.firmId);
+                
+                const party = ledgers.find(l => l.id === partyId);
+                if (!party) return;
+
+                let ob = parseFloat(party.openingBalance) || 0;
+                const balType = (party.balanceType || '').toLowerCase();
+                let trueBalance = 0;
+                
+                // Calculate Opening Balance Dr/Cr
+                if (partyType === 'Customer') {
+                    trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+                } else {
+                    trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+                }
+                
+                let oldestDueDays = 0;
+                const today = new Date();
+
+                // Process Invoice Math
+                if (partyType === 'Customer') {
+                    sales.forEach(s => {
+                        if (s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled') {
+                            trueBalance += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
+                            if (s.status !== 'Completed' && s.documentType !== 'return') {
+                                const ageDays = Math.floor((today - window.Utils.safeDate(s.date)) / (1000 * 60 * 60 * 24));
+                                if (ageDays > oldestDueDays) oldestDueDays = ageDays;
+                            }
+                        }
+                    });
+                } else {
+                    purchases.forEach(p => {
+                        if (p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled') {
+                            trueBalance += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
+                            if (p.status !== 'Completed' && p.documentType !== 'return') {
+                                const ageDays = Math.floor((today - window.Utils.safeDate(p.date)) / (1000 * 60 * 60 * 24));
+                                if (ageDays > oldestDueDays) oldestDueDays = ageDays;
+                            }
+                        }
+                    });
+                }
+
+                // Process Payments
+                receipts.forEach(r => {
+                    if (r.ledgerId === partyId) {
+                        if (partyType === 'Customer') {
+                            trueBalance += (r.type === 'in' ? -parseFloat(r.amount || 0) : parseFloat(r.amount || 0));
+                        } else {
+                            trueBalance += (r.type === 'in' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0));
+                        }
+                    }
+                });
+                
+                // Determine Status and UI Styling
+                let statusText = 'Settled';
+                let bgColor = '#f8fafc';
+                let borderColor = '#e2e8f0';
+                let icon = 'account_balance_wallet';
+                let iconColor = '#64748b';
+                let warningHtml = '';
+
+                if (partyType === 'Customer') {
+                    if (trueBalance > 0.01) { 
+                        statusText = 'Due to Receive'; 
+                        bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
+                    } else if (trueBalance < -0.01) { 
+                        statusText = 'Advance Received'; 
+                        bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
+                    }
+                } else {
+                    if (trueBalance > 0.01) { 
+                        statusText = 'Due to Pay'; 
+                        bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
+                    } else if (trueBalance < -0.01) { 
+                        statusText = 'Advance Paid'; 
+                        bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
+                    }
+                }
+
+                // Pulse animation for severe defaulters (Risk Management)
+                let pulseAnim = '';
+                if (trueBalance > 0.01 && oldestDueDays >= 45 && partyType === 'Customer') {
+                    pulseAnim = 'animation: pulseRisk 2s infinite;';
+                    warningHtml = `<div style="font-size: 11px; color: #ba1a1a; font-weight: 800; margin-top: 6px; border-top: 1px dashed #ffdad6; padding-top: 6px;">⚠️ HIGH RISK: Oldest unpaid invoice is ${oldestDueDays} days old!</div>`;
+                    if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
+                }
+                
+                if (!document.getElementById('risk-styles')) {
+                    const style = document.createElement('style');
+                    style.id = 'risk-styles';
+                    style.innerHTML = `@keyframes pulseRisk { 0% { box-shadow: 0 0 0 0 rgba(186,26,26,0.4); } 70% { box-shadow: 0 0 0 10px rgba(186,26,26,0); } 100% { box-shadow: 0 0 0 0 rgba(186,26,26,0); } }`;
+                    document.head.appendChild(style);
+                }
+
+                // Inject the Gorgeous Dashboard Banner
+                const banner = document.createElement('div');
+                banner.id = 'risk-banner';
+                banner.style.cssText = `background: ${bgColor}; padding: 14px 16px; margin: 12px 16px 0 16px; border-radius: 8px; border: 1px solid ${borderColor}; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); ${pulseAnim}`;
+                
+                banner.innerHTML = `
+                    <span class="material-symbols-outlined" style="font-size: 28px; color: ${iconColor}; font-variation-settings: 'FILL' 1; margin-top: 2px;">${icon}</span>
+                    <div style="flex: 1;">
+                        <strong style="display: block; font-size: 11px; text-transform: uppercase; color: #475569; letter-spacing: 0.5px;">Live ${partyType} Balance</strong>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px;">
+                            <span style="font-size: 20px; font-weight: 900; color: #0f172a; line-height: 1;">₹${Math.abs(trueBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                            <span style="font-size: 10px; font-weight: 800; color: ${iconColor}; background: ${iconColor}15; padding: 4px 8px; border-radius: 12px; border: 1px solid ${iconColor}40;">${statusText}</span>
+                        </div>
+                        ${warningHtml}
+                    </div>
+                `;
+                
+                const header = form.querySelector('.activity-header');
+                if (header) header.insertAdjacentElement('afterend', banner);
+                
+            } catch(e) { console.error("Insight Engine Failed:", e); }
+        }
+    }, 1000); // Scans the form every 1 second
 })();
