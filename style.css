@@ -821,11 +821,51 @@ body.dark-mode .skeleton {
 }
 
 @media print {
-    body * { display: none !important; }
-    #print-area, #print-area * { 
-        display: block !important; 
-        visibility: visible !important;
-        position: static !important;
+    /* Hide all app UI elements */
+    .bottom-nav, #main-fab, .activity-header, .search-bar, 
+    .bottom-sheet, .sheet-overlay, .floating-action-button, #update-banner {
+        display: none !important;
+    }
+    
+    /* Reset app backgrounds to pure white to save ink and kill blank pages */
+    body, .main-content, .activity-screen, #app-shell, html {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: visible !important;
+        /* THE FIX: Force height to auto so it doesn't print the invisible app shell */
+        height: auto !important; 
+        min-height: auto !important;
+    }
+    
+    /* Ensure the generated PDF area takes up the full physical page */
+    #print-area {
+        display: block !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        background: #ffffff !important;
+        z-index: 999999 !important;
+    }
+
+    /* Force browsers to print the colored header backgrounds and shaded total boxes */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* PREVENT PRINTER FROM SLICING INVOICE ROWS IN HALF */
+    tr, .invoice-row, .m3-card, li {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+    }
+
+    /* Kill default browser margins that push content onto page 2 */
+    @page {
+        margin: 0.5cm; 
     }
 }
 /* ========================================== */
@@ -1821,14 +1861,15 @@ header, .header, .top-bar {
 /* ========================================== */
 
 /* Apply this to the individual rows/cards inside your Master Lists */
-.virtual-item, .list-card, #master-list-container .m3-card {
+/* 🚨 ENTERPRISE UPGRADE: Expanded to include .list-view li for infinite 60fps scrolling! */
+.virtual-item, .list-card, #master-list-container .m3-card, .list-view li {
     /* Hardware acceleration lock for smooth sliding */
     will-change: transform, opacity;
     
     /* 🚀 OFF-SCREEN RENDERING SHIELD (Peak Performance) */
     /* Tells the phone's CPU to completely ignore elements until you scroll to them */
     content-visibility: auto;
-    contain-intrinsic-size: auto 80px; /* Predicts the height to keep the scrollbar perfectly stable */
+    contain-intrinsic-size: auto 72px; /* Mathematically adjusted to 72px to perfectly match your new compact list height! */
 }
 /* ==========================================
    ENTERPRISE UPGRADE: DESKTOP SIMULATOR

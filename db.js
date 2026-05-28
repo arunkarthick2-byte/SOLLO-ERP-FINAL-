@@ -112,6 +112,53 @@ const getAllRecords = (storeName, indexName = null, indexValue = null) => {
     });
 };
 
+// ==========================================
+// 🚨 ENTERPRISE UPGRADE: RAM BLOWOUT SHIELD (PAGINATION)
+// ==========================================
+// Only fetches exactly what is needed (e.g., 50 records) instead of dumping 10,000 invoices into the phone's RAM!
+const getRecordsPaginated = (storeName, offset = 0, limit = 50, indexName = null, indexValue = null) => {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readonly');
+        const store = transaction.objectStore(storeName);
+        let request;
+        
+        // Use high-speed indexes if available
+        if (indexName && indexValue !== undefined && indexValue !== null && store.indexNames.contains(indexName)) {
+            request = store.index(indexName).openCursor(IDBKeyRange.only(indexValue));
+        } else {
+            request = store.openCursor();
+        }
+
+        const results = [];
+        let hasSkipped = false;
+
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (!cursor) {
+                resolve(results); // No more records
+                return;
+            }
+
+            // Skip the records we've already loaded
+            if (offset > 0 && !hasSkipped) {
+                hasSkipped = true;
+                cursor.advance(offset);
+                return;
+            }
+
+            results.push(cursor.value);
+            
+            // Stop fetching once we hit the RAM limit
+            if (results.length < limit) {
+                cursor.continue();
+            } else {
+                resolve(results);
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
 const getRecordById = (storeName, id) => {
     return new Promise((resolve, reject) => {
         // ENTERPRISE FIX: IndexedDB instantly crashes with a fatal 'DataError' if you search for null or undefined!
@@ -797,12 +844,32 @@ const triggerAutoBackup = async () => {
         try {
             if (typeof exportDatabase !== 'function') return;
             const backupData = await exportDatabase();
-            const compressedString = JSON.stringify(backupData);
             
-            if (compressedString.length < 4500000) {
-                localStorage.setItem('sollo_auto_backup', compressedString);
-                localStorage.setItem('sollo_auto_backup_date', new Date().toISOString());
-            }
+            // 🚨 ENTERPRISE UPGRADE: INLINE WEB WORKER
+            // Offloads massive JSON stringification to a secondary CPU core so the UI never stutters!
+            const workerCode = `
+                self.onmessage = function(e) {
+                    try {
+                        const result = JSON.stringify(e.data);
+                        self.postMessage({ success: true, payload: result });
+                    } catch (err) {
+                        self.postMessage({ success: false });
+                    }
+                };
+            `;
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const worker = new Worker(URL.createObjectURL(blob));
+
+            worker.onmessage = function(e) {
+                if (e.data.success && e.data.payload.length < 4500000) {
+                    localStorage.setItem('sollo_auto_backup', e.data.payload);
+                    localStorage.setItem('sollo_auto_backup_date', new Date().toISOString());
+                }
+                worker.terminate(); // Safely kill the background thread to save phone battery
+            };
+
+            worker.postMessage(backupData); // Send the heavy data to the background core!
+            
         } catch (e) {
             console.warn("Auto-backup engine silently skipped (data might be too large).");
         }
@@ -1012,6 +1079,7 @@ async function generateGSTReport(yearMonth, firmId) {
 // 2. Map to window so inline HTML and older files don't break
 window.initDB = initDB;
 window.getAllRecords = getAllRecords;
+window.getRecordsPaginated = getRecordsPaginated; // 🚨 ENTERPRISE UPGRADE: Exported the RAM Shield!
 window.getRecordById = getRecordById;
 window.saveRecord = saveRecord;
 window.deleteRecordById = deleteRecordById;

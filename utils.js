@@ -290,13 +290,24 @@ const Utils = {
                 return;
             }
 
-            // ENTERPRISE FIX: Added the 800px Math Lock to the Image Engine!
-            // Without this, sharing an invoice as a PNG to WhatsApp violently squishes the layout on narrow phones!
+            // ENTERPRISE FIX: Measure true desktop height BEFORE running the engine to kill blank space!
+            const origW = element.style.width;
+            const origMaxW = element.style.maxWidth;
+            const origPos = element.style.position;
+            element.style.width = '800px';
+            element.style.maxWidth = '800px';
+            element.style.position = 'absolute';
+            const exactHeight = element.scrollHeight;
+            element.style.width = origW;
+            element.style.maxWidth = origMaxW;
+            element.style.position = origPos;
+
             const canvas = await html2canvas(element, { 
                 scale: 2, 
                 useCORS: true,
                 windowWidth: 800,
-                // 🚨 ENTERPRISE FIX: Removed hardcoded mobile heights so the engine measures naturally!
+                windowHeight: exactHeight,
+                height: exactHeight,
                 onclone: (clonedDoc) => {
                     const target = clonedDoc.getElementById(elementId);
                     if (target) {
@@ -511,17 +522,30 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         if (window.Utils && window.Utils.showToast) window.Utils.showToast("Preparing PDF... ⏳");
         
         try {
+            // ENTERPRISE FIX: Measure true desktop height BEFORE running the engine to kill blank space!
+            const origW = element.style.width;
+            const origMaxW = element.style.maxWidth;
+            const origPos = element.style.position;
+            element.style.width = '800px';
+            element.style.maxWidth = '800px';
+            element.style.position = 'absolute';
+            const exactHeight = element.scrollHeight;
+            element.style.width = origW;
+            element.style.maxWidth = origMaxW;
+            element.style.position = origPos;
+
             const opt = {
-                margin: [0, 0, 0, 0], // True A4 edge-to-edge
+                margin: 0, 
                 filename: filename,
                 enableLinks: true, 
-                pagebreak: { mode: ['css', 'legacy'] }, // 🚨 ENTERPRISE FIX: Allow natural multi-page pagination!
+                pagebreak: { mode: 'css', avoid: '.avoid-break' }, 
                 image: { type: 'jpeg', quality: 1.0 },
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
                     windowWidth: 800, 
-                    // 🚨 ENTERPRISE FIX: Removed hardcoded mobile heights so the engine measures naturally!
+                    windowHeight: exactHeight,
+                    height: exactHeight,
                     scrollY: 0, 
                     scrollX: 0,
                     letterRendering: true,
@@ -546,7 +570,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         }
                     }
                 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
+                // 🚨 CRITICAL FIX: Dynamically match PDF height to content height to kill blank pages!
+                jsPDF: { unit: 'px', format: [800, exactHeight + 2], orientation: 'portrait', compress: true }
             };
             
             const pdfBlob = await html2pdf().set(opt).from(element).outputPdf('blob');
@@ -597,13 +622,17 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             element.style.minWidth = '800px';
             element.style.maxWidth = '800px';
 
+            // ENTERPRISE FIX: Now that the width is locked to 800px, measure the exact height!
+            const exactHeight = element.scrollHeight;
+
             const canvas = await html2canvas(element, { 
-                scale: 2, // ENTERPRISE FIX: Lowered from 4 to 2 to prevent iOS Blank PDF Crash!
+                scale: 2, 
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
-                windowWidth: 800, // Force engine to render as a desktop screen
-                // 🚨 ENTERPRISE FIX: Removed hardcoded mobile height! Let the engine natively measure the clone!
+                windowWidth: 800, 
+                windowHeight: exactHeight,
+                height: exactHeight,
                 scrollY: 0, 
                 scrollX: 0,
                 onclone: (clonedDoc) => {
@@ -858,7 +887,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
         // ENTERPRISE FIX: Changed 'const' to 'let' so the Split-Payment Tracker doesn't crash the engine!
         let html = `
-        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto;">
+        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
             
             <style>
                 #${uniquePdfId} table { page-break-inside: auto; }
@@ -1317,7 +1346,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const uniquePdfId = 'pdf-statement-' + Date.now();
 
         const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto;">
+            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
                 
                 ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
 
@@ -1705,18 +1734,30 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             
             window.Utils.showToast("⏳ Preparing PDF for Print...");
 
-            // ENTERPRISE FIX: Synchronized the Native Share Engine with the Enterprise Desktop Engine!
+            // ENTERPRISE FIX: Measure true desktop height BEFORE running the engine to kill blank space!
+            const origW = el.style.width;
+            const origMaxW = el.style.maxWidth;
+            const origPos = el.style.position;
+            el.style.width = '800px';
+            el.style.maxWidth = '800px';
+            el.style.position = 'absolute';
+            const exactHeight = el.scrollHeight;
+            el.style.width = origW;
+            el.style.maxWidth = origMaxW;
+            el.style.position = origPos;
+
             const opt = {
-                margin: [0, 0, 0, 0], // True A4 edge-to-edge
+                margin: 0, 
                 filename: filename,
                 enableLinks: true, 
-                pagebreak: { mode: ['css', 'legacy'] }, // 🚨 ENTERPRISE FIX: Allow natural multi-page pagination!
+                pagebreak: { mode: 'css', avoid: '.avoid-break' }, 
                 html2canvas: { 
                     scale: 2, 
                     useCORS: true, 
                     logging: false, 
                     windowWidth: 800, 
-                    // 🚨 ENTERPRISE FIX: Removed hardcoded mobile heights so the engine measures naturally!
+                    windowHeight: exactHeight,
+                    height: exactHeight,
                     scrollY: 0, 
                     scrollX: 0,
                     letterRendering: true,
@@ -1742,7 +1783,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     }
                 },
                 image: { type: 'jpeg', quality: 1.0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
+                // 🚨 CRITICAL FIX: Dynamically match PDF height to content height to kill blank pages!
+                jsPDF: { unit: 'px', format: [800, exactHeight + 2], orientation: 'portrait', compress: true }
             };
 
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
@@ -1859,7 +1901,7 @@ window.executeItemLedgerReport = async (itemId, itemName) => {
     const uniquePdfId = 'pdf-item-ledger-' + Date.now();
 
     const html = `
-        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; margin: 0 auto; position: relative;">
+        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; margin: 0 auto; position: relative; min-height: auto !important;">
             
             <style>
                 #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
