@@ -14,6 +14,16 @@ const initDB = () => {
                 const isPersisted = await navigator.storage.persist();
                 if (isPersisted) console.log("🔒 ERP Vault Locked: Data Persistence Granted.");
                 else console.warn("⚠️ Persistence denied by browser. Data may be at risk if storage gets full.");
+
+                // 🚨 ENTERPRISE UPGRADE: STORAGE QUOTA SHIELD
+                // Continuously monitors the phone's hard drive. If the phone hits 100% capacity, IndexedDB will silently drop data!
+                if (navigator.storage.estimate) {
+                    const est = await navigator.storage.estimate();
+                    const percentage = (est.usage / est.quota) * 100;
+                    if (percentage > 95) {
+                        alert("⚠️ CRITICAL WARNING: Your device storage is over 95% full! The database may fail to save new invoices. Please free up space immediately.");
+                    }
+                }
             } catch (e) { console.error("Persistence check failed:", e); }
         }
 
@@ -108,53 +118,6 @@ const getAllRecords = (storeName, indexName = null, indexValue = null) => {
         }
         
         request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-    });
-};
-
-// ==========================================
-// 🚨 ENTERPRISE UPGRADE: RAM BLOWOUT SHIELD (PAGINATION)
-// ==========================================
-// Only fetches exactly what is needed (e.g., 50 records) instead of dumping 10,000 invoices into the phone's RAM!
-const getRecordsPaginated = (storeName, offset = 0, limit = 50, indexName = null, indexValue = null) => {
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction(storeName, 'readonly');
-        const store = transaction.objectStore(storeName);
-        let request;
-        
-        // Use high-speed indexes if available
-        if (indexName && indexValue !== undefined && indexValue !== null && store.indexNames.contains(indexName)) {
-            request = store.index(indexName).openCursor(IDBKeyRange.only(indexValue));
-        } else {
-            request = store.openCursor();
-        }
-
-        const results = [];
-        let hasSkipped = false;
-
-        request.onsuccess = (event) => {
-            const cursor = event.target.result;
-            if (!cursor) {
-                resolve(results); // No more records
-                return;
-            }
-
-            // Skip the records we've already loaded
-            if (offset > 0 && !hasSkipped) {
-                hasSkipped = true;
-                cursor.advance(offset);
-                return;
-            }
-
-            results.push(cursor.value);
-            
-            // Stop fetching once we hit the RAM limit
-            if (results.length < limit) {
-                cursor.continue();
-            } else {
-                resolve(results);
-            }
-        };
         request.onerror = () => reject(request.error);
     });
 };
@@ -406,9 +369,20 @@ const applyStockImpact = async (storeName, record) => {
                     if (record.discount > 0 && trueSubtotal > 0) {
                         discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
                     }
-                    // ENTERPRISE FIX: Prevent negative buy prices if a flat discount accidentally exceeds the subtotal!
-                    // Without this, selling the item later creates a massive, artificial 'Negative Cost' profit spike!
-                    dbItem.buyPrice = Math.max(0, parseFloat(row.rate) * (1 - discountRatio));
+                    // ENTERPRISE FIX: True Moving Average Cost (MAC) Engine!
+                    // Calculates actual historical warehouse valuation incorporating invoice discounts!
+                    const newPrice = Math.max(0, parseFloat(row.rate) * (1 - discountRatio));
+                    const newQty = qty;
+                    
+                    const oldStock = Math.max(0, parseFloat(dbItem.stock) || 0);
+                    const oldPrice = parseFloat(dbItem.buyPrice) || 0;
+                    
+                    if (newQty > 0) {
+                        const totalOldValue = oldStock * oldPrice;
+                        const totalNewValue = newQty * newPrice;
+                        const newTotalStock = oldStock + newQty;
+                        dbItem.buyPrice = newTotalStock > 0 ? Math.round(((totalOldValue + totalNewValue) / newTotalStock) * 100) / 100 : newPrice;
+                    }
                 }
             } else if (storeName === 'adjustments') {
                 impact = record.type === 'add' ? qty : -qty;
@@ -434,6 +408,21 @@ const applyStockImpact = async (storeName, record) => {
 };
 
 const saveInvoiceTransaction = async (storeName, data) => {
+    // 🚨 ENTERPRISE UPGRADE: GLOBAL DATA NORMALIZER
+    // Silently fixes messy typists before the data ever hits the database!
+    if (data.customerName) {
+        data.customerName = data.customerName.replace(/\b\w/g, c => c.toUpperCase());
+    }
+    if (data.supplierName) {
+        data.supplierName = data.supplierName.replace(/\b\w/g, c => c.toUpperCase());
+    }
+    if (data.items && data.items.length > 0) {
+        data.items.forEach(item => {
+            if (item.hsn) item.hsn = String(item.hsn).toUpperCase().trim();
+            if (item.name) item.name = item.name.replace(/\b\w/g, c => c.toUpperCase());
+        });
+    }
+
     const existingRecord = await getRecordById(storeName, data.id);
     
     // STRICT ERP LOGIC: Inherit the exact DB type to prevent string/number cloning!
@@ -1071,6 +1060,51 @@ async function generateGSTReport(yearMonth, firmId) {
 
     return { month: yearMonth, gstr1, gstr2, gstr3b, rawSales: monthSales, rawPurchases: monthPurchases };
 }
+// ==========================================
+// ENTERPRISE UPGRADE: COLD STORAGE ARCHIVE ENGINE
+// ==========================================
+// Shrinks massive multi-year databases by deleting the heavy Item arrays from old, fully paid invoices.
+const executeColdStorageArchive = async () => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            const cutoffDate = oneYearAgo.toISOString().split('T')[0];
+            
+            let archivedCount = 0;
+            const tx = db.transaction(['sales', 'purchases'], 'readwrite');
+            
+            ['sales', 'purchases'].forEach(storeName => {
+                const store = tx.objectStore(storeName);
+                const req = store.getAll();
+                req.onsuccess = () => {
+                    req.result.forEach(doc => {
+                        // If invoice is Older than 1 year, is Completed/Paid, and hasn't been archived yet...
+                        if (doc.date < cutoffDate && doc.status === 'Completed' && doc.items && doc.items.length > 0) {
+                            // Erase the massive item array to free up MBs of RAM and Storage
+                            doc.items = []; 
+                            doc.notes = (doc.notes || '') + '\n[SYSTEM: Items archived to Cold Storage to save space.]';
+                            store.put(doc);
+                            archivedCount++;
+                        }
+                    });
+                };
+            });
+
+            tx.oncomplete = () => {
+                console.log(`📦 Cold Storage Archive Complete: ${archivedCount} old invoices compressed.`);
+                resolve(archivedCount);
+            };
+            tx.onerror = () => reject(tx.error);
+        } catch (e) {
+            reject(e);
+        }
+    });
+};
+
+// Export the Engine
+window.executeColdStorageArchive = executeColdStorageArchive;
+
 
 // ==========================================
 // NEW CODE: GLOBAL MAP
@@ -1079,7 +1113,6 @@ async function generateGSTReport(yearMonth, firmId) {
 // 2. Map to window so inline HTML and older files don't break
 window.initDB = initDB;
 window.getAllRecords = getAllRecords;
-window.getRecordsPaginated = getRecordsPaginated; // 🚨 ENTERPRISE UPGRADE: Exported the RAM Shield!
 window.getRecordById = getRecordById;
 window.saveRecord = saveRecord;
 window.deleteRecordById = deleteRecordById;

@@ -9,6 +9,8 @@ body {
     -webkit-user-select: none;
     /* Remove the blue flash when tapping */
     -webkit-tap-highlight-color: transparent;
+    /* 🚨 ENTERPRISE POLISH: Completely destroys the native 300ms mobile click delay! */
+    touch-action: manipulation;
 }
 
 /* ENTERPRISE FIX: Added 'select' so iOS Safari doesn't permanently lock dropdown menus! */
@@ -371,7 +373,8 @@ body.dark-mode .swipe-card {
     margin-bottom: 12px; 
     border: 1px solid rgba(0, 0, 0, 0.04);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    /* Explicit high-performance transitions only! */
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, background-color 0.3s ease;
 }
 
 /* UPGRADE 3: Advanced Native Android Tap Feedback & Ink Ripple */
@@ -435,7 +438,8 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="email"]
     border: 1px solid transparent; 
     background: rgba(0, 0, 0, 0.02); 
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 0 rgba(255, 255, 255, 0.9);
-    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    /* Lock transitions to colors and transforms to keep typing ultra-fast */
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 input:focus, select:focus, textarea:focus {
@@ -1863,9 +1867,6 @@ header, .header, .top-bar {
 /* Apply this to the individual rows/cards inside your Master Lists */
 /* 🚨 ENTERPRISE UPGRADE: Expanded to include .list-view li for infinite 60fps scrolling! */
 .virtual-item, .list-card, #master-list-container .m3-card, .list-view li {
-    /* Hardware acceleration lock for smooth sliding */
-    will-change: transform, opacity;
-    
     /* 🚀 OFF-SCREEN RENDERING SHIELD (Peak Performance) */
     /* Tells the phone's CPU to completely ignore elements until you scroll to them */
     content-visibility: auto;
@@ -3847,4 +3848,17 @@ body.compact-mode input, body.compact-mode select {
 /* Ensure the floating Action Button (FAB) doesn't get hidden under the Apple bar */
 .fab {
     margin-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+/* ==========================================
+   🚨 ENTERPRISE UPGRADE: GPU HARDWARE ACCELERATION
+   ========================================== */
+/* Forces the device's Graphics Card (GPU) to handle heavy DOM animations instead of the CPU. 
+   This completely eliminates scroll-lag and stuttering when rendering massive lists or opening bottom sheets! */
+.bottom-sheet, .modal, .activity-page, .toast, #toast-container, .a4-document {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000px;
+    -webkit-perspective: 1000px;
 }

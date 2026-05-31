@@ -140,3 +140,24 @@ self.addEventListener('message', (event) => {
         self.skipWaiting();
     }
 });
+// ==========================================
+// 🚨 ENTERPRISE POLISH: THE "ZOMBIE CACHE" PURGER
+// ==========================================
+// When you update the CACHE_NAME version at the top of this file, this engine wakes up
+// and permanently deletes the old cache from the phone's hard drive. 
+// This guarantees users never get stuck on a broken, outdated version of the app!
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    // If the cache name doesn't match the CURRENT version, destroy it!
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('🗑️ Destroying old outdated cache:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim()) // Forces all open tabs to instantly use the new cache!
+    );
+});

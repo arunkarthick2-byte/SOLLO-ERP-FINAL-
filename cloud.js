@@ -345,8 +345,8 @@ const executeBackgroundBackup = async () => {
     } catch (err) { 
         console.warn("Database not ready for auto-backup yet."); 
     } finally {
-        // Safely unlock the engine exactly 10 seconds later to allow for a proper cooldown!
-        setTimeout(() => { window.isCloudSyncing = false; }, 10000);
+        // Safely unlock the engine immediately when the process finishes!
+        window.isCloudSyncing = false; 
     }
 };
 

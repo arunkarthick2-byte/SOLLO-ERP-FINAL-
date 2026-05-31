@@ -84,31 +84,36 @@ const UI = {
             }
         });
 
-        // 🚨 ENTERPRISE FIX 5: Tax Auto-Capitalizer & Safe Negative Math
+        // 🚨 ENTERPRISE FIX 5 & 6 CONSOLIDATED: High-Performance Form Event Engine
         document.addEventListener('input', (e) => {
-            if (e.target.tagName === 'INPUT') {
-                const id = (e.target.id || '').toLowerCase();
-                // 1. Force Uppercase for GST and IFSC
-                // 🚨 CRITICAL FIX: Only run on TEXT inputs! Running selectionStart on a NUMBER input causes a fatal DOMException crash!
-                if ((id.includes('gst') || id.includes('ifsc') || id.includes('pan')) && e.target.type === 'text') {
-                    const start = e.target.selectionStart;
-                    e.target.value = e.target.value.toUpperCase();
-                    if (start !== null) e.target.setSelectionRange(start, start); // Added iOS null safety
+            const target = e.target;
+            if (!target) return;
+
+            // 1. Dirty Form Tracker
+            if (target.closest('form')) window.isFormDirty = true;
+
+            // 2. Auto-Expanding Notes & Textareas
+            if (target.tagName === 'TEXTAREA') {
+                target.style.height = 'auto';
+                target.style.height = (target.scrollHeight) + 'px';
+                return;
+            }
+
+            // 3. Selective Text Fields and Inputs
+            if (target.tagName === 'INPUT') {
+                const id = (target.id || '').toLowerCase();
+                
+                if ((id.includes('gst') || id.includes('ifsc') || id.includes('pan')) && target.type === 'text') {
+                    const start = target.selectionStart;
+                    target.value = target.value.toUpperCase();
+                    if (start !== null) target.setSelectionRange(start, start);
                 }
-                // 2. 🚨 CRITICAL FIX: Allow negative numbers for Stock Adjustments and Refunds!
-                if (e.target.type === 'number' && String(e.target.value).includes('-')) {
+                
+                if (target.type === 'number' && String(target.value).includes('-')) {
                     if (!id.includes('adjust') && !id.includes('discount') && !id.includes('return')) {
-                        e.target.value = Math.abs(e.target.value);
+                        target.value = Math.abs(target.value);
                     }
                 }
-            }
-        });
-
-        // ENTERPRISE FIX 6: Auto-Expanding Notes & Particulars
-        document.addEventListener('input', (e) => {
-            if (e.target.tagName === 'TEXTAREA') {
-                e.target.style.height = 'auto';
-                e.target.style.height = (e.target.scrollHeight) + 'px';
             }
         });
 
@@ -131,7 +136,6 @@ const UI = {
         });
 
         window.isFormDirty = false;
-        document.addEventListener('input', (e) => { if (e.target.closest('form')) window.isFormDirty = true; });
         document.addEventListener('submit', (e) => { 
             window.isFormDirty = false; // Reset tracker on save
             const btn = e.target.querySelector('button[type="submit"]');
@@ -565,10 +569,14 @@ const UI = {
             UI.renderVirtualList(container, records, (adj) => {
                 const prod = products.find(p => p.id === adj.itemId);
                 const prodName = prod ? prod.name : 'Deleted Product';
+                
+                // Explicitly sanitize database strings before building the list
+                const safeProdName = window.Utils.sanitizeHTML(prodName);
+                const safeNotes = window.Utils.sanitizeHTML(adj.notes || 'No Reason Provided');
+                
                 const sign = adj.type === 'add' ? '+' : '-';
                 const color = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
                 
-                // NEW: Dual Inventory Audit Badge
                 const isGST = adj.pool === 'gst';
                 const poolBadge = adj.pool ? `<span style="background: ${isGST ? '#e3f2fd' : '#fff8e1'}; color: ${isGST ? '#0061a4' : '#f57f17'}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 8px; border: 1px solid ${isGST ? '#bbdefb' : '#ffecb3'};">${isGST ? 'GST Pool' : 'Non-GST Pool'}</span>` : '';
 
@@ -576,14 +584,14 @@ const UI = {
                     <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                             <div style="display: flex; align-items: center; min-width: 0; flex: 1;">
-                                <strong style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${prodName}</strong>
+                                <strong style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${safeProdName}</strong>
                                 ${poolBadge}
                             </div>
                             <strong style="font-size: 16px; color: ${color}; flex-shrink: 0; margin-left: 8px;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
                         </div>
                         <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 6px; font-size: 12px; color: var(--md-text-muted);">
                             <span>${adj.date}</span>
-                            <span>${adj.notes || 'No Reason Provided'}</span>
+                            <span>${safeNotes}</span>
                         </div>
                     </div>
                 `;
@@ -777,6 +785,8 @@ const UI = {
         }
         
         document.getElementById('sales-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        const stickySales = document.getElementById('sales-sticky-total');
+        if (stickySales) stickySales.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
     },
 
     calcPurchaseTotals: () => {
@@ -861,6 +871,8 @@ const UI = {
         }
         
         document.getElementById('purchase-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        const stickyPurchase = document.getElementById('purchase-sticky-total');
+        if (stickyPurchase) stickyPurchase.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
     },
 
     // ==========================================
@@ -2611,42 +2623,34 @@ const UI = {
 
         itemCard.innerHTML = `
             ${hiddenInputs}
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
-                    ${name}
-                    <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${hsn}" style="border:none; background:transparent; width:100px; color:inherit;" readonly></div>
-                </div>
-                <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                <div>
-                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${uom || 'Unit'})</small>
-                    <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;" onfocus="this.select()">
-                </div>
-                <div>
-                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                    <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
-                </div>
-                <div>
-                    <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                    <input type="number" inputmode="decimal" class="row-gst" value="${gst || 0}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
-                </div>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
-                <div style="display:flex; gap:8px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                <div style="flex: 1; padding-right: 8px; min-width: 0;">
+                    <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
+                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                        <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 14px; background: var(--md-surface);" onfocus="this.select()">
+                        <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
+                        <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
+                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface);">
+                        <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
+                        <input type="hidden" class="row-gst" value="${gst || 0}">
+                        <input type="hidden" class="row-hsn" value="${hsn || ''}">
+                        <input type="hidden" class="row-uom" value="${uom || 'Unit'}">
+                    </div>
                     ${prefix === 'sales' ? `
-                    <div>
-                        <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
-                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                    <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
+                        <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
+                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent;">
+                        <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                     </div>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
                 </div>
-                <div style="text-align:right;">
-                    <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
-                    <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
+                    <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                    </div>
+                    <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
                 </div>
             </div>
-            ${prefix === 'sales' ? `<small class="live-margin" style="font-size:10px; display:block; margin-top:8px; text-align:right;"></small>` : ''}
         `;
         container.appendChild(itemCard);
         
@@ -3331,15 +3335,6 @@ const UI = {
     },
 
     // ==========================================
-    // DATABASE OPTIMIZATION ENGINE
-    // ==========================================
-    optimizeMemory: () => {
-        // FIX: Memory optimization disabled! Pruning arrays from RAM breaks the Address Book's running balance math. 
-        // Modern devices have plenty of RAM for text arrays, so we keep all data loaded for perfect accuracy.
-        return;
-    },
-
-    // ==========================================
     // ENTERPRISE UPGRADE: SKELETONS & DENSITY
     // ==========================================
     
@@ -3771,11 +3766,24 @@ window.addEventListener('popstate', (e) => {
     }
 });
 // ==========================================
-// 🚨 ENTERPRISE FIX: GLOBAL ANTI-DOUBLE-TAP SHIELD
+// 🚨 ENTERPRISE FIX: GLOBAL ANTI-DOUBLE-TAP & GHOST INVOICE SHIELD
 // ==========================================
 // Locks ALL forms instantly upon submission so impatient users cannot create duplicate database entries!
 document.addEventListener('submit', (e) => {
     const form = e.target;
+
+    // 🚨 CRITICAL FIX: Intercept the save command if the cart is completely empty!
+    if (form.id === 'form-sales' || form.id === 'form-purchase') {
+        const itemCount = form.querySelectorAll('.row-qty').length;
+        if (itemCount === 0) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([50, 100, 50]);
+            window.alert("⚠️ Cannot save an empty document! Please add at least one item.");
+            return false;
+        }
+    }
+
     const submitBtn = form.querySelector('button[type="submit"]');
     
     if (submitBtn) {

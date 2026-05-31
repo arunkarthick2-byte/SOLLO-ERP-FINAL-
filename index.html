@@ -718,11 +718,15 @@
                     </div>
                 </details>
 
-                <div class="form-bottom-spacer"></div>
-
-                <div class="thumb-action-bar">
-                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-sales-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
-                    <button type="submit" id="btn-save-sales" class="btn-primary">Save Invoice</button>
+                <div style="height: 100px;"></div> <div class="form-sticky-footer" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: rgba(253, 252, 255, 0.95); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Grand Total</span>
+                        <strong id="sales-sticky-total" style="font-size: 24px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-primary-small" onclick="if(confirm('Discard this document? All unsaved items will be permanently lost.')) UI.closeActivity('activity-sales-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 48px; border-radius: 24px; font-weight: 600; font-size: 14px;">Cancel</button>
+                        <button type="submit" id="btn-save-sales" class="btn-primary" style="min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 15px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span></button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -838,11 +842,17 @@
                     <textarea id="purchase-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 8px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
                 </div>
 
-                <div class="form-bottom-spacer"></div>
+                <div style="height: 100px;"></div>
 
-                <div class="thumb-action-bar">
-                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-purchase-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
-                    <button type="submit" id="btn-save-purchase" class="btn-primary">Save Purchase</button>
+                <div class="form-sticky-footer" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: rgba(253, 252, 255, 0.95); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);">
+                    <div style="display: flex; flex-direction: column;">
+                        <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Grand Total</span>
+                        <strong id="purchase-sticky-total" style="font-size: 24px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-primary-small" onclick="if(confirm('Discard this document? All unsaved items will be permanently lost.')) UI.closeActivity('activity-purchase-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 48px; border-radius: 24px; font-weight: 600; font-size: 14px;">Cancel</button>
+                        <button type="submit" id="btn-save-purchase" class="btn-primary" style="min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 15px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span></button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -2856,100 +2866,6 @@
                         }
                     }
                 }
-            });
-
-            // ==========================================
-            // ENTERPRISE UPGRADE: UNIVERSAL BACK-GESTURE & CLOSE ENGINE
-            // ==========================================
-            // Fixes the exact bug where closing a form jumps too far back or completely exits the app!
-            
-            let isSoftwareCloseInProgress = false;
-            let lastBackCallTime = 0;
-
-            // ENTERPRISE UX: Lock the home screen so the first back-swipe doesn't exit the app immediately
-            window.history.pushState({ id: 'home' }, '', window.location.href);
-
-            // 1. Listen for Android/iOS Hardware Back-Swipes
-        window.addEventListener('popstate', function(event) {
-            if (window.softwareBackLock) { window.history.pushState({ page: 1 }, "", ""); return; }
-                // If this popstate was triggered by our own software "X" button, ignore it so it doesn't double-close!
-                if (isSoftwareCloseInProgress) {
-                    isSoftwareCloseInProgress = false;
-                    return;
-                }
-
-                // 🚨 ENTERPRISE FIX: The "Double-Fire" Hardware Shield!
-                // If ui.js already intercepted this swipe, instantly kill this duplicate event!
-                if (window.isHardwareSwiping) return;
-                window.isHardwareSwiping = true;
-                setTimeout(() => { window.isHardwareSwiping = false; }, 400);
-
-                // Otherwise, it was a physical hardware swipe-back. Find all open screens.
-                const openScreens = Array.from(document.querySelectorAll('.bottom-sheet.open, .activity-screen.open'));
-                if (openScreens.length > 0) {
-                    // Grab the exact top-most screen and forcefully close it safely
-                    const topScreen = openScreens[openScreens.length - 1];
-                    
-                    // ENTERPRISE FIX: Route the hardware close through the official UI Engine!
-                    // This ensures the dark overlays, z-indexes, and hardware locks are properly cleaned up!
-                    if (topScreen.classList.contains('bottom-sheet')) {
-                        if (window.UI) window.UI.closeBottomSheet(topScreen.id);
-                        else topScreen.classList.remove('open');
-                    } else {
-                        if (window.UI) window.UI.closeActivity(topScreen.id);
-                        else topScreen.classList.remove('open');
-                    }
-                    
-                    // If it is a temporary PDF viewer, destroy it from memory
-                    if (topScreen.id && topScreen.id.includes('viewer')) {
-                        setTimeout(() => topScreen.remove(), 350);
-                    }
-                } else {
-                    // We are on the home screen! INSTANT EXIT (No annoying popups)
-                    window.close();
-                    window.location.replace('about:blank');
-                }
-            });
-
-            // 2. Secretly watch every single menu and form in the entire app. 
-            // It perfectly syncs the app's visuals with the phone's internal hardware history stack!
-            const navObserver = new MutationObserver((mutations) => {
-                mutations.forEach(m => {
-                    if (m.attributeName === 'class') {
-                        const el = m.target;
-                        // Only intercept major screens and bottom sheets
-                        if (el.classList.contains('bottom-sheet') || el.classList.contains('activity-screen')) {
-                            const isOpenNow = el.classList.contains('open');
-                            const wasOpenBefore = m.oldValue && m.oldValue.includes('open');
-                            
-                            // SCENARIO A: The form just opened! Lock it into the phone's history stack.
-                            if (isOpenNow && !wasOpenBefore) {
-                                // Only push if the UI engine hasn't already pushed it
-                                if (!history.state || (history.state.id !== el.id && history.state.modal !== el.id)) {
-                                    history.pushState({ id: el.id, type: 'modal' }, '', '');
-                                }
-                            } 
-                            // SCENARIO B: The form just closed via a software "X" button! 
-                            // Erase it from the history stack so the NEXT hardware swipe back doesn't crash the app.
-                            else if (!isOpenNow && wasOpenBefore) {
-                                // Check if the phone's history still falsely thinks this form is open
-                                if (history.state && (history.state.id === el.id || history.state.modal === el.id)) {
-                                    if (Date.now() - lastBackCallTime > 300) { // Prevent double-firing collisions
-                                        isSoftwareCloseInProgress = true;
-                                        lastBackCallTime = Date.now();
-                                        history.back(); 
-                                        setTimeout(() => { isSoftwareCloseInProgress = false; }, 100);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                });
-            });
-
-            // ENTERPRISE FIX: Watch ONLY the specific screens to save battery and prevent CPU stutter!
-            document.querySelectorAll('.bottom-sheet, .activity-screen').forEach(screen => {
-                navObserver.observe(screen, { attributes: true, attributeOldValue: true, attributeFilter: ['class'] });
             });
 
         }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK

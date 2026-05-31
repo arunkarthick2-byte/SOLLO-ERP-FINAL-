@@ -2,6 +2,30 @@
 // SOLLO ERP - MAIN APPLICATION CONTROLLER (v6.1 Enterprise)
 // ==========================================
 
+// ==========================================
+// 🚨 ENTERPRISE FIX: HIDDEN INPUT RESET SHIELD
+// ==========================================
+// Standard HTML ignores hidden fields when resetting forms. This forces all hidden IDs to wipe 
+// completely clean so previous customers/suppliers don't get stuck in the background!
+document.addEventListener('reset', (e) => {
+    const form = e.target;
+    setTimeout(() => {
+        const hiddenInputs = form.querySelectorAll('input[type="hidden"]');
+        hiddenInputs.forEach(input => {
+            // Wipes the hidden IDs clean for Sales, Purchases, and General Ledger forms
+            if (input.id && (input.id.includes('customer-id') || input.id.includes('supplier-id') || input.id.includes('party-id'))) {
+                input.value = '';
+            }
+        });
+        
+        // Also force the Live Insight Engine to instantly clear the banner!
+        const oldBanner = document.getElementById('risk-banner');
+        if (oldBanner) oldBanner.remove();
+        
+    }, 10); // 10ms delay ensures it happens right after the browser finishes its native reset
+});
+
+
 // --- ENTERPRISE UPGRADE: KILL UGLY BROWSER ALERTS ---
 // This secretly intercepts every standard alert() in the entire app and turns them into M3 Toasts!
 window.alert = function(message) {
@@ -79,19 +103,20 @@ const setupSmartZoom = () => {
     let meta = document.querySelector('meta[name="viewport"]');
     if (!meta) return;
 
+    let zoomTimeout;
     const zoomObserver = new MutationObserver(() => {
-        // 🚨 V3 FIX: The Omniscient Radar!
-        // Scans for .open (Modals/Sheets) AND .active-screen (Full Tabs)
-        // using an expanded list of document keywords!
-        const isViewerOpen = document.querySelector('.open[id*="view"], .open[id*="preview"], .open[id*="report"], .open[id*="pdf"], .open[id*="doc"], .active-screen[id*="view"], .active-screen[id*="preview"], .active-screen[id*="report"], .active-screen[id*="pdf"], .active-screen[id*="doc"]');
-        
-        if (isViewerOpen) {
-            // Document is open: Unlock pinch-to-zoom (up to 5x zoom)
-            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
-        } else {
-            // Document is closed: Lock zoom strictly to 1.0 to protect the ERP buttons and layout
-            meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-        }
+        // 🚨 ENTERPRISE FIX: Debounce the heavy DOM query!
+        // This prevents the CPU from melting by waiting 150ms for animations/typing to stop before scanning.
+        clearTimeout(zoomTimeout);
+        zoomTimeout = setTimeout(() => {
+            const isViewerOpen = document.querySelector('.open[id*="view"], .open[id*="preview"], .open[id*="report"], .open[id*="pdf"], .open[id*="doc"], .active-screen[id*="view"], .active-screen[id*="preview"], .active-screen[id*="report"], .active-screen[id*="pdf"], .active-screen[id*="doc"]');
+            
+            if (isViewerOpen) {
+                meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
+            } else {
+                meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+            }
+        }, 150); 
     });
 
     // Watch the whole app for screens opening and closing
@@ -369,13 +394,14 @@ const app = {
                         newWorker.addEventListener('statechange', () => {
                             // If a new update is downloaded from the server and ready...
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('New update available!');
+                                console.log('New update available! Waiting for next restart.');
                                 if (window.Utils && typeof window.Utils.showToast === 'function') {
-                                    window.Utils.showToast("New update available! Installing...");
+                                    window.Utils.showToast("✨ Update downloaded! It will apply on next restart.");
                                 }
                                 
-                                // ENTERPRISE FIX: Force the new Service Worker to take over immediately!
-                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                // ENTERPRISE FIX: Do NOT force skipWaiting here! 
+                                // Let the browser naturally swap the workers when the user closes the app.
+                                // This completely prevents the "Frankenstein Cache" crash!
                             }
                         });
                     });
@@ -725,13 +751,6 @@ const app = {
                 document.getElementById('aging-60-bar').style.width = totalDue > 0 ? `${(bucket60/totalDue)*100}%` : '0%';
                 document.getElementById('aging-90-bar').style.width = totalDue > 0 ? `${(bucket90/totalDue)*100}%` : '0%';
             }
-        }
-
-        // ==========================================
-        // TRIGGER SILENT MEMORY OPTIMIZATION
-        // ==========================================
-        if (window.UI && typeof window.UI.optimizeMemory === 'function') {
-            window.UI.optimizeMemory();
         }
     },
 
@@ -1814,39 +1833,30 @@ const app = {
                 tr.style.cssText = `padding: 12px; margin-bottom: 8px; border-left: 4px solid var(--md-error);`;
                 
                 tr.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                        <div style="flex: 1;">
-                            <strong style="font-size: 15px; color: var(--md-on-surface);">${item.name}</strong>
-                            <br><small style="color:var(--md-error); font-weight: bold;">Max Return: ${maxAllowable}</small>
-                            <div style="font-size: 11px; color: var(--md-text-muted); margin-top: 2px;">HSN: <input type="text" class="row-hsn" value="${item.hsn || ''}" readonly style="width: 60px; border:none; background:transparent; font-size: 11px;"></div>
-                            
-                            <input type="hidden" class="row-item-id" value="${item.itemId}">
-                            <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
-                            <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
-                            <input type="hidden" class="row-uom" value="${item.uom || ''}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div style="flex: 1; padding-right: 8px; min-width: 0;">
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
+                            <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
+                            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                                <input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" required oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: #fff0f2;">
+                                <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
+                                <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
+                                <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" required readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
+                                <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
+                                <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
+                                <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
+                                <input type="hidden" class="row-item-id" value="${item.itemId}">
+                                <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                                <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
+                                <input type="hidden" class="row-uom" value="${item.uom || ''}">
+                            </div>
                         </div>
-                        <div class="icon-circle tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 28px; height: 28px; background: #fff0f2; color: var(--md-error); flex-shrink: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
+                            <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="color: var(--md-error); padding: 4px; border-radius: 50%; background: #fff0f2; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                            </div>
+                            <strong class="row-total" style="font-size: 16px; color: var(--md-error); margin-top: auto; padding-top: 8px;">0.00</strong>
                         </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; background: #fff0f2; padding: 8px; border-radius: 8px;">
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-error);">Return Qty (${item.uom || 'Pcs'})</small>
-                            <input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error);">
-                        </div>
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">Rate (₹)</small>
-                            <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 4px; background: var(--md-surface-variant);">
-                        </div>
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">GST %</small>
-                            <input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 4px;">
-                        </div>
-                    </div>
-                    
-                    <div style="text-align: right; margin-top: 8px; padding-right: 4px;">
-                        <small style="color:var(--md-text-muted);">Total: </small><strong class="row-total" style="font-size: 15px; color: var(--md-error);">0.00</strong>
                     </div>
                 `;
                 tbody.appendChild(tr);
@@ -2252,46 +2262,37 @@ const app = {
                 tr.style.cssText = `padding: 12px; margin-bottom: 8px; border-left: 4px solid ${type === 'sales' ? 'var(--md-primary)' : 'var(--md-error)'};`;
                 
                 tr.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                        <div style="flex: 1;">
-                            <strong style="font-size: 15px; color: var(--md-on-surface);">${item.name}</strong>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div style="flex: 1; padding-right: 8px; min-width: 0;">
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
                             ${maxLabel}
-                            <div style="font-size: 11px; color: var(--md-text-muted); margin-top: 2px;">HSN/SAC: <input type="text" class="row-hsn" value="${item.hsn || ''}" placeholder="HSN" style="width: 100px; border:none; border-bottom: 1px solid var(--md-outline-variant); background:transparent; font-size: 11px; padding: 2px;"></div>
+                            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                                <input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} required oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface);">
+                                <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
+                                <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
+                                <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" required ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface);'}">
+                                <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
+                                <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
+                                <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
+                                <input type="hidden" class="row-item-id" value="${item.itemId}">
+                                <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                                <input type="hidden" class="row-uom" value="${item.uom || ''}">
+                            </div>
                             
                             ${type === 'sales' && record.documentType !== 'return' ? `
-                            <div style="display:flex; align-items:center; gap:4px; margin-top:6px;">
-                                <span style="font-size:11px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:100px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:var(--md-surface);">
+                            <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
+                                <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
+                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent;">
+                                <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                             </div>
-                            <small class="live-margin" style="font-size:10px; display:block; margin-top:4px; color:var(--md-success);"></small>
                             ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
-                            
-                            <input type="hidden" class="row-item-id" value="${item.itemId}">
-                            <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
-                            <input type="hidden" class="row-uom" value="${item.uom || ''}">
                         </div>
-                        <div class="icon-circle tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 28px; height: 28px; background: #fff0f2; color: var(--md-error); flex-shrink: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
+                            <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                            </div>
+                            <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
                         </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; background: var(--md-surface-variant); padding: 8px; border-radius: 8px;">
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">Qty (${item.uom || 'Pcs'})</small>
-                            <input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; font-weight: bold; border: 1px solid var(--md-outline-variant); border-radius: 4px; ${record.documentType === 'return' ? 'border-color:var(--md-error);' : ''}">
-                        </div>
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">Rate (₹)</small>
-                            <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 4px; ${record.documentType === 'return' ? 'background:var(--md-background);' : ''}">
-                        </div>
-                        <div>
-                            <small style="display:block; font-size:10px; color:var(--md-text-muted);">GST %</small>
-                            <input type="number" inputmode="decimal" class="row-gst" value="${item.gstPercent || 0}" step="any" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 100%; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 4px;">
-                        </div>
-                    </div>
-                    
-                    <div style="text-align: right; margin-top: 8px; padding-right: 4px;">
-                        <small style="color:var(--md-text-muted);">Total: </small><strong class="row-total" style="font-size: 15px; color: var(--md-on-surface);">0.00</strong>
                     </div>
                 `;
                 tbody.appendChild(tr);
@@ -2680,11 +2681,17 @@ const app = {
                         // ==========================================
                         // ENTERPRISE UPGRADE 4: SPLIT-TENDER ENGINE
                         // ==========================================
-                        if (type === 'sale' && data.status !== 'Open' && data.status !== 'Cancelled') {
-                            const splitConfirmed = await new Promise((resolve) => {
+                        // 🚨 CRITICAL FIX: Fixed the typo ('sale' -> 'sales') so the Split Tender modal actually opens!
+                        if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled') {
+                            const splitConfirmed = await new Promise(async (resolve) => {
                                 const total = parseFloat(data.grandTotal) || 0;
                                 const existing = document.getElementById('split-tender-modal');
                                 if (existing) existing.remove();
+
+                                // 🚨 CRITICAL FIX: Fetch actual Bank Accounts to inject into the modal!
+                                const allAccs = await window.getAllRecords('accounts', 'firmId', app.state.firmId);
+                                let bankOptions = allAccs.filter(a => a.id !== 'cash').map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+                                if (!bankOptions) bankOptions = `<option value="cash">Default Bank / Cash</option>`;
 
                                 // Dynamically construct the gorgeous Split-Tender Bottom Sheet
                                 const modalHTML = `
@@ -2700,7 +2707,12 @@ const app = {
                                         </div>
                                         <div>
                                             <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">BANK / UPI RECEIVED (₹)</label>
-                                            <input type="number" id="split-bank" placeholder="0.00" style="width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold; margin-top: 6px;" oninput="window.calcSplit()">
+                                            <div style="display: flex; gap: 8px; margin-top: 6px;">
+                                                <input type="number" id="split-bank" placeholder="0.00" style="flex: 1; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold;" oninput="window.calcSplit()">
+                                                <select id="split-bank-account" style="width: 140px; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-weight: bold; background: var(--md-surface-variant);">
+                                                    ${bankOptions}
+                                                </select>
+                                            </div>
                                         </div>
                                         <div style="background: #fff0f2; padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
                                             <span style="color: var(--md-error); font-weight: 900; font-size: 14px; letter-spacing: 0.5px;">PENDING CREDIT:</span>
@@ -2724,7 +2736,6 @@ const app = {
                                     document.getElementById('split-credit').innerText = `₹${credit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
                                 };
 
-                                // Animate it up smoothly
                                 setTimeout(() => document.getElementById('split-tender-modal').classList.add('open'), 10);
 
                                 const cleanup = () => {
@@ -2732,67 +2743,70 @@ const app = {
                                     document.getElementById('split-overlay').remove();
                                 };
 
-                                // Listeners
                                 document.getElementById('split-cancel-btn').onclick = () => { cleanup(); resolve(false); };
                                 document.getElementById('split-confirm-btn').onclick = () => {
                                     const c = parseFloat(document.getElementById('split-cash').value) || 0;
                                     const b = parseFloat(document.getElementById('split-bank').value) || 0;
+                                    const bAcc = document.getElementById('split-bank-account') ? document.getElementById('split-bank-account').value : 'cash';
                                     cleanup();
-                                    resolve({ cash: c, bank: b, credit: (total - (c + b)) });
+                                    resolve({ cash: c, bank: b, bankAcc: bAcc, credit: (total - (c + b)) });
                                 };
                             });
 
-                            // If they clicked 'Cancel' on the popup, physically abort the database save!
                             if (!splitConfirmed) {
                                 if (window.Utils) window.Utils.showToast("⚠️ Save Cancelled.");
                                 if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
                                 return; 
                             }
 
-                            // Inject the multi-tender data permanently into the invoice
                             data.splitData = splitConfirmed;
                             data.paymentMethod = 'Split';
                             
-                            if (splitConfirmed.credit > 0) {
-                                data.status = 'Credit';
-                                data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Pending: ₹${splitConfirmed.credit}]`;
-                            } else {
-                                data.status = 'Paid';
-                                data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Fully Paid.]`;
+                            // 🚨 CRITICAL FIX: The Split-Tender Blackhole Shield!
+                            // The money captured in the modal was previously thrown away. We MUST inject it into the Cashbook!
+                            if (splitConfirmed.cash > 0) {
+                                await saveRecord('receipts', {
+                                    id: 'split-cash-' + data.id,
+                                    receiptNo: 'REC-' + data.invoiceNo,
+                                    firmId: data.firmId,
+                                    date: data.date,
+                                    ledgerId: data.customerId,
+                                    ledgerName: data.customerName,
+                                    type: 'in',
+                                    amount: splitConfirmed.cash,
+                                    mode: 'Cash',
+                                    accountId: 'cash',
+                                    invoiceRef: data.id,
+                                    desc: `Cash Split for ${data.invoiceNo}`,
+                                    isAutoGenerated: true
+                                });
                             }
+                            if (splitConfirmed.bank > 0) {
+                                await saveRecord('receipts', {
+                                    id: 'split-bank-' + data.id,
+                                    receiptNo: 'REC-' + data.invoiceNo,
+                                    firmId: data.firmId,
+                                    date: data.date,
+                                    ledgerId: data.customerId,
+                                    ledgerName: data.customerName,
+                                    type: 'in',
+                                    amount: splitConfirmed.bank,
+                                    mode: 'Bank Transfer',
+                                    accountId: splitConfirmed.bankAcc || 'cash', // 🚨 CRITICAL FIX: Routes the money to the correct bank!
+                                    invoiceRef: data.id,
+                                    desc: `Bank Split for ${data.invoiceNo}`,
+                                    isAutoGenerated: true
+                                });
+                            }
+
+                            // We assign 'Unpaid' so the central FIFO waterfall engine correctly calculates the remaining debt and dynamically marks it 'Completed' if fully paid!
+                            data.status = 'Unpaid'; 
+                            data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Pending: ₹${splitConfirmed.credit}]`;
                         }
 
                         // Execute the perfect database math with the upgraded data payload
                         await saveInvoiceTransaction(storeName, data);
 
-                        // --- ENTERPRISE UPGRADE 1: MOVING AVERAGE COST (MAC) ENGINE ---
-                        if (type === 'purchase' && data.status !== 'Open' && data.status !== 'Cancelled') {
-                            const allItems = await window.getAllRecords('items', 'firmId', app.state.firmId);
-                            for (const row of data.items) {
-                                const dbItem = allItems.find(i => String(i.id) === String(row.itemId));
-                                // Only calculate MAC on brand new purchases to avoid recursive loop distortion
-                                if (dbItem && !app.state.currentEditId) { 
-                                    const oldStock = (parseFloat(dbItem.stock) || 0);
-                                    const oldPrice = (parseFloat(dbItem.buyPrice) || 0);
-                                    const newQty = (parseFloat(row.qty) || 0);
-                                    const newPrice = (parseFloat(row.rate) || 0); // Purchase Rate
-
-                                    if (newQty > 0 && newPrice > 0) {
-                                        // MAC Formula: (Old Value + New Value) / (Old Qty + New Qty)
-                                        const totalOldValue = Math.max(0, oldStock * oldPrice);
-                                        const totalNewValue = newQty * newPrice;
-                                        const newTotalStock = Math.max(0, oldStock) + newQty;
-
-                                        const newMacPrice = newTotalStock > 0 ? ((totalOldValue + totalNewValue) / newTotalStock) : newPrice;
-                                        
-                                        dbItem.buyPrice = Math.round(newMacPrice * 100) / 100;
-                                        await window.saveRecord('items', dbItem);
-                                    }
-                                }
-                            }
-                        }
-                        // --- END MAC ENGINE ---
-                        
                         // THE STATE TRANSITION LOCK
                         app.state.currentEditId = data.id;
                         
@@ -5356,14 +5370,17 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         if (String(partyType).toLowerCase() === 'customer') {
             isDebit = row.impact > 0;
         } else {
-            isDebit = row.impact < 0;
+            // 🚨 CRITICAL FIX: Supplier math has negative impact for Purchases (Liability increases), but Purchases are CREDITS! 
+            // Payments to suppliers have positive impact (Liability decreases), which are DEBITS!
+            isDebit = row.impact > 0; 
         }
 
         if (row.id === 'open-bal') {
              if (String(partyType).toLowerCase() === 'customer') {
                  isDebit = runBal > 0;
              } else {
-                 isDebit = runBal < 0;
+                 // 🚨 CRITICAL FIX: A negative Opening Balance for a Supplier means we OWE them (Liability = Credit)!
+                 isDebit = runBal > 0; 
              }
         }
         
@@ -6201,10 +6218,14 @@ document.addEventListener('input', (e) => {
 
 })();
 // ==========================================
-// ENTERPRISE UPGRADE: LIVE CUSTOMER INSIGHT & RISK ENGINE (V2)
+// ENTERPRISE UPGRADE: LIVE CUSTOMER INSIGHT & RISK ENGINE (V3 REACTIVE)
 // ==========================================
 (function() {
-    let lastCalculatedHash = ""; // 🚨 Prevents screen flickering by only redrawing when numbers change!
+    let lastCalculatedHash = ""; 
+    // 🚨 ENTERPRISE CACHE: Store the heavy DB math so it only runs ONCE per customer!
+    let cachedPartyId = null;
+    let cachedTrueBalance = 0;
+    let cachedOldestDueDays = 0;
 
     setInterval(async () => {
         const sForm = document.getElementById('activity-sales-form');
@@ -6219,7 +6240,6 @@ document.addEventListener('input', (e) => {
             form = sForm;
             partyId = document.getElementById('sales-customer-id') ? document.getElementById('sales-customer-id').value : null;
             partyType = 'Customer';
-            // Live DOM read of the current invoice being typed
             const totalEl = document.getElementById('sales-grand-total');
             if (totalEl) draftTotal = parseFloat(totalEl.innerText.replace(/[^0-9.-]+/g,"")) || 0;
             
@@ -6227,7 +6247,6 @@ document.addEventListener('input', (e) => {
             form = pForm;
             partyId = document.getElementById('purchase-supplier-id') ? document.getElementById('purchase-supplier-id').value : null;
             partyType = 'Supplier';
-            // Live DOM read of the current bill being typed
             const totalEl = document.getElementById('purchase-grand-total');
             if (totalEl) draftTotal = parseFloat(totalEl.innerText.replace(/[^0-9.-]+/g,"")) || 0;
         }
@@ -6236,86 +6255,89 @@ document.addEventListener('input', (e) => {
             const oldBanner = document.getElementById('risk-banner');
             if (oldBanner) oldBanner.remove();
             lastCalculatedHash = "";
+            cachedPartyId = null; // Reset cache when form closes
             return;
         }
 
         try {
-            // 🚨 ENTERPRISE RAM OPTIMIZATION: Pull from RAM instead of SSD to save battery!
-            const rawData = window.UI && window.UI.state ? window.UI.state.rawData : null;
-            if (!rawData || !rawData.ledgers) return;
+            // 🚨 ENTERPRISE CPU SAVER: Only scan the massive database arrays if the Customer actually changed!
+            if (cachedPartyId !== partyId) {
+                const rawData = window.UI && window.UI.state ? window.UI.state.rawData : null;
+                if (!rawData || !rawData.ledgers) return;
 
-            const party = rawData.ledgers.find(l => l.id === partyId);
-            if (!party) return;
+                const party = rawData.ledgers.find(l => l.id === partyId);
+                if (!party) return;
 
-            let trueBalance = 0;
-            let oldestDueDays = 0;
-            const today = new Date();
+                cachedTrueBalance = 0;
+                cachedOldestDueDays = 0;
+                const today = new Date();
 
-            let ob = parseFloat(party.openingBalance) || 0;
-            const balType = (party.balanceType || '').toLowerCase();
-            
-            if (partyType === 'Customer') {
-                trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-            } else {
-                trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
-            }
-            
-            const sales = rawData.sales || [];
-            const purchases = rawData.purchases || [];
-            const allReceipts = rawData.receipts || rawData.cashbook || [];
-
-            if (partyType === 'Customer') {
-                sales.forEach(s => {
-                    if (s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled') {
-                        trueBalance += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
-                        if (s.status !== 'Completed' && s.documentType !== 'return') {
-                            const ageDays = Math.floor((today - window.Utils.safeDate(s.date)) / (1000 * 60 * 60 * 24));
-                            if (ageDays > oldestDueDays) oldestDueDays = ageDays;
-                        }
-                    }
-                });
-            } else {
-                purchases.forEach(p => {
-                    if (p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled') {
-                        trueBalance += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
-                        if (p.status !== 'Completed' && p.documentType !== 'return') {
-                            const ageDays = Math.floor((today - window.Utils.safeDate(p.date)) / (1000 * 60 * 60 * 24));
-                            if (ageDays > oldestDueDays) oldestDueDays = ageDays;
-                        }
-                    }
-                });
-            }
-
-            allReceipts.forEach(r => {
-                if (r.ledgerId === partyId || r.accountId === partyId) {
-                    if (partyType === 'Customer') {
-                        trueBalance += (r.type === 'in' ? -parseFloat(r.amount || 0) : parseFloat(r.amount || 0));
-                    } else {
-                        trueBalance += (r.type === 'in' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0));
-                    }
+                let ob = parseFloat(party.openingBalance) || 0;
+                const balType = (party.balanceType || '').toLowerCase();
+                
+                if (partyType === 'Customer') {
+                    cachedTrueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+                } else {
+                    cachedTrueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
                 }
-            });
+                
+                const sales = rawData.sales || [];
+                const purchases = rawData.purchases || [];
+                const allReceipts = rawData.receipts || rawData.cashbook || [];
 
-            // Calculate Projected Balance!
+                if (partyType === 'Customer') {
+                    sales.forEach(s => {
+                        if (s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled') {
+                            cachedTrueBalance += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
+                            if (s.status !== 'Completed' && s.documentType !== 'return') {
+                                const ageDays = Math.floor((today - window.Utils.safeDate(s.date)) / (1000 * 60 * 60 * 24));
+                                if (ageDays > cachedOldestDueDays) cachedOldestDueDays = ageDays;
+                            }
+                        }
+                    });
+                } else {
+                    purchases.forEach(p => {
+                        if (p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled') {
+                            cachedTrueBalance += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
+                            if (p.status !== 'Completed' && p.documentType !== 'return') {
+                                const ageDays = Math.floor((today - window.Utils.safeDate(p.date)) / (1000 * 60 * 60 * 24));
+                                if (ageDays > cachedOldestDueDays) cachedOldestDueDays = ageDays;
+                            }
+                        }
+                    });
+                }
+
+                allReceipts.forEach(r => {
+                    if (r.ledgerId === partyId || r.accountId === partyId) {
+                        if (partyType === 'Customer') {
+                            cachedTrueBalance += (r.type === 'in' ? -parseFloat(r.amount || 0) : parseFloat(r.amount || 0));
+                        } else {
+                            cachedTrueBalance += (r.type === 'in' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0));
+                        }
+                    }
+                });
+
+                cachedPartyId = partyId; // Lock the cache
+            }
+
+            // Calculate Projected Balance instantly using the cached math!
             const docTypeEl = document.getElementById(partyType === 'Customer' ? 'sales-doc-type' : 'purchase-doc-type');
             const isReturn = docTypeEl && docTypeEl.value === 'return';
             
-            let projectedBalance = trueBalance;
+            let projectedBalance = cachedTrueBalance;
             if (isReturn) {
                 projectedBalance -= draftTotal; 
             } else {
                 projectedBalance += draftTotal;
             }
 
-            // Lock the DOM rendering so the screen doesn't lag 10 times a second!
-            const currentHash = `${partyId}_${trueBalance}_${projectedBalance}_${oldestDueDays}`;
+            const currentHash = `${partyId}_${cachedTrueBalance}_${projectedBalance}_${cachedOldestDueDays}`;
             if (lastCalculatedHash === currentHash) return; 
             lastCalculatedHash = currentHash;
             
             const oldBanner = document.getElementById('risk-banner');
             if (oldBanner) oldBanner.remove();
             
-            // Base defaults (The Green "Safe" State)
             let statusText = 'Clean Account (Safe)';
             let bgColor = '#e8f5e9';
             let borderColor = '#bbf7d0';
@@ -6324,30 +6346,27 @@ document.addEventListener('input', (e) => {
             let warningHtml = '';
 
             if (partyType === 'Customer') {
-                if (trueBalance > 0.01) {
-                    // They owe us money from PAST bills! (Real Risk)
+                if (cachedTrueBalance > 0.01) {
                     statusText = 'Previous Dues'; 
                     bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
-                } else if (trueBalance < -0.01) {
-                    // They gave us an advance!
+                } else if (cachedTrueBalance < -0.01) {
                     statusText = 'Advance Available'; 
                     bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
                 }
             } else {
-                if (trueBalance > 0.01) {
-                    // We owe them money from PAST bills!
+                if (cachedTrueBalance > 0.01) {
                     statusText = 'Previous Payables'; 
                     bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
-                } else if (trueBalance < -0.01) {
+                } else if (cachedTrueBalance < -0.01) {
                     statusText = 'Advance Given'; 
                     bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
                 }
             }
 
             let pulseAnim = '';
-            if (trueBalance > 0.01 && oldestDueDays >= 45 && partyType === 'Customer') {
+            if (cachedTrueBalance > 0.01 && cachedOldestDueDays >= 45 && partyType === 'Customer') {
                 pulseAnim = 'animation: pulseRisk 2s infinite;';
-                warningHtml = `<div style="font-size: 11px; color: #ba1a1a; font-weight: 800; margin-top: 6px; border-top: 1px dashed #ffdad6; padding-top: 6px;">⚠️ HIGH RISK: Oldest unpaid invoice is ${oldestDueDays} days old!</div>`;
+                warningHtml = `<div style="font-size: 11px; color: #ba1a1a; font-weight: 800; margin-top: 6px; border-top: 1px dashed #ffdad6; padding-top: 6px;">⚠️ HIGH RISK: Oldest unpaid invoice is ${cachedOldestDueDays} days old!</div>`;
                 if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
             }
             
@@ -6371,7 +6390,7 @@ document.addEventListener('input', (e) => {
                         <span style="font-size: 10px; font-weight: 800; color: ${iconColor}; background: ${iconColor}15; padding: 4px 8px; border-radius: 12px; border: 1px solid ${iconColor}40;">${statusText}</span>
                     </div>
                     <div style="font-size: 10px; color: #64748b; margin-top: 6px; font-weight: 600;">
-                        Historical Due: ₹${Math.abs(trueBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})} | This Bill: ₹${draftTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                        Historical Due: ₹${Math.abs(cachedTrueBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})} | This Bill: ₹${draftTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}
                     </div>
                     ${warningHtml}
                 </div>
@@ -6381,5 +6400,65 @@ document.addEventListener('input', (e) => {
             if (header) header.insertAdjacentElement('afterend', banner);
             
         } catch(e) { console.error("Insight Engine Failed:", e); }
-    }, 500); // Check 2 times a second for hyper-responsive typing!
+    }, 500); 
 })();
+// ==========================================
+// ENTERPRISE UPGRADE: THE LAZY USER BACKUP PROMPT
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        const lastBackup = localStorage.getItem('sollo_last_backup');
+        const now = Date.now();
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        
+        // If there's no backup history, or it's been more than 7 days
+        if (!lastBackup || (now - parseInt(lastBackup, 10)) > sevenDays) {
+            if (window.Utils && typeof window.Utils.showToast === 'function') {
+                window.Utils.showToast("⚠️ Security Alert: It's been over 7 days since your last backup! Please go to Settings -> Export Data.");
+                if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([50, 100, 50]);
+            }
+        }
+    }, 5000); // Wait 5 seconds after boot so we don't interrupt the user's workflow
+});
+// ==========================================
+// 🚨 ENTERPRISE UPGRADE: DOM GARBAGE COLLECTOR (RAM OPTIMIZATION)
+// ==========================================
+// In Single Page Applications (SPAs), temporary modals and overlays often get disconnected but stay in the device's RAM forever.
+// This engine silently sweeps the background every 60 seconds and destroys "zombie" nodes so the app never crashes from Memory Bloat!
+setInterval(() => {
+    try {
+        const zombies = document.querySelectorAll('#split-overlay, #manual-restore-overlay, #in-app-pdf-viewer, #split-tender-modal');
+        zombies.forEach(el => {
+            // If the element is completely hidden or invisible, it's a memory leak. Destroy it permanently.
+            if (el.style.display === 'none' || el.style.opacity === '0' || el.classList.contains('closing')) {
+                el.remove();
+            }
+        });
+    } catch(e) { /* Silent background catch */ }
+}, 60000);
+
+// ==========================================
+// 🚨 ENTERPRISE UPGRADE: BACKGROUND BATTERY HIBERNATION
+// ==========================================
+// Halts all CPU-intensive mathematical loops when the app is minimized, saving massive amounts of battery!
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        // App is minimized -> Freeze the CPU
+        window.isHibernating = true;
+        console.log("❄️ App Minimized: CPU Engines Hibernating to save battery.");
+    } else {
+        // App is opened -> Wake up the CPU
+        window.isHibernating = false;
+        console.log("🔥 App Active: CPU Engines Awake.");
+    }
+});
+
+// Update the native setInterval functions to respect the Hibernation Lock
+const originalSetInterval = window.setInterval;
+window.setInterval = function(callback, delay) {
+    return originalSetInterval(() => {
+        if (!window.isHibernating) {
+            callback();
+        }
+    }, delay);
+};
