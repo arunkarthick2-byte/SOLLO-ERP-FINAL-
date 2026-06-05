@@ -272,7 +272,8 @@ const Utils = {
             element.style.position = origPos;
 
             const canvas = await html2canvas(element, { 
-                scale: 2, 
+                scale: (window.devicePixelRatio || 3), 
+                backgroundColor: '#ffffff',
                 useCORS: true,
                 windowWidth: 800,
                 windowHeight: exactHeight,
@@ -570,17 +571,27 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         if (!element) return;
 
         if (typeof html2canvas === 'undefined' || typeof html2pdf === 'undefined') {
-            window.Utils.showToast("Installing True PDF Engine... Please wait 3 seconds and tap Print again.");
-            if (typeof html2canvas === 'undefined') {
+            window.Utils.showToast("⏳ Downloading PDF Engine... Just a moment.");
+            if (!document.getElementById('script-h2c')) {
                 const s1 = document.createElement('script');
+                s1.id = 'script-h2c';
                 s1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
                 document.head.appendChild(s1);
             }
-            if (typeof html2pdf === 'undefined') {
+            if (!document.getElementById('script-h2p')) {
                 const s2 = document.createElement('script');
+                s2.id = 'script-h2p';
                 s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
                 document.head.appendChild(s2);
             }
+            
+            // 🚨 BIZOPS FIX: Auto-Resume Engine
+            const checkInterval = setInterval(() => {
+                if (typeof html2canvas !== 'undefined' && typeof html2pdf !== 'undefined') {
+                    clearInterval(checkInterval);
+                    window.Utils.processPDFExport(elementId, filename);
+                }
+            }, 300);
             return;
         }
         
@@ -591,15 +602,17 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
         try {
             // STRICT ERP LOGIC: Physically lock the DOM to A4 Desktop dimensions BEFORE taking the snapshot!
-            element.style.width = '800px';
-            element.style.minWidth = '800px';
-            element.style.maxWidth = '800px';
+            // 🚨 BIZOPS FIX: We use setProperty to crush inline HTML rules and force a strict A4 Canvas size!
+            element.style.setProperty('width', '800px', 'important');
+            element.style.setProperty('min-width', '800px', 'important');
+            element.style.setProperty('max-width', '800px', 'important');
+            element.style.setProperty('min-height', '1131px', 'important');
 
-            // ENTERPRISE FIX: Now that the width is locked to 800px, measure the exact height!
+            // ENTERPRISE FIX: Now that the width and min-height are locked, measure the exact height!
             const exactHeight = element.scrollHeight;
 
             const canvas = await html2canvas(element, { 
-                scale: 2, 
+                scale: (window.devicePixelRatio || 3), 
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -667,10 +680,11 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             document.body.style.overflow = 'hidden'; // ENTERPRISE FIX: Lock background from rubber-banding!
             document.body.appendChild(viewer);
             
-            // Wire up the PDF Icon to trigger Native Share instead of downloading!
+            // 🚨 BIZOPS FIX: Correctly mapped the Download button to ACTUALLY download!
             document.getElementById('btn-download-pdf').onclick = async () => {
-                window.Utils.showToast("Preparing True PDF...");
-                window.Utils.sharePDF(elementId, filename, `Here is your document: ${filename.replace('.pdf', '')}`);
+                window.Utils.showToast("Downloading True PDF...");
+                // The 'true' at the end forces the engine to download instead of share!
+                window.Utils.sharePDF(elementId, filename, '', true); 
             };
 
             document.getElementById('btn-print-preview').onclick = () => {
@@ -760,9 +774,12 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             
             itemsHtml += `
                 <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
-                    <td style="text-align:center;">${index + 1}</td>
-                    <td style="font-weight: bold;">${item.name}</td>
-                    ${!isNonGST ? `<td style="text-align:center;">${item.hsn || '-'}</td>` : ''}
+                    <td style="text-align:center; vertical-align: top; padding-top: 10px;">${index + 1}</td>
+                    <td style="font-weight: bold; vertical-align: top; padding-top: 10px;">
+                        ${item.name}
+                        ${item.desc ? `<div style="font-weight: 600; font-size: 10px; color: #64748b; margin-top: 4px;">${item.desc}</div>` : ''}
+                    </td>
+                    ${!isNonGST ? `<td style="text-align:center; vertical-align: top; padding-top: 10px;">${item.hsn || '-'}</td>` : ''}
                     <td style="text-align:center;">${item.qty} ${item.uom}</td>
                     <td style="text-align:right;">${rate.toFixed(2)}</td>
                     ${!isNonGST ? `<td style="text-align:center;">${gstPercent}%</td>` : ''}
@@ -805,11 +822,11 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     let r = parseFloat(rate), t = taxGroups[rate].taxable, tx = taxGroups[rate].tax;
                     tTaxable += t; tTax += tx;
                     rows += `<tr>
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center;">${r}%</td>
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${t.toFixed(2)}</td>
-                        ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${(tx/2).toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${(tx/2).toFixed(2)}</td>`}
-                        ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tx.toFixed(2)}</td>` : ''}
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tx.toFixed(2)}</td>
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${r}%</td>
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${t.toFixed(2)}</td>
+                        ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(tx/2).toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(tx/2).toFixed(2)}</td>`}
+                        ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tx.toFixed(2)}</td>` : ''}
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tx.toFixed(2)}</td>
                     </tr>`;
                 });
                 gstSummaryHtml = `
@@ -818,21 +835,21 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
                         <thead>
                             <tr style="background: #f1f5f9;">
-                                <th style="padding: 4px; border: 1px solid #cbd5e1;">Tax Rate</th>
-                                <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">Taxable Value</th>
-                                ${isIGST ? '' : `<th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">CGST Amount</th><th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">SGST Amount</th>`}
-                                ${isIGST ? `<th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">IGST Amount</th>` : ''}
-                                <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">Total Tax</th>
+                                <th style="padding: 4px; border: 1px solid #cbd5e1; color: #0f172a;">Tax Rate</th>
+                                <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">Taxable Value</th>
+                                ${isIGST ? '' : `<th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">CGST Amount</th><th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">SGST Amount</th>`}
+                                ${isIGST ? `<th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">IGST Amount</th>` : ''}
+                                <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">Total Tax</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${rows}
                             <tr style="background: #f8fafc; font-weight: 800;">
-                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center;">Total</td>
-                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tTaxable.toFixed(2)}</td>
-                                ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${(tTax/2).toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${(tTax/2).toFixed(2)}</td>`}
-                                ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tTax.toFixed(2)}</td>` : ''}
-                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right;">₹${tTax.toFixed(2)}</td>
+                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">Total</td>
+                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTaxable.toFixed(2)}</td>
+                                ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(tTax/2).toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(tTax/2).toFixed(2)}</td>`}
+                                ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTax.toFixed(2)}</td>` : ''}
+                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTax.toFixed(2)}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -899,7 +916,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 <div style="display: flex; border-bottom: 1px solid #475569;">
                     <div style="width: 55%; padding: 20px; border-right: 1px solid #475569;">
                         ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
-                        <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
+                        <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #0f172a;">${biz.name || 'Company Name'}</h1>
                         <div style="font-size: 12px; color: #334155; line-height: 1.5;">
                             ${biz.address ? biz.address.replace(/\n/g, '<br>') + '<br>' : ''}
                             ${bizLocationStr ? bizLocationStr + '<br>' : ''}
@@ -909,12 +926,16 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     <div style="width: 45%;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 12px; height: 100%;">
                             <tr>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; width: 50%;"><strong>Document No:</strong><br><span style="font-size: 14px; font-weight: 700;">${safeDocNo}</span></td>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569;"><strong>Date:</strong><br><span style="font-weight: 600;">${Utils.formatDateDisplay(doc.date)}</span></td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; width: 50%; color: #0f172a;"><strong>Document No:</strong><br><span style="font-size: 14px; font-weight: 700; color: #0f172a;">${safeDocNo}</span></td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"><strong>Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${Utils.formatDateDisplay(doc.date)}</span></td>
                             </tr>
                             <tr>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569;"><strong>Order Ref:</strong><br><span style="font-weight: 600;">${doc.orderNo || '-'}</span></td>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569;"><strong>Dispatch Date:</strong><br><span style="font-weight: 600;">${doc.shippedDate ? Utils.formatDateDisplay(doc.shippedDate) : '-'}</span></td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; color: #0f172a;"><strong>Order Ref:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.orderNo || '-'}</span></td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"><strong>Order Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.orderDate ? Utils.formatDateDisplay(doc.orderDate) : '-'}</span></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; color: #0f172a;"><strong>Dispatch Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.shippedDate ? Utils.formatDateDisplay(doc.shippedDate) : '-'}</span></td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"><strong>Completed Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.completedDate ? Utils.formatDateDisplay(doc.completedDate) : '-'}</span></td>
                             </tr>
                         </table>
                     </div>
@@ -923,7 +944,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 <div style="display: flex; border-bottom: 1px solid #475569;">
                     <div style="width: 50%; padding: 15px 20px; border-right: 1px solid #475569;">
                         <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 6px;">${isSales ? 'Billed To' : 'Billed By'}</div>
-                        <strong style="font-size: 15px; display: block; margin-bottom: 4px;">${partyName}</strong>
+                        <strong style="font-size: 15px; display: block; margin-bottom: 4px; color: #0f172a;">${partyName}</strong>
                         <div style="font-size: 12px; color: #334155; line-height: 1.5;">
                             ${partyAddress ? partyAddress.replace(/\n/g, '<br>') + '<br>' : ''}
                             ${partyLocationStr ? partyLocationStr + '<br>' : ''}
@@ -933,7 +954,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     <div style="width: 50%; padding: 15px 20px;">
                         ${biz.cf1Name && doc.cf1Val || biz.cf2Name && doc.cf2Val || biz.cf3Name && doc.cf3Val ? `
                             <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 6px;">Additional Details</div>
-                            <table style="width: 100%; font-size: 12px; border: none;">
+                            <table style="width: 100%; font-size: 12px; border: none; color: #0f172a;">
                                 ${biz.cf1Name && doc.cf1Val ? `<tr><td style="padding: 2px 0;"><strong>${biz.cf1Name}:</strong></td><td style="padding: 2px 0;">${doc.cf1Val}</td></tr>` : ''}
                                 ${biz.cf2Name && doc.cf2Val ? `<tr><td style="padding: 2px 0;"><strong>${biz.cf2Name}:</strong></td><td style="padding: 2px 0;">${doc.cf2Val}</td></tr>` : ''}
                                 ${biz.cf3Name && doc.cf3Val ? `<tr><td style="padding: 2px 0;"><strong>${biz.cf3Name}:</strong></td><td style="padding: 2px 0;">${doc.cf3Val}</td></tr>` : ''}
@@ -945,20 +966,20 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
                     <thead>
                         <tr style="background: #f1f5f9;">
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 5%;">#</th>
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: ${!isNonGST ? '35%' : '45%'};">Item Description</th>
-                            ${!isNonGST ? `<th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: 10%;">HSN</th>` : ''}
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: ${!isNonGST ? '10%' : '15%'};">Qty</th>
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: right; width: ${!isNonGST ? '15%' : '15%'};">Rate</th>
-                            ${!isNonGST ? `<th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: 10%;">GST</th>` : ''}
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; text-align: right; width: ${!isNonGST ? '15%' : '20%'};">Amount</th>
+                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 5%; color: #0f172a;">#</th>
+                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: ${!isNonGST ? '35%' : '45%'}; color: #0f172a;">Item Description</th>
+                            ${!isNonGST ? `<th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: 10%; color: #0f172a;">HSN</th>` : ''}
+                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: ${!isNonGST ? '10%' : '15%'}; color: #0f172a;">Qty</th>
+                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: right; width: ${!isNonGST ? '15%' : '15%'}; color: #0f172a;">Rate</th>
+                            ${!isNonGST ? `<th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: 10%; color: #0f172a;">GST</th>` : ''}
+                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; text-align: right; width: ${!isNonGST ? '15%' : '20%'}; color: #0f172a;">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${itemsHtml.replace(/<td style="/g, '<td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; color: #1e293b; ').replace(/border-right: 1px solid #94a3b8; color: #1e293b; ">([^<]*)$/gm, 'color: #1e293b; ">$1')}
                         <tr style="background: #f1f5f9; font-weight: 800; border-top: 2px solid #475569;">
-                            <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 10px; text-align: right; text-transform: uppercase;">Total Items: ${totalItems}</td>
-                            <td style="padding: 10px; text-align: center;">${totalQty.toFixed(2)}</td>
+                            <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 10px; text-align: right; text-transform: uppercase; color: #0f172a;">Total Items: ${totalItems}</td>
+                            <td style="padding: 10px; text-align: center; color: #0f172a;">${totalQty.toFixed(2)}</td>
                             <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 10px;"></td>
                         </tr>
                     </tbody>
@@ -970,7 +991,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         <div>
                             <div style="font-size: 11px; margin-bottom: 15px;">
                                 <strong style="text-transform: uppercase; color: #475569;">Amount in Words:</strong><br>
-                                <span style="font-style: italic; font-weight: 600; font-size: 13px;">Rupees ${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span>
+                                <span style="font-style: italic; font-weight: 600; font-size: 13px; color: #0f172a;">Rupees ${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span>
                             </div>
 
                             ${gstSummaryHtml}
@@ -979,9 +1000,15 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                                 ${qrCodeHtml}
                                 
                                 ${biz.bankDetails && !isNonGST ? `
-                                <div style="font-size: 11px;">
+                                <div style="font-size: 11px; margin-bottom: 15px;">
                                     <strong style="text-transform: uppercase; color: #475569;">Bank Details:</strong><br>
                                     <div style="margin-top: 4px; white-space: pre-wrap; font-family: monospace; font-size: 12px; font-weight: 600;">${biz.bankDetails}</div>
+                                </div>` : ''}
+
+                                ${doc.internalNotes ? `
+                                <div style="font-size: 11px;">
+                                    <strong style="text-transform: uppercase; color: #475569;">Remarks / Notes:</strong><br>
+                                    <div style="margin-top: 4px; white-space: pre-wrap; font-size: 12px; font-weight: 600; color: #1e293b;">${doc.internalNotes}</div>
                                 </div>` : ''}
                             </div>
                         </div>
@@ -989,22 +1016,22 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         ${biz.terms ? `
                         <div style="font-size: 10px; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
                             <strong style="text-transform: uppercase; color: #475569;">Terms & Conditions:</strong><br>
-                            <div style="margin-top: 4px; white-space: pre-wrap; line-height: 1.4;">${biz.terms}</div>
+                            <div style="margin-top: 4px; white-space: pre-wrap; line-height: 1.4; color: #0f172a;">${biz.terms}</div>
                         </div>` : ''}
                     </div>
 
                     <div style="width: 40%;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-weight: 600;">
-                            <tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">Subtotal</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right;">₹${rawSubtotal.toFixed(2)}</td></tr>
+                            <tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #0f172a;">Subtotal</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${rawSubtotal.toFixed(2)}</td></tr>
                             ${discountAmt > 0 ? `<tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #ef4444;">Discount</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #ef4444;">- ₹${discountAmt.toFixed(2)}</td></tr>` : ''}
-                            ${!isNonGST ? `<tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">Total GST</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right;">₹${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
-                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">Freight / Extra</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right;">₹${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
+                            ${!isNonGST ? `<tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #0f172a;">Total GST</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
+                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #0f172a;">Freight / Extra</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
                             ${Math.abs((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))) > 0.01 ? `
-                            <tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">Round Off</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right;">₹${((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))).toFixed(2)}</td></tr>` : ''}
+                            <tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #0f172a;">Round Off</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))).toFixed(2)}</td></tr>` : ''}
                             
                             <tr style="background: #f1f5f9;">
-                                <td style="padding: 15px; font-size: 15px; font-weight: 900; text-transform: uppercase; border-bottom: 1px solid #475569;">Grand Total</td>
-                                <td style="padding: 15px; font-size: 18px; font-weight: 900; text-align: right; border-bottom: 1px solid #475569;">₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</td>
+                                <td style="padding: 15px; font-size: 15px; font-weight: 900; text-transform: uppercase; border-bottom: 1px solid #475569; color: #0f172a;">Grand Total</td>
+                                <td style="padding: 15px; font-size: 18px; font-weight: 900; text-align: right; border-bottom: 1px solid #475569; color: #0f172a;">₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</td>
                             </tr>
                             
                             ${(() => {
@@ -1041,8 +1068,15 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
                             ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
                             <tr>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 11px; color: #475569; font-weight: 700;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Payment'} on ${Utils.formatDateDisplay(r.date)}</td>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">${parseFloat(r.amount) < 0 ? '+' : '-'} ₹${Math.abs(parseFloat(r.amount)).toFixed(2)}</td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">
+                                    <div style="font-size: 11px; color: #475569; font-weight: 700;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Payment'} on ${Utils.formatDateDisplay(r.date)}</div>
+                                    <div style="font-size: 10px; color: #64748b; margin-top: 3px; font-weight: 600;">
+                                        ${r.receiptNo ? `Rec: ${r.receiptNo}` : (r.id ? `Rec: ${r.id.slice(-6).toUpperCase()}` : '')}
+                                        ${r.mode ? ` | Mode: ${r.mode}` : ''}
+                                        ${r.ref ? ` | Ref: ${r.ref}` : ''}
+                                    </div>
+                                </td>
+                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a; vertical-align: top;">${parseFloat(r.amount) < 0 ? '+' : '-'} ₹${Math.abs(parseFloat(r.amount)).toFixed(2)}</td>
                             </tr>
                             `).join('') : ''}
                             
@@ -1090,7 +1124,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
                         <div id="signature-anchor" class="avoid-break" style="padding: 20px 15px; text-align: right; page-break-inside: avoid;">
                             ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; max-width: 160px; margin-bottom: 8px; object-fit: contain; display: inline-block;">` : `<div style="height: 60px;"></div>`}
-                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
+                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
                             <div style="font-size: 10px; color: #475569; margin-top: 4px;">For ${biz.name || 'Company Name'}</div>
                         </div>
                     </div>
@@ -1101,7 +1135,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         // --- ENTERPRISE UPGRADE: SPLIT PAYMENT / INSTALLMENT TRACKER ---
         let totalPaid = parseFloat(doc.trueTotalPaid) || 0;
         // THE FIX: Sync the tracker with the UI FIFO logic
-        if (doc.status === 'Paid') totalPaid = parseFloat(doc.grandTotal) || 0; 
+        if (doc.status === 'Paid' || doc.status === 'Completed') totalPaid = parseFloat(doc.grandTotal) || 0; 
 
         if (totalPaid > 0) {
             const safeGrandTotal = parseFloat(doc.grandTotal) || 0;
@@ -1138,11 +1172,11 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const brandColor = localStorage.getItem('sollo_brand_color') || '#000000';
         const pdfFont = localStorage.getItem('sollo_pdf_font') || 'inter';
 
-        // 1. Inject Custom Typography
+        // 🚨 BIZOPS FIX: Corrected the regex to target 'Inter' so the user's Font Settings actually apply!
         if (pdfFont === 'serif') {
-            themedHtml = themedHtml.replace(/font-family: Arial, sans-serif;/g, "font-family: 'Times New Roman', Times, serif;");
+            themedHtml = themedHtml.replace(/font-family: 'Inter', sans-serif;/g, "font-family: 'Times New Roman', Times, serif;");
         } else if (pdfFont === 'mono') {
-            themedHtml = themedHtml.replace(/font-family: Arial, sans-serif;/g, "font-family: 'Courier New', Courier, monospace;");
+            themedHtml = themedHtml.replace(/font-family: 'Inter', sans-serif;/g, "font-family: 'Courier New', Courier, monospace;");
         }
 
         // 2. Inject Custom Brand Color
@@ -1228,7 +1262,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     <div style="display: flex; border-bottom: 1px solid #475569;">
                         <div style="width: 50%; padding: 20px; border-right: 1px solid #475569;">
                             ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
-                            <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">${biz.name || 'Company Name'}</h1>
+                            <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase; color: #0f172a;">${biz.name || 'Company Name'}</h1>
                             <div style="font-size: 12px; color: #334155; line-height: 1.5;">
                                 ${biz.address || ''}<br>
                                 ${bizLocationStr ? bizLocationStr + '<br>' : ''}
@@ -1263,7 +1297,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">*** End of Report ***</div>
                         <div style="width: 200px; text-align: center;">
                             ${biz.signature ? `<img src="${biz.signature}" style="max-height: 75px; margin-bottom: 5px; object-fit: contain; position: relative; z-index: 10; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
+                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
                         </div>
                     </div>
                 </div> </div> </div>
@@ -1355,14 +1389,14 @@ Please arrange the payment at your earliest convenience. Thank you!`);
 
             tableRows += `
                 <tr style="background-color: ${rowBg};">
-                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#0f172a; white-space:nowrap; font-weight:600;">${t.date}</td>
+                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#0f172a; white-space:nowrap; font-weight:600;">${Utils.formatDateDisplay(t.date)}</td>
                     <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; font-weight: 700; color:#0f172a; line-height: 1.4;">
                         ${particulars}
                     </td>
                     <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:right; color:#0f172a; font-weight:600;">${debit ? debit : ''}</td>
                     <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:right; color:#0f172a; font-weight:600;">${credit ? credit : ''}</td>
                     <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; font-weight:800; color:#0f172a;">
-                        ${Math.abs(t.runningBalance || 0).toFixed(2)} ${(t.runningBalance || 0) >= 0 ? 'Dr' : 'Cr'}
+                        ${Math.abs(t.runningBalance || 0).toFixed(2)} ${Math.abs(t.runningBalance || 0) < 0.01 ? '' : ((t.runningBalance || 0) > 0 ? 'Dr' : 'Cr')}
                     </td>
                 </tr>
             `;
@@ -1388,7 +1422,10 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         let splitHtml = ''; 
 
         if (!isAccount) {
-            if (party.type === 'Customer') {
+            // 🚨 NEW LOGIC: Catch perfect zero balances first!
+            if (Math.abs(finalBal) < 0.01) {
+                balSuffix = 'Settled (Nil)';
+            } else if (party.type === 'Customer') {
                 balSuffix = finalBal > 0 ? 'Dr (Due)' : 'Cr (Advance)';
             } else {
                 balSuffix = finalBal < 0 ? 'Cr (To Pay)' : 'Dr (Advance)';
@@ -1482,7 +1519,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     <div style="display: flex; border-bottom: 1px solid #475569;">
                         <div style="width: 50%; padding: 20px; border-right: 1px solid #475569;">
                             ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
-                            <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase;">${biz.name || 'Company Name'}</h1>
+                            <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase; color: #0f172a;">${biz.name || 'Company Name'}</h1>
                             <div style="font-size: 12px; color: #334155; line-height: 1.5;">
                                 ${biz.address || ''}<br>
                                 ${statementBizLocationStr ? statementBizLocationStr + '<br>' : ''}
@@ -1492,7 +1529,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #f8fafc; text-align: right;">
                             <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Closing Balance</strong>
                             <span style="font-size: 24px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">₹${Math.abs(finalBal).toFixed(2)}</span>
-                            <span style="font-size: 14px; font-weight: 700; color: ${finalBal > 0 ? '#16a34a' : '#ef4444'};">${balSuffix}</span>
+                            <span style="font-size: 14px; font-weight: 700; color: ${Math.abs(finalBal) < 0.01 ? '#64748b' : (finalBal > 0 ? '#16a34a' : '#ef4444')};">${balSuffix}</span>
                             ${splitHtml}
                         </div>
                     </div>
@@ -1527,7 +1564,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">*** End of Statement ***</div>
                         <div style="width: 200px; text-align: center;">
                             ${biz.signature ? `<img src="${biz.signature}" style="max-height: 75px; margin-bottom: 5px; object-fit: contain; position: relative; z-index: 10; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase;">Authorized Signatory</div>
+                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
                         </div>
                     </div>
                 </div> </div> </div>
@@ -1823,18 +1860,30 @@ Please arrange the payment at your earliest convenience. Thank you!`);
     // ==========================================
     // STRICT ERP LOGIC: NATIVE WEB SHARE API ENGINE
     // ==========================================
-    sharePDF: async (elementId, filename, shareText = "Here is your document.") => {
+    sharePDF: async (elementId, filename, shareText = "Here is your document.", forceDownload = false) => {
         try {
             if (typeof html2pdf === 'undefined' || typeof html2canvas === 'undefined') {
-                window.Utils.showToast("⏳ Installing Share Engine... Please tap Share again in 3 seconds.");
-                if (typeof html2canvas === 'undefined') {
+                window.Utils.showToast("⏳ Downloading Share Engine... Just a moment.");
+                if (!document.getElementById('script-h2c')) {
                     const s1 = document.createElement('script');
+                    s1.id = 'script-h2c';
                     s1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
                     document.head.appendChild(s1);
                 }
-                const s2 = document.createElement('script');
-                s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-                document.head.appendChild(s2);
+                if (!document.getElementById('script-h2p')) {
+                    const s2 = document.createElement('script');
+                    s2.id = 'script-h2p';
+                    s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+                    document.head.appendChild(s2);
+                }
+                
+                // 🚨 BIZOPS FIX: Auto-Resume Engine
+                const checkInterval = setInterval(() => {
+                    if (typeof html2canvas !== 'undefined' && typeof html2pdf !== 'undefined') {
+                        clearInterval(checkInterval);
+                        window.Utils.sharePDF(elementId, filename, shareText, forceDownload);
+                    }
+                }, 300);
                 return;
             }
 
@@ -1847,12 +1896,20 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             const origW = el.style.width;
             const origMaxW = el.style.maxWidth;
             const origPos = el.style.position;
-            el.style.width = '800px';
-            el.style.maxWidth = '800px';
+            
+            // 🚨 BIZOPS FIX: Force EXACT A4 Dimensions for Native Background Sharing!
+            el.style.setProperty('width', '800px', 'important');
+            el.style.setProperty('min-width', '800px', 'important');
+            el.style.setProperty('max-width', '800px', 'important');
+            el.style.setProperty('min-height', '1131px', 'important'); // Forces A4 ratio!
             el.style.position = 'absolute';
+            
             const exactHeight = el.scrollHeight;
+            
+            // Cleanup
             el.style.width = origW;
             el.style.maxWidth = origMaxW;
+            el.style.minHeight = ''; 
             el.style.position = origPos;
 
             const opt = {
@@ -1861,7 +1918,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 enableLinks: true, 
                 pagebreak: { mode: 'css', avoid: '.avoid-break' }, 
                 html2canvas: { 
-                    scale: 2, 
+                    scale: (window.devicePixelRatio || 3), 
+                    backgroundColor: '#ffffff',
                     useCORS: true, 
                     logging: false, 
                     windowWidth: 800, 
@@ -1899,6 +1957,13 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
+            // 🚨 BIZOPS FIX: If user tapped download, skip sharing and just download!
+            if (forceDownload) {
+                window.html2pdf().set(opt).from(el).save();
+                return;
+            }
+
+            // 🚨 BIZOPS FIX: If user tapped Share, ONLY share. No fallback!
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({
                     title: filename.replace('.pdf', ''),
@@ -1906,8 +1971,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     files: [file]
                 });
             } else {
-                window.Utils.showToast("⚠️ Direct share not supported. Downloading instead...");
-                window.html2pdf().set(opt).from(el).save();
+                window.Utils.showToast("⚠️ Native Share is only supported on mobile apps or secure servers.");
             }
         } catch (err) {
             console.error("Share API Error:", err);
@@ -2001,13 +2065,14 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                             <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Date</div>
                             <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${safeDate}</div>
                         </div>
-                        <div style="flex: 1;">
-                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Category</div>
-                            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${expense.category || 'General'}</div>
+                        <div style="flex: 1.5;">
+                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Paid To / Party</div>
+                            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${expense.partyName || expense.vendorName || expense.category || 'General'}</div>
                         </div>
                         <div style="flex: 1; text-align: right;">
                             <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Payment Mode</div>
-                            <div style="font-size: 14px; font-weight: 800; background: #e2e8f0; padding: 4px 10px; border-radius: 4px; display: inline-block;">${payAccount.name}</div>
+                            <div style="font-size: 14px; font-weight: 800; background: #e2e8f0; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 4px;">${payAccount.name}</div>
+                            ${expense.refNo ? `<div style="font-size: 11px; color: #475569; font-weight: 700;">Ref: ${expense.refNo}</div>` : ''}
                         </div>
                     </div>
 
@@ -2304,7 +2369,7 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
                 </div>
                 <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #f8fafc; text-align: right;">
                     <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Closing Stock Balance</strong>
-                    <span style="font-size: 28px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">${Math.abs(finalDisplayBalance).toFixed(2)}</span>
+                    <span style="font-size: 28px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">${finalDisplayBalance.toFixed(2)}</span>
                     <span style="background: ${finalDisplayBalance > 0 ? '#e8f5e9' : (finalDisplayBalance < 0 ? '#fff0f2' : '#f1f5f9')}; color: ${finalDisplayBalance > 0 ? '#146c2e' : (finalDisplayBalance < 0 ? '#ba1a1a' : '#475569')}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${finalDisplayBalance > 0 ? '#bbf7d0' : (finalDisplayBalance < 0 ? '#fecaca' : '#cbd5e1')};">${finalDisplayBalance > 0 ? 'Net Surplus (IN)' : (finalDisplayBalance < 0 ? 'Net Deficit (OUT)' : 'Zero Balance')}</span>
                 </div>
             </div>

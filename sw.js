@@ -161,3 +161,21 @@ self.addEventListener('activate', (event) => {
         }).then(() => self.clients.claim()) // Forces all open tabs to instantly use the new cache!
     );
 });
+// ==========================================
+// 🚨 ENTERPRISE UPGRADE: BACKGROUND SYNC API
+// ==========================================
+// Wakes up in the background the moment the phone connects to WiFi!
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'sollo-auto-backup') {
+        console.log("☁️ Background Sync Triggered: Network Restored!");
+        
+        // Wake up the minimized app and command it to run the backup securely!
+        event.waitUntil(
+            self.clients.matchAll({ type: 'window' }).then(clients => {
+                clients.forEach(client => {
+                    client.postMessage({ type: 'TRIGGER_BACKGROUND_BACKUP' });
+                });
+            })
+        );
+    }
+});

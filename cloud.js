@@ -87,8 +87,9 @@ const Cloud = {
         const lastBackup = localStorage.getItem('sollo_last_backup');
         const now = Date.now();
         
-        // 86400000 ms = 24 hours. Trigger if no backup in the last 24hrs
-        if (!lastBackup || (now - parseInt(lastBackup)) > 86400000) {
+        // 🚨 ENTERPRISE FIX: 3600000 ms = 1 Hour! 
+        // Allows the App-Switch trigger to safely secure your active daily work without hitting Google API rate limits!
+        if (!lastBackup || (now - parseInt(lastBackup)) > 3600000) {
             console.log("Triggering silent background auto-backup...");
             try {
                 // FIX: Call the globally mapped export function directly
@@ -124,7 +125,18 @@ const Cloud = {
                     spaces: 'drive', fields: 'files(id)'
                 });
 
-                let fileId = response.result.files.length > 0 ? response.result.files[0].id : null;
+                // STRICT ERP LOGIC: Hunt down and destroy Google Drive duplicates in the background to prevent version fragmentation!
+                let fileId = null;
+                if (response.result.files.length > 0) {
+                    fileId = response.result.files[0].id;
+                    // If Drive allowed ghost duplicates, nuke all of them except the primary one!
+                    if (response.result.files.length > 1) {
+                        for (let i = 1; i < response.result.files.length; i++) {
+                            await gapi.client.drive.files.delete({ fileId: response.result.files[i].id });
+                        }
+                    }
+                }
+                
                 // ENTERPRISE FIX: Applied the Safe-Split Upload to the Auto-Backup engine!
                 let finalFileId = fileId;
                 
@@ -267,13 +279,13 @@ const Cloud = {
         Cloud.authenticate(async () => {
             window.Utils.showToast("Searching Google Drive...");
             try {
-                // ENTERPRISE FIX: Search for the company-specific backup file so restores don't silently fail!
-                const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
-                const backupFileName = `SOLLO_ERP_Backup_${activeFirmId}.json`;
-                
+                // 🚨 ENTERPRISE UPGRADE: "NEW PHONE" RECOVERY SHIELD
+                // Instead of locking onto a specific Firm ID, this searches your entire Drive for ANY SOLLO backup
+                // and automatically sorts them to grab the absolute newest one!
                 let response = await gapi.client.drive.files.list({
-                    q: `name='${backupFileName}' and trashed=false`,
+                    q: `name contains 'SOLLO_ERP_Backup_' and mimeType='application/json' and trashed=false`,
                     spaces: 'drive',
+                    orderBy: 'modifiedTime desc', // Forces the newest backup to be file [0]
                     fields: 'files(id, name, modifiedTime)'
                 });
 
@@ -282,10 +294,12 @@ const Cloud = {
                     return;
                 }
 
+                // Automatically selects the most recent backup found on the Drive
                 const fileId = response.result.files[0].id;
+                const foundName = response.result.files[0].name;
                 const modDate = new Date(response.result.files[0].modifiedTime).toLocaleString();
 
-                if (!confirm(`Found backup from: ${modDate}\n\nDo you want to restore this? WARNING: This will overwrite your current data on this device!`)) {
+                if (!confirm(`Found backup: ${foundName}\nDate: ${modDate}\n\nDo you want to restore this? WARNING: This will overwrite your current data on this device!`)) {
                     return;
                 }
 
@@ -328,7 +342,18 @@ window.Cloud = Cloud;
 // ==========================================
 const executeBackgroundBackup = async () => {
     if (!window.Cloud || typeof window.Cloud.autoBackup !== 'function') return;
-    if (!navigator.onLine) return; // Don't try if offline
+    
+    // 🚨 ENTERPRISE UPGRADE: BACKGROUND SYNC API
+    // If offline, register a sync event so the Service Worker remembers to do it later!
+    if (!navigator.onLine) {
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.sync.register('sollo-auto-backup');
+                console.log("☁️ Offline: Background Sync registered for Drive Backup.");
+            });
+        }
+        return;
+    }
 
     // 🚨 ENTERPRISE FIX: The Multi-Thread Sync Shield!
     // Physically locks the engine so it cannot fire multiple simultaneous uploads if the internet flickers!
@@ -354,10 +379,11 @@ const executeBackgroundBackup = async () => {
 setTimeout(executeBackgroundBackup, 15000);
 
 // 2. ENTERPRISE FIX: The "App Switch" Trigger!
-// Instantly backs up the data to Google Drive the moment the user minimizes the app or switches to WhatsApp!
+// Backgrounding an app kills active fetch streams! We MUST defer the backup until the exact millisecond the user RETURNS to the app!
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-        executeBackgroundBackup();
+    if (document.visibilityState === 'visible') {
+        // App is back in focus and network is active. Safe to run background checks!
+        setTimeout(executeBackgroundBackup, 2000); // 2-second buffer to let the UI render first
     }
 });
 

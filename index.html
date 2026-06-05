@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
+    <meta name="google" content="notranslate">
     <meta name="color-scheme" content="light">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" id="meta-theme-color" content="#0061a4">
+    <meta name="theme-color" id="meta-theme-color" content="#1A237E">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,31 +14,62 @@
 
     <script>
         // Cache cleanup is now safely managed natively by sw.js during the 'activate' event.
+        
+        // 🚨 ENTERPRISE FIX: Background PWA Update Checker
+        // We only tell the service worker to check for updates here. 
+        // The actual notification and safe-swap logic is handled securely in app.js!
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').then(registration => {
+                // Check for new updates in the background every 1 hour
+                setInterval(() => {
+                    try { registration.update(); } catch(e) {}
+                }, 3600000); 
+            });
+        }
     </script>
 
         <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+    
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="dns-prefetch" href="https://apis.google.com">
     <link rel="dns-prefetch" href="https://accounts.google.com">
     
     <script>
+        // 🚨 ENTERPRISE UX: GRACEFUL CRASH RECOVERY
+        // Instead of freezing the app silently, this catches fatal bugs and presents a professional recovery option!
         window.onerror = function(message, source, lineno, colno, error) {
-            // STRICT ERP LOGIC: Silently log UI errors so the user is never interrupted by a terrifying "Crash" popup!
-            console.error("Non-fatal UI Error:", message, "at line", lineno);
+            console.error("System Error Caught:", message);
+            
+            // Only trigger the recovery screen for severe background or script crashes
+            if (message && (message.toLowerCase().includes('script') || message.toLowerCase().includes('database') || message.toLowerCase().includes('memory'))) {
+                if (!document.getElementById('crash-recovery-screen')) {
+                    const crashUI = document.createElement('div');
+                    crashUI.id = 'crash-recovery-screen';
+                    crashUI.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:var(--md-surface, #ffffff); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px; box-sizing:border-box;';
+                    crashUI.innerHTML = `
+                        <span class="material-symbols-outlined" style="font-size: 64px; color: #ef4444; margin-bottom: 16px;">warning</span>
+                        <h2 style="margin:0 0 8px 0; font-family: 'Inter', sans-serif; color: var(--md-on-surface, #1e1e1e);">System Interruption</h2>
+                        <p style="color: var(--md-text-muted, #475569); margin-bottom: 24px; font-family: 'Inter', sans-serif;">A background process encountered an unexpected issue. Your data is safe.</p>
+                        <button onclick="window.location.reload(true)" style="background: var(--md-primary, #0061a4); color:#fff; border:none; padding:14px 32px; border-radius:24px; font-size:16px; font-weight:bold; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15);">Safe Restart</button>
+                    `;
+                    document.body.appendChild(crashUI);
+                }
+            }
+            return true; // Prevents the raw ugly red error from bubbling up to the user's browser
         };
-        // STRICT ERP LOGIC: Removed the unhandledrejection alert that was causing fake "Background Crash" popups!
-        // app.js now safely and silently handles background promise rejections.
-    </script>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    </script> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <!-- 🚨 BIZOPS FIX: Injected Chart.js Library -->
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
@@ -118,85 +150,89 @@
                     </div>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                    <div class="m3-card">
-                        <small style="color: var(--md-text-muted);">Total Sales</small>
-                        <div class="large-text color-primary" id="dash-total-sales" style="font-size: 20px; margin-top: 4px; min-height: 24px;">
-                            <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px;"></div>
+                <div style="background: var(--md-surface); margin: 0 -16px 24px -16px; border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
+                    
+                    <div style="display: flex; border-bottom: 1px solid var(--md-outline-variant);">
+                        <div class="tap-target" style="flex: 1; padding: 16px; border-right: 1px solid var(--md-outline-variant);" onclick="UI.switchTab('tab-documents', 'Documents', document.getElementById('nav-docs'))">
+                            <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase;">Total Sales</small>
+                            <div class="large-text color-primary" id="dash-total-sales" style="font-size: 20px; font-weight: 700; margin-top: 4px; min-height: 24px;">
+                                <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                        <div class="tap-target" style="flex: 1; padding: 16px;" onclick="UI.openActivity('activity-advanced-reports'); UI.renderDayBook();">
+                            <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase;">True Net Profit</small>
+                            <div class="large-text" id="dash-net-profit" style="font-size: 20px; font-weight: 700; margin-top: 4px; color: var(--md-success); min-height: 24px;">
+                                <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px; animation-delay: 0.1s;"></div>
+                            </div>
+                            <small id="profit-breakdown" style="font-size: 10px; color: var(--md-text-muted); display: block; margin-top: 4px; min-height: 12px;"></small>
                         </div>
                     </div>
-                    <div class="m3-card">
-                        <small style="color: var(--md-text-muted);">True Net Profit</small>
-                        <div class="large-text" id="dash-net-profit" style="font-size: 20px; margin-top: 4px; color: var(--md-success); min-height: 24px;">
-                            <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px; animation-delay: 0.1s;"></div>
-                        </div>
-                        <small id="profit-breakdown" style="font-size: 10px; color: var(--md-text-muted); display: block; margin-top: 4px; min-height: 12px;"></small>
-                    </div>
-                </div>
 
-                <div class="m3-card" style="margin-bottom: 24px; padding: 0; overflow: hidden; border: 1px solid var(--md-outline-variant);">
-                    <div style="padding: 20px; background: linear-gradient(135deg, #fdfcff 0%, #e3f2fd 100%);">
-                        <strong style="display:flex; align-items:center; gap:8px; font-size: 16px; color: var(--md-primary);">
-                            <span class="material-symbols-outlined">inventory</span> Warehouse Capital
+                    <div style="padding: 16px; border-bottom: 1px solid var(--md-outline-variant);">
+                        <strong style="display:flex; align-items:center; gap:8px; font-size: 14px; color: var(--md-primary); text-transform: uppercase;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">inventory</span> Warehouse Capital
                         </strong>
-                        <div style="margin-top: 16px;">
+                        <div style="margin-top: 12px;">
                             <small style="color: var(--md-text-muted);">Total Value Locked in Stock</small>
-                            <div class="large-text" id="dash-inventory-value" style="font-size: 26px; font-weight: 700; color: var(--md-primary); margin-top: 4px;">
-                                <div class="skeleton-card" style="height: 24px; width: 50%; margin: 0; border-radius: 4px;"></div>
+                            <div class="large-text color-primary" id="dash-inventory-value" style="font-size: 20px; font-weight: 700; margin-top: 4px;">
+                                <div class="skeleton-card" style="height: 20px; width: 50%; margin: 0; border-radius: 4px;"></div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="tap-target" id="dash-low-stock-btn" onclick="UI.switchTab('tab-masters', 'Master Data', document.getElementById('nav-masters')); setTimeout(() => { UI.openMasterView('products', 'Inventory Master'); setTimeout(() => { if(window.UI) window.UI.state.activeFilters['masters'] = 'Low Stock'; document.getElementById('filter-master-view').value = 'Low Stock'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--md-surface-variant); background: var(--md-surface);">
-                        <span style="font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                            <span class="material-symbols-outlined" id="dash-low-stock-icon" style="font-size: 20px;">check_circle</span>
+                    <div class="tap-target" id="dash-low-stock-btn" onclick="UI.switchTab('tab-masters', 'Master Data', document.getElementById('nav-masters')); setTimeout(() => { UI.openMasterView('products', 'Inventory Master'); setTimeout(() => { if(window.UI) window.UI.state.activeFilters['masters'] = 'Low Stock'; document.getElementById('filter-master-view').value = 'Low Stock'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
+                        <span style="font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                            <span class="material-symbols-outlined" id="dash-low-stock-icon" style="font-size: 18px;">check_circle</span>
                             <span id="dash-low-stock-text">Stock Levels Optimal</span>
                         </span>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
-                </div>
 
-                <div id="dash-ai-insights" class="m3-card" style="margin-bottom: 24px; background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border: 1px solid #ce93d8; display: none;">
-                    <div style="display: flex; gap: 16px; align-items: center;">
-                        <div class="icon-circle" style="background: #ffffff; color: #6a1b9a; width: 48px; height: 48px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(106, 27, 154, 0.2);"><span class="material-symbols-outlined">auto_awesome</span></div>
-                        <div style="flex: 1;">
-                            <strong style="color: #4a148c; font-size: 14px; display: block; margin-bottom: 4px;">AI Business Insight</strong>
-                            <span id="ai-insight-text" style="font-size: 13px; color: #4a148c; font-weight: 600; line-height: 1.4;">Analyzing data...</span>
+                    <div id="dash-ai-insights" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); border-left: 4px solid #6a1b9a; background: #fdfafc; display: none;">
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <span class="material-symbols-outlined" style="color: #6a1b9a; font-size: 24px;">auto_awesome</span>
+                            <div style="flex: 1;">
+                                <strong style="color: var(--md-on-surface); font-size: 13px; display: block; margin-bottom: 2px;">AI Business Insight</strong>
+                                <span id="ai-insight-text" style="font-size: 13px; color: var(--md-text-muted); line-height: 1.4;">Analyzing data...</span>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="m3-card" style="margin-bottom: 24px;">
-                    <strong style="display:flex; align-items:center; gap:8px; margin-bottom:16px; font-size: 16px; color: var(--md-primary);">
-                        <span class="material-symbols-outlined">bar_chart</span> Financial Overview
-                    </strong>
-                    <canvas id="dashboard-chart" style="width: 100%; max-height: 200px;"></canvas>
-                </div>
+                    <!-- 🚨 BIZOPS FIX: Financial Overview Graph UI -->
+                    <div style="padding: 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface);">
+                        <strong style="display:flex; align-items:center; gap:8px; font-size: 14px; color: var(--md-primary); text-transform: uppercase; margin-bottom: 12px;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">bar_chart</span> Financial Overview
+                        </strong>
+                        <div style="height: 200px; width: 100%; position: relative;">
+                            <canvas id="dashboard-chart"></canvas>
+                        </div>
+                    </div>
 
-                <div id="expense-ledger-container"></div>
+                    <div id="expense-ledger-container"></div>
 
-                <div class="m3-card" style="margin-bottom: 24px;">
-                    <strong style="display:flex; align-items:center; gap:8px; margin-bottom:16px; font-size: 16px; color: var(--md-primary);">
-                        <span class="material-symbols-outlined">local_shipping</span> Order Fulfillment
-                    </strong>
+                    <div style="padding: 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface-variant);">
+                        <strong style="display:flex; align-items:center; gap:8px; font-size: 14px; color: var(--md-primary); text-transform: uppercase;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">local_shipping</span> Order Fulfillment
+                        </strong>
+                    </div>
                     
-                    <div class="tap-target" onclick="app.viewFilteredSales('Open')" style="background: #fff0f2; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--md-error); cursor: pointer;">
-                        <span style="color: var(--md-error); font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">pending_actions</span> Open</span>
-                        <span id="dash-orders-open" style="font-size: 14px; color: var(--md-error); font-weight: 500;">
+                    <div class="tap-target" onclick="app.viewFilteredSales('Open')" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
+                        <span style="color: var(--md-on-surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 12px;"><span class="material-symbols-outlined" style="color: var(--md-error); font-size: 20px;">pending_actions</span> Open</span>
+                        <span id="dash-orders-open" style="font-size: 14px; color: var(--md-on-surface); font-weight: 600;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.2s;"></div>
                         </span>
                     </div>
                     
-                    <div class="tap-target" onclick="app.viewFilteredSales('Shipped')" style="background: #fff8e1; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #f57f17; cursor: pointer;">
-                        <span style="color: #d84315; font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">flight_takeoff</span> Shipped</span>
-                        <span id="dash-orders-shipped" style="font-size: 14px; color: #d84315; font-weight: 500;">
+                    <div class="tap-target" onclick="app.viewFilteredSales('Shipped')" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
+                        <span style="color: var(--md-on-surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 12px;"><span class="material-symbols-outlined" style="color: #f57f17; font-size: 20px;">flight_takeoff</span> Shipped</span>
+                        <span id="dash-orders-shipped" style="font-size: 14px; color: var(--md-on-surface); font-weight: 600;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.3s;"></div>
                         </span>
                     </div>
                     
-                    <div class="tap-target" onclick="app.viewFilteredSales('Completed')" style="background: #e8f5e9; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--md-success); cursor: pointer;">
-                        <span style="color: #146c2e; font-weight: 600; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">task_alt</span> Completed</span>
-                        <span id="dash-orders-completed" style="font-size: 14px; color: #146c2e; font-weight: 500;">
+                    <div class="tap-target" onclick="app.viewFilteredSales('Completed')" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--md-on-surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 12px;"><span class="material-symbols-outlined" style="color: var(--md-success); font-size: 20px;">task_alt</span> Completed</span>
+                        <span id="dash-orders-completed" style="font-size: 14px; color: var(--md-on-surface); font-weight: 600;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.4s;"></div>
                         </span>
                     </div>
@@ -250,34 +286,33 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 0;" onclick="if(window.app) window.app.openForm('account')">
-                        <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 48px; height: 48px; flex-shrink: 0;"><span class="material-symbols-outlined">account_balance</span></div>
-                        <div style="flex: 1;"><strong class="large-text">Bank & Cash Accounts</strong><br><small style="color: var(--md-text-muted);">Add new payment modes</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">add_circle</span>
-                    </div>
-
                 </div>
                 
-                <div id="bank-balances-container" style="display: flex; flex-direction: column; gap: 12px; padding: 8px 0 16px 0; margin-top: 4px;">
+                <!-- 🚨 BIZOPS FIX: Proper Section Header for Bank Accounts -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; margin-bottom: 12px; padding: 0 16px;">
+                    <strong style="color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Bank & Cash Accounts</strong>
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: var(--md-primary-container); padding: 6px; border-radius: 50%; font-size: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="if(window.app) window.app.openForm('account')">add</span>
+                </div>
+
+                <div id="bank-balances-container" style="display: flex; flex-direction: column; gap: 12px; padding: 0; margin-bottom: 24px;">
                 </div>
             </div>
 
             <div id="tab-documents" class="screen-section hidden">
                 
                 <div id="doc-sales-view" style="padding-bottom: 80px;">
-                    <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center; position: sticky; top: 0; z-index: 10; background: rgba(244, 246, 250, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 8px 0; margin-top: -8px;">
-                        <div class="tap-target" onclick="document.getElementById('doc-purchase-view').classList.remove('hidden'); document.getElementById('doc-sales-view').classList.add('hidden');" style="display: flex; align-items: center; gap: 4px; background: #e3f2fd; color: #0061a4; padding: 8px 12px; border-radius: 12px; font-weight: bold; font-size: 14px; flex-shrink: 0; box-shadow: var(--elevation-1);">
-                            Sales <span class="material-symbols-outlined" style="font-size: 18px;">swap_horiz</span>
-                        </div>
-                        <div class="search-bar" style="flex: 1; margin-bottom: 0; padding-right: 8px; display: flex; align-items: center; height: 44px;">
-                            <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
-                            <input type="text" id="search-sales" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0; font-size: 14px;">
-                            
-                            <div id="sum-sales" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
-                            
-                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-sort')">sort</span>
-                            <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-filter')">more_vert</span>
-                        </div>
+                    <!-- 🚨 BIZOPS NATIVE THEME: Integrated Search Wrapper -->
+                    <div class="search-bar">
+                        <button class="tap-target" onclick="document.getElementById('doc-purchase-view').classList.remove('hidden'); document.getElementById('doc-sales-view').classList.add('hidden');">
+                            Sales <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 4px;">swap_horiz</span>
+                        </button>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                        <input type="text" id="search-sales" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false">
+                        
+                        <div id="sum-sales" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
+                        
+                        <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-sort')">sort</span>
+                        <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-filter')">more_vert</span>
                     </div>
                     
                     <input type="hidden" id="sort-sales" value="doc-desc">
@@ -285,19 +320,18 @@
                 </div>
 
                 <div id="doc-purchase-view" class="hidden" style="padding-bottom: 80px;">
-                    <div style="display: flex; gap: 8px; margin-bottom: 16px; align-items: center;">
-                        <div class="tap-target" onclick="document.getElementById('doc-sales-view').classList.remove('hidden'); document.getElementById('doc-purchase-view').classList.add('hidden');" style="display: flex; align-items: center; gap: 4px; background: #fff0f2; color: #ba1a1a; padding: 8px 12px; border-radius: 12px; font-weight: bold; font-size: 14px; flex-shrink: 0; box-shadow: var(--elevation-1);">
-                            Purchases <span class="material-symbols-outlined" style="font-size: 18px;">swap_horiz</span>
-                        </div>
-                        <div class="search-bar" style="flex: 1; margin-bottom: 0; padding-right: 8px; display: flex; align-items: center; height: 44px;">
-                            <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
-                            <input type="text" id="search-purchases" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0; font-size: 14px;">
-                            
-                            <div id="sum-purchases" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
-                            
-                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-sort')">sort</span>
-                            <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-filter')">more_vert</span>
-                        </div>
+                    <!-- 🚨 BIZOPS NATIVE THEME: Integrated Search Wrapper -->
+                    <div class="search-bar">
+                        <button class="tap-target purchase-btn" onclick="document.getElementById('doc-sales-view').classList.remove('hidden'); document.getElementById('doc-purchase-view').classList.add('hidden');">
+                            Purchases <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 4px;">swap_horiz</span>
+                        </button>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                        <input type="text" id="search-purchases" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false">
+                        
+                        <div id="sum-purchases" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
+                        
+                        <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-sort')">sort</span>
+                        <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface-variant); padding: 4px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-filter')">more_vert</span>
                     </div>
                     
                     <input type="hidden" id="sort-purchases" value="doc-desc">
@@ -585,6 +619,9 @@
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
                 </div>
+
+                <!-- 🚨 ENTERPRISE UPGRADE: QUICK-ADD SMART CHIPS -->
+                <div class="smart-chips-wrapper" id="quick-add-container" style="background-color: #ffffff;"></div>
 
                 <div id="sales-return-ref-group" class="form-group hidden" style="background: #fff0f2; padding: 12px; border-radius: 8px; border: 1px solid var(--md-error);">
                     <label style="color: var(--md-error);">Original Invoice Reference *</label>
@@ -1053,7 +1090,12 @@
         <div class="activity-content">
             <form id="form-ledger">
                 <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Party Name *</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface);">Party Name *</div>
+                        <button type="button" id="btn-import-contact" class="btn-primary-small tap-target" onclick="app.importContact()" style="display: none; align-items: center; gap: 4px; background: #e3f2fd; color: #0061a4; padding: 4px 10px; border: 1px solid #90caf9; margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                            <span class="material-symbols-outlined" style="font-size: 16px;">contact_phone</span> Import
+                        </button>
+                    </div>
                     <input type="text" name="name" id="ledger-name" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                 </div>
                 
@@ -1067,7 +1109,8 @@
                 
                 <div style="margin-bottom: 16px;">
                     <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Phone Number</div>
-                    <input type="tel" name="phone" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    <!-- ENTERPRISE FIX: Added ID to phone input for Contact Picker integration -->
+                    <input type="tel" name="phone" id="ledger-phone" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                 </div>
                 
                 <div style="margin-bottom: 16px;">
@@ -1287,16 +1330,18 @@
                 <div id="report-party-balance" style="font-size: 13px; opacity: 0.9; margin-top: 4px; line-height: 1.4; word-wrap: break-word;">Closing Balance: &#8377;0.00</div>
             </div>
             
-            <div style="display: flex; gap: 12px; flex-shrink: 0; align-items: center;">
-                
-                <div id="btn-edit-ledger" class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #e3f2fd; color: #1565c0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">edit</span>
+            <div style="display: flex; gap: 16px; flex-shrink: 0; align-items: center; margin-right: 8px;">
+                <div id="btn-edit-ledger" class="tap-target" style="display: flex; align-items: center; justify-content: center;">
+                    <span class="material-symbols-outlined" style="font-size: 24px; color: #ffffff;">edit</span>
                 </div>
                 
-                <div id="btn-share-ledger" class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                <div class="tap-target" style="display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('btn-share-ledger').click()">
+                    <span class="material-symbols-outlined" style="font-size: 24px; color: #ffffff;">share</span>
                 </div>
                 
+                <div id="btn-share-ledger" class="tap-target" style="display: flex; align-items: center; justify-content: center;">
+                    <span class="material-symbols-outlined" style="font-size: 24px; color: #ffffff;">picture_as_pdf</span>
+                </div>
             </div>
         </div>
         <div class="activity-content" style="background: var(--md-background); padding: 0px 12px 12px 12px;">
@@ -2431,7 +2476,11 @@
         <div class="activity-header" style="display: flex; align-items: center; padding: 12px 16px; background: var(--md-primary-container); color: var(--md-on-primary-container);">
             <span class="material-symbols-outlined tap-target" onclick="window.UI.closeActivity('activity-item-ledger')" style="padding: 4px; margin-right: 12px;">arrow_back</span>
             <strong id="item-ledger-title" style="flex: 1; font-size: 18px; font-weight: 600;">Item Ledger</strong>
-            <span id="btn-print-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;">print</span>
+            
+            <div style="display: flex; gap: 16px; align-items: center;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="document.getElementById('btn-print-item-ledger').click()">share</span>
+                <span id="btn-print-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;">picture_as_pdf</span>
+            </div>
         </div>
         <div class="activity-content" style="padding: 16px; background: var(--md-background);">
             <input type="hidden" id="item-ledger-hidden-id">
@@ -2522,6 +2571,17 @@
                         });
                     });
                 });
+                
+                // 🚨 ENTERPRISE UPGRADE: Listen for the Service Worker's Background Sync command!
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'TRIGGER_BACKGROUND_BACKUP') {
+                        console.log("☁️ Background Sync Signal Received! Running Auto-Backup...");
+                        if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
+                            window.Cloud.autoBackup();
+                        }
+                    }
+                });
+                
             });
             // Note: We completely deleted the rogue controllerchange listener!
         }
@@ -2697,29 +2757,6 @@
             if (!navigator.onLine) {
                 banner.classList.add('show');
             }
-
-            // ENTERPRISE UPGRADE: Global Anti-Double-Submit Shield
-            document.querySelectorAll('form').forEach(form => {
-                form.addEventListener('submit', function(e) {
-                    // Only lock the button if the form is fully filled out and valid
-                    if (this.checkValidity()) {
-                        const submitBtn = this.querySelector('button[type="submit"]');
-                        if (submitBtn && !submitBtn.disabled) {
-                            // STRICT ERP LOGIC: Physically lock the hardware to prevent spam-click duplicate invoices!
-                            submitBtn.disabled = true;
-                            submitBtn.style.pointerEvents = 'none';
-                            submitBtn.classList.add('btn-loading');
-                            
-                            // Failsafe: Unlock button after 3 seconds just in case the background save hangs
-                            setTimeout(() => {
-                                submitBtn.disabled = false;
-                                submitBtn.style.pointerEvents = 'auto';
-                                submitBtn.classList.remove('btn-loading');
-                            }, 3000);
-                        }
-                    }
-                });
-            });
 
             // ==========================================
             // ENTERPRISE UPGRADE: CUSTOM ALERT OVERRIDE
@@ -3340,6 +3377,27 @@
             </div>
     </div>
 
+    <!-- 🚨 ENTERPRISE UPGRADE: CUSTOM POS NUMPAD OVERLAY -->
+    <div class="pos-numpad-overlay" id="custom-numpad" style="background-color: #ffffff;">
+        <div class="numpad-header" style="background-color: #ffffff;">
+            <span class="numpad-title" id="numpad-label">Enter Value</span>
+            <span style="color: #ef4444; font-weight: 600; padding: 4px 8px; cursor: pointer;" onclick="UI.closeNumpad()">Close</span>
+        </div>
+        <div class="numpad-grid">
+            <div class="numpad-btn" onclick="UI.numpadPress('1')">1</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('2')">2</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('3')">3</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('4')">4</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('5')">5</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('6')">6</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('7')">7</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('8')">8</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('9')">9</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('.')">.</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('0')">0</div>
+            <div class="numpad-btn" onclick="UI.numpadPress('BKSP')" style="background-color: #fff0f2 !important; color: #ba1a1a; font-size: 20px;">⌫</div>
+            <div class="numpad-btn action-done" style="grid-column: span 3; background-color: #0061a4 !important;" onclick="UI.numpadPress('DONE')">Done</div>
+        </div>
+    </div>
 </body>
 </html>
-

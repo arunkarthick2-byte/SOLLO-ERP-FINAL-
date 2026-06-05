@@ -73,6 +73,21 @@ const UI = {
             }
         }, { capture: true });
 
+        // 🚨 ENTERPRISE FIX: The iOS Ghost Keyboard Shield! (V2 Optimized)
+        // Forces the screen to redraw ONLY if the user actually closes the keyboard, 
+        // preventing violent scrolls to the top when tabbing between fields!
+        document.addEventListener('focusout', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                setTimeout(() => {
+                    // If they haven't focused on a new input within 50ms, they actually closed the keyboard!
+                    const activeTag = (document.activeElement || {}).tagName;
+                    if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && activeTag !== 'SELECT') {
+                        window.scrollTo({top: 0, behavior: 'smooth'});
+                    }
+                }, 50);
+            }
+        });
+
         // ENTERPRISE FIX 2: Dirty Form Tracker & Double-Billing Spinner Shield
         // ENTERPRISE FIX 4: The Dictionary Shield (Disable Autocorrect on Names & Items)
         document.querySelectorAll('input[type="text"]').forEach(input => {
@@ -138,13 +153,7 @@ const UI = {
         window.isFormDirty = false;
         document.addEventListener('submit', (e) => { 
             window.isFormDirty = false; // Reset tracker on save
-            const btn = e.target.querySelector('button[type="submit"]');
-            if (btn) {
-                btn.classList.add('btn-loading'); // Instantly turns the save button into a loading spinner
-                setTimeout(() => btn.classList.remove('btn-loading'), 3000); // Failsafe unlock after 3 seconds
-            }
         });
-        
         // --- ENTERPRISE FIX: PREMIUM EMPTY STATES ---
         // Dynamically upgrades all boring blank text into beautiful M3 graphic cards!
         const emptyStyle = document.createElement('style');
@@ -163,6 +172,75 @@ const UI = {
             }
         `;
         document.head.appendChild(emptyStyle);
+    },
+
+    // ==========================================
+    // 🚨 ENTERPRISE UPGRADE: SMART CHIPS & NUMPAD
+    // ==========================================
+    loadSmartChips: () => {
+        const container = document.getElementById('quick-add-container');
+        if (!container) return;
+
+        const items = (UI.state.rawData && UI.state.rawData.items) ? UI.state.rawData.items : [];
+        if (items.length === 0) return;
+
+        // Auto-fetch top 8 items from the database
+        const topItems = items.slice(0, 8);
+
+        container.innerHTML = ''; 
+        topItems.forEach(item => {
+            const chip = document.createElement('div');
+            chip.className = 'smart-chip';
+            chip.innerText = `+ ${item.name}`;
+            
+            chip.onclick = () => {
+                const price = parseFloat(item.sellPrice) || 0;
+                // Automatically adds it to whichever form is currently open (sales or purchase)
+                UI.addSmartItemRow(UI.state.activeActivity || 'sales', item.id, item.name, price, item.gst || 0, item.uom || 'Unit', item.hsn || '', item.buyPrice || 0);
+                if (window.Utils) window.Utils.showToast(`✅ ${item.name} added!`);
+            };
+            container.appendChild(chip);
+        });
+    },
+
+    openNumpad: (inputElement, labelText) => {
+        inputElement.blur(); // Stops default phone keyboard from appearing
+        UI.state.activeNumpadInput = inputElement;
+        document.getElementById('numpad-label').innerText = labelText || "Enter Value";
+        document.getElementById('custom-numpad').classList.add('active');
+    },
+
+    closeNumpad: () => {
+        document.getElementById('custom-numpad').classList.remove('active');
+        UI.state.activeNumpadInput = null;
+    },
+
+    numpadPress: (key) => {
+        const input = UI.state.activeNumpadInput;
+        if (!input) return;
+        
+        if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+
+        if (key === 'DONE') {
+            UI.closeNumpad();
+            return;
+        }
+
+        let currentVal = String(input.value);
+
+        if (key === 'BKSP') {
+            input.value = currentVal.length > 1 ? currentVal.slice(0, -1) : '0';
+        } else {
+            if (key === '.' && currentVal.includes('.')) return; 
+            if (currentVal === '0' && key !== '.') {
+                input.value = key;
+            } else {
+                input.value = currentVal + key;
+            }
+        }
+        
+        // Force the app's calculation engine to recalculate the totals instantly!
+        input.dispatchEvent(new Event('input', { bubbles: true }));
     },
 
     // --- NEW CODE: DARK MODE CONTROLLERS ---
@@ -277,30 +355,35 @@ const UI = {
             
             requestAnimationFrame(() => {
                 container.appendChild(fragment);
-            });
-            
-            currentIndex += chunkSize;
-            
-            // Clean up old Load More button and spawn a fresh one at the new bottom
-            const oldBtn = document.getElementById('btn-load-more-virtual');
-            if (oldBtn) oldBtn.remove();
-            
-            if (currentIndex < dataArray.length) {
-                const btnContainer = document.createElement('div');
-                btnContainer.id = 'btn-load-more-virtual';
-                btnContainer.style.cssText = 'text-align: center; padding: 16px; width: 100%;';
-                btnContainer.innerHTML = `<button class="btn-primary-small" style="padding: 8px 16px; background: var(--md-surface-variant); color: var(--md-on-surface);">Load More Records...</button>`;
                 
-                // ENTERPRISE FIX: The Ghost-Chunk Double-Tap Shield!
-                // Instantly lock the button on the first millisecond of contact so it can't double-fire!
-                btnContainer.onclick = function(e) {
-                    if (this.getAttribute('data-locked') === 'true') return;
-                    this.setAttribute('data-locked', 'true');
-                    this.style.opacity = '0.5';
-                    renderNextChunk();
-                };
-                container.appendChild(btnContainer);
-            }
+                currentIndex += chunkSize;
+                
+                // Clean up old sentinel
+                const oldSentinel = document.getElementById('scroll-sentinel-virtual');
+                if (oldSentinel) oldSentinel.remove();
+                
+                if (currentIndex < dataArray.length) {
+                    // 🚨 BIZOPS NATIVE THEME: Infinite Scroll Sentinel (Replaces the Load More button)
+                    const sentinel = document.createElement('div');
+                    sentinel.id = 'scroll-sentinel-virtual';
+                    sentinel.style.cssText = 'height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; color: var(--md-primary); font-size: 13px; font-weight: bold;';
+                    
+                    // Sleek native loading spinner
+                    sentinel.innerHTML = `<svg style="width: 24px; height: 24px; animation: spin 1s linear infinite; margin-right: 8px; color: var(--md-primary);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Loading...`;
+                    
+                    container.appendChild(sentinel);
+
+                    // Use Intersection Observer to auto-load when the user scrolls near the bottom!
+                    const observer = new IntersectionObserver((entries) => {
+                        if (entries[0].isIntersecting) {
+                            observer.disconnect(); // Stop observing this specific sentinel
+                            renderNextChunk(); // Automatically load the next chunk!
+                        }
+                    }, { rootMargin: '300px' }); // Trigger 300px BEFORE they hit the bottom for seamless loading
+
+                    observer.observe(sentinel);
+                }
+            });
         };
         renderNextChunk();
     },
@@ -470,7 +553,11 @@ const UI = {
             a.style.display = 'flex'; 
             void a.offsetWidth; 
             
-            requestAnimationFrame(() => { a.classList.add('open'); });
+            requestAnimationFrame(() => { 
+                a.classList.add('open'); 
+                // TRIGGER ZOOM EVALUATION NATIVELY
+                if (window.evaluateSmartZoom) setTimeout(window.evaluateSmartZoom, 100); 
+            });
             
             if (activityId === 'activity-sales-form') {
                 UI.state.activeActivity = 'sales';
@@ -497,6 +584,8 @@ const UI = {
                 a.style.display = '';
                 a.style.zIndex = ''; 
                 window.softwareBackLock = false;
+                // TRIGGER ZOOM EVALUATION NATIVELY AFTER CLOSING
+                if (window.evaluateSmartZoom) window.evaluateSmartZoom();
             }, 300); 
             
             if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
@@ -678,6 +767,18 @@ const UI = {
         
         if (status === 'Shipped') {
             if (shippedGroup) shippedGroup.classList.remove('hidden');
+            
+            // --- NEW LOGIC ADDED HERE ---
+            // Auto-fill the Dispatch Date with the current date when status changes to Shipped
+            if (shippedInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
+                const today = Utils.getLocalDate();
+                shippedInput.value = today;
+                
+                // Sync the Flatpickr calendar UI so the visual date updates instantly
+                if (shippedInput._flatpickr) shippedInput._flatpickr.setDate(today); 
+            }
+            // ----------------------------
+            
         } else if (status === 'Completed') {
             // Keep the shipped date visible to retain history, but lock it
             if (shippedGroup) {
@@ -1091,7 +1192,7 @@ const UI = {
                     
                     // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
                     const statusColor = s.status === 'Open' ? '#73777f' : (balance > 0 && !isReturn ? '#ba1a1a' : '#146c2e');
-                    const statusBg = s.status === 'Open' ? '#f1f3f4' : (balance > 0 && !isReturn ? '#fff0f2' : '#e8f5e9'); 
+                    const statusBg = s.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (balance > 0 && !isReturn ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)'); 
                     
                     return `
                     <div class="m3-card tap-target list-card" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
@@ -1177,7 +1278,7 @@ const UI = {
                     
                     // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
                     const statusColor = p.status === 'Open' ? '#73777f' : (balance > 0 && !isReturn ? '#ba1a1a' : '#146c2e');
-                    const statusBg = p.status === 'Open' ? '#f1f3f4' : (balance > 0 && !isReturn ? '#fff0f2' : '#e8f5e9');
+                    const statusBg = p.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (balance > 0 && !isReturn ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
 
                     return `
                     <div class="m3-card tap-target" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('purchase', '${p.id}', '${p.documentType}')">
@@ -1365,11 +1466,11 @@ const UI = {
                         </div>
                         
                         <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #e3f2fd; color: #1565c0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.app.openItemLedger('${i.id}', '${safeName}')">
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(21, 101, 192, 0.1); color: #42a5f5; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.app.openItemLedger('${i.id}', '${safeName}')">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
                             </div>
                             
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeItemLedgerReport('${i.id}', '${safeName}')">
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(230, 81, 0, 0.1); color: #ff9800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeItemLedgerReport('${i.id}', '${safeName}')">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                             </div>
                         </div>
@@ -1413,7 +1514,7 @@ const UI = {
                     if (bal > 0.01) { 
                         balText = `\u20B9${bal.toFixed(2)}`; 
                         balColor = 'var(--md-error)'; 
-                        let statusBadge = `<span style="background:#fff0f2; color:#ba1a1a; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; margin-bottom:4px; display:inline-block;">TO ${isCustomer ? 'RECEIVE' : 'PAY'}</span><br>`;
+                        let statusBadge = `<span style="background:#dc2626; color:#ffffff; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:0.5px; margin-bottom:4px; display:inline-block; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO ${isCustomer ? 'RECEIVE' : 'PAY'}</span><br>`;
                         // FIX: Replaced " | " with "<br>" to stack the taxes and halve the width!
                         if (split.gst > 0.01 && split.non > 0.01) subText = statusBadge + `GST: \u20B9${split.gst.toFixed(0)}<br>Non: \u20B9${split.non.toFixed(0)}`;
                         else if (split.gst > 0.01) subText = statusBadge + `GST Due: \u20B9${split.gst.toFixed(2)}`;
@@ -1423,7 +1524,7 @@ const UI = {
                     else if (bal < -0.01) { 
                         balText = `\u20B9${Math.abs(bal).toFixed(2)}`; 
                         balColor = 'var(--md-success)'; 
-                        subText = `<span style="background:#e8f5e9; color:#146c2e; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">ADVANCE</span>`;
+                        subText = `<span style="background:#16a34a; color:#ffffff; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`;
                     }
                     else { balText = `\u20B90.00`; subText = '';}
                     
@@ -1450,11 +1551,11 @@ const UI = {
                         </div>
                         
                         <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #e3f2fd; color: #1565c0; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(21, 101, 192, 0.1); color: #42a5f5; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
                             </div>
                             
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeKhataReport('${l.id}', '${safeName}', '${l.type}')">
+                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(230, 81, 0, 0.1); color: #ff9800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeKhataReport('${l.id}', '${safeName}', '${l.type}')">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                             </div>
                         </div>
@@ -1491,7 +1592,7 @@ const UI = {
                     const displayTitle = t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.category || 'Deleted Item';
                     return `
                     <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: #fff0f2; color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                         </div>
                         <div style="flex: 1; min-width: 0; overflow: hidden;">
@@ -1797,7 +1898,9 @@ const UI = {
             
             // NEW ENGINE: Reads the exact month selected from the native HTML picker!
             if (dateFilter === 'custom') {
-                if (!customMonthEl || !customMonthEl.value) return true;
+                /* 🚨 FIX: If they select "Specific Month" but haven't picked a date yet, 
+                   show NO DATA instead of dumping All-Time data into the chart! */
+                if (!customMonthEl || !customMonthEl.value) return false; 
                 const [cYear, cMonth] = customMonthEl.value.split('-');
                 return itemYear === parseInt(cYear, 10) && itemMonth === (parseInt(cMonth, 10) - 1);
             }
@@ -1917,9 +2020,9 @@ const UI = {
             if (p.status !== 'Open' && isDateInRange(p.date)) { 
                 const isReturn = p.documentType === 'return';
                 const modifier = isReturn ? -1 : 1;
-                const netPurchase = (parseFloat(p.grandTotal) || 0) - (parseFloat(p.totalGst) || 0);
-                totalPurchases += netPurchase * modifier; 
-                inputGst += (p.totalGst || 0) * modifier; 
+                // 🚨 BIZOPS FIX: Calculate Gross Purchases so the chart visually matches Gross Sales!
+                totalPurchases += (parseFloat(p.grandTotal) || 0) * modifier; 
+                inputGst += (parseFloat(p.totalGst) || 0) * modifier; 
             } 
         });
         
@@ -2025,8 +2128,6 @@ const UI = {
         if(document.getElementById('dash-orders-shipped')) document.getElementById('dash-orders-shipped').innerHTML = `${shippedCount} Orders <strong style="color:#f57f17; margin-left:8px;">\u20B9${shippedOrders.toFixed(2)}</strong>`;
         if(document.getElementById('dash-orders-completed')) document.getElementById('dash-orders-completed').innerHTML = `${completedCount} Orders <strong style="color:var(--md-success); margin-left:8px;">\u20B9${completedOrders.toFixed(2)}</strong>`;
         
-        // --- NEW CODE: Call the chart updater ---
-        UI.updateChart(totalSales, totalPurchases, totalExpenses);
         
         // ==========================================
         // ENTERPRISE UPGRADE: AI TREND ANALYSIS
@@ -2091,7 +2192,8 @@ const UI = {
             
             const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived - returnTotal);
             // ENTERPRISE FIX: The Permanent Overdue Bug! Floating-point math forces fully paid invoices to show up as "Overdue: ₹0.00"!
-            if (balance <= 0.01) return false;
+            // CUSTOM FIX: Only flag the invoice as overdue if the pending balance is ₹100 or more
+            if (balance < 100) return false;
             
             if (!s.date) return false;
             // BULLETPROOF DATE MATH: Manually parse YYYY-MM-DD so old WebViews don't panic!
@@ -2155,6 +2257,11 @@ const UI = {
                 overdueContainer.classList.add('hidden');
             }
         }
+
+        // 🚨 BIZOPS FIX: Trigger the Chart Engine to render the Financial Overview!
+        if (typeof UI.updateChart === 'function') {
+            UI.updateChart(totalSales, totalPurchases, totalExpenses);
+        }
     }, // <-- ADDED THIS MISSING BRACKET AND COMMA!
     // ==========================================
     // NEW CODE: DYNAMIC CHART ENGINE
@@ -2162,66 +2269,100 @@ const UI = {
     chartInstance: null,
 
     updateChart: (salesAmt, purchaseAmt, expenseAmt) => {
-        const canvas = document.getElementById('dashboard-chart');
+        let canvas = document.getElementById('dashboard-chart');
         if (!canvas) return;
-        
-        // ENTERPRISE FIX: Prevent a fatal white-screen crash if the app is launched offline and Chart.js is unreachable!
+
+        // 🚨 BIZOPS FIX: The "Fast Boot" Shield
         if (typeof Chart === 'undefined') {
-            console.warn('Chart.js is offline. Skipping graph rendering to protect Dashboard.');
+            if (!window.chartRetryCount) window.chartRetryCount = 0;
+            if (window.chartRetryCount < 10) {
+                window.chartRetryCount++;
+                setTimeout(() => {
+                    if (window.UI && window.UI.updateChart) {
+                        window.UI.updateChart(salesAmt, purchaseAmt, expenseAmt);
+                    }
+                }, 500);
+            }
             return;
         }
 
-        const ctx = canvas.getContext('2d');
+        window.chartRetryCount = 0;
 
-        // Destroy the old chart before drawing a new one
-        if (UI.chartInstance) {
-            UI.chartInstance.destroy();
-        }
+        try {
+            // Failsafe: Force Chart.js to register its controllers if it missed them
+            if (Chart.register && Chart.registerables) {
+                Chart.register(...Chart.registerables);
+            }
 
-        // Create the premium fade-out gradient under the line
-        const fluidGradient = ctx.createLinearGradient(0, 0, 0, 300);
-        fluidGradient.addColorStop(0, 'rgba(0, 97, 164, 0.4)'); // Darker blue at top
-        fluidGradient.addColorStop(1, 'rgba(0, 97, 164, 0.0)'); // Fades to transparent at bottom
+            const ctx = canvas.getContext('2d');
 
-        UI.chartInstance = new Chart(ctx, {
-            type: 'line', // CHANGED: Fluid Line Chart
-            data: {
-                labels: ['Sales', 'Purchases', 'Expenses'],
-                datasets: [{
-                    label: 'Amount (₹)',
-                    data: [salesAmt, purchaseAmt, expenseAmt],
-                    borderColor: 'var(--md-primary)', // Deep Blue Line
-                    backgroundColor: fluidGradient, // Fluid transparency
-                    borderWidth: 3,
-                    tension: 0.4, // Creates the smooth Apple-style curves
-                    fill: true, // Fills the area under the curve
-                    pointBackgroundColor: '#ffffff',
-                    pointBorderColor: 'var(--md-primary)',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false } // Hides the legend since our labels are self-explanatory
+            if (UI.chartInstance) {
+                UI.chartInstance.destroy();
+            }
+
+            UI.chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Sales', 'Purchases', 'Expenses'],
+                    datasets: [{
+                        label: 'Amount (₹)',
+                        data: [salesAmt, purchaseAmt, expenseAmt],
+                        backgroundColor: [
+                            'rgba(26, 35, 126, 0.2)',
+                            'rgba(245, 127, 23, 0.2)',
+                            'rgba(211, 47, 47, 0.2)'
+                        ],
+                        borderColor: [
+                            '#1A237E', 
+                            '#F57F17', 
+                            '#D32F2F'
+                        ],
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: '#ffffff'
+                    }]
                 },
-                scales: {
-                    x: { 
-                        grid: { display: false } // Hides vertical grid lines for a cleaner look
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#323232',
+                            titleFont: { size: 13, family: 'Inter, sans-serif' },
+                            bodyFont: { size: 14, weight: 'bold', family: 'Inter, sans-serif' },
+                            padding: 10,
+                            cornerRadius: 4,
+                            displayColors: false
+                        }
                     },
-                    y: { 
-                        beginAtZero: true,
-                        grid: { borderDash: [4, 4], color: 'var(--md-surface-variant)' }, // Soft dashed horizontal lines
-                        ticks: {
-                            callback: function(value) { return '₹' + value; }
+                    scales: {
+                        x: { 
+                            grid: { display: false },
+                            ticks: { font: { weight: 'bold', family: 'Inter, sans-serif' }, color: '#424242' }
+                        },
+                        y: { 
+                            beginAtZero: true,
+                            suggestedMax: 100, 
+                            grid: { color: 'rgba(0,0,0,0.05)' }, 
+                            ticks: {
+                                callback: function(value) { 
+                                    if (value >= 1000) return '₹' + (value/1000).toFixed(1) + 'k';
+                                    return '₹' + value; 
+                                },
+                                font: { family: 'Inter, sans-serif' },
+                                color: '#757575'
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        } catch (error) {
+            console.error("Chart Rendering Error:", error);
+        }
     },
     // ==========================================
     // END OF NEW CODE
@@ -2626,11 +2767,12 @@ const UI = {
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                 <div style="flex: 1; padding-right: 8px; min-width: 0;">
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
+                    <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 14px; background: var(--md-surface);" onfocus="this.select()">
+                        <input type="text" inputmode="none" class="row-qty" value="1" required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 14px; background: var(--md-surface); cursor: pointer;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface);">
+                        <input type="text" inputmode="none" class="row-rate" value="${smart.price}" required readonly onclick="UI.openNumpad(this, 'Rate')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface); cursor: pointer;">
                         <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
@@ -2884,13 +3026,14 @@ const UI = {
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                    <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="number" inputmode="decimal" class="row-qty" value="1" min="0.01" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        <input type="text" inputmode="none" class="row-qty" value="1" readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px; cursor: pointer;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        <input type="text" inputmode="none" class="row-rate" value="${smart.price}" readonly onclick="UI.openNumpad(this, 'Rate')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px; cursor: pointer;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
@@ -3048,7 +3191,7 @@ const UI = {
         // UPGRADE: Added Export CSV Button dynamically
         html += `
             <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
-                <button class="btn-primary-small tap-target" onclick="UI.exportDaybookCSV()" style="display:flex; align-items:center; gap:4px; background: #e8f5e9; color: #146c2e; border: 1px solid rgba(20, 108, 46, 0.3);">
+                <button class="btn-primary-small tap-target" onclick="UI.exportDaybookCSV()" style="display:flex; align-items:center; gap:4px; background: rgba(20, 108, 46, 0.1); color: var(--md-success); border: 1px solid rgba(20, 108, 46, 0.3);">
                     <span class="material-symbols-outlined" style="font-size: 16px;">download</span> Export CSV
                 </button>
             </div>
@@ -3151,12 +3294,12 @@ const UI = {
         // 6. RENDER THE PREMIUM SPLIT UI
         container.innerHTML = `
             <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
-                <button class="btn-primary-small tap-target" onclick="UI.exportPnLCSV()" style="display:flex; align-items:center; gap:4px; background: #e8f5e9; color: #146c2e; border: 1px solid rgba(20, 108, 46, 0.3);">
+                <button class="btn-primary-small tap-target" onclick="UI.exportPnLCSV()" style="display:flex; align-items:center; gap:4px; background: rgba(20, 108, 46, 0.1); color: var(--md-success); border: 1px solid rgba(20, 108, 46, 0.3);">
                     <span class="material-symbols-outlined" style="font-size: 16px;">download</span> Export CSV
                 </button>
             </div>
 
-            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #0061a4; background: #e3f2fd; padding: 16px;">
+            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #0061a4; background: rgba(0, 97, 164, 0.1); padding: 16px;">
                 <h4 style="margin: 0 0 12px 0; color: #0061a4; font-size: 14px; text-transform: uppercase;">GST Operations (B2B/B2C)</h4>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>GST Net Sales:</span> <strong>₹${gstSales.toFixed(2)}</strong></div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--md-error);"><span>GST COGS:</span> <strong>- ₹${gstPurchases.toFixed(2)}</strong></div>
@@ -3164,7 +3307,7 @@ const UI = {
                 <div style="display: flex; justify-content: space-between; font-size: 15px; color: #0061a4;"><strong>GST Gross Profit:</strong> <strong>₹${gstGrossProfit.toFixed(2)}</strong></div>
             </div>
 
-            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #f57f17; background: #fff8e1; padding: 16px;">
+            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #f57f17; background: rgba(245, 127, 23, 0.1); padding: 16px;">
                 <h4 style="margin: 0 0 12px 0; color: #f57f17; font-size: 14px; text-transform: uppercase;">Non-GST Operations</h4>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Non-GST Net Sales:</span> <strong>₹${nonGstSales.toFixed(2)}</strong></div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--md-error);"><span>Non-GST COGS:</span> <strong>- ₹${nonGstPurchases.toFixed(2)}</strong></div>
@@ -3187,13 +3330,13 @@ const UI = {
                 </div>` : ''}
             </div>
 
-            <div class="m3-card" style="padding: 16px; background: ${trueNetProfit >= 0 ? '#e8f5e9' : '#fff0f2'}; border: 1px solid ${trueNetProfit >= 0 ? '#c8e6c9' : '#ffcdd2'};">
+            <div class="m3-card" style="padding: 16px; background: ${trueNetProfit >= 0 ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)'}; border: 1px solid ${trueNetProfit >= 0 ? 'rgba(20, 108, 46, 0.3)' : 'rgba(186, 26, 26, 0.3)'};">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <strong style="font-size: 14px; color: ${trueNetProfit >= 0 ? '#146c2e' : '#ba1a1a'}; display: block;">TRUE NET PROFIT</strong>
+                        <strong style="font-size: 14px; color: ${trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)'}; display: block;">TRUE NET PROFIT</strong>
                         <small style="color: var(--md-text-muted);">After all costs and expenses</small>
                     </div>
-                    <strong style="font-size: 22px; color: ${trueNetProfit >= 0 ? '#146c2e' : '#ba1a1a'};">₹${trueNetProfit.toFixed(2)}</strong>
+                    <strong style="font-size: 22px; color: ${trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)'};">₹${trueNetProfit.toFixed(2)}</strong>
                 </div>
             </div>
         `;
@@ -3644,34 +3787,6 @@ document.addEventListener('click', (e) => {
 });
 
 // ==========================================
-// ENTERPRISE FIX 1: THE ANTI-CLONE BUTTON SHIELD
-// ==========================================
-document.addEventListener('click', (e) => {
-    // Target all major action buttons in the app
-    const btn = e.target.closest('.btn-primary, .btn-primary-small, #main-fab');
-    if (btn) {
-        // If the button is already processing a click, physically KILL the second click!
-        if (btn.getAttribute('data-locked') === 'true') {
-            e.preventDefault();
-            e.stopPropagation(); // Stops the double-save exploit dead in its tracks
-            return;
-        }
-        
-        // Lock the button instantly
-        btn.setAttribute('data-locked', 'true');
-        btn.style.opacity = '0.7';
-        btn.style.transform = 'scale(0.98)';
-        
-        // Auto-unlock the button after the database finishes saving
-        setTimeout(() => {
-            btn.removeAttribute('data-locked');
-            btn.style.opacity = '1';
-            btn.style.transform = 'none';
-        }, 1500);
-    }
-}, true); // TRUE = 'Capture Phase'. We intercept the click before the app even knows it happened!
-
-// ==========================================
 // ENTERPRISE FIX 2: SMART KEYBOARD DISMISSAL
 // ==========================================
 document.addEventListener('click', (e) => {
@@ -3766,47 +3881,89 @@ window.addEventListener('popstate', (e) => {
     }
 });
 // ==========================================
-// 🚨 ENTERPRISE FIX: GLOBAL ANTI-DOUBLE-TAP & GHOST INVOICE SHIELD
+// 🚨 ENTERPRISE UX: SMART CURRENCY FORMATTER
 // ==========================================
-// Locks ALL forms instantly upon submission so impatient users cannot create duplicate database entries!
-document.addEventListener('submit', (e) => {
-    const form = e.target;
+document.addEventListener('focusout', (e) => {
+    // Check if the input they just left is a number/money field
+    if (e.target.tagName === 'INPUT' && (e.target.type === 'number' || e.target.classList.contains('currency-input') || e.target.id.includes('amount') || e.target.id.includes('rate') || e.target.id.includes('price'))) {
+        
+        const rawValue = e.target.value;
+        if (!rawValue || isNaN(rawValue)) return;
 
-    // 🚨 CRITICAL FIX: Intercept the save command if the cart is completely empty!
-    if (form.id === 'form-sales' || form.id === 'form-purchase') {
-        const itemCount = form.querySelectorAll('.row-qty').length;
-        if (itemCount === 0) {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([50, 100, 50]);
-            window.alert("⚠️ Cannot save an empty document! Please add at least one item.");
-            return false;
+        // Force JavaScript to evaluate the exact number, preventing string-math bugs
+        const floatValue = parseFloat(rawValue);
+        
+        // Temporarily change it to type="text" so we can insert commas if it's a dedicated currency field
+        if (e.target.type !== 'number' || e.target.classList.contains('allow-commas')) {
+             e.target.type = 'text';
+             e.target.value = new Intl.NumberFormat('en-IN', {
+                 minimumFractionDigits: 2,
+                 maximumFractionDigits: 2
+             }).format(floatValue);
+        } else {
+             // If it strictly requires a number type for the database, just fix the decimals!
+             e.target.value = floatValue.toFixed(2);
         }
     }
+});
+// ==========================================
+// 🚨 ENTERPRISE UX: NATIVE APP BEHAVIORS
+// ==========================================
 
-    const submitBtn = form.querySelector('button[type="submit"]');
+// 1. SMART FAB SCROLL ENGINE
+let lastScrollTop = 0;
+const scrollContainers = document.querySelectorAll('.activity-content, .view');
+
+scrollContainers.forEach(container => {
+    container.addEventListener('scroll', () => {
+        const currentScroll = container.scrollTop;
+        const fab = document.querySelector('.floating-action-button');
+        
+        if (!fab) return;
+
+        // If scrolling DOWN and past the first 50px
+        if (currentScroll > lastScrollTop && currentScroll > 50) {
+            fab.classList.add('fab-hidden');
+        } 
+        // If scrolling UP
+        else if (currentScroll < lastScrollTop) {
+            fab.classList.remove('fab-hidden');
+        }
+        
+        lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // For Mobile or negative scrolling
+    }, { passive: true }); // passive: true ensures the scroll stays locked at 120fps!
+});
+
+
+// 2. MATERIAL LIQUID RIPPLE ENGINE
+document.addEventListener('pointerdown', function (e) {
+    // Only apply ripple to buttons, cards, or clickable list items
+    const target = e.target.closest('.btn-primary, .btn-primary-small, .floating-action-button, .m3-card.tap-target, .list-view li');
+    if (!target) return;
+
+    target.classList.add('ripple-element');
+
+    const circle = document.createElement('span');
+    const diameter = Math.max(target.clientWidth, target.clientHeight);
+    const radius = diameter / 2;
+
+    // Calculate exact mathematical position of the thumb tap
+    const rect = target.getBoundingClientRect();
+    circle.style.width = circle.style.height = `${diameter}px`;
+    circle.style.left = `${e.clientX - rect.left - radius}px`;
+    circle.style.top = `${e.clientY - rect.top - radius}px`;
+    circle.classList.add('ink-ripple');
+
+    // Remove any existing ripples to prevent memory leaks if they tap really fast
+    const existingRipple = target.querySelector('.ink-ripple');
+    if (existingRipple) {
+        existingRipple.remove();
+    }
+
+    target.appendChild(circle);
     
-    if (submitBtn) {
-        // If the form is already processing, violently stop any extra clicks!
-        if (form.getAttribute('data-is-submitting') === 'true') {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            return false;
-        }
-        
-        // Lock the form on the very first click!
-        form.setAttribute('data-is-submitting', 'true');
-        const originalText = submitBtn.innerHTML;
-        
-        // Give the user a visual cue that it is saving
-        submitBtn.style.opacity = '0.5';
-        submitBtn.innerHTML = 'Processing...';
-        
-        // Auto-unlock after 2.5 seconds (Safety fallback in case of internet/database delay)
-        setTimeout(() => {
-            form.removeAttribute('data-is-submitting');
-            submitBtn.style.opacity = '1';
-            submitBtn.innerHTML = originalText;
-        }, 2500);
-    }
-}, { capture: true });
+    // Clean up the DOM after the animation finishes (600ms)
+    setTimeout(() => {
+        circle.remove();
+    }, 600);
+});

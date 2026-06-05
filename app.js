@@ -97,32 +97,6 @@ window.addEventListener('beforeunload', (event) => {
     }
 });
 
-// --- ENTERPRISE UPGRADE: SMART PINCH-TO-ZOOM ENGINE (V3 BULLETPROOF) ---
-// Unlocks native mobile zoom ONLY when looking at a PDF, and locks it back to protect the app UI!
-const setupSmartZoom = () => {
-    let meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) return;
-
-    let zoomTimeout;
-    const zoomObserver = new MutationObserver(() => {
-        // 🚨 ENTERPRISE FIX: Debounce the heavy DOM query!
-        // This prevents the CPU from melting by waiting 150ms for animations/typing to stop before scanning.
-        clearTimeout(zoomTimeout);
-        zoomTimeout = setTimeout(() => {
-            const isViewerOpen = document.querySelector('.open[id*="view"], .open[id*="preview"], .open[id*="report"], .open[id*="pdf"], .open[id*="doc"], .active-screen[id*="view"], .active-screen[id*="preview"], .active-screen[id*="report"], .active-screen[id*="pdf"], .active-screen[id*="doc"]');
-            
-            if (isViewerOpen) {
-                meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes');
-            } else {
-                meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-            }
-        }, 150); 
-    });
-
-    // Watch the whole app for screens opening and closing
-    zoomObserver.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class'] });
-};
-setupSmartZoom();
 
 // --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT BANNER ---
 const updateNetworkStatus = () => {
@@ -207,10 +181,12 @@ document.addEventListener('input', (e) => {
         }
 
         if (isValid) {
+            submitBtn.disabled = false; // Add this!
             submitBtn.style.opacity = '1';
             submitBtn.style.filter = 'grayscale(0%)';
             submitBtn.style.transform = 'scale(1)';
         } else {
+            submitBtn.disabled = true; // Add this!
             submitBtn.style.opacity = '0.7';
             submitBtn.style.filter = 'grayscale(100%)';
             submitBtn.style.transform = 'scale(0.98)';
@@ -343,6 +319,51 @@ const app = {
     },
 
     // ==========================================
+    // ENTERPRISE UPGRADE: NATIVE CONTACT PICKER
+    // ==========================================
+    importContact: async () => {
+        // Hardware support check
+        const supported = ('contacts' in navigator && 'ContactsManager' in window);
+        if (!supported) {
+            if (window.Utils) window.Utils.showToast("⚠️ Contact import is not supported on this device/browser.");
+            return;
+        }
+        
+        try {
+            const props = ['name', 'tel'];
+            const opts = { multiple: false };
+            const contacts = await navigator.contacts.select(props, opts);
+            
+            if (contacts && contacts.length > 0) {
+                const contact = contacts[0];
+                
+                if (contact.name && contact.name.length > 0) {
+                    const nameEl = document.getElementById('ledger-name');
+                    if (nameEl) {
+                        nameEl.value = contact.name[0];
+                        nameEl.dispatchEvent(new Event('input', { bubbles: true })); // Trigger listeners
+                    }
+                }
+                
+                if (contact.tel && contact.tel.length > 0) {
+                    const phoneEl = document.getElementById('ledger-phone');
+                    if (phoneEl) {
+                        // Clean up the phone number (removes spaces, hyphens, and parentheses)
+                        let cleanPhone = contact.tel[0].replace(/[\s\-\(\)]/g, '');
+                        phoneEl.value = cleanPhone;
+                        phoneEl.dispatchEvent(new Event('input', { bubbles: true })); // Trigger listeners
+                    }
+                }
+                
+                if (window.Utils) window.Utils.showToast("✅ Contact imported successfully!");
+                if (window.UI) window.UI.triggerHaptic('medium');
+            }
+        } catch (err) {
+            console.log("Contact import cancelled or failed:", err);
+        }
+    },
+
+    // ==========================================
     // ENTERPRISE UX: DASHBOARD QUICK LINKS
     // ==========================================
     viewFilteredSales: (status) => {
@@ -430,6 +451,12 @@ const app = {
             
             await app.loadAllData(); 
             app.setupForms();
+            
+            // ENTERPRISE UPGRADE: Hardware Contact Picker Check
+            if ('contacts' in navigator && 'ContactsManager' in window) {
+                const importBtn = document.getElementById('btn-import-contact');
+                if (importBtn) importBtn.style.display = 'flex';
+            }
             
             // ENTERPRISE FIX: Order of Operations is Critical!
             // The Splash Screen MUST hide, and Filters MUST apply BEFORE the Dashboard renders!
@@ -1469,13 +1496,13 @@ const app = {
 
             // 🚨 ENTERPRISE FIX: Drop "To Pay/Receive" to a new line as a beautiful badge so long Party Names don't get squished!
             if (partyType === 'Customer') {
-                if (bal > 0.01) { balText = `Closing Balance: \u20B9${bal.toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#fff0f2; color:var(--md-error); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(186,26,26,0.2);">TO RECEIVE</span>`; balColor = 'var(--md-error)'; }
-                else if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#e8f5e9; color:var(--md-success); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(20,108,46,0.2);">ADVANCE</span>`; balColor = 'var(--md-success)'; }
-                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#f1f5f9; color:var(--md-text-muted); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(100,116,139,0.2);">SETTLED</span>`; balColor = 'var(--md-on-surface)'; }
+                if (bal > 0.01) { balText = `Closing Balance: \u20B9${bal.toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO RECEIVE</span>`; balColor = '#ef4444'; }
+                else if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#16a34a; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = '#22c55e'; }
+                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = '#94a3b8'; }
             } else {
-                if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#fff0f2; color:var(--md-error); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(186,26,26,0.2);">TO PAY</span>`; balColor = 'var(--md-error)'; }
-                else if (bal > 0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#e8f5e9; color:var(--md-success); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(20,108,46,0.2);">ADVANCE</span>`; balColor = 'var(--md-success)'; }
-                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#f1f5f9; color:var(--md-text-muted); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(100,116,139,0.2);">SETTLED</span>`; balColor = 'var(--md-on-surface)'; }
+                if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO PAY</span>`; balColor = '#ef4444'; }
+                else if (bal > 0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#16a34a; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = '#22c55e'; }
+                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = '#94a3b8'; }
             }
             
             // 🚀 Execute the precise FIFO Tax-Split mathematically for the internal Ledger screen!
@@ -1543,7 +1570,7 @@ const app = {
             UI.renderVirtualList(timelineContainer, statement.timeline, (t) => {
                 const isPayment = !t.isInvoice && t.id !== 'open-bal';
                 const icon = t.id === 'open-bal' ? 'account_balance' : (isPayment ? 'payments' : 'receipt_long');
-                const iconBg = t.id === 'open-bal' ? '#e3f2fd' : (isPayment ? '#e8f5e9' : '#fff0f2');
+                const iconBg = t.id === 'open-bal' ? 'rgba(0, 97, 164, 0.1)' : (isPayment ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)');
                 const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPayment ? '#2e7d32' : '#ba1a1a');
                 const amtColor = t.isInvoice ? 'var(--md-error)' : 'var(--md-success)';
                 
@@ -1732,7 +1759,7 @@ const app = {
             UI.renderVirtualList(timelineContainer, timeline, (t) => {
                 const isPaymentOut = t.impact < 0;
                 const icon = t.id === 'open-bal' ? 'account_balance' : (isPaymentOut ? 'arrow_upward' : 'arrow_downward');
-                const iconBg = t.id === 'open-bal' ? '#e3f2fd' : (isPaymentOut ? '#fff0f2' : '#e8f5e9');
+                const iconBg = t.id === 'open-bal' ? 'rgba(0, 97, 164, 0.1)' : (isPaymentOut ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
                 const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPaymentOut ? '#ba1a1a' : '#2e7d32');
                 const amtColor = isPaymentOut ? 'var(--md-error)' : 'var(--md-success)';
                 const sign = isPaymentOut ? '-' : '+';
@@ -1837,11 +1864,12 @@ const app = {
                         <div style="flex: 1; padding-right: 8px; min-width: 0;">
                             <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
                             <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
+                            <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="number" inputmode="decimal" class="row-qty" value="0" min="0" max="${maxAllowable}" step="any" required oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: #fff0f2;">
+                                <input type="text" inputmode="none" class="row-qty" value="0" max="${maxAllowable}" required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: #fff0f2; cursor: pointer;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" required readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
+                                <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
@@ -2043,6 +2071,9 @@ const app = {
             if (type === 'sales' || type === 'purchase') {
                 document.getElementById(`${type}-items-body`).innerHTML = '';
                 
+                // 🚨 ENTERPRISE UPGRADE: Load Smart Chips dynamically when form opens!
+                if (type === 'sales' && window.UI && window.UI.loadSmartChips) window.UI.loadSmartChips();
+
                 // NEW: Prepare Custom Fields for Sales Form
                 if (type === 'sales') {
                     const firmData = await getRecordById('businessProfile', app.state.firmId);
@@ -2266,11 +2297,12 @@ const app = {
                         <div style="flex: 1; padding-right: 8px; min-width: 0;">
                             <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
                             ${maxLabel}
+                            <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="number" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} required oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface);">
+                                <input type="text" inputmode="none" class="row-qty" value="${item.qty}" ${maxHtml} required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); cursor: pointer;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="number" inputmode="decimal" class="row-rate" value="${item.rate}" step="any" required ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface);'}">
+                                <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required ${record.documentType === 'return' ? 'readonly' : `readonly onclick="UI.openNumpad(this, 'Rate')"`} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); cursor: pointer;'}">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
@@ -2614,7 +2646,7 @@ const app = {
                     // ENTERPRISE FIX: The "Negative Invoice" Embezzlement Shield!
                     // Prevent malicious users from typing a flat discount larger than the subtotal to create a negative invoice and steal money!
                     const checkSubtotal = parseFloat(document.getElementById(`${type}-subtotal`).innerText.replace(/[^\d.-]/g, '')) || 0;
-                    const checkDiscount = Math.abs(parseFloat(document.getElementById(`${type}-discount`).value) || 0);
+                    const checkDiscount = Math.abs(parseFloat((document.getElementById(`${type}-discount`) || {}).value) || 0);
                     if (discTypeEl && discTypeEl.value === '\u20B9' && checkDiscount > checkSubtotal) {
                         alert("Error: Flat discount cannot be greater than the subtotal! This creates an illegal negative invoice.");
                         throw new Error("Discount exceeds subtotal.");
@@ -2678,17 +2710,21 @@ const app = {
                             window.AppCache[storeName] = null;
                         }
 
-                        // ==========================================
-                        // ENTERPRISE UPGRADE 4: SPLIT-TENDER ENGINE
-                        // ==========================================
-                        // 🚨 CRITICAL FIX: Fixed the typo ('sale' -> 'sales') so the Split Tender modal actually opens!
-                        if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled') {
-                            const splitConfirmed = await new Promise(async (resolve) => {
-                                const total = parseFloat(data.grandTotal) || 0;
-                                const existing = document.getElementById('split-tender-modal');
-                                if (existing) existing.remove();
-
-                                // 🚨 CRITICAL FIX: Fetch actual Bank Accounts to inject into the modal!
+// ==========================================
+// ENTERPRISE UPGRADE 4: SPLIT-TENDER ENGINE
+// ==========================================
+// 🚨 BIZOPS FIX: Only show the Payment Screen for BRAND NEW invoices. If we are editing, skip it!
+if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' && !app.state.currentEditId) {
+    const splitConfirmed = await new Promise(async (resolve) => {
+                            const total = parseFloat(data.grandTotal) || 0;
+                            
+                            // Safely wipe any stuck blurry overlays from the screen
+                            const existingModal = document.getElementById('split-tender-modal');
+                            if (existingModal) existingModal.remove();
+                            const existingOverlay = document.getElementById('split-overlay');
+                            if (existingOverlay) existingOverlay.remove();
+                            
+                            // 🚨 CRITICAL FIX: Fetch actual Bank Accounts to inject into the modal!
                                 const allAccs = await window.getAllRecords('accounts', 'firmId', app.state.firmId);
                                 let bankOptions = allAccs.filter(a => a.id !== 'cash').map(a => `<option value="${a.id}">${a.name}</option>`).join('');
                                 if (!bankOptions) bankOptions = `<option value="cash">Default Bank / Cash</option>`;
@@ -2714,7 +2750,7 @@ const app = {
                                                 </select>
                                             </div>
                                         </div>
-                                        <div style="background: #fff0f2; padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
+                                        <div style="background: rgba(186, 26, 26, 0.1); padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
                                             <span style="color: var(--md-error); font-weight: 900; font-size: 14px; letter-spacing: 0.5px;">PENDING CREDIT:</span>
                                             <span id="split-credit" style="color: var(--md-error); font-size: 24px; font-weight: 900;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                                         </div>
@@ -2755,7 +2791,14 @@ const app = {
 
                             if (!splitConfirmed) {
                                 if (window.Utils) window.Utils.showToast("⚠️ Save Cancelled.");
-                                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                                // 🚨 CRITICAL FIX: Unlock the form so the user can click Save again!
+                                form.removeAttribute('data-is-submitting');
+                                if (submitBtn) { 
+                                    submitBtn.disabled = false; 
+                                    submitBtn.innerText = originalText; 
+                                    submitBtn.style.opacity = "1"; 
+                                    submitBtn.classList.remove('btn-loading');
+                                }
                                 return; 
                             }
 
@@ -2844,13 +2887,20 @@ const app = {
                         alert("An error occurred while saving. Please try again.");
                     } finally {
                         // STRICT ERP LOGIC 3: THE ANIMATION SHIELD
-                        // Do NOT unlock the button instantly! Wait 400ms so the CSS slide-down animation 
-                        // finishes completely, making it physically impossible to double-click.
+                        // Wait 400ms so the CSS slide-down animation finishes completely.
+                        // Properly reset all visual and pointer states natively!
                         if (submitBtn) {
                             setTimeout(() => {
                                 submitBtn.disabled = false;
                                 submitBtn.innerText = originalText; 
                                 submitBtn.style.opacity = "1";
+                                submitBtn.style.pointerEvents = "auto";
+                                submitBtn.classList.remove('btn-loading');
+                                
+                                // Failsafe to restore the icon if original text was lost
+                                if (submitBtn.innerText.includes('Saving')) {
+                                    submitBtn.innerHTML = `Save <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
+                                }
                             }, 400); 
                         }
                     }
@@ -4093,10 +4143,10 @@ const app = {
                     <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; border-top: 1px solid #475569;">
                         <thead>
                             <tr style="background: #f1f5f9;">
-                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 5%; text-align: center;">#</th>
-                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 45%;">Document No.</th>
-                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 25%; text-align: center;">Date</th>
-                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; width: 25%; text-align: right;">Invoice Total</th>
+                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 5%; text-align: center; color: #0f172a;">#</th>
+                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 45%; color: #0f172a;">Document No.</th>
+                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 25%; text-align: center; color: #0f172a;">Date</th>
+                                <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; width: 25%; text-align: right; color: #0f172a;">Invoice Total</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -4149,21 +4199,8 @@ const app = {
             </table>`;
         }
 
-        // ENTERPRISE UPGRADE: Indian Rupee Number-to-Words Engine
-        const numToWords = (num) => {
-            const a = ['','One ','Two ','Three ','Four ', 'Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
-            const b = ['', '', 'Twenty','Thirty','Forty','Fifty', 'Sixty','Seventy','Eighty','Ninety'];
-            const n = ('000000000' + Math.floor(num)).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-            if (!n) return '';
-            let str = '';
-            str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
-            str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
-            str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
-            str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
-            str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
-            return str.trim() ? "Rupees " + str.trim() + " Only" : "";
-        };
-        const amountInWords = numToWords(parseFloat(receipt.amount) || 0);
+        // ENTERPRISE UPGRADE: Sync to the main Utils engine to properly calculate Paise!
+        const amountInWords = window.Utils && window.Utils.numberToWords ? window.Utils.numberToWords(parseFloat(receipt.amount) || 0) : "Rupees " + parseFloat(receipt.amount).toFixed(2);
         
         // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Receipt!
         const uniquePdfId = 'pdf-receipt-' + Date.now();
@@ -4201,12 +4238,12 @@ const app = {
                     <div style="width: 45%;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 12px; height: 100%; table-layout: fixed; word-wrap: break-word;">
                             <tr>
-                                <td style="padding: 10px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; width: 50%; overflow: hidden;"><strong>Receipt No:</strong><br><span style="font-size: 13px; font-weight: 700; display: block; word-wrap: break-word;">${safeDocNo}</span></td>
-                                <td style="padding: 10px; border-bottom: 1px solid #475569; overflow: hidden;"><strong>Date:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word;">${window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(receipt.date) : receipt.date}</span></td>
+                                <td style="padding: 10px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; width: 50%; overflow: hidden; color: #0f172a;"><strong>Receipt No:</strong><br><span style="font-size: 13px; font-weight: 700; display: block; word-wrap: break-word; color: #0f172a;">${safeDocNo}</span></td>
+                                <td style="padding: 10px; border-bottom: 1px solid #475569; overflow: hidden; color: #0f172a;"><strong>Date:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word; color: #0f172a;">${window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(receipt.date) : receipt.date}</span></td>
                             </tr>
                             <tr>
-                                <td style="padding: 10px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; overflow: hidden;"><strong>Mode:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word;">${receipt.mode || 'Cash'}</span></td>
-                                <td style="padding: 10px; border-bottom: 1px solid #475569; overflow: hidden;"><strong>Ref:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word;">${receipt.ref || '-'}</span></td>
+                                <td style="padding: 10px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; overflow: hidden; color: #0f172a;"><strong>Mode:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word; color: #0f172a;">${receipt.mode || 'Cash'}</span></td>
+                                <td style="padding: 10px; border-bottom: 1px solid #475569; overflow: hidden; color: #0f172a;"><strong>Ref:</strong><br><span style="font-weight: 600; display: block; word-wrap: break-word; color: #0f172a;">${receipt.ref || '-'}</span></td>
                             </tr>
                         </table>
                     </div>
@@ -4301,11 +4338,8 @@ const app = {
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('${uniquePdfId}', '${safeFilename}', 'Here is your ${title}.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
-                    </div>
                     <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                     </div>
                 </div>
             </div>
@@ -4532,7 +4566,7 @@ const app = {
                 html += `
                 <div class="m3-card" style="padding: 12px; border-left: 4px solid ${profitColor};">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                        <strong style="color: #1a1c1e; font-size: 14px;">${item.name}</strong>
+                        <strong style="color: var(--md-on-surface); font-size: 14px;">${item.name}</strong>
                         <strong style="color: ${profitColor}; font-size: 15px;">${profitSign}₹${item.profit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
                     </div>
                     <div style="display:flex; justify-content:space-between; font-size: 11px; color: var(--md-text-muted);">
@@ -4634,11 +4668,11 @@ const app = {
                 html += `
                 <div class="m3-card" style="padding: 12px; border-left: 4px solid var(--md-error);">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
-                        <strong style="color: #1a1c1e; font-size: 15px;">${cat}</strong>
+                        <strong style="color: var(--md-on-surface); font-size: 15px;">${cat}</strong>
                         <strong style="color: var(--md-error); font-size: 16px;">₹${amt.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
                     </div>
                     <div style="display:flex; align-items:center; gap: 8px;">
-                        <div style="flex:1; height: 6px; background: #ffe4e6; border-radius: 3px; overflow: hidden;">
+                        <div style="flex:1; height: 6px; background: rgba(186, 26, 26, 0.15); border-radius: 3px; overflow: hidden;">
                             <div style="width: ${percentage}%; height: 100%; background: var(--md-error);"></div>
                         </div>
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight:bold;">${percentage}%</span>
@@ -4679,7 +4713,7 @@ const app = {
                     <div class="m3-card" style="padding: 12px; border-left: 4px solid #f59e0b;">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
                             <div>
-                                <strong style="color: #1a1c1e; font-size: 15px; display:block;">${i.name}</strong>
+                                <strong style="color: var(--md-on-surface); font-size: 15px; display:block;">${i.name}</strong>
                                 <small style="color: var(--md-error); font-weight:bold;">Current Stock: ${currentStock} ${i.uom || ''}</small>
                             </div>
                             <div style="text-align:right;">
@@ -5257,7 +5291,7 @@ window.triggerKhataReport = async () => {
                 <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant);" 
                      onclick="window.executeKhataReport('${p.id}', '${(p.name || 'Unknown').replace(/'/g, "\\'")}', '${p.type}'); this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: ${String(p.type).toLowerCase() === 'customer' ? '#e3f2fd' : '#fff0f2'}; color: ${String(p.type).toLowerCase() === 'customer' ? '#0061a4' : '#ba1a1a'}; box-shadow: none;">
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: ${String(p.type).toLowerCase() === 'customer' ? 'rgba(0, 97, 164, 0.1)' : 'rgba(186, 26, 26, 0.1)'}; color: ${String(p.type).toLowerCase() === 'customer' ? '#42a5f5' : 'var(--md-error)'}; box-shadow: none;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">${String(p.type).toLowerCase() === 'customer' ? 'person' : 'storefront'}</span>
                         </div>
                         <strong style="font-size: 15px;">${p.name || 'Unknown'}</strong>
@@ -5422,16 +5456,16 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
     
     // STRICT ERP LOGIC: Professional Status Pill Generator
     let finalBalStatus = 'Settled';
-    let statusBg = '#e8f5e9'; // Soft Green
-    let statusColor = '#146c2e'; // Dark Green
+    let statusBg = 'rgba(100, 116, 139, 0.1)'; // Transparent Gray
+    let statusColor = 'var(--md-text-muted)'; // Dark Gray
 
     if (String(partyType).toLowerCase() === 'customer') {
-        if (runBal > 0.01) { finalBalStatus = 'Due to Receive (Dr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
-        else if (runBal < -0.01) { finalBalStatus = 'Advance Received (Cr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
+        if (runBal > 0.01) { finalBalStatus = 'Due to Receive (Dr)'; statusBg = 'rgba(186, 26, 26, 0.1)'; statusColor = 'var(--md-error)'; }
+        else if (runBal < -0.01) { finalBalStatus = 'Advance Received (Cr)'; statusBg = 'rgba(0, 97, 164, 0.1)'; statusColor = 'var(--md-primary)'; }
     } else {
         // 🚨 ENTERPRISE FIX: Supplier debt is a Liability (Negative). We must invert the math!
-        if (runBal < -0.01) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = '#fff0f2'; statusColor = '#ba1a1a'; }
-        else if (runBal > 0.01) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = '#e3f2fd'; statusColor = '#0061a4'; }
+        if (runBal < -0.01) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = 'rgba(186, 26, 26, 0.1)'; statusColor = 'var(--md-error)'; }
+        else if (runBal > 0.01) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = 'rgba(0, 97, 164, 0.1)'; statusColor = 'var(--md-primary)'; }
     }
 
     // 🚀 ENTERPRISE GST SPLIT ENGINE FOR KHATA STATEMENT PDF
@@ -5552,16 +5586,11 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                 <strong style="font-size: 18px;">Ledger Statement</strong>
             </div>
             
+            <!-- 🚨 BIZOPS FIX: Unified PDF button to show EXACT Document Preview -->
             <div style="display: flex; align-items: center; gap: 12px;">
-                
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('khata-render-target', '${safeFilename}', 'Here is your Ledger Statement.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
-                </div>
-
                 <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('khata-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                 </div>
-
             </div>
         </div>
         <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
@@ -5770,7 +5799,7 @@ window.executeAccountReport = async (accountId) => {
             <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${runBal >= 0 ? '#146c2e' : '#ba1a1a'}; display: inline-block; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Available Balance</span><br>
                 <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px;">₹ ${finalBalText}</strong>
-                <span style="background: ${runBal >= 0 ? '#e8f5e9' : '#fff0f2'}; color: ${runBal >= 0 ? '#146c2e' : '#ba1a1a'}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${runBal >= 0 ? '#146c2e40' : '#ba1a1a40'}; display: inline-block;">${runBal >= 0 ? 'Surplus / In-Hand' : 'Overdrawn'}</span>
+                <span style="background: ${runBal >= 0 ? '#16a34a' : '#dc2626'}; color: #ffffff; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 900; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); display: inline-block;">${runBal >= 0 ? 'Surplus / In-Hand' : 'Overdrawn'}</span>
             </div>
         </div>
     </div>`;
@@ -5798,12 +5827,10 @@ window.executeAccountReport = async (accountId) => {
                 <strong style="font-size: 18px;">Account Statement</strong>
             </div>
             
+            <!-- 🚨 BIZOPS FIX: Unified PDF button to show EXACT Document Preview -->
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.sharePDF('account-render-target', '${safeFilename}', 'Here is your Bank Statement.')" style="width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
-                </div>
                 <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('account-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                 </div>
             </div>
         </div>
@@ -6006,7 +6033,7 @@ new MutationObserver((mutations) => {
                     
                     const badge = document.createElement('div');
                     badge.className = 'last-sold-badge';
-                    badge.style.cssText = 'display: inline-block; background: #f0f8ff; color: #0061a4; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; margin-top: 6px; border: 1px solid #c2e0ff; box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
+                    badge.style.cssText = 'display: inline-block; background: rgba(0, 97, 164, 0.1); color: #42a5f5; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; margin-top: 6px; border: 1px solid rgba(0, 97, 164, 0.3); box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
                     badge.innerHTML = `<span class="material-symbols-outlined" style="font-size:12px; vertical-align:text-bottom; margin-right:4px;">history</span>Last sold: ₹${lastRate} on ${fDate}`;
                     
                     const nameEl = node.querySelector('strong');
@@ -6260,8 +6287,10 @@ document.addEventListener('input', (e) => {
         }
 
         try {
-            // 🚨 ENTERPRISE CPU SAVER: Only scan the massive database arrays if the Customer actually changed!
-            if (cachedPartyId !== partyId) {
+            const currentEditId = window.app.state.currentEditId; // 🚨 Fix 1: Track active edits!
+            
+            // 🚨 ENTERPRISE CPU SAVER: Only scan the massive database arrays if the Customer or Edit State changed!
+            if (cachedPartyId !== partyId || window.lastCachedEditId !== currentEditId) {
                 const rawData = window.UI && window.UI.state ? window.UI.state.rawData : null;
                 if (!rawData || !rawData.ledgers) return;
 
@@ -6271,6 +6300,7 @@ document.addEventListener('input', (e) => {
                 cachedTrueBalance = 0;
                 cachedOldestDueDays = 0;
                 const today = new Date();
+                const activeFirmId = window.app.state.firmId; // 🚨 Fix 2: Firm Isolation!
 
                 let ob = parseFloat(party.openingBalance) || 0;
                 const balType = (party.balanceType || '').toLowerCase();
@@ -6287,7 +6317,8 @@ document.addEventListener('input', (e) => {
 
                 if (partyType === 'Customer') {
                     sales.forEach(s => {
-                        if (s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled') {
+                        // 🚨 FIX 3: Enforce Firm ID and SKIP the currently open invoice so it doesn't double-count!
+                        if (s.firmId === activeFirmId && s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.id !== currentEditId) {
                             cachedTrueBalance += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
                             if (s.status !== 'Completed' && s.documentType !== 'return') {
                                 const ageDays = Math.floor((today - window.Utils.safeDate(s.date)) / (1000 * 60 * 60 * 24));
@@ -6297,7 +6328,7 @@ document.addEventListener('input', (e) => {
                     });
                 } else {
                     purchases.forEach(p => {
-                        if (p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled') {
+                        if (p.firmId === activeFirmId && p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled' && p.id !== currentEditId) {
                             cachedTrueBalance += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
                             if (p.status !== 'Completed' && p.documentType !== 'return') {
                                 const ageDays = Math.floor((today - window.Utils.safeDate(p.date)) / (1000 * 60 * 60 * 24));
@@ -6308,7 +6339,7 @@ document.addEventListener('input', (e) => {
                 }
 
                 allReceipts.forEach(r => {
-                    if (r.ledgerId === partyId || r.accountId === partyId) {
+                    if (r.firmId === activeFirmId && (r.ledgerId === partyId || r.accountId === partyId)) {
                         if (partyType === 'Customer') {
                             cachedTrueBalance += (r.type === 'in' ? -parseFloat(r.amount || 0) : parseFloat(r.amount || 0));
                         } else {
@@ -6318,6 +6349,7 @@ document.addEventListener('input', (e) => {
                 });
 
                 cachedPartyId = partyId; // Lock the cache
+                window.lastCachedEditId = currentEditId; // Lock the edit state
             }
 
             // Calculate Projected Balance instantly using the cached math!
@@ -6441,24 +6473,332 @@ setInterval(() => {
 // 🚨 ENTERPRISE UPGRADE: BACKGROUND BATTERY HIBERNATION
 // ==========================================
 // Halts all CPU-intensive mathematical loops when the app is minimized, saving massive amounts of battery!
+// ==========================================
+// 🚨 ENTERPRISE SECURITY: HIBERNATION & PRIVACY BLUR
+// ==========================================
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
-        // App is minimized -> Freeze the CPU
         window.isHibernating = true;
-        console.log("❄️ App Minimized: CPU Engines Hibernating to save battery.");
+        // 🚨 PRIVACY SHIELD: Blur the screen instantly so financial data is hidden in the OS App-Switcher!
+        document.body.style.filter = 'blur(12px) grayscale(100%)';
+        document.body.style.transition = 'filter 0.1s ease';
+        document.body.style.pointerEvents = 'none';
     } else {
-        // App is opened -> Wake up the CPU
         window.isHibernating = false;
-        console.log("🔥 App Active: CPU Engines Awake.");
+        // Restore clarity the moment they re-enter the app
+        document.body.style.filter = 'none';
+        document.body.style.pointerEvents = 'auto';
     }
 });
 
-// Update the native setInterval functions to respect the Hibernation Lock
+// Update the native setInterval functions to respect the Hibernation Lock safely!
 const originalSetInterval = window.setInterval;
-window.setInterval = function(callback, delay) {
-    return originalSetInterval(() => {
+window.setInterval = function(callback, delay, ...args) {
+    return originalSetInterval((...intervalArgs) => {
         if (!window.isHibernating) {
-            callback();
+            // 🚨 ENTERPRISE FIX: Protect against legacy string-based intervals!
+            if (typeof callback === 'function') {
+                callback(...intervalArgs);
+            } else if (typeof callback === 'string') {
+                eval(callback);
+            }
         }
-    }, delay);
+    }, delay, ...args);
 };
+// ==========================================
+// 🚨 ENTERPRISE SECURITY: LIVE NETWORK RADAR
+// ==========================================
+window.addEventListener('offline', () => {
+    if (window.Utils && window.Utils.showToast) {
+        window.Utils.showToast("📶 You are offline. Don't worry, data will save safely on your device!");
+    }
+});
+
+window.addEventListener('online', () => {
+    if (window.Utils && window.Utils.showToast) {
+        window.Utils.showToast("🟢 Back Online! Cloud sync restored.");
+        // Automatically trigger a background backup to Drive now that internet is back!
+        if (typeof executeBackgroundBackup === 'function') {
+            setTimeout(executeBackgroundBackup, 3000);
+        }
+    }
+});
+// ==========================================
+// 🚨 ENTERPRISE SECURITY: "DIRTY FORM" DATA LOSS SHIELD
+// ==========================================
+window.hasUnsavedData = false;
+
+// Watch for any typing inside forms
+document.addEventListener('input', (e) => {
+    if (e.target.closest('form')) window.hasUnsavedData = true;
+});
+
+// Clear the lock when they successfully hit Save
+document.addEventListener('submit', () => {
+    window.hasUnsavedData = false;
+});
+
+// Intercept the OS window close / back-swipe event!
+window.addEventListener('beforeunload', (e) => {
+    if (window.hasUnsavedData) {
+        e.preventDefault();
+        e.returnValue = "You have unsaved data! Are you sure you want to exit?";
+        return e.returnValue;
+    }
+});
+// ==========================================
+// 🚨 ENTERPRISE SECURITY: INACTIVITY PRIVACY LOCK
+// ==========================================
+let inactivityTimer;
+const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 Minutes of no touching
+
+const triggerPrivacyLock = () => {
+    // Prevent double-locking
+    if (document.getElementById('privacy-lock-screen')) return;
+    
+    const lock = document.createElement('div');
+    lock.id = 'privacy-lock-screen';
+    // Creates a gorgeous frosted-glass Apple-style blur over the whole app
+    lock.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.85); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.3s ease;';
+    
+    // Dark mode support for the lock screen
+    if (document.body.classList.contains('dark-mode')) {
+        lock.style.background = 'rgba(26,26,30,0.85)';
+        lock.style.color = '#ffffff';
+    }
+
+    lock.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-primary, #0061a4); margin-bottom: 16px;">lock</span>
+        <h2 style="margin:0; font-family: 'Inter', sans-serif; font-weight: 900; letter-spacing: 0.5px;">App Locked</h2>
+        <p style="color: var(--md-text-muted, #475569); margin-top:8px; font-family: 'Inter', sans-serif; font-size: 14px;">Hidden for your financial privacy.</p>
+        <button id="btn-unlock-app" style="margin-top:32px; background: var(--md-primary, #0061a4); color:#fff; border:none; padding:14px 36px; border-radius:24px; font-size:16px; font-weight:bold; box-shadow:0 8px 16px rgba(0,0,0,0.15); cursor:pointer;">Unlock Application</button>
+    `;
+    
+    document.body.appendChild(lock);
+    if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50); // Small haptic bump
+    
+    // Unlock button logic
+    document.getElementById('btn-unlock-app').onclick = function() {
+        lock.style.opacity = '0';
+        setTimeout(() => { lock.remove(); resetInactivityTimer(); }, 300);
+    };
+};
+
+const resetInactivityTimer = () => {
+    clearTimeout(inactivityTimer);
+    // Only restart the countdown if the app isn't currently locked
+    if (!document.getElementById('privacy-lock-screen')) {
+        inactivityTimer = setTimeout(triggerPrivacyLock, IDLE_TIMEOUT);
+    }
+};
+
+// Listen for physical screen interactions to keep the app awake
+['touchstart', 'click', 'scroll', 'keypress'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
+resetInactivityTimer(); // Start the engine on boot
+
+
+// ==========================================
+// 🚨 ENTERPRISE UX: ANDROID "DOUBLE-TAP" EXIT SHIELD
+// ==========================================
+let lastBackPressTime = 0;
+
+// Push a fake invisible history state on boot so the phone has something to intercept!
+if (window.history.length === 1 || window.history.length === 2) {
+    window.history.pushState({ page: 'sollo-dashboard' }, "", "");
+}
+
+window.addEventListener('popstate', (e) => {
+    const currentTime = new Date().getTime();
+    
+    // If they press the hardware back button twice within 2 seconds, let the app close!
+    if (currentTime - lastBackPressTime < 2000) {
+        return; 
+    }
+
+    // 🚨 FIRST SWIPE: Block the exit, show a toast, and push the state forward again!
+    lastBackPressTime = currentTime;
+    window.history.pushState({ page: 'sollo-dashboard' }, "", "");
+    
+    if (window.Utils && window.Utils.showToast) {
+        window.Utils.showToast("Tap BACK again to exit app");
+    }
+});
+// ==========================================
+// 🚨 ENTERPRISE GROWTH: CUSTOM PWA INSTALL ENGINE
+// ==========================================
+window.deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    window.deferredInstallPrompt = e;
+    
+    // Create a beautiful, native-looking install banner
+    if (!document.getElementById('pwa-install-banner')) {
+        const banner = document.createElement('div');
+        banner.id = 'pwa-install-banner';
+        banner.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:90%; max-width:400px; background:var(--md-primary, #0061a4); color:#fff; padding:16px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.25); display:flex; justify-content:space-between; align-items:center; z-index:999999; font-family:sans-serif;';
+        
+        banner.innerHTML = `
+            <div>
+                <strong style="display:block; font-size:14px; margin-bottom:4px;">Install SOLLO ERP</strong>
+                <span style="font-size:12px; opacity:0.9;">Add to home screen for offline access</span>
+            </div>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <span id="btn-close-install" style="font-size:12px; font-weight:bold; opacity:0.8; cursor:pointer; padding:8px;">Later</span>
+                <button id="btn-trigger-install" style="background:#fff; color:var(--md-primary, #0061a4); border:none; padding:8px 16px; border-radius:20px; font-weight:bold; font-size:12px; cursor:pointer;">Install</button>
+            </div>
+        `;
+        document.body.appendChild(banner);
+
+        document.getElementById('btn-close-install').onclick = () => banner.remove();
+        
+        document.getElementById('btn-trigger-install').onclick = async () => {
+            banner.remove();
+            if (window.deferredInstallPrompt) {
+                window.deferredInstallPrompt.prompt();
+                const { outcome } = await window.deferredInstallPrompt.userChoice;
+                console.log(`User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} the install prompt`);
+                window.deferredInstallPrompt = null;
+            }
+        };
+    }
+});
+
+// If the app is successfully installed, show a success toast!
+window.addEventListener('appinstalled', () => {
+    window.deferredInstallPrompt = null;
+    if (window.Utils && window.Utils.showToast) {
+        window.Utils.showToast("🚀 App installed successfully!");
+    }
+});
+// ==========================================
+// 🚨 ENTERPRISE UX: CORRUPT IMAGE AUTO-HEALER
+// ==========================================
+// If a logo or signature gets deleted from the phone's cache, this catches the network failure 
+// and gracefully hides the broken image icon so the UI remains perfectly clean!
+document.addEventListener('error', function(e) {
+    if (e.target.tagName && e.target.tagName.toLowerCase() === 'img') {
+        e.target.style.display = 'none'; // Instantly hide the broken element
+        console.warn('🛡️ UI Shield: Prevented a broken image from rendering on screen.');
+    }
+}, true); // The 'true' capture phase is strictly required to intercept resource loading errors!
+// ==========================================
+// 🚨 BIZOPS NATIVE THEME: HARDWARE BACK-BUTTON SHIELD
+// ==========================================
+// This intercepts the physical Android/iOS swipe-back gesture and destroys any 
+// full-screen overlays before the user gets permanently stuck!
+window.addEventListener('popstate', (e) => {
+    
+    // 1. Destroy stuck PDF Spooler Overlays
+    const pdfViewer = document.getElementById('in-app-pdf-viewer');
+    if (pdfViewer) {
+        pdfViewer.remove();
+        document.body.style.overflow = ''; // Release the scroll lock
+        const printArea = document.getElementById('print-area');
+        if (printArea) printArea.innerHTML = '';
+    }
+
+    // 2. Destroy stuck Database Restore Overlays
+    const restoreOverlay = document.getElementById('manual-restore-overlay');
+    if (restoreOverlay) {
+        restoreOverlay.remove();
+        document.body.style.overflow = ''; // Release the scroll lock
+    }
+
+    // 3. Close the custom Numpad if the user swipes back
+    if (window.UI && typeof window.UI.closeNumpad === 'function') {
+        window.UI.closeNumpad();
+    }
+});
+// ==========================================
+// 🚨 BIZOPS NATIVE THEME: DATA INTEGRITY MASKS
+// ==========================================
+// This global shield watches all inputs and automatically formats sensitive financial data 
+// without needing to rewrite any of your HTML forms!
+document.addEventListener('input', (e) => {
+    const target = e.target;
+    if (!target || !target.id) return;
+    
+    // 1. GSTIN Auto-Formatting: Forces Uppercase, max 15 chars, blocks invalid symbols instantly
+    if (target.id.toLowerCase().includes('gst')) {
+        const start = target.selectionStart; // Preserves cursor position so it doesn't jump!
+        target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 15);
+        // Only reset cursor if the element is currently focused
+        if (document.activeElement === target) {
+            target.setSelectionRange(start, start);
+        }
+    }
+    
+    // 2. Phone Number Formatting: Strips accidental letters, limits to 10 digits
+    if (target.id.toLowerCase().includes('phone') || target.id.toLowerCase().includes('mobile')) {
+        // Only format if it's a text/tel input (avoids breaking strict <input type="number"> fields)
+        if (target.type !== 'number') {
+            target.value = target.value.replace(/[^0-9]/g, '').substring(0, 10);
+        }
+    }
+});
+// ==========================================
+// 🚨 BIZOPS NATIVE THEME: DASHBOARD PARALLAX SCROLLING
+// ==========================================
+// Adds a cinematic 3D depth effect to the Dashboard Hero section when scrolling
+const setupParallax = () => {
+    const mainContent = document.querySelector('.main-content');
+    // Targets the "Business Overview" header and the main stats card container
+    const dashHeader = document.querySelector('#tab-dashboard > div:first-child');
+    const dashStats = document.querySelector('#tab-dashboard > div:nth-child(2)');
+    
+    if (!mainContent || !dashStats) return;
+
+    mainContent.addEventListener('scroll', () => {
+        // Only apply 3D physics if the user is actively viewing the Home Dashboard
+        if (document.getElementById('tab-dashboard').classList.contains('active-screen')) {
+            const scrollY = mainContent.scrollTop;
+            
+            // Fade and push the elements down at half-speed to create a depth illusion
+            if (scrollY >= 0 && scrollY <= 300) {
+                if (dashHeader) {
+                    dashHeader.style.transform = `translateY(${scrollY * 0.6}px)`;
+                    dashHeader.style.opacity = 1 - (scrollY / 200);
+                }
+                dashStats.style.transform = `translateY(${scrollY * 0.4}px)`;
+                dashStats.style.opacity = 1 - (scrollY / 250);
+            }
+        }
+    }, { passive: true }); // passive: true ensures 120fps scrolling isn't blocked by the math
+};
+
+// Attach the engine safely after the app boots
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(setupParallax, 500);
+});
+// ==========================================
+// 🚨 BIZOPS NATIVE THEME: FLOATING LABEL ENGINE
+// ==========================================
+// Silently watches all form inputs. If they have text, it applies a 'has-value' lock
+document.addEventListener('input', (e) => {
+    const group = e.target.closest('.form-group');
+    if (group && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
+        if (e.target.value.trim() !== '' || e.target.type === 'file') group.classList.add('has-value');
+        else group.classList.remove('has-value');
+    }
+});
+
+// Auto-initialize existing values when the app opens or a form loads
+setInterval(() => {
+    document.querySelectorAll('.form-group input, .form-group textarea, .form-group select').forEach(el => {
+        const group = el.closest('.form-group');
+        if (group) {
+            // 🚨 ENTERPRISE FIX: Force labels to float for File Inputs (Logos/Signatures) so they NEVER overlap!
+            const hasImage = group.querySelector('img') && !group.querySelector('img').classList.contains('hidden');
+            if ((el.value && String(el.value).trim() !== '') || el.type === 'file' || hasImage) {
+                group.classList.add('has-value');
+            } else {
+                group.classList.remove('has-value');
+            }
+        }
+    });
+}, 500); // Runs a quick background sweep twice a second to catch dynamically loaded data
