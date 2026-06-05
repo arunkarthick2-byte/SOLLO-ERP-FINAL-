@@ -3,6 +3,26 @@
 // ==========================================
 
 // ==========================================
+// 🚨 ENTERPRISE FIX: MASTER STYLING SHIELD
+// ==========================================
+if (!document.getElementById('enterprise-master-fixes')) {
+    const style = document.createElement('style');
+    style.id = 'enterprise-master-fixes';
+    style.innerHTML = `
+        /* 1. Fix Business Profile Bottom Overlap */
+        #form-business-profile { padding-bottom: 90px !important; }
+        
+        /* 2. Fix Ledger Header Visibility */
+        #activity-report-viewer .activity-header { background: var(--md-primary) !important; color: #ffffff !important; border-bottom: none !important; }
+        #activity-report-viewer .activity-header .material-symbols-outlined,
+        #activity-report-viewer .activity-header strong,
+        #report-party-name,
+        #report-party-balance { color: #ffffff !important; }
+    `;
+    document.head.appendChild(style);
+}
+
+// ==========================================
 // 🚨 ENTERPRISE FIX: HIDDEN INPUT RESET SHIELD
 // ==========================================
 // Standard HTML ignores hidden fields when resetting forms. This forces all hidden IDs to wipe 
@@ -2070,9 +2090,6 @@ const app = {
 
             if (type === 'sales' || type === 'purchase') {
                 document.getElementById(`${type}-items-body`).innerHTML = '';
-                
-                // 🚨 ENTERPRISE UPGRADE: Load Smart Chips dynamically when form opens!
-                if (type === 'sales' && window.UI && window.UI.loadSmartChips) window.UI.loadSmartChips();
 
                 // NEW: Prepare Custom Fields for Sales Form
                 if (type === 'sales') {
@@ -2216,15 +2233,23 @@ const app = {
                 const el = document.getElementById(id);
                 if (el) {
                     el.value = val;
-                    if (el._flatpickr) el._flatpickr.setDate(val); // FIX: Sync Flatpickr
+                    if (el._flatpickr) {
+                        if (val) { el._flatpickr.setDate(val); }
+                        else { el._flatpickr.clear(); } // Safely clears empty dates
+                    }
                 }
             };
+            
+            // 🚨 ENTERPRISE FIX: Set status first and trigger UI BEFORE setting dates, so it doesn't overwrite saved history!
+            document.getElementById(`${type}-order-status`).value = record.status || 'Completed';
+            if (window.UI && window.UI.toggleDates) window.UI.toggleDates(type);
+
             setDateSafe(`${type}-date`, record.date || '');
             setDateSafe(`${type}-order-date`, record.orderDate || '');
             setDateSafe(`${type}-shipped-date`, record.shippedDate || '');
             setDateSafe(`${type}-completed-date`, record.completedDate || '');
+            
             document.getElementById(`${type}-order-no`).value = record.orderNo || '';
-            document.getElementById(`${type}-order-status`).value = record.status || 'Completed';
             document.getElementById(`${type}-freight`).value = record.freightAmount || 0;
             document.getElementById(`${type}-discount`).value = record.discount || 0;
             
@@ -2338,7 +2363,6 @@ const app = {
             }
 
             type === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
-            UI.toggleDates(type);
 
             // NEW: Fetch and Display all Linked Receipts / Vouchers
             const historyCard = document.getElementById(`${type}-payment-history-card`);
@@ -2659,14 +2683,27 @@ const app = {
                     const targetLedger = await getRecordById('ledgers', partyId);
                     const partyGst = targetLedger ? targetLedger.gst : '';
 
+                    // 🚨 ENTERPRISE FIX: Strict Status Engine
+                    // This mathematically guarantees that a "Shipped" invoice NEVER saves a "Completed" date!
+                    const currentStatus = document.getElementById(`${type}-order-status`).value;
+                    let safeShippedDate = document.getElementById(`${type}-shipped-date`).value;
+                    let safeCompletedDate = document.getElementById(`${type}-completed-date`).value;
+
+                    if (currentStatus === 'Open' || currentStatus === 'Unpaid') {
+                        safeShippedDate = '';
+                        safeCompletedDate = '';
+                    } else if (currentStatus === 'Shipped') {
+                        safeCompletedDate = '';
+                    }
+
                     const data = {
                         id: app.state.currentEditId || Utils.generateId(),
                         firmId: app.state.firmId,
                         documentType: app.state.currentDocType,
                         date: document.getElementById(`${type}-date`).value,
                         orderDate: document.getElementById(`${type}-order-date`).value,
-                        shippedDate: document.getElementById(`${type}-shipped-date`).value,
-                        completedDate: document.getElementById(`${type}-completed-date`).value,
+                        shippedDate: safeShippedDate,
+                        completedDate: safeCompletedDate,
                         
                         [type === 'sales' ? 'customerId' : 'supplierId']: partyId,
                         [type === 'sales' ? 'customerName' : 'supplierName']: document.getElementById(`${type}-${partyKey}-display`).innerText,
@@ -2675,7 +2712,7 @@ const app = {
                         invoiceNo: type === 'sales' ? document.getElementById('sales-invoice-no').value : (document.getElementById('purchase-po-no').value), 
                         poNo: type === 'purchase' ? document.getElementById('purchase-po-no').value : '',
                         orderNo: document.getElementById(`${type}-order-no`).value,
-                        status: document.getElementById(`${type}-order-status`).value,
+                        status: currentStatus,
                         freightAmount: parseFloat(document.getElementById(`${type}-freight`).value) || 0,
                         invoiceType: document.getElementById(`${type}-invoice-type`) ? document.getElementById(`${type}-invoice-type`).value : 'B2B',
                         
@@ -3472,8 +3509,7 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                                     // If the split manual payments + returns cover the grand total, mark as Completed
                                     if ((totalPaid + totalReturned) >= parseFloat(linkedInvoice.grandTotal) - 0.5) { 
                                         linkedInvoice.status = 'Completed';
-                                        // ENTERPRISE FIX: Lock the Invoice Completed Date to the EXACT date of this specific payment!
-                                        linkedInvoice.completedDate = data.date;
+                                        // 🚨 ENTERPRISE FIX: Stop forcefully overwriting the Completed Date! Let the user type it.
                                         await saveRecord(storeName, linkedInvoice);
                                     } else {
                                         // ENTERPRISE FIX: The Ghost Completion Shield!
@@ -3750,8 +3786,8 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
             if (finalBal <= 0.01) {
                 if (item.doc.status !== 'Completed') {
                     item.doc.status = 'Completed';
-                    // ENTERPRISE FIX: Inherit the exact back-dated Receipt Date so Cash Flow reports are perfect!
-                    item.doc.completedDate = triggerDate || ((typeof Utils !== 'undefined' && Utils.getLocalDate) ? Utils.getLocalDate() : '');
+                    // 🚨 ENTERPRISE FIX: We no longer force overwrite the Completed Date! 
+                    // Let the user decide when to input dates.
                     await saveRecord(storeName, item.doc);
                 }
             } else {
@@ -4758,7 +4794,7 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         
         const recentSales = sales.filter(s => s.firmId === app.state.firmId && s.status !== 'Open');
         // ENTERPRISE FIX: Sort Sales Invoices alphanumerically by Order/Invoice Number
-        recentSales.sort((a,b) => String(b.orderNo || b.invoiceNo || b.id).localeCompare(String(a.orderNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
+        recentSales.sort((a,b) => String(a.orderNo || a.invoiceNo || a.id).localeCompare(String(b.orderNo || b.invoiceNo || b.id), undefined, {numeric: true, sensitivity: 'base'}));
         
         // Take only the top 50 to prevent freezing the UI
         const slicedSales = recentSales.slice(0, 50);
@@ -4782,7 +4818,7 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         
         const recentPurch = purchases.filter(p => p.firmId === app.state.firmId && p.status !== 'Open');
         // ENTERPRISE FIX: Sort Purchase Bills alphanumerically by PO/Order Number
-        recentPurch.sort((a,b) => String(b.poNo || b.orderNo || b.invoiceNo || b.id).localeCompare(String(a.poNo || a.orderNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
+        recentPurch.sort((a,b) => String(a.orderNo || a.poNo || a.invoiceNo || a.id).localeCompare(String(b.orderNo || b.poNo || b.invoiceNo || b.id), undefined, {numeric: true, sensitivity: 'base'}));
         
         // Take only the top 50 to prevent freezing the UI
         const slicedPurch = recentPurch.slice(0, 50);
@@ -6792,9 +6828,13 @@ setInterval(() => {
     document.querySelectorAll('.form-group input, .form-group textarea, .form-group select').forEach(el => {
         const group = el.closest('.form-group');
         if (group) {
-            // 🚨 ENTERPRISE FIX: Force labels to float for File Inputs (Logos/Signatures) so they NEVER overlap!
+            // 🚨 ENTERPRISE FIX: Force labels to float for Files AND Date fields so they NEVER overlap!
             const hasImage = group.querySelector('img') && !group.querySelector('img').classList.contains('hidden');
-            if ((el.value && String(el.value).trim() !== '') || el.type === 'file' || hasImage) {
+            
+            // Detect if this is a calendar/date field
+            const isDateField = el.type === 'date' || el.classList.contains('flatpickr-input') || (el.id && el.id.includes('date'));
+            
+            if ((el.value && String(el.value).trim() !== '') || el.type === 'file' || isDateField || hasImage) {
                 group.classList.add('has-value');
             } else {
                 group.classList.remove('has-value');

@@ -179,3 +179,8 @@ self.addEventListener('sync', (event) => {
         );
     }
 });
+    'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js',
+    // 🚨 CRITICAL FIX: Cache the missing graphic engines so PDFs and Dashboards work offline!
+    'https://cdn.jsdelivr.net/npm/chart.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'

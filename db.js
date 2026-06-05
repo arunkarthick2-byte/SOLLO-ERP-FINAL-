@@ -12,6 +12,7 @@ try {
         if (event.data === 'FORCE_CLOSE_DB' && typeof db !== 'undefined' && db) {
             console.warn("⚠️ Closing database connection to allow another tab to upgrade!");
             db.close();
+            db = null; // 🚨 CRITICAL FIX: Destroy the zombie variable so the app knows to reconnect!
         }
     };
 } catch(e) {}
@@ -29,7 +30,8 @@ const initDB = () => {
                 // Continuously monitors the phone's hard drive. If the phone hits 100% capacity, IndexedDB will silently drop data!
                 if (navigator.storage.estimate) {
                     const est = await navigator.storage.estimate();
-                    const percentage = (est.usage / est.quota) * 100;
+                    // 🚨 CRITICAL FIX: Prevent Division by Zero in Incognito/Privacy Mode!
+                    const percentage = est.quota > 0 ? (est.usage / est.quota) * 100 : 0;
                     if (percentage > 95) {
                         alert("⚠️ CRITICAL WARNING: Your device storage is over 95% full! The database may fail to save new invoices. Please free up space immediately.");
                     }

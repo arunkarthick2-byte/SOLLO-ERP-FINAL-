@@ -791,6 +791,42 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost PDF!
         const uniquePdfId = 'pdf-invoice-' + Date.now();
 
+        // 🚨 ENTERPRISE UPGRADE: DYNAMIC METADATA ENGINE
+        // Rebuilds the PDF header automatically without leaving blank empty boxes!
+        const metaFields = [];
+        
+        // 🚨 CRITICAL FIX: The Ultimate "Ghost Data" Shield!
+        // Destroys "NaN", "Invalid Date", "undefined", and old corrupted data from printing on the PDF!
+        const isSafe = (val) => {
+            if (!val) return false;
+            const str = String(val).trim().toLowerCase();
+            return str !== '' && str !== 'undefined' && str !== 'null' && str !== 'nan' && !str.includes('nan') && str !== 'invalid date';
+        };
+
+        if (isSafe(doc.orderNo)) metaFields.push(`<strong>Order Ref:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.orderNo}</span>`);
+        if (isSafe(doc.orderDate)) metaFields.push(`<strong>Order Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${window.Utils.formatDateDisplay(doc.orderDate)}</span>`);
+        
+        // STRICT LOGIC: Only allow Dispatch Date if the invoice is actually Shipped or Completed!
+        if (isSafe(doc.shippedDate) && (doc.status === 'Shipped' || doc.status === 'Completed')) {
+            metaFields.push(`<strong>Dispatch Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${window.Utils.formatDateDisplay(doc.shippedDate)}</span>`);
+        }
+        // STRICT LOGIC: Only allow Completed Date if the invoice is actually Completed!
+        if (isSafe(doc.completedDate) && doc.status === 'Completed') {
+            metaFields.push(`<strong>Completed Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${window.Utils.formatDateDisplay(doc.completedDate)}</span>`);
+        }
+
+        let metaRowsHtml = '';
+        for (let i = 0; i < metaFields.length; i += 2) {
+            metaRowsHtml += `<tr>`;
+            metaRowsHtml += `<td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; color: #0f172a;">${metaFields[i]}</td>`;
+            if (metaFields[i+1]) {
+                metaRowsHtml += `<td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;">${metaFields[i+1]}</td>`;
+            } else {
+                metaRowsHtml += `<td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"></td>`;
+            }
+            metaRowsHtml += `</tr>`;
+        }
+
         // --- ENTERPRISE UPGRADE: CA-LEVEL GST SUMMARY TABLE ENGINE ---
         let gstSummaryHtml = '';
         if (!isNonGST && (parseFloat(doc.totalGst) || 0) > 0) {
@@ -929,14 +965,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                                 <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; width: 50%; color: #0f172a;"><strong>Document No:</strong><br><span style="font-size: 14px; font-weight: 700; color: #0f172a;">${safeDocNo}</span></td>
                                 <td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"><strong>Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${Utils.formatDateDisplay(doc.date)}</span></td>
                             </tr>
-                            <tr>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; color: #0f172a;"><strong>Order Ref:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.orderNo || '-'}</span></td>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"><strong>Order Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.orderDate ? Utils.formatDateDisplay(doc.orderDate) : '-'}</span></td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; color: #0f172a;"><strong>Dispatch Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.shippedDate ? Utils.formatDateDisplay(doc.shippedDate) : '-'}</span></td>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"><strong>Completed Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.completedDate ? Utils.formatDateDisplay(doc.completedDate) : '-'}</span></td>
-                            </tr>
+                            ${metaRowsHtml}
                         </table>
                     </div>
                 </div>

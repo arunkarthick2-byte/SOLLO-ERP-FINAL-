@@ -335,7 +335,7 @@ const UI = {
         
         // ENTERPRISE FIX: True DOM Pagination with Scroll Preservation!
         let currentIndex = 0;
-        const chunkSize = 50;
+        const chunkSize = 300; // 🚨 Loads all 250+ entries instantly to destroy scroll lag!
         
         container.innerHTML = ''; // Clear container exactly once at start
         
@@ -358,8 +358,8 @@ const UI = {
                 
                 currentIndex += chunkSize;
                 
-                // Clean up old sentinel
-                const oldSentinel = document.getElementById('scroll-sentinel-virtual');
+                // CRITICAL FIX: Scope the search exclusively to the current container so it doesn't break other screens!
+                const oldSentinel = container.querySelector('#scroll-sentinel-virtual');
                 if (oldSentinel) oldSentinel.remove();
                 
                 if (currentIndex < dataArray.length) {
@@ -379,7 +379,7 @@ const UI = {
                             observer.disconnect(); // Stop observing this specific sentinel
                             renderNextChunk(); // Automatically load the next chunk!
                         }
-                    }, { rootMargin: '300px' }); // Trigger 300px BEFORE they hit the bottom for seamless loading
+                    }, { rootMargin: '4000px' }); // 🚨 ENTERPRISE FIX: 4000px Massive Look-Ahead Radar!
 
                     observer.observe(sentinel);
                 }
@@ -767,23 +767,11 @@ const UI = {
         
         if (status === 'Shipped') {
             if (shippedGroup) shippedGroup.classList.remove('hidden');
-            
-            // --- NEW LOGIC ADDED HERE ---
-            // Auto-fill the Dispatch Date with the current date when status changes to Shipped
-            if (shippedInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
-                const today = Utils.getLocalDate();
-                shippedInput.value = today;
-                
-                // Sync the Flatpickr calendar UI so the visual date updates instantly
-                if (shippedInput._flatpickr) shippedInput._flatpickr.setDate(today); 
-            }
-            // ----------------------------
-            
         } else if (status === 'Completed') {
             // Keep the shipped date visible to retain history, but lock it
             if (shippedGroup) {
                 shippedGroup.classList.remove('hidden');
-                if (shippedInput) shippedInput.disabled = true;
+                if (shippedInput) shippedInput.disabled = false; // Let them edit it!
             }
             if (completedGroup) completedGroup.classList.remove('hidden');
         }
@@ -823,7 +811,8 @@ const UI = {
         if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
         if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
         
-        const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
+        // CRITICAL FIX: Changed "> 0" to "!== 0" so discounts successfully apply to Return Invoices!
+        const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
         
         let finalSubtotal = 0;
         let totalGst = 0;
@@ -924,7 +913,8 @@ const UI = {
         if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
         if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
         
-        const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
+        // CRITICAL FIX: Changed "> 0" to "!== 0" so discounts successfully apply to Return Invoices!
+        const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
 
         let finalSubtotal = 0;
         let totalGst = 0;

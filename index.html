@@ -620,36 +620,58 @@
                     <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
                 </div>
 
-                <!-- 🚨 ENTERPRISE UPGRADE: QUICK-ADD SMART CHIPS -->
-                <div class="smart-chips-wrapper" id="quick-add-container" style="background-color: #ffffff;"></div>
-
-                <div id="sales-return-ref-group" class="form-group hidden" style="background: #fff0f2; padding: 12px; border-radius: 8px; border: 1px solid var(--md-error);">
-                    <label style="color: var(--md-error);">Original Invoice Reference *</label>
-                    <select id="sales-original-ref" onchange="app.loadReturnItems(this.value, 'sales')">
+                <div id="sales-return-ref-group" class="hidden" style="margin-bottom: 12px; background: #fff0f2; padding: 12px; border-radius: 8px; border: 1px solid var(--md-error);">
+                    <div style="font-size: 12px; font-weight: bold; color: var(--md-error); margin-bottom: 6px;">Original Invoice Reference *</div>
+                    <select id="sales-original-ref" onchange="app.loadReturnItems(this.value, 'sales')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid rgba(186, 26, 26, 0.3); border-radius: 6px; font-size: 15px; background: white; outline: none; color: var(--md-error);">
                         <option value="">Select Customer First...</option>
                     </select>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group" style="margin-bottom: 0;"><label>Invoice No</label><input type="text" id="sales-invoice-no"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>Date</label><input type="date" id="sales-date"></div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>Document Status</label>
-                        <select id="sales-order-status" onchange="UI.toggleDates('sales')">
-                            <option value="Open">Draft Estimate (No Stock Impact)</option>
-                            <option value="Unpaid">Unpaid Invoice (Deducts Stock)</option>
-                            <option value="Shipped">Shipped (Deducts Stock)</option>
-                            <option value="Completed" selected>Completed / Paid (Deducts Stock)</option>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Invoice No</label>
+                        <input type="text" id="sales-invoice-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Date</label>
+                        <input type="date" id="sales-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Document Status</label>
+                        <select id="sales-order-status" onchange="UI.toggleDates('sales')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                            <option value="Open">Draft Estimate</option>
+                            <option value="Unpaid">Unpaid Invoice</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Completed" selected>Completed / Paid</option>
                         </select>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="sales-invoice-type" onchange="UI.calcSalesTotals()"><option value="B2B">B2B (GST)</option><option value="B2C">B2C (GST)</option><option value="Non-GST">Bill of Supply (No GST)</option></select></div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Tax Type</label>
+                        <select id="sales-invoice-type" onchange="UI.calcSalesTotals()" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                            <option value="B2B">B2B (GST)</option>
+                            <option value="B2C">B2C (GST)</option>
+                            <option value="Non-GST">Bill of Supply</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group" style="margin-bottom: 0;"><label>Order Ref</label><input type="text" id="sales-order-no"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>Order Date</label><input type="date" id="sales-order-date"></div>
-                    <div class="form-group hidden" id="sales-shipped-date-group" style="margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="sales-shipped-date"></div>
-                    <div class="form-group hidden" id="sales-completed-date-group" style="margin-bottom: 0;"><label>Completed Date</label><input type="date" id="sales-completed-date"></div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Order Ref</label>
+                        <input type="text" id="sales-order-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Order Date</label>
+                        <input type="date" id="sales-order-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div id="sales-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Dispatch Date</label>
+                        <input type="date" id="sales-shipped-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div id="sales-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Completed Date</label>
+                        <input type="date" id="sales-completed-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
@@ -743,14 +765,27 @@
                     <summary>Advanced Options & Notes</summary>
                     <div>
                         <div id="sales-custom-fields-container" style="display: none; background: #e3f2fd; padding: 12px; border-radius: 8px; margin-top: 16px; border: 1px solid #90caf9;">
-                            <div id="sales-cf1-group" class="form-group" style="display: none; margin-bottom: 8px;"><label id="sales-cf1-label" style="color: #0277bd; font-weight: 600;">Custom 1</label><input type="text" id="sales-cf1-val" style="background: white;"></div>
-                            <div id="sales-cf2-group" class="form-group" style="display: none; margin-bottom: 8px;"><label id="sales-cf2-label" style="color: #0277bd; font-weight: 600;">Custom 2</label><input type="text" id="sales-cf2-val" style="background: white;"></div>
-                            <div id="sales-cf3-group" class="form-group" style="display: none; margin-bottom: 8px;"><label id="sales-cf3-label" style="color: #0277bd; font-weight: 600;">Custom 3</label><input type="text" id="sales-cf3-val" style="background: white;"></div>
+                            
+                            <div id="sales-cf1-group" style="display: none; margin-bottom: 12px; flex-direction: column; gap: 6px;">
+                                <div id="sales-cf1-label" style="color: #0277bd; font-weight: 600; font-size: 12px;">Custom 1</div>
+                                <input type="text" id="sales-cf1-val" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid #90caf9; border-radius: 8px; background: white; outline: none;">
+                            </div>
+                            
+                            <div id="sales-cf2-group" style="display: none; margin-bottom: 12px; flex-direction: column; gap: 6px;">
+                                <div id="sales-cf2-label" style="color: #0277bd; font-weight: 600; font-size: 12px;">Custom 2</div>
+                                <input type="text" id="sales-cf2-val" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid #90caf9; border-radius: 8px; background: white; outline: none;">
+                            </div>
+                            
+                            <div id="sales-cf3-group" style="display: none; margin-bottom: 8px; flex-direction: column; gap: 6px;">
+                                <div id="sales-cf3-label" style="color: #0277bd; font-weight: 600; font-size: 12px;">Custom 3</div>
+                                <input type="text" id="sales-cf3-val" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid #90caf9; border-radius: 8px; background: white; outline: none;">
+                            </div>
+
                         </div>
 
-                        <div class="form-group" style="margin-top: 16px; margin-bottom: 8px;">
-                            <label style="color: #f57f17; font-weight: bold;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
-                            <textarea id="sales-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 8px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
+                        <div style="margin-top: 16px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
+                            <label style="color: #f57f17; font-weight: bold; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
+                            <textarea id="sales-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 12px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
                         </div>
                     </div>
                 </details>
@@ -800,32 +835,56 @@
                     <span class="material-symbols-outlined" style="color: #d84315;">search</span>
                 </div>
 
-                <div id="purchase-return-ref-group" class="form-group hidden" style="background: #e8f5e9; padding: 12px; border-radius: 8px; border: 1px solid var(--md-success);">
-                    <label style="color: var(--md-success);">Original PO/Bill Reference *</label>
-                    <select id="purchase-original-ref" onchange="app.loadReturnItems(this.value, 'purchase')">
+                <div id="purchase-return-ref-group" class="hidden" style="margin-bottom: 12px; background: #e8f5e9; padding: 12px; border-radius: 8px; border: 1px solid var(--md-success);">
+                    <div style="font-size: 12px; font-weight: bold; color: var(--md-success); margin-bottom: 6px;">Original PO/Bill Reference *</div>
+                    <select id="purchase-original-ref" onchange="app.loadReturnItems(this.value, 'purchase')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid rgba(20, 108, 46, 0.3); border-radius: 6px; font-size: 15px; background: white; outline: none; color: var(--md-success);">
                         <option value="">Select Supplier First...</option>
                     </select>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group" style="margin-bottom: 0;"><label>Bill / PO No</label><input type="text" id="purchase-po-no"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>Bill Date</label><input type="date" id="purchase-date"></div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label>Document Status</label>
-                        <select id="purchase-order-status" onchange="UI.toggleDates('purchase')">
-                            <option value="Open" selected>Draft PO (No Stock Impact)</option>
-                            <option value="Unpaid">Unpaid Bill (Adds to Stock)</option>
-                            <option value="Completed">Completed / Paid (Adds to Stock)</option>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Bill / PO No</label>
+                        <input type="text" id="purchase-po-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Bill Date</label>
+                        <input type="date" id="purchase-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Document Status</label>
+                        <select id="purchase-order-status" onchange="UI.toggleDates('purchase')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                            <option value="Open" selected>Draft PO</option>
+                            <option value="Unpaid">Unpaid Bill</option>
+                            <option value="Completed">Completed / Paid</option>
                         </select>
                     </div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>Tax Type</label><select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()"><option value="B2B">B2B (ITC Claimable)</option><option value="Non-GST">Non-GST / Exempt</option></select></div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Tax Type</label>
+                        <select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                            <option value="B2B">B2B (ITC Claimable)</option>
+                            <option value="Non-GST">Non-GST / Exempt</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                    <div class="form-group" style="margin-bottom: 0;"><label>Our PO No</label><input type="text" id="purchase-order-no"></div>
-                    <div class="form-group" style="margin-bottom: 0;"><label>Order Date</label><input type="date" id="purchase-order-date"></div>
-                    <div class="form-group hidden" id="purchase-shipped-date-group" style="margin-bottom: 0;"><label>Dispatch Date</label><input type="date" id="purchase-shipped-date"></div>
-                    <div class="form-group hidden" id="purchase-completed-date-group" style="margin-bottom: 0;"><label>Completed Date</label><input type="date" id="purchase-completed-date"></div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Our PO No</label>
+                        <input type="text" id="purchase-order-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Order Date</label>
+                        <input type="date" id="purchase-order-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div id="purchase-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Dispatch Date</label>
+                        <input type="date" id="purchase-shipped-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
+                    <div id="purchase-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Completed Date</label>
+                        <input type="date" id="purchase-completed-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
+                    </div>
                 </div>
 
                 <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
@@ -874,9 +933,9 @@
                     <div id="purchase-expense-history-list"></div>
                 </div>
 
-                <div class="form-group" style="margin-top: 16px; margin-bottom: 24px;">
-                    <label style="color: #f57f17; font-weight: bold;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
-                    <textarea id="purchase-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 8px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
+                <div style="margin-top: 16px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px;">
+                    <label style="color: #f57f17; font-weight: bold; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
+                    <textarea id="purchase-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 12px; border: 1px dashed #f57f17; border-radius: 8px; background: rgba(245, 127, 23, 0.05);"></textarea>
                 </div>
 
                 <div style="height: 100px;"></div>
@@ -1250,40 +1309,92 @@
         </div>
         <div class="activity-content">
             <form id="form-business-profile">
-                <div class="form-group">
-                    <label>Business Logo</label>
-                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-logo-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
+                <div style="margin-bottom: 16px;">
+                    <div style="font-size: 13px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Business Logo</div>
+                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-logo-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px dashed var(--md-outline-variant); border-radius: 8px; background: var(--md-surface);">
                     <img id="profile-logo-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
                 
-                <div class="form-group">
-                    <label>Authorized Signature</label>
-                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-signature-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
+                <div style="margin-bottom: 24px;">
+                    <div style="font-size: 13px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Authorized Signature</div>
+                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-signature-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px dashed var(--md-outline-variant); border-radius: 8px; background: var(--md-surface);">
                     <img id="profile-signature-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
                 </div>
 
-                <div class="form-group"><label>Business Name *</label><input type="text" id="profile-name" required></div>
-                <div class="form-group"><label>Phone Number *</label><input type="tel" id="profile-phone" required></div>
-                <div class="form-group"><label>Email</label><input type="email" id="profile-email"></div>
-                <div class="form-group"><label>GSTIN</label><input type="text" id="profile-gst" style="text-transform: uppercase;"></div>
-                
-                <div style="display: flex; gap: 12px;">
-                    <div class="form-group" style="flex: 1; margin-bottom: 0;"><label>Pincode</label><input type="number" inputmode="decimal" id="profile-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'profile')"></div>
-                    <div class="form-group" style="flex: 2; margin-bottom: 0;"><label>City / District</label><input type="text" id="profile-city"></div>
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Business Name *</label>
+                    <input type="text" id="profile-name" required style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                 </div>
-                <div class="form-group" style="margin-top: 12px;"><label>State (For GST Splitting)</label><input type="text" id="profile-state"></div>
-                <div class="form-group"><label>Street Address</label><textarea id="profile-address" rows="2" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px;"></textarea></div>
+
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Phone Number *</label>
+                    <input type="tel" id="profile-phone" required style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                </div>
+
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Email</label>
+                    <input type="email" id="profile-email" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                </div>
+
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">GSTIN</label>
+                    <input type="text" id="profile-gst" style="text-transform: uppercase; box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                </div>
                 
-                <div class="form-group"><label>Bank Details (For Invoices)</label><textarea id="profile-bank" rows="2" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px;"></textarea></div>
-                <div class="form-group"><label>UPI ID (For Smart QR Code)</label><input type="text" id="profile-upi" placeholder="e.g., yourbusiness@upi"></div>
-                <div class="form-group"><label>Terms & Conditions</label><textarea id="profile-terms" rows="2" style="width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px;"></textarea></div>
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Pincode</label>
+                        <input type="number" inputmode="decimal" id="profile-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'profile')" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                    </div>
+                    <div style="flex: 2; display: flex; flex-direction: column; gap: 6px;">
+                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">City / District</label>
+                        <input type="text" id="profile-city" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">State (For GST Splitting)</label>
+                    <input type="text" id="profile-state" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                </div>
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Street Address</label>
+                    <textarea id="profile-address" rows="2" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface); font-family: inherit; resize: none;"></textarea>
+                </div>
+                
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Bank Details (For Invoices)</label>
+                    <textarea id="profile-bank" rows="2" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface); font-family: inherit; resize: none;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">UPI ID (For Smart QR Code)</label>
+                    <input type="text" id="profile-upi" placeholder="e.g., yourbusiness@upi" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                </div>
+
+                <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Terms & Conditions</label>
+                    <textarea id="profile-terms" rows="2" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface); font-family: inherit; resize: none;"></textarea>
+                </div>
                                 <details class="advanced-options" style="margin-top: 24px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant);">
                     <summary style="padding: 14px 16px; font-weight: 700; color: var(--md-primary); cursor: pointer;">Invoice Custom Fields</summary>
                     <div style="padding: 0 16px 16px 16px;">
                         <p style="font-size: 12px; color: var(--md-text-muted); margin-bottom: 12px;">Define custom fields (like E-Way Bill, Vehicle No, or Sales Rep) to appear on your sales invoices.</p>
-                        <div class="form-group"><label>Custom Field 1 Name</label><input type="text" id="profile-cf1-name" placeholder="e.g., E-Way Bill No"></div>
-                        <div class="form-group"><label>Custom Field 2 Name</label><input type="text" id="profile-cf2-name" placeholder="e.g., Vehicle No"></div>
-                        <div class="form-group"><label>Custom Field 3 Name</label><input type="text" id="profile-cf3-name" placeholder="e.g., Sales Rep"></div>
+                        
+                        <div style="margin-bottom: 12px;">
+                            <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Custom Field 1 Name</div>
+                            <input type="text" id="profile-cf1-name" placeholder="e.g., E-Way Bill No" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                        </div>
+                        
+                        <div style="margin-bottom: 12px;">
+                            <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Custom Field 2 Name</div>
+                            <input type="text" id="profile-cf2-name" placeholder="e.g., Vehicle No" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                        </div>
+                        
+                        <div style="margin-bottom: 12px;">
+                            <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Custom Field 3 Name</div>
+                            <input type="text" id="profile-cf3-name" placeholder="e.g., Sales Rep" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                        </div>
+
                     </div>
                 </details>
                 
@@ -1616,18 +1727,18 @@
             <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-master-sort')">close</span>
         </div>
         <div style="padding: 16px;">
-            <div class="form-group">
-                <label>Filter By Status</label>
-                <select id="filter-master-view" onchange="if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');">
+            <div style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Filter By Status</label>
+                <select id="filter-master-view" onchange="if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     <option value="All">All Records</option>
                     <option value="Stock Available">Stock Available</option>
                     <option value="GST Stock">Has GST Stock</option>
                     <option value="Non-GST Stock">Has Non-GST Stock</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>Sort By</label>
-                <select id="sort-master-view" onchange="if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');">
+            <div style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Sort By</label>
+                <select id="sort-master-view" onchange="if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); UI.closeBottomSheet('sheet-master-sort');" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     <option value="name-asc">A to Z (Ascending)</option>
                     <option value="name-desc">Z to A (Descending)</option>
                 </select>
@@ -2270,17 +2381,17 @@
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-gst-report')" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Monthly GST Report</span>
-            <div style="display: flex; gap: 16px; position: absolute; right: 16px; align-items: center;">
-                <span class="tap-target" id="btn-export-gst" onclick="if(window.app && typeof window.app.exportGSTCSV === 'function') window.app.exportGSTCSV(); else alert('Export function not linked in app.js!');" style="display:flex; align-items:center; gap:4px; color:var(--md-primary); font-size:14px; font-weight:500;">
-                    <span class="material-symbols-outlined">download</span> Export CSV
-                </span>
-            </div>
         </div>
         <div class="activity-content" style="background-color: #f4f6fa; padding: 16px; overflow-y: auto;">
             
-            <div class="m3-card" style="margin-bottom: 20px; display: flex; align-items: center; gap: 12px; padding: 12px 16px;">
-                <label style="font-weight: 500; color: #43474e;">Select Month:</label>
-                <input type="month" id="gst-month-selector" style="flex: 1; padding: 8px; border: 1px solid #c3c7cf; border-radius: 4px; font-size: 16px;" onchange="app.refreshGSTReport()">
+            <div class="m3-card" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding: 12px 16px;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-weight: 500; color: #43474e; font-size: 13px;">Select Month:</label>
+                    <input type="month" id="gst-month-selector" style="width: 100%; padding: 10px; border: 1px solid #c3c7cf; border-radius: 6px; font-size: 15px; font-weight: 600;" onchange="app.refreshGSTReport()">
+                </div>
+                <button class="tap-target" id="btn-export-gst" onclick="if(window.app && typeof window.app.exportGSTCSV === 'function') window.app.exportGSTCSV(); else alert('Export function not linked in app.js!');" style="display:flex; align-items:center; justify-content:center; gap:6px; background: rgba(0, 97, 164, 0.1); color: #0061a4; border: 1px solid rgba(0, 97, 164, 0.3); height: 42px; padding: 0 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">download</span> Export CSV
+                </button>
             </div>
 
             <h3 style="margin-top:0; color: #0061a4; font-size: 16px; text-transform: uppercase;">GSTR-3B (Net Summary)</h3>
