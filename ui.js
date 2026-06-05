@@ -71,6 +71,19 @@ const UI = {
                 e.target.setAttribute('type', 'tel');
                 e.target.setAttribute('inputmode', 'tel');
             }
+            
+            // 🚨 ENTERPRISE FIX: The Dynamic Dictionary Shield! 
+            // Disables autocorrect globally, even on dynamically generated invoice rows!
+            if (e.target.type === 'text') {
+                const id = (e.target.id || '').toLowerCase();
+                if (id.includes('name') || id.includes('particular') || id.includes('city')) {
+                    if (!e.target.hasAttribute('spellcheck')) {
+                        e.target.setAttribute('spellcheck', 'false');
+                        e.target.setAttribute('autocorrect', 'off');
+                        e.target.setAttribute('autocomplete', 'off');
+                    }
+                }
+            }
         }, { capture: true });
 
         // 🚨 ENTERPRISE FIX: The iOS Ghost Keyboard Shield! (V2 Optimized)
@@ -88,16 +101,6 @@ const UI = {
             }
         });
 
-        // ENTERPRISE FIX 2: Dirty Form Tracker & Double-Billing Spinner Shield
-        // ENTERPRISE FIX 4: The Dictionary Shield (Disable Autocorrect on Names & Items)
-        document.querySelectorAll('input[type="text"]').forEach(input => {
-            const id = (input.id || '').toLowerCase();
-            if (id.includes('name') || id.includes('particular') || id.includes('city')) {
-                input.setAttribute('spellcheck', 'false');
-                input.setAttribute('autocorrect', 'off');
-                input.setAttribute('autocomplete', 'off');
-            }
-        });
 
         // 🚨 ENTERPRISE FIX 5 & 6 CONSOLIDATED: High-Performance Form Event Engine
         document.addEventListener('input', (e) => {
@@ -3765,7 +3768,8 @@ document.addEventListener('click', (e) => {
             const sheet = document.getElementById(sheetIdMatch[1]);
             // If the sheet has a search box, wipe it completely clean!
             if (sheet) {
-                const searchBox = sheet.querySelector('input[type="text"]');
+                // 🚨 ENTERPRISE FIX: Only target actual search bars, preventing it from wiping settings forms!
+                const searchBox = sheet.querySelector('input[id*="search"]');
                 if (searchBox) {
                     searchBox.value = '';
                     // Trigger an input event to reset the V2 Universal Search Engine
@@ -3874,8 +3878,8 @@ window.addEventListener('popstate', (e) => {
 // 🚨 ENTERPRISE UX: SMART CURRENCY FORMATTER
 // ==========================================
 document.addEventListener('focusout', (e) => {
-    // Check if the input they just left is a number/money field
-    if (e.target.tagName === 'INPUT' && (e.target.type === 'number' || e.target.classList.contains('currency-input') || e.target.id.includes('amount') || e.target.id.includes('rate') || e.target.id.includes('price'))) {
+    // Check if the input they just left is a number/money field (Excluding Pincodes!)
+    if (e.target.tagName === 'INPUT' && !e.target.id.toLowerCase().includes('pincode') && (e.target.type === 'number' || e.target.classList.contains('currency-input') || e.target.id.includes('amount') || e.target.id.includes('rate') || e.target.id.includes('price'))) {
         
         const rawValue = e.target.value;
         if (!rawValue || isNaN(rawValue)) return;

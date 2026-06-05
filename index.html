@@ -12,22 +12,6 @@
     
     <title>SOLLO ERP</title>
 
-    <script>
-        // Cache cleanup is now safely managed natively by sw.js during the 'activate' event.
-        
-        // 🚨 ENTERPRISE FIX: Background PWA Update Checker
-        // We only tell the service worker to check for updates here. 
-        // The actual notification and safe-swap logic is handled securely in app.js!
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js').then(registration => {
-                // Check for new updates in the background every 1 hour
-                setInterval(() => {
-                    try { registration.update(); } catch(e) {}
-                }, 3600000); 
-            });
-        }
-    </script>
-
         <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
@@ -188,9 +172,9 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
-                    <div id="dash-ai-insights" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); border-left: 4px solid #6a1b9a; background: #fdfafc; display: none;">
+                    <div id="dash-ai-insights" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); border-left: 4px solid var(--md-primary); background: #e3f2fd; display: none;">
                         <div style="display: flex; gap: 12px; align-items: center;">
-                            <span class="material-symbols-outlined" style="color: #6a1b9a; font-size: 24px;">auto_awesome</span>
+                            <span class="material-symbols-outlined" style="color: var(--md-primary); font-size: 24px;">auto_awesome</span>
                             <div style="flex: 1;">
                                 <strong style="color: var(--md-on-surface); font-size: 13px; display: block; margin-bottom: 2px;">AI Business Insight</strong>
                                 <span id="ai-insight-text" style="font-size: 13px; color: var(--md-text-muted); line-height: 1.4;">Analyzing data...</span>
@@ -1344,7 +1328,7 @@
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Pincode</label>
-                        <input type="number" inputmode="decimal" id="profile-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'profile')" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                        <input type="number" inputmode="numeric" id="profile-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'profile')" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                     </div>
                     <div style="flex: 2; display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">City / District</label>
@@ -2670,8 +2654,14 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Removed hardcoded version so the browser natively detects PWA updates!
                 navigator.serviceWorker.register(`sw.js`).then(reg => {
+                    
+                    // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
+                    // Safely checks for silent background updates every 1 hour
+                    setInterval(() => {
+                        try { reg.update(); } catch(e) {}
+                    }, 3600000);
+
                     reg.addEventListener('updatefound', () => {
                         newWorker = reg.installing;
                         newWorker.addEventListener('statechange', () => {

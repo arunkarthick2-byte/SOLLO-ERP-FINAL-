@@ -1537,9 +1537,10 @@ body.dark-mode .theme-toggle-knob {
    preventing the nav bar from squishing into the middle of the screen. */
 
 @media (max-width: 768px) {
-    body:has(input:focus, textarea:focus) .bottom-nav,
-    body:has(input:focus, textarea:focus) .floating-action-button,
-    body:has(input:focus, textarea:focus) #update-banner {
+    /* 🚨 ENTERPRISE FIX: Strictly target text inputs so checkboxes and date pickers don't cause screen jumps! */
+    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) .bottom-nav,
+    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) .floating-action-button,
+    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) #update-banner {
         opacity: 0 !important;
         pointer-events: none !important;
         transform: translateY(100px) !important;
@@ -1547,8 +1548,8 @@ body.dark-mode .theme-toggle-knob {
     }
     
     /* Give the active screen a little extra breathing room at the bottom so they can scroll to the 'Save' button while the keyboard is open */
-    body:has(input:focus, textarea:focus) .activity-content,
-    body:has(input:focus, textarea:focus) .main-content {
+    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) .activity-content,
+    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) .main-content {
         /* FIX: Changed from 50vh to a static pixel amount, and added a transition so it doesn't violently break the scroll position */
         padding-bottom: 250px !important; 
         transition: padding-bottom 0.3s ease-out;

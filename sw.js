@@ -22,17 +22,7 @@ const ASSETS_TO_CACHE = [
     'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js',
-    // STRICT ERP LOGIC: Added Chart.js and HTML2PDF so the dashboard and printing work offline            // 🚨 ENTERPRISE FIX: Drop "To Pay/Receive" to a new line as a beautiful badge so long Party Names don't get squished!
-            if (partyType === 'Customer') {
-                if (bal > 0.01) { balText = `Closing Balance: \u20B9${bal.toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#fff0f2; color:var(--md-error); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(186,26,26,0.2);">TO RECEIVE</span>`; balColor = 'var(--md-error)'; }
-                else if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#e8f5e9; color:var(--md-success); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(20,108,46,0.2);">ADVANCE</span>`; balColor = 'var(--md-success)'; }
-                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#f1f5f9; color:var(--md-text-muted); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(100,116,139,0.2);">SETTLED</span>`; balColor = 'var(--md-on-surface)'; }
-            } else {
-                if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#fff0f2; color:var(--md-error); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(186,26,26,0.2);">TO PAY</span>`; balColor = 'var(--md-error)'; }
-                else if (bal > 0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#e8f5e9; color:var(--md-success); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(20,108,46,0.2);">ADVANCE</span>`; balColor = 'var(--md-success)'; }
-                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#f1f5f9; color:var(--md-text-muted); padding:2px 8px; border-radius:4px; font-weight:800; font-size:11px; border: 1px solid rgba(100,116,139,0.2);">SETTLED</span>`; balColor = 'var(--md-on-surface)'; }
-            }
-
+    // STRICT ERP LOGIC: Added Chart.js and HTML2PDF so the dashboard and printing work offline 
     'https://cdn.jsdelivr.net/npm/chart.js',
     'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
@@ -179,8 +169,3 @@ self.addEventListener('sync', (event) => {
         );
     }
 });
-    'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js',
-    // 🚨 CRITICAL FIX: Cache the missing graphic engines so PDFs and Dashboards work offline!
-    'https://cdn.jsdelivr.net/npm/chart.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'

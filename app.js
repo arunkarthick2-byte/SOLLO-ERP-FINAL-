@@ -1107,6 +1107,10 @@ const app = {
 
         if (!filterSelect || !sortSelect) return;
 
+        // 🚨 ENTERPRISE FIX: Capture the current selection BEFORE overwriting the HTML so it doesn't default back to "All"!
+        const currentFilter = filterSelect.value;
+        const currentSort = sortSelect.value;
+
         let filterHTML = '<option value="All">All Records</option>';
         let sortHTML = '<option value="name-asc">A to Z (Ascending)</option><option value="name-desc">Z to A (Descending)</option>';
 
@@ -1146,6 +1150,11 @@ const app = {
 
         filterSelect.innerHTML = filterHTML;
         sortSelect.innerHTML = sortHTML;
+        
+        // 🚨 ENTERPRISE FIX: Restore the user's previous selection!
+        if (currentFilter) filterSelect.value = currentFilter;
+        if (currentSort) sortSelect.value = currentSort;
+
         window.UI.openBottomSheet('sheet-master-sort');
     },
 
@@ -4625,16 +4634,18 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         const m = d.getMonth();
         let from, to;
 
+        // 🚨 ENTERPRISE FIX: Use timezone-safe local date to prevent "Yesterday" reporting bugs!
+        const safeToday = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : d.toISOString().split('T')[0];
+
         if (range === 'today') {
-            const today = d.toISOString().split('T')[0];
-            from = today; to = today;
+            from = safeToday; to = safeToday;
         } else if (range === 'month') {
             from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
-            to = d.toISOString().split('T')[0];
+            to = safeToday;
         } else if (range === 'year') {
             const fyStartYear = m < 3 ? y - 1 : y;
             from = `${fyStartYear}-04-01`;
-            to = d.toISOString().split('T')[0];
+            to = safeToday;
         }
 
         // Apply to ALL THREE report UIs automatically
@@ -4883,86 +4894,6 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         inputEl.value = currentIds.join(',');
         displayEl.innerText = currentNames.length > 0 ? currentNames.join(' | ') : '-- No Link (General Expense) --';
         displayEl.style.color = currentIds.length > 0 ? 'var(--md-primary)' : 'var(--md-text-muted)';
-    },
-
-    // ==========================================
-    // 🚨 ENTERPRISE UPGRADE: SMART PINCODE AUTO-FETCH (TRI-API ENGINE)
-    // ==========================================
-    fetchPincode: async (pincode, type) => {
-        if (!pincode || String(pincode).length !== 6) return;
-        try {
-            if (window.Utils) window.Utils.showToast("Fetching location... 📍");
-            
-            let city = '', state = '';
-            
-            // API 1: Primary Indian Postal API
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3500); 
-                const res1 = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                const data1 = await res1.json();
-                if (data1 && data1[0] && data1[0].Status === 'Success') {
-                    city = data1[0].PostOffice[0].District || data1[0].PostOffice[0].Block || data1[0].PostOffice[0].Region;
-                    state = data1[0].PostOffice[0].State;
-                }
-            } catch (e1) { console.warn("Primary API Failed:", e1); }
-
-            // API 2: Fallback to Global OpenStreetMap (Nominatim) - Has 100% of Indian Pincodes!
-            if (!city || !state) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 3500);
-                    const res2 = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&addressdetails=1`, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    const data2 = await res2.json();
-                    if (data2 && data2.length > 0 && data2[0].address) {
-                        city = data2[0].address.state_district || data2[0].address.city || data2[0].address.county || data2[0].address.town;
-                        state = data2[0].address.state;
-                    }
-                } catch (e2) { console.warn("Secondary API Failed:", e2); }
-            }
-
-            // API 3: Final Fallback to Zippopotam
-            if (!city || !state) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 3500);
-                    const res3 = await fetch(`https://api.zippopotam.us/in/${pincode}`, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (res3.ok) {
-                        const data3 = await res3.json();
-                        if (data3.places && data3.places.length > 0) {
-                            city = data3.places[0]["place name"];
-                            state = data3.places[0]["state"];
-                        }
-                    }
-                } catch (e3) { console.warn("Tertiary API Failed:", e3); }
-            }
-
-            // Inject the data securely into the form
-            if (city && state) {
-                const cityEl = document.getElementById(`${type}-city`);
-                const stateEl = document.getElementById(`${type}-state`);
-                
-                if (cityEl && !cityEl.value) {
-                    cityEl.value = city;
-                    cityEl.dispatchEvent(new Event('input', { bubbles: true })); 
-                }
-                if (stateEl && !stateEl.value) {
-                    stateEl.value = state;
-                    stateEl.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-                if (window.Utils) window.Utils.showToast("Location auto-filled! ✨");
-                if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('medium');
-            } else {
-                // Fail silently so the user can just type it manually if the internet is completely broken
-                if (window.Utils) window.Utils.showToast("Please enter city & state manually.");
-            }
-
-        } catch (err) {
-            console.error("Critical Pincode API Error:", err);
-        }
     },
 
     filterLinkedDocs: (term) => {
@@ -6780,31 +6711,9 @@ document.addEventListener('input', (e) => {
 // ==========================================
 // 🚨 BIZOPS NATIVE THEME: DASHBOARD PARALLAX SCROLLING
 // ==========================================
-// Adds a cinematic 3D depth effect to the Dashboard Hero section when scrolling
+// Disabled Parallax to prevent black screen and allow normal scrolling!
 const setupParallax = () => {
-    const mainContent = document.querySelector('.main-content');
-    // Targets the "Business Overview" header and the main stats card container
-    const dashHeader = document.querySelector('#tab-dashboard > div:first-child');
-    const dashStats = document.querySelector('#tab-dashboard > div:nth-child(2)');
-    
-    if (!mainContent || !dashStats) return;
-
-    mainContent.addEventListener('scroll', () => {
-        // Only apply 3D physics if the user is actively viewing the Home Dashboard
-        if (document.getElementById('tab-dashboard').classList.contains('active-screen')) {
-            const scrollY = mainContent.scrollTop;
-            
-            // Fade and push the elements down at half-speed to create a depth illusion
-            if (scrollY >= 0 && scrollY <= 300) {
-                if (dashHeader) {
-                    dashHeader.style.transform = `translateY(${scrollY * 0.6}px)`;
-                    dashHeader.style.opacity = 1 - (scrollY / 200);
-                }
-                dashStats.style.transform = `translateY(${scrollY * 0.4}px)`;
-                dashStats.style.opacity = 1 - (scrollY / 250);
-            }
-        }
-    }, { passive: true }); // passive: true ensures 120fps scrolling isn't blocked by the math
+    // Fading effect removed so Order Fulfillment remains completely visible when scrolling down.
 };
 
 // Attach the engine safely after the app boots

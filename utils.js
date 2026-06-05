@@ -599,6 +599,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const origWidth = element.style.width;
         const origMinWidth = element.style.minWidth;
         const origMaxWidth = element.style.maxWidth;
+        const origMinHeight = element.style.minHeight; // 🚨 ENTERPRISE FIX: Track the min-height!
 
         try {
             // STRICT ERP LOGIC: Physically lock the DOM to A4 Desktop dimensions BEFORE taking the snapshot!
@@ -670,15 +671,19 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
                         
-                        <span class="material-symbols-outlined tap-target" style="font-size:28px;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = '';">close</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:28px;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = ''; const vp = document.querySelector('meta[name=viewport]'); if(vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');">close</span>
                     </div>
                 </div>
-                <div style="flex:1; overflow-y:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start;">
+                <div style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
                     <img src="${imgSrc}" style="max-width:100%; height:auto; box-shadow:0 4px 8px rgba(0,0,0,0.2); border-radius:4px; display:block;" />
                 </div>
             `;
             document.body.style.overflow = 'hidden'; // ENTERPRISE FIX: Lock background from rubber-banding!
             document.body.appendChild(viewer);
+            
+            // 🚨 ENTERPRISE FIX: Dynamically Unlock Pinch-to-Zoom for dense PDFs!
+            const vp = document.querySelector('meta[name="viewport"]');
+            if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover');
             
             // 🚨 BIZOPS FIX: Correctly mapped the Download button to ACTUALLY download!
             document.getElementById('btn-download-pdf').onclick = async () => {
@@ -715,6 +720,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             element.style.width = origWidth;
             element.style.minWidth = origMinWidth;
             element.style.maxWidth = origMaxWidth;
+            element.style.minHeight = origMinHeight; // 🚨 ENTERPRISE FIX: Restore the min-height to kill the permanent white space!
         }
     },
 
