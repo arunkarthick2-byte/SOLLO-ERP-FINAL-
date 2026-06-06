@@ -1039,13 +1039,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                                     <strong style="text-transform: uppercase; color: #475569;">Bank Details:</strong><br>
                                     <div style="margin-top: 4px; white-space: pre-wrap; font-family: monospace; font-size: 12px; font-weight: 600;">${biz.bankDetails}</div>
                                 </div>` : ''}
-
-                                ${doc.internalNotes ? `
-                                <div style="font-size: 11px;">
-                                    <strong style="text-transform: uppercase; color: #475569;">Remarks / Notes:</strong><br>
-                                    <div style="margin-top: 4px; white-space: pre-wrap; font-size: 12px; font-weight: 600; color: #1e293b;">${doc.internalNotes}</div>
-                                </div>` : ''}
-                            </div>
+                                
+                                </div>
                         </div>
 
                         ${biz.terms ? `
