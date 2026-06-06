@@ -2654,7 +2654,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                navigator.serviceWorker.register(`sw.js`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=44.0' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=44.0`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
