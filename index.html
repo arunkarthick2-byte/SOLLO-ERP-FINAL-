@@ -94,6 +94,11 @@
             transform: none !important; /* Prevents Material UI floating label hijacking */
             margin-bottom: 6px !important;
         }
+
+        /* 🚨 ENTERPRISE PWA FIX: Kills the accidental "Swipe down to refresh" browser bug! */
+        body, html {
+            overscroll-behavior-y: none; 
+        }
     </style>
 
 </head>
@@ -953,67 +958,181 @@
                 </div>
             </div>
         </div>
-        <div class="activity-content">
+        <div class="activity-content" style="padding: 0; background: #f2f2f7;">
+            <style>
+                /* Premium Settings-Style Form UI */
+                .premium-form-section {
+                    background: var(--md-surface, #ffffff);
+                    border-top: 1px solid var(--md-outline-variant, #e2e8f0);
+                    border-bottom: 1px solid var(--md-outline-variant, #e2e8f0);
+                    margin-bottom: 24px;
+                }
+                .premium-row {
+                    display: flex;
+                    align-items: center;
+                    padding: 14px 16px;
+                    border-bottom: 1px solid var(--md-outline-variant, #f1f5f9);
+                    min-height: 54px;
+                    box-sizing: border-box;
+                    transition: background-color 0.2s ease;
+                }
+                .premium-row:focus-within {
+                    background-color: rgba(0, 97, 164, 0.02);
+                }
+                .premium-row:last-child {
+                    border-bottom: none;
+                }
+                .premium-label {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #475569;
+                    flex-shrink: 0;
+                    width: 120px; /* 🚨 Strict Lock: Prevents label/input overlap */
+                }
+                .premium-input-container {
+                    flex: 1;
+                    min-width: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                }
+                .premium-input {
+                    width: 100%;
+                    border: none !important;
+                    background: transparent !important;
+                    outline: none !important;
+                    box-shadow: none !important;
+                    text-align: right;
+                    font-size: 16px;
+                    font-family: inherit;
+                    color: var(--md-on-surface, #0f172a);
+                    font-weight: 600;
+                    padding: 0;
+                    margin: 0;
+                }
+                .premium-input::placeholder {
+                    color: #94a3b8;
+                    font-weight: 400;
+                }
+                /* Custom Wrapper to hide messy browser dropdown arrows */
+                .premium-select {
+                    appearance: none;
+                    -webkit-appearance: none;
+                    direction: rtl; 
+                    padding-right: 24px; 
+                }
+                .premium-select-wrapper {
+                    position: relative;
+                    width: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: flex-end;
+                }
+                .premium-select-wrapper::after {
+                    content: 'expand_more';
+                    font-family: 'Material Symbols Outlined';
+                    position: absolute;
+                    right: -4px;
+                    font-size: 20px;
+                    color: #94a3b8;
+                    pointer-events: none;
+                }
+                .required-star {
+                    color: var(--md-error, #ef4444);
+                    margin-left: 2px;
+                }
+            </style>
+            
             <form id="form-expense">
-                <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('expense')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">receipt_long</span> 
-                    AI Scan Expense Receipt
-                </button>
-
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Expense No *</div>
-                        <input type="text" id="expense-no" name="expenseNo" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
-                        <input type="date" id="expense-date" name="date" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Category *</div>
-                    <div style="display: flex; gap: 8px;">
-                        <select name="category" id="expense-category-select" required style="box-sizing: border-box; flex: 1; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                            <option value="">Loading...</option>
-                        </select>
-                        <button type="button" class="btn-primary-small" style="padding: 0 16px; border-radius: 8px; background: var(--md-primary-container); color: var(--md-primary);" onclick="app.manageSimpleMaster('expenseCategories', 'Expense Categories')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Amount (₹) *</div>
-                    <input type="number" id="exp-amount" inputmode="decimal" name="amount" min="0" step="0.01" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Paid From Account *</div>
-                    <select id="expense-account-id" name="accountId" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                        <option value="cash">Cash Drawer</option>
-                    </select>
+                <div style="padding: 16px 16px 8px 16px;">
+                    <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('expense')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; border-radius: 12px; height: 48px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">receipt_long</span> 
+                        <span style="font-size: 15px;">AI Scan Expense Receipt</span>
+                    </button>
                 </div>
 
-                <div class="m3-card tap-target" style="margin-bottom: 16px; padding: 12px 16px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-linked-docs')">
-                    <div>
-                        <div style="font-size: 12px; font-weight: 600; color: var(--md-text-muted); margin-bottom: 4px;">Link to Invoice / PO (Optional)</div>
-                        <div id="expense-linked-display" style="font-size: 15px; font-weight: 500; color: var(--md-text-muted);">-- No Link (General Expense) --</div>
-                        <input type="hidden" id="expense-linked-invoice" name="linkedInvoice">
+                <div style="padding: 12px 16px 8px 16px; font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Expense No<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="expense-no" name="expenseNo" required class="premium-input" placeholder="Auto">
+                        </div>
                     </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Notes / Ref</div>
-                    <input type="text" name="notes" placeholder="e.g., March Electricity Bill" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-                
-                <div style="margin-bottom: 24px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Attach Bill / Receipt</div>
-                    <input type="file" accept="image/*" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('expense-attachment-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px dashed var(--md-outline-variant); border-radius: 8px; background: var(--md-surface);">
-                    <img id="expense-attachment-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100px; height: auto; margin-top: 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">
+                    
+                    <div class="premium-row">
+                        <div class="premium-label">Date<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="date" id="expense-date" name="date" required class="premium-input" style="direction: rtl;">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Category<span class="required-star">*</span></div>
+                        <div class="premium-input-container" style="gap: 12px;">
+                            <div class="premium-select-wrapper" style="flex: 1;">
+                                <select name="category" id="expense-category-select" required class="premium-input premium-select">
+                                    <option value="" disabled selected>Select...</option>
+                                </select>
+                            </div>
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: #e2e8f0; padding: 4px; border-radius: 50%; font-size: 18px;" onclick="app.manageSimpleMaster('expenseCategories', 'Expense Categories')">add</span>
+                        </div>
+                    </div>
+
+                    <div class="premium-row" style="background: rgba(0, 97, 164, 0.04);">
+                        <div class="premium-label" style="color: var(--md-primary); font-weight: 800;">Amount (₹)<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="number" id="exp-amount" inputmode="decimal" name="amount" min="0" step="0.01" required class="premium-input" style="font-size: 20px; font-weight: 800; color: var(--md-primary);" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Paid From<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select id="expense-account-id" name="accountId" required class="premium-input premium-select">
+                                    <option value="cash">Cash Drawer</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600;">Save Expense</button>
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Additional Context</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row tap-target" style="cursor: pointer;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-linked-docs')">
+                        <div class="premium-label">Link Invoice</div>
+                        <div class="premium-input-container">
+                            <span id="expense-linked-display" style="font-size: 15px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-- General Expense --</span>
+                            <span class="material-symbols-outlined" style="color: #94a3b8; font-size: 20px; margin-left: 8px;">chevron_right</span>
+                            <input type="hidden" id="expense-linked-invoice" name="linkedInvoice">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Notes</div>
+                        <div class="premium-input-container">
+                            <input type="text" name="notes" class="premium-input" placeholder="Optional details..." style="font-weight: 500;">
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 16px;">
+                        <div style="display: flex; gap: 16px; align-items: center;">
+                            <label class="tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border: 1px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; cursor: pointer;">
+                                <span class="material-symbols-outlined" style="color: #64748b;">add_a_photo</span>
+                                <span style="font-size: 14px; font-weight: 600; color: #475569;">Attach Receipt Image</span>
+                                <input type="file" accept="image/*" class="hidden" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('expense-attachment-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
+                            </label>
+                            <img id="expense-attachment-preview" class="hidden" loading="lazy" decoding="async" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid var(--md-outline-variant);">
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="padding: 16px; padding-bottom: 40px;">
+                    <button type="submit" class="btn-primary" style="width: 100%; height: 54px; border-radius: 27px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,97,164,0.25);">Save Expense</button>
+                </div>
             </form>
         </div>
     </div>

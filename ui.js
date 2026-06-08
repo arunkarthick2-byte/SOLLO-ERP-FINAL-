@@ -25,26 +25,43 @@ const UI = {
             }
         });
 
+        // 🚨 ENTERPRISE FIX: THE "CONTAINER TRANSFORM" CSS INJECTOR
+        if (!document.getElementById('container-transform-css')) {
+            const css = document.createElement('style');
+            css.id = 'container-transform-css';
+            css.innerHTML = `
+                ::view-transition-old(app-morph),
+                ::view-transition-new(app-morph) {
+                    animation-duration: 0.35s;
+                    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+                }
+                ::view-transition-old(app-morph) { object-fit: contain; }
+                ::view-transition-new(app-morph) { object-fit: contain; }
+            `;
+            document.head.appendChild(css);
+        }
+
         // 🚨 ENTERPRISE UPGRADE: PREDICTIVE COMPUTE ENGINE (NEGATIVE LATENCY)
-        // Detects when a finger TOUCHES a button and pre-loads the database into RAM 
-        // before the user even finishes pressing it! (100ms head start = Instant loading!)
         document.addEventListener('pointerdown', (e) => {
             const targetBtn = e.target.closest('.tap-target, .nav-item, .list-card');
             if (targetBtn && targetBtn.hasAttribute('onclick')) {
                 const action = targetBtn.getAttribute('onclick');
-                // Pre-warm the massive databases silently in the background
                 if (action.includes('sales') && window.getAllRecords) window.getAllRecords('sales');
                 if (action.includes('items') && window.getAllRecords) window.getAllRecords('items');
                 if (action.includes('ledgers') && window.getAllRecords) window.getAllRecords('ledgers');
             }
 
-        // 1. Universal Auto-Haptics (Zero HTML changes required!)
+            // 🚨 ENTERPRISE FIX: Save the clicked card for the Container Transform Morph!
+            const clickedCard = e.target.closest('.m3-card, .list-card');
+            if (clickedCard) UI.state.lastClickedCard = clickedCard;
+
+            // 1. Universal Auto-Haptics
             const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .list-view li, .nav-item, .chip');
             if (target) {
                 if (target.classList.contains('btn-primary') || target.id === 'main-fab') {
-                    UI.triggerHaptic('medium'); // Stronger feel for main buttons
+                    UI.triggerHaptic('medium'); 
                 } else {
-                    UI.triggerHaptic('light'); // Soft tick for lists and menus
+                    UI.triggerHaptic('light'); 
                 }
             }
         }, { passive: true });
@@ -156,25 +173,33 @@ const UI = {
         window.isFormDirty = false;
         document.addEventListener('submit', (e) => { 
             window.isFormDirty = false; // Reset tracker on save
+            
+            // 🚨 ENTERPRISE FIX: The Double-Billing Shield!
+            // Instantly locks the submit button so impatient users on slow phones cannot accidentally create duplicate invoices!
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                // If the button is already locked, physically block the form from submitting a second time
+                if (submitBtn.classList.contains('btn-loading')) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                // Lock the button and add a sleek loading spinner
+                const originalText = submitBtn.innerHTML;
+                submitBtn.style.width = submitBtn.offsetWidth + 'px'; // Lock width so the button doesn't shrink
+                submitBtn.classList.add('btn-loading');
+                submitBtn.innerHTML = `<svg style="width: 20px; height: 20px; animation: spin 1s linear infinite; color: white;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+                
+                // Failsafe: Unlock the button automatically after 2.5 seconds if the database takes too long
+                setTimeout(() => {
+                    if (submitBtn && submitBtn.classList.contains('btn-loading')) {
+                        submitBtn.classList.remove('btn-loading');
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.style.width = ''; 
+                    }
+                }, 2500);
+            }
         });
-        // --- ENTERPRISE FIX: PREMIUM EMPTY STATES ---
-        // Dynamically upgrades all boring blank text into beautiful M3 graphic cards!
-        const emptyStyle = document.createElement('style');
-        emptyStyle.innerHTML = `
-            .empty-state {
-                display: flex !important; flex-direction: column !important; align-items: center !important; 
-                justify-content: center !important; padding: 48px 20px !important; text-align: center !important; 
-                background: var(--md-surface) !important; border-radius: 16px !important; 
-                border: 2px dashed var(--md-outline-variant) !important; margin: 16px 0 !important; 
-                color: var(--md-on-surface) !important; font-weight: 500 !important; font-size: 15px !important;
-            }
-            .empty-state::before {
-                content: 'inbox'; font-family: 'Material Symbols Outlined';
-                font-size: 48px; color: var(--md-primary); margin-bottom: 16px;
-                background: var(--md-primary-container); padding: 16px; border-radius: 50%;
-            }
-        `;
-        document.head.appendChild(emptyStyle);
     },
 
     // ==========================================
@@ -538,13 +563,32 @@ const UI = {
         }
     },
 
-    handleFabClick: () => UI.openBottomSheet('sheet-fab-menu'),
+    handleFabClick: () => {
+        const fab = document.querySelector('.floating-action-button');
+        const sheet = document.getElementById('sheet-fab-menu');
+        
+        // 🚨 ENTERPRISE FIX: Morph the FAB into the Bottom Sheet Menu!
+        if (document.startViewTransition && fab && sheet) {
+            fab.style.viewTransitionName = 'app-morph';
+            sheet.style.viewTransitionName = 'app-morph';
+            const t = document.startViewTransition(() => UI.openBottomSheet('sheet-fab-menu'));
+            t.finished.then(() => {
+                fab.style.viewTransitionName = '';
+                sheet.style.viewTransitionName = '';
+            }).catch(() => {
+                fab.style.viewTransitionName = '';
+                sheet.style.viewTransitionName = '';
+            });
+        } else {
+            UI.openBottomSheet('sheet-fab-menu');
+        }
+    },
 
     openActivity: (activityId) => {
         const a = document.getElementById(activityId);
-        if(a) {
-            // ENTERPRISE FIX: Removed manual history push to prevent Double-Brain collisions!
-            
+        if(!a) return;
+
+        const applyOpen = () => {
             let highestZ = 4000;
             document.querySelectorAll('.activity-screen.open').forEach(el => {
                 const z = parseInt(window.getComputedStyle(el).zIndex, 10);
@@ -558,7 +602,6 @@ const UI = {
             
             requestAnimationFrame(() => { 
                 a.classList.add('open'); 
-                // TRIGGER ZOOM EVALUATION NATIVELY
                 if (window.evaluateSmartZoom) setTimeout(window.evaluateSmartZoom, 100); 
             });
             
@@ -567,35 +610,75 @@ const UI = {
             } else if (activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = 'purchase';
             }
+        };
+
+        // 🚨 ENTERPRISE FIX: The Container Transform Morphing Engine
+        if (document.startViewTransition && UI.state.lastClickedCard) {
+            const card = UI.state.lastClickedCard;
+            UI.state.lastOpenedCard = card; // Save for the closing reverse-morph!
+            
+            card.style.viewTransitionName = 'app-morph';
+            a.style.viewTransitionName = 'app-morph';
+            
+            const transition = document.startViewTransition(() => applyOpen());
+            
+            transition.finished.then(() => {
+                card.style.viewTransitionName = '';
+                a.style.viewTransitionName = '';
+            }).catch(() => {
+                card.style.viewTransitionName = '';
+                a.style.viewTransitionName = '';
+            });
+            UI.state.lastClickedCard = null;
+        } else {
+            applyOpen();
         }
     },
 
     closeActivity: (activityId) => {
-        // ENTERPRISE FIX 3: The Unsaved Changes Warning!
         if (activityId.includes('-form') && window.isFormDirty) {
             if (!confirm("⚠️ You have unsaved changes! Are you sure you want to close and lose your work?")) return;
         }
 
         window.isFormDirty = false;
-        // ENTERPRISE FIX: Lock the back button shield so it doesn't close the entire form!
         window.softwareBackLock = true;
         const a = document.getElementById(activityId);
-        if(a) {
+        if(!a) { window.softwareBackLock = false; return; }
+
+        const applyClose = () => {
             a.classList.remove('open'); 
             setTimeout(() => { 
                 a.classList.add('hidden');
                 a.style.display = '';
                 a.style.zIndex = ''; 
                 window.softwareBackLock = false;
-                // TRIGGER ZOOM EVALUATION NATIVELY AFTER CLOSING
                 if (window.evaluateSmartZoom) window.evaluateSmartZoom();
             }, 300); 
             
             if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = null;
             }
+        };
+
+        // 🚨 ENTERPRISE FIX: The Reverse Container Transform
+        if (document.startViewTransition && UI.state.lastOpenedCard) {
+            const card = UI.state.lastOpenedCard;
+            card.style.viewTransitionName = 'app-morph';
+            a.style.viewTransitionName = 'app-morph';
             
-            // ENTERPRISE FIX: Removed manual history pop! (index.html handles this automatically)
+            const transition = document.startViewTransition(() => applyClose());
+            
+            transition.finished.then(() => {
+                card.style.viewTransitionName = '';
+                a.style.viewTransitionName = '';
+                UI.state.lastOpenedCard = null;
+            }).catch(() => {
+                card.style.viewTransitionName = '';
+                a.style.viewTransitionName = '';
+                UI.state.lastOpenedCard = null;
+            });
+        } else {
+            applyClose();
         }
     },
 
@@ -770,13 +853,57 @@ const UI = {
         
         if (status === 'Shipped') {
             if (shippedGroup) shippedGroup.classList.remove('hidden');
+            
+            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date to Today!
+            const mainDateInput = document.getElementById(`${type}-date`);
+            if (shippedInput && (!shippedInput.value || (mainDateInput && shippedInput.value === mainDateInput.value))) {
+                shippedInput.value = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+            }
+            
         } else if (status === 'Completed') {
-            // Keep the shipped date visible to retain history, but lock it
+            // Keep the shipped date visible to retain history, but let them edit it!
             if (shippedGroup) {
                 shippedGroup.classList.remove('hidden');
-                if (shippedInput) shippedInput.disabled = false; // Let them edit it!
+                if (shippedInput) shippedInput.disabled = false; 
             }
             if (completedGroup) completedGroup.classList.remove('hidden');
+            
+            // 🚨 ENTERPRISE FIX: Smart "Last Payment" Radar!
+            const completedInput = document.getElementById(`${type}-completed-date`);
+            const mainDateInput = document.getElementById(`${type}-date`);
+            
+            if (completedInput && (!completedInput.value || (mainDateInput && completedInput.value === mainDateInput.value))) {
+                
+                let bestDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                
+                // Scan the Cashbook for the absolute latest payment made against this document
+                try {
+                    const currentId = window.app && window.app.state ? window.app.state.currentEditId : null;
+                    const invoiceNo = document.getElementById(`${type}-invoice-no`) ? document.getElementById(`${type}-invoice-no`).value : null;
+                    const orderNo = document.getElementById(`${type}-order-no`) ? document.getElementById(`${type}-order-no`).value : null;
+                    
+                    if (currentId || invoiceNo || orderNo) {
+                        const linkedPayments = (UI.state.rawData.cashbook || []).filter(c => {
+                            const refs = String(c.invoiceRef || c.linkedInvoice || '').split(',').map(r => r.trim());
+                            return (currentId && refs.includes(currentId)) || 
+                                   (invoiceNo && refs.includes(invoiceNo)) || 
+                                   (orderNo && refs.includes(orderNo));
+                        });
+                        
+                        if (linkedPayments.length > 0) {
+                            // Sort chronologically to find the newest payment
+                            linkedPayments.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
+                            if (linkedPayments[0].date) {
+                                bestDate = linkedPayments[0].date;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Could not calculate last payment date, falling back to today.");
+                }
+                
+                completedInput.value = bestDate;
+            }
         }
     },
 
@@ -2762,10 +2889,10 @@ const UI = {
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" inputmode="none" class="row-qty" value="1" required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 14px; background: var(--md-surface); cursor: pointer;">
+                        <input type="number" inputmode="decimal" class="row-qty" value="1" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="text" inputmode="none" class="row-rate" value="${smart.price}" required readonly onclick="UI.openNumpad(this, 'Rate')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface); cursor: pointer;">
+                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
@@ -3019,18 +3146,17 @@ const UI = {
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                    <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="text" inputmode="none" class="row-qty" value="1" readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px; cursor: pointer;">
+                        <input type="number" inputmode="decimal" class="row-qty" value="1" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="text" inputmode="none" class="row-rate" value="${smart.price}" readonly onclick="UI.openNumpad(this, 'Rate')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px; cursor: pointer;">
+                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:14px;">
+                        <input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                 </div>
 

@@ -18,6 +18,31 @@ if (!document.getElementById('enterprise-master-fixes')) {
         #activity-report-viewer .activity-header strong,
         #report-party-name,
         #report-party-balance { color: #ffffff !important; }
+
+        /* 🚨 3. ENTERPRISE FIX: THE "NATIVE BUTTON" CURSOR SHIELD */
+        /* Permanently destroys the blinking text cursor on Custom Numpad inputs */
+        input[readonly], input[inputmode="none"] {
+            caret-color: transparent !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            outline: none !important;
+        }
+        
+        /* 🚨 4. NUMPAD ACTIVE HIGHLIGHTER */
+        /* Safely highlights the box in blue so you know what you are editing, WITHOUT a cursor! */
+        input:focus[readonly], input:focus[inputmode="none"] {
+            background-color: #e3f2fd !important;
+            border-color: #0061a4 !important;
+            color: #0061a4 !important;
+            box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
+        }
+        
+        /* 🚨 5. PREMIUM NORMAL INPUT FOCUS */
+        /* Standard text boxes get a soft highlight instead of harsh browser outlines */
+        input:focus:not([readonly]), select:focus, textarea:focus {
+            background-color: rgba(0, 97, 164, 0.03) !important;
+            transition: background-color 0.2s ease;
+        }
     `;
     document.head.appendChild(style);
 }
@@ -30,6 +55,10 @@ if (!document.getElementById('enterprise-master-fixes')) {
 document.addEventListener('reset', (e) => {
     const form = e.target;
     setTimeout(() => {
+        // 🚨 BIZOPS FIX: The "Ghost Supplier" Race Condition!
+        // Prevents the reset timeout from destroying the Supplier/Customer ID when opening a Saved Entry!
+        if (window.app && window.app.state && window.app.state.currentEditId) return;
+
         const hiddenInputs = form.querySelectorAll('input[type="hidden"]');
         hiddenInputs.forEach(input => {
             // Wipes the hidden IDs clean for Sales, Purchases, and General Ledger forms
@@ -2142,14 +2171,14 @@ const app = {
 
                 if (docType === 'return') {
                     if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Credit Note' : 'Debit Note'}` : `New ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
-                    if (btnEl) btnEl.innerText = `Save ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
+                    if (btnEl) btnEl.innerHTML = `Save ${type === 'sales' ? 'Credit Note' : 'Debit Note'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
                     if (headerEl) headerEl.style.backgroundColor = type === 'sales' ? '#fff0f2' : '#e8f5e9';
                     
                     const refGroup = document.getElementById(`${type}-return-ref-group`);
                     if (refGroup) refGroup.classList.remove('hidden');
                 } else {
                     if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}` : `New ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}`;
-                    if (btnEl) btnEl.innerText = `Save ${type === 'sales' ? 'Invoice' : 'Purchase'}`;
+                    if (btnEl) btnEl.innerHTML = `Save ${type === 'sales' ? 'Invoice' : 'Purchase'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
                     if (headerEl) headerEl.style.backgroundColor = 'var(--md-surface)';
                     
                     const refGroup = document.getElementById(`${type}-return-ref-group`);
@@ -2383,22 +2412,75 @@ const app = {
                 const partyId = type === 'sales' ? record.customerId : record.supplierId;
                 const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                 
-                const linkedReceipts = allReceipts.filter(r => {
+                let linkedReceipts = allReceipts.filter(r => {
                     if (r.firmId !== app.state.firmId || r.ledgerId !== partyId) return false;
                     const refs = String(r.invoiceRef || '').split(',').map(x => x.trim());
                     return refs.some(ref => uniqueRefs.includes(ref));
                 });
 
+                // 🚨 ENTERPRISE FIX: Inject FIFO Advance Pool & Credit Notes directly into the UI!
+                let explicitCoverage = 0;
+                linkedReceipts.forEach(r => {
+                    const refCount = String(r.invoiceRef || '').split(',').length || 1;
+                    const splitAmt = (parseFloat(r.amount) || 0) / refCount;
+                    // For Sales: Money In pays it off. For Purchases: Money Out pays it off.
+                    if (type === 'sales') explicitCoverage += (r.type === 'in' ? splitAmt : -splitAmt);
+                    else explicitCoverage += (r.type === 'out' ? splitAmt : -splitAmt);
+                });
+
+                const allDocs = storeMap[type] === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases;
+                let totalReturned = 0;
+                allDocs.forEach(d => {
+                    if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo)) {
+                        const rAmt = parseFloat(d.grandTotal) || 0;
+                        totalReturned += rAmt;
+                        linkedReceipts.push({
+                            receiptNo: d.orderNo ? 'CN-' + d.orderNo : 'Credit/Debit Note',
+                            isReturnNote: true,
+                            date: d.date,
+                            mode: 'Return / Credit',
+                            amount: rAmt,
+                            type: type === 'sales' ? 'in' : 'out' 
+                        });
+                    }
+                });
+                explicitCoverage += totalReturned;
+
+                const grandTotal = parseFloat(record.grandTotal) || 0;
+                if (record.status === 'Completed' && explicitCoverage < grandTotal - 0.01) {
+                    const advanceUsed = grandTotal - explicitCoverage;
+                    linkedReceipts.push({
+                        receiptNo: 'ADV-POOL',
+                        isAdvance: true,
+                        date: record.completedDate || record.date,
+                        mode: 'Adjusted from Advance Balance',
+                        amount: advanceUsed,
+                        type: type === 'sales' ? 'in' : 'out'
+                    });
+                }
+
                 if (linkedReceipts.length > 0) {
+                    linkedReceipts.sort((a,b) => new Date(a.date||0) - new Date(b.date||0));
                     historyCard.classList.remove('hidden');
                     historyList.innerHTML = linkedReceipts.map(r => {
-                        // Split the display amount if it's a multi-invoice payment
-                        const refCount = String(r.invoiceRef || '').split(',').length || 1;
-                        const splitAmt = (parseFloat(r.amount) || 0) / refCount;
+                        let splitAmt = parseFloat(r.amount) || 0;
+                        if (!r.isAdvance && !r.isReturnNote) {
+                            const refCount = String(r.invoiceRef || '').split(',').length || 1;
+                            splitAmt = splitAmt / refCount;
+                        }
+                        
+                        // 🚨 PERFECT COLOR MATH
+                        let isPositive = false;
+                        if (type === 'sales') isPositive = r.type === 'in';
+                        else isPositive = r.type === 'out';
+                        
+                        const color = isPositive ? 'var(--md-success)' : 'var(--md-error)';
+                        const sign = isPositive ? '+' : '-';
+                        
                         return `
                         <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed var(--md-outline-variant);">
                             <div><div style="font-weight:bold; color:var(--md-primary);">${r.receiptNo || (r.isAutoGenerated ? 'Auto-Generated Receipt' : 'Manual Receipt')}</div><small style="color:var(--md-text-muted);">${r.date} | Mode: ${r.mode}</small></div>
-                            <div style="font-weight:bold; font-size:16px; color:${type === 'sales' ? 'var(--md-success)' : 'var(--md-error)'};">${type === 'sales' ? '+' : '-'}&#8377;${splitAmt.toFixed(2)}</div>
+                            <div style="font-weight:bold; font-size:16px; color:${color};">${sign}&#8377;${splitAmt.toFixed(2)}</div>
                         </div>`;
                     }).join('');
                 } else {
@@ -2538,13 +2620,12 @@ const app = {
                     
                     // NEW: Lock the submit button to prevent duplicate entries
                     const submitBtn = document.getElementById(`btn-save-${type}`);
-                    // FIXED: Capture the dynamic text (e.g., "Save Credit Note") before overriding it
-                    const originalText = submitBtn ? submitBtn.innerText : `Save ${type === 'sales' ? 'Invoice' : 'Purchase'}`;
+                    // FIXED: Use innerHTML to preserve the SVG Checkmark icon!
+                    const originalText = submitBtn ? submitBtn.innerHTML : `Save ${type === 'sales' ? 'Invoice' : 'Purchase'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
                     
                     if (submitBtn) {
                         submitBtn.disabled = true;
-                        submitBtn.innerText = "Saving...";
-                        submitBtn.style.opacity = "0.7";
+                        // Let ui.js handle the "Saving..." SVG injection so the two scripts don't fight!
                     }
 
                     try {
@@ -2931,23 +3012,23 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                         }
                     } catch (error) {
                         console.error("Save failed:", error);
-                        alert("An error occurred while saving. Please try again.");
+                        // Prevent the annoying "Double Alert" if validation already warned the user
+                        if (error.message !== "Invalid negative or zero quantity detected." && 
+                            error.message !== "Invalid negative rate detected." && 
+                            error.message !== "Return quantity exceeds original purchase." && 
+                            error.message !== "Discount exceeds subtotal." && 
+                            error.message !== "Discount exceeds 100%.") {
+                            alert("An error occurred while saving. Please try again.");
+                        }
                     } finally {
                         // STRICT ERP LOGIC 3: THE ANIMATION SHIELD
-                        // Wait 400ms so the CSS slide-down animation finishes completely.
-                        // Properly reset all visual and pointer states natively!
                         if (submitBtn) {
                             setTimeout(() => {
                                 submitBtn.disabled = false;
-                                submitBtn.innerText = originalText; 
+                                submitBtn.innerHTML = originalText; // Safely restores the button and its icon!
                                 submitBtn.style.opacity = "1";
                                 submitBtn.style.pointerEvents = "auto";
                                 submitBtn.classList.remove('btn-loading');
-                                
-                                // Failsafe to restore the icon if original text was lost
-                                if (submitBtn.innerText.includes('Saving')) {
-                                    submitBtn.innerHTML = `Save <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
-                                }
                             }, 400); 
                         }
                     }
@@ -3429,7 +3510,8 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                                     // STRICT ERP LOGIC: Enforce Firm ID boundaries so Shop A doesn't accidentally open Shop B's invoices!
                                     const linkedDoc = allDocs.find(d => d.firmId === app.state.firmId && (d.id === oldRef || d.invoiceNo === oldRef || d.poNo === oldRef || d.orderNo === oldRef));
                                     if (linkedDoc && linkedDoc.status === 'Completed') {
-                                        linkedDoc.status = 'Unpaid'; // FIX: Marks as Unpaid but keeps Stock intact!
+                                        // 🚨 ENTERPRISE FIX: Drop Sales back to Shipped, but drop Purchases back to Open!
+                                        linkedDoc.status = docStore === 'purchases' ? 'Open' : 'Shipped'; 
                                         linkedDoc.completedDate = '';
                                         await saveRecord(docStore, linkedDoc);
                                     }
@@ -3518,16 +3600,18 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                                         }
                                     });
 
-                                    // If the split manual payments + returns cover the grand total, mark as Completed
+                                    // 🚨 ENTERPRISE FIX: Fulfillment-Aware Auto-Close
+                                    // Purchases bypass the shipping check!
                                     if ((totalPaid + totalReturned) >= parseFloat(linkedInvoice.grandTotal) - 0.5) { 
-                                        linkedInvoice.status = 'Completed';
-                                        // 🚨 ENTERPRISE FIX: Stop forcefully overwriting the Completed Date! Let the user type it.
-                                        await saveRecord(storeName, linkedInvoice);
+                                        if (storeName === 'purchases' || linkedInvoice.status === 'Shipped') {
+                                            linkedInvoice.status = 'Completed';
+                                            linkedInvoice.completedDate = data.date; // Use the exact payment date!
+                                            await saveRecord(storeName, linkedInvoice);
+                                        }
                                     } else {
-                                        // ENTERPRISE FIX: The Ghost Completion Shield!
-                                        // If a user edits a receipt and LOWERS the amount, we MUST revert the invoice back to Unpaid!
+                                        // The Ghost Completion Shield!
                                         if (linkedInvoice.status === 'Completed') {
-                                            linkedInvoice.status = 'Unpaid';
+                                            linkedInvoice.status = storeName === 'purchases' ? 'Open' : 'Shipped';
                                             linkedInvoice.completedDate = '';
                                             await saveRecord(storeName, linkedInvoice);
                                         }
@@ -3795,16 +3879,19 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                 remainingAdvanceMoney -= advanceApplied;
             }
             
+            // 🚨 ENTERPRISE FIX: Fulfillment-Aware Auto-Close
+            // Purchases auto-complete instantly. Sales MUST be physically shipped first!
             if (finalBal <= 0.01) {
-                if (item.doc.status !== 'Completed') {
+                if (storeName === 'purchases' || item.doc.status === 'Shipped') {
                     item.doc.status = 'Completed';
-                    // 🚨 ENTERPRISE FIX: We no longer force overwrite the Completed Date! 
-                    // Let the user decide when to input dates.
+                    const fallbackDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                    item.doc.completedDate = triggerDate || fallbackDate; // Auto-stamp the date!
                     await saveRecord(storeName, item.doc);
                 }
             } else {
+                // If it owes money again, revert to Shipped (for sales) or Open (for purchases)
                 if (item.doc.status === 'Completed') {
-                    item.doc.status = 'Unpaid'; 
+                    item.doc.status = storeName === 'purchases' ? 'Open' : 'Shipped'; 
                     item.doc.completedDate = '';
                     await saveRecord(storeName, item.doc);
                 }
@@ -4818,8 +4905,8 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         let html = '';
         
         const recentSales = sales.filter(s => s.firmId === app.state.firmId && s.status !== 'Open');
-        // ENTERPRISE FIX: Sort Sales Invoices alphanumerically by Order/Invoice Number
-        recentSales.sort((a,b) => String(a.orderNo || a.invoiceNo || a.id).localeCompare(String(b.orderNo || b.invoiceNo || b.id), undefined, {numeric: true, sensitivity: 'base'}));
+        // 🚨 ENTERPRISE FIX: Mathematically flipped a and b to force DESCENDING alphanumeric order (Newest first!)
+        recentSales.sort((a,b) => String(b.orderNo || b.invoiceNo || b.id).localeCompare(String(a.orderNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
         
         // Take only the top 50 to prevent freezing the UI
         const slicedSales = recentSales.slice(0, 50);
@@ -4842,8 +4929,8 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         }
         
         const recentPurch = purchases.filter(p => p.firmId === app.state.firmId && p.status !== 'Open');
-        // ENTERPRISE FIX: Sort Purchase Bills alphanumerically by PO/Order Number
-        recentPurch.sort((a,b) => String(a.orderNo || a.poNo || a.invoiceNo || a.id).localeCompare(String(b.orderNo || b.poNo || b.invoiceNo || b.id), undefined, {numeric: true, sensitivity: 'base'}));
+        // 🚨 ENTERPRISE FIX: Mathematically flipped a and b to force DESCENDING alphanumeric order (Newest first!)
+        recentPurch.sort((a,b) => String(b.orderNo || b.poNo || b.invoiceNo || b.id).localeCompare(String(a.orderNo || a.poNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
         
         // Take only the top 50 to prevent freezing the UI
         const slicedPurch = recentPurch.slice(0, 50);
