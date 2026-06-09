@@ -3068,13 +3068,13 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                     }
                     
                     formData.forEach((value, key) => { 
-                        // ENTERPRISE UPGRADE: Auto-Capitalize Names & Categories for a clean, professional database!
-                        if (typeof value === 'string' && (key === 'name' || key === 'category' || key === 'city')) {
-                            // Converts "acme corp" into "Acme Corp" automatically
-                            data[key] = value.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-                        } else {
-                            data[key] = value; 
-                        }
+                    // ENTERPRISE FIX: Removed 'category' so the dropdown Exact-Match doesn't break on acronyms like "EMI" or "GST"!
+                    if (typeof value === 'string' && (key === 'name' || key === 'city')) {
+                        // Converts "acme corp" into "Acme Corp" automatically
+                        data[key] = value.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+                    } else {
+                        data[key] = value; 
+                    }
                     });
 
                     // ENTERPRISE FIX: Duplicate Document Number Protection for Expenses
