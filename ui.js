@@ -356,6 +356,11 @@ const UI = {
     // --- NATIVE SCROLLING (NO VIRTUALIZATION BUGS) ---
     renderVirtualList: (container, dataArray, renderRowFn, emptyStateHTML) => {
         if (!container) return;
+        
+        // 🚨 ENTERPRISE FIX: The "Double-Render" Race Condition Shield!
+        // Cancels any pending GPU frames if multiple filters fire at the exact same millisecond!
+        if (container.renderToken) cancelAnimationFrame(container.renderToken);
+
         if (!dataArray || dataArray.length === 0) {
             container.innerHTML = emptyStateHTML;
             return;
@@ -363,9 +368,7 @@ const UI = {
         
         // ENTERPRISE FIX: True DOM Pagination with Scroll Preservation!
         let currentIndex = 0;
-        const chunkSize = 300; // 🚨 Loads all 250+ entries instantly to destroy scroll lag!
-        
-        container.innerHTML = ''; // Clear container exactly once at start
+        const chunkSize = 300; 
         
         const renderNextChunk = () => {
             const chunk = dataArray.slice(currentIndex, currentIndex + chunkSize);
@@ -376,12 +379,13 @@ const UI = {
             tempDiv.innerHTML = chunkHTML;
             
             // 🚨 ENTERPRISE UPGRADE: THE GPU REFLOW SHIELD!
-            // Instead of triggering 50 violent GPU screen-recalculations, we build the DOM invisibly in RAM
-            // and stamp it to the screen in exactly 1 single hardware frame! (120 FPS Scrolling)
             const fragment = document.createDocumentFragment();
             while(tempDiv.firstChild) fragment.appendChild(tempDiv.firstChild);
             
-            requestAnimationFrame(() => {
+            container.renderToken = requestAnimationFrame(() => {
+                // Wipe the container exactly at paint-time to prevent overlapping ghost lists!
+                if (currentIndex === 0) container.innerHTML = '';
+                
                 container.appendChild(fragment);
                 
                 currentIndex += chunkSize;
@@ -407,7 +411,7 @@ const UI = {
                             observer.disconnect(); // Stop observing this specific sentinel
                             renderNextChunk(); // Automatically load the next chunk!
                         }
-                    }, { rootMargin: '4000px' }); // 🚨 ENTERPRISE FIX: 4000px Massive Look-Ahead Radar!
+                    }, { rootMargin: '4000px' }); 
 
                     observer.observe(sentinel);
                 }
@@ -543,6 +547,10 @@ const UI = {
                 document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
                 navElement.classList.add('active');
             }
+
+            // 🚨 ENTERPRISE FIX: If they switch tabs normally, instantly clear the Dashboard Date Lock!
+            // This ensures they see ALL documents when navigating naturally.
+            UI.state.applyDashboardDateToDocuments = false;
 
             // ENTERPRISE FIX: Removed the 20ms delay!
             // View Transitions automatically pause the DOM paint for you. If you delay the render, 
@@ -1137,6 +1145,48 @@ const UI = {
         let containerId = '';
         let sumValue = 0;
 
+        // 🚨 ENTERPRISE FIX: DASHBOARD DATE PASS-THROUGH ENGINE
+        let dashboardDateFilter = 'all';
+        let dashboardCustomDate = '';
+        if (UI.state.applyDashboardDateToDocuments) {
+             const filterEl = document.getElementById('dashboard-date-filter');
+             const customMonthEl = document.getElementById('dashboard-custom-month');
+             dashboardDateFilter = filterEl ? filterEl.value : 'all';
+             dashboardCustomDate = customMonthEl ? customMonthEl.value : '';
+        }
+        
+        const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+        const currentYear = parseInt(todayStr.split('-')[0], 10);
+        const currentMonth = parseInt(todayStr.split('-')[1], 10) - 1;
+
+        const isDateInRange = (dateStr) => {
+            if (dashboardDateFilter === 'all') return true;
+            if (!dateStr) return false;
+            if (dashboardDateFilter === 'today') return dateStr === todayStr;
+            
+            const [yearStr, monthStr] = dateStr.split('-');
+            const itemYear = parseInt(yearStr, 10);
+            const itemMonth = parseInt(monthStr, 10) - 1;
+            
+            if (dashboardDateFilter === 'month') return itemMonth === currentMonth && itemYear === currentYear;
+            
+            if (dashboardDateFilter === 'last_month') {
+                let targetMonth = currentMonth - 1;
+                let targetYear = currentYear;
+                if (targetMonth < 0) { targetMonth = 11; targetYear -= 1; }
+                return itemMonth === targetMonth && itemYear === targetYear;
+            }
+            
+            if (dashboardDateFilter === 'custom') {
+                if (!dashboardCustomDate) return false; 
+                const [cYear, cMonth] = dashboardCustomDate.split('-');
+                return itemYear === parseInt(cYear, 10) && itemMonth === (parseInt(cMonth, 10) - 1);
+            }
+            
+            if (dashboardDateFilter === 'year') return itemYear === currentYear;
+            return true;
+        };
+
         // Cashbook Map logic for True Balances (WITH REFUND & COLLISION FIX)
         const paymentMap = {};
         const ledgerTotalPaid = {}; 
@@ -1254,6 +1304,9 @@ const UI = {
             });
 
             data = UI.state.rawData.sales.filter(s => {
+                // 🚨 ENTERPRISE FIX: Apply Dashboard Date Filter if Active!
+                if (!isDateInRange(s.date)) return false;
+
                 // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, Order, and Database ID) are fully searchable!
                 const matchSearch = (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || s.orderNo || s.id || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
@@ -1344,6 +1397,9 @@ const UI = {
             });
 
             data = UI.state.rawData.purchases.filter(p => {
+                // 🚨 ENTERPRISE FIX: Apply Dashboard Date Filter if Active!
+                if (!isDateInRange(p.date)) return false;
+
                 // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, PO, and Internal Order) are fully searchable!
                 const matchSearch = (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || p.orderNo || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
@@ -1949,26 +2005,91 @@ const UI = {
                         displayLink = [...new Set(displayNames)].join(', ');
                     }
 
-                    if (t.hasOwnProperty('isInvoice')) {
-                        return `
-                        <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
-                            <div>
-                                <strong class="large-text">${t.desc || 'Document'}</strong><br>
-                                <small>${window.Utils.formatDateDisplay(t.date)} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>
-                            </div>
-                            <div style="text-align:right;">
-                                <strong style="color:${t.isInvoice ? 'var(--md-error)' : 'var(--md-success)'};">\u20B9${parseFloat(t.amount || 0).toFixed(2)}</strong><br>
-                                <small>Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
-                            </div>
-                        </div>`;
+                    // 🚨 ENTERPRISE FIX: Context-Aware Ledger Rendering!
+                    const reportViewer = document.getElementById('activity-report-viewer');
+                    const isReportViewer = reportViewer && reportViewer.classList.contains('open');
+                    
+                    if (isReportViewer) {
+                        const balText = document.getElementById('report-party-balance').innerText || '';
+                        const isAccountLedger = balText.includes('Available Balance');
+                        
+                        if (isAccountLedger) {
+                            // 🏦 ACCOUNT LEDGER RENDER
+                            const isPaymentOut = t.impact < 0;
+                            const icon = t.id === 'open-bal' ? 'account_balance' : (isPaymentOut ? 'arrow_upward' : 'arrow_downward');
+                            const iconBg = t.id === 'open-bal' ? 'rgba(0, 97, 164, 0.1)' : (isPaymentOut ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
+                            const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPaymentOut ? '#ba1a1a' : '#2e7d32');
+                            const amtColor = isPaymentOut ? 'var(--md-error)' : 'var(--md-success)';
+                            const sign = isPaymentOut ? '-' : '+';
+                            
+                            let clickAction = '';
+                            let tapClass = '';
+                            if (t.id !== 'open-bal') {
+                                tapClass = 'tap-target';
+                                const type = isPaymentOut ? 'out' : 'in';
+                                clickAction = `onclick="app.openReceipt('${t.id}', '${type}')"`;
+                            }
+
+                            return `
+                            <div class="m3-card ${tapClass}" ${clickAction} style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
+                                <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                    <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                                </div>
+                                <div style="flex: 1;">
+                                    <strong class="large-text">${t.desc}</strong><br>
+                                    <small style="color: var(--md-text-muted);">${window.Utils.formatDateDisplay(t.date)} ${t.partyName ? '| ' + t.partyName : ''} ${t.ref ? '<br><span style="color:var(--md-primary); font-size:10px; font-weight:bold;">Ref: ' + t.ref + '</span>' : ''}</small>
+                                </div>
+                                <div style="text-align:right;">
+                                    <strong style="font-size: 14px; color: ${amtColor};">${sign}\u20B9${Math.abs(t.amount || 0).toFixed(2)}</strong><br>
+                                    <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                </div>
+                            </div>`;
+                        } else {
+                            // 👤 PARTY LEDGER RENDER
+                            const isPayment = !t.isInvoice && t.id !== 'open-bal';
+                            const icon = t.id === 'open-bal' ? 'account_balance' : (isPayment ? 'payments' : 'receipt_long');
+                            const iconBg = t.id === 'open-bal' ? 'rgba(0, 97, 164, 0.1)' : (isPayment ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)');
+                            const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPayment ? '#2e7d32' : '#ba1a1a');
+                            const amtColor = t.isInvoice ? 'var(--md-error)' : 'var(--md-success)';
+                            
+                            let clickAction = '';
+                            let tapClass = '';
+                            if (t.id !== 'open-bal') {
+                                tapClass = 'tap-target';
+                                if (isPayment) {
+                                    const rec = UI.state.rawData.cashbook.find(c => c.id === t.id);
+                                    if (rec) clickAction = `onclick="app.openReceipt('${t.id}', '${rec.type}')"`;
+                                } else {
+                                    let doc = UI.state.rawData.sales.find(s => s.id === t.id);
+                                    let formType = 'sales';
+                                    if (!doc) { doc = UI.state.rawData.purchases.find(p => p.id === t.id); formType = 'purchase'; }
+                                    const docType = doc ? doc.documentType : 'invoice';
+                                    if (doc) clickAction = `onclick="app.openForm('${formType}', '${t.id}', '${docType}')"`;
+                                }
+                            }
+
+                            return `
+                            <div class="m3-card ${tapClass}" ${clickAction} style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
+                                <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                    <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                                </div>
+                                <div style="flex: 1;">
+                                    <strong class="large-text">${t.desc}</strong><br>
+                                    <small style="color: var(--md-text-muted);">${window.Utils.formatDateDisplay(t.date)}</small>
+                                </div>
+                                <div style="text-align:right;">
+                                    <strong style="font-size: 14px; color: ${amtColor};">${t.isInvoice ? '+' : '-'}\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
+                                    <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                </div>
+                            </div>`;
+                        }
                     } else {
-                        // STRICT ERP LOGIC: Properly render BOTH Invoices and Receipts in the Global Timeline without "undefined" corruption!
+                        // 🌍 GLOBAL TIMELINE RENDER
                         const safeType = String(t.type).toUpperCase();
                         const isMoneyIn = safeType === 'IN';
                         const sign = isMoneyIn ? '+' : '-';
                         const color = isMoneyIn ? 'var(--md-success)' : 'var(--md-error)';
                         
-                        // ENTERPRISE FIX: Corrected Accounting Semantic Labels
                         const title = t.party ? `${isMoneyIn ? 'Sale' : 'Purchase'} - ${t.party}` : (t.desc || 'Transaction');
                         const subtitle = t.ref ? `${window.Utils.formatDateDisplay(t.date)} | Ref: ${t.ref}` : `${window.Utils.formatDateDisplay(t.date)} | Mode: ${t.mode || 'Cash'}`;
                         const rightVal = t.qty ? t.qty : `${sign}\u20B9${parseFloat(t.amount || 0).toFixed(2)}`;
@@ -2538,9 +2659,9 @@ const UI = {
             if (filterSelect) {
                 const tab = UI.state.activeMasterTab;
                 
-                // --- FIX: SAVE PREVIOUS SELECTIONS ---
-                const savedFilter = filterSelect.value;
-                const savedSort = sortSelect ? sortSelect.value : null;
+                // 🚨 ENTERPRISE FIX: Read the true active state directly from the RAM Engine!
+                const savedFilter = (UI.state.activeFilters && UI.state.activeFilters['masters']) ? UI.state.activeFilters['masters'] : 'All';
+                const savedSort = (UI.state.activeSorts && UI.state.activeSorts['masters']) ? UI.state.activeSorts['masters'] : 'name-asc';
 
                 // NEW: Unified Filtering & Sorting for all Ledger types!
                 if (tab === 'customers' || tab === 'suppliers' || tab === 'contacts') {
@@ -2566,9 +2687,20 @@ const UI = {
                     filterSelect.innerHTML = `<option value="All">All Trashed Items</option>`;
                     if(sortSelect) sortSelect.innerHTML = `<option value="date-desc">Recently Deleted</option>`;
                 } else {
-                    // NEW: Products gets the 'Stock Available' filter, but keeps its original sorting
-                    filterSelect.innerHTML = `<option value="All">All Products</option><option value="In Stock">Stock Available</option>`;
-                    if(sortSelect) sortSelect.innerHTML = `<option value="name-asc">A to Z</option><option value="stock-asc">Lowest Stock First</option>`;
+                    // 🚨 ENTERPRISE UPGRADE: Unlocked all advanced Inventory Master Filters & Sorts!
+                    filterSelect.innerHTML = `
+                        <option value="All">All Products</option>
+                        <option value="In Stock">Stock Available</option>
+                        <option value="Out of Stock">Out of Stock</option>
+                        <option value="Low Stock">Low Stock</option>
+                        <option value="GST Stock">GST Stock</option>
+                        <option value="Non-GST Stock">Non-GST Stock</option>
+                    `;
+                    if(sortSelect) sortSelect.innerHTML = `
+                        <option value="name-asc">A to Z</option>
+                        <option value="stock-asc">Stock: Low to High</option>
+                        <option value="stock-desc">Stock: High to Low</option>
+                    `;
                 }
 
                 // --- FIX: RESTORE PREVIOUS SELECTIONS ---

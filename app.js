@@ -431,12 +431,21 @@ const app = {
             
             // 3. Wait 150ms for the screen to slide over, then apply the native filter!
             setTimeout(() => {
-                // 🚨 ENTERPRISE FIX: Engage the new high-speed Native State Filter!
                 if (window.UI) {
+                    // Inject the status filter
                     window.UI.state.activeFilters = window.UI.state.activeFilters || {};
                     window.UI.state.activeFilters['sales'] = status;
+                    
+                    // 🚨 ENTERPRISE FIX: Tell the Documents Tab to physically obey the Dashboard's Date Filter!
+                    window.UI.state.applyDashboardDateToDocuments = true;
+                    
                     if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('sales');
-                    if (window.Utils) window.Utils.showToast(`Filtered: ${status} Orders`);
+                    
+                    if (window.Utils) {
+                        const dashFilterEl = document.getElementById('dashboard-date-filter');
+                        const dateFilterName = dashFilterEl && dashFilterEl.options ? dashFilterEl.options[dashFilterEl.selectedIndex].text : 'Selected Date Range';
+                        window.Utils.showToast(`Filtered: ${status} (${dateFilterName})`);
+                    }
                 }
             }, 150);
         }
@@ -682,25 +691,104 @@ const app = {
         });
 
         // ==========================================
-        // ENTERPRISE UPGRADE: WAREHOUSE MINI-TABLE ENGINE
+        // ENTERPRISE UPGRADE: WAREHOUSE MINI-TABLE ENGINE (VELOCITY PREDICTOR)
         // ==========================================
         if (UI.state.rawData.items) {
             let totalValuation = 0;
-            let lowStockItems = []; // ENTERPRISE FIX: Collect actual items instead of just a number!
+            let lowStockItems = []; 
+
+            // 🚨 VELOCITY ENGINE: Calculate the date 30 days ago to measure demand!
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const salesHistory = UI.state.rawData.sales || [];
+            
+            // 🚨 CAPITAL ENGINE: Pull historical purchases to calculate real-world costs
+            const purchaseHistory = UI.state.rawData.purchases || [];
 
             UI.state.rawData.items.forEach(i => {
                 const rawGst = parseFloat(i.stockGst);
                 const rawNon = parseFloat(i.stockNonGst);
                 const stockGst = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
                 const stockNonGst = isNaN(rawNon) ? 0 : rawNon;
-                const totalStock = stockGst + stockNonGst;
+                // 🚨 ENTERPRISE FIX: Allow negative stock to accurately reduce warehouse capital!
+                const totalStock = stockGst + stockNonGst; 
                 
-                const buyPrice = parseFloat(i.buyPrice) || 0;
-                totalValuation += (totalStock * buyPrice);
+                // 🚨 CAPITAL ENGINE: True Weighted Average Cost (WAC) Valuation
+                let trueCost = parseFloat(i.buyPrice) || 0; // Fallback to master price if no bills exist
+                let totalBoughtQty = 0;
+                let totalBoughtValue = 0;
+
+                purchaseHistory.forEach(p => {
+                    if (p.firmId === app.state.firmId && p.status !== 'Open' && p.status !== 'Cancelled') {
+                        (p.items || []).forEach(row => {
+                            if (String(row.itemId) === String(i.id)) {
+                                let q = parseFloat(row.qty) || 0;
+                                let r = parseFloat(row.rate) || 0; // The actual rate paid on the bill
+                                if (p.documentType === 'return') {
+                                    totalBoughtQty -= q;
+                                    totalBoughtValue -= (q * r);
+                                } else {
+                                    totalBoughtQty += q;
+                                    totalBoughtValue += (q * r);
+                                }
+                            }
+                        });
+                    }
+                });
+
+                // Mathematically calculate the true average cost of the items
+                if (totalBoughtQty > 0) {
+                    trueCost = totalBoughtValue / totalBoughtQty; 
+                }
+
+                // Add the true audited value to the dashboard total
+                totalValuation += (totalStock * trueCost);
 
                 const minStock = parseFloat(i.minStock) || 0;
+                
+                // 🚨 VELOCITY ENGINE: Calculate exact daily sales for this specific item!
+                let soldIn30Days = 0;
+                salesHistory.forEach(s => {
+                    if (s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled') {
+                        if (window.Utils.safeDate(s.date) >= thirtyDaysAgo) {
+                            (s.items || []).forEach(row => {
+                                if (String(row.itemId) === String(i.id)) {
+                                    soldIn30Days += (s.documentType === 'return' ? -(parseFloat(row.qty)||0) : (parseFloat(row.qty)||0));
+                                }
+                            });
+                        }
+                    }
+                });
+                
+                const dailyVelocity = Math.max(0, soldIn30Days / 30);
+                const daysRemaining = dailyVelocity > 0 ? (totalStock / dailyVelocity) : 999;
+                
+                let isCritical = false;
+                let triggerReason = '';
+                let urgencyScore = 999; // Lower is worse
+                
+                // Trigger 1: Hard Limit (They hit their exact minimum)
                 if (minStock > 0 && totalStock <= minStock) {
-                    lowStockItems.push({ name: i.name, stock: totalStock, min: minStock, uom: i.uom || 'Pcs' });
+                    isCritical = true;
+                    triggerReason = `${totalStock} / ${minStock}`;
+                    urgencyScore = totalStock - minStock; // Negative means they are deep in deficit
+                } 
+                // Trigger 2: Velocity Alert (They have stock, but it will run out in < 7 days based on heavy sales!)
+                else if (dailyVelocity > 0 && daysRemaining <= 7 && totalStock > 0) {
+                    isCritical = true;
+                    triggerReason = `${Math.ceil(daysRemaining)} Days Left`;
+                    urgencyScore = daysRemaining; 
+                }
+
+                if (isCritical) {
+                    lowStockItems.push({ 
+                        name: i.name, 
+                        stock: totalStock, 
+                        min: minStock, 
+                        uom: i.uom || 'Pcs',
+                        reason: triggerReason,
+                        score: urgencyScore
+                    });
                 }
             });
 
@@ -712,22 +800,20 @@ const app = {
             const lsBtn = document.getElementById('dash-low-stock-btn');
 
             if (lsText && lsIcon && lsBtn) {
-                // Wipe any old tables to prevent duplication on refresh
                 const oldTable = document.getElementById('dash-mini-table');
                 if (oldTable) oldTable.remove();
 
                 if (lowStockItems.length > 0) {
-                    // Restore button visibility if it was previously hidden
                     lsBtn.style.display = '';
                     
-                    // Sort items mathematically so the most critical are at the absolute top
-                    lowStockItems.sort((a, b) => a.stock - b.stock);
+                    // 🚨 VELOCITY ENGINE: Sort items by pure urgency so the most dangerous shortages are at the top!
+                    lowStockItems.sort((a, b) => a.score - b.score);
                     const topItems = lowStockItems.slice(0, 3);
                     
                     let tableRows = topItems.map(item => `
                         <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 6px 0; border-bottom: 1px dashed rgba(186, 26, 26, 0.2);">
                             <span style="color: #410002; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; font-weight: 600;">${item.name}</span>
-                            <span style="color: var(--md-error); font-weight: 800; background: #ffe4e6; padding: 2px 6px; border-radius: 4px;">${item.stock} / ${item.min}</span>
+                            <span style="color: var(--md-error); font-weight: 800; background: #ffe4e6; padding: 2px 6px; border-radius: 4px;">${item.reason}</span>
                         </div>
                     `).join('');
                     
@@ -1137,9 +1223,9 @@ const app = {
 
         if (!filterSelect || !sortSelect) return;
 
-        // 🚨 ENTERPRISE FIX: Capture the current selection BEFORE overwriting the HTML so it doesn't default back to "All"!
-        const currentFilter = filterSelect.value;
-        const currentSort = sortSelect.value;
+        // 🚨 ENTERPRISE FIX: Read the true active state directly from the RAM Engine!
+        const currentFilter = (window.UI.state.activeFilters && window.UI.state.activeFilters['masters']) ? window.UI.state.activeFilters['masters'] : 'All';
+        const currentSort = (window.UI.state.activeSorts && window.UI.state.activeSorts['masters']) ? window.UI.state.activeSorts['masters'] : 'name-asc';
 
         let filterHTML = '<option value="All">All Records</option>';
         let sortHTML = '<option value="name-asc">A to Z (Ascending)</option><option value="name-desc">Z to A (Descending)</option>';
@@ -1192,6 +1278,17 @@ const app = {
         // The old, clunky DOM filter has been deleted!
         // We now rely 100% on the lightning-fast native data filter inside ui.js!
         if (window.UI && typeof window.UI.applyFilters === 'function') {
+            
+            // 🚨 ENTERPRISE FIX: Capture the dropdown values and inject them into the state BEFORE filtering!
+            const filterSelect = document.getElementById('filter-master-view');
+            const sortSelect = document.getElementById('sort-master-view');
+            
+            window.UI.state.activeFilters = window.UI.state.activeFilters || {};
+            window.UI.state.activeSorts = window.UI.state.activeSorts || {};
+            
+            if (filterSelect) window.UI.state.activeFilters['masters'] = filterSelect.value;
+            if (sortSelect) window.UI.state.activeSorts['masters'] = sortSelect.value;
+            
             window.UI.applyFilters('masters');
         }
     },
@@ -6023,6 +6120,19 @@ app.openItemLedger = async (itemId, itemName) => {
 
     if (timeline.length === 0) {
         html += `<div class="empty-state">No stock movement recorded yet.</div>`;
+    } else {
+        // 🚨 ENTERPRISE FIX: Inject Opening Stock as the first historical card!
+        html += `
+        <div class="m3-card" style="padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1); background: #f8fafc;">
+            <div style="flex: 1;">
+                <strong style="font-size: 14px; color: #475569;">Opening Stock</strong><br>
+                <small style="color: var(--md-text-muted);">Initial Inventory Balance</small>
+            </div>
+            <div style="text-align: right;">
+                <strong style="color: #0f172a; font-size: 15px;">${openingStock > 0 ? '+' : ''}${openingStock.toFixed(2)}</strong><br>
+                <small>Bal: ${openingStock.toFixed(2)} ${uom}</small>
+            </div>
+        </div>`;
     }
 
     timeline.forEach(t => {
@@ -6852,3 +6962,165 @@ setInterval(() => {
         }
     });
 }, 500); // Runs a quick background sweep twice a second to catch dynamically loaded data
+// ==========================================
+// 🚨 ENTERPRISE AI: BUSINESS INTELLIGENCE & ANALYTICS
+// (READ-ONLY ENGINE - ZERO DATABASE CORRUPTION)
+// ==========================================
+
+window.AnalyticsEngine = {
+    showReportModal: (title, summaryText, summaryColor, htmlContent) => {
+        // 🚨 ENTERPRISE FIX: Give the modal a strict ID so the Close button never fails!
+        const modalId = 'ai-analytics-modal-' + Date.now();
+        const overlay = document.createElement('div');
+        overlay.id = modalId;
+        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); z-index:999999; display:flex; align-items:center; justify-content:center; padding:20px;';
+        
+        overlay.innerHTML = `
+            <div style="background:#fff; padding:20px; border-radius:12px; width:100%; max-width:500px; max-height:85vh; display:flex; flex-direction:column; gap:12px; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;">
+                    <h3 style="margin:0; color:#0f172a; font-size:18px; font-weight:800; text-transform:uppercase;">${title}</h3>
+                    <span class="material-symbols-outlined tap-target" style="cursor:pointer; color:#ef4444; font-size:28px;" onclick="document.getElementById('${modalId}').remove(); document.body.style.overflow='';">close</span>
+                </div>
+                <div style="background:${summaryColor}15; border: 1px solid ${summaryColor}40; color:${summaryColor}; padding:16px; border-radius:8px; font-weight:900; font-size: 16px; text-align:center;">
+                    ${summaryText}
+                </div>
+                <div style="overflow-y:auto; flex:1; padding-right:4px; margin-top: 8px;">
+                    ${htmlContent || '<div style="text-align:center; padding:40px 20px; color:#16a34a; font-weight:bold;"><span class="material-symbols-outlined" style="font-size:48px; margin-bottom:10px;">verified</span><br>Perfect! No issues found.</div>'}
+                </div>
+            </div>
+        `;
+        document.body.style.overflow = 'hidden'; // Lock background scrolling
+        document.body.appendChild(overlay);
+    },
+
+    runProfitLeakageAudit: async () => {
+        if (window.Utils) window.Utils.showToast("Scanning historical sales for profit leakage... ⏳");
+        const sales = await window.getAllRecords('sales');
+        const items = await window.getAllRecords('items');
+        
+        let leakageHtml = '';
+        let totalLeakage = 0;
+        let flaggedCount = 0;
+
+        sales.forEach(sale => {
+            if (sale.status === 'Open' || sale.status === 'Cancelled' || sale.documentType === 'return') return;
+
+            let invoiceLeakage = 0;
+            let invoiceIssues = [];
+
+            // Accurately calculate the true discount applied to this invoice
+            let rawSubtotal = 0;
+            (sale.items || []).forEach(row => rawSubtotal += (Math.abs(parseFloat(row.qty))||0) * (parseFloat(row.rate)||0));
+            let discountAmt = sale.discountType === '%' ? (rawSubtotal * ((parseFloat(sale.discount)||0)/100)) : (parseFloat(sale.discount)||0);
+            let discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
+
+            (sale.items || []).forEach(row => {
+                const dbItem = items.find(i => i.id === (row.itemId || row.id));
+                if (dbItem) {
+                    const buyPrice = parseFloat(dbItem.buyPrice) || 0; // True MAC Cost
+                    const sellPrice = parseFloat(row.rate) || 0;
+                    const netSellPrice = sellPrice - (sellPrice * discountRatio); // True Selling Price after invoice discount
+                    
+                    if (netSellPrice < buyPrice && buyPrice > 0) {
+                        const lossPerItem = buyPrice - netSellPrice;
+                        const totalLoss = lossPerItem * Math.abs(parseFloat(row.qty) || 0);
+                        invoiceLeakage += totalLoss;
+                        invoiceIssues.push(`• <strong>${row.name}</strong><br>Sold @ ₹${netSellPrice.toFixed(2)} (Cost: ₹${buyPrice.toFixed(2)})`);
+                    }
+                }
+            });
+
+            if (invoiceLeakage > 0) {
+                totalLeakage += invoiceLeakage;
+                flaggedCount++;
+                leakageHtml += `
+                    <div style="border-left: 4px solid #ef4444; background: #fff5f5; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <div style="display: flex; justify-content: space-between; font-weight: bold; color: #991b1b; margin-bottom: 4px; font-size: 14px;">
+                            <span>Inv: ${sale.invoiceNo || 'N/A'} <span style="color:#dc2626; font-size:10px;">(${window.Utils.formatDateDisplay(sale.date)})</span></span>
+                            <span>Loss: -₹${invoiceLeakage.toFixed(2)}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #b91c1c; font-weight: 600;">Customer: ${sale.customerName || 'Cash Sale'}</div>
+                        <div style="font-size: 12px; color: #7f1d1d; margin-top: 6px; line-height: 1.5;">${invoiceIssues.join('<br>')}</div>
+                    </div>
+                `;
+            }
+        });
+
+        const summaryColor = totalLeakage > 0 ? '#dc2626' : '#16a34a';
+        const summaryText = totalLeakage > 0 ? `⚠️ Found ₹${totalLeakage.toFixed(2)} in Profit Leakage across ${flaggedCount} Invoices.` : '✅ All sales are mathematically profitable!';
+        window.AnalyticsEngine.showReportModal('Gross Profit Audit', summaryText, summaryColor, leakageHtml);
+    },
+
+    runDeadStockScanner: async () => {
+        if (window.Utils) window.Utils.showToast("Analyzing inventory and sales velocity... ⏳");
+        const sales = await window.getAllRecords('sales');
+        const items = await window.getAllRecords('items');
+        
+        let deadStockHtml = '';
+        let totalLockedCapital = 0;
+        let deadItemCount = 0;
+        
+        const DEAD_DAYS = 90; // Items not sold in 3 months
+        const now = new Date().getTime();
+
+        // 1. Find the most recent sale date for every single item
+        const lastSaleMap = {};
+        sales.forEach(sale => {
+            if (sale.status === 'Open' || sale.status === 'Cancelled' || sale.documentType === 'return') return;
+            const saleTime = new Date(sale.date).getTime();
+            (sale.items || []).forEach(row => {
+                const id = row.itemId || row.id;
+                if (!lastSaleMap[id] || saleTime > lastSaleMap[id]) lastSaleMap[id] = saleTime;
+            });
+        });
+
+        // 2. Filter warehouse for Dead Stock
+        let deadItems = [];
+        items.forEach(item => {
+            const stock = parseFloat(item.stock) || 0;
+            if (stock > 0) {
+                const lastSaleTime = lastSaleMap[item.id];
+                let daysSinceSale = 'Never Sold';
+                let isDead = false;
+
+                if (!lastSaleTime) {
+                    isDead = true;
+                } else {
+                    const days = Math.floor((now - lastSaleTime) / (1000 * 60 * 60 * 24));
+                    if (days > DEAD_DAYS) {
+                        isDead = true;
+                        daysSinceSale = `${days} Days Ago`;
+                    }
+                }
+
+                if (isDead) {
+                    const buyPrice = parseFloat(item.buyPrice) || 0;
+                    const lockedCapital = stock * buyPrice;
+                    deadItems.push({ name: item.name, stock, buyPrice, lockedCapital, daysSinceSale });
+                }
+            }
+        });
+
+        // 3. Sort by the highest amount of cash locked up
+        deadItems.sort((a, b) => b.lockedCapital - a.lockedCapital);
+
+        deadItems.forEach(di => {
+            totalLockedCapital += di.lockedCapital;
+            deadItemCount++;
+            deadStockHtml += `
+                <div style="border-left: 4px solid #f59e0b; background: #fffbeb; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                    <div style="display: flex; justify-content: space-between; font-weight: 900; color: #b45309; margin-bottom: 4px; font-size:14px;">
+                        <span>${di.name}</span>
+                        <span>₹${di.lockedCapital.toFixed(2)}</span>
+                    </div>
+                    <div style="font-size: 12px; color: #92400e; font-weight:600;">Stock: ${di.stock} | Avg Cost: ₹${di.buyPrice.toFixed(2)}</div>
+                    <div style="font-size: 11px; color: #d97706; margin-top: 4px; font-weight: 800; text-transform: uppercase;">Last Sold: ${di.daysSinceSale}</div>
+                </div>
+            `;
+        });
+
+        const summaryColor = totalLockedCapital > 0 ? '#d97706' : '#16a34a';
+        const summaryText = totalLockedCapital > 0 ? `⚠️ ₹${window.Utils.formatCurrency(totalLockedCapital)} of Capital is locked in ${deadItemCount} stagnant items.` : '✅ Outstanding Inventory Velocity! No dead stock found.';
+        window.AnalyticsEngine.showReportModal('Dead Stock Scanner (>90 Days)', summaryText, summaryColor, deadStockHtml);
+    }
+};

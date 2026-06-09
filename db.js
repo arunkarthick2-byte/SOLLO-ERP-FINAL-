@@ -208,6 +208,30 @@ const deleteRecordById = async (storeName, id) => {
         // STRICT ERP LOGIC: Stop ghost deletion! If the record doesn't exist, exit safely.
         if (!oldRecord) return;
         
+        // 🚨 ENTERPRISE UPGRADE: RELATIONAL INTEGRITY LOCK
+        // Prevent deletion of Master Data if they have connected financial history!
+        if (storeName === 'ledgers') {
+            const relatedSales = await getAllRecords('sales', 'firmId', oldRecord.firmId);
+            const relatedPurchases = await getAllRecords('purchases', 'firmId', oldRecord.firmId);
+            const hasTransactions = relatedSales.some(s => s.customerId === id) || relatedPurchases.some(p => p.supplierId === id);
+            
+            if (hasTransactions) {
+                alert(`⚠️ INTEGRITY LOCK: Cannot delete ${oldRecord.name}. There are invoices attached to this party. Please delete the invoices first or mark the party as inactive.`);
+                return false; // Safely abort deletion
+            }
+        } else if (storeName === 'items') {
+            const relatedSales = await getAllRecords('sales', 'firmId', oldRecord.firmId);
+            const relatedPurchases = await getAllRecords('purchases', 'firmId', oldRecord.firmId);
+            
+            const itemIsUsed = relatedSales.some(s => (s.items || []).some(row => row.itemId === id || row.id === id)) || 
+                               relatedPurchases.some(p => (p.items || []).some(row => row.itemId === id || row.id === id));
+            
+            if (itemIsUsed) {
+                alert(`⚠️ INTEGRITY LOCK: Cannot delete ${oldRecord.name}. This product is used in historical invoices. Deleting it will corrupt your financial history.`);
+                return false; // Safely abort deletion
+            }
+        }
+
         // Ensure we use the exact data type from the DB for the physical deletion
         const actualId = oldRecord.id; 
         
@@ -301,7 +325,6 @@ const getAllFirms = () => getAllRecords('firms');
 // ==========================================
 const reverseStockImpact = async (storeName, record) => {
     // ENTERPRISE FIX: The Phantom Cancelled Leak!
-    // Cancelled invoices must not impact physical warehouse stock!
     if (record.status === 'Open' || record.status === 'Cancelled') return; 
     const isReturn = record.documentType === 'return';
     const isNonGST = record.invoiceType === 'Non-GST'; 
@@ -309,10 +332,11 @@ const reverseStockImpact = async (storeName, record) => {
     const rowsToProcess = storeName === 'adjustments' ? [record] : (record.items || []);
     
     for (const row of rowsToProcess) {
-        // ENTERPRISE FIX: Direct database lookup instead of loading the entire inventory!
         const dbItem = await getRecordById('items', row.itemId || row.id);
         if (dbItem) {
-            let qty = parseFloat(row.qty) || 0;
+            // 🚨 ENTERPRISE FIX: Absolute Math Shield! 
+            // Strips accidental negatives out of the quantity so the math logic perfectly dictates the flow!
+            let qty = Math.abs(parseFloat(row.qty) || 0); 
             
             let stockGst = parseFloat(dbItem.stockGst);
             if (isNaN(stockGst)) stockGst = parseFloat(dbItem.stock) || 0;
@@ -320,7 +344,6 @@ const reverseStockImpact = async (storeName, record) => {
             let stockNonGst = parseFloat(dbItem.stockNonGst);
             if (isNaN(stockNonGst)) stockNonGst = 0;
             
-            // STRICT ERP LOGIC: Lock base stock back into object so we don't lose the secondary pool!
             dbItem.stockGst = stockGst;
             dbItem.stockNonGst = stockNonGst;
             
@@ -332,7 +355,7 @@ const reverseStockImpact = async (storeName, record) => {
             } else if (storeName === 'adjustments') {
                 impact = record.type === 'add' ? -qty : qty; 
             } else if (storeName === 'expenses') {
-                impact = qty; // REVERSE: Refund stock when an expense is deleted or modified
+                impact = qty; 
             }
             
             let targetPoolIsNonGST = isNonGST;
@@ -361,10 +384,10 @@ const applyStockImpact = async (storeName, record) => {
     const rowsToProcess = storeName === 'adjustments' ? [record] : (record.items || []);
     
     for (const row of rowsToProcess) {
-        // ENTERPRISE FIX: Direct database lookup instead of loading the entire inventory!
         const dbItem = await getRecordById('items', row.itemId || row.id);
         if (dbItem) {
-            let qty = parseFloat(row.qty) || 0;
+            // 🚨 ENTERPRISE FIX: Absolute Math Shield!
+            let qty = Math.abs(parseFloat(row.qty) || 0); 
             
             let stockGst = parseFloat(dbItem.stockGst);
             if (isNaN(stockGst)) stockGst = parseFloat(dbItem.stock) || 0;
@@ -372,7 +395,6 @@ const applyStockImpact = async (storeName, record) => {
             let stockNonGst = parseFloat(dbItem.stockNonGst);
             if (isNaN(stockNonGst)) stockNonGst = 0;
             
-            // STRICT ERP LOGIC: Lock base stock back into object so we don't lose the secondary pool!
             dbItem.stockGst = stockGst;
             dbItem.stockNonGst = stockNonGst;
             
@@ -384,12 +406,10 @@ const applyStockImpact = async (storeName, record) => {
                 
                 if (!isReturn && parseFloat(row.rate) > 0) {
                     let discountRatio = 0;
-                    const trueSubtotal = (record.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
+                    const trueSubtotal = (record.items || []).reduce((sum, item) => sum + (Math.abs(parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
                     if (record.discount > 0 && trueSubtotal > 0) {
                         discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
                     }
-                    // ENTERPRISE FIX: True Moving Average Cost (MAC) Engine!
-                    // Calculates actual historical warehouse valuation incorporating invoice discounts!
                     const newPrice = Math.max(0, parseFloat(row.rate) * (1 - discountRatio));
                     const newQty = qty;
                     
@@ -406,7 +426,7 @@ const applyStockImpact = async (storeName, record) => {
             } else if (storeName === 'adjustments') {
                 impact = record.type === 'add' ? qty : -qty;
             } else if (storeName === 'expenses') {
-                impact = -qty; // APPLY: Automatically deducts stock when consumed in an expense
+                impact = -qty; 
             }
             
             let targetPoolIsNonGST = isNonGST;

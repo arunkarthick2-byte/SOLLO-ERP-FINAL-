@@ -2283,11 +2283,14 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
     
     // Hide Global Opening Stock if filtering by Party or Date
     if (!partyId && !dateFilter) {
+        // 🚨 ENTERPRISE FIX: Perfectly aligned 6-column Opening Stock row for the PDF!
         rowsHtml += `
             <tr style="background:#f1f5f9; font-weight:800;">
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#475569;" colspan="3">Opening Stock</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center;">-</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center;">-</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#475569;">Opening</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#1e293b; font-weight:600;">Opening Stock</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#1e293b; line-height:1.4;">Initial Inventory Balance</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#16a34a; font-weight:800;">${openingStock > 0 ? openingStock.toFixed(2) : ''}</td>
+                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#dc2626; font-weight:800;">${openingStock < 0 ? Math.abs(openingStock).toFixed(2) : ''}</td>
                 <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; color:#0f172a; font-weight:900;">${openingStock.toFixed(2)}</td>
             </tr>
         `;

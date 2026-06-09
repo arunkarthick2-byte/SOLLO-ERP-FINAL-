@@ -5089,3 +5089,50 @@ body.dark-mode .form-group:focus-within label {
     left: auto !important;
     font-size: 12px !important;
 }
+/* ==========================================
+   🚨 ENTERPRISE UX: PREMIUM DASHBOARD UPGRADE
+   ========================================== */
+
+/* 1. Deep Desktop Background */
+body {
+    background-color: #f1f5f9 !important; /* Soft premium slate gray instead of harsh white/gray */
+}
+
+/* 2. Floating 3D Cards */
+.m3-card {
+    background: #ffffff !important;
+    border: none !important;
+    border-radius: 16px !important; /* Smooth, modern rounded corners */
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    overflow: hidden;
+    position: relative;
+}
+
+/* 3. The "Lift" Animation when tapping/hovering */
+.m3-card.tap-target:active {
+    transform: scale(0.97) translateY(2px) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 4. Premium Top-Bar Gradient (Optional: Makes the header look amazing) */
+.top-app-bar {
+    background: linear-gradient(135deg, #0061a4 0%, #004d80 100%) !important;
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.3) !important;
+}
+
+/* 5. Beautiful Icon Circles */
+.icon-circle {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15) !important;
+    border-radius: 12px !important; /* Squircle shape instead of harsh circles */
+    background: linear-gradient(135deg, currentColor 0%, rgba(0,0,0,0.8) 200%) !important;
+}
+
+/* 6. Dashboard Text Polish */
+small {
+    letter-spacing: 0.5px !important;
+    opacity: 0.8;
+}
+.large-text {
+    letter-spacing: -0.5px !important; /* Tightens numbers to look like a modern bank app */
+}
