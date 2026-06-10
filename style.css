@@ -4653,7 +4653,6 @@ body.dark-mode .skeleton::after, body.dark-mode .skeleton-card::after, body.dark
 /* Prevents the back button from pushing the title off-center to the right */
 .activity-header h2, 
 .activity-header h3, 
-.activity-header strong,
 .sheet-header h2, 
 .sheet-header h3,
 #master-view-title,

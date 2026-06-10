@@ -267,6 +267,16 @@ const UI = {
             }
         }
         
+        // 🚨 ENTERPRISE FIX: Enforce HTML 'Max' limits on the Custom Numpad!
+        if (input.hasAttribute('max')) {
+            const maxVal = parseFloat(input.getAttribute('max'));
+            if (parseFloat(input.value) > maxVal) {
+                input.value = maxVal; // Hard-cap the visual number instantly
+                if (window.Utils) window.Utils.showToast(`Maximum allowed is ${maxVal}`);
+                if (window.UI) window.UI.triggerHaptic('heavy');
+            }
+        }
+        
         // Force the app's calculation engine to recalculate the totals instantly!
         input.dispatchEvent(new Event('input', { bubbles: true }));
     },
@@ -1325,7 +1335,7 @@ const UI = {
                 else if (activeFilter === 'Shipped') matchFilter = s.status === 'Shipped';
                 // ENTERPRISE FIX: The "Ghost Penny" Floating Point Trap!
                 // Javascript math can leave a balance of 0.00000001, permanently trapping the invoice with a "Due: ₹0.00" label!
-                else if (activeFilter === 'To Receive') matchFilter = balance > 0.01 && s.status !== 'Open' && s.documentType !== 'return';
+                else if (activeFilter === 'To Receive') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.documentType !== 'return';
                 else if (activeFilter === 'GST') matchFilter = s.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = s.invoiceType === 'Non-GST';
                 
@@ -1413,7 +1423,7 @@ const UI = {
                 const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid - returnTotal);
 
                 // ENTERPRISE FIX: The "Ghost Penny" Shield for Purchases!
-                if (activeFilter === 'To Pay') matchFilter = balance > 0.01 && p.status !== 'Open' && p.documentType !== 'return';
+                if (activeFilter === 'To Pay') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.documentType !== 'return';
                 else if (activeFilter === 'Completed') matchFilter = p.status === 'Completed'; // Removed balance restriction
                 else if (activeFilter === 'GST') matchFilter = p.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = p.invoiceType === 'Non-GST';
@@ -4167,19 +4177,27 @@ let lastScrollTop = 0;
 const scrollContainers = document.querySelectorAll('.activity-content, .view');
 
 scrollContainers.forEach(container => {
+    // 🚨 ENTERPRISE FIX: Instantly dismiss the Keyboard Overlay when the user scrolls the list!
+    container.addEventListener('touchstart', () => {
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+            document.activeElement.blur();
+        }
+    }, { passive: true });
+
     container.addEventListener('scroll', () => {
         const currentScroll = container.scrollTop;
-        const fab = document.querySelector('.floating-action-button');
+        // 🚨 ENTERPRISE FIX: Target ALL FABs on the screen so the Inventory Master FAB hides properly!
+        const fabs = document.querySelectorAll('.floating-action-button');
         
-        if (!fab) return;
+        if (fabs.length === 0) return;
 
         // If scrolling DOWN and past the first 50px
         if (currentScroll > lastScrollTop && currentScroll > 50) {
-            fab.classList.add('fab-hidden');
+            fabs.forEach(fab => fab.classList.add('fab-hidden'));
         } 
         // If scrolling UP
         else if (currentScroll < lastScrollTop) {
-            fab.classList.remove('fab-hidden');
+            fabs.forEach(fab => fab.classList.remove('fab-hidden'));
         }
         
         lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // For Mobile or negative scrolling

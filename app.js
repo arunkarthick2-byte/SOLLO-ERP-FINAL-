@@ -9,8 +9,8 @@ if (!document.getElementById('enterprise-master-fixes')) {
     const style = document.createElement('style');
     style.id = 'enterprise-master-fixes';
     style.innerHTML = `
-        /* 1. Fix Business Profile Bottom Overlap */
-        #form-business-profile { padding-bottom: 90px !important; }
+        /* 1. Fix Screen Bottom Overlaps (Business Profile & Inventory Master) */
+        #form-business-profile, #master-list-container { padding-bottom: 95px !important; }
         
         /* 2. Fix Ledger Header Visibility */
         #activity-report-viewer .activity-header { background: var(--md-primary) !important; color: #ffffff !important; border-bottom: none !important; }
@@ -112,27 +112,6 @@ window.addEventListener('unhandledrejection', (event) => {
     // This prevents false alarms from missing Service Workers or AdBlockers blocking Google Drive.
     console.warn("Silent background promise rejected:", event.reason);
 });
-
-// --- ENTERPRISE UPGRADE: POS WAKE LOCK (Keep Screen On) ---
-let wakeLock = null;
-const requestWakeLock = async () => {
-    try {
-        if ('wakeLock' in navigator) {
-            // STRICT ERP LOGIC: Safely release and destroy the old lock!
-            if (wakeLock !== null) {
-                wakeLock.onrelease = null; 
-                await wakeLock.release(); 
-            }
-            
-            wakeLock = await navigator.wakeLock.request('screen');
-            wakeLock.onrelease = () => console.log('Screen Wake Lock released');
-        }
-    } catch (err) { console.warn(`Wake Lock error: ${err.name}, ${err.message}`); }
-};
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') requestWakeLock();
-});
-requestWakeLock(); // Request immediately on boot
 
 // --- ENTERPRISE UPGRADE: "ANTI-SWIPE" DATA LOSS PREVENTER ---
 window.addEventListener('beforeunload', (event) => {
