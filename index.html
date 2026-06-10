@@ -568,10 +568,21 @@
     </div>
 
     <div id="activity-master-view" class="activity-screen hidden">
-        <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-master-view')" style="position: absolute; left: 16px;">arrow_back</span>
-            <span id="master-view-title" style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px; max-width: 65vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Master List</span>
-            <span id="btn-master-action" class="tap-target hidden" style="color: var(--md-primary); font-weight: 500; position: absolute; right: 16px;">Action</span>
+        <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; position: relative; padding: 12px 16px;">
+            
+            <!-- LEFT: Locked Back Arrow -->
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-master-view')" style="margin: 0; padding: 4px; flex-shrink: 0; z-index: 2; position: relative !important; left: auto !important;">arrow_back</span>
+            
+            <!-- CENTER: Title (Overriding the CSS Absolute Lock) -->
+            <div style="flex: 1; min-width: 0; display: flex; justify-content: center; z-index: 1;">
+                <span id="master-view-title" style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: static !important; width: auto !important; pointer-events: auto !important; padding: 0 12px;">Master List</span>
+            </div>
+            
+            <!-- RIGHT: Spacer/Action Button (Balances the left side so title is dead-center) -->
+            <div style="display: flex; justify-content: flex-end; align-items: center; flex-shrink: 0; min-width: 32px; z-index: 2; position: relative !important; right: auto !important;">
+                <span id="btn-master-action" class="tap-target hidden" style="color: var(--md-on-primary); font-weight: 500; margin: 0;">Action</span>
+            </div>
+            
         </div>
         <div class="activity-content" style="padding: 0px 16px 16px 16px;">
             
@@ -2715,9 +2726,9 @@
             <span class="material-symbols-outlined tap-target" onclick="window.UI.closeActivity('activity-item-ledger')" style="padding: 4px; flex-shrink: 0;">arrow_back</span>
             
             <!-- MIDDLE: Flex cage centers the text and restricts it to 2 lines -->
-            <div style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center;">
+            <div style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-start;">
                 <!-- 🚨 YOUR FIX: Changed <strong> to <div> so style.css stops kidnapping it! -->
-                <div id="item-ledger-title" style="font-size: 15px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-wrap: break-word; margin: 0; text-align: center;">Item Ledger</div>
+                <div id="item-ledger-title" style="font-size: 16px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-wrap: break-word; margin: 0; text-align: left;">Item Ledger</div>
             </div>
             
             <!-- RIGHT: Locked Action Icons -->
