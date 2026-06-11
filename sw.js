@@ -29,8 +29,8 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
-    // ENTERPRISE FIX: Re-activated skipWaiting()! Without this, the PWA gets permanently stuck on old versions and refuses to update!
-    self.skipWaiting();
+    // 🚨 CRITICAL PWA FIX: Removed unconditional skipWaiting()!
+    // This prevents the "Frankenstein Cache" crash. Updates are now safely controlled by the 'message' listener when the user clicks 'Update' in the UI.
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             // STRICT ERP LOGIC: Force { cache: 'reload' } to bypass the browser's HTTP cache.

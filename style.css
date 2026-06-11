@@ -92,19 +92,47 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="date"],
 }
 
 /* ==========================================
+   🚨 MASTER SCROLLBAR ENGINE
+   ========================================== */
+::-webkit-scrollbar {
+    width: 5px !important;
+    height: 5px !important;
+    background-color: transparent !important;
+}
+::-webkit-scrollbar-track {
+    background-color: transparent !important;
+}
+::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.15) !important;
+    border-radius: 10px !important;
+}
+* {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent !important;
+}
+
+/* ==========================================
+   🚨 MASTER TYPOGRAPHY ENGINE (Unified)
+   ========================================== */
+html, body, input, button, select, textarea, table, th, td, span, strong, div {
+    /* Forces the graphics engine to draw fonts with maximum crispness */
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    
+    /* Wall Street Alignment: Forces all numbers to be the exact same width globally */
+    font-variant-numeric: tabular-nums lining-nums !important;
+    font-feature-settings: "tnum" 1 !important;
+    letter-spacing: 0.01em !important; 
+}
+
+/* ==========================================
    BASE RESETS & NATIVE APP TYPOGRAPHY
    ========================================== */
 * {
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent; /* Removes web grey tap highlight */
     scrollbar-width: none; /* Firefox: Hide scrollbars */
-}
-
-/* Chrome/Safari/Edge: Hide scrollbars globally for native feel */
-::-webkit-scrollbar {
-    display: none;
-    width: 0px;
-    background: transparent;
 }
 
 /* 🚨 BIZOPS FIX: Kills ugly Android focus squares when tapping buttons */
@@ -655,25 +683,35 @@ body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea
     z-index: 4000; 
     display: flex; 
     flex-direction: column; 
-    /* CHANGED: Now slides in from the right edge of the screen */
     transform: translateX(100%); 
     opacity: 0; 
-    /* Slightly faster transition to match native swipe speeds */
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease; 
-    /* REMOVED will-change to unlock inner scrolling */
+    /* 🚨 ENTERPRISE FIX: Freezes the DOM element to save GPU RAM */
+    visibility: hidden; 
+    pointer-events: none;
+    /* transition visibility alongside transform to prevent flickering */
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease, visibility 0s 0.35s; 
 }
 
 .activity-screen.open { 
     transform: translateX(0); 
     opacity: 1;
+    /* 🚨 ENTERPRISE FIX: Wakes the screen up instantly */
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease, visibility 0s;
 }
 
-/* FIX: Completely hide the bottom menu and FAB when a full-screen form/document is open */
+/* 🚨 ENTERPRISE FIX: Auto-hide Nav & FAB whenever ANY modal, sheet, or screen opens */
 body:has(.activity-screen.open) .bottom-nav,
-body:has(.activity-screen.open) .floating-action-button {
+body:has(.activity-screen.open) .floating-action-button,
+body:has(.sheet-overlay.open) .bottom-nav,
+body:has(.sheet-overlay.open) .floating-action-button,
+body:has(.numpad-overlay.active) .bottom-nav,
+body:has(.numpad-overlay.active) .floating-action-button {
     opacity: 0 !important;
     pointer-events: none !important;
-    transform: translateY(100px) !important; /* Slides them down off the screen seamlessly */
+    transform: translateY(120px) !important; /* Slides safely out of view */
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
 }
 
 .activity-header { 
@@ -842,14 +880,14 @@ body.dark-mode .date-divider {
 
 .splash-screen {
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background-color: var(--md-primary);
+    background-color: #ffffff !important; /* Pure white canvas lock */
     z-index: 9999;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     transition: opacity 0.5s ease;
 }
 
 .logo-circle, .logo-circle-large {
-    background: rgba(255,255,255,0.2);
+    background: rgba(0, 0, 0, 0.05); /* Soft dark ring for white canvas */
     border-radius: 50%;
     display: flex; justify-content: center; align-items: center;
 }
@@ -858,8 +896,8 @@ body.dark-mode .date-divider {
 
 .loader-spinner {
     width: 40px; height: 40px;
-    border: 4px solid rgba(255,255,255,0.3);
-    border-top: 4px solid white;
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-top: 4px solid var(--md-primary); /* Blue spinner on white background */
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
@@ -1275,17 +1313,6 @@ body.dark-mode .toast {
     color: #1a1c1e !important; 
 }
 
-/* 2. Invisible Native Scrollbars */
-::-webkit-scrollbar {
-    width: 0px; /* Completely hides vertical scrollbar */
-    height: 0px; /* Completely hides horizontal scrollbar */
-    background: transparent;
-}
-* {
-    scrollbar-width: none; /* Hides on Firefox */
-    -ms-overflow-style: none; /* Hides on older Edge/IE */
-}
-
 /* 3. Magnetic Input Focus States */
 input:focus, select:focus, textarea:focus {
     outline: none !important;
@@ -1531,26 +1558,20 @@ body.dark-mode .theme-toggle-knob {
     z-index: 5100 !important;
 }
 /* ==========================================
-   ENTERPRISE UPGRADE: VIRTUAL KEYBOARD SHIELD
+   ENTERPRISE UPGRADE: HIGH-PERFORMANCE KEYBOARD SHIELD
    ========================================== */
-/* Automatically hides the bottom UI when the mobile keyboard pops up,
-   preventing the nav bar from squishing into the middle of the screen. */
-
 @media (max-width: 768px) {
-    /* 🚨 ENTERPRISE FIX: Strictly target text inputs so checkboxes and date pickers don't cause screen jumps! */
-    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) .bottom-nav,
-    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) .floating-action-button,
-    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) #update-banner {
+    body:has(input:focus, textarea:focus) .bottom-nav,
+    body:has(input:focus, textarea:focus) .floating-action-button,
+    body:has(input:focus, textarea:focus) #update-banner {
         opacity: 0 !important;
         pointer-events: none !important;
         transform: translateY(100px) !important;
-        transition: none !important; /* Instant hide so it doesn't lag */
+        transition: none !important; 
     }
     
-    /* Give the active screen a little extra breathing room at the bottom so they can scroll to the 'Save' button while the keyboard is open */
-    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) .activity-content,
-    body:has(input[type="text"]:focus, input[type="number"]:focus, input[type="tel"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="password"]:focus, textarea:focus) .main-content {
-        /* FIX: Changed from 50vh to a static pixel amount, and added a transition so it doesn't violently break the scroll position */
+    body:has(input:focus, textarea:focus) .activity-content,
+    body:has(input:focus, textarea:focus) .main-content {
         padding-bottom: 250px !important; 
         transition: padding-bottom 0.3s ease-out;
     }
@@ -1965,33 +1986,6 @@ body, input, button, select, textarea {
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
     text-rendering: optimizeLegibility !important;
-}
-
-/* ========================================== */
-/* ENTERPRISE UPGRADE: INVISIBLE SCROLLBARS   */
-/* ========================================== */
-/* Slim down the global scrollbars */
-::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: var(--md-outline-variant);
-    border-radius: 4px;
-}
-
-/* Completely hide the scrollbar on your main app screens to make it look like a native app */
-.activity-screen::-webkit-scrollbar,
-.list-container::-webkit-scrollbar {
-    display: none;
-}
-.activity-screen,
-.list-container {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
 }
 
 /* ========================================== */
@@ -2912,34 +2906,6 @@ select {
 /* ENTERPRISE UPGRADE: PREMIUM UI/UX POLISH   */
 /* ========================================== */
 
-/* UPGRADE 1: NATIVE APP SCROLLBARS */
-/* Hides clunky desktop scrollbars and replaces them with sleek mobile-style indicators */
-::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-}
-::-webkit-scrollbar-track {
-    background: transparent;
-}
-::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
-}
-* {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
-}
-
-/* UPGRADE 2: GLOBAL TABULAR NUMBERS */
-/* Mathematically aligns all decimal points and commas across the entire application */
-table, td, th, input[type="number"], .m3-card strong, .m3-card span, .bottom-sheet strong, .activity-header strong {
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: "tnum";
-}
-
 /* UPGRADE 4: APPLE-STYLE FROSTED GLASS BLUR */
 /* Adds a premium background blur to all Bottom Sheets and Popup Menus */
 .sheet-overlay, .dialog-overlay, #khata-overlay {
@@ -3042,12 +3008,6 @@ body.dark-mode #item-ledger-list .m3-card {
 /* ========================================== */
 /* ENTERPRISE UPGRADE: ELITE FINTECH UI POLISH */
 /* ========================================== */
-
-/* 1. TABULAR "FINTECH" NUMBERS (Perfect Decimal Alignment) */
-/* Forces all numbers to be the exact same width so prices stack perfectly */
-body, input, textarea, select, button, td, th, .large-text, strong {
-    font-variant-numeric: tabular-nums !important;
-}
 
 /* 2. iOS "GLASS" BOTTOM NAVIGATION */
 /* Replaces the solid white bar with a frosted glass blur effect */
@@ -3407,43 +3367,6 @@ body.dark-mode #tab-dashboard .m3-card:first-of-type {
     border: 1px solid rgba(0, 0, 0, 0.1) !important;
 }
 /* ==========================================
-   ELITE UPGRADE 10: "PHANTOM" NATIVE SCROLLBARS
-   ========================================== */
-/* Target all scrollable containers in the app */
-::-webkit-scrollbar {
-    width: 6px !important;
-    height: 6px !important;
-    background-color: transparent !important;
-}
-
-::-webkit-scrollbar-track {
-    background-color: transparent !important;
-}
-
-::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.15) !important;
-    border-radius: 10px !important;
-    transition: background-color 0.2s ease !important;
-}
-
-/* Darken slightly when the user actively drags the thumb */
-::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active {
-    background-color: rgba(0, 0, 0, 0.3) !important;
-}
-
-/* AMOLED Dark Mode Override for Scrollbars */
-[data-theme="dark"] ::-webkit-scrollbar-thumb, 
-body.dark-mode ::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover, 
-body.dark-mode ::-webkit-scrollbar-thumb:hover,
-[data-theme="dark"] ::-webkit-scrollbar-thumb:active, 
-body.dark-mode ::-webkit-scrollbar-thumb:active {
-    background-color: rgba(255, 255, 255, 0.3) !important;
-}
-/* ==========================================
    ENTERPRISE FIX: ENABLE SCROLLING FOR ALL BOTTOM SHEET LISTS
    ========================================== */
 #list-linked-docs,
@@ -3493,13 +3416,6 @@ input[id*="gst"], input[id*="hsn"] {
 /* ==========================================
    ENTERPRISE B2B UI: STRICT DATA & READABILITY
    ========================================== */
-
-/* 1. Tabular Numbers (The Golden Rule of Accounting UIs)
-   Forces all numbers (1s, 8s, 0s) to have the exact same width. 
-   When looking at a column of prices or quantities, the digits will align perfectly vertically! */
-body, input, textarea, select, button {
-    font-variant-numeric: tabular-nums !important;
-}
 
 /* 2. High-Density Data Structuring (Zebra Striping)
    Makes long lists of invoices, customers, and inventory much easier to read without eye strain. */
@@ -3575,11 +3491,6 @@ html, body {
 /* ==========================================
    ENTERPRISE UI UPGRADE: TRUE SAAS AESTHETIC
    ========================================== */
-
-/* 1. TABULAR NUMBERS: Forces all numbers to be the exact same width so decimals align perfectly in lists! */
-body, input, table, .m3-card, .list-view {
-    font-variant-numeric: tabular-nums !important;
-}
 
 /* 2. FLAT ARCHITECTURE: Kills the bulky drop-shadows and replaces them with crisp, premium ultra-thin borders */
 .m3-card, .bottom-sheet, .activity-screen .activity-header {
@@ -3892,14 +3803,6 @@ button[type="submit"], .btn-primary {
    ENTERPRISE UPGRADE: 3-IN-1 UI ENGINE
    ========================================== */
 
-/* 1. TABULAR LINING (Wall Street Typography) */
-/* Forces all numbers and decimals to perfectly align in vertical columns */
-input[type="number"], .list-view span, td, th, .currency, .amount, .balance-text {
-    font-variant-numeric: tabular-nums !important;
-    font-feature-settings: "tnum" !important;
-    letter-spacing: 0.3px;
-}
-
 /* 2. SKELETON LOADING ENGINE */
 /* Creates the cinematic pulsing grey boxes while data loads */
 .skeleton-loader {
@@ -4181,18 +4084,6 @@ body.dark-mode .bottom-nav, [data-theme="dark"] .bottom-nav {
 .list-view li > div:first-child small, .m3-card small {
     font-size: clamp(10px, 2.5vw, 12px) !important;
     letter-spacing: 0.01em !important;
-}
-/* ==========================================
-   ENTERPRISE UI: HARDWARE TEXT CRISPNESS & TABULAR COLUMNS
-   ========================================== */
-html, body, input, button, select, textarea, .totals-row, .ledger-balance, .row-rate, .row-qty, td, .large-text, strong {
-    /* Forces the layout engine to render all characters with equal physical width blocks */
-    font-variant-numeric: tabular-nums lining-nums !important;
-    
-    /* Disables rendering interpolation blurs on low-end mobile phone screens */
-    text-rendering: optimizeLegibility !important;
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
 }
 /* ==========================================
    ENTERPRISE FIX: TRUE RIGHT-SIDE FAB
@@ -4770,27 +4661,28 @@ body:has(#privacy-lock-screen) {
 /* ========================================== */
 /* 🚨 BIZOPS NATIVE THEME: MASTER UI OVERRIDE */
 /* ========================================== */
-/* This block completely crushes any leftover "Apple Glass" rules hiding higher up in the CSS */
 
-.activity-header, .top-app-bar {
-    background-color: var(--md-primary) !important;
-    color: var(--md-on-primary) !important;
+.activity-header, .top-app-bar, .app-header {
+    background-color: #ffffff !important; /* 🚨 Pure White Header Canvas */
+    color: #000000 !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-bottom: none !important;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.08) !important; /* Premium crisp separator */
+    box-shadow: none !important;
 }
 
-body.dark-mode .activity-header, body.dark-mode .top-app-bar {
+body.dark-mode .activity-header, body.dark-mode .top-app-bar, body.dark-mode .app-header {
     background-color: #121212 !important;
+    color: #ffffff !important;
     border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5) !important;
+    box-shadow: none !important;
 }
 
 .sheet-header, .screen-header {
-    background-color: var(--md-surface) !important;
+    background-color: #ffffff !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    border-bottom: 1px solid rgba(0,0,0,0.08) !important;
 }
 
 body.dark-mode .sheet-header, body.dark-mode .screen-header {
@@ -4839,14 +4731,29 @@ body.dark-mode #expense-ledger-container {
 /* ========================================== */
 .activity-header .material-symbols-outlined,
 .top-app-bar .material-symbols-outlined,
+.app-header .material-symbols-outlined,
 .activity-header .tap-target,
 .top-app-bar .tap-target,
+.app-header .tap-target,
 .activity-header span,
 .top-app-bar span,
+.app-header span,
 .activity-header div,
 .top-app-bar div,
+.app-header div,
 .activity-header strong,
-.top-app-bar strong {
+.top-app-bar strong,
+.app-header strong {
+    color: #000000 !important; /* 🚨 Deep Black icons to contrast the new white header! */
+}
+
+/* Ensure Dark Mode safely flips them back to white */
+body.dark-mode .activity-header .material-symbols-outlined,
+body.dark-mode .top-app-bar .material-symbols-outlined,
+body.dark-mode .app-header .material-symbols-outlined,
+body.dark-mode .activity-header span,
+body.dark-mode .activity-header div,
+body.dark-mode .activity-header strong {
     color: #ffffff !important;
 }
 
@@ -5087,4 +4994,21 @@ body.dark-mode .form-group:focus-within label {
     top: auto !important;
     left: auto !important;
     font-size: 12px !important;
+}
+
+/* ==========================================
+   🚨 MASTER OVERRIDE: PURE WHITE CANVAS LOCK
+   ========================================== */
+html, body, #app-shell, .main-content, .activity-screen, .bottom-sheet {
+    background-color: #ffffff !important;
+    background-image: none !important;
+}
+
+body, body.dark-mode, [data-theme="dark"] {
+    color: #000000 !important;
+}
+
+.m3-card, .list-view li {
+    background-color: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
 }

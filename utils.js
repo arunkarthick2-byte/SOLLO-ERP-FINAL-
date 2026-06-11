@@ -121,11 +121,12 @@ const Utils = {
 
     // --- ENTERPRISE FORMATTING ENGINES ---
     formatCurrency: (amount) => {
-        // Formats 100000.00 to 1,00,000.00 automatically
+        // 🚨 ENTERPRISE FIX: Prevent NaN crashes! Safely strip commas before formatting!
+        const cleanAmount = typeof amount === 'string' ? parseFloat(amount.replace(/[^0-9.-]+/g, '')) : amount;
         return new Intl.NumberFormat('en-IN', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
-        }).format(amount || 0);
+        }).format(cleanAmount || 0);
     },
 
     numberToWords: (num) => {

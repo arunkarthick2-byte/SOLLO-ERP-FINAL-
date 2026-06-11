@@ -624,7 +624,12 @@ const app = {
         // ENTERPRISE FIX: Appended || [] to everything so .filter() NEVER crashes!
         UI.state.rawData.sales = (await getAllRecords('sales', 'firmId', safeFirm).catch(() => [])) || [];
         UI.state.rawData.purchases = (await getAllRecords('purchases', 'firmId', safeFirm).catch(() => [])) || [];
-        UI.state.rawData.expenses = safeStrip((await getAllRecords('expenses', 'firmId', safeFirm).catch(() => [])) || []);
+        
+        // 🚨 NEW FIX: Fetch and sort expenses in descending alphanumeric order based on expenseNo
+        let rawExpenses = safeStrip((await getAllRecords('expenses', 'firmId', safeFirm).catch(() => [])) || []);
+        rawExpenses.sort((a, b) => String(b.expenseNo || b.id).localeCompare(String(a.expenseNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
+        UI.state.rawData.expenses = rawExpenses;
+        
         UI.state.rawData.cashbook = (await getAllRecords('receipts', 'firmId', safeFirm).catch(() => [])) || [];
         
         try {
@@ -2577,6 +2582,9 @@ const app = {
                     const cleanLinks = e.linkedInvoice.split(',').map(link => link.trim());
                     return cleanLinks.some(link => uniqueRefs.includes(link));
                 });
+                
+                // 🚨 NEW FIX: Sort the linked expenses dynamically in descending order
+                linkedExpenses.sort((a, b) => String(b.expenseNo || b.id).localeCompare(String(a.expenseNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
 
                 if (linkedExpenses.length > 0) {
                     expCard.classList.remove('hidden');
@@ -5243,7 +5251,7 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
             }
             
             // Download the Non-Destructive Report
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
             const file = new File([blob], `FY_Closing_Report_${new Date().getFullYear()}.csv`, { type: 'text/csv' });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -5303,7 +5311,7 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         
         csvContent += `\nTOTAL TRAPPED CAPITAL,,,${deadStockCapital.toFixed(2)}\n`;
         
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
         const file = new File([blob], `Dead_Stock_Report_${window.Utils.getLocalDate()}.csv`, { type: 'text/csv' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ title: "Dead Stock Report", files: [file] });
@@ -5389,7 +5397,7 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         
         csvContent += `\nTOTAL HISTORICAL VALUATION,,,${totalValuation.toFixed(2)}\n`;
         
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
         const file = new File([blob], `Stock_Snapshot_${targetDateStr}.csv`, { type: 'text/csv' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ title: "Historical Stock Snapshot", files: [file] });

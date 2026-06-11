@@ -103,16 +103,16 @@ const UI = {
             }
         }, { capture: true });
 
-        // 🚨 ENTERPRISE FIX: The iOS Ghost Keyboard Shield! (V2 Optimized)
-        // Forces the screen to redraw ONLY if the user actually closes the keyboard, 
-        // preventing violent scrolls to the top when tabbing between fields!
+        // 🚨 ENTERPRISE FIX: The iOS Ghost Keyboard Shield! (V3 Optimized)
+        // Safely repaints the layout without violently throwing users to the top of the invoice form!
         document.addEventListener('focusout', (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
                 setTimeout(() => {
-                    // If they haven't focused on a new input within 50ms, they actually closed the keyboard!
                     const activeTag = (document.activeElement || {}).tagName;
                     if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && activeTag !== 'SELECT') {
-                        window.scrollTo({top: 0, behavior: 'smooth'});
+                        // Secretly nudge the scroll by 1 pixel to force Safari to repaint the screen without losing the user's place!
+                        window.scrollBy(0, 1);
+                        window.scrollBy(0, -1);
                     }
                 }, 50);
             }
