@@ -4661,28 +4661,27 @@ body:has(#privacy-lock-screen) {
 /* ========================================== */
 /* 🚨 BIZOPS NATIVE THEME: MASTER UI OVERRIDE */
 /* ========================================== */
+/* This block completely crushes any leftover "Apple Glass" rules hiding higher up in the CSS */
 
-.activity-header, .top-app-bar, .app-header {
-    background-color: #ffffff !important; /* 🚨 Pure White Header Canvas */
-    color: #000000 !important;
+.activity-header, .top-app-bar {
+    background-color: var(--md-primary) !important;
+    color: var(--md-on-primary) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-bottom: 1px solid rgba(0,0,0,0.08) !important; /* Premium crisp separator */
-    box-shadow: none !important;
+    border-bottom: none !important;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2) !important;
 }
 
-body.dark-mode .activity-header, body.dark-mode .top-app-bar, body.dark-mode .app-header {
+body.dark-mode .activity-header, body.dark-mode .top-app-bar {
     background-color: #121212 !important;
-    color: #ffffff !important;
     border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-    box-shadow: none !important;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5) !important;
 }
 
 .sheet-header, .screen-header {
-    background-color: #ffffff !important;
+    background-color: var(--md-surface) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-bottom: 1px solid rgba(0,0,0,0.08) !important;
 }
 
 body.dark-mode .sheet-header, body.dark-mode .screen-header {
@@ -4731,29 +4730,14 @@ body.dark-mode #expense-ledger-container {
 /* ========================================== */
 .activity-header .material-symbols-outlined,
 .top-app-bar .material-symbols-outlined,
-.app-header .material-symbols-outlined,
 .activity-header .tap-target,
 .top-app-bar .tap-target,
-.app-header .tap-target,
 .activity-header span,
 .top-app-bar span,
-.app-header span,
 .activity-header div,
 .top-app-bar div,
-.app-header div,
 .activity-header strong,
-.top-app-bar strong,
-.app-header strong {
-    color: #000000 !important; /* 🚨 Deep Black icons to contrast the new white header! */
-}
-
-/* Ensure Dark Mode safely flips them back to white */
-body.dark-mode .activity-header .material-symbols-outlined,
-body.dark-mode .top-app-bar .material-symbols-outlined,
-body.dark-mode .app-header .material-symbols-outlined,
-body.dark-mode .activity-header span,
-body.dark-mode .activity-header div,
-body.dark-mode .activity-header strong {
+.top-app-bar strong {
     color: #ffffff !important;
 }
 
