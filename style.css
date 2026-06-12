@@ -3361,10 +3361,10 @@ body.dark-mode .m3-card .icon-circle {
 /* AMOLED Dark Mode Override for the Hero Card */
 [data-theme="dark"] #tab-dashboard .m3-card:first-of-type,
 body.dark-mode #tab-dashboard .m3-card:first-of-type {
-    background: #ffffff !important; /* Forced White Background per user preference */
-    color: #000000 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
-    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    background: var(--md-surface) !important; 
+    color: var(--md-on-surface) !important;
+    box-shadow: none !important;
+    border: 1px solid var(--md-outline-variant) !important;
 }
 /* ==========================================
    ENTERPRISE FIX: ENABLE SCROLLING FOR ALL BOTTOM SHEET LISTS
@@ -4997,20 +4997,20 @@ body.dark-mode .form-group:focus-within label {
 }
 
 /* ==========================================
-   🚨 MASTER OVERRIDE: PURE WHITE CANVAS LOCK
+   🚨 MASTER OVERRIDE: THEME-ADAPTIVE CANVAS LOCK
    ========================================== */
 html, body, #app-shell, .main-content, .activity-screen, .bottom-sheet {
-    background-color: #ffffff !important;
+    background-color: var(--md-background) !important;
     background-image: none !important;
 }
 
 body, body.dark-mode, [data-theme="dark"] {
-    color: #000000 !important;
+    color: var(--md-on-surface) !important;
 }
 
 .m3-card, .list-view li {
-    background-color: #ffffff !important;
-    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    background-color: var(--md-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
 }
 /* ==========================================
    🚨 ANDROID UPGRADE 1: KEYBOARD SQUISH SHIELD
@@ -5231,3 +5231,35 @@ body.enterprise-dark-mode #tab-dashboard .m3-card:first-of-type * {
 /* Fix specific sub-texts */
 body.enterprise-dark-mode .large-text { color: #f8fafc !important; }
 body.enterprise-dark-mode small { color: #94a3b8 !important; }
+/* ==========================================
+   📱 TRUE ANDROID AMOLED TEXT ADAPTER
+   ========================================== */
+body.dark-mode .large-text, 
+body.dark-mode strong,
+body.dark-mode h1, 
+body.dark-mode h2, 
+body.dark-mode h3 {
+    color: #f8fafc !important;
+}
+
+body.dark-mode small {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode input, 
+body.dark-mode select, 
+body.dark-mode textarea {
+    color: #ffffff !important;
+    background-color: var(--md-surface-variant) !important;
+}
+
+/* Ensure default icons switch to light grey */
+body.dark-mode .material-symbols-outlined:not([style*="color"]) {
+    color: #f8fafc !important;
+}
+
+/* Keep the colored icons vibrant! */
+body.dark-mode .icon-circle.color-primary .material-symbols-outlined,
+body.dark-mode .nav-item.active .material-symbols-outlined {
+    color: #8cbbf1 !important;
+}

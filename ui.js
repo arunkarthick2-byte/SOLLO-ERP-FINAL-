@@ -285,14 +285,16 @@ const UI = {
     // --- ENTERPRISE UPGRADE: DARK MODE CONTROLLERS ---
     initTheme: function() {
         if (localStorage.getItem('sollo_theme_preference') === 'dark') {
-            document.body.classList.add('enterprise-dark-mode');
+            // 🚨 FIX: Changed to the correct 'dark-mode' class to trigger your True Black CSS!
+            document.body.classList.add('dark-mode');
             const metaTheme = document.getElementById('meta-theme-color');
             if (metaTheme) metaTheme.setAttribute('content', '#000000');
         }
     },
 
     toggleDarkMode: function() {
-        const isDark = document.body.classList.toggle('enterprise-dark-mode');
+        // 🚨 FIX: Changed to the correct 'dark-mode' class!
+        const isDark = document.body.classList.toggle('dark-mode');
         localStorage.setItem('sollo_theme_preference', isDark ? 'dark' : 'light');
         
         // Smoothly sync the physical hardware status bar on iPhones/Androids
