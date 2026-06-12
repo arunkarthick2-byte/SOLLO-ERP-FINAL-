@@ -284,49 +284,44 @@ const UI = {
 
     // --- ENTERPRISE UPGRADE: SYSTEM-AWARE DARK MODE ---
     initTheme: function() {
-        // 1. Check if the user manually forced a theme via your button
         const savedTheme = localStorage.getItem('sollo_theme_preference');
-        
-        // 2. Ask the Android/iOS operating system what its current setting is
         const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        
-        // 3. Turn dark mode on IF they manually saved it, OR if they never pushed the button but their phone is dark!
+        const metaTheme = document.getElementById('meta-theme-color');
+
+        // 1. Initial Boot: Prefer manual save, otherwise fallback to the phone's system setting
         if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
             document.body.classList.add('dark-mode');
-            const metaTheme = document.getElementById('meta-theme-color');
             if (metaTheme) metaTheme.setAttribute('content', '#000000');
+        } else {
+            document.body.classList.remove('dark-mode');
+            if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
         }
 
-        // 4. THE MAGIC: Listen to the phone's live system settings!
-        // If they swipe down and toggle their phone's dark mode, the app changes instantly!
+        // 2. The Live OS Listener: Watch the phone's system settings in real-time!
         if (window.matchMedia) {
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-                // Only auto-switch if the user hasn't explicitly locked it with your manual button
-                if (!localStorage.getItem('sollo_theme_preference')) {
-                    const metaTheme = document.getElementById('meta-theme-color');
-                    if (event.matches) {
-                        document.body.classList.add('dark-mode');
-                        if (metaTheme) metaTheme.setAttribute('content', '#000000');
-                    } else {
-                        document.body.classList.remove('dark-mode');
-                        if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
-                    }
+                // 🚨 MAGIC FIX: Wipe the manual save so the app instantly obeys the phone's new setting!
+                localStorage.removeItem('sollo_theme_preference');
+                
+                if (event.matches) {
+                    document.body.classList.add('dark-mode');
+                    if (metaTheme) metaTheme.setAttribute('content', '#000000');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
                 }
             });
         }
     },
 
     toggleDarkMode: function() {
+        // The manual override button in your menu still works if they want to force it
         const isDark = document.body.classList.toggle('dark-mode');
-        
-        // When they manually click the button, lock that preference in!
         localStorage.setItem('sollo_theme_preference', isDark ? 'dark' : 'light');
         
-        // Smoothly sync the physical hardware status bar on iPhones/Androids
         const metaTheme = document.getElementById('meta-theme-color');
         if (metaTheme) metaTheme.setAttribute('content', isDark ? '#000000' : '#ffffff');
         
-        // Fire the native click vibration
         if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('medium');
     },
 

@@ -5263,3 +5263,21 @@ body.dark-mode .icon-circle.color-primary .material-symbols-outlined,
 body.dark-mode .nav-item.active .material-symbols-outlined {
     color: #8cbbf1 !important;
 }
+/* ==========================================
+   🤖 AI BUSINESS INSIGHT - DARK MODE ADAPTER
+   ========================================== */
+body.dark-mode #dash-ai-insights {
+    /* Changes the glaring light blue to a deep, translucent night-blue */
+    background-color: rgba(140, 187, 241, 0.1) !important;
+    border-left-color: var(--md-primary) !important;
+}
+
+body.dark-mode #dash-ai-insights .material-symbols-outlined {
+    color: var(--md-primary) !important;
+}
+
+/* Fixes the inline background on the percentage (+%) highlight */
+body.dark-mode #dash-ai-insights strong[style*="background"] {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: var(--md-primary) !important;
+}
