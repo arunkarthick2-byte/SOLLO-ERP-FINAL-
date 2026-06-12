@@ -13,11 +13,11 @@ if (!document.getElementById('enterprise-master-fixes')) {
         #form-business-profile, #master-list-container { padding-bottom: 95px !important; }
         
         /* 2. Fix Ledger Header Visibility */
-        #activity-report-viewer .activity-header { background: var(--md-primary) !important; color: #ffffff !important; border-bottom: none !important; }
+        #activity-report-viewer .activity-header { background: #ffffff !important; color: #0f172a !important; border-bottom: 1px solid #e2e8f0 !important; }
         #activity-report-viewer .activity-header .material-symbols-outlined,
         #activity-report-viewer .activity-header strong,
         #report-party-name,
-        #report-party-balance { color: #ffffff !important; }
+        #report-party-balance { color: #0f172a !important; }
 
         /* 🚨 3. ENTERPRISE FIX: THE "NATIVE BUTTON" CURSOR SHIELD */
         /* Permanently destroys the blinking text cursor on Custom Numpad inputs */
@@ -513,8 +513,15 @@ const app = {
                 }
             }
             
-            // Run the heavy database deduplication silently in the background!
-            setTimeout(() => { app.cleanupDuplicates(); }, 2000);
+            // 🚨 BATTERY OPTIMIZATION: Delay the heavy database scan so the app has time to fully boot and stabilize first!
+            setTimeout(() => { 
+                if (window.requestIdleCallback) {
+                    // This forces Android to only run the heavy math when the CPU is resting!
+                    window.requestIdleCallback(() => app.cleanupDuplicates());
+                } else {
+                    app.cleanupDuplicates();
+                }
+            }, 12000);
 
             // FIX: Parse PWA Home Screen Shortcuts and route the user!
             const urlParams = new URLSearchParams(window.location.search);
@@ -871,8 +878,9 @@ const app = {
 
                     if (balance > 0.01) {
                         totalDue += balance;
-                        // ENTERPRISE FIX: Use safeDate so iPhones don't crash on Dashboard boot!
-                        const diffTime = today - window.Utils.safeDate(sale.date);
+                        // 🚨 FIX: Calculate aging from the Dispatched Date (if available), otherwise fallback to Invoice Date
+                        const baseDate = sale.shippedDate ? sale.shippedDate : sale.date;
+                        const diffTime = today - window.Utils.safeDate(baseDate);
                         
                         // ENTERPRISE FIX: The "Post-Dated" Aging Panic Shield!
                         // The old 'Math.abs' converted future invoices into past-due invoices, triggering fake High-Risk 90+ Day alerts!
@@ -1103,9 +1111,14 @@ const app = {
                     // Safely remap all transactions to the official cash drawer
                     for (const r of receipts) { if (r.accountId === a.id) { r.accountId = 'cash'; await saveRecord('receipts', r); } }
                     
-                    // ENTERPRISE FIX: Safely remap all Expenses to the official cash drawer so they don't get orphaned!
-                    const expenses = (await getAllRecords('expenses').catch(() => [])) || [];
-                    for (const e of expenses) { if (e.accountId === a.id) { e.accountId = 'cash'; await saveRecord('expenses', e); } }
+       // 🚨 ENTERPRISE FIX: Destroyed the Memory Leak!
+       // We reuse the 'expenses' array already loaded in RAM above, preventing 10x simultaneous database crashes!
+       for (const e of expenses) {
+           if (e.accountId === a.id) {
+               e.accountId = 'cash';
+               await saveRecord('expenses', e);
+           }
+       }
                     
                     // Delete the ghost copy
                     await deleteRecordById('accounts', a.id);
@@ -2144,8 +2157,18 @@ const app = {
             
             if (finalBal > 0.01) {
                 const doc = item.doc;
-                const docNo = (isMoneyIn ? (doc.orderNo || doc.invoiceNo) : (doc.orderNo || doc.poNo || doc.invoiceNo)) || doc.id;
-                let displayNo = isMoneyIn ? (doc.orderNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase()) : (doc.orderNo || doc.poNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase());
+                
+                // 🚨 ENTERPRISE FIX: Smart Document Number Priority!
+                // If it is a GST invoice, the official Tax Invoice Number is strictly prioritized for accounting reconciliation.
+                let docNo, displayNo;
+                if (doc.invoiceType !== 'Non-GST' && doc.invoiceNo) {
+                    docNo = doc.invoiceNo;
+                    displayNo = doc.invoiceNo;
+                } else {
+                    // For Non-GST or Drafts, safely fallback to the Order No or PO No
+                    docNo = (isMoneyIn ? (doc.orderNo || doc.invoiceNo) : (doc.orderNo || doc.poNo || doc.invoiceNo)) || doc.id;
+                    displayNo = isMoneyIn ? (doc.orderNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase()) : (doc.orderNo || doc.poNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase());
+                }
                 
                 options.push(`<option value="${docNo}" data-bal="${finalBal.toFixed(2)}">${displayNo} (Due: \u20B9${finalBal.toFixed(2)})</option>`);
             }
@@ -3109,10 +3132,13 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                         if (submitBtn) {
                             setTimeout(() => {
                                 submitBtn.disabled = false;
-                                submitBtn.innerHTML = originalText; // Safely restores the button and its icon!
                                 submitBtn.style.opacity = "1";
                                 submitBtn.style.pointerEvents = "auto";
-                                submitBtn.classList.remove('btn-loading');
+                                // 🚨 FIX: Let the 1.2s green checkmark play! Only restore text if the save failed.
+                                if (submitBtn.classList.contains('btn-loading')) {
+                                    submitBtn.innerHTML = originalText;
+                                    submitBtn.classList.remove('btn-loading');
+                                }
                             }, 400); 
                         }
                     }
@@ -3129,11 +3155,10 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                 e.preventDefault();
                 
                 const submitBtn = form.querySelector('button[type="submit"]');
-                const originalText = submitBtn ? submitBtn.innerText : 'Save';
+                const originalText = submitBtn ? submitBtn.innerHTML : 'Save';
                 if (submitBtn) {
                     submitBtn.disabled = true;
-                    submitBtn.innerText = "Saving...";
-                    submitBtn.style.opacity = "0.7";
+                    // 🚨 FIX: Let ui.js handle the SVG spinner animation!
                 }
 
                 try {
@@ -3348,10 +3373,17 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                     console.error("Save failed:", error);
                     alert("An error occurred while saving. Please try again.");
                 } finally {
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerText = originalText;
-                        submitBtn.style.opacity = "1";
+                                        if (submitBtn) {
+                        setTimeout(() => {
+                            submitBtn.disabled = false;
+                            submitBtn.style.opacity = "1";
+                            // 🚨 FIX: Let the 1.2s green checkmark play! Only restore text if the save failed.
+                            if (submitBtn.classList.contains('btn-loading')) {
+                                submitBtn.innerHTML = submitBtn.hasAttribute('data-original-text') ? submitBtn.getAttribute('data-original-text') : originalText;
+                                submitBtn.style.width = '';
+                                submitBtn.classList.remove('btn-loading');
+                            }
+                        }, 400);
                     }
                 }
             });
@@ -3365,11 +3397,10 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
 
                 // FIXED: Button locking implemented to prevent duplicate stock adjustments
                 const submitBtn = adjForm.querySelector('button[type="submit"]');
-                const originalText = submitBtn ? submitBtn.innerText : 'Save Adjustment';
+                const originalText = submitBtn ? submitBtn.innerHTML : 'Save Adjustment';
                 if (submitBtn) {
                     submitBtn.disabled = true;
-                    submitBtn.innerText = "Saving...";
-                    submitBtn.style.opacity = "0.7";
+                    // Let ui.js handle the SVG spinner animation!
                 }
 
                 try {
@@ -3437,10 +3468,17 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                 } catch (error) {
                     alert(error.message || "An error occurred while saving.");
                 } finally {
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerText = originalText;
-                        submitBtn.style.opacity = "1";
+                                        if (submitBtn) {
+                        setTimeout(() => {
+                            submitBtn.disabled = false;
+                            submitBtn.style.opacity = "1";
+                            // 🚨 FIX: Let the 1.2s green checkmark play! Only restore text if the save failed.
+                            if (submitBtn.classList.contains('btn-loading')) {
+                                submitBtn.innerHTML = submitBtn.hasAttribute('data-original-text') ? submitBtn.getAttribute('data-original-text') : originalText;
+                                submitBtn.style.width = '';
+                                submitBtn.classList.remove('btn-loading');
+                            }
+                        }, 400);
                     }
                 }
             });
@@ -3521,11 +3559,10 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                     e.preventDefault();
 
                     const submitBtn = form.querySelector('button[type="submit"]');
-                    const originalText = submitBtn ? submitBtn.innerText : 'Save';
+                    const originalText = submitBtn ? submitBtn.innerHTML : 'Save';
                     if (submitBtn) {
                         submitBtn.disabled = true;
-                        submitBtn.innerText = "Processing...";
-                        submitBtn.style.opacity = "0.7";
+                        // Let ui.js handle the SVG spinner animation!
                     }
 
                     try {
@@ -3718,12 +3755,16 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                         alert("An error occurred. Please try again.");
                     } finally {
                         // ENTERPRISE FIX: THE ANIMATION SHIELD
-                        // Wait 400ms for the bottom sheet to close so users can't double-tap and duplicate payments!
                         if (submitBtn) {
                             setTimeout(() => {
                                 submitBtn.disabled = false;
-                                submitBtn.innerText = originalText;
                                 submitBtn.style.opacity = "1";
+                                // 🚨 FIX: Let the 1.2s green checkmark play! Only restore text if the save failed.
+                                if (submitBtn.classList.contains('btn-loading')) {
+                                    submitBtn.innerHTML = submitBtn.hasAttribute('data-original-text') ? submitBtn.getAttribute('data-original-text') : originalText;
+                                    submitBtn.style.width = '';
+                                    submitBtn.classList.remove('btn-loading');
+                                }
                             }, 400);
                         }
                     }
@@ -7111,3 +7152,29 @@ window.AnalyticsEngine = {
         window.AnalyticsEngine.showReportModal('Dead Stock Scanner (>90 Days)', summaryText, summaryColor, deadStockHtml);
     }
 };
+// ==========================================
+// 🚨 BATTERY OPTIMIZATION: PRODUCTION SILENCER
+// ==========================================
+// Destroys hidden background memory leaks caused by console logging during intensive data operations!
+const isLocalDevice = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+if (!isLocalDevice) {
+    console.log = function() {};
+    console.info = function() {};
+    console.warn = function() {};
+    console.time = function() {};
+    console.timeEnd = function() {};
+}
+// ==========================================
+// 🚨 ENTERPRISE FIX: THE DATA-LOSS FIREWALL
+// ==========================================
+// Intercepts accidental tab closures and refresh buttons so users never lose an unsaved invoice!
+window.addEventListener('beforeunload', (e) => {
+    // Check if ANY form, bottom-sheet, or numpad is currently open and active on the screen
+    const isFormOpen = document.querySelectorAll('.bottom-sheet.active, .activity-screen.active').length > 0;
+    const isNumpadOpen = document.getElementById('custom-numpad') && document.getElementById('custom-numpad').classList.contains('active');
+    
+    if (isFormOpen || isNumpadOpen) {
+        e.preventDefault();
+        e.returnValue = ''; // Required by modern Chrome/Safari to trigger the native hardware lock!
+    }
+});

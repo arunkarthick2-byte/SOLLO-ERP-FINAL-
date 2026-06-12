@@ -662,17 +662,17 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             viewer.style.flexDirection = 'column';
 
             viewer.innerHTML = `
-                <div style="background:#0061a4; color:white; padding:16px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 4px rgba(0,0,0,0.2); flex-shrink:0;">
+                <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0;">
                     <div>
                         <div style="font-weight:bold; font-size:18px;">Document Preview</div>
-                        <div style="font-size:12px; opacity:0.9; margin-top:2px;">Share PDF or Download</div>
+                        <div style="font-size:12px; color:#64748b; margin-top:2px;">Share PDF or Download</div>
                     </div>
-                    <div style="display: flex; gap: 20px; align-items: center;">
+                    <div style="display: flex; gap: 20px; align-items: center; color:#475569;">
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-print-preview">print</span>
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
                         
-                        <span class="material-symbols-outlined tap-target" style="font-size:28px;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = ''; const vp = document.querySelector('meta[name=viewport]'); if(vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');">close</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = ''; const vp = document.querySelector('meta[name=viewport]'); if(vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');">close</span>
                     </div>
                 </div>
                 <div style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
@@ -1244,8 +1244,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 if (window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.sales) {
                     const partySales = window.UI.state.rawData.sales.filter(s => s.customerId === row.id && s.status !== 'Completed' && s.status !== 'Paid');
                     if (partySales.length > 0) {
-                        partySales.sort((a,b) => new Date(a.date) - new Date(b.date));
-                        const oldestDate = new Date(partySales[0].date);
+                        partySales.sort((a,b) => new Date(a.shippedDate || a.date) - new Date(b.shippedDate || b.date));
+                        const oldestDate = new Date(partySales[0].shippedDate || partySales[0].date);
                         const daysOverdue = Math.floor(Math.abs(new Date() - oldestDate) / (1000 * 60 * 60 * 24));
                         
                         if (daysOverdue > 60) overdueTag = `<span style="background:#fff0f2; color:#ba1a1a; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #ffdad6; margin-left:8px; display:inline-block; vertical-align:middle; font-weight:800;">${daysOverdue} Days Overdue</span>`;
@@ -1417,6 +1417,27 @@ Please arrange the payment at your earliest convenience. Thank you!`);
             // 🚨 EXACT SCREENSHOT MATCH: Combines the Voucher Type and Number cleanly!
             let particulars = t.id === 'open-bal' ? 'Opening Balance' : `${t.type || t.desc} ${t.ref ? '/ ' + t.ref : ''}`;
             if (t.partyName && t.partyName !== 'Unknown') particulars += ` <span style="color:#64748b; font-size: 10px;">(${t.partyName})</span>`;
+
+            // 🚨 ENTERPRISE UI: Inject GST / Non-GST Micro-Badges into the Particulars!
+            if (t.isInvoice) {
+                let inv = null;
+                if (party.type === 'Customer' && window.UI.state.rawData.sales) {
+                    inv = window.UI.state.rawData.sales.find(s => s.id === t.id);
+                } else if (party.type === 'Supplier' && window.UI.state.rawData.purchases) {
+                    inv = window.UI.state.rawData.purchases.find(p => p.id === t.id);
+                }
+
+                if (inv) {
+                    const gstAmt = parseFloat(inv.totalGst) || 0;
+                    const baseAmt = (parseFloat(inv.grandTotal) || 0) - gstAmt;
+                    
+                    if (gstAmt > 0) {
+                        particulars += `<div style="margin-top: 5px;"><span style="font-size: 9px; color: #0369a1; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd; font-weight: 700; display: inline-block;">Base: ₹${baseAmt.toFixed(2)} | GST: ₹${gstAmt.toFixed(2)}</span></div>`;
+                    } else if (inv.invoiceType === 'Non-GST') {
+                        particulars += `<div style="margin-top: 5px;"><span style="font-size: 9px; color: #b45309; background: #fef3c7; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a; font-weight: 700; display: inline-block;">Non-GST Bill</span></div>`;
+                    }
+                }
+            }
 
             tableRows += `
                 <tr style="background-color: ${rowBg};">
@@ -1947,7 +1968,8 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 margin: 0, 
                 filename: filename,
                 enableLinks: true, 
-                pagebreak: { mode: 'css', avoid: '.avoid-break' }, 
+                // 🚨 FIX: Added 'tr' so it never mathematically slices a table row in half across two pages!
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] }, 
                 html2canvas: { 
                     scale: (window.devicePixelRatio || 3), 
                     backgroundColor: '#ffffff',
@@ -1981,8 +2003,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     }
                 },
                 image: { type: 'jpeg', quality: 1.0 },
-                // 🚨 CRITICAL FIX: Dynamically match PDF height to content height to kill blank pages!
-                jsPDF: { unit: 'px', format: [800, exactHeight + 2], orientation: 'portrait', compress: true }
+                // 🚨 ENTERPRISE FIX: The Multi-Page A4 Shield!
+                // Forces massive Ledgers and Statements into paginated A4 format (800x1131), while wrapping small invoices tightly!
+                jsPDF: { unit: 'px', format: exactHeight > 1150 ? [800, 1131] : [800, exactHeight + 2], orientation: 'portrait', compress: true }
             };
 
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');

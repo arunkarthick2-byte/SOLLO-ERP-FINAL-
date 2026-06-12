@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" id="meta-theme-color" content="#1A237E">
+    <meta name="theme-color" id="meta-theme-color" content="#ffffff">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -56,7 +56,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
     <link rel="stylesheet" href="style.css?v=6.1">
     
     <link rel="manifest" href="./manifest.json"> 
@@ -106,13 +106,13 @@
 <body>
 
     <div id="splash-screen" class="splash-screen">
-        <div class="logo-circle-large" style="margin-bottom: 24px;">
-            <svg xmlns="http://www.w3.org/2000/svg" height="48" viewBox="0 -960 960 960" width="48" fill="white">
+        <div class="logo-circle-large" style="margin-bottom: 24px; background: #e3f2fd;">
+            <svg xmlns="http://www.w3.org/2000/svg" height="48" viewBox="0 -960 960 960" width="48" fill="#0061a4">
                 <path d="M160-120v-720h320v160h320v560H160Zm80-80h160v-80H240v80Zm0-160h160v-80H240v80Zm0-160h160v-80H240v80Zm240 320h240v-400H480v400Zm80-240h80v-80h-80v80Zm0 160h80v-80h-80v80Z"/>
             </svg>
         </div>
-        <h1 style="color: white; margin: 0; font-size: 24px;">SOLLO ERP</h1>
-        <p style="color: rgba(255,255,255,0.8); margin-top: 8px;">Loading Database...</p>
+        <h1 style="color: #0f172a; margin: 0; font-size: 24px;">SOLLO ERP</h1>
+        <p style="color: #64748b; margin-top: 8px;">Loading Database...</p>
         <div class="loader-spinner" style="margin-top: 32px;"></div>
     </div>
     <div id="app-shell">
@@ -169,14 +169,6 @@
                         </div>
                     </div>
                     
-                    <div class="tap-target" id="dash-low-stock-btn" onclick="UI.switchTab('tab-masters', 'Master Data', document.getElementById('nav-masters')); setTimeout(() => { UI.openMasterView('products', 'Inventory Master'); setTimeout(() => { if(window.UI) window.UI.state.activeFilters['masters'] = 'Low Stock'; document.getElementById('filter-master-view').value = 'Low Stock'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
-                        <span style="font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                            <span class="material-symbols-outlined" id="dash-low-stock-icon" style="font-size: 18px;">check_circle</span>
-                            <span id="dash-low-stock-text">Stock Levels Optimal</span>
-                        </span>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-
                     <div id="dash-ai-insights" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); border-left: 4px solid var(--md-primary); background: #e3f2fd; display: none;">
                         <div style="display: flex; gap: 12px; align-items: center;">
                             <span class="material-symbols-outlined" style="color: var(--md-primary); font-size: 24px;">auto_awesome</span>
@@ -495,14 +487,15 @@
 
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">System</strong>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin: 0;" onclick="UI.toggleTheme(event)">
-                        <div style="display: flex; align-items: center; gap: 16px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.UI) window.UI.toggleDarkMode()">
+                        <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-primary); width: 40px; height: 40px; flex-shrink: 0;">
                             <span class="material-symbols-outlined">dark_mode</span>
-                            <strong style="font-size:15px;">Dark Mode</strong>
                         </div>
-                        <div class="theme-toggle-track" style="width: 40px; height: 24px; background: var(--md-surface-variant); border-radius: 12px; position: relative; transition: background 0.3s ease;">
-                            <div class="theme-toggle-knob" style="width: 20px; height: 20px; background: var(--md-outline); border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;"></div>
+                        <div style="flex: 1;">
+                            <strong class="large-text" style="font-size: 15px;">Enterprise Dark Mode</strong>
+                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Professional dark theme overlay</small>
                         </div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
                     <div class="m3-card tap-target" onclick="if(window.UI) UI.toggleDataDensity()" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;">
@@ -2781,11 +2774,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=48.0"></script>
-    <script src="utils.js?v=48.0"></script>
-    <script src="ui.js?v=48.0"></script>
-    <script src="cloud.js?v=48.0"></script>
-    <script src="app.js?v=48.0"></script>
+    <script src="db.js?v=49.0"></script>
+    <script src="utils.js?v=49.0"></script>
+    <script src="ui.js?v=49.0"></script>
+    <script src="cloud.js?v=49.0"></script>
+    <script src="app.js?v=49.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>

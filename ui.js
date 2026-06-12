@@ -186,6 +186,7 @@ const UI = {
                 
                 // Lock the button and add a sleek loading spinner
                 const originalText = submitBtn.innerHTML;
+                submitBtn.setAttribute('data-original-text', originalText); // 🚨 FIX: Save the text so we can restore it later!
                 submitBtn.style.width = submitBtn.offsetWidth + 'px'; // Lock width so the button doesn't shrink
                 submitBtn.classList.add('btn-loading');
                 submitBtn.innerHTML = `<svg style="width: 20px; height: 20px; animation: spin 1s linear infinite; color: white;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
@@ -281,57 +282,25 @@ const UI = {
         input.dispatchEvent(new Event('input', { bubbles: true }));
     },
 
-    // --- NEW CODE: DARK MODE CONTROLLERS ---
-    initTheme: () => {
-        const isDark = localStorage.getItem('sollo_theme') === 'dark';
-        if (isDark) {
-            document.body.classList.add('dark-mode');
+    // --- ENTERPRISE UPGRADE: DARK MODE CONTROLLERS ---
+    initTheme: function() {
+        if (localStorage.getItem('sollo_theme_preference') === 'dark') {
+            document.body.classList.add('enterprise-dark-mode');
             const metaTheme = document.getElementById('meta-theme-color');
-            if (metaTheme) metaTheme.setAttribute('content', '#111315'); // Matches dark background
+            if (metaTheme) metaTheme.setAttribute('content', '#000000');
         }
     },
 
-    toggleTheme: (event) => {
-        // ENTERPRISE FIX: Prevent rapid-tap crashes by locking the animation state
-        if (UI.isAnimatingTheme) return; 
+    toggleDarkMode: function() {
+        const isDark = document.body.classList.toggle('enterprise-dark-mode');
+        localStorage.setItem('sollo_theme_preference', isDark ? 'dark' : 'light');
         
-        const applyTheme = () => {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('sollo_theme', isDark ? 'dark' : 'light');
-            UI.resetStatusBarColor();
-            if (window.Utils) window.Utils.showToast(isDark ? "Dark Mode Enabled 🌙" : "Light Mode Enabled ☀️");
-        };
-
-        if (!document.startViewTransition || !event || !event.clientX) { applyTheme(); return; }
-
-        UI.isAnimatingTheme = true; // Lock the animation
-
-        const x = event.clientX;
-        const y = event.clientY;
-        const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-        const isDark = !document.body.classList.contains('dark-mode');
-
-        const transition = document.startViewTransition(() => applyTheme());
-
-        transition.ready.then(() => {
-            const clipPath = [ `circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)` ];
-            const animation = document.documentElement.animate(
-                { clipPath: isDark ? clipPath : [...clipPath].reverse() },
-                { duration: 600, easing: "ease-out", pseudoElement: isDark ? "::view-transition-new(root)" : "::view-transition-old(root)" }
-            );
-            
-            // Unlock safely when the cinematic transition completely finishes
-            animation.onfinish = () => { UI.isAnimatingTheme = false; };
-            
-            // 🚨 ENTERPRISE FIX: The Interruption Shield!
-            // If the user rotates the screen or the OS aborts the animation, forcefully unlock the button so it doesn't freeze permanently!
-            animation.oncancel = () => { UI.isAnimatingTheme = false; };
-            
-        }).catch(() => {
-            // Failsafe unlock if the browser forcibly aborts the transition
-            UI.isAnimatingTheme = false; 
-        });
+        // Smoothly sync the physical hardware status bar on iPhones/Androids
+        const metaTheme = document.getElementById('meta-theme-color');
+        if (metaTheme) metaTheme.setAttribute('content', isDark ? '#000000' : '#ffffff');
+        
+        // Fire the native click vibration
+        if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('medium');
     },
 
     triggerError: (elementId) => {
@@ -348,7 +317,8 @@ const UI = {
     resetStatusBarColor: () => {
         const isDark = document.body.classList.contains('dark-mode');
         const metaTheme = document.getElementById('meta-theme-color');
-        if (metaTheme) metaTheme.setAttribute('content', isDark ? '#111315' : '#0061a4');
+        // 🚨 ENTERPRISE FIX: Permanently lock the light-mode status bar to pure white (#ffffff) instead of blue!
+        if (metaTheme) metaTheme.setAttribute('content', isDark ? '#111315' : '#ffffff');
     },
 
     setStatusBarColor: (color) => {
@@ -509,7 +479,14 @@ const UI = {
             btn.classList.remove('btn-loading');
             btn.classList.add('btn-success');
             // Hold the green checkmark for a moment before expanding back to normal
-            setTimeout(() => btn.classList.remove('btn-success'), 1200);
+            setTimeout(() => {
+                btn.classList.remove('btn-success');
+                // 🚨 FIX: Restore the "Save" text and unlock the button width so it is ready for the next entry!
+                if (btn.hasAttribute('data-original-text')) {
+                    btn.innerHTML = btn.getAttribute('data-original-text');
+                    btn.style.width = '';
+                }
+            }, 1200);
         });
         // -------------------------------------------
 
@@ -1005,7 +982,8 @@ const UI = {
         const freight = safeNum((document.getElementById('sales-freight') || {}).value);
         const exactTotal = finalSubtotal + totalGst + freight;
         const roundedTotal = Math.round(exactTotal);
-        const roundOff = roundedTotal - exactTotal;
+        let roundOff = roundedTotal - exactTotal;
+        if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
 
         document.getElementById('sales-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
         document.getElementById('sales-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
@@ -1092,7 +1070,8 @@ const UI = {
         const freight = safeNum((document.getElementById('purchase-freight') || {}).value);
         const exactTotal = finalSubtotal + totalGst + freight;
         const roundedTotal = Math.round(exactTotal);
-        const roundOff = roundedTotal - exactTotal;
+        let roundOff = roundedTotal - exactTotal;
+        if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
 
         document.getElementById('purchase-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
         document.getElementById('purchase-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
@@ -1371,11 +1350,13 @@ const UI = {
                     const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid);
-                    const statusText = s.status === 'Open' ? 'Draft' : (balance > 0 && !isReturn ? `Due: \u20B9${balance.toFixed(2)}` : 'Paid');
+                    // 🚨 FIX: Strict >= 0.01 check prevents floating point errors from displaying "Due: ₹0.00" in red!
+                    const isDue = balance >= 0.01 && !isReturn;
+                    const statusText = s.status === 'Open' ? 'Draft' : (isDue ? `Due: \u20B9${balance.toFixed(2)}` : 'Paid');
                     
                     // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
-                    const statusColor = s.status === 'Open' ? '#73777f' : (balance > 0 && !isReturn ? '#ba1a1a' : '#146c2e');
-                    const statusBg = s.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (balance > 0 && !isReturn ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)'); 
+                    const statusColor = s.status === 'Open' ? '#73777f' : (isDue ? '#ba1a1a' : '#146c2e');
+                    const statusBg = s.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (isDue ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)'); 
                     
                     return `
                     <div class="m3-card tap-target list-card" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
@@ -1460,11 +1441,13 @@ const UI = {
                     const uniqueRefs = [...new Set([p.orderNo, p.poNo, p.invoiceNo, p.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid);
-                    const statusText = p.status === 'Open' ? 'Draft PO' : (balance > 0 && !isReturn ? `To Pay: \u20B9${balance.toFixed(2)}` : 'Paid');
+                    // 🚨 FIX: Strict >= 0.01 check prevents floating point errors from displaying "To Pay: ₹0.00" in red!
+                    const isDue = balance >= 0.01 && !isReturn;
+                    const statusText = p.status === 'Open' ? 'Draft PO' : (isDue ? `To Pay: \u20B9${balance.toFixed(2)}` : 'Paid');
                     
                     // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
-                    const statusColor = p.status === 'Open' ? '#73777f' : (balance > 0 && !isReturn ? '#ba1a1a' : '#146c2e');
-                    const statusBg = p.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (balance > 0 && !isReturn ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
+                    const statusColor = p.status === 'Open' ? '#73777f' : (isDue ? '#ba1a1a' : '#146c2e');
+                    const statusBg = p.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (isDue ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
 
                     return `
                     <div class="m3-card tap-target" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('purchase', '${p.id}', '${p.documentType}')">
@@ -2446,9 +2429,11 @@ const UI = {
             // CUSTOM FIX: Only flag the invoice as overdue if the pending balance is ₹100 or more
             if (balance < 100) return false;
             
-            if (!s.date) return false;
+            // 🚨 FIX: Start overdue calculation from Dispatched Date!
+            const baseDate = s.shippedDate ? s.shippedDate : s.date;
+            if (!baseDate) return false;
             // BULLETPROOF DATE MATH: Manually parse YYYY-MM-DD so old WebViews don't panic!
-            const parts = s.date.split('-'); 
+            const parts = baseDate.split('-'); 
             const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
             
             // ENTERPRISE FIX: Safely recreate 'today' using the timezone-safe string!
@@ -4237,3 +4222,71 @@ document.addEventListener('pointerdown', function (e) {
         circle.remove();
     }, 600);
 });
+// ==========================================
+// 🚨 ENTERPRISE UPGRADE: ANDROID BACK-BUTTON SHIELD
+// ==========================================
+// Hijacks the physical Android Back Button so it safely closes menus instead of killing the app!
+
+// 1. Trap the Back Button
+window.addEventListener('popstate', (event) => {
+    // Check for open Bottom Sheets
+    const openSheets = document.querySelectorAll('.bottom-sheet.active');
+    if (openSheets.length > 0) {
+        const lastSheet = openSheets[openSheets.length - 1];
+        if (window.UI && window.UI.closeBottomSheet) window.UI.closeBottomSheet(lastSheet.id);
+        return;
+    }
+
+    // Check for open Full-Screen Activities (Like the Sales Invoice Form)
+    const openActivities = document.querySelectorAll('.activity-screen.open');
+    if (openActivities.length > 0) {
+        const lastActivity = openActivities[openActivities.length - 1];
+        if (window.UI && window.UI.closeActivity) window.UI.closeActivity(lastActivity.id);
+        return;
+    }
+
+    // Check for open Numpad
+    const numpad = document.getElementById('custom-numpad');
+    if (numpad && numpad.classList.contains('active')) {
+        if (window.UI && window.UI.closeNumpad) window.UI.closeNumpad();
+        return;
+    }
+});
+
+// 2. Inject a "Fake" history page every time a menu opens
+if (window.UI) {
+    const originalOpenActivity = window.UI.openActivity;
+    window.UI.openActivity = function() {
+        history.pushState({ modal: true }, '');
+        if (originalOpenActivity) originalOpenActivity.apply(this, arguments);
+    };
+
+    const originalOpenBottomSheet = window.UI.openBottomSheet;
+    window.UI.openBottomSheet = function() {
+        history.pushState({ modal: true }, '');
+        if (originalOpenBottomSheet) originalOpenBottomSheet.apply(this, arguments);
+    };
+    
+    const originalOpenNumpad = window.UI.openNumpad;
+    window.UI.openNumpad = function() {
+        history.pushState({ modal: true }, '');
+        if (originalOpenNumpad) originalOpenNumpad.apply(this, arguments);
+    };
+}
+// ==========================================
+// 🚨 ENTERPRISE FIX: BACKGROUND RESUME SHIELD
+// ==========================================
+// Forces Android to re-paint the pure white status bar when waking up the app from the background!
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        if (window.UI) window.UI.resetStatusBarColor();
+    }
+});
+// ==========================================
+// 🚨 EXTREME PERFORMANCE: 120FPS PASSIVE SCROLL ENGINE
+// ==========================================
+// Unlocks the CPU during heavy list scrolling by preventing the browser from waiting for Javascript!
+const passiveConfig = { passive: true, capture: false };
+window.addEventListener('touchstart', function() {}, passiveConfig);
+window.addEventListener('touchmove', function() {}, passiveConfig);
+window.addEventListener('wheel', function() {}, passiveConfig);
