@@ -300,7 +300,6 @@ const UI = {
         // 2. The Live OS Listener: Watch the phone's system settings in real-time!
         if (window.matchMedia) {
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-                // 🚨 MAGIC FIX: Wipe the manual save so the app instantly obeys the phone's new setting!
                 localStorage.removeItem('sollo_theme_preference');
                 
                 if (event.matches) {
@@ -315,7 +314,6 @@ const UI = {
     },
 
     toggleDarkMode: function() {
-        // The manual override button in your menu still works if they want to force it
         const isDark = document.body.classList.toggle('dark-mode');
         localStorage.setItem('sollo_theme_preference', isDark ? 'dark' : 'light');
         
@@ -2558,6 +2556,11 @@ const UI = {
                 UI.chartInstance.destroy();
             }
 
+            // 🚨 ENTERPRISE UPGRADE: Detect active theme for the Chart!
+            const isDark = document.body.classList.contains('dark-mode');
+            const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+            const textColor = isDark ? '#c3c7cf' : '#757575';
+
             UI.chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -2600,19 +2603,21 @@ const UI = {
                     scales: {
                         x: { 
                             grid: { display: false },
-                            ticks: { font: { weight: 'bold', family: 'Inter, sans-serif' }, color: '#424242' }
+                            // 🚨 Apply dynamic text color to X-Axis
+                            ticks: { font: { weight: 'bold', family: 'Inter, sans-serif' }, color: textColor }
                         },
                         y: { 
                             beginAtZero: true,
                             suggestedMax: 100, 
-                            grid: { color: 'rgba(0,0,0,0.05)' }, 
+                            // 🚨 Apply dynamic grid and text color to Y-Axis
+                            grid: { color: gridColor }, 
                             ticks: {
                                 callback: function(value) { 
                                     if (value >= 1000) return '₹' + (value/1000).toFixed(1) + 'k';
                                     return '₹' + value; 
                                 },
                                 font: { family: 'Inter, sans-serif' },
-                                color: '#757575'
+                                color: textColor
                             }
                         }
                     }
@@ -3038,10 +3043,10 @@ const UI = {
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="number" inputmode="decimal" class="row-qty" value="1" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="number" inputmode="decimal" class="row-qty" value="1" step="any" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
@@ -3297,11 +3302,11 @@ const UI = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="number" inputmode="decimal" class="row-qty" value="1" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="number" inputmode="decimal" class="row-qty" value="1" step="any" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>

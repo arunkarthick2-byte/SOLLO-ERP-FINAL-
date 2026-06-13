@@ -2974,12 +2974,12 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                                     <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
                                         <div>
                                             <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">CASH RECEIVED (₹)</label>
-                                            <input type="number" id="split-cash" placeholder="0.00" style="width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold; margin-top: 6px;" oninput="window.calcSplit()">
+                                            <input type="number" id="split-cash" placeholder="0.00" step="any" style="width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold; margin-top: 6px;" oninput="window.calcSplit()">
                                         </div>
                                         <div>
                                             <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">BANK / UPI RECEIVED (₹)</label>
                                             <div style="display: flex; gap: 8px; margin-top: 6px;">
-                                                <input type="number" id="split-bank" placeholder="0.00" style="flex: 1; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold;" oninput="window.calcSplit()">
+                                                <input type="number" id="split-bank" placeholder="0.00" step="any" style="flex: 1; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold;" oninput="window.calcSplit()">
                                                 <select id="split-bank-account" style="width: 140px; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-weight: bold; background: var(--md-surface-variant);">
                                                     ${bankOptions}
                                                 </select>

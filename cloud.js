@@ -166,8 +166,22 @@ const Cloud = {
                     localStorage.setItem('sollo_last_backup', now.toString());
                     if (window.Utils) window.Utils.showToast("☁️ Auto-Backup Completed in Background!");
                 } else if (uploadRes.status === 401) {
-                    gapi.client.setToken(null);
-                    if (window.Utils) window.Utils.showToast("⚠️ Cloud Auto-Sync Paused (Session Expired). Please open Data Management to reconnect.");
+                    console.warn("⚠️ Token expired. Attempting silent background renewal...");
+                    
+                    // 🚨 ENTERPRISE FIX: The Silent Token Renewer!
+                    // If the 1-hour token expires, quietly ask Google for a new one without showing a popup!
+                    tokenClient.callback = async (resp) => {
+                        if (resp.error !== undefined) {
+                            gapi.client.setToken(null);
+                            if (window.Utils) window.Utils.showToast("⚠️ Cloud Sync Paused. Please manually Backup to reconnect.");
+                        } else {
+                            console.log("✅ Token renewed silently! Resuming background backup...");
+                            window.Cloud.autoBackup(); // Instantly retry the backup with the new token!
+                        }
+                    };
+                    
+                    // prompt: '' skips the account selection screen and auto-renews if the user is already trusted!
+                    tokenClient.requestAccessToken({ prompt: '' });
                 }
             } catch (e) {
                 console.error("Auto backup failed quietly", e);

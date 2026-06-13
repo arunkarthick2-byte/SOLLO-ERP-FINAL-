@@ -2,7 +2,7 @@
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.4)
 // ==========================================
 // ENTERPRISE RULE: Every time you change your code, you MUST change this version number (e.g., to 11.8, 11.9)!
-const CACHE_NAME = 'sollo-erp-v51.0-offline';
+const CACHE_NAME = 'sollo-erp-v52.0-offline';
 
 const ASSETS_TO_CACHE = [
     './',
@@ -88,12 +88,14 @@ self.addEventListener('fetch', (event) => {
         return; 
     }
 
-    // --- DEVELOPMENT MODE OVERRIDE ---
-    // If we are developing locally, ALWAYS bypass the cache completely
+    // --- DEVELOPMENT MODE OVERRIDE (DISABLED FOR ACODE SPEED) ---
+    // We commented this out so Acode uses the lightning-fast offline cache instead of serving files manually!
+    /*
     if (url.includes('localhost') || url.includes('127.0.0.1')) {
         event.respondWith(fetch(event.request));
         return;
     }
+    */
     // ---------------------------------
 
     // ENTERPRISE FIX: The Cache API violently crashes on POST requests. We MUST ignore them!
@@ -129,27 +131,6 @@ self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
-});
-// ==========================================
-// 🚨 ENTERPRISE POLISH: THE "ZOMBIE CACHE" PURGER
-// ==========================================
-// When you update the CACHE_NAME version at the top of this file, this engine wakes up
-// and permanently deletes the old cache from the phone's hard drive. 
-// This guarantees users never get stuck on a broken, outdated version of the app!
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    // If the cache name doesn't match the CURRENT version, destroy it!
-                    if (cacheName !== CACHE_NAME) {
-                        console.log('🗑️ Destroying old outdated cache:', cacheName);
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        }).then(() => self.clients.claim()) // Forces all open tabs to instantly use the new cache!
-    );
 });
 // ==========================================
 // 🚨 ENTERPRISE UPGRADE: BACKGROUND SYNC API

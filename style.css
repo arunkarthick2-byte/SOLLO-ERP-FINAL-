@@ -153,6 +153,9 @@ body {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+    
+    /* 🚨 ENTERPRISE UPGRADE: Cinematic Dark Mode Fade */
+    transition: background-color 0.4s ease, color 0.4s ease !important;
 }
 
 /* Re-enable text selection ONLY for inputs so users can type and edit */
@@ -5280,4 +5283,63 @@ body.dark-mode #dash-ai-insights .material-symbols-outlined {
 body.dark-mode #dash-ai-insights strong[style*="background"] {
     background-color: rgba(255, 255, 255, 0.1) !important;
     color: var(--md-primary) !important;
+}
+/* ==========================================
+   🌙 DARK MODE: SCROLLBAR & PLACEHOLDER ADAPTER
+   ========================================== */
+/* 1. Turns the invisible black scrollbar into a sleek, glowing white scrollbar at night */
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+body.dark-mode * {
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent !important;
+}
+
+/* 2. Brightens the placeholder text (like "Search..." or "0.00") so it doesn't get lost in the dark inputs */
+body.dark-mode input::placeholder, 
+body.dark-mode textarea::placeholder {
+    color: #64748b !important;
+    opacity: 1 !important;
+}
+/* ==========================================
+   🌙 DARK MODE: MENU TAB COLOR ADAPTER
+   ========================================== */
+/* 1. Force inline colored text in the Menu to turn readable white/grey */
+body.dark-mode #tab-menu strong[style*="color"],
+body.dark-mode #tab-menu small[style*="color"] {
+    color: var(--md-on-surface) !important;
+    opacity: 1 !important;
+}
+
+/* 2. Brighten Dark Blue icons (e.g., GST Reports, Cloud Backup) */
+body.dark-mode .material-symbols-outlined[style*="#0061a4"] {
+    color: #8cbbf1 !important; /* Neon Blue */
+}
+
+/* 3. Brighten Dark Green icons (e.g., Advanced Reports, Close Year) */
+body.dark-mode .material-symbols-outlined[style*="#146c2e"],
+body.dark-mode .material-symbols-outlined[style*="#2e7d32"] {
+    color: #81c784 !important; /* Neon Green */
+}
+
+/* 4. Brighten Dark Red icons (e.g., Expense Leakage, Restore Drive) */
+body.dark-mode .material-symbols-outlined[style*="#ba1a1a"],
+body.dark-mode .material-symbols-outlined[style*="#e11d48"] {
+    color: #ff8a80 !important; /* Neon Red */
+}
+
+/* 5. Brighten Dark Orange/Yellow icons (e.g., Reorder, Force Sync) */
+body.dark-mode .material-symbols-outlined[style*="#d97706"],
+body.dark-mode .material-symbols-outlined[style*="#f59e0b"],
+body.dark-mode .material-symbols-outlined[style*="#f57f17"] {
+    color: #ffb74d !important; /* Neon Orange */
+}
+/* ==========================================
+   🌙 DARK MODE: MENU CARD BACKGROUND NEUTRALIZER
+   ========================================== */
+/* Automatically strips the bright pastel inline backgrounds from AI Analytics & Cloud Backup cards */
+body.dark-mode #tab-menu .m3-card[style*="background"] {
+    background: var(--md-surface) !important;
+    border-color: var(--md-outline-variant) !important;
 }

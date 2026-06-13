@@ -7,7 +7,7 @@
   "display": "fullscreen",
   "display_override": ["window-controls-overlay", "minimal-ui"],
   "orientation": "portrait",
-  "background_color": "#0061a4",
+  "background_color": "#ffffff",
   "theme_color": "#0061a4",
   "categories": ["business", "finance", "productivity"],
   "lang": "en",

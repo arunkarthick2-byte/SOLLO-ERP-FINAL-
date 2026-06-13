@@ -524,6 +524,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                     scrollX: 0,
                     letterRendering: true,
                     onclone: (clonedDoc) => {
+                        // 🚨 ENTERPRISE FIX: Force the PDF clone into Light Mode so it always prints perfectly!
+                        clonedDoc.body.classList.remove('dark-mode');
+                        
                         const target = clonedDoc.getElementById(elementId);
                         if (target) {
                             target.style.width = '800px'; 
@@ -624,6 +627,9 @@ Please arrange the payment at your earliest convenience. Thank you!`);
                 scrollY: 0, 
                 scrollX: 0,
                 onclone: (clonedDoc) => {
+                    // 🚨 ENTERPRISE FIX: Force the PDF clone into Light Mode so it always prints perfectly!
+                    clonedDoc.body.classList.remove('dark-mode');
+                    
                     const printArea = clonedDoc.getElementById('print-area');
                     if (printArea) {
                         printArea.className = ''; 

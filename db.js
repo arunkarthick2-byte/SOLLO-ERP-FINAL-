@@ -111,7 +111,19 @@ const initDB = () => {
             }
         };
 
-        request.onsuccess = (event) => { db = event.target.result; resolve(); };
+        request.onsuccess = (event) => { 
+            db = event.target.result; 
+            
+            // 🚨 ENTERPRISE FIX: The Native Deadlock Shield!
+            // If the user opens the app in Tab B, Tab A will automatically close its database so Tab B doesn't permanently freeze!
+            db.onversionchange = () => {
+                console.warn("⚠️ Database upgrading in another tab. Closing local connection to prevent deadlock!");
+                db.close();
+                db = null;
+            };
+            
+            resolve(); 
+        };
         request.onerror = (event) => { console.error("IndexedDB error:", event.target.errorCode); reject(event.target.error); };
     });
 };
