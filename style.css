@@ -1275,47 +1275,6 @@ body.dark-mode .search-bar {
    THE FINAL UI POLISH: MICRO-INTERACTIONS
    ========================================== */
 
-/* 1. Dynamic Glass Toast Notifications (Apple/Material 3 Hybrid) */
-#toast-container {
-    position: fixed;
-    top: calc(20px + env(safe-area-inset-top, 0px)); 
-    left: 50%;
-    transform: translateX(-50%); /* Bulletproof absolute centering */
-    display: flex; 
-    flex-direction: column; 
-    align-items: center;
-    pointer-events: none; 
-    z-index: 99999;
-    gap: 10px;
-    width: 90%; /* Stops it from touching the screen edges */
-    max-width: 400px;
-}
-.toast {
-    background: rgba(26, 28, 30, 0.85) !important;
-    color: #ffffff !important;
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    padding: 12px 24px;
-    border-radius: 100px; /* Perfect pill shape */
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.2);
-    transform: translateY(-50px) scale(0.9);
-    opacity: 0;
-    text-align: center;
-    word-wrap: break-word; /* Prevents text cutoff */
-    transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-}
-.toast.show {
-    transform: translateY(0) scale(1);
-    opacity: 1;
-}
-body.dark-mode .toast { 
-    background: rgba(223, 226, 235, 0.9) !important; 
-    color: #1a1c1e !important; 
-}
-
 /* 3. Magnetic Input Focus States */
 input:focus, select:focus, textarea:focus {
     outline: none !important;
@@ -1442,47 +1401,6 @@ body.dark-mode .m3-card:focus-within {
     border-color: var(--md-primary-container) !important;
 }
 
-/* 3. The "Ink-Saver" Print Stylesheet */
-@media print {
-    /* Hide all app UI elements */
-    .bottom-nav, #main-fab, .activity-header, .search-bar, 
-    .bottom-sheet, .sheet-overlay, .floating-action-button, #update-banner {
-        display: none !important;
-    }
-    
-    /* Reset app backgrounds to pure white to save ink */
-    body, .main-content, .activity-screen, #app-shell, html {
-        background: #ffffff !important;
-        color: #000000 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: visible !important;
-    }
-    
-    /* Ensure the generated PDF area takes up the full physical page */
-    #print-area {
-        display: block !important;
-        position: absolute !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: auto !important;
-        background: #ffffff !important;
-        z-index: 999999 !important;
-    }
-
-    /* Force browsers to print the colored header backgrounds and shaded total boxes */
-    * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-    }
-    
-    /* PREVENT PRINTER FROM SLICING INVOICE ROWS IN HALF */
-    tr, .invoice-row, .m3-card, li {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-    }
-}
 /* ==========================================
    THE ABSOLUTE PINNACLE: "BESTEST EVER" UX
    ========================================== */
@@ -5167,74 +5085,6 @@ img {
     bottom: calc(90px + env(safe-area-inset-bottom)) !important;
 }
 /* ==========================================
-   🚨 ENTERPRISE UPGRADE: PROFESSIONAL DARK MODE
-   ========================================== */
-/* ARMOR-PIERCING OVERRIDE: Destroys the "Pure White Canvas Lock"! */
-body.enterprise-dark-mode,
-body.enterprise-dark-mode #app-shell,
-body.enterprise-dark-mode .main-content,
-body.enterprise-dark-mode .activity-screen,
-body.enterprise-dark-mode .bottom-sheet {
-    background-color: #000000 !important;
-    background-image: none !important;
-    color: #e2e8f0 !important;
-}
-
-/* Invert all Bottom Sheets, Cards, and Lists cleanly */
-body.enterprise-dark-mode .m3-card,
-body.enterprise-dark-mode .list-view li,
-body.enterprise-dark-mode .numpad-header {
-    background-color: #121212 !important;
-    color: #f8fafc !important;
-    border-color: #334155 !important;
-}
-
-/* Professional dark headers with subtle borders */
-body.enterprise-dark-mode .activity-header,
-body.enterprise-dark-mode .sheet-header,
-body.enterprise-dark-mode .app-header {
-    background-color: #000000 !important;
-    color: #ffffff !important;
-    border-bottom: 1px solid #334155 !important;
-}
-
-/* Force header text and icons to white */
-body.enterprise-dark-mode .activity-header *,
-body.enterprise-dark-mode .sheet-header * {
-    color: #ffffff !important;
-}
-
-/* Invert input boxes so text remains readable */
-body.enterprise-dark-mode input,
-body.enterprise-dark-mode select,
-body.enterprise-dark-mode textarea {
-    background-color: #1e293b !important;
-    color: #ffffff !important;
-    border-color: #475569 !important;
-}
-
-/* Darken Bottom Navigation, Sticky Footers, and Search Bars */
-body.enterprise-dark-mode .bottom-nav,
-body.enterprise-dark-mode .form-sticky-footer,
-body.enterprise-dark-mode .activity-bottom-bar,
-body.enterprise-dark-mode .search-bar {
-    background-color: #121212 !important;
-    border-color: #334155 !important;
-}
-
-/* Override the Dashboard Hero Card */
-body.enterprise-dark-mode #tab-dashboard .m3-card:first-of-type {
-    background-color: #121212 !important;
-    border-color: #334155 !important;
-}
-body.enterprise-dark-mode #tab-dashboard .m3-card:first-of-type * {
-    color: #ffffff !important;
-}
-
-/* Fix specific sub-texts */
-body.enterprise-dark-mode .large-text { color: #f8fafc !important; }
-body.enterprise-dark-mode small { color: #94a3b8 !important; }
-/* ==========================================
    📱 TRUE ANDROID AMOLED TEXT ADAPTER
    ========================================== */
 body.dark-mode .large-text, 
@@ -5342,4 +5192,394 @@ body.dark-mode .material-symbols-outlined[style*="#f57f17"] {
 body.dark-mode #tab-menu .m3-card[style*="background"] {
     background: var(--md-surface) !important;
     border-color: var(--md-outline-variant) !important;
+}
+/* ==========================================
+   🚨 BIZOPS MENU TAB DARK MODE FIX
+   ========================================== */
+/* Forces all cards in the Menu Tab to obey Dark Mode, overriding any inline pastel HTML colors */
+body.dark-mode #tab-menu .m3-card {
+    background: #121212 !important;
+    background-color: #121212 !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: none !important;
+}
+
+/* Ensure the text inside the cards turns crisp white to remain readable */
+body.dark-mode #tab-menu .m3-card strong,
+body.dark-mode #tab-menu .m3-card div {
+    color: #f8fafc !important;
+}
+
+/* Keep the subtitles and secondary text a soft grey */
+body.dark-mode #tab-menu .m3-card small {
+    color: #94a3b8 !important;
+}
+/* ==========================================
+   🚨 ULTIMATE UNIFIED DARK MODE (HIGH-CONTRAST)
+   ========================================== */
+/* 1. High-Contrast Backgrounds & Variables */
+body.dark-mode {
+    --md-background: #000000 !important;
+    --md-surface: #181A1F !important; /* Lighter surface to separate cards from pure black */
+    --md-surface-variant: #272A30 !important; /* Brighter input boxes so you can see them */
+    --md-on-surface: #FFFFFF !important; /* Pure crisp white text for maximum readability */
+    --md-on-surface-variant: #F8FAFC !important;
+    --md-primary: #7CB1FF !important; /* Bright Neon Blue for active icons/buttons */
+    --md-on-primary: #000000 !important;
+    --md-outline-variant: #3E434A !important; /* Sharp, highly visible card borders */
+    --md-text-muted: #A1AAB8 !important; /* Brighter grey for subtexts so it doesn't fade away */
+    
+    background-color: var(--md-background) !important;
+    color: var(--md-on-surface) !important;
+}
+
+/* 2. Force all screens, sheets, and menus to obey the high-contrast dark background */
+body.dark-mode #app-shell, 
+body.dark-mode .main-content, 
+body.dark-mode .activity-screen, 
+body.dark-mode .bottom-sheet,
+body.dark-mode .sheet-overlay {
+    background-color: var(--md-background) !important;
+    color: var(--md-on-surface) !important;
+}
+
+/* 3. Force all Cards, Lists, and Ledgers to pure dark grey with sharp borders */
+body.dark-mode .m3-card, 
+body.dark-mode .list-view li,
+body.dark-mode .dashboard-card,
+body.dark-mode #tab-dashboard .m3-card,
+body.dark-mode #ledger-summary-card,
+body.dark-mode .sticky-totals {
+    background-color: var(--md-surface) !important;
+    border-color: var(--md-outline-variant) !important;
+    color: var(--md-on-surface) !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5) !important; /* Drops a shadow so cards look 3D */
+}
+
+/* 4. Ensure all text, headings, and icons flip to pure white */
+body.dark-mode h1, 
+body.dark-mode h2, 
+body.dark-mode h3, 
+body.dark-mode strong, 
+body.dark-mode .large-text,
+body.dark-mode .material-symbols-outlined:not([style*="color"]) {
+    color: #FFFFFF !important;
+}
+body.dark-mode small, 
+body.dark-mode p,
+body.dark-mode label {
+    color: var(--md-text-muted) !important;
+}
+
+/* 5. Fix Invisible Inputs & Dropdowns (Crisp boxes) */
+body.dark-mode input, 
+body.dark-mode select, 
+body.dark-mode textarea {
+    background-color: var(--md-surface-variant) !important;
+    color: #FFFFFF !important;
+    border: 1px solid #4B5563 !important; /* Forces a visible bright grey ring around all text boxes! */
+}
+
+/* Brightens placeholder text (like "Search..." or "Enter value") */
+body.dark-mode input::placeholder, 
+body.dark-mode textarea::placeholder {
+    color: #838C98 !important;
+    opacity: 1 !important;
+}
+
+/* 6. Strip hardcoded pastel colors from Enterprise UI & Menu Tabs */
+body.dark-mode #tab-menu .m3-card[style*="background"],
+body.dark-mode #dash-ai-insights,
+body.dark-mode div[style*="linear-gradient"] {
+    background: var(--md-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+body.dark-mode #tab-menu .m3-card[style*="background"] *,
+body.dark-mode #dash-ai-insights *,
+body.dark-mode div[style*="linear-gradient"] * {
+    color: var(--md-on-surface) !important;
+}
+
+/* 7. Auto-Invert Canvas Charts for Dark Mode */
+body.dark-mode canvas {
+    filter: invert(0.9) hue-rotate(180deg) brightness(1.3) contrast(1.2) !important;
+}
+/* ==========================================
+   🚨 FAB MENU & ICON CONTRAST FIX (DARK MODE)
+   ========================================== */
+/* 1. Strip glaring pastel colors from the "Create New" menu circles */
+body.dark-mode .bottom-sheet .icon-circle[style*="background"] {
+    background-color: var(--md-surface-variant) !important;
+    border: 1px solid #4B5563 !important;
+    box-shadow: none !important;
+}
+
+/* 2. Force the icons inside the circles to glow Neon Blue */
+body.dark-mode .bottom-sheet .icon-circle[style*="background"] .material-symbols-outlined {
+    color: var(--md-primary) !important;
+}
+
+/* 3. Force the labels ("Sale Inv", "Purchase", etc.) to be pure white and bold */
+body.dark-mode .bottom-sheet small,
+body.dark-mode #sheet-fab-menu small {
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    opacity: 1 !important;
+}
+/* ==========================================
+   🚨 BIZOPS FIX: FINAL INLINE-STYLE OVERRIDES (DARK MODE)
+   ========================================== */
+
+/* 1. FORCE REPORT SCREENS TO DARK BACKGROUND */
+/* Overrides the hardcoded #f4f6fa inline style on all report screens */
+body.dark-mode .activity-content[style*="background-color: #f4f6fa"],
+body.dark-mode .activity-content {
+    background: var(--md-background) !important;
+    background-color: var(--md-background) !important;
+}
+
+/* 2. BULLETPROOF FAB "CREATE NEW" MENU FIX */
+/* Forces the pastel circles to become dark grey, ignoring inline HTML styles */
+body.dark-mode #sheet-fab-menu .icon-circle[style*="background"] {
+    background: #272A30 !important; 
+    border: 1px solid #4B5563 !important;
+    box-shadow: none !important;
+}
+/* Force the icons inside the circles to glow Neon Blue */
+body.dark-mode #sheet-fab-menu .icon-circle .material-symbols-outlined {
+    color: #7CB1FF !important; 
+}
+/* Force the labels to pure white */
+body.dark-mode #sheet-fab-menu small {
+    color: #FFFFFF !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    opacity: 1 !important;
+}
+
+/* 3. OVERDUE COLLECTIONS TEXT VISIBILITY */
+/* Fixes the dark-on-dark text inside the Dashboard Overdue card */
+body.dark-mode #list-overdue li {
+    background: var(--md-surface) !important;
+    border-color: var(--md-outline-variant) !important;
+}
+body.dark-mode #list-overdue li strong,
+body.dark-mode #list-overdue li .large-text {
+    color: #FFFFFF !important;
+}
+body.dark-mode #list-overdue li small {
+    color: #A1AAB8 !important;
+}
+/* Convert the dark red "Overdue" pill to a glowing neon red */
+body.dark-mode #list-overdue li span[style*="background:#fff0f2"] {
+    background: rgba(186, 26, 26, 0.2) !important;
+    color: #ffb4ab !important;
+    border: 1px solid rgba(255, 180, 171, 0.3) !important;
+}
+
+/* 4. FIX WHITE BUTTONS ON REPORT SCREENS */
+/* Converts the glaring white "Today / This Month" buttons to sleek dark mode buttons */
+body.dark-mode button[style*="background: white"] {
+    background: var(--md-surface-variant) !important;
+    color: var(--md-primary) !important;
+    border-color: var(--md-primary) !important;
+}
+/* ==========================================
+   5. REPORT VIEWER DARK MODE OVERRIDE
+   ========================================== */
+/* Makes the on-screen Ledger/Report Viewer blend seamlessly into Dark Mode 
+   while strictly keeping the actual exported PDFs pure white! */
+   
+body.dark-mode #activity-report-viewer .activity-header {
+    background: var(--md-surface) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+
+body.dark-mode #activity-report-viewer .activity-header .material-symbols-outlined,
+body.dark-mode #activity-report-viewer .activity-header strong,
+body.dark-mode #report-party-name,
+body.dark-mode #report-party-balance {
+    color: var(--md-on-surface) !important;
+}
+
+body.dark-mode #activity-report-viewer .activity-content {
+    background: var(--md-background) !important;
+}
+
+/* Ensure the total summary cards in the viewer also respect Dark Mode */
+body.dark-mode #ledger-summary-card {
+    background: var(--md-surface-variant) !important;
+    border-color: var(--md-outline-variant) !important;
+}
+
+/* ==========================================
+   6. DYNAMIC JS ELEMENT & WHITE-BACKGROUND CATCH-ALL
+   ========================================== */
+/* Forces dynamically generated pastel backgrounds to obey Dark Mode! */
+body.dark-mode #risk-banner,
+body.dark-mode #dash-mini-table {
+    background: var(--md-surface-variant) !important;
+    border-color: var(--md-outline-variant) !important;
+}
+
+/* Keep the Low Stock warning tinted red in Dark Mode, but not blinding white! */
+body.dark-mode #dash-low-stock-btn {
+    background: rgba(186, 26, 26, 0.15) !important;
+    border-left-color: var(--md-error) !important;
+}
+
+/* Fixes invisible dark text generated by JavaScript inside dynamic elements */
+body.dark-mode #risk-banner *,
+body.dark-mode #dash-mini-table * {
+    color: var(--md-on-surface) !important;
+}
+
+/* Ensure AI Analytics and Dynamic Modals adapt to Dark Mode */
+body.dark-mode div[id^="ai-analytics-modal-"] > div {
+    background: var(--md-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+
+body.dark-mode div[id^="ai-analytics-modal-"] *,
+body.dark-mode div[id^="ai-analytics-modal-"] h3 {
+    color: var(--md-on-surface) !important;
+}
+
+/* Override the blinding white/pink inline backgrounds on inputs and tables */
+body.dark-mode .row-qty[style*="background: #fff0f2"],
+body.dark-mode input[style*="background: #fff0f2"] {
+    background: rgba(186, 26, 26, 0.15) !important;
+    color: var(--md-error) !important;
+}
+
+body.dark-mode div[style*="background: rgba(255,255,255,0.8)"],
+body.dark-mode .numpad-header[style*="background-color: #ffffff"] {
+    background: var(--md-surface-variant) !important;
+}
+
+/* Ensure empty states don't vanish into the background */
+body.dark-mode .empty-state {
+    color: var(--md-text-muted) !important;
+}
+/* ==========================================
+   7. LINKED DOCS DARK MODE & INVOICE DELETE ICON FIX
+   ========================================== */
+   
+/* --- FIX 1: Linked Expense Documents Dark Mode --- */
+body.dark-mode #list-linked-docs li {
+    background: var(--md-surface) !important;
+    border-color: var(--md-outline-variant) !important;
+}
+/* Safely restores the subtle zebra striping in dark mode */
+body.dark-mode #list-linked-docs li:nth-child(even) {
+    background: var(--md-surface-variant) !important; 
+}
+
+/* Force all text inside the linked docs list to be pure white/grey */
+body.dark-mode #list-linked-docs li *,
+body.dark-mode #list-linked-docs li strong,
+body.dark-mode #list-linked-docs li div {
+    color: var(--md-on-surface) !important;
+}
+
+/* Mute the date/ID text slightly so it looks professional */
+body.dark-mode #list-linked-docs li div[style*="color: #666"],
+body.dark-mode #list-linked-docs li div[style*="color: #555"],
+body.dark-mode #list-linked-docs li div[style*="color: #888"] {
+    color: var(--md-text-muted) !important;
+}
+
+/* --- FIX 2: Invoice Line-Item Delete Icon Alignment --- */
+/* Forces the delete icon to be a perfect 48px square, perfectly matching the height 
+   of the new quantity/rate inputs so they sit exactly on the same baseline! */
+.item-entry-card div[style*="align-items: flex-end"] {
+    align-items: flex-end !important;
+}
+
+.item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"],
+.item-entry-card .material-symbols-outlined[style*="color: #ef4444"],
+.item-entry-card span[onclick*="remove"] {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 48px !important; /* Exact height of the input boxes */
+    width: 48px !important;  /* Perfect square touch target */
+    margin-bottom: 0 !important;
+    padding: 0 !important;
+    border-radius: 8px !important; /* Matches input corners */
+    transition: background-color 0.2s ease !important;
+}
+
+/* Add a professional soft red hover/press effect when tapping delete */
+.item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"]:active,
+.item-entry-card .material-symbols-outlined[style*="color: #ef4444"]:active,
+.item-entry-card span[onclick*="remove"]:active {
+    background-color: rgba(186, 26, 26, 0.1) !important;
+}
+
+body.dark-mode .item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"]:active,
+body.dark-mode .item-entry-card .material-symbols-outlined[style*="color: #ef4444"]:active,
+body.dark-mode .item-entry-card span[onclick*="remove"]:active {
+    background-color: rgba(255, 180, 171, 0.15) !important;
+}
+/* --- FIX 3: Top Header Delete Icon Alignment --- */
+/* Forces the right-side wrapper to perfectly center its buttons vertically */
+.activity-header > div:last-child {
+    display: flex !important;
+    align-items: center !important;
+    align-self: center !important;
+    height: auto !important;
+}
+
+/* Forces the top-header delete button into a perfect, centered touch-target */
+.activity-header div[id*="delete"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 40px !important;
+    height: 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Strips invisible HTML text baselines from the trash can icon so it sits dead-center */
+.activity-header div[id*="delete"] .material-symbols-outlined {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+/* --- FIX 4: Title Overlap & Text Squeeze Protector --- */
+/* Forces the centered title to respect the left/right buttons and never overlap them! */
+.activity-header h2, 
+.activity-header h3, 
+.sheet-header h2, 
+.sheet-header h3,
+#master-view-title,
+[id^="form-title-"],
+#expense-form-title,
+.activity-header span[style*="font-size: 18px"] {
+    /* Critical Fix: Use left/right constraints instead of padding for absolutely positioned elements */
+    left: 48px !important; /* Safe zone for the left back button */
+    right: 96px !important; /* Larger safe zone on the right to account for up to 2 icons (Delete + Share/PDF) */
+    width: auto !important; /* Allow the width to be determined by left/right constraints */
+    
+    box-sizing: border-box !important;
+    white-space: nowrap !important; /* Prevents text from breaking into two lines */
+    overflow: hidden !important;
+    text-overflow: ellipsis !important; /* Adds '...' instead of crashing into the icon */
+    font-size: clamp(15px, 4.5vw, 18px) !important; /* Smoothly shrinks the text down slightly on smaller phone screens */
+    
+    /* Ensure text stays centered within its new constrained bounding box */
+    display: block !important;
+    text-align: center !important;
+}
+
+/* Ensure the right-side button container stays locked to the absolute right edge */
+.activity-header > div:last-child {
+    margin-left: auto !important; 
+    z-index: 10 !important; 
 }

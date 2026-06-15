@@ -191,14 +191,8 @@ const UI = {
                 submitBtn.classList.add('btn-loading');
                 submitBtn.innerHTML = `<svg style="width: 20px; height: 20px; animation: spin 1s linear infinite; color: white;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
                 
-                // Failsafe: Unlock the button automatically after 2.5 seconds if the database takes too long
-                setTimeout(() => {
-                    if (submitBtn && submitBtn.classList.contains('btn-loading')) {
-                        submitBtn.classList.remove('btn-loading');
-                        submitBtn.innerHTML = originalText;
-                        submitBtn.style.width = ''; 
-                    }
-                }, 2500);
+                // Failsafe removed: The app's success/error handlers will safely unlock the button when the database actually finishes.
+                // This prevents users on slow networks from tapping Save twice and creating duplicate invoices!
             }
         });
     },
@@ -284,20 +278,22 @@ const UI = {
 
     // --- ENTERPRISE UPGRADE: SYSTEM-AWARE DARK MODE ---
     initTheme: function() {
-        const savedTheme = localStorage.getItem('sollo_theme_preference');
+        // STRICT OS SYNC: Always check the phone's actual system setting first!
         const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const metaTheme = document.getElementById('meta-theme-color');
 
-        // 1. Initial Boot: Prefer manual save, otherwise fallback to the phone's system setting
-        if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
+        // Only switch to dark mode if the phone itself is in dark mode
+        if (systemPrefersDark) {
             document.body.classList.add('dark-mode');
             if (metaTheme) metaTheme.setAttribute('content', '#000000');
         } else {
             document.body.classList.remove('dark-mode');
             if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
+            // Safely clear any stuck manual saves so it doesn't accidentally force dark mode!
+            localStorage.removeItem('sollo_theme_preference'); 
         }
 
-        // 2. The Live OS Listener: Watch the phone's system settings in real-time!
+        // The Live OS Listener: Watch the phone's system settings in real-time!
         if (window.matchMedia) {
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
                 localStorage.removeItem('sollo_theme_preference');
@@ -2256,7 +2252,8 @@ const UI = {
         });
 
         sales.forEach(s => { 
-            if(s.status !== 'Open' && isDateInRange(s.date)) { 
+            // 🚨 ENTERPRISE FIX: Block Cancelled Invoices from artificially inflating the Dashboard!
+            if(s.status !== 'Open' && s.status !== 'Cancelled' && isDateInRange(s.date)) { 
                 const isReturn = s.documentType === 'return';
                 const modifier = isReturn ? -1 : 1;
 
@@ -2271,7 +2268,7 @@ const UI = {
             }
         });        
         purchases.forEach(p => { 
-            if (p.status !== 'Open' && isDateInRange(p.date)) { 
+            if (p.status !== 'Open' && p.status !== 'Cancelled' && isDateInRange(p.date)) { 
                 const isReturn = p.documentType === 'return';
                 const modifier = isReturn ? -1 : 1;
                 // 🚨 BIZOPS FIX: Calculate Gross Purchases so the chart visually matches Gross Sales!
@@ -2360,7 +2357,7 @@ const UI = {
 
         sales.forEach(s => {
             // Apply the global dashboard date filter to the pipeline
-            if (isDateInRange(s.date)) {
+            if (isDateInRange(s.date) && s.status !== 'Cancelled') {
                 const isReturn = s.documentType === 'return';
                 const modifier = isReturn ? -1 : 1;
                 const val = (parseFloat(s.grandTotal) || 0) * modifier;
@@ -2734,7 +2731,7 @@ const UI = {
 
         if (sheetId === 'sheet-customers') {
             const searchBox = document.getElementById('search-customers');
-            if (searchBox) { searchBox.value = ''; setTimeout(() => searchBox.focus(), 350); } // UPGRADE: Auto-focus keyboard!
+            if (searchBox) { searchBox.value = ''; } // Keyboard auto-focus disabled!
             // ENTERPRISE FIX: Case-insensitive match to prevent database casing bugs
             const customers = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'customer');
             UI.renderLedgerList('list-customers', customers, UI.state.currentPrefix || 'sales');
@@ -2742,7 +2739,7 @@ const UI = {
         }
         else if (sheetId === 'sheet-suppliers') {
             const searchBox = document.getElementById('search-suppliers');
-            if (searchBox) { searchBox.value = ''; setTimeout(() => searchBox.focus(), 350); } // UPGRADE: Auto-focus keyboard!
+            if (searchBox) { searchBox.value = ''; } // Keyboard auto-focus disabled!
             // ENTERPRISE FIX: Case-insensitive match to prevent database casing bugs
             const suppliers = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'supplier');
             UI.renderLedgerList('list-suppliers', suppliers, UI.state.currentPrefix || 'purchase');
@@ -2750,7 +2747,7 @@ const UI = {
         }
         else if (sheetId === 'sheet-products') {
             const searchBox = document.getElementById('search-products');
-            if (searchBox) { searchBox.value = ''; setTimeout(() => searchBox.focus(), 350); } // UPGRADE: Auto-focus keyboard!
+            if (searchBox) { searchBox.value = ''; } // Keyboard auto-focus disabled!
             UI.renderProductList(UI.state.rawData.items);
             document.querySelectorAll('#list-products li').forEach(li => li.style.display = ''); // Force list to be visible
         }
@@ -2857,8 +2854,8 @@ const UI = {
         UI.executeSmartSearch(); // Load initial list
         UI.openBottomSheet('sheet-smart-search');
         
-        // UX Polish: Wait for the sheet to slide up, then auto-focus the keyboard!
-        setTimeout(() => inputEl.focus(), 350);
+        // Disabled so the keyboard doesn't violently shift the screen
+        // setTimeout(() => inputEl.focus(), 350);
     },
 
     // NEW: Handles the "+" icon tap inside the search bar header!
@@ -3072,11 +3069,13 @@ const UI = {
         
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         
-        // UX Magic: Auto-focus the Qty box of the newly added row!
+        // Disabled auto-focus to prevent accidental keyboard popups and mistouches!
+        /*
         setTimeout(() => {
             const newQty = itemCard.querySelector('.row-qty');
             if (newQty) newQty.focus();
         }, 100);
+        */
     },
 
     closeAllBottomSheets: () => {
@@ -3508,7 +3507,8 @@ const UI = {
 
         // 1. CALCULATE SALES & COGS (Split by Tax Type)
         (window.UI.state.rawData.sales || []).forEach(s => {
-            if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= startDate && s.date <= endDate && s.status !== 'Open') {
+            // 🚨 ENTERPRISE FIX: Block Cancelled invoices from illegally inflating the P&L!
+            if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= startDate && s.date <= endDate && s.status !== 'Open' && s.status !== 'Cancelled') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
                 const netSales = (parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0);
                 const isGST = (s.invoiceType === 'B2B' || s.invoiceType === 'B2C');

@@ -354,7 +354,7 @@
 
                 <strong style="display:block; margin-bottom:12px; margin-top:16px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Enterprise AI Analytics</strong>
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #fff0f2; border: 1px solid #fecaca;" onclick="window.AnalyticsEngine.runProfitLeakageAudit()">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #fff0f2; border: 1px solid #fecaca;" onclick="if(window.app) window.app.openProfitLeakageReport()">
                         <span class="material-symbols-outlined" style="color: #ba1a1a;">troubleshoot</span>
                         <div style="flex: 1;">
                             <strong style="font-size:15px; color: #ba1a1a;">Profit Leakage Audit</strong>
@@ -363,7 +363,7 @@
                         <span class="material-symbols-outlined" style="color: #ba1a1a;">chevron_right</span>
                     </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #fffbeb; border: 1px solid #fde68a;" onclick="window.AnalyticsEngine.runDeadStockScanner()">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #fffbeb; border: 1px solid #fde68a;" onclick="if(window.app) window.app.openDeadStockReport()">
                         <span class="material-symbols-outlined" style="color: #d97706;">inventory_2</span>
                         <div style="flex: 1;">
                             <strong style="font-size:15px; color: #d97706;">Dead Stock Scanner</strong>
@@ -469,9 +469,12 @@
                         <div style="flex: 1;"><strong style="font-size:15px; color: #ba1a1a;">Restore from Drive</strong></div>
                     </div>
                     
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #e8f5e9;" onclick="if(navigator.serviceWorker) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.update())); } if(window.Utils) window.Utils.showToast('Checking for updates... 🔄'); setTimeout(() => window.location.reload(true), 1200);">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #e8f5e9;" onclick="if(window.Utils) window.Utils.showToast('Installing Update... 🔄'); if('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); r.update().then(() => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); }); })); setTimeout(() => window.location.reload(true), 1500); } else { window.location.reload(true); }">
                         <span class="material-symbols-outlined" style="color: #146c2e;">system_update</span>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: #146c2e;">Run Update Manager</strong></div>
+                        <div style="flex: 1;">
+                            <strong style="font-size:15px; color: #146c2e;">Run Update Manager</strong>
+                            <small style="display:block; color: #146c2e; opacity: 0.8; margin-top: 2px;">Force install the latest code</small>
+                        </div>
                     </div>
 
                     <div style="display: flex; gap: 8px;">
@@ -519,6 +522,14 @@
                         <div style="flex: 1;">
                             <strong style="font-size:15px; color: #f57f17;">Auto-Fix Corrupted Stock</strong>
                             <small style="display:block; color: #f57f17; opacity: 0.8; margin-top: 2px;">Recalculate warehouse from scratch</small>
+                        </div>
+                    </div>
+                    
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: #f3e5f5; border: 1px solid #e1bee7; margin-top: 8px;" onclick="if(confirm('Compress old invoices (>1 year) to save phone storage? This cannot be undone.')) { window.executeColdStorageArchive().then(count => window.Utils.showToast('✅ Compressed ' + count + ' old invoices!')); }">
+                        <span class="material-symbols-outlined" style="color: #8e24aa;">inventory_2</span>
+                        <div style="flex: 1;">
+                            <strong style="font-size:15px; color: #8e24aa;">Run Cold Storage Archive</strong>
+                            <small style="display:block; color: #8e24aa; opacity: 0.8; margin-top: 2px;">Compress old invoices to save space</small>
                         </div>
                     </div>
                 </div>
@@ -613,6 +624,9 @@
             <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
                 <div id="btn-delete-sales" class="icon-circle tap-target hidden" onclick="app.deleteRecord('sales')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+                <div class="icon-circle tap-target" onclick="if(window.app && window.app.state.currentEditId) { window.Utils.shareDocumentWhatsApp('sales', window.app.state.currentEditId); } else { window.Utils.showToast('Please save the invoice first!'); }" style="width: 36px; height: 36px; background: #e8f5e9; color: #16a34a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
                 </div>
                 <div class="icon-circle tap-target" onclick="app.generatePDF('sales')" style="width: 36px; height: 36px; background: #fff3e0; color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
@@ -828,6 +842,9 @@
             <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
                 <div id="btn-delete-purchase" class="icon-circle tap-target hidden" onclick="app.deleteRecord('purchase')" style="width: 36px; height: 36px; background: #fff0f2; color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+                <div class="icon-circle tap-target" onclick="if(window.app && window.app.state.currentEditId) { window.Utils.shareDocumentWhatsApp('purchase', window.app.state.currentEditId); } else { window.Utils.showToast('Please save the bill first!'); }" style="width: 36px; height: 36px; background: #e8f5e9; color: #16a34a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
                 </div>
                 <div class="icon-circle tap-target" onclick="app.generatePDF('purchase')" style="width: 36px; height: 36px; background: #fff3e0; color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
@@ -1175,14 +1192,16 @@
                 </div>
             </div>
         </div>
-        <div class="activity-content">
+        <div class="activity-content" style="padding: 0; background: var(--md-surface-variant);">
             <form id="form-product">
-                <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('product')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">qr_code_scanner</span> 
-                    AI Scan Price Tag / Box
-                </button>
+                <div style="padding: 16px 16px 8px 16px;">
+                    <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('product')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; border-radius: 12px; height: 48px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">qr_code_scanner</span> 
+                        <span style="font-size: 15px;">AI Scan Price Tag / Box</span>
+                    </button>
+                </div>
 
-                <div id="product-valuation-card" class="m3-card hidden" style="background: #e3f2fd; border-left: 4px solid #0061a4; margin-bottom: 16px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <div id="product-valuation-card" class="hidden" style="margin: 0 16px 16px 16px; background: #e3f2fd; border-left: 4px solid #0061a4; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <div style="color: #0061a4; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px;">Current Valuation</div>
                         <div id="product-total-stock-display" style="font-size: 13px; color: var(--md-on-surface); margin-top: 4px;">0.00 Units in Stock</div>
@@ -1192,72 +1211,90 @@
                     </div>
                 </div>
 
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Product Name *</div>
-                    <input type="text" id="prod-name" name="name" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Sell Price (₹) *</div>
-                        <input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="any" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Buy Price (₹)</div>
-                        <input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                </div>
+                <div style="padding: 0 16px 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
                 
-                <div style="display: flex; gap: 12px; background: var(--md-surface-variant); padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-primary); margin-bottom: 6px;">Opening Stock (GST)</div>
-                        <input type="number" id="prod-stock-gst" inputmode="decimal" name="stockGst" value="0" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-primary); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-error); margin-bottom: 6px;">Opening Stock (Non-GST)</div>
-                        <input type="number" id="prod-stock-nongst" inputmode="decimal" name="stockNonGst" value="0" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-error); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Unit (UOM) *</div>
-                        <div style="display: flex; gap: 8px;">
-                            <select name="uom" id="product-uom-select" required style="box-sizing: border-box; flex: 1; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
-                            <button type="button" class="btn-primary-small" style="padding: 0 12px; border-radius: 8px; background: var(--md-primary-container); color: var(--md-primary);" onclick="app.manageSimpleMaster('units', 'Units of Measure')"><span class="material-symbols-outlined" style="font-size: 20px;">edit</span></button>
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Product Name<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="prod-name" name="name" required class="premium-input" placeholder="e.g., Apple iPhone 15">
                         </div>
                     </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Low Stock Alert</div>
-                        <input type="number" inputmode="decimal" name="minStock" value="5" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    <div class="premium-row" style="background: rgba(0, 97, 164, 0.04);">
+                        <div class="premium-label" style="color: var(--md-primary); font-weight: 800;">Sell Price (₹)<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="any" required class="premium-input" style="font-size: 18px; font-weight: 800; color: var(--md-primary);" placeholder="0.00">
+                        </div>
                     </div>
-                </div>
-                
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">GST %</div>
-                        <input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    <div class="premium-row">
+                        <div class="premium-label">Buy Price (₹)</div>
+                        <div class="premium-input-container">
+                            <input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="any" class="premium-input" placeholder="0.00">
+                        </div>
                     </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">HSN / SAC Code</div>
-                        <input type="text" name="hsn" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                </div>
-                
-                <div class="form-bottom-spacer"></div>
-
-                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 1px solid #90caf9; border-radius: 12px;" onclick="window.triggerItemLedgerFromForm()">
-                    <span class="material-symbols-outlined" style="color: #0277bd; font-size: 28px;">inventory_2</span>
-                    <div style="flex: 1;">
-                        <strong style="font-size:16px; color: #0277bd; display: block;">View Stock Ledger</strong>
-                        <div style="font-size: 12px; color: #01579b;">Track all Purchases & Sales</div>
-                    </div>
-                    <span class="material-symbols-outlined" style="color: #0277bd;">chevron_right</span>
                 </div>
 
-                <div class="thumb-action-bar">
-                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-product-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Product</button>
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Inventory Tracking</div>
+                <div class="premium-form-section">
+                    <div class="premium-row" style="background: rgba(0, 97, 164, 0.02);">
+                        <div class="premium-label" style="color: var(--md-primary);">GST Stock</div>
+                        <div class="premium-input-container">
+                            <input type="number" id="prod-stock-gst" inputmode="decimal" name="stockGst" value="0" step="any" class="premium-input" style="color: var(--md-primary); font-weight: 700;">
+                        </div>
+                    </div>
+                    <div class="premium-row" style="background: rgba(186, 26, 26, 0.02);">
+                        <div class="premium-label" style="color: var(--md-error);">Non-GST Stock</div>
+                        <div class="premium-input-container">
+                            <input type="number" id="prod-stock-nongst" inputmode="decimal" name="stockNonGst" value="0" step="any" class="premium-input" style="color: var(--md-error); font-weight: 700;">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">Unit (UOM)<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container" style="gap: 12px;">
+                            <div class="premium-select-wrapper" style="flex: 1;">
+                                <select name="uom" id="product-uom-select" required class="premium-input premium-select"></select>
+                            </div>
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: #e2e8f0; padding: 6px; border-radius: 50%; font-size: 18px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')">edit</span>
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">Min Stock Alert</div>
+                        <div class="premium-input-container">
+                            <input type="number" inputmode="decimal" name="minStock" value="5" step="any" class="premium-input">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tax Information</div>
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Tax (GST %)</div>
+                        <div class="premium-input-container">
+                            <input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any" class="premium-input" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">HSN/SAC Code</div>
+                        <div class="premium-input-container">
+                            <input type="text" name="hsn" class="premium-input" placeholder="Optional">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 0 16px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 1px solid #90caf9; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,97,164,0.1);" onclick="window.triggerItemLedgerFromForm()">
+                        <span class="material-symbols-outlined" style="color: #0277bd; font-size: 28px;">inventory_2</span>
+                        <div style="flex: 1;">
+                            <strong style="font-size:16px; color: #0277bd; display: block;">View Stock Ledger</strong>
+                            <div style="font-size: 12px; color: #01579b;">Track all Purchases & Sales</div>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: #0277bd;">chevron_right</span>
+                    </div>
+                </div>
+
+                <div style="padding: 0 16px 40px 16px; display: flex; gap: 12px;">
+                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-product-form')" style="flex: 1; height: 54px; border-radius: 27px; background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface); font-weight: bold;">Cancel</button>
+                    <button type="submit" class="btn-primary" style="flex: 2; height: 54px; border-radius: 27px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,97,164,0.25);">Save Product</button>
                 </div>
             </form>
         </div>
@@ -1275,93 +1312,113 @@
                 </div>
             </div>
         </div>
-        <div class="activity-content">
+        <div class="activity-content" style="padding: 0; background: var(--md-surface-variant);">
             <form id="form-ledger">
-                <div style="margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 6px;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface);">Party Name *</div>
-                        <button type="button" id="btn-import-contact" class="btn-primary-small tap-target" onclick="app.importContact()" style="display: none; align-items: center; gap: 4px; background: #e3f2fd; color: #0061a4; padding: 4px 10px; border: 1px solid #90caf9; margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                            <span class="material-symbols-outlined" style="font-size: 16px;">contact_phone</span> Import
-                        </button>
-                    </div>
-                    <input type="text" name="name" id="ledger-name" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                <div style="padding: 16px 16px 8px 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
+                    <button type="button" id="btn-import-contact" class="btn-primary-small tap-target" onclick="app.importContact()" style="display: none; align-items: center; gap: 4px; background: var(--md-surface); color: var(--md-primary); padding: 4px 12px; border: 1px solid var(--md-outline-variant); margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 16px;">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">contact_phone</span> Import
+                    </button>
                 </div>
                 
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Type *</div>
-                    <select name="type" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                        <option value="Customer">Customer</option>
-                        <option value="Supplier">Supplier</option>
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Phone Number</div>
-                    <!-- ENTERPRISE FIX: Added ID to phone input for Contact Picker integration -->
-                    <input type="tel" name="phone" id="ledger-phone" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">GSTIN (Optional)</div>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="text" name="gst" id="ledger-gst" style="text-transform: uppercase; flex: 1; box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                        <button type="button" id="btn-verify-gst" onclick="window.verifyGSTIN()" style="background: var(--md-primary-container); color: var(--md-primary); border: none; border-radius: 8px; padding: 0 16px; font-weight: bold; cursor: pointer;">Verify</button>
-                    </div>
-                    <div id="gst-status" style="color: var(--md-text-muted); font-size: 11px; margin-top: 6px;">Tap verify to auto-fill details</div>
-                </div>
-                
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Pincode</div>
-                        <input type="number" inputmode="decimal" name="pincode" id="ledger-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'ledger')" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                    <div style="flex: 2; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">City / District</div>
-                        <input type="text" name="city" id="ledger-city" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">State</div>
-                    <input type="text" name="state" id="ledger-state" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Street Address</div>
-                    <textarea name="address" id="ledger-address" rows="2" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none; resize: none;"></textarea>
-                </div>
-                
-                <div class="m3-card" style="margin-bottom: 16px; background: #e3f2fd; padding: 16px; border-radius: 12px;">
-                    <strong style="display:block; margin-bottom:12px; color: var(--md-primary);">Opening Balance</strong>
-                    <div style="display: flex; gap: 12px;">
-                        <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 13px; font-weight: 600; color: var(--md-primary); margin-bottom: 6px;">Amount (₹)</div>
-                            <input type="number" inputmode="decimal" name="openingBalance" value="0" min="0" step="any" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid #90caf9; border-radius: 8px; font-size: 15px; background: white; color: var(--md-on-surface); outline: none;">
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Party Name<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" name="name" id="ledger-name" required class="premium-input" placeholder="e.g., John Doe">
                         </div>
-                        <div style="flex: 1; min-width: 0;">
-                            <div style="font-size: 13px; font-weight: 600; color: var(--md-primary); margin-bottom: 6px;">Balance Type</div>
-                            <select name="balanceType" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid #90caf9; border-radius: 8px; font-size: 15px; background: white; color: var(--md-on-surface); outline: none;">
-                                <option value="To Receive / Debit">To Receive (Debit)</option>
-                                <option value="To Pay / Credit">To Pay (Credit)</option>
-                            </select>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">Type<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select name="type" required class="premium-input premium-select">
+                                    <option value="Customer">Customer</option>
+                                    <option value="Supplier">Supplier</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">Phone</div>
+                        <div class="premium-input-container">
+                            <input type="tel" name="phone" id="ledger-phone" class="premium-input" placeholder="Optional">
                         </div>
                     </div>
                 </div>
-                
-                <div class="form-bottom-spacer"></div>
 
-                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 1px solid #ffe082; border-radius: 12px;" onclick="window.triggerKhataFromForm()">
-                    <span class="material-symbols-outlined" style="color: #f57f17; font-size: 28px;">menu_book</span>
-                    <div style="flex: 1;">
-                        <strong style="font-size:16px; color: #f57f17; display: block;">View Khata Ledger</strong>
-                        <div style="font-size: 12px; color: #d84315;">Print or PDF Statement</div>
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tax & Address</div>
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">GSTIN</div>
+                        <div class="premium-input-container" style="gap: 12px;">
+                            <input type="text" name="gst" id="ledger-gst" class="premium-input" placeholder="Optional" style="text-transform: uppercase; flex: 1;">
+                            <button type="button" id="btn-verify-gst" onclick="window.verifyGSTIN()" style="background: var(--md-primary-container); color: var(--md-primary); border: none; border-radius: 8px; padding: 6px 12px; font-weight: bold; cursor: pointer; font-size: 12px;">Verify</button>
+                        </div>
                     </div>
-                    <span class="material-symbols-outlined" style="color: #f57f17;">print</span>
+                    <div id="gst-status" style="padding: 0 16px 12px 16px; text-align: right; color: var(--md-text-muted); font-size: 11px; margin-top: -8px; background: var(--md-surface);">Tap verify to auto-fill details</div>
+                    
+                    <div class="premium-row" style="border-top: 1px solid var(--md-outline-variant);">
+                        <div class="premium-label">Pincode</div>
+                        <div class="premium-input-container">
+                            <input type="number" inputmode="decimal" name="pincode" id="ledger-pincode" placeholder="6 Digits" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'ledger')" class="premium-input">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">City / Dist.</div>
+                        <div class="premium-input-container">
+                            <input type="text" name="city" id="ledger-city" class="premium-input" placeholder="City">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">State</div>
+                        <div class="premium-input-container">
+                            <input type="text" name="state" id="ledger-state" class="premium-input" placeholder="State">
+                        </div>
+                    </div>
+                    <div class="premium-row" style="align-items: flex-start; min-height: 70px;">
+                        <div class="premium-label" style="margin-top: 4px;">Street</div>
+                        <div class="premium-input-container">
+                            <textarea name="address" id="ledger-address" rows="2" class="premium-input" placeholder="Full Address" style="resize: none;"></textarea>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="thumb-action-bar">
-                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-ledger-form')" style="background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface);">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Party</button>
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Opening Balance</div>
+                <div class="premium-form-section" style="margin-bottom: 16px;">
+                    <div class="premium-row" style="background: rgba(0, 97, 164, 0.04);">
+                        <div class="premium-label" style="color: var(--md-primary); font-weight: 800;">Amount (₹)</div>
+                        <div class="premium-input-container">
+                            <input type="number" inputmode="decimal" name="openingBalance" value="0" min="0" step="any" class="premium-input" style="font-size: 18px; font-weight: 800; color: var(--md-primary);">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label" style="color: var(--md-primary);">Type</div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select name="balanceType" class="premium-input premium-select" style="color: var(--md-primary);">
+                                    <option value="To Receive / Debit">To Receive (Debit)</option>
+                                    <option value="To Pay / Credit">To Pay (Credit)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 0 16px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 1px solid #ffe082; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 127, 23, 0.1);" onclick="window.triggerKhataFromForm()">
+                        <span class="material-symbols-outlined" style="color: #f57f17; font-size: 28px;">menu_book</span>
+                        <div style="flex: 1;">
+                            <strong style="font-size:16px; color: #f57f17; display: block;">View Khata Ledger</strong>
+                            <div style="font-size: 12px; color: #d84315;">Print or PDF Statement</div>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: #f57f17;">print</span>
+                    </div>
+                </div>
+
+                <div style="padding: 0 16px 40px 16px; display: flex; gap: 12px;">
+                    <button type="button" class="btn-secondary" onclick="UI.closeActivity('activity-ledger-form')" style="flex: 1; height: 54px; border-radius: 27px; background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface); font-weight: bold;">Cancel</button>
+                    <button type="submit" class="btn-primary" style="flex: 2; height: 54px; border-radius: 27px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,97,164,0.25);">Save Party</button>
                 </div>
             </form>
         </div>
@@ -1379,29 +1436,50 @@
                 </div>
             </div>
         </div>
-        <div class="activity-content">
+        <div class="activity-content" style="padding: 0; background: var(--md-surface-variant);">
             <form id="form-account">
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Account Name *</div>
-                    <input type="text" id="account-name" name="name" placeholder="e.g., HDFC Current" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                <div style="padding: 16px 16px 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Account Details</div>
+                
+                <div class="premium-form-section" style="background: var(--md-surface); border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 24px;">
+                    
+                    <div class="premium-row" style="display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--md-outline-variant); min-height: 54px; transition: background-color 0.2s ease;">
+                        <div class="premium-label" style="font-size: 14px; font-weight: 600; color: var(--md-text-muted); width: 120px; flex-shrink: 0;">Account Name<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container" style="flex: 1; display: flex; justify-content: flex-end;">
+                            <input type="text" id="account-name" name="name" required class="premium-input" placeholder="e.g., HDFC Current" style="width: 100%; border: none; background: transparent; text-align: right; font-size: 16px; font-family: inherit; color: var(--md-on-surface); font-weight: 600; outline: none; padding: 0; box-shadow: none;">
+                        </div>
+                    </div>
+                    
+                    <div class="premium-row" style="display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--md-outline-variant); min-height: 54px; transition: background-color 0.2s ease;">
+                        <div class="premium-label" style="font-size: 14px; font-weight: 600; color: var(--md-text-muted); width: 120px; flex-shrink: 0;">Account Type<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container" style="flex: 1; display: flex; justify-content: flex-end;">
+                            <div class="premium-select-wrapper" style="position: relative; width: 100%; display: flex; align-items: center; justify-content: flex-end;">
+                                <select id="account-type" name="type" required class="premium-input premium-select" style="appearance: none; -webkit-appearance: none; direction: rtl; padding-right: 24px; width: 100%; border: none; background: transparent; font-size: 16px; font-family: inherit; color: var(--md-on-surface); font-weight: 600; outline: none; margin: 0; box-shadow: none;">
+                                    <option value="Bank">Bank Account</option>
+                                    <option value="Cash">Cash Drawer</option>
+                                    <option value="Wallet">Digital Wallet</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="premium-row" style="display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--md-outline-variant); min-height: 54px; transition: background-color 0.2s ease;">
+                        <div class="premium-label" style="font-size: 14px; font-weight: 600; color: var(--md-text-muted); width: 120px; flex-shrink: 0;">A/C No / UPI</div>
+                        <div class="premium-input-container" style="flex: 1; display: flex; justify-content: flex-end;">
+                            <input type="text" id="account-number" name="accountNumber" class="premium-input" placeholder="Optional" style="width: 100%; border: none; background: transparent; text-align: right; font-size: 16px; font-family: inherit; color: var(--md-on-surface); font-weight: 600; outline: none; padding: 0; box-shadow: none;">
+                        </div>
+                    </div>
+
+                    <div class="premium-row" style="display: flex; align-items: center; padding: 14px 16px; background: rgba(0, 97, 164, 0.04); min-height: 54px;">
+                        <div class="premium-label" style="font-size: 14px; font-weight: 800; color: var(--md-primary); width: 120px; flex-shrink: 0;">Opening Bal (₹)</div>
+                        <div class="premium-input-container" style="flex: 1; display: flex; justify-content: flex-end;">
+                            <input type="number" inputmode="decimal" id="account-opening-balance" name="openingBalance" step="any" class="premium-input" placeholder="0.00" style="width: 100%; border: none; background: transparent; text-align: right; font-size: 18px; font-family: inherit; color: var(--md-primary); font-weight: 800; outline: none; padding: 0; box-shadow: none;">
+                        </div>
+                    </div>
                 </div>
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Account Type *</div>
-                    <select id="account-type" name="type" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                        <option value="Bank">Bank Account</option>
-                        <option value="Cash">Cash Drawer</option>
-                        <option value="Wallet">Digital Wallet</option>
-                    </select>
+
+                <div style="padding: 16px; padding-bottom: 40px;">
+                    <button type="submit" class="btn-primary" style="width: 100%; height: 54px; border-radius: 27px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,97,164,0.25);">Save Account</button>
                 </div>
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Account Number / UPI ID</div>
-                    <input type="text" id="account-number" name="accountNumber" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-                <div style="margin-bottom: 24px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Opening Balance (₹)</div>
-                    <input type="number" inputmode="decimal" id="account-opening-balance" name="openingBalance" step="any" value="0" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600;">Save Account</button>
             </form>
         </div>
     </div>
@@ -2412,6 +2490,56 @@
         </div>
     </div>
 
+    <div id="activity-dead-stock-report" class="activity-screen hidden">
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-dead-stock-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Dead Stock Scanner</span>
+        </div>
+        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
+            
+            <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
+                <button class="btn-primary-small tap-target" onclick="if(window.app) window.app.exportDeadStockCSV()" style="display:flex; align-items:center; gap:4px; background: rgba(20, 108, 46, 0.1); color: var(--md-success); border: 1px solid rgba(20, 108, 46, 0.3);">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">download</span> Export CSV
+                </button>
+            </div>
+
+            <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
+                <span style="color: var(--md-error); font-weight: bold;">Total Trapped Capital (90+ Days)</span>
+                <div id="dead-stock-total" style="font-size: 24px; font-weight: 900; color: var(--md-error); margin-top: 4px;">&#8377;0.00</div>
+                <small style="color: var(--md-text-muted);">Money locked in unsold inventory</small>
+            </div>
+
+            <h3 style="margin-top:0; color: var(--md-primary); font-size: 14px; text-transform: uppercase;">Unsold Items</h3>
+            <div id="dead-stock-list" style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px;"></div>
+            
+        </div>
+    </div>
+
+    <div id="activity-profit-leakage-report" class="activity-screen hidden">
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-profit-leakage-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Profit Leakage Audit</span>
+        </div>
+        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
+            
+            <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
+                <button class="btn-primary-small tap-target" onclick="if(window.app) window.app.exportProfitLeakageCSV()" style="display:flex; align-items:center; gap:4px; background: rgba(20, 108, 46, 0.1); color: var(--md-success); border: 1px solid rgba(20, 108, 46, 0.3);">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">download</span> Export CSV
+                </button>
+            </div>
+
+            <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
+                <span style="color: var(--md-error); font-weight: bold;">Total Lost Revenue</span>
+                <div id="profit-leakage-total" style="font-size: 24px; font-weight: 900; color: var(--md-error); margin-top: 4px;">&#8377;0.00</div>
+                <small style="color: var(--md-text-muted);">Money lost by selling items below cost</small>
+            </div>
+
+            <h3 style="margin-top:0; color: var(--md-primary); font-size: 14px; text-transform: uppercase;">Loss-Making Sales</h3>
+            <div id="profit-leakage-list" style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px;"></div>
+            
+        </div>
+    </div>
+
     <div id="activity-item-profit-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-item-profit-report')" style="position: absolute; left: 16px;">arrow_back</span>
@@ -2774,11 +2902,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=52.0"></script>
-    <script src="utils.js?v=52.0"></script>
-    <script src="ui.js?v=52.0"></script>
-    <script src="cloud.js?v=52.0"></script>
-    <script src="app.js?v=52.0"></script>
+    <script src="db.js?v=54.0"></script>
+    <script src="utils.js?v=54.0"></script>
+    <script src="ui.js?v=54.0"></script>
+    <script src="cloud.js?v=54.0"></script>
+    <script src="app.js?v=54.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -2808,8 +2936,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=52.0' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=52.0`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=54.0' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=54.0`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour

@@ -17,14 +17,19 @@ const Utils = {
             if (!isNaN(utcDate.getTime())) return utcDate;
         }
 
-        // iPhones physically cannot process YYYY-MM-DD HH:MM:SS. 
-        // We MUST convert dashes to slashes (YYYY/MM/DD HH:MM:SS) for Safari to survive!
-        let safeString = String(dateString).replace(/-/g, '/');
-        // Strip out the 'T' if it's an ISO string so it doesn't break older iOS versions
-        safeString = safeString.replace('T', ' ').split('.')[0]; 
+        let safeString = String(dateString);
         
-        const d = new Date(safeString);
-        return isNaN(d.getTime()) ? new Date(dateString) : d; // Fallback just in case
+        // iPhones physically cannot process YYYY-MM-DD HH:MM:SS. 
+        // Only convert dashes to slashes if it is a spaced date, otherwise let native ISO parsing handle it securely!
+        if (safeString.includes(' ') && !safeString.includes('T')) {
+            safeString = safeString.replace(/-/g, '/');
+            const d = new Date(safeString);
+            return isNaN(d.getTime()) ? new Date(dateString) : d;
+        } else {
+            // It is already a standard format or ISO string, let the browser handle it safely
+            const d = new Date(safeString);
+            return isNaN(d.getTime()) ? new Date() : d;
+        }
     },
 
     // ==========================================
@@ -360,6 +365,66 @@ A payment of ₹${Utils.safeNumber(balanceAmount).toFixed(2)} is currently pendi
 
 Please arrange the payment at your earliest convenience. Thank you!`);
         const whatsappUrl = `https://wa.me/${cleanPhone}?text=${message}`;
+        window.open(whatsappUrl, '_blank');
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: WHATSAPP SMART-SHARE ENGINE
+    // ==========================================
+    shareDocumentWhatsApp: async (type, docId) => {
+        const storeName = type === 'sales' ? 'sales' : 'purchases';
+        const doc = await window.getRecordById(storeName, docId);
+        if (!doc) return alert("Please save the document first before sharing!");
+
+        const partyId = type === 'sales' ? doc.customerId : doc.supplierId;
+        const partyName = type === 'sales' ? doc.customerName : doc.supplierName;
+        const party = await window.getRecordById('ledgers', partyId);
+        
+        const phone = party ? party.phone : '';
+        if (!phone) {
+            alert(`No phone number saved for ${partyName}. Please edit their profile in the Master Data to add one.`);
+            return;
+        }
+
+        const cleanPhone = window.Utils.formatWhatsAppNumber(phone);
+        const docNo = doc.invoiceNo || doc.poNo || doc.orderNo || doc.id.slice(-6).toUpperCase();
+        const date = window.Utils.formatDateDisplay(doc.date);
+        
+        // Calculate pending balance
+        let totalPaid = parseFloat(doc.trueTotalPaid) || 0;
+        if (doc.status === 'Completed' || doc.status === 'Paid') totalPaid = parseFloat(doc.grandTotal);
+        const balanceDue = Math.max(0, parseFloat(doc.grandTotal) - totalPaid);
+        
+        let message = '';
+        if (type === 'sales') {
+            message = `Hello *${partyName}*,
+
+Please find the details for your recent order:
+
+📄 *Invoice No:* ${docNo}
+📅 *Date:* ${date}
+💰 *Total Amount:* ₹${parseFloat(doc.grandTotal).toFixed(2)}
+`;
+            if (balanceDue > 0) message += `⏳ *Balance Due:* ₹${balanceDue.toFixed(2)}
+
+`;
+            else message += `✅ *Status:* Fully Paid
+
+`;
+            message += `Thank you for your business!`;
+        } else {
+            message = `Hello *${partyName}*,
+
+We have generated a Purchase Order / Bill:
+
+📄 *PO No:* ${docNo}
+📅 *Date:* ${date}
+💰 *Total Amount:* ₹${parseFloat(doc.grandTotal).toFixed(2)}
+
+Please process this accordingly. Thank you!`;
+        }
+
+        const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
         window.open(whatsappUrl, '_blank');
     },
 

@@ -2,7 +2,7 @@
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.4)
 // ==========================================
 // ENTERPRISE RULE: Every time you change your code, you MUST change this version number (e.g., to 11.8, 11.9)!
-const CACHE_NAME = 'sollo-erp-v52.0-offline';
+const CACHE_NAME = 'sollo-erp-v54.0-offline'; 
 
 const ASSETS_TO_CACHE = [
     './',
@@ -88,14 +88,11 @@ self.addEventListener('fetch', (event) => {
         return; 
     }
 
-    // --- DEVELOPMENT MODE OVERRIDE (DISABLED FOR ACODE SPEED) ---
-    // We commented this out so Acode uses the lightning-fast offline cache instead of serving files manually!
-    /*
+    // --- DEVELOPMENT MODE OVERRIDE (ACTIVE FOR INSTANT UPDATES) ---
     if (url.includes('localhost') || url.includes('127.0.0.1')) {
         event.respondWith(fetch(event.request));
         return;
     }
-    */
     // ---------------------------------
 
     // ENTERPRISE FIX: The Cache API violently crashes on POST requests. We MUST ignore them!

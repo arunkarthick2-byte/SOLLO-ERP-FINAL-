@@ -209,12 +209,12 @@ document.addEventListener('input', (e) => {
         }
 
         if (isValid) {
-            submitBtn.disabled = false; // Add this!
             submitBtn.style.opacity = '1';
             submitBtn.style.filter = 'grayscale(0%)';
             submitBtn.style.transform = 'scale(1)';
         } else {
-            submitBtn.disabled = true; // Add this!
+            // We keep it visually faded, but we DO NOT physically disable it. 
+            // This allows the browser to automatically scroll the user to the missing required field when clicked!
             submitBtn.style.opacity = '0.7';
             submitBtn.style.filter = 'grayscale(100%)';
             submitBtn.style.transform = 'scale(0.98)';
@@ -2045,7 +2045,8 @@ const app = {
         });
         
         const orderNoEl = document.getElementById(`${type}-order-no`);
-        if (orderNoEl) orderNoEl.value = originalDoc.invoiceNo;
+        // SMART LINK PATCH: Safely fallback through all possible document numbers so the Return is permanently hard-linked!
+        if (orderNoEl) orderNoEl.value = originalDocNo; 
         
         type === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
     },
@@ -4779,23 +4780,44 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
         const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
         
         const itemMap = {};
+        let totalFreight = 0;
+        let totalDiscount = 0;
+        let totalRoundOff = 0;
 
         sales.forEach(s => {
-            // ENTERPRISE FIX: The Timezone Trap Shield!
-            // Direct string comparison natively ignores timezones, preventing missing invoices!
-            // ENTERPRISE FIX: Strip Cancelled orders so they don't artificially inflate Item Profits!
             if (s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 
-                // ENTERPRISE FIX: Calculate the exact discount ratio of the total invoice!
                 const rawSubtotal = parseFloat(s.subtotal) || 0;
+                
+                // 🚨 ENTERPRISE FIX 1: Safe extraction using the exact database property names
+                const freight = parseFloat(s.freight) || parseFloat(s.freightAmount) || 0;
+                totalFreight += freight * mult;
+                
+                // 🚨 ENTERPRISE FIX 2: Exact Discount Match including % rounding and Credit Note flipping!
                 let discountAmt = 0;
                 if (s.discountType === '%') {
-                    discountAmt = rawSubtotal * ((parseFloat(s.discount) || 0) / 100);
+                    discountAmt = Math.round((rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) * 100) / 100;
                 } else {
                     discountAmt = parseFloat(s.discount) || 0;
                 }
-                const discountRatio = rawSubtotal > 0 ? (Math.min(discountAmt, rawSubtotal) / rawSubtotal) : 0;
+                
+                // If it's a credit note, the discount must be flipped so it subtracts mathematically correctly!
+                if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
+                if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
+                
+                totalDiscount += discountAmt * mult;
+
+                // 🚨 ENTERPRISE FIX 3: Exact Round-Off calculation to capture stray pennies!
+                const totalGst = parseFloat(s.totalGst) || 0;
+                const grandTotal = parseFloat(s.grandTotal) || 0;
+                
+                const exactTotal = rawSubtotal + totalGst + freight - discountAmt;
+                let roundOff = grandTotal - exactTotal;
+                
+                // Kill floating point noise
+                if (Math.abs(roundOff) < 0.01) roundOff = 0;
+                totalRoundOff += roundOff * mult;
                 
                 (s.items || []).forEach(item => {
                     const id = item.itemId || item.name; 
@@ -4807,9 +4829,8 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                     const rate = parseFloat(item.rate) || 0;
                     const buyPrice = parseFloat(item.buyPrice) || 0; 
                     
-                    // ENTERPRISE FIX: Apply the exact discount to extract the TRUE money earned!
-                    const baseRevenue = qty * rate;
-                    const actualRevenue = baseRevenue - (baseRevenue * discountRatio);
+                    // PURE ITEM MATH: No invoice-level discounts applied here!
+                    const actualRevenue = qty * rate;
                     const totalCost = qty * buyPrice;
                     
                     itemMap[id].qty += (qty * mult);
@@ -4822,14 +4843,14 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
 
         const rankedItems = Object.values(itemMap).sort((a, b) => b.profit - a.profit);
         
-        let totalOverallProfit = 0;
+        let totalItemProfit = 0;
         let html = '';
 
         if (rankedItems.length === 0) {
             html = '<div style="text-align:center; color:var(--md-text-muted); padding:20px;">No sales found in this date range.</div>';
         } else {
             rankedItems.forEach(item => {
-                totalOverallProfit += item.profit;
+                totalItemProfit += item.profit;
                 const isLoss = item.profit < 0;
                 const profitColor = isLoss ? 'var(--md-error)' : 'var(--md-success)';
                 const profitSign = isLoss ? '' : '+';
@@ -4847,10 +4868,40 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                     </div>
                 </div>`;
             });
+            
+            // The Bridging Reconciliation Block!
+            const finalBridgedProfit = totalItemProfit + totalFreight - totalDiscount + totalRoundOff;
+            
+            html += `
+            <div class="m3-card" style="margin-top: 24px; padding: 16px; background: rgba(0, 97, 164, 0.05); border: 1px solid rgba(0, 97, 164, 0.2);">
+                <div style="font-size: 12px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px;">Profit Reconciliation</div>
+                
+                <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 6px; color: var(--md-on-surface);">
+                    <span>Pure Item Margin:</span>
+                    <strong>₹${totalItemProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 6px; color: var(--md-success);">
+                    <span>Add: Freight Collected:</span>
+                    <strong>+ ₹${totalFreight.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 6px; color: var(--md-error);">
+                    <span>Less: Discounts Given:</span>
+                    <strong>- ₹${totalDiscount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 12px; color: var(--md-text-muted);">
+                    <span>Round-Off Adjustments:</span>
+                    <strong>${totalRoundOff >= 0 ? '+' : '-'} ₹${Math.abs(totalRoundOff).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                
+                <div style="border-top: 1px dashed var(--md-primary); padding-top: 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="color: var(--md-primary); font-size: 14px;">Sales Gross Profit:</strong>
+                    <strong style="color: var(--md-primary); font-size: 18px;">₹${finalBridgedProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+            </div>`;
         }
 
         document.getElementById('item-profit-list').innerHTML = html;
-        document.getElementById('item-profit-total').innerHTML = `₹${totalOverallProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('item-profit-total').innerHTML = `₹${totalItemProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
     },
 
     // ENTERPRISE UPGRADE: QUICK DATE FILTERS
@@ -5446,6 +5497,253 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
             window.Utils.downloadFile(csvContent, file.name, 'text/csv');
         }
         if (window.Utils) window.Utils.showToast("✅ Snapshot Generated!");
+    },
+
+    // ==========================================
+    // VISUAL DEAD STOCK SCANNER DASHBOARD
+    // ==========================================
+    openDeadStockReport: async () => {
+        if (window.UI) window.UI.openActivity('activity-dead-stock-report');
+        document.getElementById('dead-stock-list').innerHTML = '<div style="text-align:center; padding: 20px; color: var(--md-text-muted);"><span class="material-symbols-outlined rotating" style="font-size: 32px;">sync</span><p>Scanning Warehouse...</p></div>';
+        
+        setTimeout(() => {
+            if (window.app && typeof window.app.generateDeadStockReport === 'function') {
+                window.app.generateDeadStockReport();
+            }
+        }, 150);
+    },
+
+    generateDeadStockReport: async () => {
+        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+        const items = await window.getAllRecords('items', 'firmId', app.state.firmId);
+        
+        const DEAD_DAYS = 90;
+        const now = new Date().getTime();
+        
+        let deadStockCapital = 0;
+        let deadItems = [];
+        
+        // 1. Find the most recent sale date for every single item
+        const lastSaleMap = {};
+        sales.forEach(sale => {
+            if (sale.status === 'Open' || sale.status === 'Cancelled' || sale.documentType === 'return') return;
+            const saleTime = window.Utils.safeDate(sale.date).getTime();
+            (sale.items || []).forEach(row => {
+                const id = row.itemId || row.id;
+                if (!lastSaleMap[id] || saleTime > lastSaleMap[id]) lastSaleMap[id] = saleTime;
+            });
+        });
+
+        items.forEach(item => {
+            const stock = parseFloat(item.stock) || 0;
+            if (stock > 0) {
+                const lastSaleTime = lastSaleMap[item.id];
+                let daysSinceSale = 'Never Sold';
+                let isDead = false;
+
+                if (!lastSaleTime) {
+                    isDead = true;
+                } else {
+                    const days = Math.floor((now - lastSaleTime) / (1000 * 60 * 60 * 24));
+                    if (days > DEAD_DAYS) {
+                        isDead = true;
+                        daysSinceSale = `${days} Days Ago`;
+                    }
+                }
+
+                if (isDead) {
+                    const buyPrice = parseFloat(item.buyPrice) || 0;
+                    const trappedValue = stock * buyPrice;
+                    deadStockCapital += trappedValue;
+                    
+                    deadItems.push({
+                        name: item.name,
+                        stock: stock,
+                        uom: item.uom || 'Unit',
+                        buyPrice: buyPrice,
+                        trappedValue: trappedValue,
+                        lastSold: daysSinceSale
+                    });
+                }
+            }
+        });
+
+        // Sort by highest trapped capital first
+        deadItems.sort((a, b) => b.trappedValue - a.trappedValue);
+        
+        // Save to memory for CSV export later
+        app.state.lastDeadStockData = deadItems;
+        app.state.lastDeadStockTotal = deadStockCapital;
+
+        let html = '';
+        if (deadItems.length === 0) {
+            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">check_circle</span>No dead stock found! Inventory is moving well.</div>';
+        } else {
+            html = deadItems.map(item => `
+                <div class="m3-card" style="padding: 12px; border-left: 4px solid var(--md-error);">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                        <div style="flex:1; min-width:0; padding-right:8px;">
+                            <strong style="color: var(--md-on-surface); font-size: 15px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</strong>
+                            <small style="color: var(--md-error); font-weight:bold;">Stock: ${item.stock} ${item.uom}</small>
+                        </div>
+                        <div style="text-align:right; flex-shrink:0;">
+                            <small style="color: var(--md-text-muted); display:block;">Trapped Value</small>
+                            <strong style="color: var(--md-error); font-size: 16px;">₹${item.trappedValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dashed var(--md-outline-variant); padding-top: 8px; margin-top: 4px;">
+                        <span style="font-size: 11px; color: var(--md-text-muted);">Avg Buy: ₹${item.buyPrice.toFixed(2)}</span>
+                        <span style="font-size: 11px; font-weight:bold; color: var(--md-secondary);">Last Sold: ${item.lastSold}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('dead-stock-list').innerHTML = html;
+        document.getElementById('dead-stock-total').innerHTML = `₹${deadStockCapital.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    },
+
+    exportDeadStockCSV: async () => {
+        const data = app.state.lastDeadStockData || [];
+        const total = app.state.lastDeadStockTotal || 0;
+        
+        if (data.length === 0) return window.Utils.showToast("No dead stock to export!");
+
+        let csvContent = "SOLLO ERP - DEAD STOCK ANALYSIS (90+ DAYS)\n\nItem Name,Current Stock,Buy Price,Trapped Capital,Last Sold Date\n";
+        
+        data.forEach(item => {
+            csvContent += `"${item.name.replace(/"/g, '""')}",${item.stock},${item.buyPrice},${item.trappedValue.toFixed(2)},"${item.lastSold}"\n`;
+        });
+        
+        csvContent += `\nTOTAL TRAPPED CAPITAL,,,${total.toFixed(2)}\n`;
+        
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const file = new File([blob], `Dead_Stock_Report_${window.Utils.getLocalDate()}.csv`, { type: 'text/csv' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ title: "Dead Stock Report", files: [file] });
+        } else if (window.Utils) {
+            window.Utils.downloadFile(csvContent, file.name, 'text/csv');
+        }
+    },
+
+    // ==========================================
+    // VISUAL PROFIT LEAKAGE AUDIT DASHBOARD
+    // ==========================================
+    openProfitLeakageReport: async () => {
+        if (window.UI) window.UI.openActivity('activity-profit-leakage-report');
+        document.getElementById('profit-leakage-list').innerHTML = '<div style="text-align:center; padding: 20px; color: var(--md-text-muted);"><span class="material-symbols-outlined rotating" style="font-size: 32px;">sync</span><p>Scanning all sales history...</p></div>';
+        
+        setTimeout(() => {
+            if (window.app && typeof window.app.generateProfitLeakageReport === 'function') {
+                window.app.generateProfitLeakageReport();
+            }
+        }, 150);
+    },
+
+    generateProfitLeakageReport: async () => {
+        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+        
+        let totalLostRevenue = 0;
+        let leakageItems = [];
+        
+        sales.forEach(s => {
+            if (s.status === 'Open' || s.status === 'Cancelled') return;
+            const isReturn = s.documentType === 'return';
+            
+            // Calculate exact discount ratio to find the TRUE selling price
+            const rawSubtotal = parseFloat(s.subtotal) || 0;
+            let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+            if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+            const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
+            
+            (s.items || []).forEach(item => {
+                const qty = parseFloat(item.qty) || 0;
+                const rate = parseFloat(item.rate) || 0;
+                const buyPrice = parseFloat(item.buyPrice) || 0;
+                
+                if (qty > 0 && buyPrice > 0) {
+                    const effectiveRate = rate - (rate * discountRatio);
+                    if (effectiveRate < buyPrice) {
+                        const lossPerUnit = buyPrice - effectiveRate;
+                        const totalLoss = lossPerUnit * qty;
+                        
+                        // We only count actual sales for leakage (Refunding them less than we bought it for is technically a gain)
+                        if (!isReturn) {
+                            totalLostRevenue += totalLoss;
+                            leakageItems.push({
+                                invoiceNo: s.invoiceNo || s.orderNo || 'Draft',
+                                date: window.Utils.formatDateDisplay(s.date),
+                                customerName: s.customerName || 'Unknown Party',
+                                itemName: item.name,
+                                qty: qty,
+                                uom: item.uom || 'Unit',
+                                buyPrice: buyPrice,
+                                effectiveRate: effectiveRate,
+                                totalLoss: totalLoss
+                            });
+                        }
+                    }
+                }
+            });
+        });
+
+        // Sort by highest loss first so the biggest leaks are at the top
+        leakageItems.sort((a, b) => b.totalLoss - a.totalLoss);
+        
+        app.state.lastProfitLeakageData = leakageItems;
+        app.state.lastProfitLeakageTotal = totalLostRevenue;
+
+        let html = '';
+        if (leakageItems.length === 0) {
+            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">check_circle</span>All sales are mathematically profitable!<br><br>Perfect! No issues found.</div>';
+        } else {
+            html = leakageItems.map(item => `
+                <div class="m3-card" style="padding: 12px; border-left: 4px solid var(--md-error);">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                        <div style="flex:1; min-width:0; padding-right:8px;">
+                            <strong style="color: var(--md-on-surface); font-size: 15px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.itemName}</strong>
+                            <small style="color: var(--md-primary); font-weight:bold;">${item.invoiceNo} | ${item.customerName}</small>
+                        </div>
+                        <div style="text-align:right; flex-shrink:0;">
+                            <small style="color: var(--md-text-muted); display:block;">Total Loss</small>
+                            <strong style="color: var(--md-error); font-size: 16px;">-₹${item.totalLoss.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dashed var(--md-outline-variant); padding-top: 8px; margin-top: 4px;">
+                        <span style="font-size: 11px; color: var(--md-text-muted);">Buy: ₹${item.buyPrice.toFixed(2)} | Sold: ₹${item.effectiveRate.toFixed(2)}</span>
+                        <span style="font-size: 11px; font-weight:bold; color: var(--md-secondary);">Qty: ${item.qty} ${item.uom}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('profit-leakage-list').innerHTML = html;
+        document.getElementById('profit-leakage-total').innerHTML = `₹${totalLostRevenue.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    },
+
+    exportProfitLeakageCSV: async () => {
+        const data = app.state.lastProfitLeakageData || [];
+        const total = app.state.lastProfitLeakageTotal || 0;
+        
+        if (data.length === 0) return window.Utils.showToast("No profit leakage to export!");
+
+        let csvContent = "SOLLO ERP - PROFIT LEAKAGE AUDIT\n\nInvoice No,Date,Customer,Item Name,Qty,Buy Price,Sold At (Effective),Total Loss\n";
+        
+        data.forEach(item => {
+            csvContent += `"${item.invoiceNo}","${item.date}","${item.customerName.replace(/"/g, '""')}","${item.itemName.replace(/"/g, '""')}",${item.qty},${item.buyPrice},${item.effectiveRate.toFixed(2)},${item.totalLoss.toFixed(2)}\n`;
+        });
+        
+        csvContent += `\nTOTAL LOST REVENUE,,,,,,,${total.toFixed(2)}\n`;
+        
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const file = new File([blob], `Profit_Leakage_Report_${window.Utils.getLocalDate()}.csv`, { type: 'text/csv' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ title: "Profit Leakage Report", files: [file] });
+        } else if (window.Utils) {
+            window.Utils.downloadFile(csvContent, file.name, 'text/csv');
+        }
     }
 
 }; // <--- THIS IS THE CRITICAL CLOSING BRACKET FOR THE APP OBJECT
@@ -7079,78 +7377,7 @@ window.AnalyticsEngine = {
         window.AnalyticsEngine.showReportModal('Gross Profit Audit', summaryText, summaryColor, leakageHtml);
     },
 
-    runDeadStockScanner: async () => {
-        if (window.Utils) window.Utils.showToast("Analyzing inventory and sales velocity... ⏳");
-        const sales = await window.getAllRecords('sales');
-        const items = await window.getAllRecords('items');
-        
-        let deadStockHtml = '';
-        let totalLockedCapital = 0;
-        let deadItemCount = 0;
-        
-        const DEAD_DAYS = 90; // Items not sold in 3 months
-        const now = new Date().getTime();
-
-        // 1. Find the most recent sale date for every single item
-        const lastSaleMap = {};
-        sales.forEach(sale => {
-            if (sale.status === 'Open' || sale.status === 'Cancelled' || sale.documentType === 'return') return;
-            const saleTime = new Date(sale.date).getTime();
-            (sale.items || []).forEach(row => {
-                const id = row.itemId || row.id;
-                if (!lastSaleMap[id] || saleTime > lastSaleMap[id]) lastSaleMap[id] = saleTime;
-            });
-        });
-
-        // 2. Filter warehouse for Dead Stock
-        let deadItems = [];
-        items.forEach(item => {
-            const stock = parseFloat(item.stock) || 0;
-            if (stock > 0) {
-                const lastSaleTime = lastSaleMap[item.id];
-                let daysSinceSale = 'Never Sold';
-                let isDead = false;
-
-                if (!lastSaleTime) {
-                    isDead = true;
-                } else {
-                    const days = Math.floor((now - lastSaleTime) / (1000 * 60 * 60 * 24));
-                    if (days > DEAD_DAYS) {
-                        isDead = true;
-                        daysSinceSale = `${days} Days Ago`;
-                    }
-                }
-
-                if (isDead) {
-                    const buyPrice = parseFloat(item.buyPrice) || 0;
-                    const lockedCapital = stock * buyPrice;
-                    deadItems.push({ name: item.name, stock, buyPrice, lockedCapital, daysSinceSale });
-                }
-            }
-        });
-
-        // 3. Sort by the highest amount of cash locked up
-        deadItems.sort((a, b) => b.lockedCapital - a.lockedCapital);
-
-        deadItems.forEach(di => {
-            totalLockedCapital += di.lockedCapital;
-            deadItemCount++;
-            deadStockHtml += `
-                <div style="border-left: 4px solid #f59e0b; background: #fffbeb; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                    <div style="display: flex; justify-content: space-between; font-weight: 900; color: #b45309; margin-bottom: 4px; font-size:14px;">
-                        <span>${di.name}</span>
-                        <span>₹${di.lockedCapital.toFixed(2)}</span>
-                    </div>
-                    <div style="font-size: 12px; color: #92400e; font-weight:600;">Stock: ${di.stock} | Avg Cost: ₹${di.buyPrice.toFixed(2)}</div>
-                    <div style="font-size: 11px; color: #d97706; margin-top: 4px; font-weight: 800; text-transform: uppercase;">Last Sold: ${di.daysSinceSale}</div>
-                </div>
-            `;
-        });
-
-        const summaryColor = totalLockedCapital > 0 ? '#d97706' : '#16a34a';
-        const summaryText = totalLockedCapital > 0 ? `⚠️ ₹${window.Utils.formatCurrency(totalLockedCapital)} of Capital is locked in ${deadItemCount} stagnant items.` : '✅ Outstanding Inventory Velocity! No dead stock found.';
-        window.AnalyticsEngine.showReportModal('Dead Stock Scanner (>90 Days)', summaryText, summaryColor, deadStockHtml);
-    }
+    // (Legacy Dead Stock Scanner removed to make way for the new Visual Dashboard Engine)
 };
 // ==========================================
 // 🚨 BATTERY OPTIMIZATION: PRODUCTION SILENCER

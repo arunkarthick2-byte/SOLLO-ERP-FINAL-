@@ -52,8 +52,12 @@ const initDB = () => {
                 bc.postMessage('FORCE_CLOSE_DB');
             } catch(e) {} // Failsafe for older browsers
             
-            // 2. Alert the user nicely instead of forcing an infinite refresh loop
-            alert("Database is upgrading, but another tab is holding it open. Please close all other tabs of this app, then refresh this page!");
+            // 2. Show a smooth, non-blocking toast notification instead of a screen-freezing alert
+            if (window.Utils && typeof window.Utils.showToast === 'function') {
+                window.Utils.showToast("Database is upgrading... Please close other tabs of this app.");
+            } else {
+                console.warn("Database is upgrading, but another tab is holding it open.");
+            }
         };
 
         request.onupgradeneeded = (event) => {
