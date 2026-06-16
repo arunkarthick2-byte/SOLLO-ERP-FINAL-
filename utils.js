@@ -682,7 +682,7 @@ Please process this accordingly. Thank you!`;
             const exactHeight = element.scrollHeight;
 
             const canvas = await html2canvas(element, { 
-                scale: (window.devicePixelRatio || 3), 
+                scale: 2, // 🚨 RAM FIX: 2x scale is perfect for HD print but uses 50% less phone memory! 
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -715,7 +715,10 @@ Please process this accordingly. Thank you!`;
                 }
             });
             
-            const imgSrc = canvas.toDataURL('image/png');
+            // 🚨 CRITICAL RAM FIX: Do not use toDataURL on mobile! It creates a 30MB string that crashes the app.
+            // Convert to a raw Blob instead, safely bypassing the browser's memory limit!
+            const imgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const imgSrc = URL.createObjectURL(imgBlob);
             
             // Wipe any lingering viewer overlays to prevent stacking
             document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
@@ -743,7 +746,7 @@ Please process this accordingly. Thank you!`;
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
                         <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
                         
-                        <span class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = ''; const vp = document.querySelector('meta[name=viewport]'); if(vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');">close</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = ''; const vp = document.querySelector('meta[name=viewport]'); if(vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'); URL.revokeObjectURL('${imgSrc}'); /* 🚨 FLUSH THE RAM! */">close</span>
                     </div>
                 </div>
                 <div style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
@@ -2042,7 +2045,7 @@ Please process this accordingly. Thank you!`;
                 // 🚨 FIX: Added 'tr' so it never mathematically slices a table row in half across two pages!
                 pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] }, 
                 html2canvas: { 
-                    scale: (window.devicePixelRatio || 3), 
+                    scale: 2, /* 🚨 RAM FIX: Reduced from 3 to 2 to prevent Share Menu crashes! */
                     backgroundColor: '#ffffff',
                     useCORS: true, 
                     logging: false, 

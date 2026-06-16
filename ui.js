@@ -13,17 +13,8 @@ const UI = {
     },
 
     initPremiumUX: () => {
-        // ENTERPRISE UPGRADE: Lightning-Fast Data Entry!
-        // Automatically highlights the entire number when a user taps a quantity or rate box.
-        document.addEventListener('focusin', (e) => {
-            if (e.target.tagName === 'INPUT' && (e.target.type === 'number' || e.target.inputMode === 'decimal')) {
-                // ENTERPRISE FIX: The Keyboard Rubber-Band Shield!
-                // Only select the text if the user hasn't already tapped away to close the keyboard.
-                setTimeout(() => {
-                    if (document.activeElement === e.target) e.target.select();
-                }, 50);
-            }
-        });
+        // ENTERPRISE UPGRADE: Native Cursor Freedom!
+        // Auto-select has been disabled so you can easily tap and edit specific digits on mobile dialpads!
 
         // 🚨 ENTERPRISE FIX: THE "CONTAINER TRANSFORM" CSS INJECTOR
         if (!document.getElementById('container-transform-css')) {
@@ -3040,10 +3031,10 @@ const UI = {
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="number" inputmode="decimal" class="row-qty" value="1" step="any" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="number" inputmode="decimal" class="row-qty" value="1" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
@@ -3301,15 +3292,15 @@ const UI = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="number" inputmode="decimal" class="row-qty" value="1" step="any" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="number" inputmode="decimal" class="row-qty" value="1" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" onfocus="this.select()" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                 </div>
 
@@ -3836,10 +3827,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeSheet) activeSheet.style.paddingBottom = `${keyboardHeight}px`;
                 if (activeScreen) activeScreen.style.paddingBottom = `${keyboardHeight + 40}px`;
                 
-                // Keep the active input perfectly centered
+                // Keep the active input visible, but DO NOT violently jerk the screen to the center!
                 if (document.activeElement) {
                     setTimeout(() => {
-                        document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 50);
                 }
             } else {

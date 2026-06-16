@@ -54,8 +54,8 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="date"],
     --md-on-primary-container: #1A237E;
     --md-secondary: #455A64; /* Sharp Blue-Grey */
     --md-on-secondary: #ffffff;
-    --md-surface: #ffffff; /* Stark White Surfaces for maximum data clarity */
-    --md-background: #ffffff; /* 🚨 FIX: Forced pure white canvas across the entire app! */
+    --md-surface: #ffffff; /* Stark White Surfaces for cards to sit on the background */
+    --md-background: #f6f8fa; /* ✨ NEW: Soft off-white/grey background canvas matching your screenshot */
     --md-on-surface: #000000; /* Pure Black Text for severe contrast */
     --md-surface-variant: #F5F5F5; /* Crisp Native Gray */
     --md-on-surface-variant: #424242;
@@ -4694,13 +4694,16 @@ body.dark-mode .activity-header strong {
 /* ==========================================
    🚨 BIZOPS NATIVE THEME: PURE WHITE CANVAS
    ========================================== */
-/* Locks the app shell and main content to absolute white, stripping away grey boundaries */
+/* Smoothly layers the pure white surfaces on top of the soft grey canvas */
 body:not(.dark-mode) #app-shell,
-body:not(.dark-mode) .main-content,
+body:not(.dark-mode) .main-content {
+    background-color: var(--md-background) !important; /* Uses the new soft grey */
+    background-image: none !important;
+}
 body:not(.dark-mode) .activity-screen,
 body:not(.dark-mode) .bottom-sheet {
-    background-color: #ffffff !important;
-    background-image: none !important; /* Kills any subtle gradient overlays */
+    background-color: var(--md-surface) !important; /* Keeps panels and forms crisp white */
+    background-image: none !important;
 }
 
 /* Elevates the cards with ultra-thin, razor-sharp borders instead of grey shadows */
@@ -5552,34 +5555,148 @@ body.dark-mode .item-entry-card span[onclick*="remove"]:active {
     align-items: center !important;
     justify-content: center !important;
 }
-/* --- FIX 4: Title Overlap & Text Squeeze Protector --- */
-/* Forces the centered title to respect the left/right buttons and never overlap them! */
-.activity-header h2, 
-.activity-header h3, 
-.sheet-header h2, 
-.sheet-header h3,
-#master-view-title,
-[id^="form-title-"],
-#expense-form-title,
-.activity-header span[style*="font-size: 18px"] {
-    /* Critical Fix: Use left/right constraints instead of padding for absolutely positioned elements */
-    left: 48px !important; /* Safe zone for the left back button */
-    right: 96px !important; /* Larger safe zone on the right to account for up to 2 icons (Delete + Share/PDF) */
-    width: auto !important; /* Allow the width to be determined by left/right constraints */
-    
-    box-sizing: border-box !important;
-    white-space: nowrap !important; /* Prevents text from breaking into two lines */
-    overflow: hidden !important;
-    text-overflow: ellipsis !important; /* Adds '...' instead of crashing into the icon */
-    font-size: clamp(15px, 4.5vw, 18px) !important; /* Smoothly shrinks the text down slightly on smaller phone screens */
-    
-    /* Ensure text stays centered within its new constrained bounding box */
-    display: block !important;
-    text-align: center !important;
+/* ==========================================
+   🚨 FIX: GLOBAL BACKGROUND COLOR OVERRIDE
+   ========================================== */
+:root {
+    /* This is the exact soft-grey color from your reference screenshot */
+    --md-background: #f3f3f3 !important; 
 }
 
-/* Ensure the right-side button container stays locked to the absolute right edge */
+/* 1. Apply the new background color to the entire app shell and all screens */
+body:not(.dark-mode),
+body:not(.dark-mode) #app-shell,
+body:not(.dark-mode) .main-content,
+body:not(.dark-mode) .activity-screen,
+body:not(.dark-mode) .activity-content,
+body:not(.dark-mode) .screen-section {
+    background-color: var(--md-background) !important;
+    background-image: none !important;
+}
+
+/* 2. Override any hardcoded inline background colors on specific report pages */
+body:not(.dark-mode) div[style*="background-color: #f4f6fa"],
+body:not(.dark-mode) div[style*="background-color: #f2f2f7"],
+body:not(.dark-mode) div[style*="background: #f2f2f7"],
+body:not(.dark-mode) div[style*="background-color: var(--md-background)"] {
+    background-color: var(--md-background) !important;
+    background: var(--md-background) !important;
+}
+
+/* 3. Ensure all Cards, Lists, and Sheets remain crisp white so they pop out */
+body:not(.dark-mode) .m3-card,
+body:not(.dark-mode) .bottom-sheet,
+body:not(.dark-mode) .list-view {
+    background-color: #ffffff !important;
+}
+
+/* 4. Ensure Top Headers and Bottom Navigation stay pure white */
+body:not(.dark-mode) .app-header,
+body:not(.dark-mode) .activity-header,
+body:not(.dark-mode) .sheet-header,
+body:not(.dark-mode) .bottom-nav {
+    background-color: #ffffff !important;
+}
+/* ==========================================
+   🚨 FIX: MAXIMUM TEXT SHARPNESS & CONTRAST
+   ========================================== */
+:root {
+    /* Force primary text to absolute pure black for maximum sharpness */
+    --md-on-surface: #000000 !important; 
+    
+    /* Darken the "faded/grey" text (like dates, labels, and small text) to a sharp charcoal */
+    --md-text-muted: #334155 !important; 
+    
+    /* Darken secondary text to a deep slate grey */
+    --md-on-surface-variant: #1e293b !important; 
+}
+
+/* 1. Make all small text and labels slightly thicker so they don't look blurry */
+body:not(.dark-mode) small, 
+body:not(.dark-mode) label,
+body:not(.dark-mode) p {
+    font-weight: 500 !important;
+}
+
+/* 2. Force text inside input boxes (like pricing and names) to be bold and pure black */
+body:not(.dark-mode) input[type="text"], 
+body:not(.dark-mode) input[type="number"], 
+body:not(.dark-mode) input[type="tel"], 
+body:not(.dark-mode) input[type="date"], 
+body:not(.dark-mode) select, 
+body:not(.dark-mode) textarea {
+    color: #000000 !important;
+    font-weight: 600 !important;
+}
+
+/* 3. Darken placeholder text (e.g., "Search..." or "0.00") so it doesn't look washed out */
+body:not(.dark-mode) input::placeholder, 
+body:not(.dark-mode) textarea::placeholder {
+    color: #475569 !important;
+    font-weight: 500 !important;
+    opacity: 1 !important;
+}
+/* ==========================================
+   🚨 FIX: PREMIUM SAAS POLISH (FONT & BORDERS)
+   ========================================== */
+:root {
+    /* 1. Swap from the default Android Roboto to the highly professional 'Inter' font */
+    --app-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; 
+}
+
+/* 2. Soften card borders to look like premium paper rather than rigid plastic boxes */
+body:not(.dark-mode) .m3-card,
+body:not(.dark-mode) .list-view {
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 3. Soften list item dividers to be microscopic and elegant */
+body:not(.dark-mode) .list-view li {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 4. Make input boxes look deeply embedded, clean, and premium */
+body:not(.dark-mode) input[type="text"], 
+body:not(.dark-mode) input[type="number"], 
+body:not(.dark-mode) input[type="tel"], 
+body:not(.dark-mode) input[type="date"], 
+body:not(.dark-mode) select, 
+body:not(.dark-mode) textarea {
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) inset !important;
+    border-radius: 8px !important;
+}
+/* ==========================================
+   🚨 FIX: FORM HEADER TEXT & ICON OVERLAP
+   ========================================== */
+/* 1. Forces the header to be a flexible row with a safe gap so items can NEVER touch */
+.activity-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important; 
+}
+
+/* 2. Overrides the old "absolute center" code specifically for Sales, Purchase, Credit, and Debit forms */
+.activity-header span[id^="form-title-"],
+.activity-header #expense-form-title {
+    position: static !important; /* Kills the old centering that caused the crash */
+    transform: none !important;
+    flex: 1 1 auto !important; /* Pushes the text safely to the left */
+    text-align: left !important;
+    
+    /* If the phone screen is very small, this safely cuts off the text with "..." instead of crashing into the icon */
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important; 
+}
+
+/* 3. Protects the Delete Icon container so it never gets squished by the text */
 .activity-header > div:last-child {
-    margin-left: auto !important; 
-    z-index: 10 !important; 
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
 }
