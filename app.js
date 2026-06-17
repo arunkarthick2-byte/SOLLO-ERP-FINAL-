@@ -7453,3 +7453,16 @@ window.addEventListener('beforeunload', (e) => {
         e.returnValue = ''; // Required by modern Chrome/Safari to trigger the native hardware lock!
     }
 });
+// ==========================================
+// 🚨 ENTERPRISE SECURITY: BANKING PRIVACY SHIELD
+// ==========================================
+// Instantly blurs the screen when the app is sent to the background to protect financial data!
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        document.body.style.filter = 'blur(15px)';
+        document.body.style.transition = 'filter 0.1s ease-out';
+    } else {
+        document.body.style.filter = 'none';
+        document.body.style.transition = 'filter 0.3s ease-in';
+    }
+});

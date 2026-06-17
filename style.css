@@ -5767,3 +5767,46 @@ body:not(.dark-mode) textarea {
 input[type="text"], input[type="number"], textarea, select {
     background-color: #ffffff !important;
 }
+/* ==========================================
+   🚨 ENTERPRISE UX: NATIVE SCROLLBAR ERADICATOR
+   ========================================== */
+/* Destroys clunky web scrollbars across the entire app so it feels 100% native! */
+::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+    background: transparent !important;
+    display: none !important;
+}
+
+* {
+    -ms-overflow-style: none !important; /* IE and Edge */
+    scrollbar-width: none !important; /* Firefox */
+}
+/* ==========================================
+   🚨 ENTERPRISE UX: TACTILE CARD PHYSICS
+   ========================================== */
+/* Gives lists and cards a physical "button press" feel while locking in the pure white background */
+.m3-card.tap-target, .list-card {
+    transition: transform 0.1s ease-out, box-shadow 0.1s ease-out !important;
+    background-color: #ffffff !important; 
+}
+
+.m3-card.tap-target:active, .list-card:active {
+    transform: scale(0.97) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    background-color: #ffffff !important; /* Forces the background to stay perfectly white during the press */
+}
+/* ==========================================
+   🚨 ENTERPRISE UX: PREMIUM INPUT FOCUS
+   ========================================== */
+/* Destroys ugly default browser outlines and replaces them with an elegant, glowing focus ring */
+input[type="text"]:focus, 
+input[type="number"]:focus, 
+textarea:focus, 
+select:focus {
+    outline: none !important;
+    border: 1px solid #0061a4 !important; /* Perfectly matches your brand's primary blue theme */
+    box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
+    background-color: #ffffff !important; /* Maintains the strict white data-entry canvas */
+    transition: all 0.2s ease !important;
+}
