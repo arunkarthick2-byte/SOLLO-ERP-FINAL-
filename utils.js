@@ -39,6 +39,34 @@ const Utils = {
     // STRICT ERP LOGIC: Added the missing parentheses so Date.now() mathematically attaches to EVERY id!
     generateId: () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'sollo-' + Math.random().toString(36).substr(2, 9)) + '-' + Date.now(),
 
+    // 🚨 ENTERPRISE UX: BUTTON LOCK SHIELD
+    // Prevents double-taps from creating duplicate invoices while the database is saving!
+    lockButton: (btnId, loadingText = "Saving...") => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return null;
+        
+        // Save the original state so we can restore it later
+        const originalText = btn.innerHTML;
+        
+        // Lock the button
+        btn.disabled = true;
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.7';
+        
+        // Inject a spinner and text
+        btn.innerHTML = `<span class="material-symbols-outlined" style="animation: sollo-spin 1s linear infinite; font-size:18px; vertical-align:middle; margin-right:6px;">autorenew</span> ${loadingText}`;
+        
+        return { btn, originalText }; // Return the state object to unlock it later
+    },
+
+    unlockButton: (state) => {
+        if (!state || !state.btn) return;
+        state.btn.disabled = false;
+        state.btn.style.pointerEvents = 'auto';
+        state.btn.style.opacity = '1';
+        state.btn.innerHTML = state.originalText;
+    },
+
     // 🟢 ENTERPRISE FIX: Native Anti-Freeze Engine
     // Prevents mobile keyboards from crashing by waiting 300ms before filtering huge lists!
     debounce: (func, delay) => {
@@ -668,21 +696,51 @@ Please process this accordingly. Thank you!`;
         const origWidth = element.style.width;
         const origMinWidth = element.style.minWidth;
         const origMaxWidth = element.style.maxWidth;
-        const origMinHeight = element.style.minHeight; // 🚨 ENTERPRISE FIX: Track the min-height!
+        const origMinHeight = element.style.minHeight; 
 
         try {
+            // 🚀 ENTERPRISE UX: INSTANT LOADING SCREEN
+            // Immediately open the viewer to give the user instant visual feedback before the heavy math freezes the browser!
+            document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
+
+            const viewer = document.createElement('div');
+            viewer.id = 'in-app-pdf-viewer';
+            viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+            
+            viewer.innerHTML = `
+                <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div>
+                        <div style="font-weight:bold; font-size:18px;">Document Preview</div>
+                        <div style="font-size:12px; color:#0061a4; font-weight:700; margin-top:2px;" id="pdf-status-text">Processing Document...</div>
+                    </div>
+                    <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                        <span class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = '';">close</span>
+                    </div>
+                </div>
+                <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:center; touch-action: pan-x pan-y pinch-zoom;">
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:12px; opacity:0.7;">
+                        <span class="material-symbols-outlined" style="font-size:40px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                        <div style="font-size:14px; font-weight:600; color:#475569;">Generating High-Res PDF...</div>
+                    </div>
+                    <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+                </div>
+            `;
+            document.body.style.overflow = 'hidden'; 
+            document.body.appendChild(viewer);
+
+            // 🚨 We MUST yield the main thread for 50ms so the browser actually PAINTS the loading screen before freezing for html2canvas!
+            await new Promise(res => setTimeout(res, 50));
+
             // STRICT ERP LOGIC: Physically lock the DOM to A4 Desktop dimensions BEFORE taking the snapshot!
-            // 🚨 BIZOPS FIX: We use setProperty to crush inline HTML rules and force a strict A4 Canvas size!
             element.style.setProperty('width', '800px', 'important');
             element.style.setProperty('min-width', '800px', 'important');
             element.style.setProperty('max-width', '800px', 'important');
             element.style.setProperty('min-height', '1131px', 'important');
 
-            // ENTERPRISE FIX: Now that the width and min-height are locked, measure the exact height!
             const exactHeight = element.scrollHeight;
 
             const canvas = await html2canvas(element, { 
-                scale: 2, // 🚨 RAM FIX: 2x scale is perfect for HD print but uses 50% less phone memory! 
+                scale: 2, 
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -692,9 +750,7 @@ Please process this accordingly. Thank you!`;
                 scrollY: 0, 
                 scrollX: 0,
                 onclone: (clonedDoc) => {
-                    // 🚨 ENTERPRISE FIX: Force the PDF clone into Light Mode so it always prints perfectly!
                     clonedDoc.body.classList.remove('dark-mode');
-                    
                     const printArea = clonedDoc.getElementById('print-area');
                     if (printArea) {
                         printArea.className = ''; 
@@ -702,68 +758,39 @@ Please process this accordingly. Thank you!`;
                         printArea.style.position = 'relative';
                         printArea.style.visibility = 'visible';
                         printArea.style.width = '800px';
-
-                        // 🚨 CRITICAL FIX: Destroy Mobile Viewport Stretching!
                         printArea.style.height = 'max-content';
                         printArea.style.minHeight = '0px';
                         clonedDoc.body.style.height = 'max-content';
                         clonedDoc.body.style.minHeight = '0px';
-                        // 🚨 CRITICAL FIX: Kill the Mobile Viewport Stretching!
                         clonedDoc.documentElement.style.height = 'max-content';
                         clonedDoc.documentElement.style.minHeight = '0px';
                     }
                 }
             });
             
-            // 🚨 CRITICAL RAM FIX: Do not use toDataURL on mobile! It creates a 30MB string that crashes the app.
-            // Convert to a raw Blob instead, safely bypassing the browser's memory limit!
             const imgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
             const imgSrc = URL.createObjectURL(imgBlob);
             
-            // Wipe any lingering viewer overlays to prevent stacking
-            document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
-
-            const viewer = document.createElement('div');
-            viewer.id = 'in-app-pdf-viewer';
-            viewer.style.position = 'fixed';
-            viewer.style.top = '0';
-            viewer.style.left = '0';
-            viewer.style.width = '100vw';
-            viewer.style.height = '100vh';
-            viewer.style.backgroundColor = '#e8eaed';
-            viewer.style.zIndex = '999999';
-            viewer.style.display = 'flex';
-            viewer.style.flexDirection = 'column';
-
-            viewer.innerHTML = `
-                <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0;">
-                    <div>
-                        <div style="font-weight:bold; font-size:18px;">Document Preview</div>
-                        <div style="font-size:12px; color:#64748b; margin-top:2px;">Share PDF or Download</div>
-                    </div>
-                    <div style="display: flex; gap: 20px; align-items: center; color:#475569;">
-                        <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-print-preview">print</span>
-                        <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
-                        <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
-                        
-                        <span class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = ''; const vp = document.querySelector('meta[name=viewport]'); if(vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'); URL.revokeObjectURL('${imgSrc}'); /* 🚨 FLUSH THE RAM! */">close</span>
-                    </div>
-                </div>
-                <div style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
-                    <img src="${imgSrc}" style="max-width:100%; height:auto; box-shadow:0 4px 8px rgba(0,0,0,0.2); border-radius:4px; display:block;" />
-                </div>
-            `;
-            document.body.style.overflow = 'hidden'; // ENTERPRISE FIX: Lock background from rubber-banding!
-            document.body.appendChild(viewer);
+            // 🚀 UI UPDATE: The PDF is ready! Swap out the spinner for the actual buttons and document!
+            document.getElementById('pdf-status-text').style.color = '#64748b';
+            document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
             
-            // 🚨 ENTERPRISE FIX: Dynamically Unlock Pinch-to-Zoom for dense PDFs!
+            document.getElementById('pdf-header-actions').innerHTML = `
+                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-print-preview">print</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = ''; const vp = document.querySelector('meta[name=viewport]'); if(vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'); URL.revokeObjectURL('${imgSrc}');">close</span>
+            `;
+
+            const previewContent = document.getElementById('pdf-preview-content');
+            previewContent.style.alignItems = 'flex-start'; // Reset alignment for the document image
+            previewContent.innerHTML = `<img src="${imgSrc}" style="max-width:100%; height:auto; box-shadow:0 4px 8px rgba(0,0,0,0.2); border-radius:4px; display:block;" />`;
+            
             const vp = document.querySelector('meta[name="viewport"]');
             if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover');
             
-            // 🚨 BIZOPS FIX: Correctly mapped the Download button to ACTUALLY download!
             document.getElementById('btn-download-pdf').onclick = async () => {
                 window.Utils.showToast("Downloading True PDF...");
-                // The 'true' at the end forces the engine to download instead of share!
                 window.Utils.sharePDF(elementId, filename, '', true); 
             };
 
@@ -776,11 +803,7 @@ Please process this accordingly. Thank you!`;
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
                     if (window.Utils) window.Utils.showToast("Preparing True PDF...");
-
-                    // ENTERPRISE FIX: Route the Main Invoice Share Button to the Universal PDF Engine!
-                    // This ensures Sales Invoices share as crystal-clear A4 PDFs, not blurry PNGs!
                     window.Utils.sharePDF(elementId, filename, `Here is your document: ${filename.replace('.pdf', '')}`);
-                    
                 } catch (err) {
                     console.log("Share cancelled or failed", err);
                     alert("Sharing was cancelled or is unsupported on this device.");
@@ -790,12 +813,11 @@ Please process this accordingly. Thank you!`;
             console.error("Preview Generation Failed", err);
             alert("Failed to generate preview.");
         } finally {
-            // 🚨 CRITICAL FIX: The Finally Block! 
-            // Guarantees the mobile UI is restored even if the PDF engine crashes, preventing a permanently frozen screen!
+            // Restore UI dimensions
             element.style.width = origWidth;
             element.style.minWidth = origMinWidth;
             element.style.maxWidth = origMaxWidth;
-            element.style.minHeight = origMinHeight; // 🚨 ENTERPRISE FIX: Restore the min-height to kill the permanent white space!
+            element.style.minHeight = origMinHeight; 
         }
     },
 
@@ -1316,7 +1338,8 @@ Please process this accordingly. Thank you!`;
             let overdueTag = '';
             try {
                 if (window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.sales) {
-                    const partySales = window.UI.state.rawData.sales.filter(s => s.customerId === row.id && s.status !== 'Completed' && s.status !== 'Paid');
+                    // 🚨 ENTERPRISE FIX: Ignore Drafts, Cancelled, and Credit Notes on the PDF to match the UI!
+                    const partySales = window.UI.state.rawData.sales.filter(s => s.customerId === row.id && s.status !== 'Completed' && s.status !== 'Paid' && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return');
                     if (partySales.length > 0) {
                         partySales.sort((a,b) => new Date(a.shippedDate || a.date) - new Date(b.shippedDate || b.date));
                         const oldestDate = new Date(partySales[0].shippedDate || partySales[0].date);
@@ -1743,8 +1766,14 @@ Please process this accordingly. Thank you!`;
             const ledgers = (await window.getAllRecords('ledgers', 'firmId', activeFirmId).catch(() => [])) || [];
             reportData.rawSales.forEach(s => {
                 if (s.invoiceType === 'Non-GST') return;
-                let cust = ledgers.find(l => l.id === s.customerId);
-                let gstin = cust ? cust.gst : '';
+                
+                // 🚨 ENTERPRISE FIX: Use the historical snapshot from the invoice first!
+                let gstin = s.customerGst || s.gstin || '';
+                if (!gstin) {
+                    let cust = ledgers.find(l => String(l.id) === String(s.customerId));
+                    gstin = cust && cust.gst ? cust.gst : '';
+                }
+                
                 // CRITICAL TAX FIX: Match db.js! A valid GSTIN must be exactly 15 characters to enter the B2B Sheet!
                 if (gstin && gstin.trim().length === 15) {
                     // ENTERPRISE FIX: The Blank B2B Taxable Value Exploit!

@@ -1991,7 +1991,8 @@ const app = {
         
         // STRICT ERP LOGIC: Block Cross-Company Leaks and safely map Supplier Bills!
         const originalDocNo = originalDoc.invoiceNo || originalDoc.poNo || originalDoc.orderNo || originalDoc.id;
-        const previousReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.orderNo === originalDocNo);
+        // 🚨 ENTERPRISE FIX: Safely exclude the currently editing document so it doesn't subtract its own items from the max allowable limit!
+        const previousReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.orderNo === originalDocNo && d.id !== app.state.currentEditId);
         
         const returnedQtyMap = {};
         previousReturns.forEach(ret => {
@@ -2167,7 +2168,8 @@ const app = {
                     displayNo = doc.invoiceNo;
                 } else {
                     // For Non-GST or Drafts, safely fallback to the Order No or PO No
-                    docNo = (isMoneyIn ? (doc.orderNo || doc.invoiceNo) : (doc.orderNo || doc.poNo || doc.invoiceNo)) || doc.id;
+                    // 🚨 ENTERPRISE FIX: Added doc.id fallback inside the parenthesis to ensure it matches receipts
+                    docNo = (isMoneyIn ? (doc.invoiceNo || doc.orderNo || doc.id) : (doc.poNo || doc.invoiceNo || doc.orderNo || doc.id));
                     displayNo = isMoneyIn ? (doc.orderNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase()) : (doc.orderNo || doc.poNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase());
                 }
                 
@@ -4008,7 +4010,8 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
             // 🚨 ENTERPRISE FIX: Fulfillment-Aware Auto-Close
             // Purchases auto-complete instantly. Sales MUST be physically shipped first!
             if (finalBal <= 0.01) {
-                if (storeName === 'purchases' || item.doc.status === 'Shipped') {
+                // 🚨 ENTERPRISE FIX: Allow Unpaid invoices to safely transition back to Completed if their balance is ₹0.00
+                if (storeName === 'purchases' || item.doc.status === 'Shipped' || item.doc.status === 'Unpaid') {
                     item.doc.status = 'Completed';
                     const fallbackDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
                     item.doc.completedDate = triggerDate || fallbackDate; // Auto-stamp the date!
@@ -5542,7 +5545,11 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
                 let isDead = false;
 
                 if (!lastSaleTime) {
-                    isDead = true;
+                    // 🚨 ENTERPRISE FIX: Extract creation date from ID to ensure brand new items aren't flagged as dead!
+                    const createdAt = parseInt(String(item.id).split('-').pop()) || 0;
+                    if (createdAt < now - (DEAD_DAYS * 24 * 60 * 60 * 1000)) {
+                        isDead = true;
+                    }
                 } else {
                     const days = Math.floor((now - lastSaleTime) / (1000 * 60 * 60 * 24));
                     if (days > DEAD_DAYS) {
@@ -7391,6 +7398,47 @@ if (!isLocalDevice) {
     console.time = function() {};
     console.timeEnd = function() {};
 }
+
+// ==========================================
+// 🚨 ENTERPRISE UX: INSTANT EDIT & ANTI-OVERLAY SHIELD
+// ==========================================
+// Auto-selects text AND physically pushes the screen up so the keyboard/dialpad NEVER hides what you are typing!
+document.addEventListener('focusin', (e) => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
+        
+        // 1. The Anti-Overlay Shield (Scrolls the input to the safe white center of the screen)
+        // 300ms perfectly waits for the Android/iOS keyboard or Custom Numpad to finish sliding up!
+        setTimeout(() => {
+            try { 
+                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
+            } catch(err) {}
+        }, 300);
+
+        // 2. The Auto-Highlight Engine (For quick number replacement)
+        if (e.target.type === 'number' || e.target.inputMode === 'numeric' || e.target.inputMode === 'decimal') {
+            setTimeout(() => {
+                try { e.target.select(); } catch(err) {}
+            }, 50);
+        }
+    }
+});
+
+// ==========================================
+// 🚨 ENTERPRISE UX: SMART AUTO-CAPITALIZATION
+// ==========================================
+// Silently formats ledger names and items into professional Title Case when the user taps away!
+document.addEventListener('focusout', (e) => {
+    if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') {
+        const id = e.target.id ? e.target.id.toLowerCase() : '';
+        const isEmailOrGST = id.includes('email') || id.includes('gst') || id.includes('password');
+        
+        // If it is a Name, City, or Item field, auto-capitalize the first letter of every word
+        if (!isEmailOrGST && e.target.value) {
+            e.target.value = e.target.value.replace(/\b\w/g, char => char.toUpperCase());
+        }
+    }
+});
+
 // ==========================================
 // 🚨 ENTERPRISE FIX: THE DATA-LOSS FIREWALL
 // ==========================================

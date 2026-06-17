@@ -5700,3 +5700,70 @@ body:not(.dark-mode) textarea {
     align-items: center !important;
     justify-content: flex-end !important;
 }
+/* ==========================================
+   🚨 ENTERPRISE UX: KEYPAD HARDWARE PHYSICS
+   ========================================== */
+/* 1. Hardware POS Press Effect (With Pure White Flash) */
+.numpad-btn {
+    transition: all 0.08s ease-out !important;
+}
+
+.numpad-btn:active {
+    background-color: #ffffff !important; 
+    transform: scale(0.85) !important;
+    box-shadow: inset 0 3px 8px rgba(0,0,0,0.15) !important;
+    color: #0061a4 !important;
+}
+
+/* 2. iOS/Android Gesture Bar Shield & Clean Theme */
+/* Forces the keypad into a pure white container and dynamically pushes the bottom row up and away from the mobile swipe bar! */
+#custom-numpad, .numpad-grid {
+    background-color: #ffffff !important;
+    padding-bottom: env(safe-area-inset-bottom, 24px) !important;
+}
+/* ==========================================
+   🚨 ENTERPRISE UX: ACTION REQUIRED INDICATOR
+   ========================================== */
+.requires-attention {
+    background-color: #ffffff !important; /* Strict pure white background for highest contrast */
+    position: relative !important;
+}
+.requires-attention::after {
+    content: '';
+    position: absolute;
+    top: 8px; /* Safe inside boundary */
+    right: 8px; /* Safe inside boundary */
+    width: 12px;
+    height: 12px;
+    background-color: #ba1a1a; 
+    border-radius: 50%;
+    border: 2px solid var(--md-surface);
+    box-shadow: 0 0 0 4px rgba(186, 26, 26, 0.2);
+    animation: sollo-pulse-dot 2s infinite;
+    z-index: 10;
+}
+@keyframes sollo-pulse-dot {
+    0% { box-shadow: 0 0 0 0 rgba(186, 26, 26, 0.6); }
+    70% { box-shadow: 0 0 0 8px rgba(186, 26, 26, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(186, 26, 26, 0); }
+}
+/* ==========================================
+   🚨 ENTERPRISE UX: PURE WHITE FOCUS MODE
+   ========================================== */
+/* Forces all bottom sheets and full-screen activities to maintain a strict pure white background */
+.bottom-sheet, .activity-screen, body {
+    background-color: #ffffff !important;
+}
+
+/* Upgrades the Bottom Navigation Bar to a premium floating white panel */
+.bottom-nav {
+    background-color: #ffffff !important;
+    border-top: none !important;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.06) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+/* Ensures input fields maintain maximum contrast against the pure white app background */
+input[type="text"], input[type="number"], textarea, select {
+    background-color: #ffffff !important;
+}

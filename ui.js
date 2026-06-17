@@ -1365,12 +1365,30 @@ const UI = {
                     const statusColor = s.status === 'Open' ? '#73777f' : (isDue ? '#ba1a1a' : '#146c2e');
                     const statusBg = s.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (isDue ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)'); 
                     
+                    // 🚨 ENTERPRISE UX: DASHBOARD SYNCED PULSING DOT
+                    let isOverdue = false;
+                    if (balance >= 100 && s.status !== 'Open' && !isReturn) {
+                        const baseDate = s.shippedDate ? s.shippedDate : s.date;
+                        if (baseDate) {
+                            const parts = baseDate.split('-'); 
+                            const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
+                            const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                            const tParts = todayStr.split('-');
+                            const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
+                            if ((todayDate - invoiceDate) > 0 && Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24)) > 15) {
+                                isOverdue = true;
+                            }
+                        }
+                    }
+                    const attentionClass = isOverdue ? 'requires-attention' : '';
+                    
                     return `
-                    <div class="m3-card tap-target list-card" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
+                    <div class="m3-card tap-target list-card ${attentionClass}" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                             <div style="flex:1; min-width:0; overflow:hidden;">
                                 <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
                                 <small class="color-primary" style="display:block; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</small>
+                                ${isOverdue ? `<span style="display:inline-block; margin-top:6px; color:var(--md-error); font-size:10px; font-weight:900; background:rgba(186, 26, 26, 0.1); padding:2px 6px; border-radius:4px; border:1px solid rgba(186, 26, 26, 0.3);">⚠️ ACTION REQUIRED: OVERDUE</span>` : ''}
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
@@ -1456,12 +1474,16 @@ const UI = {
                     const statusColor = p.status === 'Open' ? '#73777f' : (isDue ? '#ba1a1a' : '#146c2e');
                     const statusBg = p.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (isDue ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
 
+                    // 🚨 ENTERPRISE UX: DASHBOARD SYNCED PULSING DOT
+                    const attentionClass = (p.status === 'Open') ? 'requires-attention' : '';
+
                     return `
-                    <div class="m3-card tap-target" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('purchase', '${p.id}', '${p.documentType}')">
+                    <div class="m3-card tap-target ${attentionClass}" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('purchase', '${p.id}', '${p.documentType}')">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
                             <div style="flex:1; min-width:0; overflow:hidden;">
                                 <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
                                 <small class="color-primary" style="display:block; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(p.date) || 'Unknown Date'}</small>
+                                ${(p.status === 'Open') ? `<span style="display:inline-block; margin-top:6px; color:var(--md-error); font-size:10px; font-weight:900; background:rgba(186, 26, 26, 0.1); padding:2px 6px; border-radius:4px; border:1px solid rgba(186, 26, 26, 0.3);">⚠️ ACTION REQUIRED: DRAFT PO</span>` : ''}
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
