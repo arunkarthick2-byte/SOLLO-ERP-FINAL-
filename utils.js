@@ -682,11 +682,17 @@ Please process this accordingly. Thank you!`;
                 document.head.appendChild(s2);
             }
             
-            // 🚨 BIZOPS FIX: Auto-Resume Engine
+            // 🚨 BIZOPS FIX: Auto-Resume Engine (With Failsafe)
+            let retries = 0;
             const checkInterval = setInterval(() => {
+                retries++;
                 if (typeof html2canvas !== 'undefined' && typeof html2pdf !== 'undefined') {
                     clearInterval(checkInterval);
                     window.Utils.processPDFExport(elementId, filename);
+                } else if (retries > 30) { // 9-second timeout kills the infinite loop!
+                    clearInterval(checkInterval);
+                    if (window.Utils && window.Utils.showToast) window.Utils.showToast("❌ Failed to load PDF Engine. Check internet connection.");
+                    else alert("Failed to load PDF Engine. Check your internet connection.");
                 }
             }, 300);
             return;
@@ -828,15 +834,35 @@ Please process this accordingly. Thank you!`;
         // STRICT ERP LOGIC: Prevent fatal crash on Cash Sales if the party object is undefined!
         const safeParty = party || {};
         const isSales = type === 'sales';
-        const partyName = safeParty.name ? safeParty.name : (isSales ? doc.customerName : doc.supplierName);
-        const partyAddress = safeParty.address || safeParty.billingAddress || '';
+        
+        // 🚨 ENTERPRISE FIX: XSS SANITIZATION SHIELD
+        // Sanitize all textual inputs before they enter the HTML template!
+        const rawPartyName = safeParty.name ? safeParty.name : (isSales ? doc.customerName : doc.supplierName);
+        const partyName = window.Utils.sanitizeHTML(rawPartyName);
+        const partyAddress = window.Utils.sanitizeHTML(safeParty.address || safeParty.billingAddress || '');
         
         // ENTERPRISE FIX: Compile the City, State, and Pincode into a clean string for the PDF!
-        const partyLocationStr = [safeParty.city, safeParty.state].filter(Boolean).join(', ') + (safeParty.pincode ? ' - ' + safeParty.pincode : '');
-        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+        const partyLocationStr = window.Utils.sanitizeHTML([safeParty.city, safeParty.state].filter(Boolean).join(', ') + (safeParty.pincode ? ' - ' + safeParty.pincode : ''));
+        const bizLocationStr = window.Utils.sanitizeHTML([biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : ''));
         
-        const partyGst = safeParty.gst ? safeParty.gst.toUpperCase() : '';
-        const bizGst = biz && biz.gst ? biz.gst.toUpperCase() : 'N/A';
+        const partyGst = window.Utils.sanitizeHTML(safeParty.gst ? safeParty.gst.toUpperCase() : '');
+        const bizGst = window.Utils.sanitizeHTML(biz && biz.gst ? biz.gst.toUpperCase() : 'N/A');
+        
+        // Sanitize Business fields to prevent malicious injections from the Business Profile
+        const safeBizName = window.Utils.sanitizeHTML(biz.name || 'Company Name');
+        const safeBizAddress = window.Utils.sanitizeHTML(biz.address || '');
+        const safeBizPhone = window.Utils.sanitizeHTML(biz.phone || '');
+        const safeBizEmail = window.Utils.sanitizeHTML(biz.email || '');
+        const safeBizTerms = window.Utils.sanitizeHTML(biz.terms || '');
+        const safeBizBankDetails = window.Utils.sanitizeHTML(biz.bankDetails || '');
+        const safeBizCf1Name = window.Utils.sanitizeHTML(biz.cf1Name || '');
+        const safeBizCf2Name = window.Utils.sanitizeHTML(biz.cf2Name || '');
+        const safeBizCf3Name = window.Utils.sanitizeHTML(biz.cf3Name || '');
+        
+        // Sanitize Document Custom Fields
+        const safeDocCf1Val = window.Utils.sanitizeHTML(doc.cf1Val || '');
+        const safeDocCf2Val = window.Utils.sanitizeHTML(doc.cf2Val || '');
+        const safeDocCf3Val = window.Utils.sanitizeHTML(doc.cf3Val || '');
         
         const isNonGST = doc.invoiceType === 'Non-GST';
         const isReturn = doc.documentType === 'return';
@@ -875,15 +901,21 @@ Please process this accordingly. Thank you!`;
             const roundedGst = Math.round(gstAmount * 100) / 100;
             const rowTotal = roundedDiscountedBase + roundedGst;
             
+            // 🚨 ENTERPRISE FIX: Sanitize item fields to prevent line-item XSS!
+            const safeItemName = window.Utils.sanitizeHTML(item.name);
+            const safeItemDesc = window.Utils.sanitizeHTML(item.desc);
+            const safeHsn = window.Utils.sanitizeHTML(item.hsn || '-');
+            const safeUom = window.Utils.sanitizeHTML(item.uom || '');
+            
             itemsHtml += `
                 <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
                     <td style="text-align:center; vertical-align: top; padding-top: 10px;">${index + 1}</td>
                     <td style="font-weight: bold; vertical-align: top; padding-top: 10px;">
-                        ${item.name}
-                        ${item.desc ? `<div style="font-weight: 600; font-size: 10px; color: #64748b; margin-top: 4px;">${item.desc}</div>` : ''}
+                        ${safeItemName}
+                        ${safeItemDesc ? `<div style="font-weight: 600; font-size: 10px; color: #64748b; margin-top: 4px;">${safeItemDesc}</div>` : ''}
                     </td>
-                    ${!isNonGST ? `<td style="text-align:center; vertical-align: top; padding-top: 10px;">${item.hsn || '-'}</td>` : ''}
-                    <td style="text-align:center;">${item.qty} ${item.uom}</td>
+                    ${!isNonGST ? `<td style="text-align:center; vertical-align: top; padding-top: 10px;">${safeHsn}</td>` : ''}
+                    <td style="text-align:center;">${item.qty} ${safeUom}</td>
                     <td style="text-align:right;">${rate.toFixed(2)}</td>
                     ${!isNonGST ? `<td style="text-align:center;">${gstPercent}%</td>` : ''}
                     <td style="text-align:right; font-weight:bold;">${rowTotal.toFixed(2)}</td>
@@ -1055,11 +1087,11 @@ Please process this accordingly. Thank you!`;
                 <div style="display: flex; border-bottom: 1px solid #475569;">
                     <div style="width: 55%; padding: 20px; border-right: 1px solid #475569;">
                         ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
-                        <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #0f172a;">${biz.name || 'Company Name'}</h1>
+                        <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #0f172a;">${safeBizName}</h1>
                         <div style="font-size: 12px; color: #334155; line-height: 1.5;">
-                            ${biz.address ? biz.address.replace(/\n/g, '<br>') + '<br>' : ''}
+                            ${safeBizAddress ? safeBizAddress.replace(/\n/g, '<br>') + '<br>' : ''}
                             ${bizLocationStr ? bizLocationStr + '<br>' : ''}
-                            ${biz.phone ? `<strong>Phone:</strong> ${biz.phone}` : ''} ${biz.email ? ` | <strong>Email:</strong> ${biz.email}` : ''}
+                            ${safeBizPhone ? `<strong>Phone:</strong> ${safeBizPhone}` : ''} ${safeBizEmail ? ` | <strong>Email:</strong> ${safeBizEmail}` : ''}
                         </div>
                     </div>
                     <div style="width: 45%;">
@@ -1084,12 +1116,12 @@ Please process this accordingly. Thank you!`;
                         ${!isNonGST && partyGst ? `<div style="font-size: 12px; font-weight: 700; margin-top: 6px;">GSTIN: ${partyGst}</div>` : ''}
                     </div>
                     <div style="width: 50%; padding: 15px 20px;">
-                        ${biz.cf1Name && doc.cf1Val || biz.cf2Name && doc.cf2Val || biz.cf3Name && doc.cf3Val ? `
+                        ${safeBizCf1Name && safeDocCf1Val || safeBizCf2Name && safeDocCf2Val || safeBizCf3Name && safeDocCf3Val ? `
                             <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 6px;">Additional Details</div>
                             <table style="width: 100%; font-size: 12px; border: none; color: #0f172a;">
-                                ${biz.cf1Name && doc.cf1Val ? `<tr><td style="padding: 2px 0;"><strong>${biz.cf1Name}:</strong></td><td style="padding: 2px 0;">${doc.cf1Val}</td></tr>` : ''}
-                                ${biz.cf2Name && doc.cf2Val ? `<tr><td style="padding: 2px 0;"><strong>${biz.cf2Name}:</strong></td><td style="padding: 2px 0;">${doc.cf2Val}</td></tr>` : ''}
-                                ${biz.cf3Name && doc.cf3Val ? `<tr><td style="padding: 2px 0;"><strong>${biz.cf3Name}:</strong></td><td style="padding: 2px 0;">${doc.cf3Val}</td></tr>` : ''}
+                                ${safeBizCf1Name && safeDocCf1Val ? `<tr><td style="padding: 2px 0;"><strong>${safeBizCf1Name}:</strong></td><td style="padding: 2px 0;">${safeDocCf1Val}</td></tr>` : ''}
+                                ${safeBizCf2Name && safeDocCf2Val ? `<tr><td style="padding: 2px 0;"><strong>${safeBizCf2Name}:</strong></td><td style="padding: 2px 0;">${safeDocCf2Val}</td></tr>` : ''}
+                                ${safeBizCf3Name && safeDocCf3Val ? `<tr><td style="padding: 2px 0;"><strong>${safeBizCf3Name}:</strong></td><td style="padding: 2px 0;">${safeDocCf3Val}</td></tr>` : ''}
                             </table>
                         ` : ''}
                     </div>
@@ -1131,19 +1163,19 @@ Please process this accordingly. Thank you!`;
                             <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 15px;">
                                 ${qrCodeHtml}
                                 
-                                ${biz.bankDetails && !isNonGST ? `
+                                ${safeBizBankDetails && !isNonGST ? `
                                 <div style="font-size: 11px; margin-bottom: 15px;">
                                     <strong style="text-transform: uppercase; color: #475569;">Bank Details:</strong><br>
-                                    <div style="margin-top: 4px; white-space: pre-wrap; font-family: monospace; font-size: 12px; font-weight: 600;">${biz.bankDetails}</div>
+                                    <div style="margin-top: 4px; white-space: pre-wrap; font-family: monospace; font-size: 12px; font-weight: 600;">${safeBizBankDetails}</div>
                                 </div>` : ''}
                                 
                                 </div>
                         </div>
 
-                        ${biz.terms ? `
+                        ${safeBizTerms ? `
                         <div style="font-size: 10px; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
                             <strong style="text-transform: uppercase; color: #475569;">Terms & Conditions:</strong><br>
-                            <div style="margin-top: 4px; white-space: pre-wrap; line-height: 1.4; color: #0f172a;">${biz.terms}</div>
+                            <div style="margin-top: 4px; white-space: pre-wrap; line-height: 1.4; color: #0f172a;">${safeBizTerms}</div>
                         </div>` : ''}
                     </div>
 
@@ -2032,11 +2064,16 @@ Please process this accordingly. Thank you!`;
                     document.head.appendChild(s2);
                 }
                 
-                // 🚨 BIZOPS FIX: Auto-Resume Engine
+                // 🚨 BIZOPS FIX: Auto-Resume Engine (With Failsafe)
+                let retries = 0;
                 const checkInterval = setInterval(() => {
+                    retries++;
                     if (typeof html2canvas !== 'undefined' && typeof html2pdf !== 'undefined') {
                         clearInterval(checkInterval);
                         window.Utils.sharePDF(elementId, filename, shareText, forceDownload);
+                    } else if (retries > 30) { // 9-second timeout kills the infinite loop!
+                        clearInterval(checkInterval);
+                        if (window.Utils && window.Utils.showToast) window.Utils.showToast("❌ Failed to load Share Engine. Check internet connection.");
                     }
                 }, 300);
                 return;

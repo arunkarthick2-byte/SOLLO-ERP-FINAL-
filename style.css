@@ -1,7 +1,49 @@
 /* ==========================================
    PREMIUM APP POLISH: "ANTI-WEB" SHIELD
    ========================================== */
+/* 🚨 ENTERPRISE FIX: THE PURE WHITE CANVAS LOCK */
+/* Guarantees the app background remains strictly white and text stays dark, completely bypassing OS-level Dark Mode inversions */
+:root {
+    color-scheme: light !important;
+    background-color: #ffffff !important;
+}
+
+/* ==========================================
+   🚨 ENTERPRISE FIX: THE ABSOLUTE WHITE SHIELD
+   ========================================== */
+/* Prevents OS-level dark mode from hijacking CSS variables in the Master Tab, Bottom Nav, and Cards */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --md-background: #ffffff !important;
+        --md-surface: #ffffff !important;
+        --md-surface-variant: #f8fafc !important;
+        --md-on-background: #0f172a !important;
+        --md-on-surface: #0f172a !important;
+        --md-on-surface-variant: #475569 !important;
+        --md-text-muted: #64748b !important;
+        --md-border: #e2e8f0 !important;
+    }
+    
+    body, html, #app-container, .app-header, .bottom-nav, .m3-card, .list-card, .activity-screen, .bottom-sheet, .menu-item, #custom-numpad {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+    
+    /* Ensure shaded elements like icon circles don't turn completely white and disappear */
+    .icon-circle, .numpad-btn {
+        background-color: #f1f5f9 !important;
+        color: #475569 !important;
+    }
+    
+    /* Add a crisp border to the bottom nav so it doesn't bleed into the white background */
+    .bottom-nav {
+        border-top: 1px solid #e2e8f0 !important;
+    }
+}
+
 body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
     /* 🚨 ENTERPRISE SHIELD: Locks BOTH X and Y axes to prevent Pull-to-Refresh AND accidental iOS Swipe-Back data loss! */
     overscroll-behavior: none !important; 
     /* Disable text selection on UI elements */
@@ -774,19 +816,24 @@ body.dark-mode .activity-header {
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease; 
 }
 
-/* UPGRADE: Native Drag Handle Pill */
+/* 🚨 ENTERPRISE UPGRADE: NATIVE STICKY DRAG PILL */
 .bottom-sheet::before {
     content: '';
     display: block;
-    width: 48px;
+    position: sticky; /* Locks it to the top so it never scrolls away */
+    top: 8px; /* Hovers perfectly inside the sheet edge */
+    width: 36px;
     height: 5px;
-    background: rgba(0, 0, 0, 0.15); /* Softer contrast */
-    border-radius: 5px; /* Perfect pill */
-    margin: 12px auto 0;
+    background: #cbd5e1; /* Premium iOS Slate Grey */
+    border-radius: 4px;
+    margin: 0 auto -13px auto; /* Pulls the sheet header up seamlessly underneath it */
+    z-index: 99999; /* Forces it to float above ALL sticky headers and search bars */
     flex-shrink: 0;
+    box-shadow: 0 1px 1px rgba(255,255,255,0.8); /* Micro-highlight to make it look physically embossed */
 }
 body.dark-mode .bottom-sheet::before {
-    background: rgba(255, 255, 255, 0.2);
+    background: #475569;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.5);
 }
 
 .bottom-sheet.open { 

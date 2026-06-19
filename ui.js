@@ -182,8 +182,14 @@ const UI = {
                 submitBtn.classList.add('btn-loading');
                 submitBtn.innerHTML = `<svg style="width: 20px; height: 20px; animation: spin 1s linear infinite; color: white;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
                 
-                // Failsafe removed: The app's success/error handlers will safely unlock the button when the database actually finishes.
-                // This prevents users on slow networks from tapping Save twice and creating duplicate invoices!
+                // Failsafe restored: Safely unlock the button if a silent error or deadlock occurs
+                setTimeout(() => {
+                    if (submitBtn.classList.contains('btn-loading')) {
+                        submitBtn.classList.remove('btn-loading');
+                        submitBtn.innerHTML = submitBtn.getAttribute('data-original-text');
+                        submitBtn.style.width = '';
+                    }
+                }, 10000);
             }
         });
     },
@@ -243,7 +249,8 @@ const UI = {
         let currentVal = String(input.value);
 
         if (key === 'BKSP') {
-            input.value = currentVal.length > 1 ? currentVal.slice(0, -1) : '0';
+            let sliced = currentVal.slice(0, -1);
+            input.value = (sliced === '' || sliced === '-') ? '0' : sliced;
         } else {
             if (key === '.' && currentVal.includes('.')) return; 
             if (currentVal === '0' && key !== '.') {
@@ -447,14 +454,15 @@ const UI = {
 
             // UPGRADE: Vertical premium card layout for accounts
             const icon = acc.id === 'cash' ? 'payments' : 'account_balance';
+            const safeAccName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(acc.name) : acc.name;
             
             html += `
-                <div class="m3-card tap-target" onclick="${clickAction}" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 0;">
-                    <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 48px; height: 48px; flex-shrink: 0;">
+                <div class="m3-card tap-target" onclick="${clickAction}" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--md-border); border-radius: 8px;">
+                    <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 48px; height: 48px; flex-shrink: 0; box-shadow: none;">
                         <span class="material-symbols-outlined">${icon}</span>
                     </div>
                     <div style="flex: 1; min-width: 0; overflow: hidden;">
-                        <strong class="large-text" style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${acc.name}</strong>
+                        <strong class="large-text" style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface);">${safeAccName}</strong>
                         <small style="color: var(--md-text-muted);">View Statement</small>
                     </div>
                     <div style="text-align: right; flex-shrink: 0;">
@@ -622,10 +630,12 @@ const UI = {
             card.style.viewTransitionName = 'app-morph';
             a.style.viewTransitionName = 'app-morph';
             
-            const transition = document.startViewTransition(() => applyOpen());
+            const transition = document.startViewTransition(() => {
+                card.style.viewTransitionName = ''; // Release the tag so the new screen can take it
+                applyOpen();
+            });
             
             transition.finished.then(() => {
-                card.style.viewTransitionName = '';
                 a.style.viewTransitionName = '';
             }).catch(() => {
                 card.style.viewTransitionName = '';
@@ -668,11 +678,13 @@ const UI = {
             card.style.viewTransitionName = 'app-morph';
             a.style.viewTransitionName = 'app-morph';
             
-            const transition = document.startViewTransition(() => applyClose());
+            const transition = document.startViewTransition(() => {
+                a.style.viewTransitionName = ''; // Release the tag
+                applyClose();
+            });
             
             transition.finished.then(() => {
                 card.style.viewTransitionName = '';
-                a.style.viewTransitionName = '';
                 UI.state.lastOpenedCard = null;
             }).catch(() => {
                 card.style.viewTransitionName = '';

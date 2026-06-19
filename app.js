@@ -280,12 +280,15 @@ const app = {
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 3500); 
-                const res1 = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                const data1 = await res1.json();
-                if (data1 && data1[0] && data1[0].Status === 'Success') {
-                    city = data1[0].PostOffice[0].District || data1[0].PostOffice[0].Block || data1[0].PostOffice[0].Region;
-                    state = data1[0].PostOffice[0].State;
+                try {
+                    const res1 = await fetch(`https://api.postalpincode.in/pincode/${pincode}`, { signal: controller.signal });
+                    const data1 = await res1.json();
+                    if (data1 && data1[0] && data1[0].Status === 'Success') {
+                        city = data1[0].PostOffice[0].District || data1[0].PostOffice[0].Block || data1[0].PostOffice[0].Region;
+                        state = data1[0].PostOffice[0].State;
+                    }
+                } finally {
+                    clearTimeout(timeoutId);
                 }
             } catch (e1) { console.warn("Primary API Failed:", e1); }
 
@@ -294,12 +297,15 @@ const app = {
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 3500);
-                    const res2 = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&addressdetails=1`, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    const data2 = await res2.json();
-                    if (data2 && data2.length > 0 && data2[0].address) {
-                        city = data2[0].address.state_district || data2[0].address.city || data2[0].address.county || data2[0].address.town;
-                        state = data2[0].address.state;
+                    try {
+                        const res2 = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&addressdetails=1`, { signal: controller.signal });
+                        const data2 = await res2.json();
+                        if (data2 && data2.length > 0 && data2[0].address) {
+                            city = data2[0].address.state_district || data2[0].address.city || data2[0].address.county || data2[0].address.town;
+                            state = data2[0].address.state;
+                        }
+                    } finally {
+                        clearTimeout(timeoutId);
                     }
                 } catch (e2) { console.warn("Secondary API Failed:", e2); }
             }
@@ -309,14 +315,17 @@ const app = {
                 try {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 3500);
-                    const res3 = await fetch(`https://api.zippopotam.us/in/${pincode}`, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (res3.ok) {
-                        const data3 = await res3.json();
-                        if (data3.places && data3.places.length > 0) {
-                            city = data3.places[0]["place name"];
-                            state = data3.places[0]["state"];
+                    try {
+                        const res3 = await fetch(`https://api.zippopotam.us/in/${pincode}`, { signal: controller.signal });
+                        if (res3.ok) {
+                            const data3 = await res3.json();
+                            if (data3.places && data3.places.length > 0) {
+                                city = data3.places[0]["place name"];
+                                state = data3.places[0]["state"];
+                            }
                         }
+                    } finally {
+                        clearTimeout(timeoutId);
                     }
                 } catch (e3) { console.warn("Tertiary API Failed:", e3); }
             }
@@ -1180,7 +1189,8 @@ const app = {
                     const rawNon = parseFloat(i.stockNonGst);
                     let g = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
                     let ng = isNaN(rawNon) ? 0 : rawNon;
-                    html += `<option value="${i.id}">${i.name} (GST: ${g.toFixed(2)} | Non-GST: ${ng.toFixed(2)})</option>`;
+                    const safeItemName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(i.name) : i.name;
+                    html += `<option value="${i.id}">${safeItemName} (GST: ${g.toFixed(2)} | Non-GST: ${ng.toFixed(2)})</option>`;
                 }
             });
             
@@ -2386,14 +2396,23 @@ const app = {
                 }
             };
             
-            // 🚨 ENTERPRISE FIX: Set status first and trigger UI BEFORE setting dates, so it doesn't overwrite saved history!
+            // 🚨 ENTERPRISE FIX: The Dispatched Date Overwrite Shield!
+            // Cache the original database dates into memory FIRST so UI.toggleDates cannot destroy them during state transitions.
+            window.app.state.cachedDates = {
+                date: record.date || '',
+                orderDate: record.orderDate || '',
+                shippedDate: record.shippedDate || '',
+                completedDate: record.completedDate || ''
+            };
+
             document.getElementById(`${type}-order-status`).value = record.status || 'Completed';
             if (window.UI && window.UI.toggleDates) window.UI.toggleDates(type);
 
-            setDateSafe(`${type}-date`, record.date || '');
-            setDateSafe(`${type}-order-date`, record.orderDate || '');
-            setDateSafe(`${type}-shipped-date`, record.shippedDate || '');
-            setDateSafe(`${type}-completed-date`, record.completedDate || '');
+            // Safely inject from the isolated memory cache instead of the raw record
+            setDateSafe(`${type}-date`, window.app.state.cachedDates.date);
+            setDateSafe(`${type}-order-date`, window.app.state.cachedDates.orderDate);
+            setDateSafe(`${type}-shipped-date`, window.app.state.cachedDates.shippedDate);
+            setDateSafe(`${type}-completed-date`, window.app.state.cachedDates.completedDate);
             
             document.getElementById(`${type}-order-no`).value = record.orderNo || '';
             document.getElementById(`${type}-freight`).value = record.freightAmount || 0;
@@ -2951,8 +2970,8 @@ const app = {
 // ==========================================
 // ENTERPRISE UPGRADE 4: SPLIT-TENDER ENGINE
 // ==========================================
-// 🚨 BIZOPS FIX: Only show the Payment Screen for BRAND NEW invoices. If we are editing, skip it!
-if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' && !app.state.currentEditId) {
+// 🚨 BIZOPS FIX: Only show the Payment Screen for BRAND NEW invoices that are fully COMPLETED. If Unpaid or Shipped, skip it!
+if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId) {
     const splitConfirmed = await new Promise(async (resolve) => {
                             const total = parseFloat(data.grandTotal) || 0;
                             
@@ -5137,12 +5156,12 @@ if (type === 'sales' && data.status !== 'Open' && data.status !== 'Cancelled' &&
     selectLinkedDoc: (id, displayName, liElement = null) => {
         const inputEl = document.getElementById('expense-linked-invoice');
         const displayEl = document.getElementById('expense-linked-display');
-
+        
         if (!id) {
             inputEl.value = '';
             displayEl.innerText = '-- No Link (General Expense) --';
             displayEl.style.color = 'var(--md-text-muted)';
-            UI.closeBottomSheet('sheet-linked-docs');
+            // 🚨 ENTERPRISE FIX: Removed UI.closeBottomSheet so it just unlinks without closing the screen!
             document.querySelectorAll('#list-linked-docs li input[type="checkbox"]').forEach(cb => cb.checked = false);
             document.querySelectorAll('#list-linked-docs li').forEach(li => {
                 if(li.style.pointerEvents !== 'none') li.style.background = 'transparent';
