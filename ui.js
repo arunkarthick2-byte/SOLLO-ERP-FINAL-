@@ -767,7 +767,7 @@ const UI = {
                 const color = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
                 
                 const isGST = adj.pool === 'gst';
-                const poolBadge = adj.pool ? `<span style="background: ${isGST ? '#e3f2fd' : '#fff8e1'}; color: ${isGST ? '#0061a4' : '#f57f17'}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 8px; border: 1px solid ${isGST ? '#bbdefb' : '#ffecb3'};">${isGST ? 'GST Pool' : 'Non-GST Pool'}</span>` : '';
+                const poolBadge = adj.pool ? `<span style="background: ${isGST ? 'rgba(0, 97, 164, 0.1)' : 'rgba(245, 127, 23, 0.1)'}; color: ${isGST ? 'var(--md-primary)' : '#f57f17'}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 8px; border: 1px solid ${isGST ? 'rgba(0, 97, 164, 0.3)' : 'rgba(245, 127, 23, 0.3)'};">${isGST ? 'GST Pool' : 'Non-GST Pool'}</span>` : '';
 
                 return `
                     <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
@@ -1263,45 +1263,28 @@ const UI = {
                     }
                 }
             });
-
-            // --- ENTERPRISE UPGRADE: AUTO-KNOCKOFF (FIFO) FOR ADVANCE PAYMENTS ---
-            // (globalReturnMap was safely moved to the top of the function to protect explicit payments!)
-            const advancePool = {};
-            Object.keys(ledgerTotalPaid).forEach(ledgerId => {
-                const totalPaid = ledgerTotalPaid[ledgerId] || 0;
-                const explicitlyLinked = ledgerExplicitlyLinked[ledgerId] || 0;
-                if (totalPaid > explicitlyLinked) advancePool[ledgerId] = totalPaid - explicitlyLinked;
-                else advancePool[ledgerId] = 0;
-            });
-
-            const docsToProcess = tab === 'sales' ? [...UI.state.rawData.sales] : [...UI.state.rawData.purchases];
-            // Sort Oldest First for true chronological FIFO allocation
-            docsToProcess.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-
-            docsToProcess.forEach(doc => {
-                if (doc.status !== 'Open' && doc.documentType !== 'return') {
-                    const partyId = tab === 'sales' ? doc.customerId : doc.supplierId;
-                    if (advancePool[partyId] > 0.01) {
-                        const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
-                        const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${partyId}_${ref}`] || 0), 0);
-                        // ENTERPRISE FIX: Deduct returns from the gross debt so advance money isn't wasted on dead invoices!
-                        const returned = uniqueRefs.reduce((sum, ref) => sum + (globalReturnMap[ref] || 0), 0);
-                        const due = Math.max(0, (parseFloat(doc.grandTotal) || 0) - explicitPaid - returned);
-                        
-                        // If invoice is still due after returns, safely consume the advance pool
-                        if (due > 0.01) {
-                            const allocated = Math.min(due, advancePool[partyId]);
-                            advancePool[partyId] -= allocated;
-                            paymentMap[`${partyId}_${doc.id}`] = (paymentMap[`${partyId}_${doc.id}`] || 0) + allocated;
-                        }
-                    }
-                }
-            });
         }
 
         // ------------------ SALES ------------------
         if (tab === 'sales') {
             containerId = 'sales-history-container';
+
+            // 🚀 ENTERPRISE UPGRADE: Optional Date Filters (Financial Year Default)
+            const sStartEl = document.getElementById('sales-start-date');
+            const sEndEl = document.getElementById('sales-end-date');
+            
+            if (sStartEl && !sStartEl.getAttribute('data-fy-set')) {
+                const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                const currentYear = parseInt(todayStr.split('-')[0], 10);
+                const currentMonth = parseInt(todayStr.split('-')[1], 10); 
+                const fyStartYear = currentMonth >= 4 ? currentYear : currentYear - 1;
+                
+                sStartEl.value = `${fyStartYear}-04-01`;
+                if (sEndEl) sEndEl.value = `${fyStartYear + 1}-03-31`;
+                sStartEl.setAttribute('data-fy-set', 'true');
+            }
+            const sStart = sStartEl ? sStartEl.value : '';
+            const sEnd = sEndEl ? sEndEl.value : '';
             
             // ENTERPRISE FIX: Create an O(1) Map for Returns to prevent an O(N^2) "Death Loop" that freezes the app while typing!
             const returnMap = {};
@@ -1329,15 +1312,19 @@ const UI = {
                 const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid - returnTotal);
                 
                 if (activeFilter === 'Open') matchFilter = s.status === 'Open';
-                else if (activeFilter === 'Completed') matchFilter = s.status === 'Completed'; // Removed balance restriction
+                else if (activeFilter === 'Completed') matchFilter = s.status === 'Completed'; 
                 else if (activeFilter === 'Shipped') matchFilter = s.status === 'Shipped';
-                // ENTERPRISE FIX: The "Ghost Penny" Floating Point Trap!
-                // Javascript math can leave a balance of 0.00000001, permanently trapping the invoice with a "Due: ₹0.00" label!
                 else if (activeFilter === 'To Receive') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.documentType !== 'return';
                 else if (activeFilter === 'GST') matchFilter = s.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = s.invoiceType === 'Non-GST';
                 
-                return matchSearch && matchFilter;
+                // 🚨 Strict Date Boundary Checker (Docs Tab)
+                let matchDate = true;
+                if (sStart && sEnd && s.date) matchDate = (s.date >= sStart && s.date <= sEnd);
+                else if (sStart && s.date) matchDate = (s.date >= sStart);
+                else if (sEnd && s.date) matchDate = (s.date <= sEnd);
+
+                return matchSearch && matchFilter && matchDate;
             });
 
             data.forEach(s => sumValue += (s.documentType === 'return' ? -(s.grandTotal || 0) : (s.grandTotal || 0)));
@@ -1404,7 +1391,7 @@ const UI = {
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(s.grandTotal || 0).toFixed(2)}</strong>
+                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
                             </div>
                         </div>
                     </div>`;
@@ -1415,6 +1402,23 @@ const UI = {
         // ------------------ PURCHASES ------------------
         else if (tab === 'purchases') {
             containerId = 'purchase-history-container';
+
+            // 🚀 ENTERPRISE UPGRADE: Optional Date Filters (Financial Year Default)
+            const pStartEl = document.getElementById('purchases-start-date');
+            const pEndEl = document.getElementById('purchases-end-date');
+            
+            if (pStartEl && !pStartEl.getAttribute('data-fy-set')) {
+                const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                const currentYear = parseInt(todayStr.split('-')[0], 10);
+                const currentMonth = parseInt(todayStr.split('-')[1], 10); 
+                const fyStartYear = currentMonth >= 4 ? currentYear : currentYear - 1;
+                
+                pStartEl.value = `${fyStartYear}-04-01`;
+                if (pEndEl) pEndEl.value = `${fyStartYear + 1}-03-31`;
+                pStartEl.setAttribute('data-fy-set', 'true');
+            }
+            const pStart = pStartEl ? pStartEl.value : '';
+            const pEnd = pEndEl ? pEndEl.value : '';
             
             // ENTERPRISE FIX: Create the missing Return Map for Purchases so Debit Notes actually reduce supplier debt!
             const purchaseReturnMap = {};
@@ -1442,11 +1446,17 @@ const UI = {
 
                 // ENTERPRISE FIX: The "Ghost Penny" Shield for Purchases!
                 if (activeFilter === 'To Pay') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.documentType !== 'return';
-                else if (activeFilter === 'Completed') matchFilter = p.status === 'Completed'; // Removed balance restriction
+                else if (activeFilter === 'Completed') matchFilter = p.status === 'Completed'; 
                 else if (activeFilter === 'GST') matchFilter = p.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = p.invoiceType === 'Non-GST';
 
-                return matchSearch && matchFilter;
+                // 🚨 Strict Date Boundary Checker (Docs Tab)
+                let matchDate = true;
+                if (pStart && pEnd && p.date) matchDate = (p.date >= pStart && p.date <= pEnd);
+                else if (pStart && p.date) matchDate = (p.date >= pStart);
+                else if (pEnd && p.date) matchDate = (p.date <= pEnd);
+
+                return matchSearch && matchFilter && matchDate;
             });
 
             data.forEach(p => sumValue += (p.documentType === 'return' ? -(p.grandTotal || 0) : (p.grandTotal || 0)));
@@ -1499,7 +1509,7 @@ const UI = {
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(p.grandTotal || 0).toFixed(2)}</strong>
+                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
                             </div>
                         </div>
                     </div>`;
@@ -1526,78 +1536,92 @@ const UI = {
                 <p style="margin: 8px 0 0 0; color: var(--md-text-muted);">Try adjusting your search or filters.</p>
             </div>`;
 
-            // 🚀 ENTERPRISE UPGRADE: O(1) FIFO TAX-SPLIT BALANCE ENGINE
-            // Mathematically allocates cash payments to the oldest invoices to perfectly split GST & Non-GST outstanding balances!
-            const partyStats = {};
+            // 🚀 ENTERPRISE UPGRADE: EXPLICIT PAYMENT TAX-SPLIT ENGINE
+            // Respects the exact invoices ticked in the Payment Form instead of blindly guessing via FIFO!
             const splitBalances = {};
-            
+            const exactPaymentMap = {};
+            const exactReturnMap = {};
+
+            // 1. Map all explicit manual payments to their selected invoices
+            UI.state.rawData.cashbook.forEach(c => {
+                if (c.ledgerId && c.invoiceRef) {
+                    let amt = parseFloat(c.amount) || 0;
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                    // Waterfall through the linked invoices
+                    let remainingAmt = amt;
+                    refs.forEach(ref => {
+                        if (remainingAmt <= 0) return;
+                        exactPaymentMap[`${c.ledgerId}_${ref}`] = (exactPaymentMap[`${c.ledgerId}_${ref}`] || 0) + (amt / refs.length);
+                    });
+                }
+            });
+
+            // 2. Map all explicitly linked returns/credit notes
+            [...UI.state.rawData.sales, ...UI.state.rawData.purchases].forEach(d => {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                }
+            });
+
             UI.state.rawData.ledgers.forEach(l => {
                 const isCustomer = String(l.type).toLowerCase() === 'customer';
                 let ob = parseFloat(l.openingBalance) || 0;
                 const balType = (l.balanceType || '').toLowerCase();
                 let isAdv = isCustomer ? (balType.includes('pay') || balType.includes('credit')) : (balType.includes('receive') || balType.includes('debit'));
                 
-                partyStats[l.id] = {
-                    isCust: isCustomer,
-                    ob: isAdv ? -ob : ob,
-                    credits: isAdv ? ob : 0, // Total money paid or refunded
-                    debitsGst: !isAdv ? ob : 0, // Assume Opening Balance is GST unless configured otherwise
-                    debitsNon: 0,
-                    invoices: []
-                };
-            });
+                let trueBalance = isAdv ? -ob : ob;
+                let gstDue = !isAdv ? ob : 0; // Opening balance falls to GST pool by default
+                let nonDue = 0;
 
-            UI.state.rawData.sales.forEach(s => { 
-                if (s.status !== 'Open' && partyStats[s.customerId]) {
-                    if (s.documentType === 'return') partyStats[s.customerId].credits += parseFloat(s.grandTotal || 0);
-                    else partyStats[s.customerId].invoices.push({ type: s.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(s.grandTotal || 0), date: s.date });
-                }
-            });
-            UI.state.rawData.purchases.forEach(p => { 
-                if (p.status !== 'Open' && partyStats[p.supplierId]) {
-                    if (p.documentType === 'return') partyStats[p.supplierId].credits += parseFloat(p.grandTotal || 0);
-                    else partyStats[p.supplierId].invoices.push({ type: p.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(p.grandTotal || 0), date: p.date });
-                }
-            });
-            UI.state.rawData.cashbook.forEach(c => { 
-                if (c.ledgerId && partyStats[c.ledgerId]) {
-                    let amt = parseFloat(c.amount || 0);
-                    if (partyStats[c.ledgerId].isCust) partyStats[c.ledgerId].credits += (c.type === 'in' ? amt : -amt);
-                    else partyStats[c.ledgerId].credits += (c.type === 'out' ? amt : -amt);
-                }
-            });
+                // 3. Scan exact balances of invoices for this ledger
+                const relatedDocs = isCustomer ? UI.state.rawData.sales : UI.state.rawData.purchases;
+                relatedDocs.forEach(doc => {
+                    const partyMatch = isCustomer ? doc.customerId === l.id : doc.supplierId === l.id;
+                    if (partyMatch && doc.status !== 'Open' && doc.documentType !== 'return') {
+                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                        const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[`${l.id}_${ref}`] || 0), 0);
+                        const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
+                        
+                        const docTotal = parseFloat(doc.grandTotal) || 0;
+                        const finalUnpaid = Math.max(0, docTotal - paid - returned);
+                        
+                        if (finalUnpaid > 0.01) {
+                            if (doc.invoiceType === 'Non-GST') nonDue += finalUnpaid;
+                            else gstDue += finalUnpaid;
+                        }
+                    }
+                });
 
-            // Execute FIFO Allocation Algorithm
-            Object.keys(partyStats).forEach(id => {
-                const stats = partyStats[id];
-                let remainingCredit = stats.credits;
-                let gstDue = stats.debitsGst;
-                let nonDue = stats.debitsNon;
-                
-                // 1. Pay off Opening Balance first
-                if (remainingCredit >= gstDue) { remainingCredit -= gstDue; gstDue = 0; } 
-                else { gstDue -= remainingCredit; remainingCredit = 0; }
-                
-                // 2. Sort invoices oldest to newest
-                stats.invoices.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
-                
-                // 3. Systematically knock off invoices
-                stats.invoices.forEach(inv => {
-                    let unpaid = inv.amt;
-                    if (remainingCredit >= unpaid) { remainingCredit -= unpaid; unpaid = 0; } 
-                    else { unpaid -= remainingCredit; remainingCredit = 0; }
-                    
-                    if (unpaid > 0.01) {
-                        if (inv.type === 'gst') gstDue += unpaid;
-                        else nonDue += unpaid;
+                // 4. Calculate total money in/out for True Balance
+                relatedDocs.forEach(d => {
+                    if (d.status !== 'Open' && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
+                        const amt = parseFloat(d.grandTotal) || 0;
+                        trueBalance += (d.documentType === 'return' ? -amt : amt);
                     }
                 });
                 
-                splitBalances[id] = {
-                    gst: gstDue,
-                    non: nonDue,
-                    total: (gstDue + nonDue) - remainingCredit
-                };
+                UI.state.rawData.cashbook.forEach(c => {
+                    if (c.ledgerId === l.id) {
+                        const amt = parseFloat(c.amount) || 0;
+                        if (isCustomer) trueBalance += (c.type === 'in' ? -amt : amt);
+                        else trueBalance += (c.type === 'out' ? -amt : amt);
+                    }
+                });
+
+                // 5. Reconcile Unallocated Advances
+                const trackedDebt = gstDue + nonDue;
+                if (trueBalance < trackedDebt) {
+                    const excessCredit = trackedDebt - trueBalance;
+                    if (excessCredit >= gstDue) {
+                        let remaining = excessCredit - gstDue;
+                        gstDue = 0;
+                        nonDue = Math.max(0, nonDue - remaining);
+                    } else {
+                        gstDue -= excessCredit;
+                    }
+                }
+
+                splitBalances[l.id] = { gst: gstDue, non: nonDue, total: trueBalance };
             });
 
             const getBal = (id, type) => splitBalances[id] ? splitBalances[id].total : 0;
@@ -1635,6 +1659,21 @@ const UI = {
                         };
                         return sortOption === 'stock-asc' ? getVal(a) - getVal(b) : getVal(b) - getVal(a);
                     });
+                }
+
+                // 🚀 ENTERPRISE UPGRADE: Dynamic Warehouse Valuation
+                let totalValuation = 0;
+                data.forEach(i => {
+                    const stock = parseFloat(i.stock) || 0;
+                    const buy = parseFloat(i.buyPrice) || 0;
+                    if (stock > 0) totalValuation += (stock * buy);
+                });
+                const badge = document.getElementById('sum-masters');
+                if (badge) {
+                    badge.style.display = 'block';
+                    badge.innerText = `Value: \u20B9${totalValuation.toFixed(2)}`;
+                    badge.style.color = '#f57f17';
+                    badge.style.background = '#fff8e1';
                 }
 
                 UI.renderVirtualList(container, data, (i) => {
@@ -1705,12 +1744,46 @@ const UI = {
                     else if (activeMasterFilter === 'Money In') matchFilter = UI.state.rawData.cashbook.some(c => c.ledgerId === l.id && c.type === 'in');
                     else if (activeMasterFilter === 'Money Out') matchFilter = UI.state.rawData.cashbook.some(c => c.ledgerId === l.id && c.type === 'out');
                     
+                    // 🚀 ENTERPRISE UPGRADE: Context-Aware Address Book Filters
+                    else if (activeTab === 'contacts' && activeMasterFilter === 'Customers Only') matchFilter = safeType === 'customer';
+                    else if (activeTab === 'contacts' && activeMasterFilter === 'Suppliers Only') matchFilter = safeType === 'supplier';
+                    
                     return matchSearch && matchFilter;
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
                 if(sortOption === 'bal-desc') data.sort((a,b) => getBal(b.id, b.type) - getBal(a.id, a.type));
                 if(sortOption === 'bal-asc') data.sort((a,b) => getBal(a.id, a.type) - getBal(b.id, b.type));
+
+                // 🚀 ENTERPRISE UPGRADE: Dynamic Debt/Receivable Badge
+                let totalDue = 0;
+                data.forEach(l => {
+                    const bal = getBal(l.id, l.type);
+                    if (bal > 0.01) totalDue += bal;
+                });
+                
+                const badge = document.getElementById('sum-masters');
+                if (badge) {
+                    if (activeTab === 'customers' && activeMasterFilter === 'To Receive') {
+                        badge.style.display = 'block';
+                        badge.innerText = `Receivables: \u20B9${totalDue.toFixed(2)}`;
+                        badge.style.color = '#ba1a1a';
+                        badge.style.background = '#fff0f2';
+                    } else if (activeTab === 'suppliers' && activeMasterFilter === 'To Pay') {
+                        badge.style.display = 'block';
+                        badge.innerText = `Payables: \u20B9${totalDue.toFixed(2)}`;
+                        badge.style.color = '#ba1a1a';
+                        badge.style.background = '#fff0f2';
+                    } else if (activeTab === 'contacts') {
+                        // 🚀 ENTERPRISE UPGRADE: Dynamic Total Contacts Badge
+                        badge.style.display = 'block';
+                        badge.innerText = `Total Contacts: ${data.length}`;
+                        badge.style.color = '#0061a4';
+                        badge.style.background = '#e3f2fd';
+                    } else {
+                        badge.style.display = 'none'; // Cleanly hides the badge in normal views
+                    }
+                }
 
                 UI.renderVirtualList(container, data, (l) => {
                     const isCustomer = String(l.type).toLowerCase() === 'customer';
@@ -1821,11 +1894,36 @@ const UI = {
         // ------------------ EXPENSES ------------------
         else if (tab === 'expenses') {
             containerId = 'expense-history-container';
+
+            // 🚀 ENTERPRISE UPGRADE: Optional Date Filters (Financial Year Default)
+            const eStartEl = document.getElementById('expenses-start-date');
+            const eEndEl = document.getElementById('expenses-end-date');
+            
+            if (eStartEl && !eStartEl.getAttribute('data-fy-set')) {
+                const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                const currentYear = parseInt(todayStr.split('-')[0], 10);
+                const currentMonth = parseInt(todayStr.split('-')[1], 10); 
+                const fyStartYear = currentMonth >= 4 ? currentYear : currentYear - 1;
+                
+                eStartEl.value = `${fyStartYear}-04-01`;
+                if (eEndEl) eEndEl.value = `${fyStartYear + 1}-03-31`;
+                eStartEl.setAttribute('data-fy-set', 'true');
+            }
+            const eStart = eStartEl ? eStartEl.value : '';
+            const eEnd = eEndEl ? eEndEl.value : '';
+
             data = UI.state.rawData.expenses.filter(e => {
                 const matchSearch = (e.category || '').toLowerCase().includes(searchTerm) || (e.notes || '').toLowerCase().includes(searchTerm);
                 let matchFilter = true;
                 if (activeFilter !== 'All') matchFilter = e.category === activeFilter;
-                return matchSearch && matchFilter;
+                
+                // 🚨 Strict Date Boundary Checker (Expenses Tab)
+                let matchDate = true;
+                if (eStart && eEnd && e.date) matchDate = (e.date >= eStart && e.date <= eEnd);
+                else if (eStart && e.date) matchDate = (e.date >= eStart);
+                else if (eEnd && e.date) matchDate = (e.date <= eEnd);
+
+                return matchSearch && matchFilter && matchDate;
             });
 
             data.forEach(e => sumValue += (parseFloat(e.amount) || 0));
@@ -1876,13 +1974,34 @@ const UI = {
         // ------------------ CASHBOOK ------------------
         else if (tab === 'cashbook') {
             // ENTERPRISE FIX: CPU Thrashing Shield!
-            // We ONLY recalculate the heavy Bank Balances if the user is NOT actively typing in the search bar!
-            // Recalculating thousands of records on every keystroke was causing massive battery drain and lag!
             if (!searchTerm) {
                 UI.renderBankBalances(); 
             }
             
             containerId = 'cashbook-container';
+            
+            // 🚀 ENTERPRISE UPGRADE: Optional Date Filters!
+            const cbStartEl = document.getElementById('cashbook-start-date');
+            const cbEndEl = document.getElementById('cashbook-end-date');
+            
+            // 🚨 BIZOPS FIX: Auto-Inject Financial Year on First Load!
+            // Prevents the Bank Tab from overloading by defaulting to April 1st - March 31st!
+            if (cbStartEl && !cbStartEl.getAttribute('data-fy-set')) {
+                const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                const currentYear = parseInt(todayStr.split('-')[0], 10);
+                const currentMonth = parseInt(todayStr.split('-')[1], 10); // 1 = Jan, 4 = Apr
+                
+                const fyStartYear = currentMonth >= 4 ? currentYear : currentYear - 1;
+                
+                cbStartEl.value = `${fyStartYear}-04-01`;
+                if (cbEndEl) cbEndEl.value = `${fyStartYear + 1}-03-31`;
+                
+                cbStartEl.setAttribute('data-fy-set', 'true'); // Locks it so it only auto-fills once!
+            }
+
+            const cbStart = cbStartEl ? cbStartEl.value : '';
+            const cbEnd = cbEndEl ? cbEndEl.value : '';
+
             data = UI.state.rawData.cashbook.filter(c => {
                 const matchSearch = (c.desc || '').toLowerCase().includes(searchTerm) || 
                                     (c.mode || '').toLowerCase().includes(searchTerm) ||
@@ -1890,10 +2009,51 @@ const UI = {
                                     (c.receiptNo || '').toLowerCase().includes(searchTerm) ||
                                     String(c.amount).includes(searchTerm);
                 let matchFilter = true;
-                if (activeFilter === 'In') matchFilter = c.type === 'in';
-                if (activeFilter === 'Out') matchFilter = c.type === 'out';
-                return matchSearch && matchFilter;
+                
+                const safeMode = String(c.mode || '').toLowerCase();
+                const safeLedger = String(c.ledgerName || '').toLowerCase();
+                const isExpense = safeMode.includes('expense') || safeLedger.includes('expense');
+                
+                if (activeFilter === 'In') {
+                    matchFilter = c.type === 'in';
+                } else if (activeFilter === 'Out') {
+                    matchFilter = c.type === 'out' && !isExpense;
+                } else if (activeFilter === 'Expense') {
+                    matchFilter = isExpense;
+                }
+
+                // 🚨 Strict Date Boundary Checker (Optional)
+                let matchDate = true;
+                if (cbStart && cbEnd && c.date) matchDate = (c.date >= cbStart && c.date <= cbEnd);
+                else if (cbStart && c.date) matchDate = (c.date >= cbStart);
+                else if (cbEnd && c.date) matchDate = (c.date <= cbEnd);
+                
+                return matchSearch && matchFilter && matchDate;
             });
+
+            // 🚨 ENTERPRISE UPGRADE: Smart Net-Flow Calculator for Cashbook
+            let netSum = 0;
+            data.forEach(c => {
+                let amt = parseFloat(c.amount) || 0;
+                if (activeFilter === 'All') {
+                    if (c.type === 'in') netSum += amt;
+                    else netSum -= amt; 
+                } else {
+                    netSum += amt;
+                }
+            });
+
+            const badge = document.getElementById('sum-cashbook');
+            if (badge) {
+                badge.innerText = (activeFilter === 'All' && netSum < 0 ? '-' : '') + `\u20B9${Math.abs(netSum).toFixed(2)}`;
+                if (activeFilter === 'All') {
+                    badge.style.color = netSum >= 0 ? '#146c2e' : '#ba1a1a';
+                    badge.style.background = netSum >= 0 ? '#e8f5e9' : '#fff0f2';
+                } else {
+                    badge.style.color = 'var(--md-on-surface-variant)';
+                    badge.style.background = 'var(--md-surface-variant)';
+                }
+            }
 
             // BULLETPROOF SORTING: Prevents WebView crashes!
             if(sortOption === 'date-desc') data.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
@@ -1973,11 +2133,24 @@ const UI = {
         else if (tab === 'timeline') {
             containerId = 'timeline-list';
             
-            // Get Custom Dates if set
-            const startEl = document.getElementById('timeline-start-date');
-            const endEl = document.getElementById('timeline-end-date');
-            const startDate = startEl ? startEl.value : '';
-            const endDate = endEl ? endEl.value : '';
+            // 🚀 ENTERPRISE UPGRADE: Optional Date Filters (Financial Year Default)
+            const tStartEl = document.getElementById('timeline-start-date');
+            const tEndEl = document.getElementById('timeline-end-date');
+            
+            // 🚨 BIZOPS FIX: Auto-Inject Financial Year on First Load!
+            if (tStartEl && !tStartEl.getAttribute('data-fy-set')) {
+                const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                const currentYear = parseInt(todayStr.split('-')[0], 10);
+                const currentMonth = parseInt(todayStr.split('-')[1], 10); 
+                const fyStartYear = currentMonth >= 4 ? currentYear : currentYear - 1;
+                
+                tStartEl.value = `${fyStartYear}-04-01`;
+                if (tEndEl) tEndEl.value = `${fyStartYear + 1}-03-31`;
+                tStartEl.setAttribute('data-fy-set', 'true');
+            }
+            
+            const startDate = tStartEl ? tStartEl.value : '';
+            const endDate = tEndEl ? tEndEl.value : '';
 
             data = UI.state.rawData.timeline.filter(t => {
                 const descStr = t.desc || (t.type === 'IN' ? 'Sale / Receipt' : (t.type === 'OUT' ? 'Purchase / Payment' : ''));
@@ -1987,8 +2160,16 @@ const UI = {
                 let matchDate = true;
 
                 // 1. Check Date Range
+                // 🚨 BIZOPS FIX: Always show the "Opening Balance" regardless of the date filter so the math doesn't break!
                 if (startDate && endDate && t.date) {
-                    matchDate = (t.date >= startDate && t.date <= endDate);
+                    if (t.id === 'open-bal') matchDate = true;
+                    else matchDate = (t.date >= startDate && t.date <= endDate);
+                } else if (startDate && t.date) {
+                    if (t.id === 'open-bal') matchDate = true;
+                    else matchDate = (t.date >= startDate);
+                } else if (endDate && t.date) {
+                    if (t.id === 'open-bal') matchDate = true;
+                    else matchDate = (t.date <= endDate);
                 }
                 
                 // 2. Universal Type Check (Works for Banks, Parties, AND Expenses)
@@ -2041,7 +2222,8 @@ const UI = {
 
                     // 🚨 ENTERPRISE FIX: Context-Aware Ledger Rendering!
                     const reportViewer = document.getElementById('activity-report-viewer');
-                    const isReportViewer = reportViewer && reportViewer.classList.contains('open');
+                    // Check if it's NOT hidden, because .open might not be attached yet during the slide-in animation!
+                    const isReportViewer = reportViewer && !reportViewer.classList.contains('hidden');
                     
                     if (isReportViewer) {
                         const balText = document.getElementById('report-party-balance').innerText || '';
@@ -2125,8 +2307,14 @@ const UI = {
                         const color = isMoneyIn ? 'var(--md-success)' : 'var(--md-error)';
                         
                         const title = t.party ? `${isMoneyIn ? 'Sale' : 'Purchase'} - ${t.party}` : (t.desc || 'Transaction');
-                        const subtitle = t.ref ? `${window.Utils.formatDateDisplay(t.date)} | Ref: ${t.ref}` : `${window.Utils.formatDateDisplay(t.date)} | Mode: ${t.mode || 'Cash'}`;
-                        const rightVal = t.qty ? t.qty : `${sign}\u20B9${parseFloat(t.amount || 0).toFixed(2)}`;
+                        
+                        // 🚨 FIX: Move the "qty" to the subtitle row so it stops hiding the amount!
+                        const qtyText = t.qty ? ` | ${t.qty}` : '';
+                        const subtitle = t.ref ? `${window.Utils.formatDateDisplay(t.date)} | Ref: ${t.ref}${qtyText}` : `${window.Utils.formatDateDisplay(t.date)} | Mode: ${t.mode || 'Cash'}${qtyText}`;
+                        
+                        // 🚨 FIX: ALWAYS show the exact financial amount on the right side!
+                        const safeAmount = parseFloat(t.amount) || parseFloat(t.grandTotal) || 0;
+                        const rightVal = `${sign}\u20B9${safeAmount.toFixed(2)}`;
 
                         return `
                         <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
@@ -2246,32 +2434,6 @@ const UI = {
                             remainingAmt -= allocation;
                         }
                     });
-                }
-            }
-        });
-
-        // --- ENTERPRISE UPGRADE: DASHBOARD FIFO KNOCKOFF FOR OVERDUE SALES ---
-        const advancePool = {};
-        Object.keys(ledgerTotalPaid).forEach(ledgerId => {
-            const totalPaid = ledgerTotalPaid[ledgerId] || 0;
-            const explicitlyLinked = ledgerExplicitlyLinked[ledgerId] || 0;
-            if (totalPaid > explicitlyLinked) advancePool[ledgerId] = totalPaid - explicitlyLinked;
-            else advancePool[ledgerId] = 0;
-        });
-
-        const sortedSales = [...sales].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-        sortedSales.forEach(doc => {
-            if (doc.status !== 'Open' && doc.documentType !== 'return') {
-                if (advancePool[doc.customerId] > 0.01) {
-                    const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
-                    const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
-                    const due = (parseFloat(doc.grandTotal) || 0) - explicitPaid;
-                    
-                    if (due > 0.01) {
-                        const allocated = Math.min(due, advancePool[doc.customerId]);
-                        advancePool[doc.customerId] -= allocated;
-                        paymentMap[`${doc.customerId}_${doc.id}`] = (paymentMap[`${doc.customerId}_${doc.id}`] || 0) + allocated;
-                    }
                 }
             }
         });
@@ -2528,7 +2690,7 @@ const UI = {
                             <strong class="large-text">${s.customerName || 'Unknown Party'}</strong><br>
                             <small class="color-primary">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small>
                         </div>
-                        <span style="background:#fff0f2; color:#be123c; border:1px solid #be123c; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">Overdue</span>
+                        <span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">Overdue</span>
                     </li>`;
                 }).join('');
             } else {
@@ -2756,19 +2918,27 @@ const UI = {
 
         if (sheetId === 'sheet-customers') {
             const searchBox = document.getElementById('search-customers');
-            if (searchBox) { searchBox.value = ''; } // Keyboard auto-focus disabled!
-            // ENTERPRISE FIX: Case-insensitive match to prevent database casing bugs
-            const customers = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'customer');
-            UI.renderLedgerList('list-customers', customers, UI.state.currentPrefix || 'sales');
-            document.querySelectorAll('#list-customers li').forEach(li => li.style.display = ''); // Force list to be visible
+            if (searchBox) { searchBox.value = ''; }
+            
+            const isCashbookForm = UI.state.currentPrefix === 'pay-in' || UI.state.currentPrefix === 'pay-out';
+            const listParties = isCashbookForm 
+                ? UI.state.rawData.ledgers 
+                : UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'customer');
+                
+            UI.renderLedgerList('list-customers', listParties, UI.state.currentPrefix || 'sales');
+            document.querySelectorAll('#list-customers li').forEach(li => li.style.display = '');
         }
         else if (sheetId === 'sheet-suppliers') {
             const searchBox = document.getElementById('search-suppliers');
-            if (searchBox) { searchBox.value = ''; } // Keyboard auto-focus disabled!
-            // ENTERPRISE FIX: Case-insensitive match to prevent database casing bugs
-            const suppliers = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'supplier');
-            UI.renderLedgerList('list-suppliers', suppliers, UI.state.currentPrefix || 'purchase');
-            document.querySelectorAll('#list-suppliers li').forEach(li => li.style.display = ''); // Force list to be visible
+            if (searchBox) { searchBox.value = ''; }
+            
+            const isCashbookForm = UI.state.currentPrefix === 'pay-in' || UI.state.currentPrefix === 'pay-out';
+            const listParties = isCashbookForm 
+                ? UI.state.rawData.ledgers 
+                : UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === 'supplier');
+                
+            UI.renderLedgerList('list-suppliers', listParties, UI.state.currentPrefix || 'purchase');
+            document.querySelectorAll('#list-suppliers li').forEach(li => li.style.display = '');
         }
         else if (sheetId === 'sheet-products') {
             const searchBox = document.getElementById('search-products');
@@ -3168,12 +3338,12 @@ const UI = {
                     </div>
                     
                     <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${pdfAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-on-surface); border-bottom: 1px solid var(--md-surface-variant); background: var(--md-surface);">
-                        <div class="icon-circle" style="width:36px; height:36px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined" style="font-size:20px;">picture_as_pdf</span></div>
+                        <div class="icon-circle" style="width:36px; height:36px; background: rgba(245, 127, 23, 0.1); color: #f57f17;"><span class="material-symbols-outlined" style="font-size:20px;">picture_as_pdf</span></div>
                         Generate PDF
                     </div>
 
                     <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${deleteAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-error); background: var(--md-surface);">
-                        <div class="icon-circle" style="width:36px; height:36px; background: #fff0f2; color: var(--md-error);"><span class="material-symbols-outlined" style="font-size:20px;">delete</span></div>
+                        <div class="icon-circle" style="width:36px; height:36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);"><span class="material-symbols-outlined" style="font-size:20px;">delete</span></div>
                         Delete Document
                     </div>
                 </div>

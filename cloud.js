@@ -397,7 +397,8 @@ setTimeout(executeBackgroundBackup, 15000);
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         // App is back in focus and network is active. Safe to run background checks!
-        setTimeout(executeBackgroundBackup, 2000); // 2-second buffer to let the UI render first
+        if (window.visibilityBackupTimeout) clearTimeout(window.visibilityBackupTimeout);
+        window.visibilityBackupTimeout = setTimeout(executeBackgroundBackup, 2000); // 2-second buffer to let the UI render first
     }
 });
 

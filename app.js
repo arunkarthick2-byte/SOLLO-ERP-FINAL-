@@ -13,11 +13,11 @@ if (!document.getElementById('enterprise-master-fixes')) {
         #form-business-profile, #master-list-container { padding-bottom: 95px !important; }
         
         /* 2. Fix Ledger Header Visibility */
-        #activity-report-viewer .activity-header { background: #ffffff !important; color: #0f172a !important; border-bottom: 1px solid #e2e8f0 !important; }
+        #activity-report-viewer .activity-header { background: var(--md-surface, #ffffff) !important; color: var(--md-on-surface, #0f172a) !important; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0) !important; }
         #activity-report-viewer .activity-header .material-symbols-outlined,
         #activity-report-viewer .activity-header strong,
         #report-party-name,
-        #report-party-balance { color: #0f172a !important; }
+        #report-party-balance { color: var(--md-on-surface, #0f172a) !important; }
 
         /* 🚨 3. ENTERPRISE FIX: THE "NATIVE BUTTON" CURSOR SHIELD */
         /* Permanently destroys the blinking text cursor on Custom Numpad inputs */
@@ -31,9 +31,9 @@ if (!document.getElementById('enterprise-master-fixes')) {
         /* 🚨 4. NUMPAD ACTIVE HIGHLIGHTER */
         /* Safely highlights the box in blue so you know what you are editing, WITHOUT a cursor! */
         input:focus[readonly], input:focus[inputmode="none"] {
-            background-color: #e3f2fd !important;
-            border-color: #0061a4 !important;
-            color: #0061a4 !important;
+            background-color: rgba(0, 97, 164, 0.05) !important;
+            border-color: var(--md-primary, #0061a4) !important;
+            color: var(--md-primary, #0061a4) !important;
             box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
         }
         
@@ -57,7 +57,7 @@ document.addEventListener('reset', (e) => {
     setTimeout(() => {
         // 🚨 BIZOPS FIX: The "Ghost Supplier" Race Condition!
         // Prevents the reset timeout from destroying the Supplier/Customer ID when opening a Saved Entry!
-        if (window.app && window.app.state && window.app.state.currentEditId) return;
+        if (window.app && window.app.state && (window.app.state.currentEditId || window.app.state.currentReceiptId)) return;
 
         const hiddenInputs = form.querySelectorAll('input[type="hidden"]');
         hiddenInputs.forEach(input => {
@@ -76,28 +76,8 @@ document.addEventListener('reset', (e) => {
 
 
 // --- ENTERPRISE UPGRADE: KILL UGLY BROWSER ALERTS ---
-// This secretly intercepts every standard alert() in the entire app and turns them into M3 Toasts!
-window.alert = function(message) {
-    if (window.Utils && typeof window.Utils.showToast === 'function') {
-        let icon = "💬";
-        const msgLower = String(message || '').toLowerCase();
-        
-        // Smart Engine: Auto-assigns emojis AND physical haptic feedback based on the text context!
-        if (msgLower.includes("error") || msgLower.includes("fail") || msgLower.includes("invalid") || msgLower.includes("please") || msgLower.includes("cannot")) {
-            icon = "⚠️";
-            // SMART HAPTICS: Harsh double-vibration for errors/warnings
-            if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('heavy');
-        } else if (msgLower.includes("success") || msgLower.includes("converted") || msgLower.includes("added") || msgLower.includes("restored")) {
-            icon = "✅";
-            // SMART HAPTICS: Smooth single bump for success
-            if (window.UI && typeof window.UI.triggerHaptic === 'function') window.UI.triggerHaptic('medium');
-        }
-        
-        window.Utils.showToast(`${icon} ${message}`);
-    } else {
-        console.warn("Alert Intercepted:", message);
-    }
-};
+// Removed the custom override because it was non-blocking and caused race-condition bugs.
+// The app will now use the safe, native browser alert to properly pause execution!
 
 // --- ENTERPRISE UPGRADE: GLOBAL ERROR SHIELD ---
 window.addEventListener('error', (event) => {
@@ -825,7 +805,7 @@ const app = {
                     lsIcon.innerText = 'warning';
                     lsIcon.style.color = 'var(--md-error)';
                     lsBtn.style.borderLeft = '4px solid var(--md-error)';
-                    lsBtn.style.background = '#fff0f2'; // Tint the entire card red for extreme visibility!
+                    lsBtn.style.background = 'rgba(186, 26, 26, 0.05)'; // Tint the entire card red for extreme visibility!
                     
                     // Inject the gorgeous Mini-Table right into the dashboard
                     const tableHTML = `<div id="dash-mini-table" style="width: 100%; margin-top: 12px; background: rgba(255,255,255,0.8); border-radius: 6px; padding: 4px 12px; border: 1px solid rgba(186,26,26,0.2); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${tableRows}${extraText}</div>`;
@@ -859,14 +839,37 @@ const app = {
             let bucket30 = 0, bucket60 = 0, bucket90 = 0, totalDue = 0;
             const today = new Date();
             
+            // 🚨 ENTERPRISE FIX: Pre-calculate Returns so Credit Notes don't swallow payments!
+            const dashboardReturnMap = {};
+            UI.state.rawData.sales.forEach(d => {
+                if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                    dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                }
+            });
+
             // Build an instant payment lookup map
             const paymentMap = {};
             UI.state.rawData.cashbook.forEach(r => {
                 if (r.firmId === app.state.firmId && r.invoiceRef && r.type === 'in') {
-                    const refs = String(r.invoiceRef).split(',').map(x => x.trim());
-                    const splitAmt = (parseFloat(r.amount) || 0) / (refs.length || 1);
-                    // ENTERPRISE FIX: Lock payment allocations to the specific customer ID to prevent cross-contamination!
-                    refs.forEach(ref => paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + splitAmt);
+                    const refs = String(r.invoiceRef).split(',').map(x => x.trim()).filter(Boolean);
+                    let remainingPayment = parseFloat(r.amount) || 0;
+                    refs.forEach(ref => {
+                        const linkedDoc = UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                        
+                        // 🚨 FIX: The Blackhole Credit Note Trap
+                        // Deduct the return to find the true net total, allowing excess money to waterfall!
+                        const returned = [linkedDoc?.orderNo, linkedDoc?.invoiceNo, linkedDoc?.id, ref].filter(Boolean).reduce((sum, r) => sum + (dashboardReturnMap[r] || 0), 0);
+                        let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / refs.length);
+                        
+                        let applyAmt = Math.min(docTotal, remainingPayment);
+                        if (applyAmt > 0) {
+                            paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + applyAmt;
+                            remainingPayment -= applyAmt;
+                        }
+                    });
+                    if (remainingPayment > 0.01 && refs[0]) {
+                        paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`] || 0) + remainingPayment;
+                    }
                 }
             });
 
@@ -1026,21 +1029,22 @@ const app = {
     cleanupDuplicates: async () => {
         try {
             let cleaned = false;
-            // ENTERPRISE FIX: Index-level fetching prevents the app from freezing on older phones when booting up!
             const activeFirmId = app.state.firmId;
-            // ENTERPRISE FIX: Absolute Array Fallback (|| []) on background tasks prevents undefined.filter() crashes!
             const ledgers = (await getAllRecords('ledgers', 'firmId', activeFirmId).catch(() => [])) || [];
             const allAccounts = (await getAllRecords('accounts').catch(() => [])) || [];
             const accounts = allAccounts.filter(a => a.firmId === activeFirmId);
             const sales = (await getAllRecords('sales', 'firmId', activeFirmId).catch(() => [])) || [];
             const purchases = (await getAllRecords('purchases', 'firmId', activeFirmId).catch(() => [])) || [];
             const receipts = (await getAllRecords('receipts', 'firmId', activeFirmId).catch(() => [])) || [];
+            const expenses = (await getAllRecords('expenses').catch(() => [])) || [];
+
+            let batchPuts = [];
+            let batchDeletes = [];
 
             // 1. Merge Duplicate Customers & Suppliers
             const ledgerMap = {};
             for (const l of ledgers) {
                 if (l.firmId !== app.state.firmId) continue;
-                // ENTERPRISE FIX: Must match BOTH Name and Phone to merge! Prevents wiping out different customers with the same name.
                 const safePhone = (l.phone || '').trim();
                 const key = `${(l.name || '').trim().toLowerCase()}_${safePhone}_${l.type}`;
                 
@@ -1048,8 +1052,6 @@ const app = {
                     ledgerMap[key] = l;
                 } else {
                     const master = ledgerMap[key];
-                    
-                    // STRICT ERP LOGIC: Properly calculate Dr vs Cr before merging opening balances!
                     const getSignedBal = (party) => {
                         let bal = parseFloat(party.openingBalance) || 0;
                         const bType = (party.balanceType || '').toLowerCase();
@@ -1068,15 +1070,13 @@ const app = {
                         master.balanceType = newNetBal >= 0 ? 'To Pay / Credit' : 'To Receive / Debit';
                     }
                     
-                    await saveRecord('ledgers', master);
+                    batchPuts.push({ store: 'ledgers', data: master });
 
-                    // ENTERPRISE FIX: Safely remap all connected documents AND update their static display names to the master!
-                    for (const s of sales) { if (s.customerId === l.id) { s.customerId = master.id; s.customerName = master.name; await saveRecord('sales', s); } }
-                    for (const p of purchases) { if (p.supplierId === l.id) { p.supplierId = master.id; p.supplierName = master.name; await saveRecord('purchases', p); } }
-                    for (const r of receipts) { if (r.ledgerId === l.id) { r.ledgerId = master.id; r.ledgerName = master.name; await saveRecord('receipts', r); } }
+                    for (const s of sales) { if (s.customerId === l.id) { s.customerId = master.id; s.customerName = master.name; batchPuts.push({ store: 'sales', data: s }); } }
+                    for (const p of purchases) { if (p.supplierId === l.id) { p.supplierId = master.id; p.supplierName = master.name; batchPuts.push({ store: 'purchases', data: p }); } }
+                    for (const r of receipts) { if (r.ledgerId === l.id) { r.ledgerId = master.id; r.ledgerName = master.name; batchPuts.push({ store: 'receipts', data: r }); } }
                     
-                    // Delete the ghost copy
-                    await deleteRecordById('ledgers', l.id);
+                    batchDeletes.push({ store: 'ledgers', id: l.id, trashData: l });
                     cleaned = true;
                 }
             }
@@ -1085,20 +1085,18 @@ const app = {
             const accMap = {};
             let realCash = accounts.find(a => a.id === 'cash' && a.firmId === app.state.firmId);
 
-            // ENTERPRISE FIX: Catch Ghost / Orphaned Receipts and Expenses FIRST and bind them to Cash!
             for (const r of receipts) {
-                // Wrapped in String() to prevent .trim() from crashing on older records
                 if (!r.accountId || String(r.accountId).trim() === '') {
                     r.accountId = 'cash';
-                    await saveRecord('receipts', r); // REAL FIX: The IndexedDB table is actually named 'receipts'!
+                    batchPuts.push({ store: 'receipts', data: r });
                     cleaned = true;
                 }
             }
-            const expenses = (await getAllRecords('expenses').catch(() => [])) || [];
+            
             for (const e of expenses) {
                 if (!e.accountId || String(e.accountId).trim() === '') {
                     e.accountId = 'cash';
-                    await saveRecord('expenses', e);
+                    batchPuts.push({ store: 'expenses', data: e });
                     cleaned = true;
                 }
             }
@@ -1107,60 +1105,55 @@ const app = {
                 if (a.firmId !== app.state.firmId) continue;
                 const key = (a.name || '').trim().toLowerCase();
                 
-                // --- ENTERPRISE FIX: DESTROY FAKE CASH DRAWERS ---
-                // If the backup contains a manually created "Cash Drawer", merge it into the System 'cash' ID
                 if ((key === 'cash drawer' || key === 'cash' || key === 'default cash drawer') && a.id !== 'cash') {
                     if (!realCash) {
                         realCash = { id: 'cash', firmId: app.state.firmId, name: 'Cash Drawer', openingBalance: 0 };
                     }
-                    // Mathematically transfer the money to prevent data loss
                     realCash.openingBalance = (parseFloat(realCash.openingBalance) || 0) + (parseFloat(a.openingBalance) || 0);
-                    await saveRecord('accounts', realCash);
+                    batchPuts.push({ store: 'accounts', data: realCash });
 
-                    // Safely remap all transactions to the official cash drawer
-                    for (const r of receipts) { if (r.accountId === a.id) { r.accountId = 'cash'; await saveRecord('receipts', r); } }
+                    for (const r of receipts) { if (r.accountId === a.id) { r.accountId = 'cash'; batchPuts.push({ store: 'receipts', data: r }); } }
                     
-       // 🚨 ENTERPRISE FIX: Destroyed the Memory Leak!
-       // We reuse the 'expenses' array already loaded in RAM above, preventing 10x simultaneous database crashes!
-       for (const e of expenses) {
-           if (e.accountId === a.id) {
-               e.accountId = 'cash';
-               await saveRecord('expenses', e);
-           }
-       }
+                    for (const e of expenses) {
+                        if (e.accountId === a.id) {
+                            e.accountId = 'cash';
+                            batchPuts.push({ store: 'expenses', data: e });
+                        }
+                    }
                     
-                    // Delete the ghost copy
-                    await deleteRecordById('accounts', a.id);
+                    batchDeletes.push({ store: 'accounts', id: a.id, trashData: a });
                     cleaned = true;
-                    continue; // Skip the rest of the loop for this fake record
+                    continue; 
                 }
 
-                if (a.id === 'cash') continue; // Now safely skip the real one
+                if (a.id === 'cash') continue; 
                 
                 if (!accMap[key]) {
                     accMap[key] = a;
                 } else {
                     const master = accMap[key];
                     master.openingBalance = (parseFloat(master.openingBalance) || 0) + (parseFloat(a.openingBalance) || 0);
-                    await saveRecord('accounts', master);
+                    batchPuts.push({ store: 'accounts', data: master });
 
-                    for (const r of receipts) { if (r.accountId === a.id) { r.accountId = master.id; await saveRecord('receipts', r); } }
+                    for (const r of receipts) { if (r.accountId === a.id) { r.accountId = master.id; batchPuts.push({ store: 'receipts', data: r }); } }
                     
-                    await deleteRecordById('accounts', a.id);
+                    batchDeletes.push({ store: 'accounts', id: a.id, trashData: a });
                     cleaned = true;
                 }
             }
 
             if (cleaned) {
-                if (window.Utils) window.Utils.showToast("Database optimized: Duplicates merged! 🧹");
+                if (typeof executeAtomicBatch === 'function') await executeAtomicBatch(batchPuts, batchDeletes);
+                else if (window.executeAtomicBatch) await window.executeAtomicBatch(batchPuts, batchDeletes);
+
+                if (window.Utils) window.Utils.showToast("Database optimized safely! 🧹");
                 
-                // ENTERPRISE FIX: Wipe the RAM Cache so the merged duplicates ACTUALLY disappear from the screen!
                 if (window.AppCache) {
                     window.AppCache.ledgers = null;
                     window.AppCache.accounts = null;
                 }
                 
-                await app.loadAllData(); // Reload clean data into RAM
+                await app.loadAllData();
             }
         } catch (e) {
             console.error("Cleanup failed:", e);
@@ -1668,54 +1661,66 @@ const app = {
                 else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = '#94a3b8'; }
             }
             
-            // 🚀 Execute the precise FIFO Tax-Split mathematically for the internal Ledger screen!
-            // 🚨 ENTERPRISE FIX: Safely trigger the engine for Customer Debts (>0) AND Supplier Debts (<0)!
+            // 🚀 ENTERPRISE UPGRADE: EXPLICIT TAX-SPLIT ENGINE FOR LEDGER
+            // Respects exact invoice mapping instead of guessing via FIFO!
             if ((partyType === 'Customer' && bal > 0.01) || (partyType !== 'Customer' && bal < -0.01)) {
                 const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
                 let ob = parseFloat(party.openingBalance) || 0;
                 let isAdv = partyType === 'Customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
                 
-                let credits = isAdv ? ob : 0;
                 let debitsGst = !isAdv ? ob : 0;
                 let debitsNon = 0;
-                let invoices = [];
-
-                if (partyType === 'Customer') {
-                    window.UI.state.rawData.sales.forEach(s => {
-                        if (s.status !== 'Open' && s.customerId === partyId) {
-                            if (s.documentType === 'return') credits += parseFloat(s.grandTotal || 0);
-                            else invoices.push({ type: s.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(s.grandTotal || 0), date: s.date });
-                        }
-                    });
-                    window.UI.state.rawData.cashbook.forEach(c => {
-                        if (c.ledgerId === partyId) credits += (c.type === 'in' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
-                    });
-                } else {
-                    window.UI.state.rawData.purchases.forEach(p => {
-                        if (p.status !== 'Open' && p.supplierId === partyId) {
-                            if (p.documentType === 'return') credits += parseFloat(p.grandTotal || 0);
-                            else invoices.push({ type: p.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(p.grandTotal || 0), date: p.date });
-                        }
-                    });
-                    window.UI.state.rawData.cashbook.forEach(c => {
-                        if (c.ledgerId === partyId) credits += (c.type === 'out' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
-                    });
-                }
-
-                invoices.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
                 
-                if (credits >= debitsGst) { credits -= debitsGst; debitsGst = 0; }
-                else { debitsGst -= credits; credits = 0; }
+                const exactPaymentMap = {};
+                const exactReturnMap = {};
 
-                invoices.forEach(inv => {
-                    let unpaid = inv.amt;
-                    if (credits >= unpaid) { credits -= unpaid; unpaid = 0; }
-                    else { unpaid -= credits; credits = 0; }
-                    if (unpaid > 0.01) {
-                        if (inv.type === 'gst') debitsGst += unpaid;
-                        else debitsNon += unpaid;
+                window.UI.state.rawData.cashbook.forEach(c => {
+                    if (c.ledgerId === partyId && c.invoiceRef) {
+                        let amt = parseFloat(c.amount) || 0;
+                        const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                        let remainingAmt = amt;
+                        refs.forEach(ref => {
+                            if (remainingAmt <= 0) return;
+                            exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length);
+                        });
                     }
                 });
+
+                const docs = partyType === 'Customer' ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;
+                docs.forEach(d => {
+                    if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo && (partyType === 'Customer' ? d.customerId === partyId : d.supplierId === partyId)) {
+                        exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                    }
+                });
+
+                docs.forEach(doc => {
+                    if (doc.status !== 'Open' && doc.documentType !== 'return' && (partyType === 'Customer' ? doc.customerId === partyId : doc.supplierId === partyId)) {
+                        const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
+                        const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
+                        const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
+                        
+                        const docTotal = parseFloat(doc.grandTotal) || 0;
+                        const finalUnpaid = Math.max(0, docTotal - paid - returned);
+                        
+                        if (finalUnpaid > 0.01) {
+                            if (doc.invoiceType === 'Non-GST') debitsNon += finalUnpaid;
+                            else debitsGst += finalUnpaid;
+                        }
+                    }
+                });
+
+                const trueBalance = Math.abs(bal); 
+                const trackedDebt = debitsGst + debitsNon;
+                if (trueBalance < trackedDebt) {
+                    const excessCredit = trackedDebt - trueBalance;
+                    if (excessCredit >= debitsGst) {
+                        let remaining = excessCredit - debitsGst;
+                        debitsGst = 0;
+                        debitsNon = Math.max(0, debitsNon - remaining);
+                    } else {
+                        debitsGst -= excessCredit;
+                    }
+                }
 
                 if (debitsGst > 0.01 && debitsNon > 0.01) subText = `<br><span style="font-size:12px; color:var(--md-error); font-weight: 800;">GST Due: \u20B9${debitsGst.toFixed(2)} | Non-GST Due: \u20B9${debitsNon.toFixed(2)}</span>`;
                 else if (debitsGst > 0.01) subText = `<br><span style="font-size:12px; color:var(--md-error); font-weight: 800;">GST Due: \u20B9${debitsGst.toFixed(2)}</span>`;
@@ -1728,45 +1733,9 @@ const app = {
             // Move state assignment ABOVE the early return to clear previous memory!
             UI.state.rawData.timeline = statement.timeline;
 
-            const emptyHTML = '<p class="empty-state">No transactions found for this party.</p>';
-            
-            UI.renderVirtualList(timelineContainer, statement.timeline, (t) => {
-                const isPayment = !t.isInvoice && t.id !== 'open-bal';
-                const icon = t.id === 'open-bal' ? 'account_balance' : (isPayment ? 'payments' : 'receipt_long');
-                const iconBg = t.id === 'open-bal' ? 'rgba(0, 97, 164, 0.1)' : (isPayment ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)');
-                const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPayment ? '#2e7d32' : '#ba1a1a');
-                const amtColor = t.isInvoice ? 'var(--md-error)' : 'var(--md-success)';
-                
-                let clickAction = '';
-                let tapClass = '';
-                if (t.id !== 'open-bal') {
-                    tapClass = 'tap-target';
-                    if (isPayment) {
-                        const type = (partyType === 'Customer') ? (t.impact < 0 ? 'in' : 'out') : (t.impact > 0 ? 'in' : 'out');
-                        clickAction = `onclick="app.openReceipt('${t.id}', '${type}')"`;
-                    } else {
-                        const doc = partyType === 'Customer' ? UI.state.rawData.sales.find(s => s.id === t.id) : UI.state.rawData.purchases.find(p => p.id === t.id);
-                        const docType = doc ? doc.documentType : 'invoice';
-                        const formType = partyType === 'Customer' ? 'sales' : 'purchase';
-                        clickAction = `onclick="app.openForm('${formType}', '${t.id}', '${docType}')"`;
-                    }
-                }
-
-                return `
-                <div class="m3-card ${tapClass}" ${clickAction} style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
-                    <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                        <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
-                    </div>
-                    <div style="flex: 1;">
-                        <strong class="large-text">${t.desc}</strong><br>
-                        <small style="color: var(--md-text-muted);">${t.date}</small>
-                    </div>
-                    <div style="text-align:right;">
-                        <strong style="font-size: 14px; color: ${amtColor};">${t.isInvoice ? '+' : '-'}\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
-                        <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
-                    </div>
-                </div>`;
-            }, emptyHTML);
+            // 🚀 ENTERPRISE UPGRADE: Delegate Native Rendering & Financial Year Lock to UI Engine!
+            UI.state.activeFilters['timeline'] = 'All';
+            if (window.UI) window.UI.applyFilters('timeline');
 
             const chips = document.querySelectorAll('#activity-report-viewer .filter-chips .chip');
             if(chips.length > 0) {
@@ -1917,39 +1886,9 @@ const app = {
             // Move state assignment ABOVE the early return!
             UI.state.rawData.timeline = timeline; // Hooks into your existing PDF generator!
 
-            const emptyHTML = '<p class="empty-state">No transactions found for this account.</p>';
-            
-            UI.renderVirtualList(timelineContainer, timeline, (t) => {
-                const isPaymentOut = t.impact < 0;
-                const icon = t.id === 'open-bal' ? 'account_balance' : (isPaymentOut ? 'arrow_upward' : 'arrow_downward');
-                const iconBg = t.id === 'open-bal' ? 'rgba(0, 97, 164, 0.1)' : (isPaymentOut ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
-                const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPaymentOut ? '#ba1a1a' : '#2e7d32');
-                const amtColor = isPaymentOut ? 'var(--md-error)' : 'var(--md-success)';
-                const sign = isPaymentOut ? '-' : '+';
-                
-                let clickAction = '';
-                let tapClass = '';
-                if (t.id !== 'open-bal') {
-                    tapClass = 'tap-target';
-                    const type = isPaymentOut ? 'out' : 'in';
-                    clickAction = `onclick="app.openReceipt('${t.id}', '${type}')"`;
-                }
-
-                return `
-                <div class="m3-card ${tapClass}" ${clickAction} style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
-                    <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                        <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
-                    </div>
-                    <div style="flex: 1;">
-                        <strong class="large-text">${t.desc}</strong><br>
-                        <small style="color: var(--md-text-muted);">${t.date} ${t.partyName ? '| ' + t.partyName : ''} ${t.ref ? '<br><span style="color:var(--md-primary); font-size:10px; font-weight:bold;">Ref: ' + t.ref + '</span>' : ''}</small>
-                    </div>
-                    <div style="text-align:right;">
-                        <strong style="font-size: 14px; color: ${amtColor};">${sign}\u20B9${Math.abs(t.amount || 0).toFixed(2)}</strong><br>
-                        <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
-                    </div>
-                </div>`;
-            }, emptyHTML);
+            // 🚀 ENTERPRISE UPGRADE: Delegate Native Rendering & Financial Year Lock to UI Engine!
+            UI.state.activeFilters['timeline'] = 'All';
+            if (window.UI) window.UI.applyFilters('timeline');
 
             // Reset filters
             const chips = document.querySelectorAll('#activity-report-viewer .filter-chips .chip');
@@ -2030,7 +1969,7 @@ const app = {
                             <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="none" class="row-qty" value="0" max="${maxAllowable}" required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: #fff0f2; cursor: pointer;">
+                                <input type="text" inputmode="none" class="row-qty" value="0" max="${maxAllowable}" required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05); cursor: pointer;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
                                 <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
@@ -2063,8 +2002,6 @@ const app = {
     },
     loadPendingInvoices: async (partyId, type) => {
         const isMoneyIn = type === 'in';
-        const storeName = isMoneyIn ? 'sales' : 'purchases';
-        const partyKey = isMoneyIn ? 'customerId' : 'supplierId';
         const selectId = isMoneyIn ? 'pay-in-invoice-ref' : 'pay-out-invoice-ref';
         
         const selectEl = document.getElementById(selectId);
@@ -2074,6 +2011,13 @@ const app = {
             selectEl.innerHTML = '<option value="">On Account / Advance</option>';
             return;
         }
+
+        // 🚨 ENTERPRISE FIX: The Cross-Table Refund Trap!
+        const partyForDropdown = await getRecordById('ledgers', partyId);
+        const isCustomer = partyForDropdown ? String(partyForDropdown.type).toLowerCase() === 'customer' : isMoneyIn;
+        
+        const storeName = isCustomer ? 'sales' : 'purchases';
+        const partyKey = isCustomer ? 'customerId' : 'supplierId';
 
         const activeFirmId = app.state ? app.state.firmId : 'firm1';
         // ENTERPRISE FIX: Use firmId index to prevent the app from lagging when opening the Payment sheet!
@@ -2100,7 +2044,8 @@ const app = {
 
         const receipts = await getAllRecords('receipts', 'firmId', activeFirmId);
         receipts.forEach(r => {
-            if (r.firmId === activeFirmId && r.ledgerId === partyId) {
+            // 🚨 ENTERPRISE FIX: Exclude the currently editing receipt so the balance shows the true Pre-Payment state!
+            if (r.firmId === activeFirmId && r.ledgerId === partyId && r.id !== app.state.currentReceiptId) {
                 const amt = parseFloat(r.amount) || 0;
                 if (isMoneyIn) trueBalance += (r.type === 'in' ? -amt : amt);
                 else trueBalance += (r.type === 'in' ? amt : -amt);
@@ -2110,14 +2055,25 @@ const app = {
         // 2. MAP EXPLICITLY LINKED PAYMENTS & RETURNS
         const paymentMap = {};
         receipts.forEach(c => {
-            if (c.firmId === activeFirmId && c.ledgerId === partyId && c.invoiceRef) {
+            if (c.firmId === activeFirmId && c.ledgerId === partyId && c.invoiceRef && c.id !== app.state.currentReceiptId) {
                 let amt = parseFloat(c.amount) || 0;
                 let impact = isMoneyIn ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
                 if (impact > 0) {
                     const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
                     if (refs.length > 0) {
-                        let splitAmt = impact / refs.length;
-                        refs.forEach(r => { paymentMap[r] = (paymentMap[r] || 0) + splitAmt; });
+                        // 🚨 ENTERPRISE FIX: Smart Waterfall Allocation!
+                        let remainingPayment = impact;
+                        refs.forEach(ref => {
+                            const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                            let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (impact / refs.length);
+                            let applyAmt = Math.min(docTotal, remainingPayment);
+                            if (applyAmt > 0) {
+                                paymentMap[ref] = (paymentMap[ref] || 0) + applyAmt;
+                                remainingPayment -= applyAmt;
+                            }
+                        });
+                        // Dump excess onto the first invoice so it isn't lost!
+                        if (remainingPayment > 0.01 && refs[0]) paymentMap[refs[0]] = (paymentMap[refs[0]] || 0) + remainingPayment;
                     }
                 }
             }
@@ -2156,34 +2112,30 @@ const app = {
         // 4. THE MAGIC BULLET: MATHEMATICALLY EXTRACT THE ADVANCE POOL TO MATCH THE LEDGER
         let remainingAdvanceMoney = Math.max(0, totalPendingDebt - trueBalance);
 
-        // 5. FIFO WATERFALL
+        // 5. MANUAL ALLOCATION (FIFO DISABLED)
         const options = [];
         for (const item of pendingInvoices) {
             let finalBal = item.balance;
             
-            if (remainingAdvanceMoney > 0) {
-                const advanceApplied = Math.min(remainingAdvanceMoney, finalBal);
-                finalBal -= advanceApplied;
-                remainingAdvanceMoney -= advanceApplied;
-            }
+            // 🚨 ADVANCE AUTOPAY DISABLED:
+            // We no longer automatically deduct advance money. 
+            // The full invoice balance will always show, allowing you absolute manual control!
             
             if (finalBal > 0.01) {
                 const doc = item.doc;
                 
-                // 🚨 ENTERPRISE FIX: Smart Document Number Priority!
-                // If it is a GST invoice, the official Tax Invoice Number is strictly prioritized for accounting reconciliation.
                 let docNo, displayNo;
-                if (doc.invoiceType !== 'Non-GST' && doc.invoiceNo) {
-                    docNo = doc.invoiceNo;
-                    displayNo = doc.invoiceNo;
-                } else {
-                    // For Non-GST or Drafts, safely fallback to the Order No or PO No
-                    // 🚨 ENTERPRISE FIX: Added doc.id fallback inside the parenthesis to ensure it matches receipts
-                    docNo = (isMoneyIn ? (doc.invoiceNo || doc.orderNo || doc.id) : (doc.poNo || doc.invoiceNo || doc.orderNo || doc.id));
-                    displayNo = isMoneyIn ? (doc.orderNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase()) : (doc.orderNo || doc.poNo || doc.invoiceNo || String(doc.id).slice(-4).toUpperCase());
-                }
                 
-                options.push(`<option value="${docNo}" data-bal="${finalBal.toFixed(2)}">${displayNo} (Due: \u20B9${finalBal.toFixed(2)})</option>`);
+                // BACKEND LINKING: Always use the immutable database ID to prevent comma-splitting bugs and ensure 100% uniqueness!
+                docNo = doc.id;
+                
+                // VISUAL DISPLAY: Show ONLY the Order Ref (Sales) or Our PO No (Purchases)
+                displayNo = doc.orderNo || String(doc.id).slice(-4).toUpperCase();
+                
+                // 🚨 REFERENCE DISPLAY: Add the GST Invoice Number next to the PO/Order Ref if it exists!
+                let invoiceSuffix = doc.invoiceNo ? ` | Inv: ${doc.invoiceNo}` : '';
+                
+                options.push(`<option value="${docNo}" data-bal="${finalBal.toFixed(2)}">${displayNo}${invoiceSuffix} (Due: \u20B9${finalBal.toFixed(2)})</option>`);
             }
         }
 
@@ -2547,11 +2499,24 @@ const app = {
                 // 🚨 ENTERPRISE FIX: Inject FIFO Advance Pool & Credit Notes directly into the UI!
                 let explicitCoverage = 0;
                 linkedReceipts.forEach(r => {
-                    const refCount = String(r.invoiceRef || '').split(',').length || 1;
-                    const splitAmt = (parseFloat(r.amount) || 0) / refCount;
-                    // For Sales: Money In pays it off. For Purchases: Money Out pays it off.
+                    const refs = String(r.invoiceRef || '').split(',').map(x => x.trim()).filter(Boolean);
+                    let splitAmt = 0;
+                    let remainingPayment = parseFloat(r.amount) || 0;
+                    const allDocs = storeMap[type] === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases;
+                    
+                    refs.forEach(ref => {
+                        const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                        let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (parseFloat(r.amount) / refs.length);
+                        let applyAmt = Math.min(docTotal, remainingPayment);
+                        if (applyAmt > 0) remainingPayment -= applyAmt;
+                        if (uniqueRefs.includes(ref)) splitAmt += applyAmt; 
+                    });
+                    if (remainingPayment > 0.01 && refs[0] && uniqueRefs.includes(refs[0])) splitAmt += remainingPayment;
+
                     if (type === 'sales') explicitCoverage += (r.type === 'in' ? splitAmt : -splitAmt);
                     else explicitCoverage += (r.type === 'out' ? splitAmt : -splitAmt);
+                    
+                    r.trueSplitAmt = splitAmt; // Save for the UI renderer!
                 });
 
                 const allDocs = storeMap[type] === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases;
@@ -2589,11 +2554,7 @@ const app = {
                     linkedReceipts.sort((a,b) => new Date(a.date||0) - new Date(b.date||0));
                     historyCard.classList.remove('hidden');
                     historyList.innerHTML = linkedReceipts.map(r => {
-                        let splitAmt = parseFloat(r.amount) || 0;
-                        if (!r.isAdvance && !r.isReturnNote) {
-                            const refCount = String(r.invoiceRef || '').split(',').length || 1;
-                            splitAmt = splitAmt / refCount;
-                        }
+                        let splitAmt = r.isAdvance || r.isReturnNote ? (parseFloat(r.amount) || 0) : (r.trueSplitAmt || parseFloat(r.amount) || 0);
                         
                         // 🚨 PERFECT COLOR MATH
                         let isPositive = false;
@@ -3573,19 +3534,26 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             });
         }
 
-        // ------------------ MANUAL RECEIPT SUBMISSIONS ------------------
-        ['in', 'out'].forEach(type => {
-            const form = document.getElementById(`form-payment-${type}`);
-            if (form) {
-                form.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-
-                    const submitBtn = form.querySelector('button[type="submit"]');
-                    const originalText = submitBtn ? submitBtn.innerHTML : 'Save';
-                    if (submitBtn) {
-                        submitBtn.disabled = true;
-                        // Let ui.js handle the SVG spinner animation!
-                    }
+// ------------------ MANUAL RECEIPT SUBMISSIONS ------------------
+['in', 'out'].forEach(type => {
+    const form = document.getElementById(`form-payment-${type}`);
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            // 🚨 ENTERPRISE FIX 1: The True Double-Entry Glitch!
+            // The browser's native 'disabled' attribute takes a few milliseconds to paint on mobile.
+            // If they double-tap rapidly, this function runs twice! We must explicitly block execution!
+            if (submitBtn && submitBtn.classList.contains('btn-loading')) {
+                return;
+            }
+            
+            const originalText = submitBtn ? submitBtn.innerHTML : 'Save';
+            if (submitBtn) {
+                submitBtn.disabled = true; // Let ui.js handle the SVG spinner animation!
+                submitBtn.classList.add('btn-loading'); // Force the lock instantly!
+            }
 
                     try {
                         // ENTERPRISE FIX: Updated IDs so the database correctly grabs the Smart Search selection!
@@ -3619,8 +3587,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
 
                     // NEW: Prioritize the dropdown selection over the manual text input
                     const invoiceRefEl = document.getElementById(`pay-${type}-invoice-ref`);
-                    // NEW: Capture multiple selected invoices and join them
-                    const selectedOptions = invoiceRefEl ? Array.from(invoiceRefEl.selectedOptions).map(opt => opt.value).filter(v => v !== '') : [];
+                    // 🚨 ENTERPRISE FIX: Use Array.from with .filter(opt => opt.selected) to bypass mobile WebView selectedOptions collection limits!
+                    const selectedOptions = invoiceRefEl ? Array.from(invoiceRefEl.options).filter(opt => opt.selected).map(opt => opt.value).filter(v => v !== '') : [];
                     const selectedInvoiceRef = selectedOptions.join(', ');
                     const manualRef = document.getElementById(`pay-${type}-ref`).value;
                     const docNoInput = document.getElementById(`pay-${type}-no`).value;
@@ -3645,19 +3613,21 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                         if (oldReceipt && oldReceipt.invoiceRef) {
                             const oldRefs = String(oldReceipt.invoiceRef).split(',').map(r => r.trim());
                             const newRefs = selectedInvoiceRef.split(',').map(r => r.trim());
-                            const docStore = type === 'in' ? 'sales' : 'purchases';
+                            
+                            // 🚨 ENTERPRISE FIX: The Cross-Table Refund Trap!
+                            const docStore = (ledger && String(ledger.type).toLowerCase() === 'customer') ? 'sales' : 'purchases';
                             const allDocs = await getAllRecords(docStore);
                             
                             for (const oldRef of oldRefs) {
                                 if (!newRefs.includes(oldRef)) {
                                     // STRICT ERP LOGIC: Enforce Firm ID boundaries so Shop A doesn't accidentally open Shop B's invoices!
                                     const linkedDoc = allDocs.find(d => d.firmId === app.state.firmId && (d.id === oldRef || d.invoiceNo === oldRef || d.poNo === oldRef || d.orderNo === oldRef));
-                                    if (linkedDoc && linkedDoc.status === 'Completed') {
-                                        // 🚨 ENTERPRISE FIX: Drop Sales back to Shipped, but drop Purchases back to Open!
-                                        linkedDoc.status = docStore === 'purchases' ? 'Open' : 'Shipped'; 
-                                        linkedDoc.completedDate = '';
-                                        await saveRecord(docStore, linkedDoc);
-                                    }
+                        if (linkedDoc && linkedDoc.status === 'Completed') {
+                            // Restore cleanly back to its exact pre-completed status if tracked
+                            linkedDoc.status = linkedDoc._preCompleteStatus || (docStore === 'purchases' ? 'Unpaid' : 'Shipped'); 
+                            linkedDoc.completedDate = '';
+                            await saveRecord(docStore, linkedDoc);
+                        }
                                 }
                             }
                         }
@@ -3706,7 +3676,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                         await saveRecord('receipts', data);
                         // NEW: Link manual payment to the saved invoices and mathematically update their statuses
                         if (selectedInvoiceRef) {
-                            const storeName = type === 'in' ? 'sales' : 'purchases';
+                            const storeName = (ledger && String(ledger.type).toLowerCase() === 'customer') ? 'sales' : 'purchases';
                             const allDocs = await getAllRecords(storeName);
                             const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                             const selectedRefs = selectedInvoiceRef.split(',').map(r => r.trim());
@@ -3715,26 +3685,47 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                                 const linkedInvoice = allDocs.find(doc => {
                                     if (doc.firmId !== app.state.firmId) return false;
                                     if ((type === 'in' ? doc.customerId : doc.supplierId) !== targetPartyId) return false;
-                                    const docNo = type === 'in' ? doc.invoiceNo : (doc.poNo || doc.invoiceNo);
-                                    const refToMatch = docNo || doc.id;
-                                    return refToMatch === ref;
+                                    // 🚨 ENTERPRISE FIX: Check ALL references to ensure we find the invoice even if it was saved via Order No!
+                                    const possibleRefs = [doc.id, doc.invoiceNo, doc.poNo, doc.orderNo].map(String);
+                                    return possibleRefs.includes(String(ref));
                                 });
 
                                 if (linkedInvoice && linkedInvoice.status !== 'Completed') {
-                                    let totalPaid = 0;
-                                    allReceipts.forEach(r => {
-                                        if (r.ledgerId === targetPartyId && r.firmId === app.state.firmId) {
-                                            const rRefs = String(r.invoiceRef || '').split(',').map(x => x.trim());
-                                            if (rRefs.includes(ref)) {
-                                                // Split the receipt amount mathematically
-                                                totalPaid += (parseFloat(r.amount) || 0) / (rRefs.length || 1);
-                                            }
-                                        }
-                                    });
+                        // 🚨 ENTERPRISE FIX 2: Pre-calculate Returns so Credit Notes don't swallow waterfall payments!
+                        const paymentReturnMap = {};
+                        allDocs.forEach(d => {
+                            if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                                paymentReturnMap[d.orderNo] = (paymentReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                            }
+                        });
 
-                                    // STRICT ERP LOGIC: Add Returns (Credit/Debit Notes) to the total settled amount!
-                                    let totalReturned = 0;
-                                    allDocs.forEach(d => {
+                        let totalPaid = 0;
+                        allReceipts.forEach(r => {
+                            if (r.ledgerId === targetPartyId && r.firmId === app.state.firmId) {
+                                const rRefs = String(r.invoiceRef || '').split(',').map(x => x.trim()).filter(Boolean);
+                                if (rRefs.includes(ref)) {
+                                    let remainingPayment = parseFloat(r.amount) || 0;
+                                    let applyAmt = 0;
+                                    rRefs.forEach(rRef => {
+                                        const innerDoc = allDocs.find(d => d.id === rRef || d.invoiceNo === rRef || d.poNo === rRef || d.orderNo === rRef || String(d.id).endsWith(rRef));
+                                        
+                                        // 🚨 FIX: Subtract the return from the docTotal. This prevents the overpayment from being artificially swallowed by the first invoice!
+                                        const returned = [innerDoc?.orderNo, innerDoc?.invoiceNo, innerDoc?.poNo, innerDoc?.id, rRef].filter(Boolean).reduce((sum, r) => sum + (paymentReturnMap[r] || 0), 0);
+                                        let dTotal = innerDoc ? Math.max(0, (parseFloat(innerDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / rRefs.length);
+                                        
+                                        let aAmt = Math.min(dTotal, remainingPayment);
+                                        if (aAmt > 0) remainingPayment -= aAmt;
+                                        if (rRef === ref) applyAmt += aAmt;
+                                    });
+                                    if (remainingPayment > 0.01 && rRefs[0] === ref) applyAmt += remainingPayment;
+                                    totalPaid += applyAmt;
+                                }
+                            }
+                        });
+
+                        // STRICT ERP LOGIC: Add Returns (Credit/Debit Notes) to the total settled amount!
+                        let totalReturned = 0;
+                        allDocs.forEach(d => {
                                         if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open') {
                                             // Match returns to the original invoice
                                             if (d.orderNo === linkedInvoice.invoiceNo || d.orderNo === linkedInvoice.poNo || d.orderNo === linkedInvoice.orderNo || d.orderNo === linkedInvoice.id) {
@@ -3744,9 +3735,10 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                                     });
 
                                     // 🚨 ENTERPRISE FIX: Fulfillment-Aware Auto-Close
-                                    // Purchases bypass the shipping check!
+                                    // Purchases and Unpaid sales invoices bypass the strict Shipped check!
                                     if ((totalPaid + totalReturned) >= parseFloat(linkedInvoice.grandTotal) - 0.5) { 
-                                        if (storeName === 'purchases' || linkedInvoice.status === 'Shipped') {
+                                        if (storeName === 'purchases' || linkedInvoice.status === 'Shipped' || linkedInvoice.status === 'Unpaid') {
+                                            linkedInvoice._preCompleteStatus = linkedInvoice.status;
                                             linkedInvoice.status = 'Completed';
                                             linkedInvoice.completedDate = data.date; // Use the exact payment date!
                                             await saveRecord(storeName, linkedInvoice);
@@ -3754,7 +3746,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                                     } else {
                                         // The Ghost Completion Shield!
                                         if (linkedInvoice.status === 'Completed') {
-                                            linkedInvoice.status = storeName === 'purchases' ? 'Open' : 'Shipped';
+                                            linkedInvoice.status = linkedInvoice._preCompleteStatus || (storeName === 'purchases' ? 'Unpaid' : 'Shipped');
                                             linkedInvoice.completedDate = '';
                                             await saveRecord(storeName, linkedInvoice);
                                         }
@@ -3765,8 +3757,9 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                         
                         // NEW: Auto-Complete Advance Payments Engine
                         if (typeof app.autoCompleteInvoices === 'function') {
+                            const storeName = (ledger && String(ledger.type).toLowerCase() === 'customer') ? 'sales' : 'purchases';
                             // ENTERPRISE FIX: Pass the exact Payment Date into the background engine!
-                            await app.autoCompleteInvoices(targetPartyId, type === 'in' ? 'sales' : 'purchases', data.date);
+                            await app.autoCompleteInvoices(targetPartyId, storeName, data.date);
                         }
 
                         UI.showSuccess(); // UPGRADE: Trigger GPay Animation!
@@ -3869,7 +3862,6 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             document.getElementById(`pay-${type}-date`).value = record.date || '';
             
             // UPGRADE: Hydrate the new custom Tap-to-Select UI display
-            // ENTERPRISE FIX: Re-mapped the hydration engine to support the new Smart Search!
             const partyInput = document.getElementById(type === 'in' ? 'pay-in-customer-id' : 'pay-out-supplier-id');
             const partyDisplay = document.getElementById(type === 'in' ? 'pay-in-customer-display' : 'pay-out-supplier-display');
             
@@ -3882,42 +3874,98 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             if (partyInput) {
                 // NEW: Load the pending invoices into the dropdown for the selected party
                 await app.loadPendingInvoices(record.ledgerId, type);
-                                const invoiceRefEl = document.getElementById(`pay-${type}-invoice-ref`);
+                
+                const invoiceRefEl = document.getElementById(`pay-${type}-invoice-ref`);
                 if (invoiceRefEl && record.invoiceRef) {
-                    const savedRefs = String(record.invoiceRef).split(',').map(r => r.trim());
-                    const store = type === 'in' ? 'sales' : 'purchases';
-                    const allDocs = await getAllRecords(store);
+                    // 🚨 ENTERPRISE FIX: Filter out blank references to prevent ghost mapping!
+                    const savedRefs = String(record.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                    
+                    // 🚨 ENTERPRISE FIX: Bulletproof Cross-Table Protection
+                    const partyForEdit = await getRecordById('ledgers', record.ledgerId);
+                    const isCustomer = partyForEdit ? String(partyForEdit.type).toLowerCase() === 'customer' : (type === 'in');
+                    const docStore = isCustomer ? 'sales' : 'purchases';
+                    
+                    // 🚨 ENTERPRISE FIX: Scope database fetch to prevent RAM lag and isolate Firm Data!
+                    const allDocs = await getAllRecords(docStore, 'firmId', app.state.firmId);
+
+                    let optionsChanged = false;
+                    let optionsToSelect = []; // 🚨 ENTERPRISE FIX: Queue selections to prevent DOM dropping
 
                     savedRefs.forEach(ref => {
-                        // Check if this specific ref is already in the dropdown options
-                        let optionExists = Array.from(invoiceRefEl.options).some(opt => opt.value === ref);
-                        
-                        // If not, it means it's fully paid and hidden, so we must inject it back
-                        if (!optionExists) {
-                            let displayRef = ref;
-                            // SELF-HEALING: Map perfectly to Order No and catch ghost IDs!
-                            const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || d.id.endsWith(ref));
+                        // 🚨 ENTERPRISE FIX: Check ALL references BUT STRICTLY lock to the specific Customer/Supplier!
+                        const linkedDoc = allDocs.find(d => {
+                            if (d.firmId !== app.state.firmId) return false;
+                            
+                            if (isCustomer && d.customerId !== record.ledgerId) return false;
+                            if (!isCustomer && d.supplierId !== record.ledgerId) return false;
+
+                            const possibleRefs = [d.id, d.invoiceNo, d.poNo, d.orderNo].map(String);
+                            return possibleRefs.includes(String(ref)) || String(d.id).endsWith(String(ref));
+                        });
+
+                        // Find if it's already in the dropdown under ANY of its aliases
+                        let matchingOpt = Array.from(invoiceRefEl.options).find(opt => {
+                            if (!opt.value) return false; // Ignore the blank "On Account" option!
+                            if (String(opt.value) === String(ref)) return true;
                             if (linkedDoc) {
-                                if (type === 'in') {
-                                    displayRef = linkedDoc.orderNo || linkedDoc.invoiceNo || String(linkedDoc.id).slice(-4).toUpperCase();
-                                } else {
-                                    displayRef = linkedDoc.orderNo || linkedDoc.poNo || linkedDoc.invoiceNo || String(linkedDoc.id).slice(-4).toUpperCase();
-                                }
+                                const possibleOptRefs = [linkedDoc.id, linkedDoc.invoiceNo, linkedDoc.poNo, linkedDoc.orderNo].map(String);
+                                if (possibleOptRefs.includes(String(opt.value))) return true;
                             }
-                            invoiceRefEl.innerHTML += `<option value="${ref}">${displayRef} (Fully Paid)</option>`;
+                            return false;
+                        });
+
+                        if (matchingOpt) {
+                            optionsToSelect.push(matchingOpt);
+                            optionsChanged = true;
+                        } else {
+                            // Inject missing/fully paid invoice back into the dropdown so it isn't lost!
+                            let displayRef = ref;
+                            let docTotal = 0;
+                            if (linkedDoc) {
+                                let baseDisplay = linkedDoc.orderNo || String(linkedDoc.id).slice(-4).toUpperCase();
+                                let suffix = linkedDoc.invoiceNo ? ` | Inv: ${linkedDoc.invoiceNo}` : '';
+                                displayRef = baseDisplay + suffix;
+                                docTotal = parseFloat(linkedDoc.grandTotal) || 0;
+                            }
+                            
+                            const newOption = document.createElement('option');
+                            newOption.value = ref;
+                            newOption.text = `${displayRef} (Settled: \u20B9${docTotal.toFixed(2)})`;
+                            
+                            // Append to DOM immediately
+                            invoiceRefEl.appendChild(newOption);
+                            
+                            optionsToSelect.push(newOption);
+                            optionsChanged = true;
                         }
                     });
 
-                    // Loop through all options and natively select the ones that match our saved refs
-                    Array.from(invoiceRefEl.options).forEach(opt => {
-                        if (savedRefs.includes(opt.value)) {
-                            opt.selected = true;
-                        }
-                    });
+                    if (optionsChanged) {
+                        // 🚨 ENTERPRISE FIX: Safe DOM Repaint & Selection Lock!
+                        void invoiceRefEl.offsetHeight; 
+                        
+                        // Increased delay to 150ms to guarantee slower phones have time to render the hidden box!
+                        setTimeout(() => {
+                            // 🚨 ENTERPRISE FIX: Deduplicate options to prevent old corrupted comma-split data from ticking the same box twice!
+                            const uniqueOptions = [...new Set(optionsToSelect)];
+                            uniqueOptions.forEach(opt => {
+                                opt.selected = true;
+                                // 🚨 BROWSER OVERRIDE: Physically force the HTML attribute so hidden WebViews CANNOT ignore the selection!
+                                opt.setAttribute('selected', 'selected'); 
+                            });
+                            // Fire a native change event to force Android WebViews to draw the blue ticks!
+                            invoiceRefEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        }, 150); 
+                    }
                 }
             }
             
-            document.getElementById(`pay-${type}-amount`).value = record.amount || 0;
+            // 🚨 STRICT AMOUNT LOCK: Forces the exact historical amount back into the UI safely!
+            setTimeout(() => {
+                const amountEl = document.getElementById(`pay-${type}-amount`);
+                if (amountEl) amountEl.value = record.amount || 0;
+            }, 180);
+            
             document.getElementById(`pay-${type}-mode`).value = record.mode || 'Cash';
             
             const accEl = document.getElementById(`pay-${type}-account`);
@@ -3976,11 +4024,30 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                 let amt = parseFloat(c.amount) || 0;
                 let impact = isSales ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
                 
-                // ENTERPRISE FIX: Removed the "impact > 0" block so Refunds accurately reopen Unpaid invoices!
-                const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
-                if (refs.length > 0) {
-                    let splitAmt = impact / refs.length;
-                    refs.forEach(r => { paymentMap[r] = (paymentMap[r] || 0) + splitAmt; });
+                // 🚨 ENTERPRISE FIX: Smart Waterfall Allocation for exact mapping!
+                if (impact > 0) {
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                    if (refs.length > 0) {
+                        let remainingPayment = impact;
+                        refs.forEach(ref => {
+                            const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                            let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (impact / refs.length);
+                            let applyAmt = Math.min(docTotal, remainingPayment);
+                            if (applyAmt > 0) {
+                                paymentMap[ref] = (paymentMap[ref] || 0) + applyAmt;
+                                remainingPayment -= applyAmt;
+                            }
+                        });
+                        // Dump excess onto the first invoice so it isn't lost!
+                        if (remainingPayment > 0.01 && refs[0]) paymentMap[refs[0]] = (paymentMap[refs[0]] || 0) + remainingPayment;
+                    }
+                } else if (impact < 0) {
+                    // Handle refunds natively
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                    if (refs.length > 0) {
+                        let splitAmt = impact / refs.length;
+                        refs.forEach(r => { paymentMap[r] = (paymentMap[r] || 0) + splitAmt; });
+                    }
                 }
             }
         });
@@ -4027,23 +4094,144 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             }
             
             // 🚨 ENTERPRISE FIX: Fulfillment-Aware Auto-Close
-            // Purchases auto-complete instantly. Sales MUST be physically shipped first!
             if (finalBal <= 0.01) {
-                // 🚨 ENTERPRISE FIX: Allow Unpaid invoices to safely transition back to Completed if their balance is ₹0.00
                 if (storeName === 'purchases' || item.doc.status === 'Shipped' || item.doc.status === 'Unpaid') {
+                    item.doc._preCompleteStatus = item.doc.status;
                     item.doc.status = 'Completed';
                     const fallbackDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
                     item.doc.completedDate = triggerDate || fallbackDate; // Auto-stamp the date!
                     await saveRecord(storeName, item.doc);
                 }
             } else {
-                // If it owes money again, revert to Shipped (for sales) or Open (for purchases)
                 if (item.doc.status === 'Completed') {
-                    item.doc.status = storeName === 'purchases' ? 'Open' : 'Shipped'; 
+                    item.doc.status = item.doc._preCompleteStatus || (storeName === 'purchases' ? 'Unpaid' : 'Shipped'); 
                     item.doc.completedDate = '';
                     await saveRecord(storeName, item.doc);
                 }
             }
+        }
+    },
+
+    // ==========================================
+    // 🚀 ENTERPRISE UPGRADE: CONTRA TRANSFER ENGINE
+    // ==========================================
+    openContraTransfer: async () => {
+        const fromEl = document.getElementById('contra-from-account');
+        const toEl = document.getElementById('contra-to-account');
+        
+        // Use the live AppCache accounts list to populate the dropdowns
+        if (fromEl && toEl && window.AppCache && window.AppCache.accounts) {
+            let opts = window.AppCache.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+            if (!window.AppCache.accounts.some(a => a.id === 'cash')) {
+                opts = `<option value="cash">Default Cash Drawer</option>` + opts;
+            }
+            fromEl.innerHTML = opts;
+            toEl.innerHTML = opts;
+            
+            // Set intelligent defaults (Bank to Cash)
+            if (fromEl.options.length > 1) {
+                fromEl.selectedIndex = 1; // Pick the first actual bank account
+                toEl.value = 'cash';      // Default deposit to Cash
+            }
+        }
+        
+        const dateEl = document.getElementById('contra-date');
+        if (dateEl) {
+            const today = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+            dateEl.value = today;
+            if (dateEl._flatpickr) dateEl._flatpickr.setDate(today);
+        }
+        
+        const amtEl = document.getElementById('contra-amount');
+        if (amtEl) amtEl.value = '';
+        
+        const notesEl = document.getElementById('contra-notes');
+        if (notesEl) notesEl.value = '';
+        
+        if (window.UI) window.UI.openBottomSheet('sheet-contra-transfer');
+    },
+
+    saveContraTransfer: async () => {
+        const fromAcc = document.getElementById('contra-from-account').value;
+        const toAcc = document.getElementById('contra-to-account').value;
+        const amt = parseFloat(document.getElementById('contra-amount').value) || 0;
+        const date = document.getElementById('contra-date').value;
+        const notes = document.getElementById('contra-notes').value || 'Bank Transfer / Contra';
+        
+        if (fromAcc === toAcc) return alert("Error: Cannot transfer money to the same account!");
+        if (amt <= 0) return alert("Error: Amount must be strictly greater than zero.");
+        
+        const btn = document.getElementById('btn-save-contra');
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = 'Processing...';
+        
+        try {
+            const commonId = window.Utils.generateId();
+            
+            let fromName = 'Cash Drawer';
+            if (fromAcc !== 'cash' && window.AppCache.accounts) {
+                const acc = window.AppCache.accounts.find(a => a.id === fromAcc);
+                if (acc) fromName = acc.name;
+            }
+            
+            let toName = 'Cash Drawer';
+            if (toAcc !== 'cash' && window.AppCache.accounts) {
+                const acc = window.AppCache.accounts.find(a => a.id === toAcc);
+                if (acc) toName = acc.name;
+            }
+            
+            // 1. Withdrawal (Money Out)
+            await saveRecord('receipts', {
+                id: 'contra-out-' + commonId,
+                firmId: app.state.firmId,
+                date: date,
+                ledgerId: 'contra-transfer',
+                ledgerName: 'Bank Transfer (Contra)',
+                type: 'out',
+                amount: amt,
+                mode: 'Contra',
+                accountId: fromAcc,
+                ref: 'To: ' + toName,
+                desc: notes,
+                isAutoGenerated: true
+            });
+            
+            // 2. Deposit (Money In)
+            await saveRecord('receipts', {
+                id: 'contra-in-' + commonId,
+                firmId: app.state.firmId,
+                date: date,
+                ledgerId: 'contra-transfer',
+                ledgerName: 'Bank Transfer (Contra)',
+                type: 'in',
+                amount: amt,
+                mode: 'Contra',
+                accountId: toAcc,
+                ref: 'From: ' + fromName,
+                desc: notes,
+                isAutoGenerated: true
+            });
+            
+            if (window.Utils) window.Utils.showToast("✅ Transfer Successful!");
+            
+            if (window.UI) {
+                window.UI.closeBottomSheet('sheet-contra-transfer');
+                window.UI.renderBankBalances();
+                
+                // If they are currently looking at a bank passbook, refresh it!
+                const reportViewer = document.getElementById('activity-report-viewer');
+                if (reportViewer && reportViewer.classList.contains('open')) {
+                    const activeFilters = window.UI.state.activeFilters || {};
+                    if (activeFilters['timeline']) window.UI.applyFilters('timeline');
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Transfer failed: " + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = origText;
         }
     },
 
@@ -4136,7 +4324,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                     // STRICT ERP LOGIC: Lock the search to the specific record's Firm ID to prevent cross-company data corruption!
                     const linkedDoc = allDocs.find(d => d.firmId === record.firmId && (d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref));
                     if (linkedDoc && linkedDoc.status === 'Completed') {
-                        linkedDoc.status = 'Unpaid'; // FIX: Marks as Unpaid but keeps Stock intact!
+                        linkedDoc.status = linkedDoc._preCompleteStatus || (docStore === 'purchases' ? 'Unpaid' : 'Shipped'); 
                         linkedDoc.completedDate = '';
                         await saveRecord(docStore, linkedDoc);
                     }
@@ -4206,7 +4394,9 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         // ENTERPRISE FIX: Re-run the Advance Payment Waterfall so invoices don't get permanently stuck as "Completed" when their payment is deleted!
         if (type === 'receipt-in' || type === 'receipt-out') {
             if (record.ledgerId && typeof app.autoCompleteInvoices === 'function') {
-                await app.autoCompleteInvoices(record.ledgerId, type === 'receipt-in' ? 'sales' : 'purchases');
+                const party = await getRecordById('ledgers', record.ledgerId);
+                const docStore = (party && String(party.type).toLowerCase() === 'customer') ? 'sales' : 'purchases';
+                await app.autoCompleteInvoices(record.ledgerId, docStore);
             }
         }
 
@@ -4293,6 +4483,122 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             app.refreshAll();
         } else {
             alert("Error: Could not find the record in the Recycle Bin.");
+        }
+    },
+
+    // ==========================================
+    // 🚀 ENTERPRISE UPGRADE: DEEP DASHBOARD ANALYTICS
+    // ==========================================
+    openDeepAnalytics: async () => {
+        if (window.UI) window.UI.openActivity('activity-deep-analytics');
+        
+        const firmId = app.state.firmId;
+        const sales = (window.UI.state.rawData.sales || []).filter(s => s.firmId === firmId && s.status !== 'Open' && s.status !== 'Cancelled');
+        const expenses = (window.UI.state.rawData.expenses || []).filter(e => e.firmId === firmId);
+        
+        // 1. Top Products
+        const productSales = {};
+        sales.forEach(s => {
+            (s.items || []).forEach(item => {
+                const qty = parseFloat(item.qty) || 0;
+                const total = qty * (parseFloat(item.rate) || 0);
+                if (s.documentType === 'return') {
+                    productSales[item.name] = (productSales[item.name] || 0) - total;
+                } else {
+                    productSales[item.name] = (productSales[item.name] || 0) + total;
+                }
+            });
+        });
+        
+        const topProducts = Object.keys(productSales).map(name => ({ name, total: productSales[name] })).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
+        let prodHtml = topProducts.map((p, idx) => `<div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--md-outline-variant);"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${p.name}</span><strong style="color: #0061a4; font-size: 15px;">₹${p.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`).join('');
+        document.getElementById('analytics-top-products').innerHTML = prodHtml || '<small style="color: var(--md-text-muted);">No sales data available.</small>';
+
+        // 2. Top Customers
+        const customerSales = {};
+        sales.forEach(s => {
+            const total = parseFloat(s.grandTotal) || 0;
+            if (s.documentType === 'return') customerSales[s.customerName] = (customerSales[s.customerName] || 0) - total;
+            else customerSales[s.customerName] = (customerSales[s.customerName] || 0) + total;
+        });
+        
+        const topCustomers = Object.keys(customerSales).map(name => ({ name, total: customerSales[name] })).filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
+        let custHtml = topCustomers.map((c, idx) => `<div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--md-outline-variant);"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${c.name}</span><strong style="color: var(--md-success); font-size: 15px;">₹${c.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`).join('');
+        document.getElementById('analytics-top-customers').innerHTML = custHtml || '<small style="color: var(--md-text-muted);">No customer data available.</small>';
+
+        // 3. Top Expenses
+        const expMap = {};
+        expenses.forEach(e => { expMap[e.category] = (expMap[e.category] || 0) + (parseFloat(e.amount) || 0); });
+        
+        const topExpenses = Object.keys(expMap).map(cat => ({ cat, total: expMap[cat] })).filter(e => e.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
+        let expHtml = topExpenses.map((e, idx) => `<div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--md-outline-variant);"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${e.cat}</span><strong style="color: var(--md-error); font-size: 15px;">₹${e.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`).join('');
+        document.getElementById('analytics-top-expenses').innerHTML = expHtml || '<small style="color: var(--md-text-muted);">No expense data available.</small>';
+    },
+
+    // ==========================================
+    // 🚀 ENTERPRISE UPGRADE: SMART SHARE ENGINE
+    // ==========================================
+    openSmartShare: async (type, id) => {
+        app.state.shareData = { type, id };
+        const storeName = type === 'sales' ? 'sales' : 'purchases';
+        const record = await window.getRecordById(storeName, id);
+        if (!record) return alert("Document not found.");
+        
+        const isSale = type === 'sales';
+        const partyName = isSale ? record.customerName : record.supplierName;
+        const docName = isSale ? (record.documentType === 'return' ? 'Credit Note' : 'Invoice') : (record.documentType === 'return' ? 'Debit Note' : 'Purchase Order');
+        const docNo = record.invoiceNo || record.orderNo || record.poNo || 'Draft';
+        const amt = parseFloat(record.grandTotal).toLocaleString('en-IN', {minimumFractionDigits: 2});
+        
+        let msg = `Dear ${partyName},\n\nPlease find attached ${docName} #${docNo} for the amount of ₹${amt}.\n`;
+        
+        if (record.status === 'Completed') {
+            msg += `\nThis document is fully settled. Thank you!`;
+        } else if (isSale) {
+            msg += `\nKindly process the payment at your earliest convenience.`;
+            const firmData = await window.getRecordById('businessProfile', app.state.firmId);
+            if (firmData && firmData.upiId) msg += `\n\nUPI: ${firmData.upiId}`;
+        }
+        
+        msg += `\n\nRegards,\nTeam SOLLO`;
+        
+        const msgBox = document.getElementById('smart-share-msg');
+        if (msgBox) msgBox.value = msg;
+        if (window.UI) window.UI.openBottomSheet('sheet-smart-share');
+    },
+
+    executeSmartShare: async (method) => {
+        const { type, id } = app.state.shareData;
+        const msg = document.getElementById('smart-share-msg').value;
+        const storeName = type === 'sales' ? 'sales' : 'purchases';
+        const record = await window.getRecordById(storeName, id);
+        
+        let phone = '';
+        if (record) {
+            const partyId = type === 'sales' ? record.customerId : record.supplierId;
+            const party = await window.getRecordById('ledgers', partyId);
+            if (party && party.phone) phone = party.phone.replace(/[^0-9]/g, '');
+        }
+        
+        if (window.UI) window.UI.closeBottomSheet('sheet-smart-share');
+
+        if (method === 'whatsapp') {
+            // Check if the phone supports Native Share (which allows sending text + file together)
+            if (navigator.share && navigator.canShare) {
+                // Let the PDF engine pop up, user can manually trigger it.
+                if (window.Utils) window.Utils.showToast("Opening Document...");
+                window.app.generatePDF(type);
+                // We copy the text to clipboard so they can just paste it!
+                if (navigator.clipboard) navigator.clipboard.writeText(msg);
+                setTimeout(() => alert("Message copied to clipboard! You can paste it when sharing the PDF."), 1000);
+            } else {
+                // Fallback for PC/Older phones: Just open WhatsApp directly
+                const encodedMsg = encodeURIComponent(msg);
+                const url = phone ? `https://wa.me/91${phone}?text=${encodedMsg}` : `https://wa.me/?text=${encodedMsg}`;
+                window.open(url, '_blank');
+            }
+        } else if (method === 'pdf_only') {
+            if (window.app.generatePDF) window.app.generatePDF(type);
         }
     },
 
@@ -5985,66 +6291,76 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         else if (runBal > 0.01) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = 'rgba(0, 97, 164, 0.1)'; statusColor = 'var(--md-primary)'; }
     }
 
-    // 🚀 ENTERPRISE GST SPLIT ENGINE FOR KHATA STATEMENT PDF
-    let splitHtml = '';
-    if ((String(partyType).toLowerCase() === 'customer' && runBal > 0.01) || (String(partyType).toLowerCase() !== 'customer' && runBal < -0.01)) {
-        const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
-        let ob = parseFloat(party.openingBalance) || 0;
-        let isAdv = String(partyType).toLowerCase() === 'customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
-        
-        let credits = isAdv ? ob : 0;
-        let debitsGst = !isAdv ? ob : 0;
-        let debitsNon = 0;
-        let invoices = [];
+        // 🚀 ENTERPRISE GST SPLIT ENGINE FOR KHATA STATEMENT PDF
+        let splitHtml = '';
+        if ((String(partyType).toLowerCase() === 'customer' && runBal > 0.01) || (String(partyType).toLowerCase() !== 'customer' && runBal < -0.01)) {
+            const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
+            let ob = parseFloat(party.openingBalance) || 0;
+            let isAdv = String(partyType).toLowerCase() === 'customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
+            
+            let debitsGst = !isAdv ? ob : 0;
+            let debitsNon = 0;
+            
+            const exactPaymentMap = {};
+            const exactReturnMap = {};
 
-        if (String(partyType).toLowerCase() === 'customer') {
-            const allSales = await getAllRecords('sales', 'firmId', window.app.state.firmId);
-            allSales.forEach(s => {
-                if (s.status !== 'Open' && s.customerId === partyId) {
-                    if (s.documentType === 'return') credits += parseFloat(s.grandTotal || 0);
-                    else invoices.push({ type: s.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(s.grandTotal || 0), date: s.date });
-                }
-            });
             const allReceipts = await getAllRecords('receipts', 'firmId', window.app.state.firmId);
             allReceipts.forEach(c => {
-                if (c.ledgerId === partyId) credits += (c.type === 'in' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
-            });
-        } else {
-            const allPurchases = await getAllRecords('purchases', 'firmId', window.app.state.firmId);
-            allPurchases.forEach(p => {
-                if (p.status !== 'Open' && p.supplierId === partyId) {
-                    if (p.documentType === 'return') credits += parseFloat(p.grandTotal || 0);
-                    else invoices.push({ type: p.invoiceType === 'Non-GST' ? 'non' : 'gst', amt: parseFloat(p.grandTotal || 0), date: p.date });
+                if (c.ledgerId === partyId && c.invoiceRef) {
+                    let amt = parseFloat(c.amount) || 0;
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                    let remainingAmt = amt;
+                    refs.forEach(ref => {
+                        if (remainingAmt <= 0) return;
+                        exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length);
+                    });
                 }
             });
-            const allReceipts = await getAllRecords('receipts', 'firmId', window.app.state.firmId);
-            allReceipts.forEach(c => {
-                if (c.ledgerId === partyId) credits += (c.type === 'out' ? parseFloat(c.amount || 0) : -parseFloat(c.amount || 0));
+
+            const docs = String(partyType).toLowerCase() === 'customer' ? await getAllRecords('sales', 'firmId', window.app.state.firmId) : await getAllRecords('purchases', 'firmId', window.app.state.firmId);
+            
+            docs.forEach(d => {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo && (String(partyType).toLowerCase() === 'customer' ? d.customerId === partyId : d.supplierId === partyId)) {
+                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                }
             });
-        }
 
-        invoices.sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
-        
-        if (credits >= debitsGst) { credits -= debitsGst; debitsGst = 0; }
-        else { debitsGst -= credits; credits = 0; }
+            docs.forEach(doc => {
+                if (doc.status !== 'Open' && doc.documentType !== 'return' && (String(partyType).toLowerCase() === 'customer' ? doc.customerId === partyId : doc.supplierId === partyId)) {
+                    const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
+                    const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
+                    const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
+                    
+                    const docTotal = parseFloat(doc.grandTotal) || 0;
+                    const finalUnpaid = Math.max(0, docTotal - paid - returned);
+                    
+                    if (finalUnpaid > 0.01) {
+                        if (doc.invoiceType === 'Non-GST') debitsNon += finalUnpaid;
+                        else debitsGst += finalUnpaid;
+                    }
+                }
+            });
 
-        invoices.forEach(inv => {
-            let unpaid = inv.amt;
-            if (credits >= unpaid) { credits -= unpaid; unpaid = 0; }
-            else { unpaid -= credits; credits = 0; }
-            if (unpaid > 0.01) {
-                if (inv.type === 'gst') debitsGst += unpaid;
-                else debitsNon += unpaid;
+            const trueBalance = Math.abs(runBal); 
+            const trackedDebt = debitsGst + debitsNon;
+            if (trueBalance < trackedDebt) {
+                const excessCredit = trackedDebt - trueBalance;
+                if (excessCredit >= debitsGst) {
+                    let remaining = excessCredit - debitsGst;
+                    debitsGst = 0;
+                    debitsNon = Math.max(0, debitsNon - remaining);
+                } else {
+                    debitsGst -= excessCredit;
+                }
             }
-        });
 
-        if (debitsGst > 0.01 || debitsNon > 0.01) {
-            splitHtml = `<div style="margin-top: 12px; background: #f1f5f9; padding: 10px; border-radius: 6px; border: 1px dashed #cbd5e1; width: 100%; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">`;
-            if (debitsGst > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f172a; font-weight: 800;"><span>GST Due:</span><span>₹${debitsGst.toFixed(2)}</span></div>`;
-            if (debitsNon > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f172a; font-weight: 800;"><span>Non-GST Due:</span><span>₹${debitsNon.toFixed(2)}</span></div>`;
-            splitHtml += `</div>`;
+            if (debitsGst > 0.01 || debitsNon > 0.01) {
+                splitHtml = `<div style="margin-top: 12px; background: #f1f5f9; padding: 10px; border-radius: 6px; border: 1px dashed #cbd5e1; width: 100%; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">`;
+                if (debitsGst > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f172a; font-weight: 800;"><span>GST Due:</span><span>₹${debitsGst.toFixed(2)}</span></div>`;
+                if (debitsNon > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f172a; font-weight: 800;"><span>Non-GST Due:</span><span>₹${debitsNon.toFixed(2)}</span></div>`;
+                splitHtml += `</div>`;
+            }
         }
-    }
 
     html += `
             </tbody>
@@ -7458,20 +7774,6 @@ document.addEventListener('focusout', (e) => {
     }
 });
 
-// ==========================================
-// 🚨 ENTERPRISE FIX: THE DATA-LOSS FIREWALL
-// ==========================================
-// Intercepts accidental tab closures and refresh buttons so users never lose an unsaved invoice!
-window.addEventListener('beforeunload', (e) => {
-    // Check if ANY form, bottom-sheet, or numpad is currently open and active on the screen
-    const isFormOpen = document.querySelectorAll('.bottom-sheet.active, .activity-screen.active').length > 0;
-    const isNumpadOpen = document.getElementById('custom-numpad') && document.getElementById('custom-numpad').classList.contains('active');
-    
-    if (isFormOpen || isNumpadOpen) {
-        e.preventDefault();
-        e.returnValue = ''; // Required by modern Chrome/Safari to trigger the native hardware lock!
-    }
-});
 // ==========================================
 // 🚨 ENTERPRISE SECURITY: BANKING PRIVACY SHIELD
 // ==========================================

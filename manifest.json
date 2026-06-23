@@ -107,6 +107,3 @@
   }
 }
 
-    <div style="background: var(--md-surface, #ffffff); padding: 10px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant, #e2e8f0); flex-shrink: 0;">
-        <span class="tap-target" style="color: var(--md-primary, #0061a4); font-weight: 700; font-size: 14px; text-transform: uppercase; padding: 8px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">CLOSE</span>
-    </div>
