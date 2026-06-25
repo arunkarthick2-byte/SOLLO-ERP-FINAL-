@@ -137,7 +137,7 @@ const UI = {
                 
                 if (target.type === 'number' && String(target.value).includes('-')) {
                     if (!id.includes('adjust') && !id.includes('discount') && !id.includes('return')) {
-                        target.value = Math.abs(target.value);
+                        target.value = Math.abs(parseFloat(target.value) || 0);
                     }
                 }
             }
@@ -814,7 +814,8 @@ const UI = {
         // FIX: Populate the Master View Dropdowns immediately when the screen opens so they are never empty!
         if (filterSelect) {
             if (type === 'customers' || type === 'suppliers' || type === 'contacts') {
-                filterSelect.innerHTML = `<option value="All">All Status</option><option value="To Receive">To Receive (Due)</option><option value="To Pay">To Pay (Due)</option><option value="Advance">Advance (Paid / Received)</option><option value="GST">GST Registered</option><option value="Non-GST">Non-GST</option><option value="Money In">Money In (Received)</option><option value="Money Out">Money Out (Paid)</option>`;
+                let extraContactsFilters = type === 'contacts' ? `<option value="Customers Only">Customers Only</option><option value="Suppliers Only">Suppliers Only</option>` : '';
+                filterSelect.innerHTML = `<option value="All">All Parties</option><option value="To Receive">To Receive (Due)</option><option value="To Pay">To Pay (Due)</option><option value="Advance">Advance (Paid / Received)</option><option value="GST">GST (Registered)</option><option value="Non-GST">Non-GST (Unregistered)</option>${extraContactsFilters}`;
                 if(sortSelect) sortSelect.innerHTML = `<option value="name-asc">A to Z</option><option value="bal-desc">Balance: High to Low</option><option value="bal-asc">Balance: Low to High</option>`;
             } else if (type === 'pay-in' || type === 'pay-out') {
                 filterSelect.innerHTML = `<option value="All">All Modes</option><option value="Cash">Cash Only</option><option value="Bank">Bank / Online Only</option>`;
@@ -977,8 +978,8 @@ const UI = {
             
             tr.querySelector('.row-total').innerText = rowTotal.toFixed(2);
             
-            finalSubtotal += roundedDiscountedBase;
-            totalGst += roundedGst;
+            finalSubtotal += discountedBase;
+            totalGst += gstAmount;
 
             // 🟢 ENTERPRISE FIX: Safe Null Check! Prevents fatal crashes when editing older invoices that lack this field.
             const buyPriceInput = tr.querySelector('.row-item-buyprice');
@@ -1080,8 +1081,8 @@ const UI = {
             
             tr.querySelector('.row-total').innerText = rowTotal.toFixed(2);
             
-            finalSubtotal += roundedDiscountedBase;
-            totalGst += roundedGst;
+            finalSubtotal += discountedBase;
+            totalGst += gstAmount;
         });
 
         // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
@@ -1208,58 +1209,94 @@ const UI = {
 
             // ENTERPRISE FIX: We MUST pre-calculate Returns BEFORE processing explicit payments so refund money isn't blackholed!
             const globalReturnMap = {};
-            UI.state.rawData.sales.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) globalReturnMap[d.orderNo] = (globalReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
-            UI.state.rawData.purchases.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) globalReturnMap[d.orderNo] = (globalReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
+            UI.state.rawData.sales.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) globalReturnMap['sales_' + d.orderNo] = (globalReturnMap['sales_' + d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
+            UI.state.rawData.purchases.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) globalReturnMap['purchases_' + d.orderNo] = (globalReturnMap['purchases_' + d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
 
-            // ENTERPRISE FIX: Inject Opening Balances into the allocation pool so they can pay off invoices!
+            // 🚨 ELITE UPGRADE: GLOBAL TAX-AWARE AUTO-FIFO ENGINE
+            const floatingPools = {}; 
+
+            // 1. Give Opening Balances to the GST Pool by default
             UI.state.rawData.ledgers.forEach(l => {
                 let ob = parseFloat(l.openingBalance) || 0;
                 const bType = (l.balanceType || '').toLowerCase();
-                if (tab === 'sales' && (bType.includes('pay') || bType.includes('credit'))) ledgerTotalPaid[l.id] = (ledgerTotalPaid[l.id] || 0) + ob;
-                if (tab === 'purchases' && (bType.includes('receive') || bType.includes('debit'))) ledgerTotalPaid[l.id] = (ledgerTotalPaid[l.id] || 0) + ob;
+                if (tab === 'sales' && (bType.includes('pay') || bType.includes('credit'))) floatingPools[`${l.id}_GST`] = (floatingPools[`${l.id}_GST`] || 0) + ob;
+                if (tab === 'purchases' && (bType.includes('receive') || bType.includes('debit'))) floatingPools[`${l.id}_GST`] = (floatingPools[`${l.id}_GST`] || 0) + ob;
             });
 
+            // 2. Process Cashbook explicitly, AND collect floating advances
             UI.state.rawData.cashbook.forEach(c => {
                 if (c.ledgerId) {
                     let amt = parseFloat(c.amount) || 0;
                     if (tab === 'sales') amt = c.type === 'in' ? amt : -amt;
                     if (tab === 'purchases') amt = c.type === 'out' ? amt : -amt;
                     
-                    ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
+                    // Legacy Support for old DB
+                    const legacyRef = c.invoiceRef || c.linkedInvoice;
+                    
+                    // Determine Tax Pool (Fall back to Legacy checking)
+                    let isNon = c.taxPool === 'Non-GST';
+                    if (!isNon && legacyRef) {
+                        const firstRef = String(legacyRef).split(',')[0].trim();
+                        const linkedDoc = docMap[firstRef];
+                        if (linkedDoc && linkedDoc.invoiceType === 'Non-GST') isNon = true;
+                    }
+                    const poolKey = isNon ? `${c.ledgerId}_Non` : `${c.ledgerId}_GST`;
+                    floatingPools[poolKey] = (floatingPools[poolKey] || 0) + amt;
 
-                    if (c.invoiceRef) {
-                        const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                    if (legacyRef) {
+                        const refs = String(legacyRef).split(',').map(r => r.trim());
                         let remainingAmt = amt;
                         
-                        // Waterfall Allocation (FIFO)
                         const matchedDocs = refs.map(ref => docMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
-                        
                         matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                         
                         matchedDocs.forEach(doc => {
-                            if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for refunds!
+                            if (Math.abs(remainingAmt) < 0.01) return; 
                             const key = `${c.ledgerId}_${doc.id}`;
                             const currentPaid = paymentMap[key] || 0;
                             
-                            // ENTERPRISE FIX: The Blackhole Credit Note Trap!
-                            // Deduct the return from the docTotal. This forces the overpayment to legally overflow into the Advance Pool!
-                            const returned = [doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean).reduce((sum, ref) => sum + (globalReturnMap[ref] || 0), 0);
+                            const isSale = !!UI.state.rawData.sales.find(s => s.id === doc.id);
+                            const prefix = isSale ? 'sales_' : 'purchases_';
+                            const returned = [doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean).reduce((sum, ref) => sum + (globalReturnMap[prefix + ref] || 0), 0);
                             const docTotal = doc.grandTotal === Infinity ? Infinity : Math.max(0, (parseFloat(doc.grandTotal) || 0) - returned);
                             
                             let allocation = 0;
-                            if (remainingAmt > 0) {
-                                allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                            } else {
-                                // Mathematical Refund: Deduct from what was previously paid
-                                allocation = Math.max(-currentPaid, remainingAmt); 
-                            }
+                            if (remainingAmt > 0) allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                            else allocation = Math.max(-currentPaid, remainingAmt); 
                             
                             if (Math.abs(allocation) > 0) {
                                 paymentMap[key] = currentPaid + allocation;
-                                ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
+                                floatingPools[poolKey] -= allocation; // Deduct explicit allocation from the floating pool
                                 remainingAmt -= allocation;
                             }
                         });
+                    }
+                }
+            });
+
+            // 3. Auto-FIFO the remaining Floating Advances to the oldest unpaid invoices!
+            const allUnpaidDocs = (tab === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases).filter(d => d.status !== 'Open' && d.documentType !== 'return');
+            allUnpaidDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+            allUnpaidDocs.forEach(doc => {
+                const partyId = tab === 'sales' ? doc.customerId : doc.supplierId;
+                const isNon = doc.invoiceType === 'Non-GST';
+                const poolKey = isNon ? `${partyId}_Non` : `${partyId}_GST`;
+
+                if (floatingPools[poolKey] > 0.01) {
+                    const prefix = tab === 'sales' ? 'sales_' : 'purchases_';
+                    const returned = [doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean).reduce((sum, ref) => sum + (globalReturnMap[prefix + ref] || 0), 0);
+                    const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
+                    const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${partyId}_${ref}`] || 0), 0);
+                    
+                    const docTotal = parseFloat(doc.grandTotal) || 0;
+                    const remainingDebt = Math.max(0, docTotal - returned - explicitPaid);
+
+                    if (remainingDebt > 0.01) {
+                        const allocation = Math.min(remainingDebt, floatingPools[poolKey]);
+                        const mapKey = `${partyId}_${doc.id}`;
+                        paymentMap[mapKey] = (paymentMap[mapKey] || 0) + allocation;
+                        floatingPools[poolKey] -= allocation; // Shrink the pool!
                     }
                 }
             });
@@ -1355,14 +1392,34 @@ const UI = {
                     const isReturn = s.documentType === 'return';
                     const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
-                    const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid);
-                    // 🚨 FIX: Strict >= 0.01 check prevents floating point errors from displaying "Due: ₹0.00" in red!
+                    // 🚨 NEW: Calculate the raw balance to detect Overpayments / Advances!
+                    const rawBalance = (parseFloat(s.grandTotal) || 0) - paid;
+                    const balance = Math.max(0, rawBalance);
                     const isDue = balance >= 0.01 && !isReturn;
-                    const statusText = s.status === 'Open' ? 'Draft' : (isDue ? `Due: \u20B9${balance.toFixed(2)}` : 'Paid');
                     
-                    // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
-                    const statusColor = s.status === 'Open' ? '#73777f' : (isDue ? '#ba1a1a' : '#146c2e');
-                    const statusBg = s.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (isDue ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)'); 
+                    let statusText = 'Paid';
+                    let statusColor = '#146c2e'; // Green
+                    let statusBg = 'rgba(20, 108, 46, 0.1)'; 
+
+                    if (s.status === 'Open') {
+                        statusText = 'Draft';
+                        statusColor = '#73777f';
+                        statusBg = 'rgba(115, 119, 127, 0.1)';
+                    } else if (rawBalance < -0.01 && !isReturn) {
+                        statusText = `Advance: \u20B9${Math.abs(rawBalance).toFixed(2)}`;
+                        statusColor = '#0284c7'; // Professional Blue for Advances
+                        statusBg = 'rgba(2, 132, 199, 0.1)';
+                    } else if (isDue) {
+                        if (paid > 0.01) {
+                            statusText = `Partial: \u20B9${balance.toFixed(2)}`;
+                            statusColor = '#ea580c'; // Orange Warning
+                            statusBg = 'rgba(234, 88, 12, 0.1)';
+                        } else {
+                            statusText = `Due: \u20B9${balance.toFixed(2)}`;
+                            statusColor = '#ba1a1a'; // Red Alert
+                            statusBg = 'rgba(186, 26, 26, 0.1)';
+                        }
+                    }
                     
                     // 🚨 ENTERPRISE UX: DASHBOARD SYNCED PULSING DOT
                     let isOverdue = false;
@@ -1487,14 +1544,34 @@ const UI = {
                     const isReturn = p.documentType === 'return';
                     const uniqueRefs = [...new Set([p.orderNo, p.poNo, p.invoiceNo, p.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
-                    const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid);
-                    // 🚨 FIX: Strict >= 0.01 check prevents floating point errors from displaying "To Pay: ₹0.00" in red!
+                    // 🚨 NEW: Calculate the raw balance to detect Overpayments / Advances!
+                    const rawBalance = (parseFloat(p.grandTotal) || 0) - paid;
+                    const balance = Math.max(0, rawBalance);
                     const isDue = balance >= 0.01 && !isReturn;
-                    const statusText = p.status === 'Open' ? 'Draft PO' : (isDue ? `To Pay: \u20B9${balance.toFixed(2)}` : 'Paid');
                     
-                    // STRICT ERP LOGIC: Hardcode exact HEX colors so older Android WebViews can never break the UI!
-                    const statusColor = p.status === 'Open' ? '#73777f' : (isDue ? '#ba1a1a' : '#146c2e');
-                    const statusBg = p.status === 'Open' ? 'rgba(115, 119, 127, 0.1)' : (isDue ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
+                    let statusText = 'Paid';
+                    let statusColor = '#146c2e'; // Green
+                    let statusBg = 'rgba(20, 108, 46, 0.1)'; 
+
+                    if (p.status === 'Open') {
+                        statusText = 'Draft PO';
+                        statusColor = '#73777f';
+                        statusBg = 'rgba(115, 119, 127, 0.1)';
+                    } else if (rawBalance < -0.01 && !isReturn) {
+                        statusText = `Advance: \u20B9${Math.abs(rawBalance).toFixed(2)}`;
+                        statusColor = '#0284c7'; // Professional Blue for Advances
+                        statusBg = 'rgba(2, 132, 199, 0.1)';
+                    } else if (isDue) {
+                        if (paid > 0.01) {
+                            statusText = `Partial: \u20B9${balance.toFixed(2)}`;
+                            statusColor = '#ea580c'; // Orange Warning
+                            statusBg = 'rgba(234, 88, 12, 0.1)';
+                        } else {
+                            statusText = `To Pay: \u20B9${balance.toFixed(2)}`;
+                            statusColor = '#ba1a1a'; // Red Alert
+                            statusBg = 'rgba(186, 26, 26, 0.1)';
+                        }
+                    }
 
                     // 🚨 ENTERPRISE UX: DASHBOARD SYNCED PULSING DOT
                     const attentionClass = (p.status === 'Open') ? 'requires-attention' : '';
@@ -1544,9 +1621,11 @@ const UI = {
 
             // 1. Map all explicit manual payments to their selected invoices
             UI.state.rawData.cashbook.forEach(c => {
-                if (c.ledgerId && c.invoiceRef) {
+                // 🚨 LEGACY FIX: Catch old payments saved under 'linkedInvoice'
+                const legacyRef = c.invoiceRef || c.linkedInvoice;
+                if (c.ledgerId && legacyRef) {
                     let amt = parseFloat(c.amount) || 0;
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                    const refs = String(legacyRef).split(',').map(r => r.trim());
                     // Waterfall through the linked invoices
                     let remainingAmt = amt;
                     refs.forEach(ref => {
@@ -1741,8 +1820,6 @@ const UI = {
                     else if (activeMasterFilter === 'Advance') matchFilter = bal < -0.01; 
                     else if (activeMasterFilter === 'GST') matchFilter = l.gst && l.gst.trim() !== '';
                     else if (activeMasterFilter === 'Non-GST') matchFilter = !l.gst || l.gst.trim() === '';
-                    else if (activeMasterFilter === 'Money In') matchFilter = UI.state.rawData.cashbook.some(c => c.ledgerId === l.id && c.type === 'in');
-                    else if (activeMasterFilter === 'Money Out') matchFilter = UI.state.rawData.cashbook.some(c => c.ledgerId === l.id && c.type === 'out');
                     
                     // 🚀 ENTERPRISE UPGRADE: Context-Aware Address Book Filters
                     else if (activeTab === 'contacts' && activeMasterFilter === 'Customers Only') matchFilter = safeType === 'customer';
@@ -2383,57 +2460,84 @@ const UI = {
         let totalSales = 0, outputGst = 0, totalPurchases = 0, inputGst = 0, totalExpenses = 0;
         let cogs = 0; 
 
-        // CRITICAL FIX: Dashboard Payment Map Math & Collision Guard
+        // 🚨 ELITE UPGRADE: DASHBOARD TAX-AWARE AUTO-FIFO ENGINE
         const paymentMap = {};
-        const ledgerTotalPaid = {}; 
-        const ledgerExplicitlyLinked = {}; 
-
-        // STRICT ERP LOGIC: Build an O(1) Document Hash Map to prevent O(N^2) Dashboard Boot-Up Freezes!
+        const floatingPools = {}; 
         const dashDocMap = {};
+        
         sales.forEach(d => { dashDocMap[d.id] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
         purchases.forEach(d => { dashDocMap[d.id] = d; if(d.poNo) dashDocMap[d.poNo] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
 
-        // ENTERPRISE FIX: Inject Opening Balances into the Dashboard's Math Engine so "Overdue Defaulters" aren't artificially inflated!
+        // 1. Give Opening Balances to the GST Pool by default
         UI.state.rawData.ledgers.forEach(l => {
             let ob = parseFloat(l.openingBalance) || 0;
             const bType = (l.balanceType || '').toLowerCase();
-            if (bType.includes('pay') || bType.includes('credit')) ledgerTotalPaid[l.id] = (ledgerTotalPaid[l.id] || 0) + ob;
+            if (bType.includes('pay') || bType.includes('credit')) floatingPools[`${l.id}_GST`] = (floatingPools[`${l.id}_GST`] || 0) + ob;
         });
 
+        // 2. Process Cashbook explicitly, AND collect floating advances
         cashbook.forEach(c => {
             if (c.ledgerId) {
-                // ENTERPRISE FIX: Safe Math prevents 'NaN' from destroying the Dashboard Overdue Allocator!
                 let amt = c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
-                ledgerTotalPaid[c.ledgerId] = (ledgerTotalPaid[c.ledgerId] || 0) + amt;
+                
+                const legacyRef = c.invoiceRef || c.linkedInvoice;
+                
+                let isNon = c.taxPool === 'Non-GST';
+                if (!isNon && legacyRef) {
+                    const firstRef = String(legacyRef).split(',')[0].trim();
+                    const linkedDoc = dashDocMap[firstRef];
+                    if (linkedDoc && linkedDoc.invoiceType === 'Non-GST') isNon = true;
+                }
+                const poolKey = isNon ? `${c.ledgerId}_Non` : `${c.ledgerId}_GST`;
+                floatingPools[poolKey] = (floatingPools[poolKey] || 0) + amt;
 
-                if (c.invoiceRef) {
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                if (legacyRef) {
+                    const refs = String(legacyRef).split(',').map(r => r.trim());
                     let remainingAmt = amt;
                     
-                    // Waterfall Allocation (FIFO)
                     const matchedDocs = refs.map(ref => dashDocMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
-                    
                     matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                     
                     matchedDocs.forEach(doc => {
-                        if (Math.abs(remainingAmt) < 0.01) return; // Allow negative amounts for supplier payments & refunds!
+                        if (Math.abs(remainingAmt) < 0.01) return; 
                         const key = `${c.ledgerId}_${doc.id}`;
                         const currentPaid = paymentMap[key] || 0;
                         const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
                         
                         let allocation = 0;
-                        if (remainingAmt > 0) {
-                            allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                        } else {
-                            allocation = Math.max(-currentPaid, remainingAmt); 
-                        }
+                        if (remainingAmt > 0) allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                        else allocation = Math.max(-currentPaid, remainingAmt); 
                         
                         if (Math.abs(allocation) > 0) {
                             paymentMap[key] = currentPaid + allocation;
-                            ledgerExplicitlyLinked[c.ledgerId] = (ledgerExplicitlyLinked[c.ledgerId] || 0) + allocation;
+                            floatingPools[poolKey] -= allocation;
                             remainingAmt -= allocation;
                         }
                     });
+                }
+            }
+        });
+
+        // 3. Auto-FIFO the remaining advances to wipe out false "Overdue" records!
+        const allUnpaidSales = sales.filter(d => d.status !== 'Open' && d.documentType !== 'return');
+        allUnpaidSales.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+        allUnpaidSales.forEach(doc => {
+            const isNon = doc.invoiceType === 'Non-GST';
+            const poolKey = isNon ? `${doc.customerId}_Non` : `${doc.customerId}_GST`;
+
+            if (floatingPools[poolKey] > 0.01) {
+                const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
+                const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
+                const docTotal = parseFloat(doc.grandTotal) || 0;
+                
+                const remainingDebt = Math.max(0, docTotal - explicitPaid);
+
+                if (remainingDebt > 0.01) {
+                    const allocation = Math.min(remainingDebt, floatingPools[poolKey]);
+                    const mapKey = `${doc.customerId}_${doc.id}`;
+                    paymentMap[mapKey] = (paymentMap[mapKey] || 0) + allocation;
+                    floatingPools[poolKey] -= allocation; 
                 }
             }
         });
@@ -2871,15 +2975,15 @@ const UI = {
 
                 // NEW: Unified Filtering & Sorting for all Ledger types!
                 if (tab === 'customers' || tab === 'suppliers' || tab === 'contacts') {
+                    let extraContactsFilters = tab === 'contacts' ? `<option value="Customers Only">Customers Only</option><option value="Suppliers Only">Suppliers Only</option>` : '';
                     filterSelect.innerHTML = `
-                        <option value="All">All Status</option>
+                        <option value="All">All Parties</option>
                         <option value="To Receive">To Receive (Due)</option>
                         <option value="To Pay">To Pay (Due)</option>
                         <option value="Advance">Advance (Paid / Received)</option>
-                        <option value="GST">GST Registered</option>
-                        <option value="Non-GST">Non-GST</option>
-                        <option value="Money In">Money In (Received)</option>
-                        <option value="Money Out">Money Out (Paid)</option>
+                        <option value="GST">GST (Registered)</option>
+                        <option value="Non-GST">Non-GST (Unregistered)</option>
+                        ${extraContactsFilters}
                     `;
                     if(sortSelect) sortSelect.innerHTML = `
                         <option value="name-asc">A to Z</option>
@@ -3820,13 +3924,15 @@ const UI = {
         // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
         const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
         
-        UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open').forEach(s => {
+        // 🚨 BUG FIX: Block Cancelled Sales from Daybook CSV
+        UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open' && s.status !== 'Cancelled').forEach(s => {
             const isRet = s.documentType === 'return';
             const isNonGST = s.invoiceType === 'Non-GST';
             const docLabel = isRet ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
             dailyActivity.push({ time: s.id, type: docLabel, desc: s.customerName, amount: s.grandTotal, sign: isRet ? '-' : '+' });
         });
-        UI.state.rawData.purchases.filter(p => (!activeFirmId || p.firmId === activeFirmId) && p.date === dateInput && p.status !== 'Open').forEach(p => {
+        // 🚨 BUG FIX: Block Cancelled Purchases from Daybook CSV
+        UI.state.rawData.purchases.filter(p => (!activeFirmId || p.firmId === activeFirmId) && p.date === dateInput && p.status !== 'Open' && p.status !== 'Cancelled').forEach(p => {
             const isRet = p.documentType === 'return';
             const isNonGST = p.invoiceType === 'Non-GST';
             const docLabel = isRet ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
@@ -3882,7 +3988,8 @@ const UI = {
         let indirectIncome = 0, stockLoss = 0;
 
         UI.state.rawData.sales.forEach(s => {
-            if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open') {
+            // 🚨 BUG FIX: Block Cancelled Sales from inflating PnL CSV Exports!
+            if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open' && s.status !== 'Cancelled') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
                 totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
                 (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
@@ -4259,6 +4366,9 @@ document.addEventListener('click', (e) => {
 // ENTERPRISE FIX 2: SMART KEYBOARD DISMISSAL
 // ==========================================
 document.addEventListener('click', (e) => {
+    // 🚨 CRITICAL BUG FIX: Do NOT close the keyboard if the user is actually tapping an input field!
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
     // If the user taps ANY clickable list item or card in the app
     const target = e.target.closest('.tap-target, .m3-card, li');
     if (target) {

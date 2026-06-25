@@ -278,7 +278,10 @@ const app = {
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 3500);
                     try {
-                        const res2 = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&addressdetails=1`, { signal: controller.signal });
+                        const res2 = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&addressdetails=1`, { 
+    signal: controller.signal,
+    headers: { 'User-Agent': 'SolloERP/6.1 (your-email@example.com)' }
+});
                         const data2 = await res2.json();
                         if (data2 && data2.length > 0 && data2[0].address) {
                             city = data2[0].address.state_district || data2[0].address.city || data2[0].address.county || data2[0].address.town;
@@ -1110,7 +1113,7 @@ const app = {
                         realCash = { id: 'cash', firmId: app.state.firmId, name: 'Cash Drawer', openingBalance: 0 };
                     }
                     realCash.openingBalance = (parseFloat(realCash.openingBalance) || 0) + (parseFloat(a.openingBalance) || 0);
-                    batchPuts.push({ store: 'accounts', data: realCash });
+                    batchPuts.push({ store: 'accounts', data: { ...realCash } });
 
                     for (const r of receipts) { if (r.accountId === a.id) { r.accountId = 'cash'; batchPuts.push({ store: 'receipts', data: r }); } }
                     
@@ -1965,7 +1968,7 @@ const app = {
                 tr.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <div style="flex: 1; padding-right: 8px; min-width: 0;">
-                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name || 'Archived / Unknown Item'}</strong>
                             <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
@@ -2029,14 +2032,25 @@ const app = {
         const balType = party ? (party.balanceType || '').toLowerCase() : '';
         let trueBalance = 0;
         
-        if (isMoneyIn) { 
-            trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-        } else { 
-            trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+        // 🚨 NEW: Grab the active bill filter from the UI earlier
+        const billFilterEl = document.getElementById(isMoneyIn ? 'pay-in-bill-filter' : 'pay-out-bill-filter');
+        const billFilter = billFilterEl ? billFilterEl.value : 'All';
+        
+        // 🚨 NEW: Apply Ledger Opening Balance to the GST pool by default
+        if (billFilter === 'All' || billFilter === 'GST') {
+            if (isMoneyIn) { 
+                trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+            } else { 
+                trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+            }
         }
 
         allDocs.forEach(d => {
             if (d.firmId === activeFirmId && d[partyKey] === partyId && d.status !== 'Open') {
+                // 🚨 NEW: Split the Invoice Debt by Tax Pool
+                if (billFilter === 'GST' && d.invoiceType === 'Non-GST') return;
+                if (billFilter === 'Non-GST' && d.invoiceType !== 'Non-GST') return;
+
                 const amt = parseFloat(d.grandTotal) || 0;
                 trueBalance += (d.documentType === 'return' ? -amt : amt);
             }
@@ -2044,8 +2058,22 @@ const app = {
 
         const receipts = await getAllRecords('receipts', 'firmId', activeFirmId);
         receipts.forEach(r => {
-            // 🚨 ENTERPRISE FIX: Exclude the currently editing receipt so the balance shows the true Pre-Payment state!
             if (r.firmId === activeFirmId && r.ledgerId === partyId && r.id !== app.state.currentReceiptId) {
+                
+                // 🚨 NEW: Split the Advance and Payment tracking by Tax Pool
+                let isNonGstReceipt = r.taxPool === 'Non-GST';
+                
+                // 🚨 LEGACY FIX: Catch old payments saved under 'linkedInvoice'
+                const legacyRef = r.invoiceRef || r.linkedInvoice;
+                if (!isNonGstReceipt && legacyRef) {
+                    const firstRef = String(legacyRef).split(',')[0].trim();
+                    const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                    if (linkedDoc && linkedDoc.invoiceType === 'Non-GST') isNonGstReceipt = true;
+                }
+
+                if (billFilter === 'GST' && isNonGstReceipt) return;
+                if (billFilter === 'Non-GST' && !isNonGstReceipt) return; // Legacy 'All' receipts fall into GST by default
+
                 const amt = parseFloat(r.amount) || 0;
                 if (isMoneyIn) trueBalance += (r.type === 'in' ? -amt : amt);
                 else trueBalance += (r.type === 'in' ? amt : -amt);
@@ -2087,8 +2115,18 @@ const app = {
         });
 
         // 3. CALCULATE PENDING GROSS DEBT
-        let partyDocs = allDocs.filter(doc => doc.firmId === activeFirmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open');
-                // ENTERPRISE FIX: Protect Apple Devices from chronological sorting crashes!
+        // (billFilter already grabbed dynamically in Step 1!)
+        let partyDocs = allDocs.filter(doc => {
+            if (doc.firmId !== activeFirmId || doc[partyKey] !== partyId || doc.documentType === 'return' || doc.status === 'Open') return false;
+            
+            // Apply the new GST/Non-GST filter
+            if (billFilter === 'GST' && doc.invoiceType === 'Non-GST') return false;
+            if (billFilter === 'Non-GST' && doc.invoiceType !== 'Non-GST') return false;
+            
+            return true;
+        });
+        
+        // ENTERPRISE FIX: Protect Apple Devices from chronological sorting crashes!
         partyDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
 
 
@@ -2112,14 +2150,18 @@ const app = {
         // 4. THE MAGIC BULLET: MATHEMATICALLY EXTRACT THE ADVANCE POOL TO MATCH THE LEDGER
         let remainingAdvanceMoney = Math.max(0, totalPendingDebt - trueBalance);
 
-        // 5. MANUAL ALLOCATION (FIFO DISABLED)
+        // 5. 🚨 NEW: FIFO WATERFALL FOR PAYMENT DROPDOWN
         const options = [];
         for (const item of pendingInvoices) {
             let finalBal = item.balance;
             
-            // 🚨 ADVANCE AUTOPAY DISABLED:
-            // We no longer automatically deduct advance money. 
-            // The full invoice balance will always show, allowing you absolute manual control!
+            // 🚨 ADVANCE AUTOPAY RE-ENABLED:
+            // Deduct the floating advance money dynamically so the Payment Form perfectly matches the Documents tab!
+            if (remainingAdvanceMoney > 0 && finalBal > 0.01) {
+                const advanceApplied = Math.min(remainingAdvanceMoney, finalBal);
+                finalBal -= advanceApplied;
+                remainingAdvanceMoney -= advanceApplied;
+            }
             
             if (finalBal > 0.01) {
                 const doc = item.doc;
@@ -2437,7 +2479,7 @@ const app = {
                 tr.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <div style="flex: 1; padding-right: 8px; min-width: 0;">
-                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name || 'Archived / Unknown Item'}</strong>
                             ${maxLabel}
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
@@ -2701,6 +2743,32 @@ const app = {
     // 6. MASTER FORM SUBMISSIONS & EVENT LISTENERS
     // ==========================================
     setupForms: () => {
+        // 🚨 ENTERPRISE UX: SMART INVOICE NUMBER AUTO-CLEAR
+        // Automatically clears the Invoice Number when switching to 'Non-GST' (Bill of Supply), 
+        // and safely restores it if switched back to B2B/B2C!
+        const typeDropdown = document.getElementById('sales-invoice-type');
+        const invInput = document.getElementById('sales-invoice-no');
+        if (typeDropdown && invInput) {
+            typeDropdown.addEventListener('change', async (e) => {
+                if (e.target.value === 'Non-GST') {
+                    // Save the current number in memory before clearing it!
+                    invInput.setAttribute('data-cached-no', invInput.value);
+                    invInput.value = '';
+                    invInput.placeholder = 'Optional for Bill of Supply';
+                } else {
+                    // Restore the number if they switch back to GST
+                    const cached = invInput.getAttribute('data-cached-no');
+                    if (cached) {
+                        invInput.value = cached;
+                    } else if (!invInput.value && typeof getNextDocumentNumber === 'function') {
+                        const prefix = app.state.currentDocType === 'return' ? 'CN' : 'INV';
+                        invInput.value = await getNextDocumentNumber('sales', prefix);
+                    }
+                    invInput.placeholder = '';
+                }
+            });
+        }
+
         // ------------------ SALES & PURCHASE SUBMISSIONS ------------------
         ['sales', 'purchase'].forEach(type => {
             const form = document.getElementById(`form-${type}`);
@@ -3023,8 +3091,18 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                             data.splitData = splitConfirmed;
                             data.paymentMethod = 'Split';
                             
-                            // 🚨 CRITICAL FIX: The Split-Tender Blackhole Shield!
-                            // The money captured in the modal was previously thrown away. We MUST inject it into the Cashbook!
+                            // We assign 'Unpaid' so the central FIFO waterfall engine correctly calculates the remaining debt and dynamically marks it 'Completed' if fully paid!
+                            data.status = 'Unpaid'; 
+                            data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Pending: ₹${splitConfirmed.credit}]`;
+                        }
+
+                        // Execute the perfect database math with the upgraded data payload
+                        // 🚨 NEW: Save the invoice FIRST to prevent database corruption!
+                        const savedInvoiceId = await saveInvoiceTransaction(storeName, data);
+
+                        // 🚨 CRITICAL FIX: The Split-Tender Blackhole Shield!
+                        // Save receipts AFTER the invoice is safely stored to prevent phantom money if the phone's storage is full!
+                        if (savedInvoiceId && typeof splitConfirmed !== 'undefined') {
                             if (splitConfirmed.cash > 0) {
                                 await saveRecord('receipts', {
                                     id: 'split-cash-' + data.id,
@@ -3053,20 +3131,13 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                                     type: 'in',
                                     amount: splitConfirmed.bank,
                                     mode: 'Bank Transfer',
-                                    accountId: splitConfirmed.bankAcc || 'cash', // 🚨 CRITICAL FIX: Routes the money to the correct bank!
+                                    accountId: splitConfirmed.bankAcc || 'cash',
                                     invoiceRef: data.id,
                                     desc: `Bank Split for ${data.invoiceNo}`,
                                     isAutoGenerated: true
                                 });
                             }
-
-                            // We assign 'Unpaid' so the central FIFO waterfall engine correctly calculates the remaining debt and dynamically marks it 'Completed' if fully paid!
-                            data.status = 'Unpaid'; 
-                            data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Pending: ₹${splitConfirmed.credit}]`;
                         }
-
-                        // Execute the perfect database math with the upgraded data payload
-                        await saveInvoiceTransaction(storeName, data);
 
                         // THE STATE TRANSITION LOCK
                         app.state.currentEditId = data.id;
@@ -3670,6 +3741,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                         ref: manualRef,
                         invoiceRef: selectedInvoiceRef, 
                         desc: document.getElementById(`pay-${type}-notes`).value || (type === 'in' ? 'Payment Received' : 'Payment Made'),
+                        // 🚨 NEW: Tag Advance with GST/Non-GST Pool directly from the dropdown!
+                        taxPool: document.getElementById(`pay-${type}-bill-filter`) ? document.getElementById(`pay-${type}-bill-filter`).value : 'All',
                         isAutoGenerated: false 
                     };
 
@@ -3813,6 +3886,10 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         // 3. Clear the smart pending invoices list (if any were selected previously)
         const refSelect = document.getElementById(`${prefix}-invoice-ref`);
         if (refSelect) refSelect.innerHTML = '<option value="">On Account / Advance</option>';
+        
+        // 🚨 NEW: Reset the new Bill Filter dropdown back to "All"
+        const billFilter = document.getElementById(`${prefix}-bill-filter`);
+        if (billFilter) billFilter.value = 'All';
 
         // 4. Set Default Date to Today (CRASH-PROOFED)
         const dateInput = document.getElementById(`${prefix}-date`);
@@ -3990,43 +4067,49 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         const allDocs = await getAllRecords(storeName);
         const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
         
-        // 1. ELITE UPGRADE: CALCULATE THE EXACT TRUE LEDGER BALANCE FIRST
         const party = await getRecordById('ledgers', partyId);
         let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
         const balType = party ? (party.balanceType || '').toLowerCase() : '';
-        let trueBalance = 0;
         
-        if (isSales) { 
-            trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-        } else { 
-            trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
-        }
+        // 1. ELITE UPGRADE: SPLIT ADVANCE POOLS BY TAX TYPE
+        const floatingPools = { 'GST': 0, 'Non-GST': 0 };
+
+        // Opening Balance defaults to GST pool
+        if (isSales && (balType.includes('pay') || balType.includes('credit'))) floatingPools['GST'] += ob;
+        else if (!isSales && (balType.includes('receive') || balType.includes('debit'))) floatingPools['GST'] += ob;
 
         allDocs.forEach(d => {
             if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.status !== 'Open') {
                 const amt = parseFloat(d.grandTotal) || 0;
-                trueBalance += (d.documentType === 'return' ? -amt : amt);
-            }
-        });
-
-        allReceipts.forEach(r => {
-            if (r.firmId === app.state.firmId && r.ledgerId === partyId) {
-                const amt = parseFloat(r.amount) || 0;
-                if (isSales) trueBalance += (r.type === 'in' ? -amt : amt);
-                else trueBalance += (r.type === 'in' ? amt : -amt);
+                const pool = d.invoiceType === 'Non-GST' ? 'Non-GST' : 'GST';
+                floatingPools[pool] += (d.documentType === 'return' ? -amt : amt);
             }
         });
 
         // 2. MAP EXPLICITLY LINKED PAYMENTS & RETURNS
         const paymentMap = {};
         allReceipts.forEach(c => {
-            if (c.firmId === app.state.firmId && c.ledgerId === partyId && c.invoiceRef) {
+            if (c.firmId === app.state.firmId && c.ledgerId === partyId) {
                 let amt = parseFloat(c.amount) || 0;
-                let impact = isSales ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                let impact = isSales ? (c.type === 'in' ? -amt : amt) : (c.type === 'in' ? amt : -amt);
                 
-                // 🚨 ENTERPRISE FIX: Smart Waterfall Allocation for exact mapping!
-                if (impact > 0) {
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                // Add to floating pool first based on the explicitly selected Tax Pool!
+                let isNonGstReceipt = c.taxPool === 'Non-GST';
+                const legacyRef = c.invoiceRef || c.linkedInvoice;
+                
+                if (!isNonGstReceipt && legacyRef) {
+                    const firstRef = String(legacyRef).split(',')[0].trim();
+                    const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                    if (linkedDoc && linkedDoc.invoiceType === 'Non-GST') isNonGstReceipt = true;
+                }
+                
+                const poolKey = isNonGstReceipt ? 'Non-GST' : 'GST';
+                // Note: floating pool maths works inverse for advances here
+                floatingPools[poolKey] -= impact; 
+
+                // Smart Waterfall Allocation for exact mapping!
+                if (legacyRef && impact > 0) {
+                    const refs = String(legacyRef).split(',').map(r => r.trim()).filter(Boolean);
                     if (refs.length > 0) {
                         let remainingPayment = impact;
                         refs.forEach(ref => {
@@ -4038,12 +4121,10 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                                 remainingPayment -= applyAmt;
                             }
                         });
-                        // Dump excess onto the first invoice so it isn't lost!
                         if (remainingPayment > 0.01 && refs[0]) paymentMap[refs[0]] = (paymentMap[refs[0]] || 0) + remainingPayment;
                     }
-                } else if (impact < 0) {
-                    // Handle refunds natively
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                } else if (legacyRef && impact < 0) {
+                    const refs = String(legacyRef).split(',').map(r => r.trim()).filter(Boolean);
                     if (refs.length > 0) {
                         let splitAmt = impact / refs.length;
                         refs.forEach(r => { paymentMap[r] = (paymentMap[r] || 0) + splitAmt; });
@@ -4061,11 +4142,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
 
         // 3. CALCULATE PENDING GROSS DEBT
         let partyDocs = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open');
-                // ENTERPRISE FIX: Protect Apple Devices from chronological sorting crashes!
         partyDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
 
-
-        let totalPendingDebt = 0;
         const pendingInvoices = [];
 
         for (const doc of partyDocs) {
@@ -4076,30 +4154,27 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             const docTotal = parseFloat(doc.grandTotal) || 0;
             const balance = Math.max(0, docTotal - explicitPaid - returned);
             
-            if (balance > 0.01) totalPendingDebt += balance;
             pendingInvoices.push({ doc, balance });
         }
 
-        // 4. THE MAGIC BULLET: MATHEMATICALLY EXTRACT THE ADVANCE POOL TO MATCH THE LEDGER
-        let remainingAdvanceMoney = Math.max(0, totalPendingDebt - trueBalance);
-
-        // 5. FIFO WATERFALL FOR STATUS UPDATE
+        // 4. FIFO WATERFALL FOR STATUS UPDATE
         for (const item of pendingInvoices) {
             let finalBal = item.balance;
+            const poolKey = item.doc.invoiceType === 'Non-GST' ? 'Non-GST' : 'GST';
             
-            if (remainingAdvanceMoney > 0 && finalBal > 0.01) {
-                const advanceApplied = Math.min(remainingAdvanceMoney, finalBal);
+            // Re-apply strict Tax Pool routing
+            if (floatingPools[poolKey] > 0 && finalBal > 0.01) {
+                const advanceApplied = Math.min(floatingPools[poolKey], finalBal);
                 finalBal -= advanceApplied;
-                remainingAdvanceMoney -= advanceApplied;
+                floatingPools[poolKey] -= advanceApplied;
             }
             
-            // 🚨 ENTERPRISE FIX: Fulfillment-Aware Auto-Close
             if (finalBal <= 0.01) {
                 if (storeName === 'purchases' || item.doc.status === 'Shipped' || item.doc.status === 'Unpaid') {
                     item.doc._preCompleteStatus = item.doc.status;
                     item.doc.status = 'Completed';
                     const fallbackDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-                    item.doc.completedDate = triggerDate || fallbackDate; // Auto-stamp the date!
+                    item.doc.completedDate = triggerDate || fallbackDate; 
                     await saveRecord(storeName, item.doc);
                 }
             } else {
@@ -4324,9 +4399,19 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                     // STRICT ERP LOGIC: Lock the search to the specific record's Firm ID to prevent cross-company data corruption!
                     const linkedDoc = allDocs.find(d => d.firmId === record.firmId && (d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref));
                     if (linkedDoc && linkedDoc.status === 'Completed') {
-                        linkedDoc.status = linkedDoc._preCompleteStatus || (docStore === 'purchases' ? 'Unpaid' : 'Shipped'); 
-                        linkedDoc.completedDate = '';
-                        await saveRecord(docStore, linkedDoc);
+                        const allReceipts = await getAllRecords('receipts', 'firmId', linkedDoc.firmId);
+                        const totalPaidRemaining = allReceipts.reduce((sum, rx) => {
+                            if (rx.invoiceRef && rx.invoiceRef.includes(linkedDoc.id) && rx.id !== record.id) {
+                                return sum + parseFloat(rx.amount);
+                            }
+                            return sum;
+                        }, 0);
+                        
+                        if (totalPaidRemaining < parseFloat(linkedDoc.grandTotal)) {
+                            linkedDoc.status = linkedDoc._preCompleteStatus || (docStore === 'purchases' ? 'Unpaid' : 'Shipped'); 
+                            linkedDoc.completedDate = '';
+                            await saveRecord(docStore, linkedDoc);
+                        }
                     }
                 }
             }

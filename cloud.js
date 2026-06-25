@@ -106,6 +106,12 @@ const Cloud = {
                     for (let j = 0; j < arr.length; j++) {
                         blobParts.push(JSON.stringify(arr[j]));
                         if (j < arr.length - 1) blobParts.push(',');
+                        
+                        // NEW: Let the CPU breathe every 500 rows so memory doesn't explode!
+                        if (j % 500 === 0) await new Promise(res => setTimeout(res, 0));
+                        
+                        // NEW: Let the phone's CPU breathe every 500 rows so it doesn't crash!
+                        if (j % 500 === 0) await new Promise(res => setTimeout(res, 0));
                     }
                     blobParts.push(']');
                     if (i < keys.length - 1) blobParts.push(',');
@@ -153,13 +159,15 @@ const Cloud = {
                     finalFileId = metaData.id;
                 }
 
-                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
+                // NEW: Multipart Upload Strategy bypassing the 5MB Hard Limit
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', file);
+
+                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=multipart`, {
                     method: 'PATCH',
-                    headers: new Headers({ 
-                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
-                        'Content-Type': 'application/json'
-                    }),
-                    body: file
+                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
+                    body: form
                 });
 
                 if (uploadRes.ok) {
@@ -207,6 +215,12 @@ const Cloud = {
                     for (let j = 0; j < arr.length; j++) {
                         blobParts.push(JSON.stringify(arr[j]));
                         if (j < arr.length - 1) blobParts.push(',');
+                        
+                        // NEW: Let the CPU breathe every 500 rows so memory doesn't explode!
+                        if (j % 500 === 0) await new Promise(res => setTimeout(res, 0));
+                        
+                        // NEW: Let the phone's CPU breathe every 500 rows so it doesn't crash!
+                        if (j % 500 === 0) await new Promise(res => setTimeout(res, 0));
                     }
                     blobParts.push(']');
                     if (i < keys.length - 1) blobParts.push(',');
@@ -261,13 +275,15 @@ const Cloud = {
                 }
 
                 // Step 2: Inject the raw JSON database directly into that file shell
-                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
+                // NEW: Multipart Upload Strategy bypassing the 5MB Hard Limit
+                const form = new FormData();
+                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+                form.append('file', file);
+
+                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=multipart`, {
                     method: 'PATCH',
-                    headers: new Headers({ 
-                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
-                        'Content-Type': 'application/json'
-                    }),
-                    body: file
+                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
+                    body: form
                 });
 
                 if (uploadRes.ok) {

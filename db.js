@@ -161,7 +161,8 @@ const getRecordById = (storeName, id) => {
     return new Promise((resolve, reject) => {
         // ENTERPRISE FIX: IndexedDB instantly crashes with a fatal 'DataError' if you search for null or undefined!
         // This shield protects the app if a user accidentally saves an invoice with a blank row.
-        if (id === null || id === undefined || id === '') return resolve(undefined);
+        // 🚨 NEW: Upgraded shield catches NaN (Not a Number) and empty objects too!
+if (id === null || id === undefined || id === '' || Number.isNaN(id)) return resolve(undefined);
         
         const transaction = db.transaction(storeName, 'readonly');
         const store = transaction.objectStore(storeName);
@@ -579,7 +580,8 @@ const saveInvoiceTransaction = async (storeName, data) => {
                             }
                             
                             if (r.desc && r.desc.includes(docNo)) {
-                                r.desc = r.desc.replace(docNo, newDocNo); 
+                                const strictRegex = new RegExp('\\b' + docNo + '\\b', 'g');
+                                r.desc = r.desc.replace(strictRegex, newDocNo); 
                             }
                             await saveRecord('receipts', r);
                         }

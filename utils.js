@@ -4,6 +4,20 @@
 
 const Utils = {
     // ==========================================
+    // 🚨 BUG FIX: GLOBAL FUZZY SEARCH ENGINE
+    // ==========================================
+    fuzzyMatch: (term, text) => {
+        if (!term) return true; // Empty search shows everything
+        if (!text) return false;
+        
+        // Strip spaces and convert to lowercase for aggressive matching
+        const cleanTerm = String(term).toLowerCase().replace(/\s+/g, '');
+        const cleanText = String(text).toLowerCase().replace(/\s+/g, '');
+        
+        return cleanText.includes(cleanTerm);
+    },
+
+    // ==========================================
     // ENTERPRISE FIX: THE APPLE/IOS DATE SANITIZER
     // ==========================================
     safeDate: (dateString) => {
@@ -252,10 +266,9 @@ const Utils = {
     // Forces JavaScript to calculate fractions like a real accounting firm (e.g., 1.005 becomes 1.01, not 1.00)
     roundFinancial: (num) => {
         const n = Utils.safeNumber(num);
-        // ENTERPRISE FIX: Apply Negative Epsilon to Negative Numbers! 
-        // Otherwise, Credit Notes mathematically drift by ₹0.01 because a positive Epsilon pushes them in the wrong direction!
-        const epsilon = n >= 0 ? Number.EPSILON : -Number.EPSILON;
-        return Math.round((n + epsilon) * 100) / 100;
+        const isNeg = n < 0;
+        let absRound = Math.round((Math.abs(n) + Number.EPSILON) * 100) / 100;
+        return isNeg ? -absRound : absRound;
     },
 
     downloadFile: (content, filename, contentType) => {
