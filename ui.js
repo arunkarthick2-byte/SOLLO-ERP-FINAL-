@@ -1209,18 +1209,18 @@ const UI = {
 
             // ENTERPRISE FIX: We MUST pre-calculate Returns BEFORE processing explicit payments so refund money isn't blackholed!
             const globalReturnMap = {};
-            UI.state.rawData.sales.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) globalReturnMap['sales_' + d.orderNo] = (globalReturnMap['sales_' + d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
-            UI.state.rawData.purchases.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) globalReturnMap['purchases_' + d.orderNo] = (globalReturnMap['purchases_' + d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
+            UI.state.rawData.sales.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) globalReturnMap['sales_' + d.orderNo] = (globalReturnMap['sales_' + d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
+            UI.state.rawData.purchases.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) globalReturnMap['purchases_' + d.orderNo] = (globalReturnMap['purchases_' + d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
 
             // 🚨 ELITE UPGRADE: GLOBAL TAX-AWARE AUTO-FIFO ENGINE
             const floatingPools = {}; 
 
-            // 1. Give Opening Balances to the GST Pool by default
+            // 1. 🚨 LEGACY FIX: Give Opening Balances to the Non-GST Pool by default
             UI.state.rawData.ledgers.forEach(l => {
                 let ob = parseFloat(l.openingBalance) || 0;
                 const bType = (l.balanceType || '').toLowerCase();
-                if (tab === 'sales' && (bType.includes('pay') || bType.includes('credit'))) floatingPools[`${l.id}_GST`] = (floatingPools[`${l.id}_GST`] || 0) + ob;
-                if (tab === 'purchases' && (bType.includes('receive') || bType.includes('debit'))) floatingPools[`${l.id}_GST`] = (floatingPools[`${l.id}_GST`] || 0) + ob;
+                if (tab === 'sales' && (bType.includes('pay') || bType.includes('credit'))) floatingPools[`${l.id}_Non`] = (floatingPools[`${l.id}_Non`] || 0) + ob;
+                if (tab === 'purchases' && (bType.includes('receive') || bType.includes('debit'))) floatingPools[`${l.id}_Non`] = (floatingPools[`${l.id}_Non`] || 0) + ob;
             });
 
             // 2. Process Cashbook explicitly, AND collect floating advances
@@ -1235,10 +1235,17 @@ const UI = {
                     
                     // Determine Tax Pool (Fall back to Legacy checking)
                     let isNon = c.taxPool === 'Non-GST';
-                    if (!isNon && legacyRef) {
-                        const firstRef = String(legacyRef).split(',')[0].trim();
-                        const linkedDoc = docMap[firstRef];
-                        if (linkedDoc && linkedDoc.invoiceType === 'Non-GST') isNon = true;
+                    
+                    // 🚨 THE ULTIMATE FIX: Treat 'All' tags from old receipts as Non-GST advances too!
+                    if (!c.taxPool || c.taxPool === 'All') {
+                        // BUG FIX: Pure untagged legacy advances now default to Non-GST!
+                        isNon = true;
+                        // But if it has a linked history, we respect the original document type
+                        if (legacyRef) {
+                            const firstRef = String(legacyRef).split(',')[0].trim();
+                            const linkedDoc = docMap[firstRef];
+                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNon = false;
+                        }
                     }
                     const poolKey = isNon ? `${c.ledgerId}_Non` : `${c.ledgerId}_GST`;
                     floatingPools[poolKey] = (floatingPools[poolKey] || 0) + amt;
@@ -1250,19 +1257,26 @@ const UI = {
                         const matchedDocs = refs.map(ref => docMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
                         matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                         
-                        matchedDocs.forEach(doc => {
+                        matchedDocs.forEach((doc, index) => {
                             if (Math.abs(remainingAmt) < 0.01) return; 
                             const key = `${c.ledgerId}_${doc.id}`;
                             const currentPaid = paymentMap[key] || 0;
                             
-                            const isSale = !!UI.state.rawData.sales.find(s => s.id === doc.id);
-                            const prefix = isSale ? 'sales_' : 'purchases_';
+                            // 🚨 BUG FIX: Use the active Tab to determine the prefix so Refunds find their Credit Notes!
+                            const prefix = tab === 'sales' ? 'sales_' : 'purchases_';
                             const returned = [doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean).reduce((sum, ref) => sum + (globalReturnMap[prefix + ref] || 0), 0);
                             const docTotal = doc.grandTotal === Infinity ? Infinity : Math.max(0, (parseFloat(doc.grandTotal) || 0) - returned);
                             
                             let allocation = 0;
-                            if (remainingAmt > 0) allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                            else allocation = Math.max(-currentPaid, remainingAmt); 
+                            if (remainingAmt > 0) {
+                                allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                                // 🚨 DUMP OVERPAYMENT ON THE LAST EXPLICITLY LINKED DOCUMENT
+                                if (index === matchedDocs.length - 1 && remainingAmt > allocation) {
+                                    allocation = remainingAmt;
+                                }
+                            } else {
+                                allocation = Math.max(-currentPaid, remainingAmt); 
+                            }
                             
                             if (Math.abs(allocation) > 0) {
                                 paymentMap[key] = currentPaid + allocation;
@@ -1275,15 +1289,20 @@ const UI = {
             });
 
             // 3. Auto-FIFO the remaining Floating Advances to the oldest unpaid invoices!
-            const allUnpaidDocs = (tab === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases).filter(d => d.status !== 'Open' && d.documentType !== 'return');
+            // 🚨 BUG FIX: Allow 'Completed' so they get their money, but block 'Cancelled' from stealing advances!
+            const allUnpaidDocs = (tab === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases).filter(d => d.status !== 'Open' && d.status !== 'Cancelled' && d.documentType !== 'return');
             allUnpaidDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
 
             allUnpaidDocs.forEach(doc => {
                 const partyId = tab === 'sales' ? doc.customerId : doc.supplierId;
                 const isNon = doc.invoiceType === 'Non-GST';
-                const poolKey = isNon ? `${partyId}_Non` : `${partyId}_GST`;
+                const primaryPool = isNon ? `${partyId}_Non` : `${partyId}_GST`;
+                const secondaryPool = isNon ? `${partyId}_GST` : `${partyId}_Non`;
 
-                if (floatingPools[poolKey] > 0.01) {
+                // 🚨 BUG FIX: Legacy Spillover Engine! If the primary pool is empty, grab money from the other pool!
+                const availableMoney = (floatingPools[primaryPool] || 0) + (floatingPools[secondaryPool] || 0);
+
+                if (availableMoney > 0.01) {
                     const prefix = tab === 'sales' ? 'sales_' : 'purchases_';
                     const returned = [doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean).reduce((sum, ref) => sum + (globalReturnMap[prefix + ref] || 0), 0);
                     const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
@@ -1293,10 +1312,18 @@ const UI = {
                     const remainingDebt = Math.max(0, docTotal - returned - explicitPaid);
 
                     if (remainingDebt > 0.01) {
-                        const allocation = Math.min(remainingDebt, floatingPools[poolKey]);
+                        const allocation = Math.min(remainingDebt, availableMoney);
                         const mapKey = `${partyId}_${doc.id}`;
                         paymentMap[mapKey] = (paymentMap[mapKey] || 0) + allocation;
-                        floatingPools[poolKey] -= allocation; // Shrink the pool!
+                        
+                        // Deduct from primary first, then secondary
+                        if ((floatingPools[primaryPool] || 0) >= allocation) {
+                            floatingPools[primaryPool] -= allocation;
+                        } else {
+                            const remainder = allocation - (floatingPools[primaryPool] || 0);
+                            floatingPools[primaryPool] = 0;
+                            floatingPools[secondaryPool] = (floatingPools[secondaryPool] || 0) - remainder;
+                        }
                     }
                 }
             });
@@ -1326,7 +1353,7 @@ const UI = {
             // ENTERPRISE FIX: Create an O(1) Map for Returns to prevent an O(N^2) "Death Loop" that freezes the app while typing!
             const returnMap = {};
             UI.state.rawData.sales.forEach(d => {
-                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                     returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
                 }
             });
@@ -1351,7 +1378,7 @@ const UI = {
                 if (activeFilter === 'Open') matchFilter = s.status === 'Open';
                 else if (activeFilter === 'Completed') matchFilter = s.status === 'Completed'; 
                 else if (activeFilter === 'Shipped') matchFilter = s.status === 'Shipped';
-                else if (activeFilter === 'To Receive') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.documentType !== 'return';
+                else if (activeFilter === 'To Receive') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return';
                 else if (activeFilter === 'GST') matchFilter = s.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = s.invoiceType === 'Non-GST';
                 
@@ -1391,7 +1418,11 @@ const UI = {
                 UI.renderVirtualList(container, data, (s) => {
                     const isReturn = s.documentType === 'return';
                     const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
-                    const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
+                    const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
+                    // 🚨 NEW: Include returns to calculate correct raw balance!
+                    const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
+                    
+                    const paid = explicitPaid + returned;
                     // 🚨 NEW: Calculate the raw balance to detect Overpayments / Advances!
                     const rawBalance = (parseFloat(s.grandTotal) || 0) - paid;
                     const balance = Math.max(0, rawBalance);
@@ -1401,29 +1432,38 @@ const UI = {
                     let statusColor = '#146c2e'; // Green
                     let statusBg = 'rgba(20, 108, 46, 0.1)'; 
 
-                    if (s.status === 'Open') {
+                    if (s.status === 'Cancelled') {
+                        statusText = 'Cancelled';
+                        statusColor = '#73777f';
+                        statusBg = 'rgba(115, 119, 127, 0.1)';
+                    } else if (s.status === 'Open') {
                         statusText = 'Draft';
                         statusColor = '#73777f';
                         statusBg = 'rgba(115, 119, 127, 0.1)';
                     } else if (rawBalance < -0.01 && !isReturn) {
                         statusText = `Advance: \u20B9${Math.abs(rawBalance).toFixed(2)}`;
-                        statusColor = '#0284c7'; // Professional Blue for Advances
+                        statusColor = '#0284c7'; 
                         statusBg = 'rgba(2, 132, 199, 0.1)';
                     } else if (isDue) {
+                        // 🚨 BUG FIX: True Math Shield! Never show "Paid" if money is still owed!
                         if (paid > 0.01) {
                             statusText = `Partial: \u20B9${balance.toFixed(2)}`;
-                            statusColor = '#ea580c'; // Orange Warning
+                            statusColor = '#ea580c'; 
                             statusBg = 'rgba(234, 88, 12, 0.1)';
                         } else {
                             statusText = `Due: \u20B9${balance.toFixed(2)}`;
-                            statusColor = '#ba1a1a'; // Red Alert
+                            statusColor = '#ba1a1a'; 
                             statusBg = 'rgba(186, 26, 26, 0.1)';
                         }
+                    } else if (s.status === 'Completed' || balance <= 0.01) {
+                        statusText = 'Paid';
+                        statusColor = '#146c2e';
+                        statusBg = 'rgba(20, 108, 46, 0.1)';
                     }
                     
                     // 🚨 ENTERPRISE UX: DASHBOARD SYNCED PULSING DOT
                     let isOverdue = false;
-                    if (balance >= 100 && s.status !== 'Open' && !isReturn) {
+                    if (balance >= 100 && s.status !== 'Open' && s.status !== 'Cancelled' && !isReturn) {
                         const baseDate = s.shippedDate ? s.shippedDate : s.date;
                         if (baseDate) {
                             const parts = baseDate.split('-'); 
@@ -1480,7 +1520,7 @@ const UI = {
             // ENTERPRISE FIX: Create the missing Return Map for Purchases so Debit Notes actually reduce supplier debt!
             const purchaseReturnMap = {};
             UI.state.rawData.purchases.forEach(d => {
-                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                     purchaseReturnMap[d.orderNo] = (purchaseReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
                 }
             });
@@ -1502,7 +1542,7 @@ const UI = {
                 const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid - returnTotal);
 
                 // ENTERPRISE FIX: The "Ghost Penny" Shield for Purchases!
-                if (activeFilter === 'To Pay') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.documentType !== 'return';
+                if (activeFilter === 'To Pay') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return';
                 else if (activeFilter === 'Completed') matchFilter = p.status === 'Completed'; 
                 else if (activeFilter === 'GST') matchFilter = p.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = p.invoiceType === 'Non-GST';
@@ -1543,7 +1583,11 @@ const UI = {
                 UI.renderVirtualList(container, data, (p) => {
                     const isReturn = p.documentType === 'return';
                     const uniqueRefs = [...new Set([p.orderNo, p.poNo, p.invoiceNo, p.id].filter(Boolean))];
-                    const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
+                    const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
+                    // 🚨 NEW: Include returns to calculate correct raw balance!
+                    const returned = uniqueRefs.reduce((sum, ref) => sum + (purchaseReturnMap[ref] || 0), 0);
+                    
+                    const paid = explicitPaid + returned;
                     // 🚨 NEW: Calculate the raw balance to detect Overpayments / Advances!
                     const rawBalance = (parseFloat(p.grandTotal) || 0) - paid;
                     const balance = Math.max(0, rawBalance);
@@ -1553,24 +1597,33 @@ const UI = {
                     let statusColor = '#146c2e'; // Green
                     let statusBg = 'rgba(20, 108, 46, 0.1)'; 
 
-                    if (p.status === 'Open') {
+                    if (p.status === 'Cancelled') {
+                        statusText = 'Cancelled';
+                        statusColor = '#73777f';
+                        statusBg = 'rgba(115, 119, 127, 0.1)';
+                    } else if (p.status === 'Open') {
                         statusText = 'Draft PO';
                         statusColor = '#73777f';
                         statusBg = 'rgba(115, 119, 127, 0.1)';
                     } else if (rawBalance < -0.01 && !isReturn) {
                         statusText = `Advance: \u20B9${Math.abs(rawBalance).toFixed(2)}`;
-                        statusColor = '#0284c7'; // Professional Blue for Advances
+                        statusColor = '#0284c7'; 
                         statusBg = 'rgba(2, 132, 199, 0.1)';
                     } else if (isDue) {
+                        // 🚨 BUG FIX: True Math Shield! Never show "Paid" if money is still owed!
                         if (paid > 0.01) {
                             statusText = `Partial: \u20B9${balance.toFixed(2)}`;
-                            statusColor = '#ea580c'; // Orange Warning
+                            statusColor = '#ea580c'; 
                             statusBg = 'rgba(234, 88, 12, 0.1)';
                         } else {
                             statusText = `To Pay: \u20B9${balance.toFixed(2)}`;
-                            statusColor = '#ba1a1a'; // Red Alert
+                            statusColor = '#ba1a1a'; 
                             statusBg = 'rgba(186, 26, 26, 0.1)';
                         }
+                    } else if (p.status === 'Completed' || balance <= 0.01) {
+                        statusText = 'Paid';
+                        statusColor = '#146c2e';
+                        statusBg = 'rgba(20, 108, 46, 0.1)';
                     }
 
                     // 🚨 ENTERPRISE UX: DASHBOARD SYNCED PULSING DOT
@@ -1649,14 +1702,15 @@ const UI = {
                 let isAdv = isCustomer ? (balType.includes('pay') || balType.includes('credit')) : (balType.includes('receive') || balType.includes('debit'));
                 
                 let trueBalance = isAdv ? -ob : ob;
-                let gstDue = !isAdv ? ob : 0; // Opening balance falls to GST pool by default
-                let nonDue = 0;
+                let gstDue = 0; 
+                let nonDue = !isAdv ? ob : 0; // 🚨 BUG FIX: Opening balance falls to Non-GST pool by default
 
                 // 3. Scan exact balances of invoices for this ledger
                 const relatedDocs = isCustomer ? UI.state.rawData.sales : UI.state.rawData.purchases;
                 relatedDocs.forEach(doc => {
                     const partyMatch = isCustomer ? doc.customerId === l.id : doc.supplierId === l.id;
-                    if (partyMatch && doc.status !== 'Open' && doc.documentType !== 'return') {
+                    // 🚨 BUG FIX: Block Cancelled bills from inflating Customer/Supplier Outstanding Balances!
+                    if (partyMatch && doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return') {
                         const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
                         const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[`${l.id}_${ref}`] || 0), 0);
                         const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
@@ -1673,7 +1727,8 @@ const UI = {
 
                 // 4. Calculate total money in/out for True Balance
                 relatedDocs.forEach(d => {
-                    if (d.status !== 'Open' && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
+                    // 🚨 BUG FIX: Block Cancelled bills from corrupting True Floating Balances!
+                    if (d.status !== 'Open' && d.status !== 'Cancelled' && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
                         const amt = parseFloat(d.grandTotal) || 0;
                         trueBalance += (d.documentType === 'return' ? -amt : amt);
                     }
@@ -2498,15 +2553,21 @@ const UI = {
                     const matchedDocs = refs.map(ref => dashDocMap[ref] || { id: ref, grandTotal: Infinity, date: '1970-01-01' });
                     matchedDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
                     
-                    matchedDocs.forEach(doc => {
+                    matchedDocs.forEach((doc, index) => {
                         if (Math.abs(remainingAmt) < 0.01) return; 
                         const key = `${c.ledgerId}_${doc.id}`;
                         const currentPaid = paymentMap[key] || 0;
                         const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
                         
                         let allocation = 0;
-                        if (remainingAmt > 0) allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                        else allocation = Math.max(-currentPaid, remainingAmt); 
+                        if (remainingAmt > 0) {
+                            allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                            if (index === matchedDocs.length - 1 && remainingAmt > allocation) {
+                                allocation = remainingAmt;
+                            }
+                        } else {
+                            allocation = Math.max(-currentPaid, remainingAmt); 
+                        }
                         
                         if (Math.abs(allocation) > 0) {
                             paymentMap[key] = currentPaid + allocation;
@@ -2519,14 +2580,19 @@ const UI = {
         });
 
         // 3. Auto-FIFO the remaining advances to wipe out false "Overdue" records!
-        const allUnpaidSales = sales.filter(d => d.status !== 'Open' && d.documentType !== 'return');
+        // 🚨 BUG FIX: Allow 'Completed' so they get their money, but block 'Cancelled' from stealing Dashboard advances!
+        const allUnpaidSales = sales.filter(d => d.status !== 'Open' && d.status !== 'Cancelled' && d.documentType !== 'return');
         allUnpaidSales.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
 
         allUnpaidSales.forEach(doc => {
             const isNon = doc.invoiceType === 'Non-GST';
-            const poolKey = isNon ? `${doc.customerId}_Non` : `${doc.customerId}_GST`;
+            const primaryPool = isNon ? `${doc.customerId}_Non` : `${doc.customerId}_GST`;
+            const secondaryPool = isNon ? `${doc.customerId}_GST` : `${doc.customerId}_Non`;
 
-            if (floatingPools[poolKey] > 0.01) {
+            // 🚨 BUG FIX: Legacy Spillover Engine for Dashboard!
+            const availableMoney = (floatingPools[primaryPool] || 0) + (floatingPools[secondaryPool] || 0);
+
+            if (availableMoney > 0.01) {
                 const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
                 const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
                 const docTotal = parseFloat(doc.grandTotal) || 0;
@@ -2534,10 +2600,17 @@ const UI = {
                 const remainingDebt = Math.max(0, docTotal - explicitPaid);
 
                 if (remainingDebt > 0.01) {
-                    const allocation = Math.min(remainingDebt, floatingPools[poolKey]);
+                    const allocation = Math.min(remainingDebt, availableMoney);
                     const mapKey = `${doc.customerId}_${doc.id}`;
                     paymentMap[mapKey] = (paymentMap[mapKey] || 0) + allocation;
-                    floatingPools[poolKey] -= allocation; 
+                    
+                    if ((floatingPools[primaryPool] || 0) >= allocation) {
+                        floatingPools[primaryPool] -= allocation;
+                    } else {
+                        const remainder = allocation - (floatingPools[primaryPool] || 0);
+                        floatingPools[primaryPool] = 0;
+                        floatingPools[secondaryPool] = (floatingPools[secondaryPool] || 0) - remainder;
+                    }
                 }
             }
         });
@@ -2723,7 +2796,8 @@ const UI = {
         });
 
         const overdueSales = sales.filter(s => {
-            if (s.status === 'Open' || s.documentType === 'return') return false;
+            // 🚨 BUG FIX: Prevent Cancelled and manually Completed invoices from triggering false Overdue alarms!
+            if (s.status === 'Open' || s.status === 'Completed' || s.status === 'Cancelled' || s.documentType === 'return') return false;
             
             // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
             const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];

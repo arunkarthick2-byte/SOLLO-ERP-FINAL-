@@ -3069,11 +3069,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=59.0"></script>
-    <script src="utils.js?v=59.0"></script>
-    <script src="ui.js?v=59.0"></script>
-    <script src="cloud.js?v=59.0"></script>
-    <script src="app.js?v=59.0"></script>
+    <script src="db.js?v=60.0"></script>
+    <script src="utils.js?v=60.0"></script>
+    <script src="ui.js?v=60.0"></script>
+    <script src="cloud.js?v=60.0"></script>
+    <script src="app.js?v=60.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3103,8 +3103,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=59.0' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=59.0`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=60.0' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=60.0`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour

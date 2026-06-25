@@ -445,13 +445,15 @@ const app = {
                             // If a new update is downloaded from the server and ready...
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 console.log('New update available! Waiting for next restart.');
-                                if (window.Utils && typeof window.Utils.showToast === 'function') {
-                                    window.Utils.showToast("✨ Update downloaded! It will apply on next restart.");
+                                // Bug Fix: Give the user the choice to restart immediately to clear the PWA deadlock
+                                if (confirm("✨ A new update is available! Would you like to restart the app now to apply it?")) {
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                    setTimeout(() => window.location.reload(), 200);
+                                } else {
+                                    if (window.Utils && typeof window.Utils.showToast === 'function') {
+                                        window.Utils.showToast("Update downloaded! It will apply on next restart.");
+                                    }
                                 }
-                                
-                                // ENTERPRISE FIX: Do NOT force skipWaiting here! 
-                                // Let the browser naturally swap the workers when the user closes the app.
-                                // This completely prevents the "Frankenstein Cache" crash!
                             }
                         });
                     });
@@ -1342,7 +1344,7 @@ const app = {
             } else {
                 listEl.innerHTML = records.map(r => `
                     <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid var(--md-surface-variant); border-radius: 8px; margin-bottom: 8px; background: var(--md-surface);">
-                        <span style="font-size: 16px; font-weight: 500; line-height: 1; margin: 0; padding: 0;">${r.name}</span>
+                        <span style="font-size: 16px; font-weight: 500; line-height: 1; margin: 0; padding: 0;">${window.Utils.sanitizeHTML(r.name)}</span>
                         <div class="tap-target" style="color: var(--md-error); display: flex; justify-content: center; align-items: center; padding: 4px; margin: 0;" onclick="app.deleteSimpleMaster('${storeName}', '${r.id}', '${title}')">
                             <span class="material-symbols-outlined" style="font-size: 24px; display: flex; justify-content: center; align-items: center; line-height: 1; margin: 0; padding: 0;">delete</span>
                         </div>
@@ -1671,8 +1673,9 @@ const app = {
                 let ob = parseFloat(party.openingBalance) || 0;
                 let isAdv = partyType === 'Customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
                 
-                let debitsGst = !isAdv ? ob : 0;
-                let debitsNon = 0;
+                // 🚨 BUG FIX: Opening balance falls to Non-GST pool by default
+                let debitsGst = 0;
+                let debitsNon = !isAdv ? ob : 0;
                 
                 const exactPaymentMap = {};
                 const exactReturnMap = {};
@@ -2036,8 +2039,8 @@ const app = {
         const billFilterEl = document.getElementById(isMoneyIn ? 'pay-in-bill-filter' : 'pay-out-bill-filter');
         const billFilter = billFilterEl ? billFilterEl.value : 'All';
         
-        // 🚨 NEW: Apply Ledger Opening Balance to the GST pool by default
-        if (billFilter === 'All' || billFilter === 'GST') {
+        // 🚨 LEGACY FIX: Apply Ledger Opening Balance to the Non-GST pool by default
+        if (billFilter === 'All' || billFilter === 'Non-GST') {
             if (isMoneyIn) { 
                 trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
             } else { 
@@ -2065,14 +2068,21 @@ const app = {
                 
                 // 🚨 LEGACY FIX: Catch old payments saved under 'linkedInvoice'
                 const legacyRef = r.invoiceRef || r.linkedInvoice;
-                if (!isNonGstReceipt && legacyRef) {
-                    const firstRef = String(legacyRef).split(',')[0].trim();
-                    const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
-                    if (linkedDoc && linkedDoc.invoiceType === 'Non-GST') isNonGstReceipt = true;
+                
+                // 🚨 THE ULTIMATE FIX: Treat 'All' tags from old receipts as Non-GST advances too!
+                if (!r.taxPool || r.taxPool === 'All') {
+                    // BUG FIX: Pure untagged legacy advances now default to Non-GST!
+                    isNonGstReceipt = true;
+                    // But if it has a linked history, we respect the original document type
+                    if (legacyRef) {
+                        const firstRef = String(legacyRef).split(',')[0].trim();
+                        const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                        if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                    }
                 }
 
                 if (billFilter === 'GST' && isNonGstReceipt) return;
-                if (billFilter === 'Non-GST' && !isNonGstReceipt) return; // Legacy 'All' receipts fall into GST by default
+                if (billFilter === 'Non-GST' && !isNonGstReceipt) return; // Legacy pure advances now safely fall into Non-GST
 
                 const amt = parseFloat(r.amount) || 0;
                 if (isMoneyIn) trueBalance += (r.type === 'in' ? -amt : amt);
@@ -3347,11 +3357,20 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                     await saveRecord(storeName, data);
                 }
 
-                // ENTERPRISE FIX: WIPE RAM CACHE ON SAVE SO IT REFRESHES!
+                // Bug Fix: Soft-update the RAM Cache instead of destroying it to stop phone overheating/thrashing
                 if (window.AppCache) {
-                    if (type === 'product') window.AppCache.items = null;
-                    if (type === 'ledger') window.AppCache.ledgers = null;
-                    if (type === 'account') window.AppCache.accounts = null;
+                    if (type === 'product' && window.AppCache.items) {
+                        const index = window.AppCache.items.findIndex(i => i.id === data.id);
+                        if (index > -1) window.AppCache.items[index] = data; else window.AppCache.items.push(data);
+                    }
+                    if (type === 'ledger' && window.AppCache.ledgers) {
+                        const index = window.AppCache.ledgers.findIndex(l => l.id === data.id);
+                        if (index > -1) window.AppCache.ledgers[index] = data; else window.AppCache.ledgers.push(data);
+                    }
+                    if (type === 'account' && window.AppCache.accounts) {
+                        const index = window.AppCache.accounts.findIndex(a => a.id === data.id);
+                        if (index > -1) window.AppCache.accounts[index] = data; else window.AppCache.accounts.push(data);
+                    }
                 }
 
                 // --- ENTERPRISE UPGRADE: SMART AUTO-SELECT FOR NESTED FORMS ---
@@ -4079,7 +4098,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         else if (!isSales && (balType.includes('receive') || balType.includes('debit'))) floatingPools['GST'] += ob;
 
         allDocs.forEach(d => {
-            if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.status !== 'Open') {
+            if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
                 const amt = parseFloat(d.grandTotal) || 0;
                 const pool = d.invoiceType === 'Non-GST' ? 'Non-GST' : 'GST';
                 floatingPools[pool] += (d.documentType === 'return' ? -amt : amt);
@@ -4141,7 +4160,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         });
 
         // 3. CALCULATE PENDING GROSS DEBT
-        let partyDocs = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open');
+        // 🚨 BUG FIX: Ignore Cancelled Invoices so they don't create "Zombie Debt"
+        let partyDocs = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open' && doc.status !== 'Cancelled');
         partyDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
 
         const pendingInvoices = [];

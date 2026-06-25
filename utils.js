@@ -244,7 +244,13 @@ const Utils = {
             parsed = isNaN(val) ? 0 : val;
         } else if (val) {
             // Strips out commas, spaces, currency symbols, and letters so math never crashes
-            const cleaned = String(val).replace(/[^0-9.-]+/g, '');
+            let cleaned = String(val).replace(/[^0-9.-]+/g, '');
+            // Bug Fix: Handle accidental multiple decimal points (e.g., typing 1.500.00 instead of 1,500.00)
+            const parts = cleaned.split('.');
+            if (parts.length > 2) {
+                const decimalPart = parts.pop();
+                cleaned = parts.join('') + '.' + decimalPart;
+            }
             parsed = parseFloat(cleaned);
         }
         
@@ -552,46 +558,8 @@ Please process this accordingly. Thank you!`;
             return;
         }
 
-        // STRICT ERP LOGIC: Replaced 'prompt()' with a native HTML text area to prevent the browser from truncating massive database strings!
-        const overlay = document.createElement('div');
-        overlay.id = 'manual-restore-overlay'; // ENTERPRISE FIX: Added ID so the Android Back Button can see it!
-        overlay.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:999999; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px;';
-        document.body.style.overflow = 'hidden'; // ENTERPRISE FIX: Lock background from rubber-banding!
-        overlay.innerHTML = `
-            <div style="background:var(--md-surface, #fff); padding:20px; border-radius:12px; width:100%; max-width:500px; display:flex; flex-direction:column; gap:16px; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
-                <h3 style="margin:0; color:var(--md-on-surface, #000); font-family:sans-serif;">Manual Text Restore</h3>
-                <p style="margin:0; font-size:14px; color:var(--md-text-muted, #666); font-family:sans-serif;">Paste your entire JSON backup string below.</p>
-                <textarea id="restore-textarea" placeholder="Paste data here..." style="width:100%; height:200px; padding:12px; border-radius:8px; border:1px solid #ccc; font-family:monospace; font-size:12px; box-sizing:border-box;"></textarea>
-                <div style="display:flex; justify-content:flex-end; gap:12px;">
-                    <button id="btn-cancel-restore" style="padding:10px 16px; border:none; background:transparent; color:#ba1a1a; font-weight:bold; cursor:pointer;">Cancel</button>
-                    <button id="btn-confirm-restore" style="padding:10px 16px; border:none; background:#0061a4; color:#fff; border-radius:8px; font-weight:bold; cursor:pointer;">Restore Data</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        document.getElementById('btn-cancel-restore').onclick = () => {
-            document.body.removeChild(overlay);
-            document.body.style.overflow = ''; // ENTERPRISE FIX: Release the scroll lock!
-        };
-        document.getElementById('btn-confirm-restore').onclick = async () => {
-            const jsonStr = document.getElementById('restore-textarea').value;
-            if (!jsonStr) return alert("Please paste the backup text first.");
-            try {
-                // STRICT ERP LOGIC: Sanitize hidden keyboard artifacts and line breaks before parsing!
-                const cleanStr = jsonStr.trim().replace(/[\u200B-\u200D\uFEFF]/g, ''); 
-                const data = JSON.parse(cleanStr);
-                
-                if (typeof window.importDatabase === 'function') {
-                    await window.importDatabase(data);
-                    alert("✅ Database restored successfully! Reloading app...");
-                    window.location.reload();
-                }
-            } catch (err) {
-                console.error("Restore Parser Error:", err);
-                alert("❌ Invalid backup text. Please ensure you copied the exact JSON string without adding any extra spaces.");
-            }
-        };
+        // Bug Fix: Replaced dangerous text area freeze vulnerability with a strict file requirement
+        alert("Please select a valid JSON backup file to restore your database.");
     },
 
     // ==========================================
@@ -2153,7 +2121,7 @@ Please process this accordingly. Thank you!`;
                 // 🚨 FIX: Added 'tr' so it never mathematically slices a table row in half across two pages!
                 pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] }, 
                 html2canvas: { 
-                    scale: 2, /* 🚨 RAM FIX: Reduced from 3 to 2 to prevent Share Menu crashes! */
+                    scale: 1.5, /* 🚨 ULTIMATE RAM FIX: Dropped to 1.5 to guarantee no Out-Of-Memory crashes on low-end Androids */
                     backgroundColor: '#ffffff',
                     useCORS: true, 
                     logging: false, 
@@ -2210,8 +2178,22 @@ Please process this accordingly. Thank you!`;
                 window.Utils.showToast("⚠️ Native Share is only supported on mobile apps or secure servers.");
             }
         } catch (err) {
-            console.error("Share API Error:", err);
-            window.Utils.showToast("❌ Share cancelled or failed.");
+            console.error("PDF Engine RAM Exhaustion or Share Error:", err);
+            
+            // 🚨 ENTERPRISE FIX: Ultimate Fallback to Native Browser Print if RAM is completely exhausted!
+            alert("The document is too large to share directly on this device. Falling back to Native Print. You can 'Save as PDF' from there.");
+            
+            // Temporarily hide everything except the print area to allow clean native printing
+            const style = document.createElement('style');
+            style.innerHTML = `@media print { body * { visibility: hidden !important; } #${elementId}, #${elementId} * { visibility: visible !important; } #${elementId} { position: absolute; left: 0; top: 0; width: 100%; margin:0; padding:0; } }`;
+            document.head.appendChild(style);
+            
+            window.print();
+            
+            // Clean up the print styles after the native dialog closes
+            setTimeout(() => document.head.removeChild(style), 2000);
+            
+            window.Utils.showToast("❌ Share cancelled. Reverted to Print.");
         }
     },
 
