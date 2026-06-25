@@ -2590,14 +2590,147 @@ const app = {
                 explicitCoverage += totalReturned;
 
                 const grandTotal = parseFloat(record.grandTotal) || 0;
-                if (record.status === 'Completed' && explicitCoverage < grandTotal - 0.01) {
-                    const advanceUsed = grandTotal - explicitCoverage;
+                
+                // --- 🚨 ULTIMATE FIX: INJECT THE SMART FIFO ADVANCE POOL INTO THE UI! ---
+                let advanceAppliedToThisInvoice = 0;
+
+                if (explicitCoverage < grandTotal - 0.01) {
+                    const partyId = type === 'sales' ? record.customerId : record.supplierId;
+                    const party = await getRecordById('ledgers', partyId);
+                    let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
+                    const balType = party ? (party.balanceType || '').toLowerCase() : '';
+                    
+                    let trueBalance = 0;
+                    let isCustomer = type === 'sales';
+                    
+                    // Legacy Fix: Opening Balance defaults to Non-GST
+                    if (record.invoiceType === 'Non-GST') {
+                        if (isCustomer) trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+                        else trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+                    }
+
+                    // Calculate the TRUE Ledger Balance for this specific tax pool
+                    allDocs.forEach(d => {
+                        if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
+                            if (d.invoiceType === record.invoiceType) {
+                                const amt = parseFloat(d.grandTotal) || 0;
+                                trueBalance += (d.documentType === 'return' ? -amt : amt);
+                            }
+                        }
+                    });
+
+                    allReceipts.forEach(r => {
+                        if (r.firmId === app.state.firmId && r.ledgerId === partyId) {
+                            let isNonGstReceipt = r.taxPool === 'Non-GST';
+                            const legacyRef = r.invoiceRef || r.linkedInvoice;
+                            if (!r.taxPool || r.taxPool === 'All') {
+                                isNonGstReceipt = true;
+                                if (legacyRef) {
+                                    const firstRef = String(legacyRef).split(',')[0].trim();
+                                    const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                                    if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                                }
+                            }
+
+                            if ((record.invoiceType === 'Non-GST' && isNonGstReceipt) || (record.invoiceType !== 'Non-GST' && !isNonGstReceipt)) {
+                                const amt = parseFloat(r.amount) || 0;
+                                if (isCustomer) trueBalance += (r.type === 'in' ? -amt : amt);
+                                else trueBalance += (r.type === 'in' ? amt : -amt);
+                            }
+                        }
+                    });
+
+                    // Build a fast payment map to calculate pending debt
+                    const fastPaymentMap = {};
+                    allReceipts.forEach(c => {
+                        if (c.firmId === app.state.firmId && c.ledgerId === partyId && c.invoiceRef) {
+                            let isNonGstReceipt = c.taxPool === 'Non-GST';
+                            const legacyRef = c.invoiceRef || c.linkedInvoice;
+                            if (!c.taxPool || c.taxPool === 'All') {
+                                isNonGstReceipt = true;
+                                if (legacyRef) {
+                                    const firstRef = String(legacyRef).split(',')[0].trim();
+                                    const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                                    if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                                }
+                            }
+
+                            if ((record.invoiceType === 'Non-GST' && isNonGstReceipt) || (record.invoiceType !== 'Non-GST' && !isNonGstReceipt)) {
+                                let amt = parseFloat(c.amount) || 0;
+                                let impact = isCustomer ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                                if (impact > 0) {
+                                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                                    if (refs.length > 0) {
+                                        let remainingPayment = impact;
+                                        refs.forEach(ref => {
+                                            const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                                            let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (impact / refs.length);
+                                            let applyAmt = Math.min(docTotal, remainingPayment);
+                                            if (applyAmt > 0) {
+                                                fastPaymentMap[ref] = (fastPaymentMap[ref] || 0) + applyAmt;
+                                                remainingPayment -= applyAmt;
+                                            }
+                                        });
+                                        if (remainingPayment > 0.01 && refs[0]) fastPaymentMap[refs[0]] = (fastPaymentMap[refs[0]] || 0) + remainingPayment;
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    const fastReturnMap = {};
+                    allDocs.forEach(d => {
+                        if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                            fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                        }
+                    });
+
+                    // Rebuild the exact FIFO queue up to the present moment
+                    let partyDocs = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && doc.documentType !== 'return' && doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.invoiceType === record.invoiceType);
+                    partyDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+
+                    let totalPendingDebt = 0;
+                    const pendingInvoices = [];
+
+                    for (const doc of partyDocs) {
+                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                        const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (fastPaymentMap[ref] || 0), 0);
+                        const returned = uniqueRefs.reduce((sum, ref) => sum + (fastReturnMap[ref] || 0), 0);
+                        
+                        const docTotal = parseFloat(doc.grandTotal) || 0;
+                        const balance = Math.max(0, docTotal - explicitPaid - returned);
+                        
+                        if (balance > 0.01) {
+                            totalPendingDebt += balance;
+                            pendingInvoices.push({ doc, balance });
+                        }
+                    }
+
+                    let remainingAdvanceMoney = Math.max(0, totalPendingDebt - trueBalance);
+
+                    for (const item of pendingInvoices) {
+                        let finalBal = item.balance;
+                        
+                        if (remainingAdvanceMoney > 0 && finalBal > 0.01) {
+                            const advanceApplied = Math.min(remainingAdvanceMoney, finalBal);
+                            finalBal -= advanceApplied;
+                            remainingAdvanceMoney -= advanceApplied;
+                            
+                            // Capture the exact money applied to THIS specific invoice!
+                            if (item.doc.id === record.id) {
+                                advanceAppliedToThisInvoice = advanceApplied;
+                            }
+                        }
+                    }
+                }
+
+                if (advanceAppliedToThisInvoice > 0) {
                     linkedReceipts.push({
                         receiptNo: 'ADV-POOL',
                         isAdvance: true,
                         date: record.completedDate || record.date,
                         mode: 'Adjusted from Advance Balance',
-                        amount: advanceUsed,
+                        amount: advanceAppliedToThisInvoice,
                         type: type === 'sales' ? 'in' : 'out'
                     });
                 }
@@ -4761,28 +4894,160 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             }
         });
         
-        // --- ENTERPRISE FIX: INJECT THE FIFO ADVANCE POOL INTO THE PDF! ---
-        // If the invoice is marked as Completed, but explicit payments don't equal the grand total,
-        // it means the UI's smart FIFO engine used Advance Money to pay it off!
+        // --- 🚨 ULTIMATE FIX: INJECT THE SMART FIFO ADVANCE POOL INTO THE PDF! ---
         const grandTotal = parseFloat(record.grandTotal) || 0;
         const explicitCoverage = totalPaid + totalReturned;
         
-        if (record.status === 'Completed' && explicitCoverage < grandTotal) {
-            const advanceUsed = grandTotal - explicitCoverage;
-            totalPaid += advanceUsed; // mathematically satisfy the PDF engine
+        // We will run a lightning-fast Auto-FIFO engine specifically for this invoice!
+        let advanceAppliedToThisInvoice = 0;
+        
+        if (explicitCoverage < grandTotal - 0.01) {
+            const party = await getRecordById('ledgers', partyId);
+            let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
+            const balType = party ? (party.balanceType || '').toLowerCase() : '';
             
+            let trueBalance = 0;
+            let isCustomer = type === 'sales';
+            
+            // Legacy Fix: Opening Balance defaults to Non-GST
+            if (record.invoiceType === 'Non-GST') {
+                if (isCustomer) trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+                else trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+            }
+
+            // Calculate the TRUE Ledger Balance for this specific tax pool
+            allDocs.forEach(d => {
+                if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
+                    if (d.invoiceType === record.invoiceType) {
+                        const amt = parseFloat(d.grandTotal) || 0;
+                        trueBalance += (d.documentType === 'return' ? -amt : amt);
+                    }
+                }
+            });
+
+            receipts.forEach(r => {
+                if (r.firmId === app.state.firmId && r.ledgerId === partyId) {
+                    let isNonGstReceipt = r.taxPool === 'Non-GST';
+                    const legacyRef = r.invoiceRef || r.linkedInvoice;
+                    if (!r.taxPool || r.taxPool === 'All') {
+                        isNonGstReceipt = true;
+                        if (legacyRef) {
+                            const firstRef = String(legacyRef).split(',')[0].trim();
+                            const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                        }
+                    }
+
+                    if ((record.invoiceType === 'Non-GST' && isNonGstReceipt) || (record.invoiceType !== 'Non-GST' && !isNonGstReceipt)) {
+                        const amt = parseFloat(r.amount) || 0;
+                        if (isCustomer) trueBalance += (r.type === 'in' ? -amt : amt);
+                        else trueBalance += (r.type === 'in' ? amt : -amt);
+                    }
+                }
+            });
+
+            // Build a fast payment map to calculate pending debt
+            const fastPaymentMap = {};
+            receipts.forEach(c => {
+                if (c.firmId === app.state.firmId && c.ledgerId === partyId && c.invoiceRef) {
+                    let isNonGstReceipt = c.taxPool === 'Non-GST';
+                    const legacyRef = c.invoiceRef || c.linkedInvoice;
+                    if (!c.taxPool || c.taxPool === 'All') {
+                        isNonGstReceipt = true;
+                        if (legacyRef) {
+                            const firstRef = String(legacyRef).split(',')[0].trim();
+                            const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                        }
+                    }
+
+                    if ((record.invoiceType === 'Non-GST' && isNonGstReceipt) || (record.invoiceType !== 'Non-GST' && !isNonGstReceipt)) {
+                        let amt = parseFloat(c.amount) || 0;
+                        let impact = isCustomer ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                        if (impact > 0) {
+                            const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
+                            if (refs.length > 0) {
+                                let remainingPayment = impact;
+                                refs.forEach(ref => {
+                                    const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                                    let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (impact / refs.length);
+                                    let applyAmt = Math.min(docTotal, remainingPayment);
+                                    if (applyAmt > 0) {
+                                        fastPaymentMap[ref] = (fastPaymentMap[ref] || 0) + applyAmt;
+                                        remainingPayment -= applyAmt;
+                                    }
+                                });
+                                if (remainingPayment > 0.01 && refs[0]) fastPaymentMap[refs[0]] = (fastPaymentMap[refs[0]] || 0) + remainingPayment;
+                            }
+                        }
+                    }
+                }
+            });
+
+            const fastReturnMap = {};
+            allDocs.forEach(d => {
+                if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                    fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                }
+            });
+
+            // Rebuild the exact FIFO queue up to the present moment
+            let partyDocs = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && doc.documentType !== 'return' && doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.invoiceType === record.invoiceType);
+            partyDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+
+            let totalPendingDebt = 0;
+            const pendingInvoices = [];
+
+            for (const doc of partyDocs) {
+                const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (fastPaymentMap[ref] || 0), 0);
+                const returned = uniqueRefs.reduce((sum, ref) => sum + (fastReturnMap[ref] || 0), 0);
+                
+                const docTotal = parseFloat(doc.grandTotal) || 0;
+                const balance = Math.max(0, docTotal - explicitPaid - returned);
+                
+                if (balance > 0.01) {
+                    totalPendingDebt += balance;
+                    pendingInvoices.push({ doc, balance });
+                }
+            }
+
+            let remainingAdvanceMoney = Math.max(0, totalPendingDebt - trueBalance);
+
+            for (const item of pendingInvoices) {
+                let finalBal = item.balance;
+                
+                if (remainingAdvanceMoney > 0 && finalBal > 0.01) {
+                    const advanceApplied = Math.min(remainingAdvanceMoney, finalBal);
+                    finalBal -= advanceApplied;
+                    remainingAdvanceMoney -= advanceApplied;
+                    
+                    // Capture the exact money applied to THIS specific invoice!
+                    if (item.doc.id === record.id) {
+                        advanceAppliedToThisInvoice = advanceApplied;
+                    }
+                }
+            }
+        }
+
+        if (advanceAppliedToThisInvoice > 0) {
+            totalPaid += advanceAppliedToThisInvoice; // mathematically satisfy the PDF engine
+
             // Push a fake receipt into the array so it prints beautifully on the invoice!
             linkedReceipts.push({
                 receiptNo: 'ADV-POOL',
                 date: record.completedDate || record.date,
                 mode: 'Adjusted from Advance Balance',
-                amount: advanceUsed
+                amount: advanceAppliedToThisInvoice
             });
         }
-        
+
         // Inject the total paid + returns AND the detailed history into the record object
         record.trueTotalPaid = totalPaid + totalReturned;
         record.linkedReceipts = linkedReceipts;
+        
+        // 🚨 OVERRIDE FIX: Send a hidden flag to utils.js to completely DESTROY the buggy Global Advance Badge!
+        record.hideGlobalAdvanceBadge = true;
 
         const profile = await getRecordById('businessProfile', app.state.firmId);
         const party = await getRecordById('ledgers', type === 'sales' ? record.customerId : record.supplierId);

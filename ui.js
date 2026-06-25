@@ -866,7 +866,8 @@ const UI = {
         if (completedGroup) completedGroup.classList.add('hidden');
         if (shippedInput) shippedInput.disabled = false;
         
-        if (status === 'Shipped') {
+        // 🚨 THE FIX: For Purchases, show the Shipping/Received data as long as it's not a Draft PO!
+        if (status === 'Shipped' || status === 'Unpaid' || (type === 'purchase' && status !== 'Open')) {
             if (shippedGroup) shippedGroup.classList.remove('hidden');
             
             // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date to Today!
@@ -874,50 +875,65 @@ const UI = {
             if (shippedInput && (!shippedInput.value || (mainDateInput && shippedInput.value === mainDateInput.value))) {
                 shippedInput.value = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
             }
-            
-        } else if (status === 'Completed') {
+        } 
+        
+        if (status === 'Completed') {
             // Keep the shipped date visible to retain history, but let them edit it!
             if (shippedGroup) {
                 shippedGroup.classList.remove('hidden');
                 if (shippedInput) shippedInput.disabled = false; 
             }
-            if (completedGroup) completedGroup.classList.remove('hidden');
             
-            // 🚨 ENTERPRISE FIX: Smart "Last Payment" Radar!
-            const completedInput = document.getElementById(`${type}-completed-date`);
-            const mainDateInput = document.getElementById(`${type}-date`);
+            // 🚨 THE FIX: The user is absolutely right! We do NOT need the Completed Date for Purchases!
+            if (completedGroup && type === 'sales') { 
+                completedGroup.classList.remove('hidden');
+            }
             
-            if (completedInput && (!completedInput.value || (mainDateInput && completedInput.value === mainDateInput.value))) {
+            // 🚨 ENTERPRISE FIX: Smart "Last Payment" Radar (Only runs for Sales now!)
+            if (type === 'sales') {
+                const completedInput = document.getElementById(`${type}-completed-date`);
+                const mainDateInput = document.getElementById(`${type}-date`);
                 
-                let bestDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-                
-                // Scan the Cashbook for the absolute latest payment made against this document
-                try {
-                    const currentId = window.app && window.app.state ? window.app.state.currentEditId : null;
-                    const invoiceNo = document.getElementById(`${type}-invoice-no`) ? document.getElementById(`${type}-invoice-no`).value : null;
-                    const orderNo = document.getElementById(`${type}-order-no`) ? document.getElementById(`${type}-order-no`).value : null;
+                if (completedInput && (!completedInput.value || (mainDateInput && completedInput.value === mainDateInput.value))) {
                     
-                    if (currentId || invoiceNo || orderNo) {
-                        const linkedPayments = (UI.state.rawData.cashbook || []).filter(c => {
-                            const refs = String(c.invoiceRef || c.linkedInvoice || '').split(',').map(r => r.trim());
-                            return (currentId && refs.includes(currentId)) || 
-                                   (invoiceNo && refs.includes(invoiceNo)) || 
-                                   (orderNo && refs.includes(orderNo));
-                        });
+                    let bestDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                    
+                    // Scan the Cashbook for the absolute latest payment made against this document
+                    try {
+                        const currentId = window.app && window.app.state ? window.app.state.currentEditId : null;
+                        const invoiceNo = document.getElementById(`${type}-invoice-no`) ? document.getElementById(`${type}-invoice-no`).value : null;
+                        const orderNo = document.getElementById(`${type}-order-no`) ? document.getElementById(`${type}-order-no`).value : null;
                         
-                        if (linkedPayments.length > 0) {
-                            // Sort chronologically to find the newest payment
-                            linkedPayments.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
-                            if (linkedPayments[0].date) {
-                                bestDate = linkedPayments[0].date;
+                        if (currentId || invoiceNo || orderNo) {
+                            const linkedPayments = (UI.state.rawData.cashbook || []).filter(c => {
+                                const refs = String(c.invoiceRef || c.linkedInvoice || '').split(',').map(r => r.trim());
+                                return (currentId && refs.includes(currentId)) || 
+                                       (invoiceNo && refs.includes(invoiceNo)) || 
+                                       (orderNo && refs.includes(orderNo));
+                            });
+                            
+                            if (linkedPayments.length > 0) {
+                                // Sort chronologically to find the newest payment
+                                linkedPayments.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
+                                if (linkedPayments[0].date) {
+                                    bestDate = linkedPayments[0].date;
+                                }
                             }
                         }
+                    } catch (e) {
+                        console.warn("Could not calculate last payment date, falling back to today.");
                     }
-                } catch (e) {
-                    console.warn("Could not calculate last payment date, falling back to today.");
+                    
+                    // 🚨 ENTERPRISE FIX: Chronological Coherence for Advances!
+                    // An invoice cannot be "Completed" before it is actually billed or shipped!
+                    if (shippedInput && shippedInput.value && new Date(bestDate) < new Date(shippedInput.value)) {
+                        bestDate = shippedInput.value; // Advance payment detected: Fallback to Shipped Date
+                    } else if (mainDateInput && mainDateInput.value && new Date(bestDate) < new Date(mainDateInput.value)) {
+                        bestDate = mainDateInput.value; // Ultimate fallback: Use the Invoice Creation Date
+                    }
+                    
+                    completedInput.value = bestDate;
                 }
-                
-                completedInput.value = bestDate;
             }
         }
     },
@@ -1270,10 +1286,8 @@ const UI = {
                             let allocation = 0;
                             if (remainingAmt > 0) {
                                 allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                                // 🚨 DUMP OVERPAYMENT ON THE LAST EXPLICITLY LINKED DOCUMENT
-                                if (index === matchedDocs.length - 1 && remainingAmt > allocation) {
-                                    allocation = remainingAmt;
-                                }
+                                // 🚨 BUG FIX: DO NOT DUMP OVERPAYMENTS! 
+                                // Let the excess money float back into the pool so Auto-FIFO can pay off other bills!
                             } else {
                                 allocation = Math.max(-currentPaid, remainingAmt); 
                             }
@@ -2562,9 +2576,7 @@ const UI = {
                         let allocation = 0;
                         if (remainingAmt > 0) {
                             allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                            if (index === matchedDocs.length - 1 && remainingAmt > allocation) {
-                                allocation = remainingAmt;
-                            }
+                            // 🚨 BUG FIX: DO NOT DUMP OVERPAYMENTS!
                         } else {
                             allocation = Math.max(-currentPaid, remainingAmt); 
                         }

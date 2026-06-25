@@ -1181,23 +1181,13 @@ Please process this accordingly. Thank you!`;
                             ${(() => {
                                 let linkedSum = 0;
                                 if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
-                                let upfrontPaid = (parseFloat(doc.trueTotalPaid) || 0) - linkedSum;
                                 
-                                // THE FIX: Sync the PDF mathematically with the UI's Smart FIFO Engine!
-                                let displayTotalPaid = parseFloat(doc.trueTotalPaid) || 0;
-                                const displayGrandTotal = parseFloat(doc.grandTotal) || 0;
-                                let autoKnockoffRow = '';
+                                // 🚨 BUG FIX: Ensure the math respects explicitly linked manual receipts!
+                                let safeTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
+                                if (doc.status === 'Completed' || doc.status === 'Paid') safeTotalPaid = parseFloat(doc.grandTotal) || 0;
                                 
-                                if (doc.status === 'Completed' && displayTotalPaid < displayGrandTotal) {
-                                    const advanceApplied = displayGrandTotal - displayTotalPaid;
-                                    displayTotalPaid = displayGrandTotal; // Force balance to sync with UI
-                                    autoKnockoffRow = `
-                                    <tr>
-                                        <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 11px; color: #475569; font-weight: 700;">Payment from Advance Pool</td>
-                                        <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">- ₹${advanceApplied.toFixed(2)}</td>
-                                    </tr>`;
-                                }
-
+                                let upfrontPaid = safeTotalPaid - linkedSum;
+                                
                                 let htmlStr = '';
                                 if (upfrontPaid > 0.01) {
                                     htmlStr += `
@@ -1206,7 +1196,6 @@ Please process this accordingly. Thank you!`;
                                         <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">- ₹${upfrontPaid.toFixed(2)}</td>
                                     </tr>`;
                                 }
-                                htmlStr += autoKnockoffRow;
                                 return htmlStr;
                             })()}
 
@@ -1225,9 +1214,13 @@ Please process this accordingly. Thank you!`;
                             `).join('') : ''}
                             
                             ${(() => {
-                                let displayTotalPaid = parseFloat(doc.trueTotalPaid) || 0;
+                                let linkedSum = 0;
+                                if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
+                                
+                                // 🚨 BUG FIX: Ensure Balance Due mathematically deducts manual receipts!
+                                let displayTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
                                 const displayGrandTotal = parseFloat(doc.grandTotal) || 0;
-                                if (doc.status === 'Completed') displayTotalPaid = displayGrandTotal;
+                                if (doc.status === 'Completed' || doc.status === 'Paid') displayTotalPaid = displayGrandTotal;
                                 
                                 let finalHtml = '';
                                 const thisInvoiceDue = Math.max(0, displayGrandTotal - displayTotalPaid);
@@ -1277,8 +1270,11 @@ Please process this accordingly. Thank you!`;
         `;
         
         // --- ENTERPRISE UPGRADE: SPLIT PAYMENT / INSTALLMENT TRACKER ---
-        let totalPaid = parseFloat(doc.trueTotalPaid) || 0;
-        // THE FIX: Sync the tracker with the UI FIFO logic
+        let linkedSumBottom = 0;
+        if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSumBottom += (parseFloat(r.amount) || 0));
+        
+        let totalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSumBottom);
+        // THE FIX: Sync the tracker with the UI FIFO logic AND Explicit Links!
         if (doc.status === 'Paid' || doc.status === 'Completed') totalPaid = parseFloat(doc.grandTotal) || 0; 
 
         if (totalPaid > 0) {
