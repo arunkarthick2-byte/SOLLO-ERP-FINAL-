@@ -33,14 +33,14 @@ const Utils = {
 
         let safeString = String(dateString);
         
-        // iPhones physically cannot process YYYY-MM-DD HH:MM:SS. 
-        // Only convert dashes to slashes if it is a spaced date, otherwise let native ISO parsing handle it securely!
-        if (safeString.includes(' ') && !safeString.includes('T')) {
+        // 🚨 BUG FIX: iOS Date Parser
+        // iPhones physically cannot process YYYY-MM-DD. We must convert dashes to slashes for ALL non-ISO strings!
+        if (!safeString.includes('T')) {
             safeString = safeString.replace(/-/g, '/');
             const d = new Date(safeString);
-            return isNaN(d.getTime()) ? new Date(dateString) : d;
+            return isNaN(d.getTime()) ? new Date() : d;
         } else {
-            // It is already a standard format or ISO string, let the browser handle it safely
+            // It is already a standard ISO string, let the browser handle it safely
             const d = new Date(safeString);
             return isNaN(d.getTime()) ? new Date() : d;
         }
@@ -206,6 +206,191 @@ const Utils = {
             result += ' and ' + convertGroup(paise.toString()) + ' Paise';
         }
         return result + ' Only';
+    },
+
+    // ==========================================
+    // 🚨 ENTERPRISE UPGRADE: CUSTOM ASYNC ALERT DIALOG
+    // ==========================================
+    alertModal: (message, title = "Notice") => {
+        return new Promise((resolve) => {
+            const dialog = document.getElementById('enterprise-dialog');
+            if (!dialog) { window.alert(message); resolve(); return; } // Failsafe
+
+            document.getElementById('enterprise-dialog-title').innerText = title;
+            document.getElementById('enterprise-dialog-msg').innerText = message;
+
+            const okBtn = dialog.querySelector('button');
+            okBtn.onclick = () => {
+                dialog.style.opacity = '0';
+                document.getElementById('enterprise-dialog-card').style.transform = 'scale(0.9)';
+                setTimeout(() => { dialog.classList.add('hidden'); resolve(); }, 280);
+            };
+
+            dialog.classList.remove('hidden');
+            requestAnimationFrame(() => { requestAnimationFrame(() => {
+                dialog.style.opacity = '1';
+                document.getElementById('enterprise-dialog-card').style.transform = 'scale(1)';
+            });});
+            if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('medium');
+        });
+    },
+
+    // ==========================================
+    // 🚨 ENTERPRISE UPGRADE: CUSTOM ASYNC CONFIRM DIALOG
+    // ==========================================
+    confirmModal: (message, confirmText = "Confirm", isDestructive = false) => {
+        return new Promise((resolve) => {
+            const dialog = document.getElementById('enterprise-confirm');
+            if (!dialog) {
+                resolve(window.confirm(message)); // Failsafe
+                return;
+            }
+
+            document.getElementById('enterprise-confirm-msg').innerText = message;
+            
+            const yesBtn = document.getElementById('enterprise-confirm-yes');
+            const noBtn = document.getElementById('enterprise-confirm-no');
+            const iconEl = document.getElementById('enterprise-confirm-icon');
+            const iconBg = document.getElementById('enterprise-confirm-icon-bg');
+            const titleEl = document.getElementById('enterprise-confirm-title');
+
+            yesBtn.innerText = confirmText;
+
+            if (isDestructive) {
+                yesBtn.style.background = 'var(--md-error)';
+                yesBtn.style.boxShadow = '0 4px 12px rgba(186, 26, 26, 0.3)';
+                iconBg.style.background = 'rgba(186, 26, 26, 0.1)';
+                iconEl.style.color = 'var(--md-error)';
+                iconEl.innerText = 'warning';
+                titleEl.innerText = 'Warning';
+            } else {
+                yesBtn.style.background = 'var(--md-primary)';
+                yesBtn.style.boxShadow = '0 4px 12px rgba(0, 97, 164, 0.3)';
+                iconBg.style.background = 'rgba(0, 97, 164, 0.1)';
+                iconEl.style.color = 'var(--md-primary)';
+                iconEl.innerText = 'help';
+                titleEl.innerText = 'Please Confirm';
+            }
+
+            const closeDialog = (result) => {
+                dialog.style.opacity = '0';
+                document.getElementById('enterprise-confirm-card').style.transform = 'scale(0.9)';
+                setTimeout(() => {
+                    dialog.classList.add('hidden');
+                    resolve(result);
+                }, 280);
+            };
+
+            yesBtn.onclick = () => closeDialog(true);
+            noBtn.onclick = () => closeDialog(false);
+
+            dialog.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    dialog.style.opacity = '1';
+                    document.getElementById('enterprise-confirm-card').style.transform = 'scale(1)';
+                });
+            });
+            
+            if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic(isDestructive ? 'heavy' : 'medium');
+        });
+    },
+
+    // ==========================================
+    // 🚨 ENTERPRISE UPGRADE: SWIPE-TO-CONFIRM ENGINE
+    // ==========================================
+    swipeConfirmModal: (message) => {
+        return new Promise((resolve) => {
+            const dialog = document.getElementById('enterprise-swipe');
+            if (!dialog) { resolve(window.confirm(message)); return; }
+
+            document.getElementById('enterprise-swipe-msg').innerText = message;
+            const track = document.getElementById('swipe-track');
+            const thumb = document.getElementById('swipe-thumb');
+            const cancelBtn = document.getElementById('enterprise-swipe-cancel');
+            const trackText = document.getElementById('swipe-track-text');
+
+            let isDragging = false;
+            let startX = 0;
+            let maxSlide = 0;
+            const abortController = new AbortController(); // Cleans up events instantly
+
+            const closeDialog = (result) => {
+                abortController.abort(); // Kill all listeners
+                dialog.style.opacity = '0';
+                document.getElementById('enterprise-swipe-card').style.transform = 'translateY(100%)';
+                setTimeout(() => {
+                    dialog.classList.add('hidden');
+                    thumb.style.transform = `translateX(0px)`;
+                    thumb.style.transition = 'none';
+                    trackText.style.opacity = '0.8';
+                    resolve(result);
+                }, 300);
+            };
+
+            cancelBtn.onclick = () => closeDialog(false);
+
+            const onDragStart = (e) => {
+                isDragging = true;
+                startX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                thumb.style.transition = 'none';
+                if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+            };
+
+            const onDragMove = (e) => {
+                if (!isDragging) return;
+                let currentX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+                let delta = currentX - startX;
+                
+                if (delta < 0) delta = 0;
+                if (delta > maxSlide) delta = maxSlide;
+                
+                thumb.style.transform = `translateX(${delta}px)`;
+                trackText.style.opacity = Math.max(0, 0.8 - (delta / (maxSlide * 0.7))); // Fade out text as you swipe
+            };
+
+            const onDragEnd = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                thumb.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+                
+                const currentTransform = thumb.style.transform;
+                const delta = parseFloat(currentTransform.replace('translateX(', '').replace('px)', '')) || 0;
+
+                if (delta > maxSlide * 0.85) {
+                    // SUCCESS! The user swiped all the way!
+                    thumb.style.transform = `translateX(${maxSlide}px)`;
+                    if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('heavy');
+                    setTimeout(() => closeDialog(true), 150);
+                } else {
+                    // SNAP BACK! They let go too early
+                    thumb.style.transform = `translateX(0px)`;
+                    trackText.style.opacity = '0.8';
+                    if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+                }
+            };
+
+            // Safely bind all events using the AbortController
+            const opts = { signal: abortController.signal };
+            thumb.addEventListener('mousedown', onDragStart, opts);
+            thumb.addEventListener('touchstart', onDragStart, Object.assign({passive: true}, opts));
+            
+            document.addEventListener('mousemove', onDragMove, opts);
+            document.addEventListener('touchmove', onDragMove, Object.assign({passive: false}, opts));
+            
+            document.addEventListener('mouseup', onDragEnd, opts);
+            document.addEventListener('touchend', onDragEnd, opts);
+
+            dialog.classList.remove('hidden');
+            
+            // Calculate track width securely after render
+            setTimeout(() => { maxSlide = track.offsetWidth - thumb.offsetWidth - 8; }, 50);
+
+            requestAnimationFrame(() => { requestAnimationFrame(() => {
+                dialog.style.opacity = '1';
+                document.getElementById('enterprise-swipe-card').style.transform = 'translateY(0)';
+            });});
+        });
     },
 
     // --- NEW CODE: TOAST ENGINE ---
@@ -423,7 +608,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
     shareDocumentWhatsApp: async (type, docId) => {
         const storeName = type === 'sales' ? 'sales' : 'purchases';
         const doc = await window.getRecordById(storeName, docId);
-        if (!doc) return alert("Please save the document first before sharing!");
+        if (!doc) return await window.Utils.alertModal("Please save the document first before sharing!", "Action Required");
 
         const partyId = type === 'sales' ? doc.customerId : doc.supplierId;
         const partyName = type === 'sales' ? doc.customerName : doc.supplierName;
@@ -431,7 +616,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         
         const phone = party ? party.phone : '';
         if (!phone) {
-            alert(`No phone number saved for ${partyName}. Please edit their profile in the Master Data to add one.`);
+            await window.Utils.alertModal(`No phone number saved for ${partyName}. Please edit their profile in the Master Data to add one.`, "Missing Details");
             return;
         }
 
@@ -444,13 +629,19 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         if (doc.status === 'Completed' || doc.status === 'Paid') totalPaid = parseFloat(doc.grandTotal);
         const balanceDue = Math.max(0, parseFloat(doc.grandTotal) - totalPaid);
         
+        // 🚨 ENTERPRISE FIX: Smart Document Name Detection!
+        let properDocName = 'Tax Invoice';
+        if (doc.documentType === 'return') properDocName = type === 'sales' ? 'Credit Note' : 'Debit Note';
+        else if (doc.invoiceType === 'Non-GST') properDocName = 'Bill of Supply';
+        else if (type === 'purchases') properDocName = 'Purchase Bill';
+        
         let message = '';
         if (type === 'sales') {
             message = `Hello *${partyName}*,
 
-Please find the details for your recent order:
+Please find the details for your recent ${properDocName}:
 
-📄 *Invoice No:* ${docNo}
+📄 *${properDocName} No:* ${docNo}
 📅 *Date:* ${date}
 💰 *Total Amount:* ₹${parseFloat(doc.grandTotal).toFixed(2)}
 `;
@@ -794,7 +985,9 @@ Please process this accordingly. Thank you!`;
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
                     if (window.Utils) window.Utils.showToast("Preparing True PDF...");
-                    window.Utils.sharePDF(elementId, filename, `Here is your document: ${filename.replace('.pdf', '')}`);
+                    // 🚨 ENTERPRISE FIX: Clean up the ugly filename (TAX_INVOICE_123) into a proper Document Name for the share text!
+                    const cleanDocumentName = filename.replace('.pdf', '').replace(/_/g, ' ');
+                    window.Utils.sharePDF(elementId, filename, `Here is your document: ${cleanDocumentName}`);
                 } catch (err) {
                     console.log("Share cancelled or failed", err);
                     alert("Sharing was cancelled or is unsupported on this device.");
@@ -1788,7 +1981,13 @@ Please process this accordingly. Thank you!`;
                 ["GSTR-1 (SALES) BREAKDOWN"],
                 ["Category", "Taxable Value", "Tax Amount"],
                 ["B2B Sales (Registered)", reportData.gstr1.b2bTaxable, reportData.gstr1.b2bTax],
-                ["B2C Sales (Unregistered)", reportData.gstr1.b2cTaxable, reportData.gstr1.b2cTax]
+                ["B2C Sales (Unregistered)", reportData.gstr1.b2cTaxable, reportData.gstr1.b2cTax],
+                ["Nil Rated / Exempt / Non-GST Sales", reportData.gstr1.nilRatedTaxable || 0, 0],
+                [],
+                ["GSTR-2 (PURCHASES) BREAKDOWN"],
+                ["Category", "Taxable Value", "Tax Amount"],
+                ["Total GST Purchases (ITC)", reportData.gstr2.totalTaxable, reportData.gstr2.totalTax],
+                ["Nil Rated / Exempt / Non-GST Purchases", reportData.gstr2.nilRatedTaxable || 0, 0]
             ];
             const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
             XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
@@ -2165,8 +2364,10 @@ Please process this accordingly. Thank you!`;
 
             // 🚨 BIZOPS FIX: If user tapped Share, ONLY share. No fallback!
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                // Remove underscores from the preview title too!
+                const cleanTitle = filename.replace('.pdf', '').replace(/_/g, ' ');
                 await navigator.share({
-                    title: filename.replace('.pdf', ''),
+                    title: cleanTitle,
                     text: shareText,
                     files: [file]
                 });

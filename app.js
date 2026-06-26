@@ -441,12 +441,13 @@ const app = {
                 navigator.serviceWorker.ready.then(registration => {
                     registration.addEventListener('updatefound', () => {
                         const newWorker = registration.installing;
-                        newWorker.addEventListener('statechange', () => {
+                        newWorker.addEventListener('statechange', async () => {
                             // If a new update is downloaded from the server and ready...
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                 console.log('New update available! Waiting for next restart.');
-                                // Bug Fix: Give the user the choice to restart immediately to clear the PWA deadlock
-                                if (confirm("✨ A new update is available! Would you like to restart the app now to apply it?")) {
+                                // 🚨 ENTERPRISE FIX: Custom Async Confirm Modal for Updates!
+                                const isConfirmed = await window.Utils.confirmModal("✨ A new update is available! Would you like to restart the app now to apply it?", "Restart Now");
+                                if (isConfirmed) {
                                     newWorker.postMessage({ type: 'SKIP_WAITING' });
                                     setTimeout(() => window.location.reload(), 200);
                                 } else {
@@ -955,7 +956,9 @@ const app = {
     // ENTERPRISE UPGRADE: GLOBAL STOCK HEALER
     // ==========================================
     recalculateAllStock: async () => {
-        if (!confirm("This will scan every past invoice and mathematically fix all corrupted stock & warehouse capital. Continue?")) return;
+        // 🚨 ENTERPRISE FIX: Swipe-to-Confirm Tactical Slider!
+        const isConfirmed = await window.Utils.swipeConfirmModal("This will scan every past invoice and mathematically fix all corrupted stock & warehouse capital. Continue?");
+        if (!isConfirmed) return;
         try {
             if (window.Utils) window.Utils.showToast("Recalculating all stock... ⏳");
             
@@ -1393,7 +1396,8 @@ const app = {
     },
 
     deleteSimpleMaster: async (storeName, id, title) => {
-        if (!confirm("Are you sure you want to delete this?")) return;
+        const isConfirmed = await window.Utils.confirmModal("Are you sure you want to delete this?", "Delete", true);
+        if (!isConfirmed) return;
         
         await deleteRecordById(storeName, id);
         window.Utils.showToast("Deleted successfully! 🗑️");
@@ -1627,6 +1631,133 @@ const app = {
         }
         
         UI.openActivity('activity-report-viewer');
+
+        // 🚀 ENTERPRISE UPGRADE: CUSTOMER LIFETIME VALUE (LTV) TRACKER
+        let ltvCard = document.getElementById('ledger-ltv-card');
+        if (!ltvCard) {
+            ltvCard = document.createElement('div');
+            ltvCard.id = 'ledger-ltv-card';
+            ltvCard.className = 'hidden';
+            
+            // 🚨 ENTERPRISE FIX: Edge-to-Edge Design & Dark Mode Safety
+            ltvCard.style.cssText = 'margin-left: -16px; margin-right: -16px; margin-bottom: 0; padding: 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--md-outline-variant); border-bottom: none; border-radius: 0; box-shadow: none;';
+            
+            ltvCard.innerHTML = `
+                <style>
+                    /* Dark Mode specific overrides for LTV Card */
+                    body.dark-mode #ledger-ltv-card.ltv-positive { background: rgba(20, 108, 46, 0.1) !important; }
+                    body.dark-mode #ledger-ltv-card.ltv-negative { background: rgba(186, 26, 26, 0.15) !important; }
+                    body.dark-mode .ltv-text-pos { color: #81c995 !important; }
+                    body.dark-mode .ltv-text-neg { color: #ffb4ab !important; }
+                    
+                    /* Light Mode defaults */
+                    #ledger-ltv-card.ltv-positive { background: rgba(20, 108, 46, 0.05); }
+                    #ledger-ltv-card.ltv-negative { background: rgba(186, 26, 26, 0.05); }
+                    .ltv-text-pos { color: #146c2e; }
+                    .ltv-text-neg { color: var(--md-error); }
+                </style>
+                <div>
+                    <div id="ltv-title" class="ltv-text-pos" style="font-size: 11px; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Lifetime Value (LTV)</div>
+                    <div style="font-size: 12px; color: var(--md-text-muted);">Net Revenue: <strong id="ltv-revenue" style="color: var(--md-on-surface);">₹0.00</strong></div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 11px; text-transform: uppercase; font-weight: 800; color: var(--md-text-muted); margin-bottom: 4px;">Total Profit Generated</div>
+                    <div id="ltv-profit" class="ltv-text-pos" style="font-size: 20px; font-weight: 900;">₹0.00</div>
+                </div>
+            `;
+            // Inject it perfectly above the Debit/Credit summary box
+            const summaryCard = document.getElementById('ledger-summary-card');
+            if (summaryCard && summaryCard.parentNode) {
+                summaryCard.parentNode.insertBefore(ltvCard, summaryCard);
+            }
+        }
+
+        if (String(partyType).toLowerCase() === 'customer') {
+            let lifetimeRevenue = 0;
+            let lifetimeProfit = 0;
+            let totalLinkedExpenses = 0;
+            
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+            
+            const partySales = (window.UI.state.rawData.sales || []).filter(s => s.firmId === activeFirmId && s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled');
+            const allExpenses = (window.UI.state.rawData.expenses || []).filter(e => e.firmId === activeFirmId);
+            
+            // Track all document IDs belonging to this customer
+            const customerDocRefs = new Set();
+            
+            partySales.forEach(s => {
+                const mult = s.documentType === 'return' ? -1 : 1;
+                
+                let rawSubtotal = parseFloat(s.subtotal) || 0;
+                let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                
+                // True Net Revenue (Excluding GST)
+                let freight = parseFloat(s.freightAmount) || parseFloat(s.freight) || 0;
+                let netRevenue = (rawSubtotal - discountAmt + freight) * mult;
+                
+                let cogs = 0;
+                (s.items || []).forEach(item => {
+                    cogs += (parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0);
+                });
+                
+                lifetimeRevenue += netRevenue;
+                lifetimeProfit += (netRevenue - (cogs * mult));
+
+                // Save aliases for the expense scanner (Including short IDs for system fallbacks!)
+                if (s.id) {
+                    customerDocRefs.add(s.id);
+                    customerDocRefs.add(s.id.slice(-4).toUpperCase()); // Short ID fallback
+                }
+                if (s.invoiceNo) customerDocRefs.add(s.invoiceNo);
+                if (s.orderNo) customerDocRefs.add(s.orderNo);
+            });
+
+            // 🚨 ENTERPRISE UPGRADE: Perfect Proportional Job Costing
+            allExpenses.forEach(e => {
+                if (e.linkedInvoice) {
+                    const links = e.linkedInvoice.split(',').map(l => l.trim());
+                    
+                    let customerShareCount = 0;
+                    links.forEach(link => {
+                        // Check if the link matches any alias of this customer's invoices
+                        const strippedLink = link.replace(/^sollo-/i, '').slice(-4).toUpperCase();
+                        if (customerDocRefs.has(link) || customerDocRefs.has(strippedLink)) {
+                            customerShareCount++;
+                        }
+                    });
+                    
+                    if (customerShareCount > 0) {
+                        // Mathematically distribute the expense cost exactly by how many invoices this customer owns in the link!
+                        const splitAmt = (parseFloat(e.amount) || 0) / links.length;
+                        totalLinkedExpenses += (splitAmt * customerShareCount);
+                    }
+                }
+            });
+
+            // Deduct the linked expenses to find the TRUE final profit!
+            lifetimeProfit -= totalLinkedExpenses;
+
+            document.getElementById('ltv-revenue').innerText = '₹' + lifetimeRevenue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const profitEl = document.getElementById('ltv-profit');
+            const titleEl = document.getElementById('ltv-title');
+            
+            // Dynamic Color Engine: Green for profitable customers, Red for loss-making ones!
+            if (lifetimeProfit < 0) {
+                profitEl.innerText = '-₹' + Math.abs(lifetimeProfit).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                ltvCard.className = 'ltv-negative';
+                profitEl.className = 'ltv-text-neg';
+                titleEl.className = 'ltv-text-neg';
+            } else {
+                profitEl.innerText = '₹' + lifetimeProfit.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                ltvCard.className = 'ltv-positive';
+                profitEl.className = 'ltv-text-pos';
+                titleEl.className = 'ltv-text-pos';
+            }
+        } else {
+            // Hide the LTV card for Suppliers
+            ltvCard.className = 'hidden';
+        }
 
         try {
             const statement = await getKhataStatement(partyId, partyType);
@@ -2932,7 +3063,11 @@ const app = {
                     try {
                         const partyKey = type === 'sales' ? 'customer' : 'supplier';
                     const partyId = document.getElementById(`${type}-${partyKey}-id`).value;
-                    if (!partyId) return alert(`Please select a ${partyKey}.`);
+                    if (!partyId) {
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                        await window.Utils.alertModal(`Please select a ${partyKey}.`, "Action Required");
+                        return;
+                    }
 
                     // STRICT ERP LOGIC: Block Future Dates to protect PnL and Aging Reports!
                     const docDate = document.getElementById(`${type}-date`).value;
@@ -2942,7 +3077,8 @@ const app = {
                         today.setDate(today.getDate() + 1); // Allow up to 1 day for timezone safety
                         if (selectedDate > today) {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            return alert("ERROR: You cannot save a document with a future date. Please correct the date to protect your financial reports.");
+                            await window.Utils.alertModal("You cannot save a document with a future date. Please correct the date to protect your financial reports.", "Invalid Date");
+                            return;
                         }
                     }
 
@@ -3051,7 +3187,9 @@ const app = {
                                 }
                                 
                                 if (effectiveStock < parseFloat(row.qty)) {
-                                    if (!confirm(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective ${poolName} stock is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`)) {
+                                    const isConfirmed = await window.Utils.confirmModal(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective ${poolName} stock is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`, "Continue", true);
+                                    if (!isConfirmed) {
+                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
                                         return; 
                                     }
                                 }
@@ -3668,7 +3806,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                     // STRICT ERP LOGIC: Wipe the RAM Cache so the UI instantly shows the new stock!
                     if (window.AppCache) window.AppCache.items = null;
                     
-                    alert("Stock adjusted successfully!");
+                    if (window.Utils) window.Utils.showToast("✅ Stock adjusted successfully!");
                     UI.closeBottomSheet('sheet-stock-adjustment');
                     app.refreshAll();
                 } catch (error) {
@@ -3752,7 +3890,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                 firmRecord.state = data.state;
                 await saveRecord('firms', firmRecord);
 
-                alert("Business Profile Saved Successfully!");
+                if (window.Utils) window.Utils.showToast("✅ Business Profile Saved Successfully!");
                 UI.closeActivity('activity-business-profile');
             });
         }
@@ -3783,7 +3921,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                         const targetPartyId = type === 'in' ? document.getElementById('pay-in-customer-id').value : document.getElementById('pay-out-supplier-id').value;
                         if (!targetPartyId) {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            return alert("Please select a party.");
+                            await window.Utils.alertModal("Please select a party.", "Action Required");
+                            return;
                         }
 
                         // ENTERPRISE FIX: The Cashbook "Time-Travel" Shield!
@@ -3794,7 +3933,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                             today.setDate(today.getDate() + 1); // 1-day timezone buffer
                             if (selectedDate > today) {
                                 if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                                return alert("Error: You cannot log a future date in the Cashbook. Please use today or a past date.");
+                                await window.Utils.alertModal("Error: You cannot log a future date in the Cashbook. Please use today or a past date.", "Invalid Date");
+                                return;
                             }
                         }
 
@@ -3802,7 +3942,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                         const checkAmt = parseFloat(document.getElementById(`pay-${type}-amount`).value) || 0;
                         if (checkAmt <= 0) {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            return alert("Error: Payment amount must be strictly greater than zero.");
+                            await window.Utils.alertModal("Error: Payment amount must be strictly greater than zero.", "Invalid Amount");
+                            return;
                         }
 
                     const ledger = await getRecordById('ledgers', targetPartyId);
@@ -3872,7 +4013,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                         
                         const attemptAmt = parseFloat(document.getElementById(`pay-${type}-amount`).value) || 0;
                         if (currentBal - attemptAmt < 0) {
-                            if (!confirm(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This payment will drop the balance below zero. Continue anyway?`)) {
+                            const isConfirmed = await window.Utils.confirmModal(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This payment will drop the balance below zero. Continue anyway?`, "Continue", true);
+                            if (!isConfirmed) {
                                 if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
                                 return;
                             }
@@ -4485,7 +4627,9 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             warningMsg = "Deleting this document will return all inventory to its previous state. Continue?";
         }
 
-        if (!confirm(warningMsg)) return;
+        // 🚨 ENTERPRISE FIX: Swipe-to-Confirm Tactical Slider!
+        const isConfirmed = await window.Utils.swipeConfirmModal(warningMsg);
+        if (!isConfirmed) return;
 
         // ORPHAN PROTECTION: Check for linked manual receipts safely
         if (type === 'sales' || type === 'purchase') {
@@ -4506,12 +4650,14 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                     const hasBulkPayment = linkedManualReceipts.some(r => String(r.invoiceRef || '').split(',').filter(x => x.trim()).length > 1);
                     
                     if (hasBulkPayment) {
-                        return alert("ERROR: Cannot delete this document! It is tied to a BULK payment that covers multiple invoices. Please go to the Cashbook, edit the receipt to unlink this specific invoice, and then try deleting it again.");
+                        await window.Utils.alertModal("Cannot delete this document! It is tied to a BULK payment that covers multiple invoices. Please go to the Cashbook, edit the receipt to unlink this specific invoice, and then try deleting it again.", "Action Blocked");
+                        return;
                     }
                     
-                    if (!confirm(`Warning: This document has ${linkedManualReceipts.length} manual payment(s) exclusively linked to it. Delete them as well to keep the cashbook balanced?`)) {
-                        return; // Abort the whole deletion if they cancel here to prevent imbalance
-                    }
+                    // 🚨 ENTERPRISE FIX: Custom Confirm Modal for Linked Payments
+                    const isManualConfirmed = await window.Utils.confirmModal(`Warning: This document has ${linkedManualReceipts.length} manual payment(s) exclusively linked to it. Delete them as well to keep the cashbook balanced?`, "Delete All", true);
+                    if (!isManualConfirmed) return; // Abort the whole deletion if they cancel here to prevent imbalance
+                    
                     for (const r of linkedManualReceipts) {
                         await deleteRecordById('receipts', r.id);
                     }
@@ -4649,7 +4795,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
     // UPGRADE: RECYCLE BIN RESTORE ENGINE
     // ==========================================
     restoreRecord: async (id, storeName) => {
-        if (!confirm("Are you sure you want to restore this item?")) return;
+        const isConfirmed = await window.Utils.confirmModal("Are you sure you want to restore this item?", "Restore", false);
+        if (!isConfirmed) return;
 
         // STRICT ERP LOGIC: Pull directly from the unlimited IndexedDB Trash Vault!
         const record = await getRecordById('trash', id);
@@ -4709,7 +4856,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
     },
 
     permanentlyDeleteRecord: async (id) => {
-        if (!confirm("Are you sure you want to permanently delete this item? This action cannot be undone.")) return;
+        const isConfirmed = await window.Utils.confirmModal("Are you sure you want to permanently delete this item? This action cannot be undone.", "Delete", true);
+        if (!isConfirmed) return;
 
         // STRICT ERP LOGIC: Delete directly from the IndexedDB Trash Vault
         const record = await getRecordById('trash', id);
@@ -5946,7 +6094,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
     // 10. FINANCIAL YEAR-END ENGINE (NON-DESTRUCTIVE)
     // ==========================================
     closeFinancialYear: async () => {
-        if (!confirm("Generate Financial Year-End Closing Report? This will calculate all final Ledger and Bank balances for your CA, without deleting any historical data.")) return;
+        const isConfirmed = await window.Utils.confirmModal("Generate Financial Year-End Closing Report? This will calculate all final Ledger and Bank balances for your CA, without deleting any historical data.", "Generate", false);
+        if (!isConfirmed) return;
         
         try {
             if (window.Utils) window.Utils.showToast("Calculating Year-End Balances...");
@@ -6057,59 +6206,6 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             alert("An error occurred while closing the books.");
         }
     }, // <-- Notice the comma here!
-
-    // ==========================================
-    // ENTERPRISE UPGRADE 2: DEAD STOCK CAPITAL ANALYZER
-    // ==========================================
-    generateDeadStockReport: async () => {
-        if (!confirm("Run Dead Stock Analysis? This will scan all items and identify capital trapped in inventory not sold in the last 90 days.")) return;
-        
-        if (window.Utils) window.Utils.showToast("Analyzing Warehouse Capital... ⏳");
-        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
-        const items = await window.getAllRecords('items', 'firmId', app.state.firmId);
-        
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-        
-        let deadStockCapital = 0;
-        let csvContent = "SOLLO ERP - DEAD STOCK ANALYSIS (90+ DAYS)\n\nItem Name,Current Stock,Buy Price,Trapped Capital,Last Sold Date\n";
-        
-        items.forEach(item => {
-            const stock = parseFloat(item.stock) || 0;
-            if (stock <= 0) return; 
-            
-            let lastSoldDate = new Date(0); 
-            sales.forEach(s => {
-                if (s.status !== 'Open' && s.documentType !== 'return' && s.firmId === app.state.firmId) {
-                    const found = (s.items || []).find(i => String(i.itemId) === String(item.id));
-                    if (found) {
-                        const sDate = window.Utils.safeDate(s.date);
-                        if (sDate > lastSoldDate) lastSoldDate = sDate;
-                    }
-                }
-            });
-            
-            if (lastSoldDate < ninetyDaysAgo) {
-                const buyPrice = parseFloat(item.buyPrice) || 0;
-                const trappedValue = stock * buyPrice;
-                deadStockCapital += trappedValue;
-                
-                const dateStr = lastSoldDate.getTime() === 0 ? "Never Sold" : lastSoldDate.toLocaleDateString('en-IN');
-                csvContent += `"${item.name.replace(/"/g, '""')}",${stock},${buyPrice},${trappedValue.toFixed(2)},"${dateStr}"\n`;
-            }
-        });
-        
-        csvContent += `\nTOTAL TRAPPED CAPITAL,,,${deadStockCapital.toFixed(2)}\n`;
-        
-        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        const file = new File([blob], `Dead_Stock_Report_${window.Utils.getLocalDate()}.csv`, { type: 'text/csv' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ title: "Dead Stock Report", files: [file] });
-        } else if (window.Utils) {
-            window.Utils.downloadFile(csvContent, file.name, 'text/csv');
-        }
-        if (window.Utils) window.Utils.showToast("✅ Analysis Complete!");
-    },
 
     // ==========================================
     // ENTERPRISE UPGRADE 3: TIME-MACHINE STOCK SNAPSHOT

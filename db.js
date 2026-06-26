@@ -582,10 +582,12 @@ const saveInvoiceTransaction = async (storeName, data) => {
                                 r.ledgerName = newPartyName;
                             }
                             
-                            if (r.desc && r.desc.includes(docNo)) {
-                                const strictRegex = new RegExp('\\b' + docNo + '\\b', 'g');
-                                r.desc = r.desc.replace(strictRegex, newDocNo); 
-                            }
+                        if (r.desc && r.desc.includes(docNo)) {
+                            // 🚨 ENTERPRISE FIX: Escape special characters so invoice numbers like "INV[2024]" don't crash the database engine!
+                            const safeDocNo = String(docNo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const strictRegex = new RegExp('\\b' + safeDocNo + '\\b', 'g');
+                            r.desc = r.desc.replace(strictRegex, newDocNo); 
+                        }
                             await saveRecord('receipts', r);
                         }
                     }
@@ -1091,16 +1093,25 @@ async function generateGSTReport(yearMonth, firmId) {
     const monthSales = sales.filter(s => (s.date || '').startsWith(yearMonth) && s.status !== 'Open' && s.status !== 'Cancelled');
     const monthPurchases = purchases.filter(p => (p.date || '').startsWith(yearMonth) && p.status !== 'Open' && p.status !== 'Cancelled');
 
-    let gstr1 = { b2bTaxable: 0, b2bTax: 0, b2cTaxable: 0, b2cTax: 0, totalTaxable: 0, totalTax: 0 };
-    let gstr2 = { totalTaxable: 0, totalTax: 0 }; 
+    let gstr1 = { b2bTaxable: 0, b2bTax: 0, b2cTaxable: 0, b2cTax: 0, nilRatedTaxable: 0, totalTaxable: 0, totalTax: 0 };
+    let gstr2 = { totalTaxable: 0, totalTax: 0, nilRatedTaxable: 0 }; 
 
     // Calculate GSTR-1 (Outward Supplies / Sales)
     monthSales.forEach(s => {
-        // NEW: Omit "Bill of Supply" (Non-GST) from GSTR-1 and GSTR-3B
-        if (s.invoiceType === 'Non-GST') return;
-
         let isReturn = s.documentType === 'return';
         let mult = isReturn ? -1 : 1; // Subtract returns from total sales
+        
+        // 🚨 LEGAL COMPLIANCE FIX: Track Non-GST/Exempt Sales for GSTR-1 Table 8 & GSTR-3B Table 3.1.c!
+        if (s.invoiceType === 'Non-GST') {
+            let rawSubtotal = 0;
+            (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
+            let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+            if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+            let exactTaxable = rawSubtotal - discountAmt;
+            
+            gstr1.nilRatedTaxable += (exactTaxable * mult);
+            return; // Safely exit before adding to standard GST pools
+        }
         
         // ENTERPRISE FIX: Removed secondary discount deduction because subtotal is ALREADY stored as Net Taxable Value!
         // Double-deducting here artificially deflates GSTR-1 and causes portal rejections.
@@ -1131,12 +1142,21 @@ async function generateGSTReport(yearMonth, firmId) {
 
     // Calculate GSTR-2 (Inward Supplies / Purchases / ITC)
     monthPurchases.forEach(p => {
-        // NEW: Omit Non-GST / Exempt purchases from GSTR-2 and GSTR-3B ITC
-        if (p.invoiceType === 'Non-GST') return;
-
         let isReturn = p.documentType === 'return';
         let mult = isReturn ? -1 : 1;
         
+        // 🚨 LEGAL COMPLIANCE FIX: Track Non-GST/Exempt Purchases for reporting!
+        if (p.invoiceType === 'Non-GST') {
+            let rawSubtotal = 0;
+            (p.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
+            let discountAmt = p.discountType === '%' ? (rawSubtotal * ((parseFloat(p.discount) || 0) / 100)) : (parseFloat(p.discount) || 0);
+            if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+            let exactTaxable = rawSubtotal - discountAmt;
+            
+            gstr2.nilRatedTaxable += (exactTaxable * mult);
+            return; // Safely exit before adding to ITC
+        }
+
         // ENTERPRISE FIX: Mathematical Net Impact Shield!
         // Ensures Returns (Debit Notes) correctly reduce the ITC pool without causing CSV validation crashes.
         let taxable = parseFloat(p.subtotal) || 0;

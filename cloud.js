@@ -49,7 +49,7 @@ const maybeEnableButtons = () => {
 const Cloud = {
     authenticate: (callback) => {
         if (!gapiInited || !gisInited) {
-            alert("Google Cloud Services are still loading. Please check your internet connection.");
+            if (window.Utils) window.Utils.alertModal("Google Cloud Services are still loading. Please check your internet connection.", "Loading");
             return;
         }
         if (gapi.client.getToken() === null) {
@@ -58,7 +58,7 @@ const Cloud = {
                 // ENTERPRISE FIX: Gracefully handle aborted logins instead of throwing an unhandled exception that breaks the app!
                 if (resp.error !== undefined) {
                     console.error("Google Auth Error:", resp.error);
-                    alert("Google Drive login was cancelled or failed.");
+                    if (window.Utils) window.Utils.alertModal("Google Drive login was cancelled or failed.", "Auth Failed");
                     return; 
                 }
                 callback();
@@ -159,15 +159,15 @@ const Cloud = {
                     finalFileId = metaData.id;
                 }
 
-                // NEW: Multipart Upload Strategy bypassing the 5MB Hard Limit
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                form.append('file', file);
-
-                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=multipart`, {
+                // 🚨 ENTERPRISE FIX: Corrected Google Drive API Upload Strategy!
+                // Google Drive rejects standard 'multipart/form-data'. Since we already created the file shell, we must patch the raw media directly!
+                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
                     method: 'PATCH',
-                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
-                    body: form
+                    headers: new Headers({ 
+                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                        'Content-Type': 'application/json'
+                    }),
+                    body: file // Inject the raw JSON database blob directly into the shell
                 });
 
                 if (uploadRes.ok) {
@@ -275,15 +275,15 @@ const Cloud = {
                 }
 
                 // Step 2: Inject the raw JSON database directly into that file shell
-                // NEW: Multipart Upload Strategy bypassing the 5MB Hard Limit
-                const form = new FormData();
-                form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-                form.append('file', file);
-
-                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=multipart`, {
+                // 🚨 ENTERPRISE FIX: Corrected Google Drive API Upload Strategy!
+                // Google Drive rejects standard 'multipart/form-data'. Since we already created the file shell, we must patch the raw media directly!
+                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
                     method: 'PATCH',
-                    headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
-                    body: form
+                    headers: new Headers({ 
+                        'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                        'Content-Type': 'application/json'
+                    }),
+                    body: file // Inject the raw JSON database blob directly into the shell
                 });
 
                 if (uploadRes.ok) {
@@ -310,10 +310,10 @@ const Cloud = {
             window.Utils.showToast("Searching Google Drive...");
             try {
                 // 🚨 ENTERPRISE UPGRADE: "NEW PHONE" RECOVERY SHIELD
-                // Instead of locking onto a specific Firm ID, this searches your entire Drive for ANY SOLLO backup
-                // and automatically sorts them to grab the absolute newest one!
+                // Safely locks onto the active Firm ID to prevent overwriting Firm A with Firm B's data!
+                const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
                 let response = await gapi.client.drive.files.list({
-                    q: `name contains 'SOLLO_ERP_Backup_' and mimeType='application/json' and trashed=false`,
+                    q: `name = 'SOLLO_ERP_Backup_${activeFirmId}.json' and mimeType='application/json' and trashed=false`,
                     spaces: 'drive',
                     orderBy: 'modifiedTime desc', // Forces the newest backup to be file [0]
                     fields: 'files(id, name, modifiedTime)'
@@ -390,6 +390,9 @@ const executeBackgroundBackup = async () => {
     if (window.isCloudSyncing) return;
     window.isCloudSyncing = true; 
 
+    // 🚨 ENTERPRISE FIX: 60-Second Timeout Fallback
+    const safetyUnlock = setTimeout(() => { window.isCloudSyncing = false; }, 60000);
+
     try {
         const firms = await window.getAllRecords('firms');
         if (firms && firms.length > 0) {
@@ -400,6 +403,7 @@ const executeBackgroundBackup = async () => {
     } catch (err) { 
         console.warn("Database not ready for auto-backup yet."); 
     } finally {
+        clearTimeout(safetyUnlock);
         // Safely unlock the engine immediately when the process finishes!
         window.isCloudSyncing = false; 
     }

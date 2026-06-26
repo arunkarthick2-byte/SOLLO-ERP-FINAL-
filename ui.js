@@ -163,7 +163,12 @@ const UI = {
 
         window.isFormDirty = false;
         document.addEventListener('submit', (e) => { 
-            window.isFormDirty = false; // Reset tracker on save
+            // 🚨 BUG FIX: Only reset the dirty tracker if we are saving the MAIN screen!
+            // This prevents nested Bottom Sheet forms (like new Product) from deleting your unsaved invoice!
+            const isBottomSheetForm = e.target.closest('.bottom-sheet') !== null;
+            if (!isBottomSheetForm) {
+                window.isFormDirty = false; 
+            }
             
             // 🚨 ENTERPRISE FIX: The Double-Billing Shield!
             // Instantly locks the submit button so impatient users on slow phones cannot accidentally create duplicate invoices!
@@ -647,9 +652,11 @@ const UI = {
         }
     },
 
-    closeActivity: (activityId) => {
+    closeActivity: async (activityId) => {
         if (activityId.includes('-form') && window.isFormDirty) {
-            if (!confirm("⚠️ You have unsaved changes! Are you sure you want to close and lose your work?")) return;
+            // 🚨 ENTERPRISE UPGRADE: Beautiful Custom Confirm Dialog
+            const isConfirmed = await window.Utils.confirmModal("Discard this document? All unsaved items will be permanently lost.", "Discard", true);
+            if (!isConfirmed) return;
         }
 
         window.isFormDirty = false;
@@ -1021,8 +1028,11 @@ const UI = {
         let roundOff = roundedTotal - exactTotal;
         if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
 
-        document.getElementById('sales-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
-        document.getElementById('sales-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
+        const subtotalEl = document.getElementById('sales-subtotal');
+        if (subtotalEl) subtotalEl.innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
+        
+        const gstTotalEl = document.getElementById('sales-gst-total');
+        if (gstTotalEl) gstTotalEl.innerText = `\u20B9${totalGst.toFixed(2)}`;
         
         // 🚀 ENTERPRISE UPGRADE: Live CGST/SGST Splitter
         const halfSalesGst = totalGst / 2;
@@ -1036,7 +1046,9 @@ const UI = {
             roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
         }
         
-        document.getElementById('sales-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        const grandTotalEl = document.getElementById('sales-grand-total');
+        if (grandTotalEl) grandTotalEl.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        
         const stickySales = document.getElementById('sales-sticky-total');
         if (stickySales) stickySales.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
     },
@@ -1109,8 +1121,11 @@ const UI = {
         let roundOff = roundedTotal - exactTotal;
         if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
 
-        document.getElementById('purchase-subtotal').innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
-        document.getElementById('purchase-gst-total').innerText = `\u20B9${totalGst.toFixed(2)}`;
+        const pSubtotalEl = document.getElementById('purchase-subtotal');
+        if (pSubtotalEl) pSubtotalEl.innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
+        
+        const pGstTotalEl = document.getElementById('purchase-gst-total');
+        if (pGstTotalEl) pGstTotalEl.innerText = `\u20B9${totalGst.toFixed(2)}`;
         
         // 🚀 ENTERPRISE UPGRADE: Live CGST/SGST Splitter
         const halfPurchGst = totalGst / 2;
@@ -1124,7 +1139,9 @@ const UI = {
             roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
         }
         
-        document.getElementById('purchase-grand-total').innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        const pGrandTotalEl = document.getElementById('purchase-grand-total');
+        if (pGrandTotalEl) pGrandTotalEl.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        
         const stickyPurchase = document.getElementById('purchase-sticky-total');
         if (stickyPurchase) stickyPurchase.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
     },
@@ -4571,6 +4588,69 @@ document.addEventListener('focusout', (e) => {
         }
     }
 });
+        // ==========================================
+        // 🚨 ENTERPRISE UX: DRAG-TO-DISMISS SHEETS
+        // ==========================================
+        let dragStartY = 0;
+        let dragCurrentY = 0;
+        let isDraggingSheet = false;
+        let activeDragSheet = null;
+
+        document.addEventListener('touchstart', (e) => {
+            const sheet = e.target.closest('.bottom-sheet.open');
+            if (!sheet) return;
+
+            // SCROLL AWARENESS: Check if the user is touching a scrollable area inside the sheet
+            const scrollTarget = e.target.closest('[style*="overflow-y: auto"], [style*="overflow: auto"], .activity-content, .list-view, .sheet-content');
+            
+            // If they are inside a scrollable area, ONLY allow drag if they are at the absolute top!
+            if (scrollTarget && scrollTarget.scrollTop > 0) return;
+
+            dragStartY = e.touches[0].clientY;
+            activeDragSheet = sheet;
+            isDraggingSheet = true;
+            
+            // Disable CSS transitions so the sheet instantly sticks to the user's thumb 1:1
+            activeDragSheet.style.transition = 'none';
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDraggingSheet || !activeDragSheet) return;
+
+            dragCurrentY = e.touches[0].clientY;
+            const diffY = dragCurrentY - dragStartY;
+
+            // Only allow pulling DOWN. If pulling UP, they are just scrolling normally.
+            if (diffY > 0) {
+                // Use translateZ(0) to force the graphics card (GPU) to handle the slide smoothly
+                activeDragSheet.style.transform = `translateY(${diffY}px) translateZ(0)`;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            if (!isDraggingSheet || !activeDragSheet) return;
+            
+            const diffY = dragCurrentY - dragStartY;
+            const sheetId = activeDragSheet.id;
+
+            // 1. Instantly wipe inline styles so the CSS classes can take back control
+            activeDragSheet.style.transition = '';
+            activeDragSheet.style.transform = '';
+
+            // 2. The Release Threshold: If pulled down more than 120px, snap it closed!
+            if (diffY > 120) {
+                if (window.UI && window.UI.closeBottomSheet) {
+                    window.UI.closeBottomSheet(sheetId);
+                }
+            }
+
+            // Reset variables for the next swipe
+            isDraggingSheet = false;
+            activeDragSheet = null;
+            dragStartY = 0;
+            dragCurrentY = 0;
+        });
+
 // ==========================================
 // 🚨 ENTERPRISE UX: NATIVE APP BEHAVIORS
 // ==========================================
@@ -4673,20 +4753,26 @@ window.addEventListener('popstate', (event) => {
 
 // 2. Inject a "Fake" history page every time a menu opens
 if (window.UI) {
+    let isNavigating = false; // 🚨 SHIELD: Prevent rapid double-taps!
+    const lockNav = () => { isNavigating = true; setTimeout(() => isNavigating = false, 300); };
+
     const originalOpenActivity = window.UI.openActivity;
     window.UI.openActivity = function() {
+        if (isNavigating) return; lockNav();
         history.pushState({ modal: true }, '');
         if (originalOpenActivity) originalOpenActivity.apply(this, arguments);
     };
 
     const originalOpenBottomSheet = window.UI.openBottomSheet;
     window.UI.openBottomSheet = function() {
+        if (isNavigating) return; lockNav();
         history.pushState({ modal: true }, '');
         if (originalOpenBottomSheet) originalOpenBottomSheet.apply(this, arguments);
     };
     
     const originalOpenNumpad = window.UI.openNumpad;
     window.UI.openNumpad = function() {
+        if (isNavigating) return; lockNav();
         history.pushState({ modal: true }, '');
         if (originalOpenNumpad) originalOpenNumpad.apply(this, arguments);
     };

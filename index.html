@@ -843,7 +843,7 @@
                         <strong id="sales-sticky-total" style="font-size: 24px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn-primary-small" onclick="if(confirm('Discard this document? All unsaved items will be permanently lost.')) UI.closeActivity('activity-sales-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 48px; border-radius: 24px; font-weight: 600; font-size: 14px;">Cancel</button>
+                        <button type="button" class="btn-primary-small" onclick="UI.closeActivity('activity-sales-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 48px; border-radius: 24px; font-weight: 600; font-size: 14px;">Cancel</button>
                         <button type="submit" id="btn-save-sales" class="btn-primary" style="min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 15px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span></button>
                     </div>
                 </div>
@@ -996,7 +996,7 @@
                         <strong id="purchase-sticky-total" style="font-size: 24px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn-primary-small" onclick="if(confirm('Discard this document? All unsaved items will be permanently lost.')) UI.closeActivity('activity-purchase-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 48px; border-radius: 24px; font-weight: 600; font-size: 14px;">Cancel</button>
+                        <button type="button" class="btn-primary-small" onclick="UI.closeActivity('activity-purchase-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 48px; border-radius: 24px; font-weight: 600; font-size: 14px;">Cancel</button>
                         <button type="submit" id="btn-save-purchase" class="btn-primary" style="min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 15px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span></button>
                     </div>
                 </div>
@@ -1994,16 +1994,19 @@
         </div>
     </div>
 
-    <div id="sheet-simple-master" class="bottom-sheet" style="height: 60vh;">
+    <div id="sheet-simple-master" class="bottom-sheet" style="height: 80vh;">
         <div class="sheet-header">
             <span id="simple-master-title" style="font-size: 18px; font-weight: 500;">Manage Options</span>
             <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-simple-master')">close</span>
         </div>
         <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
             
-            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-                <input type="text" id="simple-master-input" placeholder="Type new name here..." autocapitalize="words" autocomplete="off" onkeypress="if(event.key === 'Enter') document.getElementById('btn-add-simple-master').click()" style="flex: 1; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 16px;">
-                <button class="btn-primary" id="btn-add-simple-master" style="padding: 0 20px;">Add</button>
+            <div style="display: flex; gap: 12px; margin-bottom: 24px; align-items: center; flex-shrink: 0; min-height: 56px;">
+                <input type="text" id="simple-master-input" placeholder="Type new unit..." autocapitalize="words" autocomplete="off" onkeypress="if(event.key === 'Enter') document.getElementById('btn-add-simple-master').click()" style="flex-grow: 1; width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 10px; font-size: 16px; font-weight: 600; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none; box-sizing: border-box;">
+                
+                <div id="btn-add-simple-master" class="tap-target" style="flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <span class="material-symbols-outlined" style="font-size: 28px;">add</span>
+                </div>
             </div>
 
             <h4 style="margin: 0 0 12px 0; color: var(--md-primary); font-size: 13px; text-transform: uppercase;">Existing Options</h4>
@@ -3008,6 +3011,39 @@
             </div>
         </div>
     </div>
+
+    <!-- 🚨 ENTERPRISE UPGRADE: CUSTOM CONFIRM DIALOG -->
+    <div id="enterprise-swipe" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999999; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 40px; opacity: 0; transition: opacity 0.3s ease;">
+        <div id="enterprise-swipe-card" style="background: var(--md-surface); width: 92%; max-width: 400px; border-radius: 32px; padding: 24px; box-shadow: 0 24px 48px rgba(0,0,0,0.5); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); text-align: center;">
+            <div style="margin-bottom: 32px; margin-top: 8px;">
+                <span class="material-symbols-outlined" style="color: var(--md-error); font-size: 40px; margin-bottom: 12px; background: rgba(186,26,26,0.1); border-radius: 50%; padding: 16px;">delete_forever</span>
+                <h3 style="margin: 0; font-size: 22px; color: var(--md-on-surface); font-weight: 800;">Critical Action</h3>
+                <p id="enterprise-swipe-msg" style="margin: 12px 0 0 0; color: var(--md-text-muted); font-size: 15px; font-weight: 500; line-height: 1.5;">Are you sure?</p>
+            </div>
+            
+            <div id="swipe-track" style="position: relative; width: 100%; height: 64px; background: rgba(186, 26, 26, 0.08); border-radius: 32px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(186, 26, 26, 0.2);">
+                <span id="swipe-track-text" style="color: var(--md-error); font-weight: 800; font-size: 15px; letter-spacing: 1px; opacity: 0.8; text-transform: uppercase;">Slide to Delete</span>
+                <div id="swipe-thumb" style="position: absolute; left: 4px; top: 4px; width: 54px; height: 54px; background: var(--md-error); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(186,26,26,0.4); cursor: grab; touch-action: none; z-index: 2;">
+                    <span class="material-symbols-outlined" style="color: white; font-size: 28px;">keyboard_double_arrow_right</span>
+                </div>
+            </div>
+            <button type="button" id="enterprise-swipe-cancel" class="tap-target" style="margin-top: 24px; background: transparent; border: none; color: var(--md-text-muted); font-weight: 700; font-size: 16px; padding: 12px; width: 100%;">Cancel</button>
+        </div>
+    </div>
+        <div id="enterprise-confirm-card" style="background: var(--md-surface); width: 85%; max-width: 340px; border-radius: 24px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div id="enterprise-confirm-icon-bg" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(186, 26, 26, 0.1);">
+                    <span id="enterprise-confirm-icon" class="material-symbols-outlined" style="color: var(--md-error); font-size: 24px;">warning</span>
+                </div>
+                <h3 id="enterprise-confirm-title" style="margin: 0; font-size: 18px; color: var(--md-on-surface); font-weight: 800;">Please Confirm</h3>
+            </div>
+            <p id="enterprise-confirm-msg" style="margin: 0 0 24px 0; color: var(--md-text-muted); font-size: 15px; line-height: 1.5; font-weight: 500;">Message goes here</p>
+            <div style="display: flex; gap: 12px;">
+                <button type="button" id="enterprise-confirm-no" class="btn-secondary tap-target" style="flex: 1; padding: 12px; border-radius: 12px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); color: var(--md-on-surface); font-weight: bold; font-size: 15px;">Cancel</button>
+                <button type="button" id="enterprise-confirm-yes" class="btn-primary tap-target" style="flex: 1; padding: 12px; border-radius: 12px; background: var(--md-error); color: white; font-weight: bold; font-size: 15px; box-shadow: 0 4px 12px rgba(186, 26, 26, 0.3);">Discard</button>
+            </div>
+        </div>
+    </div>
     
     <div id="update-snackbar" style="display: none; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: var(--md-primary); color: var(--md-on-primary); padding: 12px 16px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); align-items: center; justify-content: space-between; gap: 16px; width: max-content; max-width: 90vw;">
         <span style="font-size: 14px; font-weight: 500;">New app version available!</span>
@@ -3076,11 +3112,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=61.0"></script>
-    <script src="utils.js?v=61.0"></script>
-    <script src="ui.js?v=61.0"></script>
-    <script src="cloud.js?v=61.0"></script>
-    <script src="app.js?v=61.0"></script>
+    <script src="db.js?v=62.0"></script>
+    <script src="utils.js?v=62.0"></script>
+    <script src="ui.js?v=62.0"></script>
+    <script src="cloud.js?v=62.0"></script>
+    <script src="app.js?v=62.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3110,8 +3146,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=61.0' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=61.0`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=62.0' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=62.0`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
