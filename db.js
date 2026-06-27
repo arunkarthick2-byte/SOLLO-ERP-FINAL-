@@ -33,7 +33,7 @@ const initDB = () => {
                     // 🚨 CRITICAL FIX: Prevent Division by Zero in Incognito/Privacy Mode!
                     const percentage = est.quota > 0 ? (est.usage / est.quota) * 100 : 0;
                     if (percentage > 95) {
-                        alert("⚠️ CRITICAL WARNING: Your device storage is over 95% full! The database may fail to save new invoices. Please free up space immediately.");
+                        if (window.Utils) window.Utils.alertModal("Your device storage is over 95% full! The database may fail to save new invoices. Please free up space immediately.", "⚠️ STORAGE CRITICAL");
                     }
                 }
             } catch (e) { console.error("Persistence check failed:", e); }
@@ -213,7 +213,7 @@ const saveRecord = (storeName, data) => {
         request.onerror = (event) => {
             // 🚨 ENTERPRISE FIX: The Quota Data-Loss Shield!
             if (event.target.error && event.target.error.name === 'QuotaExceededError') {
-                alert("🚨 CRITICAL: Device storage is completely full! Empty your recycle bin or delete photos to save data.");
+                if (window.Utils) window.Utils.alertModal("Device storage is completely full! Empty your recycle bin or delete photos to save data.", "🚨 STORAGE FULL");
             }
             reject(request.error);
         };
@@ -236,7 +236,7 @@ const deleteRecordById = async (storeName, id) => {
             const hasTransactions = relatedSales.some(s => s.customerId === id) || relatedPurchases.some(p => p.supplierId === id);
             
             if (hasTransactions) {
-                alert(`⚠️ INTEGRITY LOCK: Cannot delete ${oldRecord.name}. There are invoices attached to this party. Please delete the invoices first or mark the party as inactive.`);
+                if (window.Utils) await window.Utils.alertModal(`Cannot delete ${oldRecord.name}. There are invoices attached to this party. Please delete the invoices first or mark the party as inactive.`, "⚠️ INTEGRITY LOCK");
                 return false; // Safely abort deletion
             }
         } else if (storeName === 'items') {
@@ -255,7 +255,7 @@ const deleteRecordById = async (storeName, id) => {
             const itemIsUsed = await checkItemUsage('sales') || await checkItemUsage('purchases');
             
             if (itemIsUsed) {
-                alert(`⚠️ INTEGRITY LOCK: Cannot delete ${oldRecord.name}. This product is used in historical invoices. Deleting it will corrupt your financial history.`);
+                if (window.Utils) await window.Utils.alertModal(`Cannot delete ${oldRecord.name}. This product is used in historical invoices. Deleting it will corrupt your financial history.`, "⚠️ INTEGRITY LOCK");
                 return false; // Safely abort deletion
             }
         }

@@ -484,13 +484,13 @@ const Utils = {
         try {
             const element = document.getElementById(elementId);
             if (!element) {
-                alert("Error: Document area not found.");
+                if (window.Utils) await window.Utils.alertModal("Error: Document area not found.", "Share Failed");
                 return;
             }
 
             // STRICT ERP LOGIC: Prevent fatal crash if the user clicks Share before the library finishes loading!
             if (typeof html2canvas === 'undefined') {
-                alert("Loading Image Engine... Please wait 2 seconds and tap Share again.");
+                if (window.Utils) await window.Utils.alertModal("Loading Image Engine... Please wait 2 seconds and tap Share again.", "Loading");
                 const s1 = document.createElement('script');
                 s1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
                 document.head.appendChild(s1);
@@ -557,7 +557,7 @@ const Utils = {
                     document.body.appendChild(link); // Required for strict mobile browsers
                     link.click();
                     
-                    alert("Universal sharing is not supported on this device. The document has been downloaded instead.");
+                    if (window.Utils) window.Utils.alertModal("Universal sharing is not supported on this device. The document has been downloaded instead.", "Downloaded");
                     
                     // Safely destroy the Base64 Blob from the phone's RAM after 1 second!
                     setTimeout(() => {
@@ -569,7 +569,7 @@ const Utils = {
 
         } catch (error) {
             console.error("Sharing failed:", error);
-            alert("An error occurred while trying to share the document.");
+            if (window.Utils) window.Utils.alertModal("An error occurred while trying to share the document.", "Share Error");
         }
     },
     // ==========================================
@@ -588,7 +588,10 @@ const Utils = {
     },
     
     shareOverdueReminder: (phone, customerName, balanceAmount, invoiceNo) => {
-        if (!phone) return alert("No phone number saved for this customer.");
+        if (!phone) {
+            if (window.Utils) window.Utils.alertModal("No phone number saved for this customer.", "Missing Details");
+            return;
+        }
         const cleanPhone = Utils.formatWhatsAppNumber(phone);
         
         // ENTERPRISE FIX: Injected dynamic URL-encoded text so the user doesn't have to manually type the reminder!
@@ -673,7 +676,10 @@ Please process this accordingly. Thank you!`;
     // ==========================================
     exportData: async () => {
         try {
-            if (typeof window.exportDatabase !== 'function') return alert("Database export not ready.");
+            if (typeof window.exportDatabase !== 'function') {
+                if (window.Utils) await window.Utils.alertModal("Database export not ready.", "Export Failed");
+                return;
+            }
             if (window.Utils) window.Utils.showToast("Preparing Backup...");
             
             const data = await window.exportDatabase();
@@ -724,7 +730,7 @@ Please process this accordingly. Thank you!`;
             if (window.Utils) window.Utils.showToast("✅ Backup successfully saved to Downloads!");
         } catch (e) {
             console.error("Database Export Error:", e);
-            alert("Database Error: Could not generate export file.");
+            if (window.Utils) window.Utils.alertModal("Database Error: Could not generate export file.", "Export Failed");
         }
     },
 
@@ -737,7 +743,7 @@ Please process this accordingly. Thank you!`;
                     const data = JSON.parse(e.target.result);
                     if (typeof window.importDatabase === 'function') {
                         await window.importDatabase(data);
-                        alert("Database imported successfully! Reloading app...");
+                        if (window.Utils) await window.Utils.alertModal("Database imported successfully! Reloading app...", "Import Complete");
                         window.location.reload();
                     }
                 } catch (err) {
@@ -895,7 +901,7 @@ Please process this accordingly. Thank you!`;
                         <div style="font-size:12px; color:#0061a4; font-weight:700; margin-top:2px;" id="pdf-status-text">Processing Document...</div>
                     </div>
                     <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
-                        <span class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = '';">close</span>
+                        <span id="btn-close-pdf-loading" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;">close</span>
                     </div>
                 </div>
                 <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:center; touch-action: pan-x pan-y pinch-zoom;">
@@ -908,6 +914,13 @@ Please process this accordingly. Thank you!`;
             `;
             document.body.style.overflow = 'hidden'; 
             document.body.appendChild(viewer);
+            
+            // 🚨 ENTERPRISE FIX: Reliable Close Action for the Loading Screen
+            document.getElementById('btn-close-pdf-loading').onclick = () => {
+                const v = document.getElementById('in-app-pdf-viewer');
+                if (v) v.remove(); 
+                document.body.style.overflow = '';
+            };
 
             // 🚨 We MUST yield the main thread for 50ms so the browser actually PAINTS the loading screen before freezing for html2canvas!
             await new Promise(res => setTimeout(res, 50));
@@ -961,7 +974,7 @@ Please process this accordingly. Thank you!`;
                 <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-print-preview">print</span>
                 <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
                 <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
-                <span class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;" onclick="document.getElementById('in-app-pdf-viewer').remove(); document.body.style.overflow = ''; const pa = document.getElementById('print-area'); if(pa) pa.innerHTML = ''; const vp = document.querySelector('meta[name=viewport]'); if(vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover'); URL.revokeObjectURL('${imgSrc}');">close</span>
+                <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;">close</span>
             `;
 
             const previewContent = document.getElementById('pdf-preview-content');
@@ -990,9 +1003,27 @@ Please process this accordingly. Thank you!`;
                     window.Utils.sharePDF(elementId, filename, `Here is your document: ${cleanDocumentName}`);
                 } catch (err) {
                     console.log("Share cancelled or failed", err);
-                    alert("Sharing was cancelled or is unsupported on this device.");
+                    if (window.Utils) window.Utils.alertModal("Sharing was cancelled or is unsupported on this device.", "Share Failed");
                 }
             };
+            
+            // 🚨 ENTERPRISE FIX: Reliable Close Action for the Loaded Document
+            document.getElementById('btn-close-pdf-loaded').onclick = () => {
+                const viewer = document.getElementById('in-app-pdf-viewer');
+                if (viewer) viewer.remove();
+                
+                document.body.style.overflow = '';
+                
+                const pa = document.getElementById('print-area');
+                if (pa) pa.innerHTML = '';
+                
+                const vp = document.querySelector('meta[name="viewport"]');
+                if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+                
+                // Safely clear phone RAM
+                URL.revokeObjectURL(imgSrc);
+            };
+
         } catch (err) {
             console.error("Preview Generation Failed", err);
             alert("Failed to generate preview.");

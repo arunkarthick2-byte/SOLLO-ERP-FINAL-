@@ -293,14 +293,14 @@ const Cloud = {
                 } else {
                     if (uploadRes.status === 401) {
                         gapi.client.setToken(null); // Clear expired token to force re-auth
-                        alert("Cloud session expired. Please click Backup again to re-authenticate.");
+                        if (window.Utils) window.Utils.alertModal("Cloud session expired. Please click Backup again to re-authenticate.", "Session Expired");
                         return;
                     }
                     throw new Error('Upload failed');
                 }
             } catch (e) {
                 console.error(e);
-                alert("Cloud Backup Failed: " + (e.message || "Connection Error"));
+                if (window.Utils) window.Utils.alertModal("Cloud Backup Failed: " + (e.message || "Connection Error"), "Backup Error");
             }
         });
     },
@@ -320,7 +320,7 @@ const Cloud = {
                 });
 
                 if (response.result.files.length === 0) {
-                    alert("No backup found on your Google Drive. Please create a backup first.");
+                    if (window.Utils) await window.Utils.alertModal("No backup found on your Google Drive. Please create a backup first.", "No Backup Found");
                     return;
                 }
 
@@ -329,8 +329,9 @@ const Cloud = {
                 const foundName = response.result.files[0].name;
                 const modDate = new Date(response.result.files[0].modifiedTime).toLocaleString();
 
-                if (!confirm(`Found backup: ${foundName}\nDate: ${modDate}\n\nDo you want to restore this? WARNING: This will overwrite your current data on this device!`)) {
-                    return;
+                if (window.Utils) {
+                    const isConfirmed = await window.Utils.confirmModal(`Found backup: ${foundName}\nDate: ${modDate}\n\nDo you want to restore this? WARNING: This will overwrite your current data on this device!`, "Restore Backup", true);
+                    if (!isConfirmed) return;
                 }
 
                 window.Utils.showToast("Downloading Backup...");
@@ -352,14 +353,14 @@ const Cloud = {
                     // FIX: Catch expired tokens during Restore to prevent silent failures
                     if (fileRes.status === 401) {
                         gapi.client.setToken(null);
-                        alert("Cloud session expired. Please click Restore again to re-authenticate.");
+                        if (window.Utils) window.Utils.alertModal("Cloud session expired. Please click Restore again to re-authenticate.", "Session Expired");
                         return;
                     }
                     throw new Error('Download failed');
                 }
             } catch (e) {
                 console.error(e);
-                alert("Cloud Restore Failed: " + (e.message || "Connection Error"));
+                if (window.Utils) window.Utils.alertModal("Cloud Restore Failed: " + (e.message || "Connection Error"), "Restore Error");
             }
         });
     }

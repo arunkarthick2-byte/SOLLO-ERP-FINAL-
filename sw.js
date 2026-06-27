@@ -2,7 +2,7 @@
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.4)
 // ==========================================
 // ENTERPRISE RULE: Every time you change your code, you MUST change this version number (e.g., to 11.8, 11.9)!
-const CACHE_NAME = 'sollo-erp-v62.0-offline'; 
+const CACHE_NAME = 'sollo-erp-v63.0-offline'; 
 
 const ASSETS_TO_CACHE = [
     './',

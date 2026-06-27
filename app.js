@@ -535,7 +535,7 @@ const app = {
         } catch (e) { 
             // ENTERPRISE FIX: Dynamically display the exact Javascript error so we can trace it!
             console.error("Boot Crash Full Stack:", e);
-            alert("Boot Crash: " + e.message); 
+            if (window.Utils) window.Utils.alertModal("Boot Crash: " + e.message, "System Error"); 
             if(window.UI) UI.hideSplash();
         }
     },
@@ -1027,7 +1027,7 @@ const app = {
             if (window.Utils) window.Utils.showToast("✅ Stock & Capital Mathematically Fixed!");
         } catch (e) {
             console.error(e);
-            alert("Error recalculating stock: " + e.message);
+            if (window.Utils) window.Utils.alertModal("Error recalculating stock: " + e.message, "System Error");
         }
     },
 
@@ -1178,7 +1178,7 @@ const app = {
             const select = document.getElementById('adj-product-id');
             
             if (!items || items.length === 0) {
-                alert("Please add at least one Product in Inventory for this company first!");
+                if (window.Utils) await window.Utils.alertModal("Please add at least one Product in Inventory for this company first!", "Action Required");
                 return;
             }
 
@@ -1216,7 +1216,7 @@ const app = {
         } catch (error) {
             // LOUD ERROR SCANNER: Forces the app to tell you EXACTLY what crashed!
             console.error("Error opening adjustment sheet:", error);
-            alert("CRASH DETAILS: " + error.message);
+            if (window.Utils) window.Utils.alertModal("CRASH DETAILS: " + error.message, "System Error");
         }
     },
 
@@ -1582,7 +1582,7 @@ const app = {
                     if (i % 25 === 0) await new Promise(resolve => setTimeout(resolve, 0));
                 }
                 
-                alert(`✅ Successfully imported ${successCount} records!`);
+                if (window.Utils) await window.Utils.alertModal(`Successfully imported ${successCount} records!`, "Import Complete");
                 event.target.value = ''; // Reset file input
                 
                 // ENTERPRISE FIX: Wipe RAM Cache so the newly imported CSV data appears instantly!
@@ -1594,7 +1594,7 @@ const app = {
                 app.refreshAll();
             } catch (err) {
                 console.error(err);
-                alert("Error importing CSV. Please ensure you are using the correct template.");
+                if (window.Utils) await window.Utils.alertModal("Error importing CSV. Please ensure you are using the correct template.", "Import Failed");
                 event.target.value = '';
             }
         };
@@ -3084,7 +3084,11 @@ const app = {
 
                     const items = [];
                     const rows = document.querySelectorAll(`#${type}-items-body .item-entry-card`);
-                    if (rows.length === 0) return alert("Please add at least one item.");
+                    if (rows.length === 0) {
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.classList.remove('btn-loading'); submitBtn.style.width = ''; }
+                        if (window.Utils) await window.Utils.alertModal("Please add at least one item.", "Action Required");
+                        return;
+                    }
 
                     rows.forEach(tr => {
                         const qtyInput = tr.querySelector('.row-qty');
@@ -3130,8 +3134,10 @@ const app = {
                     });
                     
                     if (items.length === 0) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                        return alert("Please add at least one item with a quantity greater than 0.");
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText;                             submitBtn.style.opacity = "1"; 
+                        }
+                        if (window.Utils) await window.Utils.alertModal("Please add at least one item with a quantity greater than 0.", "Action Required");
+                        return;
                     }
 
                     const isReturn = app.state.currentDocType === 'return';
@@ -3152,7 +3158,8 @@ const app = {
                         );
                         if (isDuplicate) {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            return alert(`Error: Document number "${proposedDocNo}" already exists! Please use a unique number.`);
+                            if (window.Utils) await window.Utils.alertModal(`Document number "${proposedDocNo}" already exists! Please use a unique number.`, "Duplicate Found");
+                            return;
                         }
                     }
 
@@ -4133,9 +4140,9 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                         UI.closeBottomSheet(`sheet-payment-${type}`);
                         app.refreshAll();
                     } catch (error) {
-                        console.error("Payment save failed:", error);
-                        alert("An error occurred. Please try again.");
-                    } finally {
+            console.error("Payment save failed:", error);
+            if (window.Utils) await window.Utils.alertModal("An error occurred. Please try again.", "Payment Error");
+        } finally {
                         // ENTERPRISE FIX: THE ANIMATION SHIELD
                         if (submitBtn) {
                             setTimeout(() => {
@@ -4526,10 +4533,16 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         const toAcc = document.getElementById('contra-to-account').value;
         const amt = parseFloat(document.getElementById('contra-amount').value) || 0;
         const date = document.getElementById('contra-date').value;
-        const notes = document.getElementById('contra-notes').value || 'Bank Transfer / Contra';
-        
-        if (fromAcc === toAcc) return alert("Error: Cannot transfer money to the same account!");
-        if (amt <= 0) return alert("Error: Amount must be strictly greater than zero.");
+            const notes = document.getElementById('contra-notes').value || 'Bank Transfer / Contra';
+            
+            if (fromAcc === toAcc) {
+                if (window.Utils) await window.Utils.alertModal("Cannot transfer money to the same account!", "Transfer Error");
+                return;
+            }
+            if (amt <= 0) {
+                if (window.Utils) await window.Utils.alertModal("Amount must be strictly greater than zero.", "Invalid Amount");
+                return;
+            }
         
         const btn = document.getElementById('btn-save-contra');
         const origText = btn.innerHTML;
@@ -4740,7 +4753,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             
             const totalLinked = linkedSales.length + linkedPurchases.length + linkedReceipts.length;
             if (totalLinked > 0) {
-                return alert(`Cannot delete this party. They have ${totalLinked} document(s) linked to them. To protect your financial reports, please delete their documents first, or just edit the party and rename them to "Inactive".`);
+                if (window.Utils) await window.Utils.alertModal(`Cannot delete this party. They have ${totalLinked} document(s) linked to them. To protect your financial reports, please delete their documents first, or just edit the party and rename them to "Inactive".`);
             }
         }
 
@@ -4760,7 +4773,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             const inAdjustments = allAdjustments.some(a => a.itemId === id);
             
             if (inSales || inPurchases || inExpenses || inAdjustments) {
-                return alert(`Cannot delete this product. It is permanently linked to past invoices, bills, expenses, or stock adjustments. To protect your PnL, please edit the product and rename it to "Inactive - [Product Name]" instead.`);
+                if (window.Utils) await window.Utils.alertModal(`Cannot delete this product. It is permanently linked to past invoices, bills, expenses, or stock adjustments. To protect your PnL, please edit the product and rename it to "Inactive".`, "Action Blocked");
+                return;
             }
         }
 

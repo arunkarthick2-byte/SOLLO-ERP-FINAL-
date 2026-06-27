@@ -534,7 +534,7 @@
                         </div>
                     </div>
                     
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); margin-top: 8px;" onclick="if(confirm('Compress old invoices (>1 year) to save phone storage? This cannot be undone.')) { window.executeColdStorageArchive().then(count => window.Utils.showToast('✅ Compressed ' + count + ' old invoices!')); }">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); margin-top: 8px;" onclick="window.Utils.confirmModal('Compress old invoices (>1 year) to save phone storage? This cannot be undone.', 'Compress', true).then(confirmed => { if(confirmed) { window.executeColdStorageArchive().then(count => window.Utils.showToast('✅ Compressed ' + count + ' old invoices!')); }})">
                         <span class="material-symbols-outlined" style="color: #8e24aa;">inventory_2</span>
                         <div style="flex: 1;">
                             <strong style="font-size:15px; color: var(--md-on-surface);">Run Cold Storage Archive</strong>
@@ -3112,11 +3112,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=62.0"></script>
-    <script src="utils.js?v=62.0"></script>
-    <script src="ui.js?v=62.0"></script>
-    <script src="cloud.js?v=62.0"></script>
-    <script src="app.js?v=62.0"></script>
+    <script src="db.js?v=63.0"></script>
+    <script src="utils.js?v=63.0"></script>
+    <script src="ui.js?v=63.0"></script>
+    <script src="cloud.js?v=63.0"></script>
+    <script src="app.js?v=63.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3146,8 +3146,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=62.0' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=62.0`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=63.0' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=63.0`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
