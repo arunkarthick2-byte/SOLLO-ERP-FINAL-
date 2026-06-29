@@ -1064,6 +1064,20 @@ Please process this accordingly. Thank you!`;
         const safeBizEmail = window.Utils.sanitizeHTML(biz.email || '');
         const safeBizTerms = window.Utils.sanitizeHTML(biz.terms || '');
         const safeBizBankDetails = window.Utils.sanitizeHTML(biz.bankDetails || '');
+        
+        // 🚨 LIVE DOM OVERRIDE: Check the screen instantly without requiring a save!
+        let shouldPrintNotes = doc.printNotes;
+        let rawNotes = doc.internalNotes || '';
+        const uiCheckbox = document.getElementById(`${type}-print-notes`);
+        const uiNotesBox = document.getElementById(`${type}-internal-notes`);
+        
+        // If the checkbox is currently visible on the screen, grab the live values!
+        if (uiCheckbox && uiNotesBox && uiCheckbox.offsetParent !== null) {
+            shouldPrintNotes = uiCheckbox.checked;
+            rawNotes = uiNotesBox.value;
+        }
+        
+        const safeDocNotes = window.Utils.sanitizeHTML(rawNotes);
         const safeBizCf1Name = window.Utils.sanitizeHTML(biz.cf1Name || '');
         const safeBizCf2Name = window.Utils.sanitizeHTML(biz.cf2Name || '');
         const safeBizCf3Name = window.Utils.sanitizeHTML(biz.cf3Name || '');
@@ -1381,6 +1395,12 @@ Please process this accordingly. Thank you!`;
                                 </div>
                         </div>
 
+                        ${shouldPrintNotes && safeDocNotes ? `
+                        <div style="font-size: 10px; border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-bottom: 10px;">
+                            <strong style="text-transform: uppercase; color: #475569;">Remarks / Notes:</strong><br>
+                            <div style="margin-top: 4px; white-space: pre-wrap; line-height: 1.4; color: #0f172a;">${safeDocNotes}</div>
+                        </div>` : ''}
+
                         ${safeBizTerms ? `
                         <div style="font-size: 10px; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
                             <strong style="text-transform: uppercase; color: #475569;">Terms & Conditions:</strong><br>
@@ -1463,15 +1483,113 @@ Please process this accordingly. Thank you!`;
                                     </tr>`;
                                 }
 
-                                // 🚨 THE FIX: DYNAMIC PREVIOUS BALANCE INJECTION!
-                                const partyBalance = parseFloat(safeParty.balance) || 0;
+                                // 🚨 THE FIX: DYNAMIC PREVIOUS BALANCE INJECTION (WITH INVOICE BREAKDOWN)!
+                                let partyBalance = parseFloat(safeParty.balance) || 0;
+                                let pendingOldInvoices = [];
+                                
+                                if (isSales && window.UI && window.UI.state && window.UI.state.rawData) {
+                                    // 1. Calculate live overall balance
+                                    let tSales = 0, tReceipts = 0, tReturns = 0;
+                                    (window.UI.state.rawData.sales || []).forEach(s => {
+                                        if (s.customerId === safeParty.id && s.status !== 'Cancelled' && s.status !== 'Open') {
+                                            if (s.documentType === 'return') tReturns += (parseFloat(s.grandTotal) || 0);
+                                            else tSales += (parseFloat(s.grandTotal) || 0);
+                                        }
+                                    });
+                                    (window.UI.state.rawData.cashbook || []).forEach(c => {
+                                        if (c.ledgerId === safeParty.id) {
+                                            tReceipts += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                                        }
+                                    });
+                                    let ob = parseFloat(safeParty.openingBalance) || 0;
+                                    let netOb = String(safeParty.balanceType || 'Dr').includes('Pay') || String(safeParty.balanceType || 'Dr').includes('Cr') ? -ob : ob;
+                                    partyBalance = netOb + tSales - tReturns - tReceipts;
+
+                                    // 2. Scan exact payments to find specific unpaid historical invoices
+                                    const exactPaymentMap = {};
+                                    const exactReturnMap = {};
+                                    (window.UI.state.rawData.cashbook || []).forEach(c => {
+                                        if (c.ledgerId === safeParty.id && c.invoiceRef) {
+                                            let amt = parseFloat(c.amount) || 0;
+                                            const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                                            refs.forEach(ref => { exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length); });
+                                        }
+                                    });
+                                    (window.UI.state.rawData.sales || []).forEach(d => {
+                                        if (d.documentType === 'return' && d.status !== 'Open' && d.customerId === safeParty.id && d.orderNo) {
+                                            exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                                        }
+                                    });
+
+                                    (window.UI.state.rawData.sales || []).forEach(s => {
+                                        if (s.customerId === safeParty.id && s.id !== doc.id && s.status !== 'Cancelled' && s.status !== 'Open' && s.documentType !== 'return') {
+                                            const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.poNo, s.id].filter(Boolean))];
+                                            const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
+                                            const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
+                                            const docTotal = parseFloat(s.grandTotal) || 0;
+                                            const unpaid = Math.max(0, docTotal - paid - returned);
+                                            
+                                            // Extract and save the invoice if it still has pending money
+                                            if (unpaid > 0.01) {
+                                                pendingOldInvoices.push({ 
+                                                    no: s.invoiceNo || s.orderNo || s.id.slice(-6).toUpperCase(), 
+                                                    date: s.date, 
+                                                    unpaid: unpaid 
+                                                });
+                                            }
+                                        }
+                                    });
+                                }
+
                                 if (isSales && partyBalance > 0.01) {
                                     const previousDues = partyBalance - thisInvoiceDue;
+                                    
                                     if (previousDues > 0.01) {
+                                        // Print the sub-header
                                         finalHtml += `
                                         <tr>
-                                            <td style="padding: 10px 15px; border-bottom: 1px dashed #cbd5e1; font-size: 12px; color: #475569; font-weight: 800;">Previous Outstanding Dues</td>
-                                            <td style="padding: 10px 15px; border-bottom: 1px dashed #cbd5e1; text-align: right; font-weight: 800; color: #dc2626;">₹${previousDues.toFixed(2)}</td>
+                                            <td colspan="2" style="padding: 10px 15px 4px 15px; font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase;">Previous Outstanding Breakdown</td>
+                                        </tr>`;
+                                        
+                                        // Print the individual old invoices
+                                        if (pendingOldInvoices.length > 0) {
+                                            // Sort oldest first
+                                            pendingOldInvoices.sort((a, b) => new Date(a.date) - new Date(b.date));
+                                            
+                                            // Limit to 5 so the PDF design doesn't break
+                                            const displayInvoices = pendingOldInvoices.slice(0, 5);
+                                            
+                                            displayInvoices.forEach(oldInv => {
+                                                finalHtml += `
+                                                <tr>
+                                                    <td style="padding: 4px 15px; font-size: 11px; color: #475569; font-weight: 600;">Inv: <span style="color:#0f172a;">${oldInv.no}</span> <span style="color:#94a3b8; font-size:10px;">(${window.Utils.formatDateDisplay(oldInv.date)})</span></td>
+                                                    <td style="padding: 4px 15px; text-align: right; font-weight: 700; color: #475569; font-size: 11px;">₹${oldInv.unpaid.toFixed(2)}</td>
+                                                </tr>`;
+                                            });
+                                            
+                                            // If there are more than 5, show a summary row for the rest
+                                            if (pendingOldInvoices.length > 5) {
+                                                const hiddenSum = pendingOldInvoices.slice(5).reduce((sum, inv) => sum + inv.unpaid, 0);
+                                                finalHtml += `
+                                                <tr>
+                                                    <td style="padding: 4px 15px; font-size: 11px; color: #475569; font-weight: 600; font-style: italic;">...and ${pendingOldInvoices.length - 5} older invoices</td>
+                                                    <td style="padding: 4px 15px; text-align: right; font-weight: 700; color: #475569; font-size: 11px;">₹${hiddenSum.toFixed(2)}</td>
+                                                </tr>`;
+                                            }
+                                        } else {
+                                            // Failsafe for unlinked Opening Balances
+                                            finalHtml += `
+                                                <tr>
+                                                    <td style="padding: 4px 15px; font-size: 11px; color: #475569; font-weight: 600;">Opening Balance / Unlinked Dues</td>
+                                                    <td style="padding: 4px 15px; text-align: right; font-weight: 700; color: #475569; font-size: 11px;">₹${previousDues.toFixed(2)}</td>
+                                                </tr>`;
+                                        }
+
+                                        // Print the final summary lines
+                                        finalHtml += `
+                                        <tr>
+                                            <td style="padding: 10px 15px; border-bottom: 1px dashed #cbd5e1; font-size: 12px; color: #0f172a; font-weight: 800; border-top: 1px solid #e2e8f0;">Total Previous Dues</td>
+                                            <td style="padding: 10px 15px; border-bottom: 1px dashed #cbd5e1; text-align: right; font-weight: 900; color: #dc2626; border-top: 1px solid #e2e8f0;">₹${previousDues.toFixed(2)}</td>
                                         </tr>
                                         <tr style="background: #fee2e2;">
                                             <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #991b1b; border-bottom: 1px solid #475569;">Total Net Payable</td>
@@ -2125,160 +2243,6 @@ Please process this accordingly. Thank you!`;
     exportGSTCSV: (data) => Utils.exportGSTExcel(data),
     exportArrayToCSV: (data, name) => Utils.exportArrayToExcel(data, name), // <--- ADDED COMMA HERE
 
-    // ==========================================
-    // ENTERPRISE AI: UNIVERSAL DOCUMENT SCANNER
-    // ==========================================
-    startAIScanner: async (moduleType) => {
-        if (typeof Tesseract === 'undefined') {
-            return alert("AI Engine is loading. Please check your internet connection.");
-        }
-
-        // 1. Create an invisible file input that triggers Camera or Gallery!
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        // FIX: Removed the 'capture' attribute so Chrome is forced to show the "Camera vs Gallery" menu!
-
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            if (window.Utils) window.Utils.showToast("🤖 AI is reading the document... Please wait.");
-
-            try {
-                // 1. Compress image to make AI processing much faster
-                const compressedImage = await Utils.compressImage(file, 1200, 0.7);
-
-                // 2. ENTERPRISE FIX: Apply OCR Pre-Processing (High-Contrast Grayscale)
-                if (window.Utils) window.Utils.showToast("Enhancing document clarity...");
-                const enhancedImage = await new Promise((resolve) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        const ctx = canvas.getContext('2d');
-                        
-                        ctx.drawImage(img, 0, 0);
-                        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const data = imageData.data;
-                        
-                        // Boost contrast by 50% to make faded receipt text completely black
-                        const contrast = 1.5; 
-                        const intercept = 128 * (1 - contrast);
-                        
-                        for (let i = 0; i < data.length; i += 4) {
-                            // Convert to Grayscale
-                            const grayscale = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
-                            // Apply Contrast
-                            let finalColor = (grayscale * contrast) + intercept;
-                            if (finalColor > 255) finalColor = 255;
-                            if (finalColor < 0) finalColor = 0;
-                            // Set R, G, B to the new high-contrast pixel
-                            data[i] = data[i+1] = data[i+2] = finalColor; 
-                        }
-                        
-                        ctx.putImageData(imageData, 0, 0);
-                        resolve(canvas.toDataURL('image/jpeg', 0.9));
-                    };
-                    img.src = compressedImage;
-                });
-
-                // 3. Run the OCR Engine on the crystal clear image!
-                const result = await Tesseract.recognize(enhancedImage, 'eng', {
-                    logger: m => console.log("AI Progress:", m)
-                });
-
-                const text = result.data.text;
-                Utils.processAIText(text, moduleType);
-
-            } catch (err) {
-                console.error("AI Scan Failed:", err);
-                alert("AI Engine failed to read the image. Please try a clearer photo.");
-            }
-        };
-        
-        input.click(); // Open the camera/gallery
-    },
-
-    processAIText: (text, moduleType) => {
-        // 2. Regex Pattern Matching to hunt down Enterprise Data
-        const gstinMatch = text.match(/\b([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})\b/i);
-        const amountMatch = text.match(/(?:total|amount|grand|net|payable|pay|sum)[\s:.-]*([₹$€£]?\s*[\d,]+\.\d{2})/i);
-        const invMatch = text.match(/(?:inv|invoice|bill|receipt|ref|no|po)[\s:.-]*([A-Z0-9-/]+)/i);
-        const dateMatch = text.match(/\b(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\b/);
-
-        // ENTERPRISE FIX: The AI Date Flipper!
-        // HTML forms will crash and stay blank if we don't flip DD/MM/YYYY into YYYY-MM-DD!
-        let cleanDate = '';
-        if (dateMatch) {
-            let parts = dateMatch[1].replace(/[-/.]/g, '-').split('-');
-            if (parts[0].length <= 2 && parts[2].length === 4) {
-                // If it found DD-MM-YYYY, flip it to YYYY-MM-DD
-                cleanDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-            } else if (parts[0].length <= 2 && parts[2].length === 2) {
-                // 🚨 ENTERPRISE FIX: Catch 2-Digit Years (e.g., 15/05/26) and auto-prefix '20'!
-                cleanDate = `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-            } else if (parts[0].length === 4) {
-                // Already YYYY-MM-DD, just pad the zeros
-                cleanDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-            }
-        }
-
-        const extracted = {
-            gstin: gstinMatch ? gstinMatch[1].toUpperCase() : '',
-            amount: amountMatch ? amountMatch[1].replace(/[^0-9.]/g, '') : '',
-            invNo: invMatch ? invMatch[1].toUpperCase() : '',
-            date: cleanDate
-        };
-
-        // 3. THE REVIEW STEP: Alert the user with what the AI found
-        let msg = "🤖 AI Scan Complete! Please verify:\n\n";
-        if (extracted.invNo) msg += `Document No: ${extracted.invNo}\n`;
-        if (extracted.amount) msg += `Total Amount: ₹${extracted.amount}\n`;
-        if (extracted.gstin) msg += `GSTIN: ${extracted.gstin}\n`;
-        if (extracted.date) msg += `Date Found: ${extracted.date}\n`;
-        msg += "\n(The app will now auto-fill these values into the form.)";
-
-        alert(msg);
-
-        // 4. Safe Auto-Fill Logic (With Event Dispatchers)
-        try {
-            // Helper function to inject value AND trigger the app's calculation listeners
-            const triggerInput = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) {
-                    el.value = val;
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            };
-
-            // ENTERPRISE FIX: Mapped the AI outputs to your exact index.html form IDs!
-            if (moduleType === 'expense') {
-                if (extracted.amount) triggerInput('exp-amount', extracted.amount);
-                if (extracted.invNo) triggerInput('expense-no', extracted.invNo);
-                if (extracted.date) triggerInput('expense-date', extracted.date);
-            } 
-            else if (moduleType === 'purchase') {
-                if (extracted.invNo) triggerInput('purchase-po-no', extracted.invNo);
-                if (extracted.date) triggerInput('purchase-date', extracted.date);
-            }
-            else if (moduleType === 'sales') {
-                if (extracted.invNo) triggerInput('sales-invoice-no', extracted.invNo);
-                if (extracted.date) triggerInput('sales-date', extracted.date);
-            }
-            else if (moduleType === 'product') {
-                if (extracted.amount) triggerInput('prod-sell', extracted.amount);
-            }
-            else if (moduleType === 'ledger') {
-                if (extracted.gstin) triggerInput('ledger-gst', extracted.gstin);
-            }
-            if (window.Utils) window.Utils.showToast("✅ Auto-Fill Applied! Please verify data before saving.");
-        } catch (e) {
-            console.log("Auto-fill safely skipped.", e);
-        }
-    }, // <-- CRITICAL COMMA ADDED HERE
 
     // ==========================================
     // STRICT ERP LOGIC: NATIVE WEB SHARE API ENGINE

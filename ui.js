@@ -3471,13 +3471,6 @@ const UI = {
         
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         
-        // Disabled auto-focus to prevent accidental keyboard popups and mistouches!
-        /*
-        setTimeout(() => {
-            const newQty = itemCard.querySelector('.row-qty');
-            if (newQty) newQty.focus();
-        }, 100);
-        */
     },
 
     closeAllBottomSheets: () => {
@@ -4688,95 +4681,6 @@ scrollContainers.forEach(container => {
 });
 
 
-// 2. MATERIAL LIQUID RIPPLE ENGINE
-document.addEventListener('pointerdown', function (e) {
-    // Only apply ripple to buttons, cards, or clickable list items
-    const target = e.target.closest('.btn-primary, .btn-primary-small, .floating-action-button, .m3-card.tap-target, .list-view li');
-    if (!target) return;
-
-    target.classList.add('ripple-element');
-
-    const circle = document.createElement('span');
-    const diameter = Math.max(target.clientWidth, target.clientHeight);
-    const radius = diameter / 2;
-
-    // Calculate exact mathematical position of the thumb tap
-    const rect = target.getBoundingClientRect();
-    circle.style.width = circle.style.height = `${diameter}px`;
-    circle.style.left = `${e.clientX - rect.left - radius}px`;
-    circle.style.top = `${e.clientY - rect.top - radius}px`;
-    circle.classList.add('ink-ripple');
-
-    // Remove any existing ripples to prevent memory leaks if they tap really fast
-    const existingRipple = target.querySelector('.ink-ripple');
-    if (existingRipple) {
-        existingRipple.remove();
-    }
-
-    target.appendChild(circle);
-    
-    // Clean up the DOM after the animation finishes (600ms)
-    setTimeout(() => {
-        circle.remove();
-    }, 600);
-});
-// ==========================================
-// 🚨 ENTERPRISE UPGRADE: ANDROID BACK-BUTTON SHIELD
-// ==========================================
-// Hijacks the physical Android Back Button so it safely closes menus instead of killing the app!
-
-// 1. Trap the Back Button
-window.addEventListener('popstate', (event) => {
-    // Check for open Bottom Sheets
-    const openSheets = document.querySelectorAll('.bottom-sheet.active');
-    if (openSheets.length > 0) {
-        const lastSheet = openSheets[openSheets.length - 1];
-        if (window.UI && window.UI.closeBottomSheet) window.UI.closeBottomSheet(lastSheet.id);
-        return;
-    }
-
-    // Check for open Full-Screen Activities (Like the Sales Invoice Form)
-    const openActivities = document.querySelectorAll('.activity-screen.open');
-    if (openActivities.length > 0) {
-        const lastActivity = openActivities[openActivities.length - 1];
-        if (window.UI && window.UI.closeActivity) window.UI.closeActivity(lastActivity.id);
-        return;
-    }
-
-    // Check for open Numpad
-    const numpad = document.getElementById('custom-numpad');
-    if (numpad && numpad.classList.contains('active')) {
-        if (window.UI && window.UI.closeNumpad) window.UI.closeNumpad();
-        return;
-    }
-});
-
-// 2. Inject a "Fake" history page every time a menu opens
-if (window.UI) {
-    let isNavigating = false; // 🚨 SHIELD: Prevent rapid double-taps!
-    const lockNav = () => { isNavigating = true; setTimeout(() => isNavigating = false, 300); };
-
-    const originalOpenActivity = window.UI.openActivity;
-    window.UI.openActivity = function() {
-        if (isNavigating) return; lockNav();
-        history.pushState({ modal: true }, '');
-        if (originalOpenActivity) originalOpenActivity.apply(this, arguments);
-    };
-
-    const originalOpenBottomSheet = window.UI.openBottomSheet;
-    window.UI.openBottomSheet = function() {
-        if (isNavigating) return; lockNav();
-        history.pushState({ modal: true }, '');
-        if (originalOpenBottomSheet) originalOpenBottomSheet.apply(this, arguments);
-    };
-    
-    const originalOpenNumpad = window.UI.openNumpad;
-    window.UI.openNumpad = function() {
-        if (isNavigating) return; lockNav();
-        history.pushState({ modal: true }, '');
-        if (originalOpenNumpad) originalOpenNumpad.apply(this, arguments);
-    };
-}
 // ==========================================
 // 🚨 ENTERPRISE FIX: BACKGROUND RESUME SHIELD
 // ==========================================

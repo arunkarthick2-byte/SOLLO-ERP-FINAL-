@@ -2,7 +2,7 @@
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.4)
 // ==========================================
 // ENTERPRISE RULE: Every time you change your code, you MUST change this version number (e.g., to 11.8, 11.9)!
-const CACHE_NAME = 'sollo-erp-v64.0-offline'; 
+const CACHE_NAME = 'sollo-erp-v65.0-offline'; 
 
 const ASSETS_TO_CACHE = [
     './',
@@ -19,7 +19,6 @@ const ASSETS_TO_CACHE = [
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js',
     // STRICT ERP LOGIC: Added Chart.js and HTML2PDF so the dashboard and printing work offline 
@@ -87,16 +86,6 @@ self.addEventListener('fetch', (event) => {
     if (url.includes('apis.google.com') || url.includes('accounts.google.com') || url.includes('googleapis.com')) {
         return; 
     }
-
-    // --- DEVELOPMENT MODE OVERRIDE (ACTIVE FOR INSTANT UPDATES) ---
-    if (url.includes('localhost') || url.includes('127.0.0.1')) {
-        event.respondWith(fetch(event.request));
-        return;
-    }
-    // ---------------------------------
-
-    // ENTERPRISE FIX: The Cache API violently crashes on POST requests. We MUST ignore them!
-    if (event.request.method !== 'GET') return;
 
     // 🚨 ENTERPRISE UPGRADE: STALE-WHILE-REVALIDATE (ZERO-LATENCY BOOT)
     // Instantly loads from the phone's SSD (0.05s boot time) while silently updating the cache in the background!

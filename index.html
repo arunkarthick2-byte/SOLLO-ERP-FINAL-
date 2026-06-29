@@ -48,7 +48,6 @@
         };
     </script> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
@@ -646,10 +645,6 @@
         </div>
         <div class="activity-content">
             <form id="form-sales">
-                <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('sales')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">document_scanner</span> 
-                    AI Auto-Fill from Document
-                </button>
 
                 <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('customer', 'sales')">
                     <div>
@@ -831,8 +826,12 @@
                         </div>
 
                         <div style="margin-top: 16px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
-                            <label style="color: var(--md-text-muted); font-weight: bold; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
-                            <textarea id="sales-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
+                            <label style="color: var(--md-text-muted); font-weight: bold; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">note_alt</span> Document Notes / Remarks</label>
+                            <textarea id="sales-internal-notes" rows="2" placeholder="Add notes, shipping details, or internal remarks here..." style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--md-on-surface); cursor: pointer; padding-left: 4px;">
+                                <input type="checkbox" id="sales-print-notes" style="width: 16px; height: 16px; cursor: pointer;">
+                                Print these notes on the final PDF
+                            </label>
                         </div>
                     </div>
                 </details>
@@ -871,10 +870,6 @@
         </div>
         <div class="activity-content">
             <form id="form-purchase">
-                <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('purchase')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 16px;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">document_scanner</span> 
-                    AI Scan Purchase Bill
-                </button>
 
                 <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'purchase')">
                     <div>
@@ -1105,12 +1100,6 @@
             </style>
             
             <form id="form-expense">
-                <div style="padding: 16px 16px 8px 16px;">
-                    <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('expense')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; border-radius: 12px; height: 48px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-                        <span class="material-symbols-outlined" style="font-size: 20px;">receipt_long</span> 
-                        <span style="font-size: 15px;">AI Scan Expense Receipt</span>
-                    </button>
-                </div>
 
                 <div style="padding: 12px 16px 8px 16px; font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
                 
@@ -1179,16 +1168,6 @@
                         </div>
                     </div>
                     
-                    <div style="padding: 16px;">
-                        <div style="display: flex; gap: 16px; align-items: center;">
-                            <label class="tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border: 1px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; cursor: pointer;">
-                                <span class="material-symbols-outlined" style="color: #64748b;">add_a_photo</span>
-                                <span style="font-size: 14px; font-weight: 600; color: #475569;">Attach Receipt Image</span>
-                                <input type="file" accept="image/*" class="hidden" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 800, 0.7).then(compressedStr => { const img = document.getElementById('expense-attachment-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                            </label>
-                            <img id="expense-attachment-preview" class="hidden" loading="lazy" decoding="async" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid var(--md-outline-variant);">
-                        </div>
-                    </div>
                 </div>
                 
                 <div style="padding: 16px; padding-bottom: 40px;">
@@ -1212,12 +1191,6 @@
         </div>
         <div class="activity-content" style="padding: 0; background: var(--md-surface-variant);">
             <form id="form-product">
-                <div style="padding: 16px 16px 8px 16px;">
-                    <button type="button" class="btn-primary-small tap-target" onclick="if(window.Utils) window.Utils.startAIScanner('product')" style="background: var(--md-secondary); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; border-radius: 12px; height: 48px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-                        <span class="material-symbols-outlined" style="font-size: 20px;">qr_code_scanner</span> 
-                        <span style="font-size: 15px;">AI Scan Price Tag / Box</span>
-                    </button>
-                </div>
 
                 <div id="product-valuation-card" class="hidden" style="margin: 0 16px 16px 16px; background: rgba(0, 97, 164, 0.1);  border-left: 4px solid #0061a4; border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
                     <div>
@@ -3098,11 +3071,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=64.0"></script>
-    <script src="utils.js?v=64.0"></script>
-    <script src="ui.js?v=64.0"></script>
-    <script src="cloud.js?v=64.0"></script>
-    <script src="app.js?v=64.0"></script>
+    <script src="db.js?v=65.0"></script>
+    <script src="utils.js?v=65.0"></script>
+    <script src="ui.js?v=65.0"></script>
+    <script src="cloud.js?v=65.0"></script>
+    <script src="app.js?v=65.0"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3132,8 +3105,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=64.0' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=64.0`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=65.0' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=65.0`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
