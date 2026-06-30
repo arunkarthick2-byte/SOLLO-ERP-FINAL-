@@ -786,7 +786,7 @@ const UI = {
                             <strong style="font-size: 16px; color: ${color}; flex-shrink: 0; margin-left: 8px;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
                         </div>
                         <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 6px; font-size: 12px; color: var(--md-text-muted);">
-                            <span>${adj.date}</span>
+                            <span>${window.Utils.formatDateDisplay(adj.date)}</span>
                             <span>${safeNotes}</span>
                         </div>
                     </div>
@@ -1494,6 +1494,7 @@ const UI = {
                     
                     // 🚨 ENTERPRISE UX: DASHBOARD SYNCED PULSING DOT
                     let isOverdue = false;
+                    let exactDays = 0;
                     if (balance >= 100 && s.status !== 'Open' && s.status !== 'Cancelled' && !isReturn) {
                         const baseDate = s.shippedDate ? s.shippedDate : s.date;
                         if (baseDate) {
@@ -1502,7 +1503,8 @@ const UI = {
                             const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
                             const tParts = todayStr.split('-');
                             const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
-                            if ((todayDate - invoiceDate) > 0 && Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24)) > 15) {
+                            exactDays = Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24));
+                            if (exactDays > 15) {
                                 isOverdue = true;
                             }
                         }
@@ -1515,7 +1517,7 @@ const UI = {
                             <div style="flex:1; min-width:0; overflow:hidden;">
                                 <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
                                 <small class="color-primary" style="display:block; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</small>
-                                ${isOverdue ? `<span style="display:inline-block; margin-top:6px; color:var(--md-error); font-size:10px; font-weight:900; background:rgba(186, 26, 26, 0.1); padding:2px 6px; border-radius:4px; border:1px solid rgba(186, 26, 26, 0.3);">⚠️ ACTION REQUIRED: OVERDUE</span>` : ''}
+                                ${isOverdue ? `<span style="display:inline-block; margin-top:6px; color:var(--md-error); font-size:10px; font-weight:900; background:rgba(186, 26, 26, 0.1); padding:2px 6px; border-radius:4px; border:1px solid rgba(186, 26, 26, 0.3);">⚠️ ACTION REQUIRED: ${exactDays} DAYS OVERDUE</span>` : ''}
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
                                 <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
@@ -2021,7 +2023,7 @@ const UI = {
                 UI.renderVirtualList(container, data, (c) => {
                     return UI.renderRowWiseItem(
                         c.desc || 'Transaction', 
-                        `${c.date} | ${c.mode || 'Cash'}`, 
+                        `${window.Utils.formatDateDisplay(c.date)} | ${c.mode || 'Cash'}`, 
                         `${targetType === 'in' ? '+' : '-'}\u20B9${(parseFloat(c.amount) || 0).toFixed(2)}`, 
                         targetType === 'in' ? 'Received' : 'Paid', 
                         targetType === 'in' ? 'arrow_downward' : 'arrow_upward', 
@@ -2043,7 +2045,7 @@ const UI = {
                         </div>
                         <div style="flex: 1; min-width: 0; overflow: hidden;">
                             <strong style="font-size: 14px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(displayTitle, searchTerm)}</strong>
-                            <small style="color: var(--md-text-muted); display: block;">${t.date || 'Unknown Date'} | Mod: ${t._module}</small>
+                            <small style="color: var(--md-text-muted); display: block;">${window.Utils.formatDateDisplay(t.date) || 'Unknown Date'} | Mod: ${t._module}</small>
                         </div>
                         <div style="text-align: right; flex-shrink: 0; display: flex; gap: 8px;">
                             <button class="btn-primary-small tap-target" style="padding: 6px 12px; font-size: 12px;" onclick="app.restoreRecord('${t.id}', '${t._module}')">Restore</button>
@@ -2724,10 +2726,9 @@ const UI = {
                 // Ease-out formula for smoother deceleration
                 const easeOut = 1 - Math.pow(1 - progress, 3);
                 const currentVal = (easeOut * (end - start) + start);
-                // STRICT ERP LOGIC: Safely format negative currency numbers (e.g. -₹500 instead of ₹-500)
-                obj.innerHTML = currentVal < 0 
-                    ? '-\u20B9' + Math.abs(currentVal).toFixed(2) 
-                    : '\u20B9' + currentVal.toFixed(2);
+                // STRICT ERP LOGIC: Safely format negative currency numbers with Indian Commas!
+                const formattedNum = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(currentVal));
+                obj.innerHTML = currentVal < 0 ? '-\u20B9' + formattedNum : '\u20B9' + formattedNum;
                 if (progress < 1) window.requestAnimationFrame(step);
             };
             window.requestAnimationFrame(step);
@@ -2891,13 +2892,22 @@ const UI = {
                     const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
                     const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
                     const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
+                    
+                    // 🚨 ENTERPRISE UPGRADE: Exact Days Overdue Calculator!
+                    const baseDate = s.shippedDate ? s.shippedDate : s.date;
+                    const parts = baseDate.split('-'); 
+                    const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
+                    const tParts = todayStr.split('-');
+                    const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
+                    const diffDays = Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24));
+
                     return `
                     <li>
                         <div>
                             <strong class="large-text">${s.customerName || 'Unknown Party'}</strong><br>
                             <small class="color-primary">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small>
                         </div>
-                        <span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">Overdue</span>
+                        <span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">${diffDays} Days Overdue</span>
                     </li>`;
                 }).join('');
             } else {
@@ -3471,6 +3481,10 @@ const UI = {
         
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         
+        // 🚀 PREMIUM POLISH: Smooth scroll to the newly added item so the user doesn't lose their place!
+        setTimeout(() => {
+            itemCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
     },
 
     closeAllBottomSheets: () => {
@@ -3497,6 +3511,8 @@ const UI = {
         
     // UPGRADE: iOS-Style Haptic Context Menu
     showContextMenu: (clickAction) => {
+        return; // 🚀 POLISH: This acts as a stop sign, instantly killing the long-press menu!
+
         let overlay = document.getElementById('haptic-overlay');
         if (overlay) overlay.remove(); // Force rebuild to update dynamic IDs
 
@@ -3730,6 +3746,13 @@ const UI = {
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         UI.closeBottomSheet('sheet-products');
         
+        // 🚀 PREMIUM POLISH: Smooth scroll down so the user sees all newly added items!
+        setTimeout(() => {
+            if (container.lastElementChild) {
+                container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 200);
+
         // ENTERPRISE FIX: Wipe the array so reopening the menu doesn't duplicate the old products!
         UI.state.selectedProducts = []; 
     },

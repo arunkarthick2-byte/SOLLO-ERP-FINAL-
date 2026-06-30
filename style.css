@@ -5826,8 +5826,18 @@ input[type="text"], input[type="number"], textarea, select {
 }
 
 * {
-    -ms-overflow-style: none !important; /* IE and Edge */
-    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; 
+    scrollbar-width: none !important; 
+    -webkit-tap-highlight-color: transparent !important; 
+    -webkit-touch-callout: none !important; /* 🚀 POLISH: Disables the native long-press popup menus */
+    user-select: none; /* 🚀 POLISH: Prevents accidental text highlighting on cards and buttons */
+    -webkit-user-select: none;
+}
+
+/* 🚀 POLISH: Re-enable text selection ONLY where the user actually needs to type or copy data */
+input, textarea, select {
+    user-select: auto !important;
+    -webkit-user-select: auto !important;
 }
 /* ==========================================
    🚨 ENTERPRISE UX: TACTILE CARD PHYSICS
@@ -5847,6 +5857,11 @@ input[type="text"], input[type="number"], textarea, select {
    🚨 ENTERPRISE UX: PREMIUM INPUT FOCUS
    ========================================== */
 /* Destroys ugly default browser outlines and replaces them with an elegant, glowing focus ring */
+/* 🚀 PREMIUM POLISH: Smooth animations for inputs */
+input[type="text"], input[type="number"], textarea, select {
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out !important;
+}
+
 input[type="text"]:focus, 
 input[type="number"]:focus, 
 textarea:focus, 
@@ -5856,4 +5871,13 @@ select:focus {
     box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
     background-color: #ffffff !important; /* Maintains the strict white data-entry canvas */
     transition: all 0.2s ease !important;
+}
+/* 🚀 PREMIUM POLISH: Hide ugly browser number spinners for a clean ERP look */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
+input[type=number] {
+    -moz-appearance: textfield; /* Firefox fallback */
 }

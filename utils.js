@@ -751,7 +751,11 @@ Please process this accordingly. Thank you!`;
                 }
             };
             reader.readAsText(file);
-            event.target.value = ''; 
+            
+            // 🚀 CHROME FIX: Wait 1 second before clearing the input so Chrome's Garbage Collector 
+            // doesn't destroy the file before it finishes reading into memory!
+            setTimeout(() => { event.target.value = ''; }, 1000); 
+            
             return;
         }
 
@@ -786,9 +790,9 @@ Please process this accordingly. Thank you!`;
                 filename: filename,
                 enableLinks: true, 
                 pagebreak: { mode: 'css', avoid: '.avoid-break' }, 
-                image: { type: 'jpeg', quality: 0.90 }, // 🚨 RAM FIX: Dropped to 0.90 (Saves ~60% RAM!)
+                image: { type: 'jpeg', quality: 0.90 }, 
                 html2canvas: { 
-                    scale: 2, 
+                    scale: 1.2, // 🚀 SPEED FIX: Reduced from 2x to 1.2x to drastically cut loading times
                     useCORS: true, 
                     logging: false, // 🚨 CPU FIX
                     windowWidth: 800, 
@@ -844,7 +848,7 @@ Please process this accordingly. Thank you!`;
         }
     },
 
-    processPDFExport: async (elementId, filename) => {
+    processPDFExport: async (elementId, filename, customMsg = null) => {
         const element = document.getElementById(elementId);
         if (!element) return;
 
@@ -934,7 +938,7 @@ Please process this accordingly. Thank you!`;
             const exactHeight = element.scrollHeight;
 
             const canvas = await html2canvas(element, { 
-                scale: 1.5, // 🚨 RAM FIX: Lower preview scale. It is just for the screen, doesn't need to be print-res!
+                scale: 1.0, // 🚀 SPEED FIX: 1x scale makes the screen preview load almost instantly!
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -998,9 +1002,9 @@ Please process this accordingly. Thank you!`;
             document.getElementById('btn-share-preview').onclick = async () => {
                 try {
                     if (window.Utils) window.Utils.showToast("Preparing True PDF...");
-                    // 🚨 ENTERPRISE FIX: Clean up the ugly filename (TAX_INVOICE_123) into a proper Document Name for the share text!
                     const cleanDocumentName = filename.replace('.pdf', '').replace(/_/g, ' ');
-                    window.Utils.sharePDF(elementId, filename, `Here is your document: ${cleanDocumentName}`);
+                    const finalMsg = customMsg ? customMsg : `Here is your document: ${cleanDocumentName}`;
+                    window.Utils.sharePDF(elementId, filename, finalMsg);
                 } catch (err) {
                     console.log("Share cancelled or failed", err);
                     if (window.Utils) window.Utils.alertModal("Sharing was cancelled or is unsupported on this device.", "Share Failed");
@@ -1673,7 +1677,12 @@ Please process this accordingly. Thank you!`;
             printArea.innerHTML = themedHtml; 
             setTimeout(() => {
                 const safeFilenameDocNo = String(safeDocNo).replace(/[^a-zA-Z0-9_.-]/g, '-');
-                Utils.processPDFExport(uniquePdfId, `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`);
+                const shareText = `Dear ${partyName},
+
+Please find attached the ${title} (${safeDocNo}) dated ${Utils.formatDateDisplay(doc.date)} for the amount of ₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}.
+
+Thank you!`;
+                Utils.processPDFExport(uniquePdfId, `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`, shareText);
             }, 100);
         }
     },
@@ -2311,7 +2320,7 @@ Please process this accordingly. Thank you!`;
                 // 🚨 FIX: Added 'tr' so it never mathematically slices a table row in half across two pages!
                 pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] }, 
                 html2canvas: { 
-                    scale: 1.5, /* 🚨 ULTIMATE RAM FIX: Dropped to 1.5 to guarantee no Out-Of-Memory crashes on low-end Androids */
+                    scale: 1.2, /* 🚀 SPEED FIX: Dropped to 1.2 to double generation speed while maintaining HD text */
                     backgroundColor: '#ffffff',
                     useCORS: true, 
                     logging: false, 
@@ -2540,7 +2549,12 @@ Please process this accordingly. Thank you!`;
             printArea.innerHTML = html;
             setTimeout(() => {
                 const safeFilename = `Voucher_${expense.expenseNo || 'EXP'}.pdf`;
-                window.Utils.processPDFExport(uniquePdfId, safeFilename);
+                const shareText = `Dear ${expense.partyName || expense.vendorName || expense.category || 'Sir/Madam'},
+
+Please find attached the Payment Voucher (${expense.expenseNo || 'EXP'}) dated ${safeDate} for the amount of ₹${finalTotalAmt.toFixed(2)}.
+
+Thank you!`;
+                window.Utils.processPDFExport(uniquePdfId, safeFilename, shareText);
             }, 100);
         }
     }

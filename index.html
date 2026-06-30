@@ -1006,8 +1006,8 @@
                 <span id="expense-form-title" style="font-size: 18px; font-weight: 500;">Log Expense</span>
             </div>
             <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-print-expense" class="icon-circle tap-target hidden" onclick="if(window.app && window.app.state.currentEditId) window.Utils.generateExpenseVoucherPDF(window.app.state.currentEditId)" style="width: 36px; height: 36px; background: rgba(0, 97, 164, 0.1);  color: var(--md-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">print</span>
+                <div id="btn-print-expense" class="icon-circle tap-target hidden" onclick="if(window.app && window.app.state.currentEditId) window.Utils.generateExpenseVoucherPDF(window.app.state.currentEditId)" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
                 </div>
                 <div id="btn-delete-expense" class="icon-circle tap-target hidden" onclick="app.deleteRecord('expense')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
@@ -3071,11 +3071,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=65.0"></script>
-    <script src="utils.js?v=65.0"></script>
-    <script src="ui.js?v=65.0"></script>
-    <script src="cloud.js?v=65.0"></script>
-    <script src="app.js?v=65.0"></script>
+    <script src="db.js?v=66.2"></script>
+    <script src="utils.js?v=66.2"></script>
+    <script src="ui.js?v=66.2"></script>
+    <script src="cloud.js?v=66.2"></script>
+    <script src="app.js?v=66.2"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3105,8 +3105,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=65.0' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=65.0`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=66.2' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=66.2`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
