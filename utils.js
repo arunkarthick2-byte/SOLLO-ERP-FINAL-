@@ -1149,7 +1149,7 @@ Please process this accordingly. Thank you!`;
                 </tr>
             `;
         });
-        const safeDocNo = window.Utils.sanitizeHTML(doc.invoiceNo || doc.poNo || 'DRAFT');
+        const safeDocNo = window.Utils.sanitizeHTML(doc.invoiceNo || doc.orderNo || doc.poNo || 'DRAFT');
         // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost PDF!
         const uniquePdfId = 'pdf-invoice-' + Date.now();
 
