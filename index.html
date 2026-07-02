@@ -100,6 +100,10 @@
         }
     </style>
 
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" as="script">
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" as="script">
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 
 <body>
@@ -178,7 +182,6 @@
                         </div>
                     </div>
 
-                    <!-- 🚨 BIZOPS FIX: Financial Overview Graph UI -->
                     <div class="tap-target" onclick="if(window.app) window.app.openDeepAnalytics()" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); display: flex; align-items: center; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <span class="material-symbols-outlined" style="color: var(--md-primary);">insights</span>
@@ -458,10 +461,6 @@
                         <div style="flex: 1;"><strong style="font-size:15px;">Advanced Reports (PnL)</strong></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="app.refreshAll()">
-                        <span class="material-symbols-outlined" style="color: #f57f17;">sync</span>
-                        <div style="flex: 1;"><strong style="font-size:15px;">Force Sync / Refresh Data</strong></div>
-                    </div>
                 </div>
 
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Cloud Backup & Storage</strong>
@@ -509,16 +508,6 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
-                    <div class="m3-card tap-target" onclick="if(window.UI) UI.toggleDataDensity()" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;">
-                        <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-primary); width: 40px; height: 40px; flex-shrink: 0;">
-                            <span class="material-symbols-outlined">format_line_spacing</span>
-                        </div>
-                        <div style="flex: 1;">
-                            <strong class="large-text" style="font-size: 15px;">Compact Mode</strong>
-                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Shrink lists to fit more data</small>
-                        </div>
-                    </div>
-
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('trash', 'Recycle Bin')">
                         <span class="material-symbols-outlined" style="color: var(--md-error);">delete</span>
                         <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-error);">Recycle Bin</strong></div>
@@ -533,13 +522,6 @@
                         </div>
                     </div>
                     
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); margin-top: 8px;" onclick="window.Utils.confirmModal('Compress old invoices (>1 year) to save phone storage? This cannot be undone.', 'Compress', true).then(confirmed => { if(confirmed) { window.executeColdStorageArchive().then(count => window.Utils.showToast('✅ Compressed ' + count + ' old invoices!')); }})">
-                        <span class="material-symbols-outlined" style="color: #8e24aa;">inventory_2</span>
-                        <div style="flex: 1;">
-                            <strong style="font-size:15px; color: var(--md-on-surface);">Run Cold Storage Archive</strong>
-                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Compress old invoices to save space</small>
-                        </div>
-                    </div>
                 </div>
 
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-document-formats')">
@@ -1307,9 +1289,6 @@
             <form id="form-ledger">
                 <div style="padding: 16px 16px 8px 16px; display: flex; justify-content: space-between; align-items: center;">
                     <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
-                    <button type="button" id="btn-import-contact" class="btn-primary-small tap-target" onclick="app.importContact()" style="display: none; align-items: center; gap: 4px; background: var(--md-surface); color: var(--md-primary); padding: 4px 12px; border: 1px solid var(--md-outline-variant); margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-radius: 16px;">
-                        <span class="material-symbols-outlined" style="font-size: 16px;">contact_phone</span> Import
-                    </button>
                 </div>
                 
                 <div class="premium-form-section">
@@ -1927,9 +1906,13 @@
         </div>
         <div style="padding: 16px;">
             <form id="form-stock-adjustment">
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Select Product *</div>
-                    <select id="adj-product-id" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
+                <div class="m3-card tap-target" style="margin-bottom: 16px; margin-top: 0; padding: 12px 14px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('item', 'adj')">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; margin-bottom: 4px;">Select Product *</div>
+                        <div id="adj-product-display" style="font-size: 15px; font-weight: 600; color: var(--md-text-muted);">Tap to search...</div>
+                        <input type="hidden" id="adj-product-id" required>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
                 </div>
                 
                 <div style="display: flex; gap: 12px; margin-bottom: 16px;">
@@ -2706,8 +2689,15 @@
             </div>
 
             <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
-                <label style="font-weight: 500; color: var(--md-on-surface); display: block; margin-bottom: 8px;">Select Customer:</label>
-                <select id="tax-report-customer" onchange="app.generatePartyTaxReport()" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; margin-bottom: 12px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
+                
+                <div class="m3-card tap-target" style="margin-bottom: 16px; margin-top: 0; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant); box-shadow: none;" onclick="if(window.UI) UI.openSmartSearch('party', 'tax-report')">
+                    <div>
+                        <small style="color: var(--md-text-muted); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">Select Party</small>
+                        <div id="tax-report-display" class="large-text" style="color: var(--md-text-muted);">Tap to search...</div>
+                        <input type="hidden" id="tax-report-id">
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
+                </div>
                 
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
                     <div style="flex: 1;">
@@ -2766,7 +2756,7 @@
                     <label style="font-weight: 500; color: var(--md-text-muted); font-size: 13px;">Select Month:</label>
                     <input type="month" id="gst-month-selector" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 15px; font-weight: 600; background: var(--md-surface); color: var(--md-on-surface);" onchange="app.refreshGSTReport()">
                 </div>
-                <button class="tap-target" id="btn-export-gst" onclick="if(window.app && typeof window.app.exportGSTCSV === 'function') window.app.exportGSTCSV(); else alert('Export function not linked in app.js!');" style="display:flex; align-items:center; justify-content:center; gap:6px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); border: 1px solid rgba(0, 97, 164, 0.3); height: 42px; padding: 0 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                <button class="tap-target" id="btn-export-gst" style="display:flex; align-items:center; justify-content:center; gap:6px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); border: 1px solid rgba(0, 97, 164, 0.3); height: 42px; padding: 0 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">download</span> Export CSV
                 </button>
             </div>
@@ -3071,11 +3061,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=66.2"></script>
-    <script src="utils.js?v=66.2"></script>
-    <script src="ui.js?v=66.2"></script>
-    <script src="cloud.js?v=66.2"></script>
-    <script src="app.js?v=66.2"></script>
+    <script src="db.js?v=66.3"></script>
+    <script src="utils.js?v=66.3"></script>
+    <script src="ui.js?v=66.3"></script>
+    <script src="cloud.js?v=663"></script>
+    <script src="app.js?v=66.3"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3105,8 +3095,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=66.2' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=66.2`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=66.3' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=66.3`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour

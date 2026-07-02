@@ -45,7 +45,7 @@ body {
     background-color: #ffffff !important;
     color: #0f172a !important;
     /* 🚨 ENTERPRISE SHIELD: Locks BOTH X and Y axes to prevent Pull-to-Refresh AND accidental iOS Swipe-Back data loss! */
-    overscroll-behavior: none !important; 
+    /* overscroll-behavior: none !important;  DISABLED TO FIX ANDROID SCROLL BUG */
     /* Disable text selection on UI elements */
     user-select: none;
     -webkit-user-select: none;
@@ -189,7 +189,7 @@ body {
     font-variant-numeric: tabular-nums; 
     color: var(--md-on-surface);
     overflow: hidden; 
-    overscroll-behavior-y: none; 
+    /* overscroll-behavior-y: none; DISABLED TO FIX ANDROID SCROLL BUG */
     
     /* Prevent text highlighting, long-press menus, and magnifying glass */
     -webkit-user-select: none;
@@ -3447,7 +3447,7 @@ html, body {
     margin: 0 !important;      /* 🚨 BIZOPS FIX: Kills the default 8px L-shaped browser border! */
     padding: 0 !important;     /* 🚨 BIZOPS FIX: Locks the app flush against the physical screen edge! */
     overflow: hidden !important; /* Disables browser elastic rubber-banding */
-    overscroll-behavior-y: none !important;
+    /* overscroll-behavior-y: none !important; DISABLED TO FIX ANDROID SCROLL BUG */
 }
 
 /* Re-enable beautiful, fast scrolling safely inside your isolated containers only */
@@ -5880,4 +5880,607 @@ input[type=number]::-webkit-outer-spin-button {
 }
 input[type=number] {
     -moz-appearance: textfield; /* Firefox fallback */
+}
+/* ==========================================
+   🚀 ENTERPRISE SAAS UI POLISH (STEEL & FLAT)
+   ========================================== */
+
+/* 1. FAST, SOLID BOTTOM SHEETS & OVERLAYS (No Bouncing, No Glass) */
+.bottom-sheet {
+    background-color: var(--md-surface) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-radius: 12px 12px 0 0 !important; /* Sharper, professional corners */
+    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.1) !important; /* Hard, flat shadow */
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out !important; /* Lightning fast */
+}
+
+.sheet-overlay, .sheet-overlay.open {
+    background-color: rgba(15, 23, 42, 0.6) !important; /* Solid dark slate tint */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transition: all 0.15s ease-out !important;
+}
+
+/* 2. FLAT, EDGE-TO-EDGE DATA LISTS (Cures Card Fatigue) */
+.list-view {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.list-view li {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    padding: 14px 16px !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+/* 3. STRICT, SHARP CARDS */
+.m3-card {
+    border-radius: 6px !important; /* Sharp edges */
+    border: 1px solid rgba(0, 0, 0, 0.12) !important; /* Defined, crisp border */
+    box-shadow: none !important; /* Flat UI */
+    transition: background-color 0.1s ease !important; /* Instant tap response */
+}
+
+/* 4. SOLID BOTTOM NAV & HEADERS (Kill the Blur) */
+.bottom-nav, .activity-header, .sheet-header, .date-divider, .thumb-action-bar, .form-sticky-footer {
+    background-color: var(--md-surface) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.bottom-nav {
+    border-top: 1px solid rgba(0, 0, 0, 0.12) !important;
+    box-shadow: none !important;
+}
+
+/* 5. FAST BUTTON PHYSICS & NO-NONSENSE FAB */
+.btn-primary, .btn-secondary, .tap-target, .m3-card.tap-target {
+    transition: transform 0.1s ease-out, background-color 0.1s ease-out !important;
+    border-radius: 6px !important; /* Square B2B buttons */
+}
+
+.floating-action-button, #main-fab {
+    border-radius: 50% !important; /* Keep FAB as a circle */
+    animation: none !important; /* Kill the distracting "breathing" animation */
+    transition: transform 0.1s ease-out !important;
+}
+
+/* 6. TYPOGRAPHY HIERARCHY (High Contrast) */
+.large-text, strong {
+    font-weight: 700 !important;
+    color: #111827 !important; /* Darker, harsher slate/black */
+}
+small, .text-muted {
+    font-weight: 500 !important;
+    color: #6B7280 !important; /* Muted steel grey */
+}
+
+/* 7. DARK MODE ADAPTER FOR THE NEW FLAT UI */
+body.dark-mode .bottom-sheet, 
+body.dark-mode .bottom-nav, 
+body.dark-mode .activity-header, 
+body.dark-mode .sheet-header,
+body.dark-mode .date-divider,
+body.dark-mode .m3-card,
+body.dark-mode .thumb-action-bar,
+body.dark-mode .form-sticky-footer {
+    background-color: #121212 !important;
+    border-color: rgba(255,255,255,0.1) !important;
+}
+
+body.dark-mode .list-view li {
+    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+body.dark-mode .large-text, body.dark-mode strong {
+    color: #F9FAFB !important;
+}
+body.dark-mode small, body.dark-mode .text-muted {
+    color: #9CA3AF !important;
+}
+/* ==========================================
+   🚀 ENTERPRISE SAAS UI: STRICT FORM AESTHETIC
+   ========================================== */
+
+/* 1. PROFESSIONAL MICRO-LABELS */
+/* Targets all labels above input boxes */
+form label, .form-group label, div[style*="flex-direction: column"] > label, div[style*="flex-direction: column"] > div[style*="font-size: 13px"] {
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    font-weight: 800 !important;
+    color: #6B7280 !important; /* Professional Slate Grey */
+    margin-bottom: 6px !important;
+    display: block !important;
+}
+
+/* 2. STRIPE-STYLE INPUT BOXES */
+input[type="text"]:not(.search-bar input):not(.row-qty):not(.row-rate), 
+input[type="number"]:not(.search-bar input):not(.row-qty):not(.row-rate), 
+input[type="tel"], 
+input[type="email"], 
+input[type="date"], 
+select, 
+textarea {
+    background-color: #F9FAFB !important; /* Very soft resting grey */
+    border: 1px solid #D1D5DB !important; /* Crisp, thin border */
+    border-radius: 6px !important; /* Sharp corners */
+    padding: 10px 12px !important;
+    color: #111827 !important; /* Pure dark text */
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    transition: all 0.15s ease-in-out !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; /* Micro-depth */
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* 3. THE "ACTIVE FOCUS" SNAP */
+input:focus:not([readonly]), select:focus, textarea:focus {
+    background-color: #FFFFFF !important; /* Snaps to pure white so the user focuses */
+    border-color: #2563EB !important; /* Sharp Primary Blue */
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important; /* Glowing focus ring */
+    outline: none !important;
+}
+
+/* 4. OBVIOUS READ-ONLY & DISABLED STATES */
+/* Prevents users from trying to tap boxes the system calculates automatically */
+input[readonly], input[disabled], select[disabled] {
+    background-color: #F3F4F6 !important;
+    color: #9CA3AF !important;
+    cursor: not-allowed !important;
+    border: 1px dashed #D1D5DB !important;
+    box-shadow: none !important;
+}
+
+/* Ensure read-only boxes don't glow blue when tapped */
+input[readonly]:focus, input[disabled]:focus {
+    border-color: #D1D5DB !important;
+    box-shadow: none !important;
+    background-color: #F3F4F6 !important;
+}
+
+/* 5. DARK MODE ADAPTER FOR FORMS */
+body.dark-mode input[type="text"]:not(.search-bar input), 
+body.dark-mode input[type="number"]:not(.search-bar input), 
+body.dark-mode input[type="tel"], 
+body.dark-mode input[type="email"], 
+body.dark-mode input[type="date"], 
+body.dark-mode select, 
+body.dark-mode textarea {
+    background-color: #1F2937 !important;
+    border-color: #374151 !important;
+    color: #F9FAFB !important;
+}
+
+body.dark-mode input:focus:not([readonly]), 
+body.dark-mode select:focus, 
+body.dark-mode textarea:focus {
+    background-color: #111827 !important;
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+}
+
+body.dark-mode form label, 
+body.dark-mode .form-group label {
+    color: #9CA3AF !important;
+}
+
+body.dark-mode input[readonly], 
+body.dark-mode input[disabled] {
+    background-color: #111827 !important;
+    border-color: #374151 !important;
+    color: #6B7280 !important;
+}
+/* ==========================================
+   🚀 ENTERPRISE SAAS UI: SEAMLESS DATA GRIDS
+   ========================================== */
+
+/* 1. Transform bulky invoice item cards into a sleek, connected spreadsheet */
+#sales-items-body .item-entry-card, 
+#purchase-items-body .item-entry-card {
+    border: none !important;
+    border-bottom: 1px solid #E5E7EB !important; /* Clean underline */
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin-bottom: 0 !important;
+    padding: 16px 8px !important;
+    background: transparent !important;
+}
+
+/* Remove the line under the very last item */
+#sales-items-body .item-entry-card:last-child, 
+#purchase-items-body .item-entry-card:last-child {
+    border-bottom: none !important;
+}
+
+/* 2. Make the Delete (X) button subtle until pressed */
+.item-entry-card .tap-target[onclick*="remove"] {
+    background: transparent !important;
+    color: #9CA3AF !important;
+}
+.item-entry-card .tap-target[onclick*="remove"]:active {
+    background: #FEE2E2 !important;
+    color: #EF4444 !important;
+}
+
+/* 3. Compact the quantity/rate inputs to look like real table cells */
+.item-entry-card input.row-qty, 
+.item-entry-card input.row-rate {
+    background: #ffffff !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 4px !important;
+    padding: 6px !important;
+    font-size: 14px !important;
+    min-height: 32px !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important;
+}
+
+/* 4. Apple-Style Cinematic Background Blur */
+/* Flattens the harsh black background behind menus into a premium frosted glass */
+.sheet-overlay, .sheet-overlay.open, 
+#enterprise-dialog, #enterprise-confirm, #enterprise-swipe {
+    background-color: rgba(15, 23, 42, 0.4) !important; 
+    backdrop-filter: blur(5px) !important; 
+    -webkit-backdrop-filter: blur(5px) !important;
+}
+/* ==========================================
+   🚀 ENTERPRISE SAAS UI: PREMIUM SLATE CANVAS
+   ========================================== */
+
+/* 1. Change the blinding white global background to a premium, soft Slate Grey */
+body, html, #app-container, .activity-screen, #master-list-container {
+    background-color: #F8FAFC !important; /* Soft Slate-50 used by Top SaaS apps */
+}
+
+/* 2. Keep the App Header and Bottom Nav pure white so they "float" securely */
+.app-header, .bottom-nav, .activity-header, .form-sticky-footer {
+    background-color: #FFFFFF !important;
+    border-color: #E2E8F0 !important;
+}
+
+/* 3. Ensure Forms, Master Lists, and Dialogs look like crisp white paper on the slate desk */
+form, .m3-card, .list-view li, #enterprise-dialog, #enterprise-confirm {
+    background-color: #FFFFFF !important;
+}
+
+/* 4. Fix any lingering transparent backgrounds on specific screens */
+#form-business-profile, #form-sales-invoice, #form-purchase-invoice {
+    background-color: #F8FAFC !important;
+}
+
+/* 5. Dark Mode Adapter (Deep Navy Canvas with Lighter Navy Cards) */
+body.dark-mode, body.dark-mode #app-container, body.dark-mode .activity-screen, body.dark-mode #master-list-container, body.dark-mode #form-sales-invoice {
+    background-color: #0B1120 !important; /* Deepest Canvas */
+}
+body.dark-mode .app-header, body.dark-mode .bottom-nav, body.dark-mode form, body.dark-mode .m3-card, body.dark-mode .list-view li {
+    background-color: #1E293B !important; /* Elevated Surface */
+}
+/* ==========================================
+   🚀 ENTERPRISE SAAS UI: PADDING & TYPOGRAPHY POLISH
+   ========================================== */
+
+/* 1. FINANCIAL TYPOGRAPHY (Tabular Numbers) */
+/* Forces all numbers to be the exact same width so financial columns line up perfectly on top of each other! */
+body, input, .amount, .rate, .qty, .total, .balance, .large-text {
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* 2. PREMIUM PADDING FOR MASTER LISTS */
+/* Gives the Inventory and Customer lists more breathing room, preventing the "cluttered" look */
+.list-view li {
+    padding: 18px 20px !important; /* Increased from default to add premium whitespace */
+    display: flex;
+    align-items: center;
+}
+
+/* 3. MOBILE SAFE AREA (The "iPhone/Modern Android" Fix) */
+/* Adds padding to the absolute bottom of the app so buttons never collide with the phone's swipe gesture bar */
+.bottom-nav {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    height: auto !important;
+    min-height: 70px !important;
+}
+
+/* 4. BUTTON PADDING UPGRADE */
+/* Makes buttons slightly taller and wider for a more satisfying, confident tap target */
+button, .btn-primary, .btn-secondary {
+    padding: 14px 24px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.02em !important;
+}
+
+/* 5. FLOATING ACTION BUTTON (FAB) POSITIONING */
+/* Lifts the plus button slightly higher so it doesn't feel cramped against the bottom navigation */
+.floating-action-button, #main-fab {
+    bottom: calc(85px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 20px !important;
+    width: 56px !important;
+    height: 56px !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 6. HEADER BREATHING ROOM */
+/* Adds slightly more vertical padding to the top app headers */
+.app-header, .activity-header {
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+}
+/* ==========================================
+   🚀 ENTERPRISE SAAS UI: FORM SPACING & DEPTH
+   ========================================== */
+
+/* 1. FORM BREATHING ROOM */
+/* Increases the vertical space between input fields so the screen doesn't feel cluttered */
+.form-group, div[style*="margin-bottom: 15px"], div[style*="margin-bottom: 10px"] {
+    margin-bottom: 24px !important; 
+}
+
+/* 2. TWO-COLUMN SPACING */
+/* Increases the gap when two inputs are side-by-side (like Qty and Rate) */
+div[style*="display: flex; gap: 10px"], div[style*="display: flex; gap: 15px"] {
+    gap: 16px !important;
+}
+
+/* 3. PREMIUM SECTION HEADERS */
+/* Transforms standard bold text into professional, underlined category dividers */
+form strong, #form-business-profile strong, .activity-screen strong {
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    color: #0F172A !important;
+    display: block !important;
+    border-bottom: 2px solid #F1F5F9 !important;
+    padding-bottom: 8px !important;
+    margin-bottom: 20px !important;
+    margin-top: 12px !important;
+}
+
+/* Don't apply the underline to the Dashboard or Master Lists */
+#tab-dashboard strong, .list-view strong {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    margin-top: 0 !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+}
+
+/* 4. THE FLOATING ACTION FOOTER */
+/* Anchors the Save button to the bottom with a premium shadow, allowing the form to scroll underneath */
+.form-sticky-footer {
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border-top: 1px solid #E2E8F0 !important;
+    box-shadow: 0 -10px 20px -10px rgba(0,0,0,0.05) !important;
+    padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 100 !important;
+}
+
+/* Make sure the main Save buttons stretch properly in the new footer */
+.form-sticky-footer button {
+    width: 100% !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 97, 164, 0.2) !important; /* Soft blue glow */
+}
+
+/* 5. DARK MODE ADAPTER FOR FORMS */
+body.dark-mode form strong, 
+body.dark-mode #form-business-profile strong {
+    color: #F8FAFC !important;
+    border-bottom-color: #1E293B !important;
+}
+
+body.dark-mode .form-sticky-footer {
+    background-color: rgba(15, 23, 42, 0.95) !important;
+    border-top-color: #334155 !important;
+}
+/* ==========================================
+   🚀 MAXIMUM PERFORMANCE & BUSINESS CLASS UI
+   ========================================== */
+
+/* 1. ⚡ KILL THE LAG: DESTROY HEAVY BLURS */
+/* Frosted glass is the #1 cause of scrolling lag and screen flickering on mobile. This makes all layers solid. */
+.bottom-sheet, .sheet-overlay, .activity-header, .bottom-nav, .form-sticky-footer, .search-bar, .date-divider {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 2. 🛡️ SOLIDIFY OVERLAYS & HEADERS */
+/* Prevents text from bleeding through overlapping menus, fixing visual glitches. */
+.sheet-overlay.open, #enterprise-dialog, #enterprise-confirm {
+    background-color: rgba(15, 23, 42, 0.75) !important; /* Solid dark slate, zero blur */
+}
+.bottom-nav, .activity-header, .form-sticky-footer, .app-header {
+    background-color: #FFFFFF !important; 
+    border-color: #E2E8F0 !important;
+}
+.search-bar {
+    background-color: #F8FAFC !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+}
+
+/* 3. 🏢 BUSINESS CLASS AESTHETIC: FLAT & NEAT */
+/* Removes heavy, messy shadows and replaces them with crisp, professional borders. */
+.m3-card, .list-view li {
+    box-shadow: none !important;
+    border: 1px solid #E2E8F0 !important;
+    background: #FFFFFF !important;
+    border-radius: 8px !important; /* Subtle, professional curves */
+}
+body {
+    background-color: #F8FAFC !important; /* Soft premium slate canvas */
+}
+
+/* 4. 🚀 ANTI-FLICKER ANIMATIONS */
+/* Replaces slow, bouncy "spring" physics with instant, linear snaps. */
+.bottom-sheet, .activity-screen, .toast, .floating-action-button {
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out !important;
+}
+
+/* 5. 👆 TACTILE SPEED (ZERO-DELAY TAPS) */
+/* Forms and buttons respond instantly without waiting for sluggish fade animations. */
+.m3-card.tap-target:active, .list-view li:active, .btn-primary:active, .floating-action-button:active {
+    transform: scale(0.98) !important; /* Barely moves, feels incredibly solid */
+    background-color: #F1F5F9 !important;
+    box-shadow: none !important;
+    transition: none !important; /* Instant physical feedback */
+}
+
+/* 6. 🖊️ PROFESSIONAL DATA ENTRY FORMS */
+input[type="text"], input[type="number"], input[type="tel"], input[type="date"], select, textarea {
+    border-radius: 6px !important;
+    border: 1px solid #CBD5E1 !important;
+    background: #F8FAFC !important;
+    box-shadow: none !important;
+    transition: border-color 0.1s ease !important;
+}
+
+/* The Stripe-Style Focus: Sharp, serious, high-contrast dark blue/slate outline */
+input:focus:not([readonly]), select:focus, textarea:focus {
+    background: #FFFFFF !important;
+    border-color: #0F172A !important; 
+    box-shadow: 0 0 0 1px #0F172A !important; 
+}
+
+/* 7. 🌙 FAST DARK MODE ADAPTER */
+body.dark-mode .bottom-nav, body.dark-mode .activity-header, body.dark-mode .form-sticky-footer, body.dark-mode .m3-card {
+    background-color: #121212 !important;
+    border-color: #333333 !important;
+}
+body.dark-mode input:focus:not([readonly]), body.dark-mode select:focus {
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 1px #3B82F6 !important;
+}
+/* ==========================================
+   🚀 ULTIMATE ENTERPRISE PERFORMANCE MODE
+   ========================================== */
+
+/* 1. ANNIHILATE GPU LAG (Kill All Glass & Blurs) */
+* {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+.bottom-sheet, .sheet-overlay, .activity-header, .bottom-nav, .form-sticky-footer, .search-bar, .date-divider, #custom-numpad {
+    background-color: #FFFFFF !important;
+}
+body.dark-mode .bottom-sheet, body.dark-mode .sheet-overlay, body.dark-mode .activity-header, body.dark-mode .bottom-nav, body.dark-mode .form-sticky-footer, body.dark-mode .search-bar, body.dark-mode .date-divider, body.dark-mode #custom-numpad {
+    background-color: #121212 !important;
+}
+.sheet-overlay.open {
+    background-color: rgba(0, 0, 0, 0.6) !important; /* Solid dim, no blur */
+}
+
+/* 2. KILL FLICKERING & GHOSTING (Disable View Transitions & Cascades) */
+html, body, * { view-transition-name: none !important; }
+
+.active-screen, .bottom-sheet, .list-view li, .m3-card, .activity-content .list-card, .activity-content .timeline-item {
+    animation: none !important; /* Kills waterfall lag */
+    transition: transform 0.1s ease-out, opacity 0.1s ease-out !important; /* Instant snap */
+}
+.floating-action-button, #main-fab {
+    animation: none !important; /* Kills breathing pulse */
+}
+
+/* 3. DESTROY THE CPU-DRAINING FOCUS ENGINE */
+/* Removes the 'dim everything else' effect that forces the phone to recalculate the whole screen */
+form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:focus, textarea:focus, select:focus)) {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+}
+.form-group {
+    transform: none !important;
+    transition: none !important;
+}
+
+/* 4. FIX OVERLAY KEYBOARD JUMPING */
+/* Completely hides bottom bars when typing so they never jump to the middle of the screen */
+body:has(input:focus, textarea:focus) .bottom-nav,
+body:has(input:focus, textarea:focus) .floating-action-button,
+body:has(input:focus, textarea:focus) .form-sticky-footer {
+    display: none !important; 
+}
+
+/* 5. DISABLE DOM-INJECTED RIPPLES (Fixes Touch Delay) */
+.ripple, .ripple-span, .ink-ripple {
+    display: none !important; 
+}
+
+/* 6. STRICT BUSINESS UI (Flat, Crisp, High-Contrast) */
+.m3-card, .list-view li {
+    box-shadow: none !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+}
+body { background-color: #F8FAFC !important; }
+
+/* 7. SOLIDIFY Z-INDEX HIERARCHY (Fixes overlapping elements) */
+.sheet-overlay { z-index: 99990 !important; }
+.bottom-sheet { z-index: 99995 !important; }
+.pos-numpad-overlay { z-index: 99998 !important; }
+#toast-container, #enterprise-dialog, #enterprise-confirm { z-index: 99999 !important; }
+
+/* 8. INSTANT TACTILE TAPS */
+.m3-card.tap-target:active, .list-view li:active, .btn-primary:active, .floating-action-button:active {
+    transform: scale(0.98) !important;
+    background-color: #F1F5F9 !important;
+    transition: none !important; 
+}
+/* ==========================================
+   🧹 UI CLEANUP: REMOVE MESSY UNDERLINES
+   ========================================== */
+
+/* 1. Kill the underlines under Party Names, Amounts, and generic bold text */
+.party-name, .amount, .balance, #report-party-name, #report-party-balance, .activity-screen strong, form strong, #form-business-profile strong {
+    border-bottom: none !important;
+    text-decoration: none !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 4px !important; /* Restores tight, natural spacing */
+    margin-top: 4px !important;
+    letter-spacing: normal !important;
+    text-transform: none !important; /* Stops names from being forced into ALL CAPS */
+    font-size: inherit !important;
+}
+
+/* 2. Ensure inputs don't have traditional Android underlines either */
+input[type="text"], input[type="number"] {
+    text-decoration: none !important;
+}
+/* ==========================================
+   🧼 UI CLEANUP: THE NATIVE APP SHIELD
+   ========================================== */
+
+/* 1. STEALTH SCROLLBARS */
+/* Hides the clunky default browser scrollbars on all lists and screens while keeping scrolling perfectly smooth */
+::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+    background: transparent !important;
+}
+* {
+    scrollbar-width: none !important; /* Support for Firefox/Other browsers */
+}
+
+/* 2. KILL THE UGLY WEB TAP HIGHLIGHT */
+/* Removes the cheap-looking blue/grey flash that happens when you tap a button on a mobile web browser */
+* {
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* 3. DISABLE ACCIDENTAL TEXT SELECTION */
+/* Makes the app feel like a solid native app. Prevents users from accidentally highlighting dashboard text while scrolling */
+body, .m3-card, .list-view li, .tap-target, button, .bottom-nav, .activity-header, label {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+}
+
+/* 4. PROTECT INPUT BOXES */
+/* We MUST allow text selection inside actual typing boxes so users can copy/paste their data! */
+input, textarea, select {
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
 }

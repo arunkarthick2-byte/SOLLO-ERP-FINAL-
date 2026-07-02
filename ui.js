@@ -32,29 +32,11 @@ const UI = {
             document.head.appendChild(css);
         }
 
-        // 🚨 ENTERPRISE UPGRADE: PREDICTIVE COMPUTE ENGINE (NEGATIVE LATENCY)
+        // 🚨 ENTERPRISE FIX: Save the clicked card for the Container Transform Morph!
+        // (Predictive Database Fetch has been removed here to permanently kill UI stuttering!)
         document.addEventListener('pointerdown', (e) => {
-            const targetBtn = e.target.closest('.tap-target, .nav-item, .list-card');
-            if (targetBtn && targetBtn.hasAttribute('onclick')) {
-                const action = targetBtn.getAttribute('onclick');
-                if (action.includes('sales') && window.getAllRecords) window.getAllRecords('sales');
-                if (action.includes('items') && window.getAllRecords) window.getAllRecords('items');
-                if (action.includes('ledgers') && window.getAllRecords) window.getAllRecords('ledgers');
-            }
-
-            // 🚨 ENTERPRISE FIX: Save the clicked card for the Container Transform Morph!
             const clickedCard = e.target.closest('.m3-card, .list-card');
             if (clickedCard) UI.state.lastClickedCard = clickedCard;
-
-            // 1. Universal Auto-Haptics
-            const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .list-view li, .nav-item, .chip');
-            if (target) {
-                if (target.classList.contains('btn-primary') || target.id === 'main-fab') {
-                    UI.triggerHaptic('medium'); 
-                } else {
-                    UI.triggerHaptic('light'); 
-                }
-            }
         }, { passive: true });
         
         // 🚨 ENTERPRISE UPGRADE: DYNAMIC MOBILE KEYBOARD ENGINE
@@ -2683,37 +2665,60 @@ const UI = {
         const expenseContainer = document.getElementById('expense-ledger-container');
         if (expenseContainer) expenseContainer.style.display = 'none';
 
-        // --- ENTERPRISE UPGRADE: CATCHING INDIRECT INCOME & STOCK LOSS ---
+        // 🚨 ENTERPRISE UPGRADE: CATCHING INDIRECT INCOME, INDIRECT EXPENSES & STOCK GAINS/LOSSES
         let indirectIncome = 0;
+        let indirectExpense = 0;
+        
         cashbook.forEach(c => {
-            if (isDateInRange(c.date) && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+            if (isDateInRange(c.date) && !c.invoiceRef && !c.linkedInvoice) {
                 // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit!
                 const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
                                              UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
                                              UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
+                
                 if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
-                    indirectIncome += parseFloat(c.amount) || 0;
+                    if (c.type === 'in') {
+                        indirectIncome += parseFloat(c.amount) || 0;
+                    } else if (c.type === 'out') {
+                        // 🚨 FIX 1: The Cashbook Blackhole! Catches manual 'Money Out' that bypassed the official Expense form!
+                        indirectExpense += parseFloat(c.amount) || 0;
+                    }
                 }
             }
         });
 
-        // Optional: If you sync adjustments to UI.state.rawData, deduct lost stock here
+        // Calculate exact inventory value changes from manual adjustments
         let stockLoss = 0;
+        let stockGain = 0;
+        
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                // ENTERPRISE FIX: Enforce Firm ID isolation so Company B's stock loss doesn't destroy Company A's Net Profit!
-                if ((!activeFirmId || adj.firmId === activeFirmId) && adj.type === 'reduce' && isDateInRange(adj.date)) {
+                if ((!activeFirmId || adj.firmId === activeFirmId) && isDateInRange(adj.date)) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
-                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                    const historicalCost = parseFloat(adj.buyPrice) || (product ? parseFloat(product.buyPrice) || 0 : 0);
+                    const value = (parseFloat(adj.qty) || 0) * historicalCost;
+                    
+                    if (adj.type === 'reduce') {
+                        stockLoss += value;
+                    } else if (adj.type === 'add') {
+                        // 🚨 FIX 2: Found Stock! If you manually add lost inventory, it mathematically reduces your COGS!
+                        stockGain += value;
+                    }
                 }
             });
         }
 
-        // TRUE ACCRUAL PROFIT MATH (Upgraded)
+        // 🚀 THE "3120" CASH-FLOW METHOD (Dashboard Only)
+        const purePurchases = totalPurchases - inputGst;
         const netRevenue = (totalSales - outputGst) + indirectIncome; 
-        const grossMargin = netRevenue - cogs;
-        const trueNetProfit = grossMargin - (totalExpenses + stockLoss); 
+        
+        // Gross Margin = Total Sales Bills minus Total Purchase Bills (Ignores unsold stock in warehouse)
+        const grossMargin = netRevenue - purePurchases;
+        
+        // True Net Profit = Gross Margin minus Expenses (Ignore stock loss adjustments in cash-flow mode)
+        const totalOperatingCosts = totalExpenses + indirectExpense;
+        const trueNetProfit = grossMargin - totalOperatingCosts; 
 
         // UPGRADE 1: Count-Up Animation Engine
         const animateValue = (id, start, end, duration) => {
@@ -3261,6 +3266,7 @@ const UI = {
         if (targetType === 'customer') titleEl.innerText = "Select Customer";
         else if (targetType === 'supplier') titleEl.innerText = "Select Supplier";
         else if (targetType === 'item') titleEl.innerText = "Add Product";
+        else if (targetType === 'party') titleEl.innerText = "Select Party";
         
         inputEl.value = '';
         UI.executeSmartSearch(); // Load initial list
@@ -3332,31 +3338,44 @@ const UI = {
             });
             
             results.slice(0, 30).forEach(i => {
-                const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
                 const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const safeUom = (i.uom || '').replace(/'/g, "\\'");
-                const safeHsn = (i.hsn || '').replace(/'/g, "\\'");
-                const stockVal = parseFloat(i.stock) || 0;
-                const stockStr = `<span style="color: ${stockVal<=0 ? 'var(--md-error)' : 'var(--md-success)'}; font-weight: bold;">Stock: ${stockVal}</span>`;
                 
-                // ENTERPRISE UX: Done & Done and New Buttons!
-                html += `
-                <div style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; flex-direction: column; gap: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div><strong style="display: block; font-size: 16px;">${UI.highlightText(i.name, query)}</strong><small>${stockStr}</small></div>
-                        <div style="text-align: right;"><strong style="color: var(--md-primary); font-size: 18px;">₹${price.toFixed(2)}</strong></div>
-                    </div>
-                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                        <button class="btn-primary-small tap-target" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 8px 16px;" 
-                            onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added to invoice');">
-                            Done & New
-                        </button>
-                        <button class="btn-primary-small tap-target" style="padding: 8px 16px;" 
-                            onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); UI.closeBottomSheet('sheet-smart-search');">
-                            Done
-                        </button>
-                    </div>
-                </div>`;
+                if (prefix === 'adj') {
+                    const rawGst = parseFloat(i.stockGst);
+                    const rawNon = parseFloat(i.stockNonGst);
+                    const g = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
+                    const ng = isNaN(rawNon) ? 0 : rawNon;
+                    
+                    html += `
+                    <div class="tap-target" onclick="document.getElementById('adj-product-id').value='${i.id}'; document.getElementById('adj-product-display').innerText='${safeName} (GST: ${g} | Non: ${ng})'; document.getElementById('adj-product-display').style.color='var(--md-on-surface)'; UI.closeBottomSheet('sheet-smart-search');" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span></div>
+                        <div><strong style="display: block; font-size: 16px;">${UI.highlightText(i.name, query)}</strong><small style="color: var(--md-text-muted);">GST: ${g} | Non-GST: ${ng}</small></div>
+                    </div>`;
+                } else {
+                    const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
+                    const safeUom = (i.uom || '').replace(/'/g, "\\'");
+                    const safeHsn = (i.hsn || '').replace(/'/g, "\\'");
+                    const stockVal = parseFloat(i.stock) || 0;
+                    const stockStr = `<span style="color: ${stockVal<=0 ? 'var(--md-error)' : 'var(--md-success)'}; font-weight: bold;">Stock: ${stockVal}</span>`;
+                    
+                    html += `
+                    <div style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div><strong style="display: block; font-size: 16px;">${UI.highlightText(i.name, query)}</strong><small>${stockStr}</small></div>
+                            <div style="text-align: right;"><strong style="color: var(--md-primary); font-size: 18px;">₹${price.toFixed(2)}</strong></div>
+                        </div>
+                        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                            <button class="btn-primary-small tap-target" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 8px 16px;" 
+                                onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added to invoice');">
+                                Done & New
+                            </button>
+                            <button class="btn-primary-small tap-target" style="padding: 8px 16px;" 
+                                onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); UI.closeBottomSheet('sheet-smart-search');">
+                                Done
+                            </button>
+                        </div>
+                    </div>`;
+                }
             });
             if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found.</div>`;
             // Bottom '+ Create New' button has been intentionally removed!
@@ -3385,6 +3404,10 @@ const UI = {
                 await app.loadPendingInvoices(id, 'in'); // Added await
             } else if (prefix === 'pay-out' && typeof app.loadPendingInvoices === 'function') {
                 await app.loadPendingInvoices(id, 'out'); // Added await
+            } else if (typeId === 'tax-report' && typeof app.generatePartyTaxReport === 'function') {
+                app.generatePartyTaxReport(); // 🚨 NEW: Trigger Tax Report Math
+            } else if (typeId === 'item-ledger-party' && typeof window.triggerItemLedgerFromForm === 'function') {
+                window.triggerItemLedgerFromForm(); // 🚨 NEW: Trigger Item Ledger Filter
             }
         }
         
@@ -3509,86 +3532,9 @@ const UI = {
         // ENTERPRISE FIX: Removed manual history pop! index.html handles this automatically.
     },
         
-    // UPGRADE: iOS-Style Haptic Context Menu
+    // UPGRADE: iOS-Style Haptic Context Menu (Disabled)
     showContextMenu: (clickAction) => {
-        return; // 🚀 POLISH: This acts as a stop sign, instantly killing the long-press menu!
-
-        let overlay = document.getElementById('haptic-overlay');
-        if (overlay) overlay.remove(); // Force rebuild to update dynamic IDs
-
-        let pdfAction = "if(window.Utils) window.Utils.showToast('Open the document to generate a PDF');";
-        let deleteAction = "if(window.Utils) window.Utils.showToast('Open the document to delete it');";
-
-        // Secretly extract the ID and Type from the HTML click action!
-        const formMatch = clickAction.match(/openForm\('([^']+)',\s*'([^']+)'/);
-        const receiptMatch = clickAction.match(/openReceipt\('([^']+)',\s*'([^']+)'/);
-
-        if (formMatch) {
-            const formType = formMatch[1]; // 'sales' or 'purchase'
-            const docId = formMatch[2];
-            pdfAction = `if(window.app) { window.app.state.currentEditId = '${docId}'; window.app.generatePDF('${formType}'); }`;
-            deleteAction = `if(window.app) { window.app.state.currentEditId = '${docId}'; window.app.deleteRecord('${formType}'); }`;
-        } else if (receiptMatch) {
-            const receiptId = receiptMatch[1];
-            const receiptType = receiptMatch[2]; // 'in' or 'out'
-            pdfAction = `if(window.app) { window.app.generateReceiptPDF('${receiptId}'); }`;
-            deleteAction = `if(window.app) { window.app.state.currentReceiptId = '${receiptId}'; window.app.deleteRecord('receipt-${receiptType}'); }`;
-        }
-
-        overlay = document.createElement('div');
-        overlay.id = 'haptic-overlay';
-        overlay.className = 'sheet-overlay hidden'; 
-        overlay.style.zIndex = '6500'; 
-        
-        overlay.innerHTML = `
-            <div id="haptic-menu" class="bottom-sheet" style="z-index: 6501; padding: 0 0 calc(24px + env(safe-area-inset-bottom, 0px)) 0; background: transparent !important; box-shadow: none;">
-                
-                <div style="margin: 0 16px 16px 16px; background: var(--md-surface); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); overflow: hidden;">
-                    <div style="padding: 14px; text-align: center; font-size: 12px; font-weight: bold; color: var(--md-text-muted); border-bottom: 1px solid var(--md-surface-variant); background: rgba(0,0,0,0.02);">
-                        DOCUMENT OPTIONS
-                    </div>
-                    
-                    <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${clickAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-on-surface); border-bottom: 1px solid var(--md-surface-variant); background: var(--md-surface);">
-                        <div class="icon-circle" style="width:36px; height:36px; background: var(--md-primary-container); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size:20px;">edit_document</span></div>
-                        Open & Edit
-                    </div>
-                    
-                    <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${pdfAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-on-surface); border-bottom: 1px solid var(--md-surface-variant); background: var(--md-surface);">
-                        <div class="icon-circle" style="width:36px; height:36px; background: rgba(245, 127, 23, 0.1); color: #f57f17;"><span class="material-symbols-outlined" style="font-size:20px;">picture_as_pdf</span></div>
-                        Generate PDF
-                    </div>
-
-                    <div class="tap-target" onclick="document.getElementById('haptic-overlay').click(); setTimeout(() => { ${deleteAction} }, 300);" style="padding: 16px 20px; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 500; color: var(--md-error); background: var(--md-surface);">
-                        <div class="icon-circle" style="width:36px; height:36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);"><span class="material-symbols-outlined" style="font-size:20px;">delete</span></div>
-                        Delete Document
-                    </div>
-                </div>
-
-                <div class="tap-target" onclick="document.getElementById('haptic-overlay').click();" style="margin: 0 16px; padding: 16px; text-align: center; background: var(--md-surface); border-radius: 20px; font-size: 16px; font-weight: bold; color: var(--md-primary); box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
-                    Cancel
-                </div>
-
-            </div>
-        `;
-        document.body.appendChild(overlay);
-        
-        // ENTERPRISE FIX: Route overlay clicks through the official Android Back-Button system to prevent history corruption!
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                window.history.back(); // Triggers popstate, which cleanly closes the haptic menu
-            }
-        });
-        
-        overlay.classList.remove('hidden');
-        requestAnimationFrame(() => {
-            overlay.classList.add('open');
-            document.getElementById('haptic-menu').classList.add('open');
-        });
-        
-        // ENTERPRISE FIX: Manually push a history state since a Long-Press isn't caught by the global click tracker!
-        window.history.pushState({ internalRoute: true }, '');
-        
-        if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(15);
+        return; 
     },
     renderLedgerList: (containerId, ledgers, prefix) => {
         const container = document.getElementById(containerId);
@@ -3950,37 +3896,43 @@ const UI = {
             }
         });
 
-        // 3. INDIRECT INCOME
+        // 3. INDIRECT INCOME & EXPENSES (The Cashbook Blackhole)
+        let indirectExpense = 0;
         (window.UI.state.rawData.cashbook || []).forEach(c => {
-            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= startDate && c.date <= endDate && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
+            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= startDate && c.date <= endDate && !c.invoiceRef && !c.linkedInvoice) {
                 const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) ||
                                              UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) ||
                                              UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
                 if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
-                    indirectIncome += parseFloat(c.amount) || 0;
+                    if (c.type === 'in') indirectIncome += parseFloat(c.amount) || 0;
+                    else if (c.type === 'out') indirectExpense += parseFloat(c.amount) || 0;
                 }
             }
         });
 
-        // 4. STOCK LOSS
+        // 4. STOCK LOSS & GAIN
+        let stockGain = 0;
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                if (adj.type === 'reduce' && adj.date >= startDate && adj.date <= endDate) {
+                if ((!activeFirmId || adj.firmId === activeFirmId) && adj.date >= startDate && adj.date <= endDate) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
-                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                    const value = (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                    if (adj.type === 'reduce') stockLoss += value;
+                    else if (adj.type === 'add') stockGain += value;
                 }
             });
         }
 
         // 5. CALCULATE EXACT MARGINS
-        // ENTERPRISE FIX: The Fatal ReferenceError Crash!
-        // The original loop was already calculating exact COGS, it just named the variables 'Purchases'!
-        // Reverting this prevents a massive Javascript crash when opening the P&L Tab!
         const gstGrossProfit = gstSales - gstPurchases;
         const nonGstGrossProfit = nonGstSales - nonGstPurchases;
-        const totalGrossProfit = gstGrossProfit + nonGstGrossProfit + indirectIncome;
-        const trueNetProfit = totalGrossProfit - (totalExpenses + stockLoss);
+        
+        // Add indirect income and inventory gains to Gross Profit
+        const totalGrossProfit = gstGrossProfit + nonGstGrossProfit + indirectIncome + stockGain;
+        
+        // Deduct formal expenses, un-categorized bank deductions, and lost stock!
+        const trueNetProfit = totalGrossProfit - (totalExpenses + indirectExpense + stockLoss);
 
         // 6. RENDER THE PREMIUM SPLIT UI
         container.innerHTML = `
@@ -4186,21 +4138,7 @@ const UI = {
         container.innerHTML = skeletons;
     },
 
-    // The Density Toggle: Shrinks or expands the UI and saves it to memory!
-    toggleDataDensity: () => {
-        const isCompact = document.body.classList.toggle('compact-mode');
-        localStorage.setItem('sollo_density', isCompact ? 'compact' : 'comfortable');
-        
-        if (window.Utils) window.Utils.showToast(isCompact ? "📏 Compact View Activated" : "📱 Comfortable View Activated");
-        if (window.UI) window.UI.triggerHaptic('medium');
-    }
-
 }; // <--- MAKE SURE YOU HAVE THIS CLOSING BRACKET AND SEMICOLON!
-
-// Auto-Restore the user's density preference the millisecond the app boots!
-if (localStorage.getItem('sollo_density') === 'compact') {
-    document.body.classList.add('compact-mode');
-}
 
 // Bind Listeners for Live Search Filtering
 document.addEventListener('DOMContentLoaded', () => {
@@ -4222,8 +4160,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('pointerdown', (e) => {
         const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .nav-item, .list-view li, .chip');
         if (target) {
-            // ENTERPRISE FIX: Removed the 'Bee Swarm' vibration here! 
-            // Vibrations should ONLY happen on deliberate 'clicks', not when a user touches the screen to scroll.
+            // 🚀 ENTERPRISE UPGRADE: Consolidated Single-Fire Haptic Motor!
+            if (typeof window.UI !== 'undefined' && typeof window.UI.triggerHaptic === 'function') {
+                if (target.classList.contains('btn-primary') || target.id === 'main-fab') {
+                    window.UI.triggerHaptic('medium'); 
+                } else {
+                    window.UI.triggerHaptic('light'); 
+                }
+            }
 
             // True Material Touch Ripple (Calculates exact X/Y finger coordinates)
             const rect = target.getBoundingClientRect();
@@ -4721,3 +4665,77 @@ const passiveConfig = { passive: true, capture: false };
 window.addEventListener('touchstart', function() {}, passiveConfig);
 window.addEventListener('touchmove', function() {}, passiveConfig);
 window.addEventListener('wheel', function() {}, passiveConfig);
+// ==========================================
+// 🚀 ENTERPRISE SAAS: AUDIO & SENSORY ENGINE
+// ==========================================
+
+// 1. Create a professional, synthesized "Success Ding"
+window.playSuccessSound = () => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        osc.type = 'sine';
+        // A pleasant, high-pitched "ding" (like Stripe or a cash register)
+        osc.frequency.setValueAtTime(880, ctx.currentTime); 
+        osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+        
+        gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+    } catch (e) { 
+        console.log("Audio engine suppressed by browser policy."); 
+    }
+};
+
+// 2. Intercept the existing Success Animation and add the Sound + Heavy Vibration
+if (window.UI && typeof window.UI.showSuccess === 'function') {
+    const originalShowSuccess = window.UI.showSuccess;
+    window.UI.showSuccess = function() {
+        // Play the Ding
+        window.playSuccessSound();
+        
+        // Trigger a heavy mechanical snap on the phone's vibration motor
+        if (window.UI.triggerHaptic) window.UI.triggerHaptic('heavy');
+        
+        // Run the original green checkmark animation
+        originalShowSuccess.apply(this, arguments);
+    };
+}
+
+// 3. Add a subtle "Tick" sound when adding items to the cart
+window.playTickSound = () => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(400, ctx.currentTime);
+        gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.05);
+    } catch (e) {}
+};
+
+// Intercept adding a product to play the tick
+if (window.UI && typeof window.UI.addSmartItemRow === 'function') {
+    const originalAddItem = window.UI.addSmartItemRow;
+    window.UI.addSmartItemRow = function() {
+        window.playTickSound();
+        if (window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+        originalAddItem.apply(this, arguments);
+    };
+}

@@ -280,7 +280,7 @@ const app = {
                     try {
                         const res2 = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&addressdetails=1`, { 
     signal: controller.signal,
-    headers: { 'User-Agent': 'SolloERP/6.1 (your-email@example.com)' }
+    headers: { 'User-Agent': 'SolloERP/6.1 (solloenterprises@gmail.com)' }
 });
                         const data2 = await res2.json();
                         if (data2 && data2.length > 0 && data2[0].address) {
@@ -1182,21 +1182,14 @@ const app = {
                 return;
             }
 
-            // Populate the dropdown with actual products and their dual stock pools!
-            let html = '<option value="">Select Product...</option>';
-            items.forEach(i => {
-                if (i.firmId === app.state.firmId) {
-                    const rawGst = parseFloat(i.stockGst);
-                    const rawNon = parseFloat(i.stockNonGst);
-                    let g = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
-                    let ng = isNaN(rawNon) ? 0 : rawNon;
-                    const safeItemName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(i.name) : i.name;
-                    html += `<option value="${i.id}">${safeItemName} (GST: ${g.toFixed(2)} | Non-GST: ${ng.toFixed(2)})</option>`;
-                }
-            });
-            
-            // CRASH-PROOF SHIELD: Only update elements if they actually exist in the HTML!
-            if (select) select.innerHTML = html;
+            // ENTERPRISE FIX: Reset the Smart Search UI instead of rendering 10,000 HTML dropdown options!
+            const displayEl = document.getElementById('adj-product-display');
+            const idEl = document.getElementById('adj-product-id');
+            if (displayEl) {
+                displayEl.innerText = 'Tap to search...';
+                displayEl.style.color = 'var(--md-text-muted)';
+            }
+            if (idEl) idEl.value = '';
             
             const qtyEl = document.getElementById('adj-qty');
             if (qtyEl) qtyEl.value = '';
@@ -5604,13 +5597,13 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
     // ENTERPRISE UPGRADE: PARTY-WISE TAX REPORT
     // ==========================================
     openPartyTaxReport: async () => {
-        // ENTERPRISE FIX: Prevent UI lag when opening the Party Tax Report modal!
-        const ledgers = await window.getAllRecords('ledgers', 'firmId', app.state.firmId);
-        const customers = ledgers.filter(l => l.type === 'Customer');
-        const select = document.getElementById('tax-report-customer');
-        if (select) {
-            select.innerHTML = '<option value="">Select Customer...</option>' + customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        const displayEl = document.getElementById('tax-report-display');
+        const idEl = document.getElementById('tax-report-id');
+        if (displayEl) {
+            displayEl.innerText = 'Tap to search...';
+            displayEl.style.color = 'var(--md-text-muted)';
         }
+        if (idEl) idEl.value = '';
         
         // ENTERPRISE FIX: Set default dates from the 1st of the month to Today!
         const d = new Date();
@@ -5633,20 +5626,27 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
     },
 
     generatePartyTaxReport: async () => {
-        const customerId = document.getElementById('tax-report-customer').value;
+        const partyId = document.getElementById('tax-report-id').value;
         const fromVal = document.getElementById('tax-report-from').value;
         const toVal = document.getElementById('tax-report-to').value;
         
-        if (!customerId || !fromVal || !toVal) return;
+        if (!partyId || !fromVal || !toVal) return;
 
-        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+        const party = await window.getRecordById('ledgers', partyId);
+        if (!party) return;
+        
+        const isCustomer = party.type === 'Customer';
+        const storeName = isCustomer ? 'sales' : 'purchases';
+        const partyKey = isCustomer ? 'customerId' : 'supplierId';
+
+        const docs = await window.getAllRecords(storeName, 'firmId', app.state.firmId);
         
         let b2bTaxable = 0, b2bTax = 0, b2cTaxable = 0, b2cTax = 0;
 
-        sales.forEach(s => {
+        docs.forEach(s => {
             // ENTERPRISE FIX: The Timezone Trap Shield!
             // Direct string comparison natively ignores timezones, preventing missing invoices!
-            if (s.firmId === app.state.firmId && s.customerId === customerId && s.status !== 'Open' && s.date >= fromVal && s.date <= toVal) {
+            if (s.firmId === app.state.firmId && s[partyKey] === partyId && s.status !== 'Open' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const isB2B = s.invoiceType === 'B2B';
                 
@@ -5712,7 +5712,12 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             if (s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 
-                const rawSubtotal = parseFloat(s.subtotal) || 0;
+                // 🚨 BUG FIX: Re-calculate the pure, un-discounted subtotal directly from the items!
+                // The database 's.subtotal' already has the discount applied, which caused the double-deduction +40 Round Off Bug!
+                let rawSubtotal = 0;
+                (s.items || []).forEach(item => {
+                    rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
+                });
                 
                 // 🚨 ENTERPRISE FIX 1: Safe extraction using the exact database property names
                 const freight = parseFloat(s.freight) || parseFloat(s.freightAmount) || 0;
@@ -8333,15 +8338,20 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ==========================================
-// 🚀 PREMIUM POLISH: GLOBAL HAPTIC ENGINE
+// 🚀 PREMIUM POLISH: MOBILE KEYBOARD AUTO-CENTER
 // ==========================================
-// Instantly fires a microscopic physical vibration on all interactive elements
-document.addEventListener('pointerdown', (e) => {
-    // Check if the user's finger touched a button, card, list row, tab, or icon
-    const isClickable = e.target.closest('.btn-primary, .btn-secondary, .tap-target, .nav-item, .chip, .list-card, .list-view li, .floating-action-button, .m3-card, .icon-circle');
+// Detects when you tap an input and smoothly glides it to the center of the screen above the keyboard!
+document.addEventListener('focusin', (e) => {
+    const tag = e.target.tagName;
     
-    // If it is clickable, fire the 'light' native vibration motor!
-    if (isClickable && typeof window.UI !== 'undefined' && typeof window.UI.triggerHaptic === 'function') {
-        window.UI.triggerHaptic('light');
+    // Only trigger if they tapped a text box, number box, or dropdown
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        
+        // Wait exactly 300ms to let the Android/iOS keyboard finish sliding up first
+        setTimeout(() => {
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+        
     }
-}, { passive: true });
+});
+

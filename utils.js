@@ -475,7 +475,7 @@ const Utils = {
         setTimeout(() => {
             URL.revokeObjectURL(url);
             if (a.parentNode) document.body.removeChild(a);
-        }, 1000);
+        }, 60000);
     },
     // ==========================================
     // NEW CODE: UNIVERSAL SHARE ENGINE
@@ -563,7 +563,7 @@ const Utils = {
                     setTimeout(() => {
                         URL.revokeObjectURL(url);
                         if (link.parentNode) document.body.removeChild(link);
-                    }, 1000);
+                    }, 60000);
                 }
             }, 'image/jpeg', 0.90); // Added 90% compression
 
@@ -725,7 +725,7 @@ Please process this accordingly. Thank you!`;
             setTimeout(() => {
                 URL.revokeObjectURL(url);
                 if (a.parentNode) document.body.removeChild(a);
-            }, 1000);
+            }, 60000);
             
             if (window.Utils) window.Utils.showToast("✅ Backup successfully saved to Downloads!");
         } catch (e) {
