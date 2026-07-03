@@ -211,14 +211,22 @@ const UI = {
     },
 
     openNumpad: (inputElement, labelText) => {
-        inputElement.blur(); // Stops default phone keyboard from appearing
+        // Force the input to stay focused so the blue highlighter ring stays visible!
+        inputElement.focus();
         UI.state.activeNumpadInput = inputElement;
         document.getElementById('numpad-label').innerText = labelText || "Enter Value";
         document.getElementById('custom-numpad').classList.add('active');
+        
+        // 🚀 ENTERPRISE UX: Auto-Scroll to Input!
+        // Automatically pushes the screen up so the keypad never hides the box you are typing in.
+        setTimeout(() => {
+            inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
     },
 
     closeNumpad: () => {
         document.getElementById('custom-numpad').classList.remove('active');
+        if (UI.state.activeNumpadInput) UI.state.activeNumpadInput.blur();
         UI.state.activeNumpadInput = null;
     },
 
@@ -263,32 +271,30 @@ const UI = {
 
     // --- ENTERPRISE UPGRADE: SYSTEM-AWARE DARK MODE ---
     initTheme: function() {
-        // STRICT OS SYNC: Always check the phone's actual system setting first!
-        const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const metaTheme = document.getElementById('meta-theme-color');
+        const savedTheme = localStorage.getItem('sollo_theme_preference');
+        const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-        // Only switch to dark mode if the phone itself is in dark mode
-        if (systemPrefersDark) {
+        // 🚨 BUG FIX: Respect the user's manual choice FIRST. If none exists, fallback to the OS!
+        if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
             document.body.classList.add('dark-mode');
             if (metaTheme) metaTheme.setAttribute('content', '#000000');
         } else {
             document.body.classList.remove('dark-mode');
             if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
-            // Safely clear any stuck manual saves so it doesn't accidentally force dark mode!
-            localStorage.removeItem('sollo_theme_preference'); 
         }
 
-        // The Live OS Listener: Watch the phone's system settings in real-time!
+        // The Live OS Listener: Only auto-switch if the user HAS NOT manually locked a preference
         if (window.matchMedia) {
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-                localStorage.removeItem('sollo_theme_preference');
-                
-                if (event.matches) {
-                    document.body.classList.add('dark-mode');
-                    if (metaTheme) metaTheme.setAttribute('content', '#000000');
-                } else {
-                    document.body.classList.remove('dark-mode');
-                    if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
+                if (!localStorage.getItem('sollo_theme_preference')) {
+                    if (event.matches) {
+                        document.body.classList.add('dark-mode');
+                        if (metaTheme) metaTheme.setAttribute('content', '#000000');
+                    } else {
+                        document.body.classList.remove('dark-mode');
+                        if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
+                    }
                 }
             });
         }
@@ -3475,10 +3481,10 @@ const UI = {
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="number" inputmode="decimal" class="row-qty" value="1" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="text" inputmode="none" readonly class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none; cursor: pointer;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="text" inputmode="none" readonly class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none; cursor: pointer;">
                         <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
@@ -3487,7 +3493,7 @@ const UI = {
                     ${prefix === 'sales' ? `
                     <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                         <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="number" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent;">
+                        <input type="text" inputmode="none" readonly class="row-item-buyprice tap-target" value="${buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent; cursor: pointer;">
                         <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                     </div>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
@@ -3658,15 +3664,15 @@ const UI = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="number" inputmode="decimal" class="row-qty" value="1" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="text" inputmode="none" readonly class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="number" inputmode="decimal" class="row-rate" value="${smart.price}" step="any" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="text" inputmode="none" readonly class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="number" inputmode="decimal" class="row-gst" value="${p.gst || 0}" step="any" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="text" inputmode="none" readonly class="row-gst tap-target" value="${p.gst || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter GST %')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
                     </div>
                 </div>
 
@@ -3675,7 +3681,7 @@ const UI = {
                         ${prefix === 'sales' ? `
                         <div>
                             <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
-                            <input type="number" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                            <input type="text" inputmode="none" readonly class="row-item-buyprice tap-target" value="${p.buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px; cursor: pointer;">
                         </div>
                         ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
                     </div>
@@ -4227,7 +4233,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'submit') {
             // Find all focusable inputs inside the current active screen/modal
             const activeContainer = e.target.closest('.activity-screen.open') || e.target.closest('.bottom-sheet.open') || document;
-            const focusable = Array.from(activeContainer.querySelectorAll('input:not([type="hidden"]):not([disabled]), select:not([disabled])'));
+            // 🚨 BUG FIX: Added :not([readonly]) so the keyboard doesn't get trapped in locked fields!
+            const focusable = Array.from(activeContainer.querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled])'));
             
             const index = focusable.indexOf(e.target);
             if (index > -1 && index + 1 < focusable.length) {

@@ -215,9 +215,6 @@ const Cloud = {
                         
                         // NEW: Let the CPU breathe every 500 rows so memory doesn't explode!
                         if (j % 500 === 0) await new Promise(res => setTimeout(res, 0));
-                        
-                        // NEW: Let the phone's CPU breathe every 500 rows so it doesn't crash!
-                        if (j % 500 === 0) await new Promise(res => setTimeout(res, 0));
                     }
                     blobParts.push(']');
                     if (i < keys.length - 1) blobParts.push(',');

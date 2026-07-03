@@ -8160,17 +8160,14 @@ document.addEventListener('input', (e) => {
     }
 });
 
-// Auto-initialize existing values when the app opens or a form loads
-setInterval(() => {
+// 🚨 BUG FIX: Battery & CPU Performance Drain
+// Replaced the infinite 500ms loop with an intelligent event-based scanner that only runs when forms actually change or open!
+window.refreshFloatingLabels = () => {
     document.querySelectorAll('.form-group input, .form-group textarea, .form-group select').forEach(el => {
         const group = el.closest('.form-group');
         if (group) {
-            // 🚨 ENTERPRISE FIX: Force labels to float for Files AND Date fields so they NEVER overlap!
             const hasImage = group.querySelector('img') && !group.querySelector('img').classList.contains('hidden');
-            
-            // Detect if this is a calendar/date field
             const isDateField = el.type === 'date' || el.classList.contains('flatpickr-input') || (el.id && el.id.includes('date'));
-            
             if ((el.value && String(el.value).trim() !== '') || el.type === 'file' || isDateField || hasImage) {
                 group.classList.add('has-value');
             } else {
@@ -8178,7 +8175,18 @@ setInterval(() => {
             }
         }
     });
-}, 500); // Runs a quick background sweep twice a second to catch dynamically loaded data
+};
+
+// Intelligently trigger the sweep ONLY when the user clicks a button to open a form, or when a form is cleared
+document.addEventListener('click', (e) => {
+    // If they tap a list item, an edit button, or an action button, sweep the labels once 250ms later
+    if (e.target.closest('.tap-target') || e.target.closest('.list-item') || e.target.closest('button')) {
+        setTimeout(window.refreshFloatingLabels, 250); 
+    }
+});
+
+// Sweep the labels instantly when a form is naturally reset
+document.addEventListener('reset', () => setTimeout(window.refreshFloatingLabels, 50));
 // ==========================================
 // 🚨 ENTERPRISE AI: BUSINESS INTELLIGENCE & ANALYTICS
 // (READ-ONLY ENGINE - ZERO DATABASE CORRUPTION)

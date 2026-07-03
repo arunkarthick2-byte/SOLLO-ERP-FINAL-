@@ -49,7 +49,6 @@
     </script> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <!-- 🚨 BIZOPS FIX: Injected Chart.js Library -->
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -98,7 +97,138 @@
         body, html {
             overscroll-behavior-y: none; 
         }
+
+        /* 🚨 BIZOPS FIX: RESTORE STICKY FOOTER & UN-STICK DYNAMIC BANNER */
+        
+        /* 1. Repair the screen layout so the Header & Save Button lock back into place! */
+        body .activity-screen.open,
+        body .activity-screen.active {
+            display: flex !important;
+            overflow: hidden !important;
+        }
+        
+        body .activity-content {
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            flex: 1 !important;
+        }
+
+        /* 2. Force ALL dynamically injected Insight Banners to scroll away normally */
+        #sales-risk-banner, 
+        #purchase-risk-banner,
+        #risk-banner,
+        [id*="risk-banner"] {
+            position: relative !important;
+            top: auto !important;
+            z-index: 1 !important;
+            margin: 4px 0 16px 0 !important;
+        }
+
+        /* 🚨 BIZOPS FIX: PROFESSIONAL INVOICE ITEM ROWS */
+        /* Completely strips the bulky boxes and turns them into clean receipt lines */
+        .item-entry-card {
+            border: none !important;
+            border-bottom: 1px dashed var(--md-outline-variant) !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
+            padding: 12px 8px !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        
+        .item-entry-card:last-child {
+            border-bottom: none !important;
+        }
+
+        /* Clean up the product title */
+        .item-entry-card strong {
+            font-size: 14px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+            color: var(--md-on-surface) !important;
+        }
+
+        /* Makes the Quantity and Rate inputs look like subtle, pro spreadsheet cells */
+        .item-entry-card input.row-qty, 
+        .item-entry-card input.row-rate {
+            background: transparent !important;
+            border: none !important;
+            border-bottom: 1px solid var(--md-outline-variant) !important;
+            border-radius: 0 !important;
+            padding: 4px !important;
+            font-size: 16px !important;
+            font-weight: 800 !important;
+            color: var(--md-primary) !important;
+            box-shadow: none !important;
+            text-align: center !important;
+            min-height: auto !important;
+            width: 80px !important;
+            transition: all 0.2s ease !important;
+        }
+
+        /* Instantly glows green when the user taps to edit qty/rate */
+        .item-entry-card input.row-qty:focus, 
+        .item-entry-card input.row-rate:focus {
+            border-bottom: 2px solid var(--md-success) !important;
+            background: rgba(20, 108, 46, 0.05) !important;
+            color: var(--md-success) !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        /* FIX: Force Buy Price input to be compact and match the theme */
+        .item-entry-card input.row-item-buyprice {
+            background: transparent !important;
+            min-height: 18px !important;     /* Shrinks the minimum height */
+            height: 18px !important;         /* Shrinks the actual height */
+            line-height: 18px !important;    /* Keeps the numbers centered inside the tiny box */
+            padding: 0px 4px !important;     /* Removes the bulky padding inside the box */
+            font-size: 11px !important;
+            color: var(--md-text-muted) !important;
+            width: 45px !important;          /* Makes the box narrower */
+            text-align: center !important;
+            border-radius: 3px !important;   /* Slightly sharper corners for a compact look */
+            box-shadow: none !important;
+            border: 1px solid var(--md-outline-variant) !important;
+        }
+
+        .item-entry-card input.row-item-buyprice:focus {
+            border-color: var(--md-primary) !important;
+            color: var(--md-primary) !important;
+            background: rgba(0, 97, 164, 0.05) !important;
+        }
+
+        /* Subdue the Delete 'X' so it isn't distracting */
+        .item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"],
+        .item-entry-card span[onclick*="remove"] {
+            background: transparent !important;
+            color: var(--md-text-muted) !important;
+        }
     </style>
+
+    <!-- 🚨 BIZOPS FIX: SMART BANNER RELOCATOR -->
+    <script>
+        // Physically moves the banner inside the scrollable form area so it scrolls away naturally!
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.id && node.id.includes('risk-banner')) {
+                            const screen = node.closest('.activity-screen');
+                            if (screen) {
+                                const form = screen.querySelector('form');
+                                // Move it inside the form if it's not already there
+                                if (form && node.parentElement !== form) {
+                                    form.insertBefore(node, form.firstChild);
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    </script>
 
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" as="script">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" as="script">
@@ -628,13 +758,17 @@
         <div class="activity-content">
             <form id="form-sales">
 
-                <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('customer', 'sales')">
-                    <div>
-                        <small style="color: var(--md-text-muted);">Billed To *</small>
-                        <div id="sales-customer-display" class="large-text" style="color: var(--md-text-muted);">Select Customer...</div>
+                <!-- ✨ ENTERPRISE UX: CRM-STYLE CUSTOMER CARD -->
+                <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface); border: 1px solid var(--md-primary); border-left: 4px solid var(--md-primary); box-shadow: 0 4px 12px rgba(0, 97, 164, 0.06); display: flex; align-items: center; gap: 16px; padding: 14px 16px;" onclick="if(window.UI) UI.openSmartSearch('customer', 'sales')">
+                    <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); width: 44px; height: 44px; color: var(--md-primary); flex-shrink: 0; box-shadow: none;">
+                        <span class="material-symbols-outlined" style="font-size: 22px;">person</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <small style="color: var(--md-primary); font-weight: 800; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;">Billed To *</small>
+                        <div id="sales-customer-display" class="large-text" style="color: var(--md-text-muted); font-weight: 600; margin-top: 2px;">Select Customer...</div>
                         <input type="hidden" id="sales-customer-id">
                     </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
                 </div>
 
                 <div id="sales-return-ref-group" class="hidden" style="margin-bottom: 12px; background: rgba(186, 26, 26, 0.05); padding: 12px; border-radius: 8px; border: 1px solid var(--md-error);">
@@ -646,15 +780,15 @@
 
                 <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Invoice No</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Invoice No</label>
                         <input type="text" id="sales-invoice-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Date</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Date</label>
                         <input type="date" id="sales-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Document Status</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Doc Status</label>
                         <select id="sales-order-status" onchange="UI.toggleDates('sales')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                             <option value="Open">Draft Estimate</option>
                             <option value="Unpaid">Unpaid Invoice</option>
@@ -663,7 +797,7 @@
                         </select>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Tax Type</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Tax Type</label>
                         <select id="sales-invoice-type" onchange="UI.calcSalesTotals()" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                             <option value="B2B">B2B (GST)</option>
                             <option value="B2C">B2C (GST)</option>
@@ -674,40 +808,44 @@
 
                 <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Order Ref</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Order Ref</label>
                         <input type="text" id="sales-order-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Order Date</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Order Date</label>
                         <input type="date" id="sales-order-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div id="sales-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Dispatch Date</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Dispatch Date</label>
                         <input type="date" id="sales-shipped-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div id="sales-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Completed Date</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Completed Date</label>
                         <input type="date" id="sales-completed-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
-                    <div class="tap-target" style="padding: 12px; display: flex; align-items: center; background: var(--md-surface-variant); border-bottom: 1px solid var(--md-outline-variant); border-radius: 8px 8px 0 0;" onclick="if(window.UI) UI.openSmartSearch('item', 'sales')">
-                        <span class="material-symbols-outlined" style="color: var(--md-primary); margin-right: 8px;">search</span>
-                        <span style="flex: 1; font-size: 15px; color: var(--md-on-surface); font-weight: 600;">Tap to add products...</span>
-                        <span class="material-symbols-outlined" style="color: #0061a4;" onclick="event.stopPropagation(); if(window.app) window.app.openForm('product')">add_circle</span>
+                <!-- ✨ ENTERPRISE UX: CTA DASHED DROPZONE -->
+                <div class="m3-card" style="margin-bottom: 12px; padding: 8px;">
+                    <div class="tap-target" style="padding: 14px; display: flex; align-items: center; justify-content: center; background: rgba(0, 97, 164, 0.04); border: 2px dashed rgba(0, 97, 164, 0.3); border-radius: 8px; margin-bottom: 8px; transition: all 0.2s ease;" onclick="if(window.UI) UI.openSmartSearch('item', 'sales')">
+                        <span class="material-symbols-outlined" style="color: var(--md-primary); margin-right: 8px; font-size: 20px;">add_circle</span>
+                        <span style="font-size: 15px; color: var(--md-primary); font-weight: 700;">Add Product to Invoice</span>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline); margin-left: auto;" onclick="event.stopPropagation(); if(window.app) window.app.openForm('product')">post_add</span>
                     </div>
-                    <div id="sales-items-body" style="display: flex; flex-direction: column; gap: 12px;"></div>
-                    <div id="sales-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
+                    <div id="sales-items-body" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    <div id="sales-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted); font-size: 13px;">No items added yet. Search above to begin.</div>
                 </div>
 
                 <div class="m3-card sticky-totals" style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Subtotal:</span><strong id="sales-subtotal">&#8377;0.00</strong></div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span>Discount:</span>
-                        <div style="display: flex; gap: 4px; width: 140px;">
-                            <input type="number" inputmode="decimal" id="sales-discount" value="0" min="0" step="any" oninput="UI.calcSalesTotals()" style="width: 70%;">
-                            <select id="sales-discount-type" onchange="UI.calcSalesTotals()" style="width: 30%; padding: 4px;"><option value="&#8377;">&#8377;</option><option value="%">%</option></select>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="sales-discount-type" onchange="UI.calcSalesTotals()" style="padding: 4px 6px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); color: var(--md-on-surface); font-weight: bold; outline: none; cursor: pointer;">
+                                <option value="&#8377;">&#8377;</option>
+                                <option value="%">%</option>
+                            </select>
+                            <input type="text" inputmode="none" readonly id="sales-discount" class="tap-target" value="0" onclick="if(window.UI) window.UI.openNumpad(this, 'Discount Amount')" oninput="UI.calcSalesTotals()" style="width: 100px !important; text-align: right; cursor: pointer;">
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Total GST:</span><strong id="sales-gst-total">&#8377;0.00</strong></div>
@@ -716,8 +854,11 @@
                         <span>SGST: <strong id="sales-sgst-total">&#8377;0.00</strong></span>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span>Freight:</span>
-                        <input type="number" inputmode="decimal" id="sales-freight" value="0" step="any" oninput="UI.calcSalesTotals()" style="width: 100px; text-align: right;">
+                        <span>Freight & Extra:</span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span style="font-weight: bold; color: var(--md-text-muted);">₹</span>
+                            <input type="text" inputmode="none" readonly id="sales-freight" class="tap-target" value="0" onclick="if(window.UI) window.UI.openNumpad(this, 'Freight Amount')" oninput="UI.calcSalesTotals()" style="width: 100px !important; text-align: right; cursor: pointer;">
+                        </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--md-text-muted); font-size: 14px;">
                         <span>Round Off:</span>
@@ -853,13 +994,17 @@
         <div class="activity-content">
             <form id="form-purchase">
 
-                <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'purchase')">
-                    <div>
-                        <small style="color: var(--md-text-muted);">Purchased From *</small>
-                        <div id="purchase-supplier-display" class="large-text" style="color: var(--md-text-muted);">Select Supplier...</div>
+                <!-- ✨ ENTERPRISE UX: CRM-STYLE SUPPLIER CARD -->
+                <div class="m3-card tap-target" style="margin-bottom: 12px; background: var(--md-surface); border: 1px solid #d84315; border-left: 4px solid #d84315; box-shadow: 0 4px 12px rgba(216, 67, 21, 0.06); display: flex; align-items: center; gap: 16px; padding: 14px 16px;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'purchase')">
+                    <div class="icon-circle" style="background: rgba(216, 67, 21, 0.1); width: 44px; height: 44px; color: #d84315; flex-shrink: 0; box-shadow: none;">
+                        <span class="material-symbols-outlined" style="font-size: 22px;">local_shipping</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <small style="color: #d84315; font-weight: 800; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;">Purchased From *</small>
+                        <div id="purchase-supplier-display" class="large-text" style="color: var(--md-text-muted); font-weight: 600; margin-top: 2px;">Select Supplier...</div>
                         <input type="hidden" id="purchase-supplier-id">
                     </div>
-                    <span class="material-symbols-outlined" style="color: #d84315;">search</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
                 </div>
 
                 <div id="purchase-return-ref-group" class="hidden" style="margin-bottom: 12px; background: rgba(20, 108, 46, 0.05); padding: 12px; border-radius: 8px; border: 1px solid var(--md-success);">
@@ -871,15 +1016,15 @@
 
                 <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Bill / PO No</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Bill / PO No</label>
                         <input type="text" id="purchase-po-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Bill Date</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Bill Date</label>
                         <input type="date" id="purchase-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Document Status</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Doc Status</label>
                         <select id="purchase-order-status" onchange="UI.toggleDates('purchase')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                             <option value="Open" selected>Draft PO</option>
                             <option value="Unpaid">Unpaid Bill</option>
@@ -887,7 +1032,7 @@
                         </select>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Tax Type</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Tax Type</label>
                         <select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                             <option value="B2B">B2B (ITC Claimable)</option>
                             <option value="Non-GST">Non-GST / Exempt</option>
@@ -897,40 +1042,44 @@
 
                 <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Our PO No</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Our PO No</label>
                         <input type="text" id="purchase-order-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Order Date</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Order Date</label>
                         <input type="date" id="purchase-order-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div id="purchase-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Dispatch Date</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Dispatch Date</label>
                         <input type="date" id="purchase-shipped-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                     <div id="purchase-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
-                        <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Completed Date</label>
+                        <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Completed Date</label>
                         <input type="date" id="purchase-completed-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; padding: 0;">
-                    <div class="tap-target" style="padding: 12px; display: flex; align-items: center; background: var(--md-surface-variant); border-bottom: 1px solid var(--md-outline-variant); border-radius: 8px 8px 0 0;" onclick="if(window.UI) UI.openSmartSearch('item', 'purchase')">
-                        <span class="material-symbols-outlined" style="color: #f57f17; margin-right: 8px;">search</span>
-                        <span style="flex: 1; font-size: 15px; color: var(--md-on-surface); font-weight: 600;">Tap to add products...</span>
-                        <span class="material-symbols-outlined" style="color: #f57f17;" onclick="event.stopPropagation(); if(window.app) window.app.openForm('product')">add_circle</span>
+                <!-- ✨ ENTERPRISE UX: CTA DASHED DROPZONE -->
+                <div class="m3-card" style="margin-bottom: 12px; padding: 8px;">
+                    <div class="tap-target" style="padding: 14px; display: flex; align-items: center; justify-content: center; background: rgba(245, 127, 23, 0.04); border: 2px dashed rgba(245, 127, 23, 0.3); border-radius: 8px; margin-bottom: 8px; transition: all 0.2s ease;" onclick="if(window.UI) UI.openSmartSearch('item', 'purchase')">
+                        <span class="material-symbols-outlined" style="color: #f57f17; margin-right: 8px; font-size: 20px;">add_circle</span>
+                        <span style="font-size: 15px; color: #f57f17; font-weight: 700;">Add Product to Bill</span>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline); margin-left: auto;" onclick="event.stopPropagation(); if(window.app) window.app.openForm('product')">post_add</span>
                     </div>
-                    <div id="purchase-items-body" style="display: flex; flex-direction: column; gap: 12px;"></div>
-                    <div id="purchase-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted);">No items added yet.</div>
+                    <div id="purchase-items-body" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                    <div id="purchase-empty-items" style="padding: 24px; text-align: center; color: var(--md-text-muted); font-size: 13px;">No items added yet. Search above to begin.</div>
                 </div>
 
                 <div class="m3-card sticky-totals" style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Subtotal:</span><strong id="purchase-subtotal">&#8377;0.00</strong></div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span>Discount:</span>
-                        <div style="display: flex; gap: 4px; width: 140px;">
-                            <input type="number" inputmode="decimal" id="purchase-discount" value="0" min="0" step="any" oninput="UI.calcPurchaseTotals()" style="width: 70%;">
-                            <select id="purchase-discount-type" onchange="UI.calcPurchaseTotals()" style="width: 30%; padding: 4px;"><option value="&#8377;">&#8377;</option><option value="%">%</option></select>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <select id="purchase-discount-type" onchange="UI.calcPurchaseTotals()" style="padding: 4px 6px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); color: var(--md-on-surface); font-weight: bold; outline: none; cursor: pointer;">
+                                <option value="&#8377;">&#8377;</option>
+                                <option value="%">%</option>
+                            </select>
+                            <input type="text" inputmode="none" readonly id="purchase-discount" class="tap-target" value="0" onclick="if(window.UI) window.UI.openNumpad(this, 'Discount Amount')" oninput="UI.calcPurchaseTotals()" style="width: 100px !important; text-align: right; cursor: pointer;">
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Total Input GST:</span><strong id="purchase-gst-total" style="color:var(--md-success);">&#8377;0.00</strong></div>
@@ -940,7 +1089,10 @@
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span>Freight / Extra Charges:</span>
-                        <input type="number" inputmode="decimal" id="purchase-freight" value="0" step="any" oninput="UI.calcPurchaseTotals()" style="width: 100px; text-align: right;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span style="font-weight: bold; color: var(--md-text-muted);">₹</span>
+                            <input type="text" inputmode="none" readonly id="purchase-freight" class="tap-target" value="0" onclick="if(window.UI) window.UI.openNumpad(this, 'Freight & Extra')" oninput="UI.calcPurchaseTotals()" style="width: 100px !important; text-align: right; cursor: pointer;">
+                        </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--md-text-muted); font-size: 14px;">
                         <span>Round Off:</span>
@@ -1710,12 +1862,12 @@
         </div>
     </div>
     
-    <div id="sheet-document-formats" class="bottom-sheet">
+    <div id="sheet-document-formats" class="bottom-sheet" style="height: 85vh; display: flex; flex-direction: column;">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Document Formats</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-document-formats')">close</span>
         </div>
-        <div style="padding: 16px; overflow-y: auto; max-height: 80vh;">
+        <div style="padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;">
             <div style="background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px; border-radius: 8px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
                 <span class="material-symbols-outlined">info</span>
                 <p style="margin: 0; font-size: 12px; line-height: 1.5;">Type your Prefix and Suffix. Use <strong>{FY}</strong> for the Financial Year. The counter will auto-generate in the middle.</p>
@@ -1805,7 +1957,9 @@
                 </div>
             </div>
             
-            <button class="btn-primary" onclick="app.saveDocumentSettings()" style="width: 100%; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save Formats</button>
+        </div>
+        <div style="padding: 16px; background: var(--md-surface); border-top: 1px solid var(--md-outline-variant); flex-shrink: 0;">
+            <button class="btn-primary tap-target" onclick="app.saveDocumentSettings()" style="width: 100%; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save Formats</button>
         </div>
     </div>
 
@@ -2317,16 +2471,16 @@
     </div>
 
 
-    <div id="sheet-payment-in" class="bottom-sheet">
+    <div id="sheet-payment-in" class="bottom-sheet" style="height: 85vh; display: flex; flex-direction: column;">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Receive Payment</span>
             <div style="display: flex; gap: 8px;">
-                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { window.app.generateReceiptPDF(id); } else { alert('Please save the receipt first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
+                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { if(window.UI) UI.closeBottomSheet('sheet-payment-in'); window.app.generateReceiptPDF(id); } else { alert('Please save the receipt first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
                 <span id="btn-delete-receipt-in" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); padding: 4px;" onclick="app.deleteRecord('receipt-in')">delete</span>
                 <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')" style="padding: 4px;">close</span>
             </div>
         </div>
-        <div style="padding: 16px; overflow-y: auto;">
+        <div style="padding: 16px; flex: 1; overflow-y: auto; padding-bottom: 40px; -webkit-overflow-scrolling: touch;">
             <form id="form-payment-in">
                 <div class="m3-card tap-target" style="margin-bottom: 16px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('customer', 'pay-in')">
                     <div>
@@ -2398,16 +2552,16 @@
             </div>
     </div>
 
-    <div id="sheet-payment-out" class="bottom-sheet">
+    <div id="sheet-payment-out" class="bottom-sheet" style="height: 85vh; display: flex; flex-direction: column;">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Make Payment</span>
             <div style="display: flex; gap: 8px;">
-                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { window.app.generateReceiptPDF(id); } else { alert('Please save the payment first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
+                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { if(window.UI) UI.closeBottomSheet('sheet-payment-out'); window.app.generateReceiptPDF(id); } else { alert('Please save the payment first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
                 <span id="btn-delete-receipt-out" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); padding: 4px;" onclick="app.deleteRecord('receipt-out')">delete</span>
                 <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')" style="padding: 4px;">close</span>
             </div>
         </div>
-        <div style="padding: 16px; overflow-y: auto;">
+        <div style="padding: 16px; flex: 1; overflow-y: auto; padding-bottom: 40px; -webkit-overflow-scrolling: touch;">
             <form id="form-payment-out">
                 <div class="m3-card tap-target" style="margin-bottom: 16px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'pay-out')">
                     <div>
@@ -2479,25 +2633,8 @@
         </div>
     </div>
 
-    <div id="sheet-customers" class="bottom-sheet" style="height: 80vh;">
-        <div class="sheet-header"><span style="font-size: 18px; font-weight: 500;">Select Customer</span><span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-customers')">close</span></div>
-        <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
-            <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-customers" placeholder="Search customers..."></div>
-            <ul class="list-view" id="list-customers" style="flex: 1; overflow-y: auto;"></ul>
-            <button class="btn-primary-small mt-2" style="width: 100%;" onclick="UI.closeBottomSheet('sheet-customers'); setTimeout(() => { if(window.app) window.app.openForm('ledger'); }, 200);">+ New Customer</button>
-        </div>
-    </div>
 
-    <div id="sheet-suppliers" class="bottom-sheet" style="height: 80vh;">
-        <div class="sheet-header"><span style="font-size: 18px; font-weight: 500;">Select Supplier</span><span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-suppliers')">close</span></div>
-        <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
-            <div class="search-bar"><span class="material-symbols-outlined">search</span><input type="text" id="search-suppliers" placeholder="Search suppliers..."></div>
-            <ul class="list-view" id="list-suppliers" style="flex: 1; overflow-y: auto;"></ul>
-            <button class="btn-primary-small mt-2" style="width: 100%;" onclick="UI.closeBottomSheet('sheet-suppliers'); setTimeout(() => { if(window.app) window.app.openForm('ledger'); }, 200);">+ New Supplier</button>
-        </div>
-    </div>
-
-    <div id="sheet-products" class="bottom-sheet" style="height: 85vh; background: var(--md-background);">
+    <div id="sheet-products" class="bottom-sheet" style="height: 85vh; background: var(--md-background); display: flex; flex-direction: column;">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Add Products</span>
             <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-products')">close</span>
@@ -2949,7 +3086,7 @@
         <button onclick="window.applyAppUpdate()" class="tap-target" style="background:var(--md-primary); color:var(--md-on-primary); border:none; padding:8px 16px; border-radius:20px; font-weight:bold; cursor:pointer;">Reload</button>
     </div>
 
-    <div id="sheet-install-app" class="bottom-sheet hidden">
+    <div id="sheet-install-app" class="bottom-sheet">
         <div class="sheet-content" style="text-align: center; padding: 32px 24px 24px 24px;">
             <div style="background: rgba(0, 97, 164, 0.1);  width: 64px; height: 64px; border-radius: 16px; display: flex; justify-content: center; align-items: center; margin: 0 auto 16px auto;">
                 <img src="icon-192.png" alt="SOLLO Icon" style="width: 40px; height: 40px;">
@@ -3061,11 +3198,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=66.3"></script>
-    <script src="utils.js?v=66.3"></script>
-    <script src="ui.js?v=66.3"></script>
-    <script src="cloud.js?v=663"></script>
-    <script src="app.js?v=66.3"></script>
+    <script src="db.js?v=66.4"></script>
+    <script src="utils.js?v=66.4"></script>
+    <script src="ui.js?v=66.4"></script>
+    <script src="cloud.js?v=66.4"></script>
+    <script src="app.js?v=66.4"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3095,8 +3232,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=66.3' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=66.3`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=66.4' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=66.4`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -4051,28 +4188,28 @@
         </div>
     </div>
 
-    <!-- 🚨 ENTERPRISE UPGRADE: CUSTOM POS NUMPAD OVERLAY -->
-    <div class="pos-numpad-overlay" id="custom-numpad" style="background-color: var(--md-surface, #ffffff); padding-bottom: env(safe-area-inset-bottom, 24px);">
-        <div class="numpad-header" style="background-color: var(--md-surface, #ffffff); border-bottom: 1px solid var(--md-outline-variant, #f1f5f9); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
-            <span class="numpad-title" id="numpad-label" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b);">Enter Value</span>
-            <span class="tap-target" style="color: var(--md-text-muted, #64748b); font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px;" onclick="UI.triggerHaptic('medium'); UI.closeNumpad()">CLOSE</span>
+    <!-- 🚨 ENTERPRISE UPGRADE: COMPACT POS NUMPAD OVERLAY -->
+    <div class="pos-numpad-overlay" id="custom-numpad" style="background-color: var(--md-surface-variant); padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
+        <div class="numpad-header" style="background-color: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">
+            <span class="numpad-title" id="numpad-label" style="font-size: 13px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.5px;">Enter Value</span>
+            <span class="tap-target" style="color: var(--md-error); font-weight: 800; font-size: 13px; padding: 6px 12px; background: rgba(186, 26, 26, 0.1); border-radius: 6px;" onclick="if(window.UI) { UI.triggerHaptic('medium'); UI.closeNumpad(); }">CLOSE</span>
         </div>
-        <div class="numpad-grid" style="grid-template-columns: repeat(3, 1fr); gap: 12px 24px; background-color: var(--md-surface, #ffffff); padding: 20px 32px 32px 32px; justify-content: center;">
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('1')">1</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('2')">2</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('3')">3</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('4')">4</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('5')">5</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('6')">6</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('7')">7</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('8')">8</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('9')">9</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('.')">.</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 400; color: var(--md-on-surface, #1e293b); margin: auto;" onclick="UI.triggerHaptic('light'); UI.numpadPress('0')">0</div>
-            <div class="numpad-btn tap-target" style="border: none; background: transparent; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; color: var(--md-error, #ba1a1a); margin: auto;" onclick="UI.triggerHaptic('medium'); UI.numpadPress('BKSP')">
-                <span class="material-symbols-outlined" style="font-size: 36px;">backspace</span>
+        <div class="numpad-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background-color: var(--md-outline-variant);">
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('1'); }">1</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('2'); }">2</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('3'); }">3</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('4'); }">4</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('5'); }">5</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('6'); }">6</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('7'); }">7</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('8'); }">8</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('9'); }">9</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('.'); }">.</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-on-surface);" onclick="if(window.UI){ UI.triggerHaptic('light'); UI.numpadPress('0'); }">0</div>
+            <div class="numpad-btn tap-target" style="background: var(--md-surface); padding: 14px 0; font-size: 22px; font-weight: 600; display: flex; align-items: center; justify-content: center; color: var(--md-error);" onclick="if(window.UI){ UI.triggerHaptic('medium'); UI.numpadPress('BKSP'); }">
+                <span class="material-symbols-outlined" style="font-size: 24px;">backspace</span>
             </div>
-            <div class="numpad-btn action-done tap-target" style="grid-column: span 3; border: none; background: var(--md-primary, #0061a4); color: var(--md-on-primary, #ffffff); padding: 0; height: 56px; margin: 16px 0 0 0; border-radius: 28px; font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 16px rgba(0,97,164,0.2);" onclick="UI.triggerHaptic('heavy'); UI.numpadPress('DONE')">Done</div>
+            <div class="numpad-btn action-done tap-target" style="grid-column: span 3; background: var(--md-primary); color: white; padding: 16px 0; font-size: 16px; font-weight: bold; border-top: none; display: flex; align-items: center; justify-content: center; letter-spacing: 1px; text-transform: uppercase;" onclick="if(window.UI){ UI.triggerHaptic('heavy'); UI.numpadPress('DONE'); }">Done</div>
         </div>
     </div>
         <div id="activity-deep-analytics" class="activity-screen hidden" style="z-index: 5000;">

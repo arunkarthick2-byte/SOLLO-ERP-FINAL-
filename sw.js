@@ -2,7 +2,7 @@
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.4)
 // ==========================================
 // ENTERPRISE RULE: Every time you change your code, you MUST change this version number (e.g., to 11.8, 11.9)!
-const CACHE_NAME = 'sollo-erp-v66.3-offline'; 
+const CACHE_NAME = 'sollo-erp-v66.4-offline'; 
 
 const ASSETS_TO_CACHE = [
     './',
@@ -91,7 +91,8 @@ self.addEventListener('fetch', (event) => {
     // It always tries to get your newest code from the internet first.
     // If you go offline, it falls back to the saved cache!
     event.respondWith(
-        fetch(event.request).then((networkResponse) => {
+        // BUG FIX: Actually plug in the 3-second timeout engine here!
+        fetchWithTimeout(event.request).then((networkResponse) => {
             // We got a good response from the internet! Save it to cache and show it.
             if (networkResponse && networkResponse.status === 200) {
                 const responseToCache = networkResponse.clone();

@@ -958,6 +958,14 @@ Please process this accordingly. Thank you!`;
                         printArea.style.width = '800px';
                         printArea.style.height = 'max-content';
                         printArea.style.minHeight = '0px';
+
+                        // 🚨 BUG FIX: Force content-visibility to prevent blank/cut-off PDFs
+                        printArea.style.contentVisibility = 'visible';
+                        const allElements = printArea.querySelectorAll('*');
+                        allElements.forEach(el => {
+                            el.style.contentVisibility = 'visible';
+                        });
+
                         clonedDoc.body.style.height = 'max-content';
                         clonedDoc.body.style.minHeight = '0px';
                         clonedDoc.documentElement.style.height = 'max-content';
