@@ -125,7 +125,9 @@ const Cloud = {
 
                 let response = await gapi.client.drive.files.list({
                     q: `name='${backupFileName}' and trashed=false`,
-                    spaces: 'drive', fields: 'files(id)'
+                    spaces: 'drive', 
+                    orderBy: 'modifiedTime desc', // 🚨 BUG FIX: Force Google to sort by newest first!
+                    fields: 'files(id)'
                 });
 
                 // STRICT ERP LOGIC: Hunt down and destroy Google Drive duplicates in the background to prevent version fragmentation!
@@ -236,6 +238,7 @@ const Cloud = {
                 let response = await gapi.client.drive.files.list({
                     q: `name='${backupFileName}' and trashed=false`,
                     spaces: 'drive',
+                    orderBy: 'modifiedTime desc', // 🚨 BUG FIX: Force Google to sort by newest first!
                     fields: 'files(id)'
                 });
 
@@ -283,7 +286,8 @@ const Cloud = {
                 if (uploadRes.ok) {
                     // NEW: Save the timestamp of this successful backup
                     localStorage.setItem('sollo_last_backup', Date.now().toString());
-                    window.Utils.showToast("✅ Cloud Backup Successful!");
+                    // 🚨 BIZOPS FIX: Upgraded the fading Toast to an unmissable Alert Modal!
+                    if (window.Utils) window.Utils.alertModal("Your data has been securely backed up to Google Drive.", "✅ Backup Successful");
                 } else {
                     if (uploadRes.status === 401) {
                         gapi.client.setToken(null); // Clear expired token to force re-auth

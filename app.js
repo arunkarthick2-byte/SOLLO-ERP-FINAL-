@@ -438,27 +438,7 @@ const app = {
             
             // --- ENTERPRISE UPGRADE: SMART PWA UPDATER ---
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        newWorker.addEventListener('statechange', async () => {
-                            // If a new update is downloaded from the server and ready...
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                console.log('New update available! Waiting for next restart.');
-                                // 🚨 ENTERPRISE FIX: Custom Async Confirm Modal for Updates!
-                                const isConfirmed = await window.Utils.confirmModal("✨ A new update is available! Would you like to restart the app now to apply it?", "Restart Now");
-                                if (isConfirmed) {
-                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
-                                    setTimeout(() => window.location.reload(), 200);
-                                } else {
-                                    if (window.Utils && typeof window.Utils.showToast === 'function') {
-                                        window.Utils.showToast("Update downloaded! It will apply on next restart.");
-                                    }
-                                }
-                            }
-                        });
-                    });
-                });
+                // The sleek update banner is now strictly handled by index.html to prevent UI conflicts!
                 
                 // ENTERPRISE FIX: Removed the Violent Auto-Reload!
                 // Force-reloading the DOM while a user is typing an invoice will destroy their data!
@@ -6995,29 +6975,52 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 };
 
 // ==========================================
-// NEW: KHATA LEDGER TRIGGER (FROM FORM)
+// NEW: KHATA (LEDGER) STATEMENT ENGINE
 // ==========================================
-window.triggerKhataFromForm = () => {
-    // 1. Grab the exact Party Name directly from the form's specific ID
-    const nameInput = document.getElementById('ledger-name');
+window.triggerKhataReport = async () => {
+    if (!UI.state.rawData.ledgers) return window.Utils.showToast("No data available yet!");
     
-    if (!nameInput || !nameInput.value || nameInput.value.trim() === '') {
-        return window.Utils.showToast("Could not read the name. Is the Party Name box empty?");
-    }
+    // 1. Get all Customers and Suppliers safely
+    const parties = UI.state.rawData.ledgers.filter(l => {
+        const type = String(l.type).toLowerCase();
+        return type === 'customer' || type === 'supplier';
+    });
+    if (parties.length === 0) return window.Utils.showToast("No Customers or Suppliers found!");
 
-    const foundName = nameInput.value.trim();
+    // STRICT ERP LOGIC: Destroy old instances to prevent catastrophic DOM memory leaks!
+    const oldSheet = document.getElementById('sheet-khata-select');
+    if (oldSheet) oldSheet.remove();
+    const oldOverlay = document.getElementById('khata-overlay');
+    if (oldOverlay) oldOverlay.remove();
 
-    // 2. Look up this exact name in the Database
-    const ledgers = window.UI.state.rawData.ledgers || [];
-    // STRICT ERP LOGIC: Enforce the Firm ID so "Shop B" doesn't accidentally print "Shop A's" confidential ledger!
-    const party = ledgers.find(l => l.firmId === window.app.state.firmId && (l.name || '').toLowerCase() === foundName.toLowerCase());
-    
-    // 3. Trigger the PDF Viewer
-    if (party) {
-        window.executeKhataReport(party.id, party.name, party.type);
-    } else {
-        window.Utils.showToast("⚠️ Please save this profile first before generating a ledger!");
-    }
+    // 2. Build a beautiful native Bottom Sheet dynamically
+    let sheetHTML = `
+    <div id="sheet-khata-select" class="bottom-sheet open" style="z-index: 9999; max-height: 80vh;">
+        <div class="sheet-header" style="background: var(--md-surface); position: sticky; top: 0; z-index: 10;">
+            <div>
+                <span style="font-size: 18px; font-weight: 600; display: block;">Khata Statement</span>
+                <small style="color: var(--md-text-muted);">Select a party to generate report</small>
+            </div>
+            <span class="material-symbols-outlined tap-target" onclick="this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
+        </div>
+        <div style="padding: 16px; overflow-y: auto;">
+            ${parties.map(p => `
+                <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant);" 
+                     onclick="window.executeKhataReport('${p.id}', '${(p.name || 'Unknown').replace(/'/g, "\\'")}', '${p.type}'); this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: ${String(p.type).toLowerCase() === 'customer' ? 'rgba(0, 97, 164, 0.1)' : 'rgba(186, 26, 26, 0.1)'}; color: ${String(p.type).toLowerCase() === 'customer' ? '#42a5f5' : 'var(--md-error)'}; box-shadow: none;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">${String(p.type).toLowerCase() === 'customer' ? 'person' : 'storefront'}</span>
+                        </div>
+                        <strong style="font-size: 15px;">${p.name || 'Unknown'}</strong>
+                    </div>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">print</span>
+                </div>
+            `).join('')}
+        </div>
+    </div>
+    <div id="khata-overlay" class="sheet-overlay open" style="z-index: 9998;" onclick="document.getElementById('sheet-khata-select').remove(); this.remove();"></div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', sheetHTML);
 };
 
 // ==========================================
@@ -8322,7 +8325,8 @@ document.addEventListener('focusin', (e) => {
 document.addEventListener('focusout', (e) => {
     if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') {
         const id = e.target.id ? e.target.id.toLowerCase() : '';
-        const isEmailOrGST = id.includes('email') || id.includes('gst') || id.includes('password');
+        // 🚨 BUG FIX: Added 'search' to the ignore list so search bars don't get Title Cased!
+        const isEmailOrGST = id.includes('email') || id.includes('gst') || id.includes('password') || id.includes('search');
         
         // If it is a Name, City, or Item field, auto-capitalize the first letter of every word
         if (!isEmailOrGST && e.target.value) {
@@ -8348,18 +8352,5 @@ document.addEventListener('visibilitychange', () => {
 // ==========================================
 // 🚀 PREMIUM POLISH: MOBILE KEYBOARD AUTO-CENTER
 // ==========================================
-// Detects when you tap an input and smoothly glides it to the center of the screen above the keyboard!
-document.addEventListener('focusin', (e) => {
-    const tag = e.target.tagName;
-    
-    // Only trigger if they tapped a text box, number box, or dropdown
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-        
-        // Wait exactly 300ms to let the Android/iOS keyboard finish sliding up first
-        setTimeout(() => {
-            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 300);
-        
-    }
-});
-
+// 🚨 BUG FIX: Legacy auto-scroll has been DELETED to prevent the "Double Scroll Jerk" conflict!
+// The modern Visual Viewport engine in ui.js now handles keyboard scrolling much more smoothly.

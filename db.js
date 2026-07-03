@@ -159,12 +159,10 @@ const getAllRecords = (storeName, indexName = null, indexValue = null) => {
 
 const getRecordById = (storeName, id) => {
     return new Promise((resolve, reject) => {
-        // ENTERPRISE FIX: IndexedDB instantly crashes with a fatal 'DataError' if you search for null or undefined!
-        // This shield protects the app if a user accidentally saves an invoice with a blank row.
-        // Bug Fix: Do not silently mask data corruption. Reject the promise so the app flags the broken link!
+        // 🚨 BUG FIX: Graceful Fallback for Optional Fields!
+        // Do NOT reject the promise and crash the app if a user leaves an optional field (like Customer Name or Invoice Ref) blank!
         if (id === null || id === undefined || id === '' || Number.isNaN(id)) {
-            console.error(`DataError: Corrupted ID detected in ${storeName}:`, id);
-            return reject(new Error(`Corrupted Relational ID detected: ${id}`));
+            return resolve(undefined); // Safely return nothing instead of violently crashing
         }
         
         const transaction = db.transaction(storeName, 'readonly');

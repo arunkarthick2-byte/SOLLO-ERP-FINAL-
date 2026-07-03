@@ -111,7 +111,8 @@ const UI = {
             if (target.tagName === 'INPUT') {
                 const id = (target.id || '').toLowerCase();
                 
-                if ((id.includes('gst') || id.includes('ifsc') || id.includes('pan')) && target.type === 'text') {
+                // 🚨 BUG FIX: Ensure the Search Bar is completely ignored by the auto-uppercase engine!
+                if (!id.includes('search') && (id.includes('gst') || id.includes('ifsc') || id.includes('pan')) && target.type === 'text') {
                     const start = target.selectionStart;
                     target.value = target.value.toUpperCase();
                     if (start !== null) target.setSelectionRange(start, start);
@@ -641,6 +642,11 @@ const UI = {
     },
 
     closeActivity: async (activityId) => {
+        // 🚨 BUG FIX: Force the custom Numpad to close if the user exits the screen!
+        if (typeof UI !== 'undefined' && UI.closeNumpad) {
+            UI.closeNumpad();
+        }
+
         if (activityId.includes('-form') && window.isFormDirty) {
             // 🚨 ENTERPRISE UPGRADE: Beautiful Custom Confirm Dialog
             const isConfirmed = await window.Utils.confirmModal("Discard this document? All unsaved items will be permanently lost.", "Discard", true);
@@ -2818,6 +2824,9 @@ const UI = {
                     }
                 } else if (totalSales > 0 && prevSales === 0) {
                     aiText.innerHTML = `You've made <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">₹${totalSales.toFixed(0)}</strong> in sales this period! Excellent start! 🌟`;
+                } else if (prevSales > 0 && totalSales === 0) {
+                    // 🚨 AI OPTIMIZATION: Smart Month-Rollover Memory!
+                    aiText.innerHTML = `You made <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">₹${prevSales.toFixed(0)}</strong> last period. Time to log your first sale and beat your record! 🎯`;
                 } else {
                     aiText.innerHTML = `Log your sales to unlock AI trend analysis! 📊`;
                 }
@@ -4494,15 +4503,24 @@ window.addEventListener('popstate', (e) => {
         });
     };
     
-    // 🚨 ENTERPRISE FIX: The "Double-Fire" Hardware Shield!
-    // Prevents index.html and ui.js from executing the back swipe at the exact same millisecond!
-    if (window.isHardwareSwiping) return;
-    window.isHardwareSwiping = true;
-    setTimeout(() => { window.isHardwareSwiping = false; }, 400);
+        // 🚨 ENTERPRISE FIX: The "Double-Fire" Hardware Shield!
+        // Prevents index.html and ui.js from executing the back swipe at the exact same millisecond!
+        if (window.isHardwareSwiping) return;
+        window.isHardwareSwiping = true;
+        setTimeout(() => { window.isHardwareSwiping = false; }, 400);
 
-    // ENTERPRISE FIX: 1. Catch ONLY sheets that are mathematically OPEN! 
-    // Ignoring sheets that are animating closed or ghosting in the DOM prevents the Infinite Back Trap!
-    const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
+        // 🚨 BUG FIX: The Android Back-Button Numpad Shield!
+        // Catch the Numpad FIRST so swiping back doesn't accidentally close your entire invoice!
+        const activeNumpad = document.getElementById('custom-numpad');
+        if (activeNumpad && activeNumpad.classList.contains('active')) {
+            if (window.UI) window.UI.closeNumpad();
+            window.history.pushState({ internalRoute: true }, ''); // Re-trap the back button to protect the form!
+            return;
+        }
+
+        // ENTERPRISE FIX: 1. Catch ONLY sheets that are mathematically OPEN! 
+        // Ignoring sheets that are animating closed or ghosting in the DOM prevents the Infinite Back Trap!
+        const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
     
     if (visibleSheets.length > 0) {
         const topSheet = getTopElement(visibleSheets);

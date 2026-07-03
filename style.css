@@ -6484,3 +6484,181 @@ input, textarea, select {
     -webkit-user-select: auto !important;
     user-select: auto !important;
 }
+/* ==========================================
+   🚨 BIZOPS FIX: INVOICE ROW SIZES (QTY, RATE, BUY PRICE)
+   ========================================== */
+/* 1. Make Qty and Rate boxes taller and easier to tap */
+#form-sales .item-entry-card input.row-qty, 
+#form-sales .item-entry-card input.row-rate,
+#form-purchase .item-entry-card input.row-qty, 
+#form-purchase .item-entry-card input.row-rate,
+.item-entry-card input.row-qty,
+.item-entry-card input.row-rate {
+    min-height: 42px !important;
+    padding: 8px 12px !important;
+    font-size: 18px !important;
+    border-radius: 8px !important;
+}
+
+/* 2. Force the Buy Price box to be compact, overriding the 100% width glitch */
+#form-sales .item-entry-card input[type="number"].row-item-buyprice,
+#form-purchase .item-entry-card input[type="number"].row-item-buyprice,
+.item-entry-card input[type="number"].row-item-buyprice {
+    width: 65px !important;
+    min-width: 65px !important;
+    max-width: 65px !important;
+    min-height: 24px !important;
+    height: 24px !important;
+    padding: 2px 4px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    border-radius: 4px !important;
+    text-align: center !important;
+    background: transparent !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+/* ==========================================
+   🚨 BIZOPS FIX: REMOVE INPUT FOCUS GLOW
+   ========================================== */
+/* Kills the default blue/green glowing outline when tapping a text box */
+input:focus, 
+textarea:focus, 
+select:focus,
+input:focus-visible, 
+textarea:focus-visible, 
+select:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: var(--md-outline-variant, #e2e8f0) !important;
+}
+/* ==========================================
+   🚨 BIZOPS FIX: PREVENT ACCIDENTAL PULL-TO-REFRESH
+   ========================================== */
+/* Locks the screen vertically so pulling down at the top doesn't accidentally reload the app and delete unsaved data! */
+body, html {
+    overscroll-behavior-y: none !important;
+    overscroll-behavior-x: none !important;
+}
+/* ==========================================
+   🚨 BIZOPS FIX: BUSINESS PROFILE DARK MODE
+   ========================================== */
+/* Forces the Business Profile screen to properly obey Dark Mode rules */
+body.dark-mode #form-business-profile,
+body.dark-mode #activity-business-profile {
+    background-color: var(--md-background) !important;
+}
+
+body.dark-mode #form-business-profile .m3-card {
+    background-color: var(--md-surface) !important;
+    border-color: var(--md-border) !important;
+}
+
+body.dark-mode #form-business-profile input,
+body.dark-mode #form-business-profile textarea {
+    background-color: var(--md-background) !important;
+    color: var(--md-on-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+
+body.dark-mode #form-business-profile label,
+body.dark-mode #form-business-profile p,
+body.dark-mode #form-business-profile h3,
+body.dark-mode #form-business-profile h4 {
+    color: var(--md-on-surface) !important;
+}
+/* ==========================================
+   🚨 BIZOPS FIX: TIGHTER INVOICE FORM SPACING
+   ========================================== */
+/* Shrinks the vertical dead space between input groups so the form requires less scrolling */
+#form-sales .input-group,
+#form-purchase .input-group,
+#activity-sales-form .input-group,
+#activity-purchase-form .input-group {
+    margin-bottom: 10px !important; /* Reduced from the standard 16px/20px */
+}
+
+/* Tightens the gap specifically between the text label and the selection box itself */
+#form-sales label,
+#form-purchase label,
+#activity-sales-form label,
+#activity-purchase-form label {
+    margin-bottom: 4px !important;
+}
+/* ==========================================
+   🚨 BIZOPS FIX: ADVANCED OPTIONS DARK MODE
+   ========================================== */
+/* Fixes the "Invoice Custom Fields" and "PDF Theme Designer" boxes in the Business Profile */
+body.dark-mode details.advanced-options {
+    background: var(--md-surface) !important;
+    border-color: var(--md-outline-variant) !important;
+}
+
+body.dark-mode details.advanced-options summary {
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    color: var(--md-on-surface) !important; /* 🚨 FIX: Makes the clickable title readable */
+}
+
+body.dark-mode details.advanced-options > div {
+    background: var(--md-surface-variant) !important;
+}
+
+/* Ensure text inside stays bright and readable */
+body.dark-mode details.advanced-options label,
+body.dark-mode details.advanced-options p {
+    color: var(--md-on-surface) !important;
+}
+
+/* 🚨 FIX: Styles the Notes textarea and input fields so they don't clash or turn white */
+body.dark-mode details.advanced-options textarea,
+body.dark-mode details.advanced-options input {
+    background-color: var(--md-surface-variant) !important;
+    color: var(--md-on-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+
+/* 🚨 FIX: Softens the placeholder hint text (like "Type notes here...") */
+body.dark-mode details.advanced-options textarea::placeholder,
+body.dark-mode details.advanced-options input::placeholder {
+    color: var(--md-text-muted) !important;
+}
+/* ==========================================
+   🚨 BIZOPS FIX: DARK MODE SPLASH SCREEN
+   ========================================== */
+/* Prevents a blinding white flash when opening the app at night */
+body.dark-mode .splash-screen {
+    background-color: var(--md-background) !important;
+}
+
+body.dark-mode .splash-screen h1,
+body.dark-mode .splash-screen p {
+    color: var(--md-on-surface) !important;
+}
+
+body.dark-mode .splash-screen .logo-circle-large {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-mode .splash-screen .loader-spinner {
+    border: 4px solid rgba(255, 255, 255, 0.1) !important;
+    border-top: 4px solid var(--md-primary) !important;
+}
+/* ==========================================
+   🚨 BIZOPS FIX: PRINT & PDF INK SAVER
+   ========================================== */
+/* Forces the app to completely ignore Dark Mode when printing or generating PDFs! */
+@media print {
+    body, html, .m3-card, .bottom-sheet, .activity-screen {
+        background-color: #ffffff !important;
+        background: #ffffff !important;
+        color: #1f1f1f !important;
+    }
+    
+    h1, h2, h3, h4, p, label, span, div, table, th, td {
+        color: #1f1f1f !important;
+    }
+
+    /* Hide UI elements that shouldn't appear on a printed invoice */
+    .fab, .bottom-nav, .top-app-bar, .tap-target, button {
+        display: none !important;
+    }
+}
