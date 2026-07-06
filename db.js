@@ -3,7 +3,7 @@
 // ==========================================
 const DB_NAME = 'SOLLO_ERP_DB';
 // ENTERPRISE FIX: Jumped to Version 20 to break the browser deadlock and forcefully build all missing tables!
-const DB_VERSION = 22; 
+const DB_VERSION = 66.6; 
 let db;
 // --- NEW: Global Database Connection Listener ---
 try {

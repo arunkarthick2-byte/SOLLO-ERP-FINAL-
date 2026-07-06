@@ -1000,8 +1000,9 @@ const UI = {
             
             tr.querySelector('.row-total').innerText = rowTotal.toFixed(2);
             
-            finalSubtotal += discountedBase;
-            totalGst += gstAmount;
+            // 🚨 ENTERPRISE FIX: Sum the exact rounded amounts so the visual rows perfectly match the grand total!
+            finalSubtotal += roundedDiscountedBase; 
+            totalGst += roundedGst;
 
             // 🟢 ENTERPRISE FIX: Safe Null Check! Prevents fatal crashes when editing older invoices that lack this field.
             const buyPriceInput = tr.querySelector('.row-item-buyprice');
@@ -1109,8 +1110,9 @@ const UI = {
             
             tr.querySelector('.row-total').innerText = rowTotal.toFixed(2);
             
-            finalSubtotal += discountedBase;
-            totalGst += gstAmount;
+            // 🚨 ENTERPRISE FIX: Sum the exact rounded amounts so the visual rows perfectly match the grand total!
+            finalSubtotal += roundedDiscountedBase; 
+            totalGst += roundedGst;
         });
 
         // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
@@ -2742,14 +2744,14 @@ const UI = {
             });
         }
 
-        // 🚀 THE "3120" CASH-FLOW METHOD (Dashboard Only)
-        const purePurchases = totalPurchases - inputGst;
+        // 🚀 ENTERPRISE FIX: TRUE PNL MATCHING (COGS-Based Dashboard)
         const netRevenue = (totalSales - outputGst) + indirectIncome; 
         
-        // Gross Margin = Total Sales Bills minus Total Purchase Bills (Ignores unsold stock in warehouse)
-        const grossMargin = netRevenue - purePurchases;
+        // Gross Margin = Net Revenue minus Cost of Goods Sold (COGS) + Stock Adjustments
+        // This ensures buying bulk inventory doesn't artificially crash your dashboard profit!
+        const grossMargin = netRevenue - cogs + stockGain - stockLoss;
         
-        // True Net Profit = Gross Margin minus Expenses (Ignore stock loss adjustments in cash-flow mode)
+        // True Net Profit = Gross Margin minus Operating Expenses
         const totalOperatingCosts = totalExpenses + indirectExpense;
         const trueNetProfit = grossMargin - totalOperatingCosts; 
 
