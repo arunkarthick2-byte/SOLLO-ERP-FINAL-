@@ -19,22 +19,21 @@ if (!document.getElementById('enterprise-master-fixes')) {
         #report-party-name,
         #report-party-balance { color: var(--md-on-surface, #0f172a) !important; }
 
-        /* 🚨 3. ENTERPRISE FIX: THE "NATIVE BUTTON" CURSOR SHIELD */
-        /* Permanently destroys the blinking text cursor on Custom Numpad inputs */
-        input[readonly], input[inputmode="none"] {
-            caret-color: transparent !important;
-            user-select: none !important;
-            -webkit-user-select: none !important;
+        /* 🚨 3. ENTERPRISE FIX: NATIVE CURSOR RESTORED */
+        input[inputmode="none"] {
+            caret-color: auto !important;
+            user-select: auto !important;
+            -webkit-user-select: auto !important;
             outline: none !important;
         }
-        
-        /* 🚨 4. NUMPAD ACTIVE HIGHLIGHTER */
-        /* Safely highlights the box in blue so you know what you are editing, WITHOUT a cursor! */
+
+        /* 🚨 4. ENTERPRISE FIX: NEUTRAL NUMPAD HIGHLIGHTER */
+        /* Kills the blue glow completely so the box stays normal */
         input:focus[readonly], input:focus[inputmode="none"] {
-            background-color: rgba(0, 97, 164, 0.05) !important;
-            border-color: var(--md-primary, #0061a4) !important;
-            color: var(--md-primary, #0061a4) !important;
-            box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
+            background-color: transparent !important;
+            border-color: var(--md-outline-variant, #e2e8f0) !important;
+            color: inherit !important;
+            box-shadow: none !important;
         }
         
         /* 🚨 5. PREMIUM NORMAL INPUT FOCUS */
@@ -147,17 +146,6 @@ window.addEventListener('offline', updateNetworkStatus);
 window.addEventListener('online', updateNetworkStatus);
 // Run once on boot just in case they open the app while already offline
 if (!navigator.onLine) updateNetworkStatus();
-
-// --- ENTERPRISE SECURITY: BANKING PRIVACY SHIELD ---
-// Blurs the screen when the app is pushed to the background to hide financial data
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-        document.body.classList.add('privacy-blur');
-    } else {
-        // Remove blur with a tiny delay to let the OS finish waking up the app
-        setTimeout(() => document.body.classList.remove('privacy-blur'), 150);
-    }
-});
 
 // ENTERPRISE FIX: Removed the hazardous 'DOUBLE-CHARGE PREVENTER' from app.js!
 // ui.js already contains a vastly superior 'Anti-Clone Shield' that doesn't break HTML form validators.
@@ -2087,10 +2075,10 @@ const app = {
                             <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="none" class="row-qty" value="0" max="${maxAllowable}" required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05); cursor: pointer;">
+                                <input type="text" inputmode="none" class="row-qty tap-target" value="0" max="${maxAllowable}" required onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05); cursor: pointer; outline: none;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
+                                <input type="text" inputmode="none" class="row-rate tap-target" value="${item.rate}" required onclick="UI.openNumpad(this, 'Rate')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant); cursor: pointer; outline: none;">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
@@ -2430,19 +2418,26 @@ const app = {
                 await app.populateEditForm(type, id);
             } else {
                 const dateInput = document.getElementById(`${type}-date`);
+                const orderDateInput = document.getElementById(`${type}-order-date`); // 🚨 FIX: Target the Order Date too!
+                
                 if(dateInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
                     const localDate = Utils.getLocalDate();
                     
                     // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY for the visible input
                     const parts = localDate.split('-');
+                    let displayDate = localDate;
                     if (parts.length === 3) {
-                        dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
-                    } else {
-                        dateInput.value = localDate;
-                    }
-
-                    // 2. We still feed the standard YYYY-MM-DD into Flatpickr so its internal math doesn't break!
+                        displayDate = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+                    } 
+                    
+                    dateInput.value = displayDate;
                     if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate); 
+                    
+                    // 🚨 FIX: Auto-fill the Order Date to today so it isn't left blank!
+                    if (orderDateInput) {
+                        orderDateInput.value = displayDate;
+                        if (orderDateInput._flatpickr) orderDateInput._flatpickr.setDate(localDate);
+                    }
                 }
                 
                 // ENTERPRISE FIX: Force status to "Open" for brand new documents
@@ -2623,10 +2618,10 @@ const app = {
                             ${maxLabel}
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="none" class="row-qty" value="${item.qty}" ${maxHtml} required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); cursor: pointer;">
+                                <input type="text" inputmode="none" class="row-qty tap-target" value="${item.qty}" ${maxHtml} required onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); cursor: pointer; outline: none;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required ${record.documentType === 'return' ? 'readonly' : `readonly onclick="UI.openNumpad(this, 'Rate')"`} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); cursor: pointer;'}">
+                                <input type="text" inputmode="none" class="row-rate tap-target" value="${item.rate}" required ${record.documentType === 'return' ? 'readonly' : `onclick="UI.openNumpad(this, 'Rate')"`} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background); outline: none;' : 'background:var(--md-surface); cursor: pointer; outline: none;'}">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
@@ -2638,7 +2633,7 @@ const app = {
                             ${type === 'sales' && record.documentType !== 'return' ? `
                             <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                                 <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent;">
+                                <input type="text" inputmode="none" class="row-item-buyprice tap-target" value="${item.buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent; cursor: pointer; outline: none;">
                                 <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                             </div>
                             ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
@@ -3059,22 +3054,9 @@ const app = {
                         const partyKey = type === 'sales' ? 'customer' : 'supplier';
                     const partyId = document.getElementById(`${type}-${partyKey}-id`).value;
                     if (!partyId) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
                         await window.Utils.alertModal(`Please select a ${partyKey}.`, "Action Required");
                         return;
-                    }
-
-                    // STRICT ERP LOGIC: Block Future Dates to protect PnL and Aging Reports!
-                    const docDate = document.getElementById(`${type}-date`).value;
-                    if (docDate) {
-                        const selectedDate = window.Utils.safeDate(docDate); // ENTERPRISE FIX: Protect Apple/iOS
-                        const today = new Date();
-                        today.setDate(today.getDate() + 1); // Allow up to 1 day for timezone safety
-                        if (selectedDate > today) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            await window.Utils.alertModal("You cannot save a document with a future date. Please correct the date to protect your financial reports.", "Invalid Date");
-                            return;
-                        }
                     }
 
                     const items = [];
@@ -3091,11 +3073,13 @@ const app = {
                         const rateInput = tr.querySelector('.row-rate');
                         let rate = parseFloat(rateInput.value) || 0;
 
+                        // 🚨 ENTERPRISE FIX: Safely skip empty "0 qty" items from Partial Returns!
+                        if (qty === 0) return; 
+
                         // ENTERPRISE FIX: The Negative Quantity Exploit Shield!
-                        // Prevents users from typing negative numbers to artificially shrink their taxable revenue and illegally inflate stock!
-                        if (qty <= 0) {
-                            alert("Error: Quantity must be greater than zero. To refund an item, please use a proper Credit/Debit Note!");
-                            throw new Error("Invalid negative or zero quantity detected.");
+                        if (qty < 0) {
+                            alert("Error: Quantity cannot be negative. To refund an item, please use a proper Credit/Debit Note!");
+                            throw new Error("Invalid negative quantity detected.");
                         }
                         
                         // ENTERPRISE FIX: The Negative Rate (Price) Shield!
@@ -3113,8 +3097,6 @@ const app = {
                                 throw new Error("Return quantity exceeds original purchase.");
                             }
                         }
-                        
-                        if (qty <= 0) return; // FIX: Prevent saving empty "0 qty" items from Returns or accidental inputs
 
                         items.push({
                             itemId: tr.querySelector('.row-item-id').value,
@@ -3129,8 +3111,7 @@ const app = {
                     });
                     
                     if (items.length === 0) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText;                             submitBtn.style.opacity = "1"; 
-                        }
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
                         if (window.Utils) await window.Utils.alertModal("Please add at least one item with a quantity greater than 0.", "Action Required");
                         return;
                     }
@@ -3152,7 +3133,7 @@ const app = {
                             d.id !== app.state.currentEditId
                         );
                         if (isDuplicate) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
                             if (window.Utils) await window.Utils.alertModal(`Document number "${proposedDocNo}" already exists! Please use a unique number.`, "Duplicate Found");
                             return;
                         }
@@ -3191,7 +3172,7 @@ const app = {
                                 if (effectiveStock < parseFloat(row.qty)) {
                                     const isConfirmed = await window.Utils.confirmModal(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective ${poolName} stock is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`, "Continue", true);
                                     if (!isConfirmed) {
-                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
                                         return; 
                                     }
                                 }
@@ -3221,10 +3202,10 @@ const app = {
                     let safeShippedDate = document.getElementById(`${type}-shipped-date`).value;
                     let safeCompletedDate = document.getElementById(`${type}-completed-date`).value;
 
-                    if (currentStatus === 'Open' || currentStatus === 'Unpaid') {
+                    if (currentStatus === 'Open') {
                         safeShippedDate = '';
                         safeCompletedDate = '';
-                    } else if (currentStatus === 'Shipped') {
+                    } else if (currentStatus === 'Unpaid' || currentStatus === 'Shipped') {
                         safeCompletedDate = '';
                     }
 
@@ -3365,7 +3346,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                                 form.removeAttribute('data-is-submitting');
                                 if (submitBtn) { 
                                     submitBtn.disabled = false; 
-                                    submitBtn.innerText = originalText; 
+                                    submitBtn.innerHTML = originalText; 
                                     submitBtn.style.opacity = "1"; 
                                     submitBtn.classList.remove('btn-loading');
                                 }
@@ -4791,6 +4772,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             const totalLinked = linkedSales.length + linkedPurchases.length + linkedReceipts.length;
             if (totalLinked > 0) {
                 if (window.Utils) await window.Utils.alertModal(`Cannot delete this party. They have ${totalLinked} document(s) linked to them. To protect your financial reports, please delete their documents first, or just edit the party and rename them to "Inactive".`);
+                return; // 🚨 CRITICAL FIX: Actually abort the function so the deletion doesn't proceed!
             }
         }
 
@@ -7529,37 +7511,48 @@ document.addEventListener('input', (e) => {
     }
 });
 // ==========================================
-// ENTERPRISE UPGRADE: BANK-GRADE PRIVACY SHIELD
+// 🚨 ENTERPRISE UPGRADE: BANK-GRADE PRIVACY SHIELD
 // ==========================================
-// Blurs the screen when the app is minimized to the background to protect financial data!
-(function() {
-    const shield = document.createElement('div');
-    shield.id = 'privacy-shield';
-    // Deep blur with the brand's primary container color
-    shield.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(244, 246, 250, 0.85); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:9999999; display:flex; justify-content:center; align-items:center; flex-direction:column; opacity:0; pointer-events:none; transition:opacity 0.2s ease;';
-    
-    shield.innerHTML = `
-        <span class="material-symbols-outlined" style="font-size: 56px; color: #0061a4; margin-bottom: 16px;">lock</span>
-        <strong style="font-size: 22px; color: #001d36; letter-spacing: 1px;">SOLLO ERP</strong>
-        <p style="color: #535f70; margin-top: 8px; font-weight: 500;">Securely Locked</p>
-    `;
-    
-    // Attach the shield to the very top of the app
-    document.body.appendChild(shield);
-
-    // Watch the phone's native hardware visibility state
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            // App is swiped to the background (Recent Apps) -> INSTANT LOCK
-            shield.style.transition = 'none'; 
-            shield.style.opacity = '1';
-        } else {
-            // User opened the app again -> SMOOTH FADE OUT
-            shield.style.transition = 'opacity 0.3s ease';
-            setTimeout(() => shield.style.opacity = '0', 100); 
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // 1. Create the shield ONLY when the app goes into the background
+        let shield = document.getElementById('master-privacy-shield');
+        if (!shield) {
+            shield = document.createElement('div');
+            shield.id = 'master-privacy-shield';
+            // Increased opacity slightly so it looks better with the button
+            shield.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(244, 246, 250, 0.95); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:9999999; display:flex; justify-content:center; align-items:center; flex-direction:column; opacity:0; transition:opacity 0.1s ease;';
+            
+            // 🚨 FIX: Added a manual Unlock Button for devices that freeze background apps!
+            shield.innerHTML = `
+                <span class="material-symbols-outlined" style="font-size: 56px; color: #0061a4; margin-bottom: 16px;">lock</span>
+                <strong style="font-size: 22px; color: #001d36; letter-spacing: 1px;">SOLLO ERP</strong>
+                <p style="color: #535f70; margin-top: 8px; margin-bottom: 32px; font-weight: 500;">Securely Locked</p>
+                <button onclick="document.getElementById('master-privacy-shield').remove()" style="padding: 14px 32px; background: #0061a4; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.3); display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">lock_open</span> Unlock App
+                </button>
+            `;
+            document.body.appendChild(shield);
         }
-    });
-})();
+        
+        // Lock the screen and block all physical taps
+        shield.style.transition = 'none';
+        shield.style.opacity = '1';
+        shield.style.pointerEvents = 'auto'; 
+        
+    } else {
+        // 2. Smoothly unlock when the user returns
+        const shield = document.getElementById('master-privacy-shield');
+        if (shield) {
+            shield.style.transition = 'opacity 0.3s ease';
+            shield.style.opacity = '0';
+            shield.style.pointerEvents = 'none';
+            
+            // 3. Destroy the shield from memory to prevent RAM leaks
+            setTimeout(() => shield.remove(), 300); 
+        }
+    }
+});
 // ==========================================
 // ENTERPRISE UPGRADE: 3D TOUCH EMULATOR (LONG PRESS)
 // ==========================================
@@ -7872,20 +7865,13 @@ setInterval(() => {
 // ==========================================
 // Halts all CPU-intensive mathematical loops when the app is minimized, saving massive amounts of battery!
 // ==========================================
-// 🚨 ENTERPRISE SECURITY: HIBERNATION & PRIVACY BLUR
+// 🚨 ENTERPRISE SECURITY: HIBERNATION
 // ==========================================
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
         window.isHibernating = true;
-        // 🚨 PRIVACY SHIELD: Blur the screen instantly so financial data is hidden in the OS App-Switcher!
-        document.body.style.filter = 'blur(12px) grayscale(100%)';
-        document.body.style.transition = 'filter 0.1s ease';
-        document.body.style.pointerEvents = 'none';
     } else {
         window.isHibernating = false;
-        // Restore clarity the moment they re-enter the app
-        document.body.style.filter = 'none';
-        document.body.style.pointerEvents = 'auto';
     }
 });
 
@@ -8121,23 +8107,25 @@ document.addEventListener('input', (e) => {
     const target = e.target;
     if (!target || !target.id) return;
     
-    // 1. GSTIN Auto-Formatting: Forces Uppercase, max 15 chars, blocks invalid symbols instantly
-    if (target.id.toLowerCase().includes('gst')) {
-        const start = target.selectionStart; // Preserves cursor position so it doesn't jump!
-        target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 15);
-        // Only reset cursor if the element is currently focused
-        if (document.activeElement === target) {
-            target.setSelectionRange(start, start);
+        // 1. GSTIN Auto-Formatting: Forces Uppercase, max 15 chars, blocks invalid symbols instantly
+        // 🚨 ENTERPRISE FIX: Added 'target.type === 'text'' to protect the "gst-month-selector" (which uses hyphens)!
+        if (target.id.toLowerCase().includes('gst') && !target.id.toLowerCase().includes('stock') && target.type === 'text') {
+            const start = target.selectionStart; // Preserves cursor position so it doesn't jump!
+            target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 15);
+            // Only reset cursor if the element is currently focused
+            if (document.activeElement === target) {
+                target.setSelectionRange(start, start);
+            }
         }
-    }
-    
-    // 2. Phone Number Formatting: Strips accidental letters, limits to 10 digits
-    if (target.id.toLowerCase().includes('phone') || target.id.toLowerCase().includes('mobile')) {
-        // Only format if it's a text/tel input (avoids breaking strict <input type="number"> fields)
-        if (target.type !== 'number') {
-            target.value = target.value.replace(/[^0-9]/g, '').substring(0, 10);
+        
+        // 2. Phone Number Formatting: Allows Landlines, Country Codes (+91), and up to 15 digits
+        if (target.id.toLowerCase().includes('phone') || target.id.toLowerCase().includes('mobile')) {
+            // Only format if it's a text/tel input
+            if (target.type !== 'number') {
+                // 🚨 ENTERPRISE FIX: Allow +, -, spaces, and 15 chars for International/Landline compatibility!
+                target.value = target.value.replace(/[^0-9+\- \(\)]/g, '').substring(0, 15);
+            }
         }
-    }
 });
 // ==========================================
 // 🚨 BIZOPS NATIVE THEME: DASHBOARD PARALLAX SCROLLING
@@ -8336,21 +8324,54 @@ document.addEventListener('focusout', (e) => {
 });
 
 // ==========================================
-// 🚨 ENTERPRISE SECURITY: BANKING PRIVACY SHIELD
-// ==========================================
-// Instantly blurs the screen when the app is sent to the background to protect financial data!
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        document.body.style.filter = 'blur(15px)';
-        document.body.style.transition = 'filter 0.1s ease-out';
-    } else {
-        document.body.style.filter = 'none';
-        document.body.style.transition = 'filter 0.3s ease-in';
-    }
-});
-
-// ==========================================
 // 🚀 PREMIUM POLISH: MOBILE KEYBOARD AUTO-CENTER
 // ==========================================
 // 🚨 BUG FIX: Legacy auto-scroll has been DELETED to prevent the "Double Scroll Jerk" conflict!
 // The modern Visual Viewport engine in ui.js now handles keyboard scrolling much more smoothly.
+// ==========================================
+// 🚨 SOLLO ERP FIX: THE "GHOST RENDER" SHIELD
+// ==========================================
+// Forces the browser to instantly display all form data without waiting for a screen tap!
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof app !== 'undefined' && app.populateEditForm) {
+        const originalPopulate = app.populateEditForm;
+        app.populateEditForm = async function() {
+            // 1. Let the original data load normally
+            await originalPopulate.apply(this, arguments);
+            
+            // 2. Force the browser to wake up and redraw the inputs
+            setTimeout(() => {
+                const activeInputs = document.querySelectorAll('.activity-screen:not(.hidden) input, .activity-screen:not(.hidden) select');
+                activeInputs.forEach(el => {
+                    if (el.value) {
+                        // Triggers the CSS to reveal the text
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                
+                // 3. Force a physical hardware repaint
+                const activeForm = document.querySelector('.activity-screen:not(.hidden)');
+                if (activeForm) {
+                    activeForm.style.transform = 'translateZ(0)';
+                    setTimeout(() => activeForm.style.transform = 'none', 10);
+                }
+            }, 100); 
+        };
+    }
+});
+// ==========================================
+// 🚨 CRITICAL BOOT FIX: INITIALIZE APPLICATION
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    // Ensure the 'app' object and its 'init' function are fully loaded
+    if (typeof app !== 'undefined' && typeof app.init === 'function') {
+        app.init();
+    } else {
+        console.error("Boot Failure: Application controller missing or corrupted.");
+        
+        // Failsafe: Hide the splash screen anyway so the user doesn't stare at it forever
+        const splash = document.getElementById('splash-screen');
+        if (splash) splash.style.display = 'none';
+    }
+});

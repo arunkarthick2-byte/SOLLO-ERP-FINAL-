@@ -792,7 +792,7 @@ Please process this accordingly. Thank you!`;
                 pagebreak: { mode: 'css', avoid: '.avoid-break' }, 
                 image: { type: 'jpeg', quality: 0.90 }, 
                 html2canvas: { 
-                    scale: 1.2, // 🚀 SPEED FIX: Reduced from 2x to 1.2x to drastically cut loading times
+                    scale: 2.0, // 🚀 ENTERPRISE FIX: Retina HD resolution locked in!
                     useCORS: true, 
                     logging: false, // 🚨 CPU FIX
                     windowWidth: 800, 
@@ -938,7 +938,7 @@ Please process this accordingly. Thank you!`;
             const exactHeight = element.scrollHeight;
 
             const canvas = await html2canvas(element, { 
-                scale: 1.0, // 🚀 SPEED FIX: 1x scale makes the screen preview load almost instantly!
+                scale: 2.0, // 🚀 ENTERPRISE FIX: Retina resolution for razor-sharp text, optimized for speed!
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -1146,8 +1146,8 @@ Please process this accordingly. Thank you!`;
                 <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
                     <td style="text-align:center; vertical-align: top; padding-top: 10px;">${index + 1}</td>
                     <td style="font-weight: bold; vertical-align: top; padding-top: 10px;">
-                        ${safeItemName}
-                        ${safeItemDesc ? `<div style="font-weight: 600; font-size: 10px; color: #64748b; margin-top: 4px;">${safeItemDesc}</div>` : ''}
+                        <div style="word-break: break-word; white-space: normal;">${safeItemName}</div>
+                        ${safeItemDesc ? `<div style="font-weight: 600; font-size: 10px; color: #64748b; margin-top: 4px; word-break: break-word; white-space: pre-wrap;">${safeItemDesc}</div>` : ''}
                     </td>
                     ${!isNonGST ? `<td style="text-align:center; vertical-align: top; padding-top: 10px;">${safeHsn}</td>` : ''}
                     <td style="text-align:center;">${item.qty} ${safeUom}</td>
@@ -1300,8 +1300,7 @@ Please process this accordingly. Thank you!`;
 
         // ENTERPRISE FIX: Changed 'const' to 'let' so the Split-Payment Tracker doesn't crash the engine!
         let html = `
-        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
-            
+        <div id="${uniquePdfId}" class="a4-document" style="width: 800px; max-width: none; position: relative; overflow: hidden; font-family: 'Inter', sans-serif;">
             <style>
                 #${uniquePdfId} table { page-break-inside: auto; }
                 #${uniquePdfId} tr { page-break-inside: avoid; page-break-after: auto; }
@@ -1309,318 +1308,242 @@ Please process this accordingly. Thank you!`;
                 .avoid-break { page-break-inside: avoid; }
             </style>
 
-            <div style="border: 2px solid #475569; padding: 2px;">
-            <div style="border: 1px solid #475569;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #e2e8f0; padding-bottom: 24px;">
+                <div>
+                    ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; max-width: 200px; object-fit: contain; margin-bottom: 16px;">` : ''}
+                    <h1 style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; text-transform: uppercase;">${safeBizName}</h1>
+                    <div style="color: #475569; font-size: 13px; line-height: 1.6;">
+                        ${safeBizAddress ? safeBizAddress.replace(/\n/g, '<br>') + '<br>' : ''}
+                        ${bizLocationStr ? bizLocationStr + '<br>' : ''}
+                        ${safeBizPhone ? `<strong>Phone:</strong> ${safeBizPhone}` : ''} ${safeBizEmail ? ` | <strong>Email:</strong> ${safeBizEmail}` : ''}
+                        ${!isNonGST && bizGst && bizGst !== 'N/A' ? `<br><strong style="color:#0f172a;">GSTIN: ${bizGst}</strong>` : ''}
+                    </div>
+                </div>
+                <div style="text-align: right;">
+                    <h2 style="color: #0061a4; font-size: 28px; font-weight: 900; margin: 0 0 12px 0; letter-spacing: 1px;">${title}</h2>
+                    <div style="font-size: 13px; color: #475569; background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; display: inline-block; text-align: left;">
+                        <div style="margin-bottom: 4px;"><strong>Document No:</strong> <span style="color: #0f172a; font-weight: 700; float: right; margin-left: 16px;">${safeDocNo}</span></div>
+                        <div><strong>Date:</strong> <span style="color: #0f172a; font-weight: 700; float: right; margin-left: 16px;">${Utils.formatDateDisplay(doc.date)}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="address-grid">
+                <div class="address-box">
+                    <div class="address-title">${isSales ? 'Billed To' : 'Billed By'}</div>
+                    <strong style="font-size: 15px; color: #0f172a; display: block; margin-bottom: 6px;">${partyName}</strong>
+                    <div style="color: #475569; font-size: 13px; line-height: 1.5;">
+                        ${partyAddress ? partyAddress.replace(/\n/g, '<br>') + '<br>' : ''}
+                        ${partyLocationStr ? partyLocationStr + '<br>' : ''}
+                        ${!isNonGST && partyGst ? `<strong style="color: #0f172a; display:block; margin-top: 8px;">GSTIN: ${partyGst}</strong>` : ''}
+                    </div>
+                </div>
                 
-                <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                    <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">${title}</h2>
-                    <div style="font-size: 12px; font-weight: 700;">
-                        ${!isNonGST && bizGst && bizGst !== 'N/A' ? `GSTIN: ${bizGst}` : 'BILL OF SUPPLY'}
-                    </div>
-                </div>
+                ${safeBizCf1Name && safeDocCf1Val || safeBizCf2Name && safeDocCf2Val || safeBizCf3Name && safeDocCf3Val || metaFields.length > 0 ? `
+                <div class="address-box">
+                    <div class="address-title">Document Details</div>
+                    <table style="width:100%; border:none; margin:0; font-size:12px;">
+                        ${metaRowsHtml.replace(/<td style="[^"]*"/g, '<td style="padding: 4px 0; border: none; color: #475569;"')}
+                        ${safeBizCf1Name && safeDocCf1Val ? `<tr><td style="padding: 4px 0; border: none; color: #475569;"><strong>${safeBizCf1Name}:</strong></td><td style="padding: 4px 0; border: none; color: #0f172a; text-align: right;">${safeDocCf1Val}</td></tr>` : ''}
+                        ${safeBizCf2Name && safeDocCf2Val ? `<tr><td style="padding: 4px 0; border: none; color: #475569;"><strong>${safeBizCf2Name}:</strong></td><td style="padding: 4px 0; border: none; color: #0f172a; text-align: right;">${safeDocCf2Val}</td></tr>` : ''}
+                        ${safeBizCf3Name && safeDocCf3Val ? `<tr><td style="padding: 4px 0; border: none; color: #475569;"><strong>${safeBizCf3Name}:</strong></td><td style="padding: 4px 0; border: none; color: #0f172a; text-align: right;">${safeDocCf3Val}</td></tr>` : ''}
+                    </table>
+                </div>` : '<div class="address-box" style="visibility:hidden; border:none; background:transparent;"></div>'}
+            </div>
 
-                <div style="display: flex; border-bottom: 1px solid #475569;">
-                    <div style="width: 55%; padding: 20px; border-right: 1px solid #475569;">
-                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
-                        <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800; color: #0f172a;">${safeBizName}</h1>
-                        <div style="font-size: 12px; color: #334155; line-height: 1.5;">
-                            ${safeBizAddress ? safeBizAddress.replace(/\n/g, '<br>') + '<br>' : ''}
-                            ${bizLocationStr ? bizLocationStr + '<br>' : ''}
-                            ${safeBizPhone ? `<strong>Phone:</strong> ${safeBizPhone}` : ''} ${safeBizEmail ? ` | <strong>Email:</strong> ${safeBizEmail}` : ''}
-                        </div>
-                    </div>
-                    <div style="width: 45%;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; height: 100%;">
-                            <tr>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; width: 50%; color: #0f172a;"><strong>Document No:</strong><br><span style="font-size: 14px; font-weight: 700; color: #0f172a;">${safeDocNo}</span></td>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"><strong>Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${Utils.formatDateDisplay(doc.date)}</span></td>
-                            </tr>
-                            ${metaRowsHtml}
-                        </table>
-                    </div>
-                </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: ${!isNonGST ? '35%' : '45%'};">Item Description</th>
+                        ${!isNonGST ? `<th style="text-align: center; width: 10%;">HSN</th>` : ''}
+                        <th class="number-col" style="width: ${!isNonGST ? '10%' : '15%'}; text-align:center;">Qty</th>
+                        <th class="number-col" style="width: ${!isNonGST ? '15%' : '15%'};">Rate</th>
+                        ${!isNonGST ? `<th class="number-col" style="text-align: center; width: 10%;">GST</th>` : ''}
+                        <th class="number-col" style="width: ${!isNonGST ? '15%' : '20%'};">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml.replace(/<td style="[^"]*"/g, '<td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; vertical-align: top;"')}
+                    <tr style="background: #f8fafc; font-weight: 800; border-top: 2px solid #cbd5e1;">
+                        <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 12px; text-align: right; text-transform: uppercase; color: #64748b; font-size: 11px;">Total Items: ${totalItems}</td>
+                        <td style="padding: 12px; text-align: center; color: #0f172a;">${totalQty.toFixed(2)}</td>
+                        <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 12px;"></td>
+                    </tr>
+                </tbody>
+            </table>
 
-                <div style="display: flex; border-bottom: 1px solid #475569;">
-                    <div style="width: 50%; padding: 15px 20px; border-right: 1px solid #475569;">
-                        <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 6px;">${isSales ? 'Billed To' : 'Billed By'}</div>
-                        <strong style="font-size: 15px; display: block; margin-bottom: 4px; color: #0f172a;">${partyName}</strong>
-                        <div style="font-size: 12px; color: #334155; line-height: 1.5;">
-                            ${partyAddress ? partyAddress.replace(/\n/g, '<br>') + '<br>' : ''}
-                            ${partyLocationStr ? partyLocationStr + '<br>' : ''}
-                        </div>
-                        ${!isNonGST && partyGst ? `<div style="font-size: 12px; font-weight: 700; margin-top: 6px;">GSTIN: ${partyGst}</div>` : ''}
+            <div style="display: flex; gap: 32px; page-break-inside: avoid;">
+                <div style="flex: 1;">
+                    <div style="margin-bottom: 24px;">
+                        <div class="address-title">Amount in Words</div>
+                        <strong style="font-size: 13px; color: #0f172a; font-style: italic;">Rupees ${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</strong>
                     </div>
-                    <div style="width: 50%; padding: 15px 20px;">
-                        ${safeBizCf1Name && safeDocCf1Val || safeBizCf2Name && safeDocCf2Val || safeBizCf3Name && safeDocCf3Val ? `
-                            <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 6px;">Additional Details</div>
-                            <table style="width: 100%; font-size: 12px; border: none; color: #0f172a;">
-                                ${safeBizCf1Name && safeDocCf1Val ? `<tr><td style="padding: 2px 0;"><strong>${safeBizCf1Name}:</strong></td><td style="padding: 2px 0;">${safeDocCf1Val}</td></tr>` : ''}
-                                ${safeBizCf2Name && safeDocCf2Val ? `<tr><td style="padding: 2px 0;"><strong>${safeBizCf2Name}:</strong></td><td style="padding: 2px 0;">${safeDocCf2Val}</td></tr>` : ''}
-                                ${safeBizCf3Name && safeDocCf3Val ? `<tr><td style="padding: 2px 0;"><strong>${safeBizCf3Name}:</strong></td><td style="padding: 2px 0;">${safeDocCf3Val}</td></tr>` : ''}
-                            </table>
-                        ` : ''}
-                    </div>
-                </div>
 
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-                    <thead>
-                        <tr style="background: #f1f5f9;">
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: 5%; color: #0f172a;">#</th>
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; width: ${!isNonGST ? '35%' : '45%'}; color: #0f172a;">Item Description</th>
-                            ${!isNonGST ? `<th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: 10%; color: #0f172a;">HSN</th>` : ''}
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: ${!isNonGST ? '10%' : '15%'}; color: #0f172a;">Qty</th>
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: right; width: ${!isNonGST ? '15%' : '15%'}; color: #0f172a;">Rate</th>
-                            ${!isNonGST ? `<th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; border-right: 1px solid #94a3b8; text-align: center; width: 10%; color: #0f172a;">GST</th>` : ''}
-                            <th style="padding: 10px; font-weight: 800; border-bottom: 1px solid #475569; text-align: right; width: ${!isNonGST ? '15%' : '20%'}; color: #0f172a;">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml.replace(/<td style="/g, '<td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; color: #1e293b; ').replace(/border-right: 1px solid #94a3b8; color: #1e293b; ">([^<]*)$/gm, 'color: #1e293b; ">$1')}
-                        <tr style="background: #f1f5f9; font-weight: 800; border-top: 2px solid #475569;">
-                            <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 10px; text-align: right; text-transform: uppercase; color: #0f172a;">Total Items: ${totalItems}</td>
-                            <td style="padding: 10px; text-align: center; color: #0f172a;">${totalQty.toFixed(2)}</td>
-                            <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 10px;"></td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div style="display: flex; border-top: 1px solid #475569; page-break-inside: avoid;">
+                    ${gstSummaryHtml.replace(/border: 1px solid #cbd5e1;/g, 'border-bottom: 1px solid #e2e8f0; padding: 6px;').replace(/<table/g, '<table style="margin-bottom: 0;"')}
                     
-                    <div style="width: 60%; border-right: 1px solid #475569; padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 24px;">
+                        ${qrCodeHtml}
+                        
+                        ${safeBizBankDetails && !isNonGST ? `
                         <div>
-                            <div style="font-size: 11px; margin-bottom: 15px;">
-                                <strong style="text-transform: uppercase; color: #475569;">Amount in Words:</strong><br>
-                                <span style="font-style: italic; font-weight: 600; font-size: 13px; color: #0f172a;">Rupees ${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</span>
-                            </div>
-
-                            ${gstSummaryHtml}
-                            
-                            <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 15px;">
-                                ${qrCodeHtml}
-                                
-                                ${safeBizBankDetails && !isNonGST ? `
-                                <div style="font-size: 11px; margin-bottom: 15px;">
-                                    <strong style="text-transform: uppercase; color: #475569;">Bank Details:</strong><br>
-                                    <div style="margin-top: 4px; white-space: pre-wrap; font-family: monospace; font-size: 12px; font-weight: 600;">${safeBizBankDetails}</div>
-                                </div>` : ''}
-                                
-                                </div>
-                        </div>
-
-                        ${shouldPrintNotes && safeDocNotes ? `
-                        <div style="font-size: 10px; border-top: 1px dashed #cbd5e1; padding-top: 10px; margin-bottom: 10px;">
-                            <strong style="text-transform: uppercase; color: #475569;">Remarks / Notes:</strong><br>
-                            <div style="margin-top: 4px; white-space: pre-wrap; line-height: 1.4; color: #0f172a;">${safeDocNotes}</div>
-                        </div>` : ''}
-
-                        ${safeBizTerms ? `
-                        <div style="font-size: 10px; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
-                            <strong style="text-transform: uppercase; color: #475569;">Terms & Conditions:</strong><br>
-                            <div style="margin-top: 4px; white-space: pre-wrap; line-height: 1.4; color: #0f172a;">${safeBizTerms}</div>
+                            <div class="address-title">Bank Details</div>
+                            <div style="white-space: pre-wrap; font-family: monospace; font-size: 12px; font-weight: 600; color: #0f172a; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">${safeBizBankDetails}</div>
                         </div>` : ''}
                     </div>
 
-                    <div style="width: 40%;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-weight: 600;">
-                            <tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #0f172a;">Subtotal</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${rawSubtotal.toFixed(2)}</td></tr>
-                            ${discountAmt > 0 ? `<tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #ef4444;">Discount</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #ef4444;">- ₹${discountAmt.toFixed(2)}</td></tr>` : ''}
-                            ${!isNonGST ? `<tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #0f172a;">Total GST</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(parseFloat(doc.totalGst) || 0).toFixed(2)}</td></tr>` : ''}
-                            ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #0f172a;">Freight / Extra</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</td></tr>` : ''}
-                            ${Math.abs((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))) > 0.01 ? `
-                            <tr><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; color: #0f172a;">Round Off</td><td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))).toFixed(2)}</td></tr>` : ''}
+                    ${shouldPrintNotes && safeDocNotes ? `
+                    <div class="invoice-footer">
+                        <strong style="text-transform: uppercase; color: #64748b;">Remarks / Notes:</strong><br>
+                        <div style="margin-top: 6px; white-space: pre-wrap; color: #0f172a;">${safeDocNotes}</div>
+                    </div>` : ''}
+
+                    ${safeBizTerms ? `
+                    <div class="invoice-footer" style="margin-top: 12px; border-top: none; padding-top: 0;">
+                        <strong style="text-transform: uppercase; color: #64748b;">Terms & Conditions:</strong><br>
+                        <div style="margin-top: 6px; white-space: pre-wrap; color: #0f172a;">${safeBizTerms}</div>
+                    </div>` : ''}
+                </div>
+
+                <div class="totals-container" style="flex: 0 0 320px;">
+                    <div class="totals-box">
+                        <div class="totals-row">
+                            <span style="color: #64748b;">Subtotal</span>
+                            <span style="font-weight: 600; color: #0f172a;">₹${rawSubtotal.toFixed(2)}</span>
+                        </div>
+                        ${discountAmt > 0 ? `<div class="totals-row"><span style="color: #ef4444;">Discount</span><span style="font-weight: 600; color: #ef4444;">- ₹${discountAmt.toFixed(2)}</span></div>` : ''}
+                        ${!isNonGST ? `<div class="totals-row"><span style="color: #64748b;">Total GST</span><span style="font-weight: 600; color: #0f172a;">₹${(parseFloat(doc.totalGst) || 0).toFixed(2)}</span></div>` : ''}
+                        ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<div class="totals-row"><span style="color: #64748b;">Freight / Extra</span><span style="font-weight: 600; color: #0f172a;">₹${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</span></div>` : ''}
+                        ${Math.abs((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))) > 0.01 ? `
+                        <div class="totals-row"><span style="color: #64748b;">Round Off</span><span style="font-weight: 600; color: #0f172a;">₹${((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))).toFixed(2)}</span></div>` : ''}
+                        
+                        <div class="totals-row grand-total">
+                            <span>Grand Total</span>
+                            <span>₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</span>
+                        </div>
+                        
+                        ${(() => {
+                            let linkedSum = 0;
+                            if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
+                            let safeTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
+                            if (doc.status === 'Completed' || doc.status === 'Paid') safeTotalPaid = parseFloat(doc.grandTotal) || 0;
+                            let upfrontPaid = safeTotalPaid - linkedSum;
+                            let htmlStr = '';
+                            if (upfrontPaid > 0.01) {
+                                htmlStr += `<div class="totals-row" style="margin-top: 12px; font-size: 12px;"><span style="color: #64748b;">Advance Payment</span><span style="font-weight: 700; color: #16a34a;">- ₹${upfrontPaid.toFixed(2)}</span></div>`;
+                            }
+                            return htmlStr;
+                        })()}
+
+                        ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
+                        <div class="totals-row" style="font-size: 12px;">
+                            <span style="color: #64748b;">${parseFloat(r.amount) < 0 ? 'Refund' : 'Payment'} (${Utils.formatDateDisplay(r.date)})</span>
+                            <span style="font-weight: 700; color: #16a34a;">${parseFloat(r.amount) < 0 ? '+' : '-'} ₹${Math.abs(parseFloat(r.amount)).toFixed(2)}</span>
+                        </div>
+                        `).join('') : ''}
+                        
+                        ${(() => {
+                            let linkedSum = 0;
+                            if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
+                            let displayTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
+                            const displayGrandTotal = parseFloat(doc.grandTotal) || 0;
+                            if (doc.status === 'Completed' || doc.status === 'Paid') displayTotalPaid = displayGrandTotal;
+                            const thisInvoiceDue = Math.max(0, displayGrandTotal - displayTotalPaid);
                             
-                            <tr style="background: #f1f5f9;">
-                                <td style="padding: 15px; font-size: 15px; font-weight: 900; text-transform: uppercase; border-bottom: 1px solid #475569; color: #0f172a;">Grand Total</td>
-                                <td style="padding: 15px; font-size: 18px; font-weight: 900; text-align: right; border-bottom: 1px solid #475569; color: #0f172a;">₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</td>
-                            </tr>
+                            let finalHtml = '';
+                            if (thisInvoiceDue > 0.01) {
+                                finalHtml += `<div class="totals-row" style="margin-top: 12px; border-top: 1px dashed #cbd5e1; padding-top: 12px;"><span style="font-weight: 800; color: #0f172a; text-transform: uppercase;">Balance Due</span><span style="font-weight: 900; color: #dc2626; font-size: 16px;">₹${thisInvoiceDue.toFixed(2)}</span></div>`;
+                            } else if (displayTotalPaid > 0) {
+                                finalHtml += `<div class="totals-row" style="margin-top: 12px; border-top: 1px dashed #cbd5e1; padding-top: 12px;"><span style="font-weight: 800; color: #0f172a; text-transform: uppercase;">Balance Due</span><span style="font-weight: 900; color: #16a34a; font-size: 16px;">₹0.00 (PAID)</span></div>`;
+                            }
+
+                            // 🚨 PREVIOUS OUTSTANDING LOGIC (Restored perfectly)
+                            let partyBalance = parseFloat(safeParty.balance) || 0;
+                            let pendingOldInvoices = [];
                             
-                            ${(() => {
-                                let linkedSum = 0;
-                                if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
-                                
-                                // 🚨 BUG FIX: Ensure the math respects explicitly linked manual receipts!
-                                let safeTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
-                                if (doc.status === 'Completed' || doc.status === 'Paid') safeTotalPaid = parseFloat(doc.grandTotal) || 0;
-                                
-                                let upfrontPaid = safeTotalPaid - linkedSum;
-                                
-                                let htmlStr = '';
-                                if (upfrontPaid > 0.01) {
-                                    htmlStr += `
-                                    <tr>
-                                        <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; font-size: 12px; color: #475569; font-weight: 800;">Advance / Upfront Payment</td>
-                                        <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a;">- ₹${upfrontPaid.toFixed(2)}</td>
-                                    </tr>`;
-                                }
-                                return htmlStr;
-                            })()}
-
-                            ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
-                            <tr>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1;">
-                                    <div style="font-size: 11px; color: #475569; font-weight: 700;">${parseFloat(r.amount) < 0 ? 'Refund / Offset' : 'Payment'} on ${Utils.formatDateDisplay(r.date)}</div>
-                                    <div style="font-size: 10px; color: #64748b; margin-top: 3px; font-weight: 600;">
-                                        ${r.receiptNo ? `Rec: ${r.receiptNo}` : (r.id ? `Rec: ${r.id.slice(-6).toUpperCase()}` : '')}
-                                        ${r.mode ? ` | Mode: ${r.mode}` : ''}
-                                        ${r.ref ? ` | Ref: ${r.ref}` : ''}
-                                    </div>
-                                </td>
-                                <td style="padding: 10px 15px; border-bottom: 1px solid #cbd5e1; text-align: right; font-weight: 800; color: #16a34a; vertical-align: top;">${parseFloat(r.amount) < 0 ? '+' : '-'} ₹${Math.abs(parseFloat(r.amount)).toFixed(2)}</td>
-                            </tr>
-                            `).join('') : ''}
-                            
-                            ${(() => {
-                                let linkedSum = 0;
-                                if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
-                                
-                                // 🚨 BUG FIX: Ensure Balance Due mathematically deducts manual receipts!
-                                let displayTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
-                                const displayGrandTotal = parseFloat(doc.grandTotal) || 0;
-                                if (doc.status === 'Completed' || doc.status === 'Paid') displayTotalPaid = displayGrandTotal;
-                                
-                                let finalHtml = '';
-                                const thisInvoiceDue = Math.max(0, displayGrandTotal - displayTotalPaid);
-
-                                if (thisInvoiceDue > 0.01) {
-                                    finalHtml += `
-                                    <tr>
-                                        <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</td>
-                                        <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #dc2626;">₹${thisInvoiceDue.toFixed(2)}</td>
-                                    </tr>`;
-                                } else if (displayTotalPaid > 0) {
-                                    finalHtml += `
-                                    <tr>
-                                        <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #0f172a;">Balance Due</td>
-                                        <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #16a34a;">₹0.00 (PAID)</td>
-                                    </tr>`;
-                                }
-
-                                // 🚨 THE FIX: DYNAMIC PREVIOUS BALANCE INJECTION (WITH INVOICE BREAKDOWN)!
-                                let partyBalance = parseFloat(safeParty.balance) || 0;
-                                let pendingOldInvoices = [];
-                                
-                                if (isSales && window.UI && window.UI.state && window.UI.state.rawData) {
-                                    // 1. Calculate live overall balance
-                                    let tSales = 0, tReceipts = 0, tReturns = 0;
-                                    (window.UI.state.rawData.sales || []).forEach(s => {
-                                        if (s.customerId === safeParty.id && s.status !== 'Cancelled' && s.status !== 'Open') {
-                                            if (s.documentType === 'return') tReturns += (parseFloat(s.grandTotal) || 0);
-                                            else tSales += (parseFloat(s.grandTotal) || 0);
-                                        }
-                                    });
-                                    (window.UI.state.rawData.cashbook || []).forEach(c => {
-                                        if (c.ledgerId === safeParty.id) {
-                                            tReceipts += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
-                                        }
-                                    });
-                                    let ob = parseFloat(safeParty.openingBalance) || 0;
-                                    let netOb = String(safeParty.balanceType || 'Dr').includes('Pay') || String(safeParty.balanceType || 'Dr').includes('Cr') ? -ob : ob;
-                                    partyBalance = netOb + tSales - tReturns - tReceipts;
-
-                                    // 2. Scan exact payments to find specific unpaid historical invoices
-                                    const exactPaymentMap = {};
-                                    const exactReturnMap = {};
-                                    (window.UI.state.rawData.cashbook || []).forEach(c => {
-                                        if (c.ledgerId === safeParty.id && c.invoiceRef) {
-                                            let amt = parseFloat(c.amount) || 0;
-                                            const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                                            refs.forEach(ref => { exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length); });
-                                        }
-                                    });
-                                    (window.UI.state.rawData.sales || []).forEach(d => {
-                                        if (d.documentType === 'return' && d.status !== 'Open' && d.customerId === safeParty.id && d.orderNo) {
-                                            exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
-                                        }
-                                    });
-
-                                    (window.UI.state.rawData.sales || []).forEach(s => {
-                                        if (s.customerId === safeParty.id && s.id !== doc.id && s.status !== 'Cancelled' && s.status !== 'Open' && s.documentType !== 'return') {
-                                            const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.poNo, s.id].filter(Boolean))];
-                                            const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
-                                            const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
-                                            const docTotal = parseFloat(s.grandTotal) || 0;
-                                            const unpaid = Math.max(0, docTotal - paid - returned);
-                                            
-                                            // Extract and save the invoice if it still has pending money
-                                            if (unpaid > 0.01) {
-                                                pendingOldInvoices.push({ 
-                                                    no: s.invoiceNo || s.orderNo || s.id.slice(-6).toUpperCase(), 
-                                                    date: s.date, 
-                                                    unpaid: unpaid 
-                                                });
-                                            }
-                                        }
-                                    });
-                                }
-
-                                if (isSales && partyBalance > 0.01) {
-                                    const previousDues = partyBalance - thisInvoiceDue;
-                                    
-                                    if (previousDues > 0.01) {
-                                        // Print the sub-header
-                                        finalHtml += `
-                                        <tr>
-                                            <td colspan="2" style="padding: 10px 15px 4px 15px; font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase;">Previous Outstanding Breakdown</td>
-                                        </tr>`;
-                                        
-                                        // Print the individual old invoices
-                                        if (pendingOldInvoices.length > 0) {
-                                            // Sort oldest first
-                                            pendingOldInvoices.sort((a, b) => new Date(a.date) - new Date(b.date));
-                                            
-                                            // Limit to 5 so the PDF design doesn't break
-                                            const displayInvoices = pendingOldInvoices.slice(0, 5);
-                                            
-                                            displayInvoices.forEach(oldInv => {
-                                                finalHtml += `
-                                                <tr>
-                                                    <td style="padding: 4px 15px; font-size: 11px; color: #475569; font-weight: 600;">Inv: <span style="color:#0f172a;">${oldInv.no}</span> <span style="color:#94a3b8; font-size:10px;">(${window.Utils.formatDateDisplay(oldInv.date)})</span></td>
-                                                    <td style="padding: 4px 15px; text-align: right; font-weight: 700; color: #475569; font-size: 11px;">₹${oldInv.unpaid.toFixed(2)}</td>
-                                                </tr>`;
-                                            });
-                                            
-                                            // If there are more than 5, show a summary row for the rest
-                                            if (pendingOldInvoices.length > 5) {
-                                                const hiddenSum = pendingOldInvoices.slice(5).reduce((sum, inv) => sum + inv.unpaid, 0);
-                                                finalHtml += `
-                                                <tr>
-                                                    <td style="padding: 4px 15px; font-size: 11px; color: #475569; font-weight: 600; font-style: italic;">...and ${pendingOldInvoices.length - 5} older invoices</td>
-                                                    <td style="padding: 4px 15px; text-align: right; font-weight: 700; color: #475569; font-size: 11px;">₹${hiddenSum.toFixed(2)}</td>
-                                                </tr>`;
-                                            }
-                                        } else {
-                                            // Failsafe for unlinked Opening Balances
-                                            finalHtml += `
-                                                <tr>
-                                                    <td style="padding: 4px 15px; font-size: 11px; color: #475569; font-weight: 600;">Opening Balance / Unlinked Dues</td>
-                                                    <td style="padding: 4px 15px; text-align: right; font-weight: 700; color: #475569; font-size: 11px;">₹${previousDues.toFixed(2)}</td>
-                                                </tr>`;
-                                        }
-
-                                        // Print the final summary lines
-                                        finalHtml += `
-                                        <tr>
-                                            <td style="padding: 10px 15px; border-bottom: 1px dashed #cbd5e1; font-size: 12px; color: #0f172a; font-weight: 800; border-top: 1px solid #e2e8f0;">Total Previous Dues</td>
-                                            <td style="padding: 10px 15px; border-bottom: 1px dashed #cbd5e1; text-align: right; font-weight: 900; color: #dc2626; border-top: 1px solid #e2e8f0;">₹${previousDues.toFixed(2)}</td>
-                                        </tr>
-                                        <tr style="background: #fee2e2;">
-                                            <td style="padding: 15px; font-size: 14px; font-weight: 900; text-transform: uppercase; color: #991b1b; border-bottom: 1px solid #475569;">Total Net Payable</td>
-                                            <td style="padding: 15px; font-size: 16px; font-weight: 900; text-align: right; color: #991b1b; border-bottom: 1px solid #475569;">₹${partyBalance.toFixed(2)}</td>
-                                        </tr>`;
+                            if (isSales && window.UI && window.UI.state && window.UI.state.rawData) {
+                                let tSales = 0, tReceipts = 0, tReturns = 0;
+                                (window.UI.state.rawData.sales || []).forEach(s => {
+                                    if (s.customerId === safeParty.id && s.status !== 'Cancelled' && s.status !== 'Open') {
+                                        if (s.documentType === 'return') tReturns += (parseFloat(s.grandTotal) || 0);
+                                        else tSales += (parseFloat(s.grandTotal) || 0);
                                     }
-                                }
-                                return finalHtml;
-                            })()}
-                        </table>
+                                });
+                                (window.UI.state.rawData.cashbook || []).forEach(c => {
+                                    if (c.ledgerId === safeParty.id) {
+                                        tReceipts += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                                    }
+                                });
+                                let ob = parseFloat(safeParty.openingBalance) || 0;
+                                let netOb = String(safeParty.balanceType || 'Dr').includes('Pay') || String(safeParty.balanceType || 'Dr').includes('Cr') ? -ob : ob;
+                                partyBalance = netOb + tSales - tReturns - tReceipts;
 
-                        <div id="signature-anchor" class="avoid-break" style="padding: 20px 15px; text-align: right; page-break-inside: avoid;">
+                                const exactPaymentMap = {};
+                                const exactReturnMap = {};
+                                (window.UI.state.rawData.cashbook || []).forEach(c => {
+                                    if (c.ledgerId === safeParty.id && c.invoiceRef) {
+                                        let amt = parseFloat(c.amount) || 0;
+                                        const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                                        refs.forEach(ref => { exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length); });
+                                    }
+                                });
+                                (window.UI.state.rawData.sales || []).forEach(d => {
+                                    if (d.documentType === 'return' && d.status !== 'Open' && d.customerId === safeParty.id && d.orderNo) {
+                                        exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                                    }
+                                });
+
+                                (window.UI.state.rawData.sales || []).forEach(s => {
+                                    if (s.customerId === safeParty.id && s.id !== doc.id && s.status !== 'Cancelled' && s.status !== 'Open' && s.documentType !== 'return') {
+                                        const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.poNo, s.id].filter(Boolean))];
+                                        const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
+                                        const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
+                                        const docTotal = parseFloat(s.grandTotal) || 0;
+                                        const unpaid = Math.max(0, docTotal - paid - returned);
+                                        if (unpaid > 0.01) {
+                                            pendingOldInvoices.push({ no: s.invoiceNo || s.orderNo || s.id.slice(-6).toUpperCase(), date: s.date, unpaid: unpaid });
+                                        }
+                                    }
+                                });
+                            }
+
+                            if (isSales && partyBalance > 0.01) {
+                                const previousDues = partyBalance - thisInvoiceDue;
+                                if (previousDues > 0.01) {
+                                    finalHtml += `<div style="margin-top: 16px; border-top: 2px solid #e2e8f0; padding-top: 12px;">
+                                        <div style="font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">Previous Outstanding</div>`;
+                                    
+                                    if (pendingOldInvoices.length > 0) {
+                                        pendingOldInvoices.sort((a, b) => new Date(a.date) - new Date(b.date));
+                                        const displayInvoices = pendingOldInvoices.slice(0, 5);
+                                        displayInvoices.forEach(oldInv => {
+                                            finalHtml += `<div class="totals-row" style="font-size: 11px; margin-bottom: 4px;"><span style="color: #475569;">Inv: ${oldInv.no} <span style="font-size:9px;">(${window.Utils.formatDateDisplay(oldInv.date)})</span></span><span style="font-weight: 700; color: #0f172a;">₹${oldInv.unpaid.toFixed(2)}</span></div>`;
+                                        });
+                                        if (pendingOldInvoices.length > 5) {
+                                            const hiddenSum = pendingOldInvoices.slice(5).reduce((sum, inv) => sum + inv.unpaid, 0);
+                                            finalHtml += `<div class="totals-row" style="font-size: 11px; margin-bottom: 4px;"><span style="color: #64748b; font-style: italic;">...and ${pendingOldInvoices.length - 5} older invoices</span><span style="font-weight: 700; color: #0f172a;">₹${hiddenSum.toFixed(2)}</span></div>`;
+                                        }
+                                    } else {
+                                        finalHtml += `<div class="totals-row" style="font-size: 11px;"><span style="color: #475569;">Opening Balance / Dues</span><span style="font-weight: 700; color: #0f172a;">₹${previousDues.toFixed(2)}</span></div>`;
+                                    }
+
+                                    finalHtml += `<div class="totals-row" style="margin-top: 8px; font-size: 12px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px;"><span style="font-weight: 800; color: #0f172a;">Total Previous Dues</span><span style="font-weight: 900; color: #dc2626;">₹${previousDues.toFixed(2)}</span></div>`;
+                                    
+                                    finalHtml += `<div class="totals-row" style="margin-top: 8px; background: #fee2e2; padding: 10px; border-radius: 6px; border: 1px solid #fca5a5;"><span style="font-weight: 900; color: #991b1b; text-transform: uppercase;">Total Net Payable</span><span style="font-weight: 900; color: #991b1b; font-size: 15px;">₹${partyBalance.toFixed(2)}</span></div></div>`;
+                                }
+                            }
+                            return finalHtml;
+                        })()}
+
+                        <div id="signature-anchor" class="avoid-break" style="margin-top: 40px; text-align: center; page-break-inside: avoid;">
                             ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; max-width: 160px; margin-bottom: 8px; object-fit: contain; display: inline-block;">` : `<div style="height: 60px;"></div>`}
-                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
+                            <div style="border-top: 2px solid #cbd5e1; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
                             <div style="font-size: 10px; color: #475569; margin-top: 4px;">For ${biz.name || 'Company Name'}</div>
                         </div>
                     </div>
                 </div>
-            </div> </div> </div>
+            </div>
+        </div>
         `;
         
         // --- ENTERPRISE UPGRADE: SPLIT PAYMENT / INSTALLMENT TRACKER ---
@@ -2328,7 +2251,7 @@ Thank you!`;
                 // 🚨 FIX: Added 'tr' so it never mathematically slices a table row in half across two pages!
                 pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] }, 
                 html2canvas: { 
-                    scale: 1.2, /* 🚀 SPEED FIX: Dropped to 1.2 to double generation speed while maintaining HD text */
+                    scale: 2.0, /* 🚀 ENTERPRISE FIX: Upgraded to Scale 2.0 for perfectly crisp A4 printing */
                     backgroundColor: '#ffffff',
                     useCORS: true, 
                     logging: false, 
@@ -2360,9 +2283,9 @@ Thank you!`;
                     }
                 },
                 image: { type: 'jpeg', quality: 0.90 }, // 🚨 RAM FIX: 0.90 saves ~60% memory vs 1.0!
-                // 🚨 ENTERPRISE FIX: The Multi-Page A4 Shield!
-                // Forces massive Ledgers and Statements into paginated A4 format (800x1131), while wrapping small invoices tightly!
-                jsPDF: { unit: 'px', format: exactHeight > 1150 ? [800, 1131] : [800, exactHeight + 2], orientation: 'portrait', compress: true }
+                // 🚀 SOLLO ERP FIX: SINGLE-PAGE SEAMLESS INVOICE ENGINE
+                // Disables awkward A4 page-breaks. The PDF will dynamically stretch to fit 1 item or 100 items perfectly on ONE beautiful continuous page!
+                jsPDF: { unit: 'px', format: [800, exactHeight + 10], orientation: 'portrait', compress: true }
             };
 
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');

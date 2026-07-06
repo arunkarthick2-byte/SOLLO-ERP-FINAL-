@@ -303,17 +303,67 @@ const Cloud = {
         });
     },
 
+    // ==========================================
+    // 🚨 ENTERPRISE UPGRADE: SMART SYNC MERGE ENGINE
+    // ==========================================
+    smartMerge: async (cloudData) => {
+        window.Utils.showToast("Analyzing and Merging Data...");
+        const storeNames = Object.keys(cloudData);
+        let puts = [];
+        
+        for (let i = 0; i < storeNames.length; i++) {
+            const storeName = storeNames[i];
+            const cloudRecords = cloudData[storeName];
+            if (!Array.isArray(cloudRecords)) continue;
+            
+            // Get local records safely to compare
+            let localRecords = [];
+            try {
+                if (window.getAllRecords) localRecords = await window.getAllRecords(storeName);
+            } catch (e) { console.warn(`Could not read local store: ${storeName}`); }
+            
+            const localMap = {};
+            localRecords.forEach(r => { if (r.id) localMap[r.id] = r; });
+            
+            for (let j = 0; j < cloudRecords.length; j++) {
+                const cloudRecord = cloudRecords[j];
+                if (!cloudRecord.id) continue;
+                
+                const localRecord = localMap[cloudRecord.id];
+                
+                if (!localRecord) {
+                    // Record is new in the cloud, add it to phone safely
+                    puts.push({ store: storeName, data: cloudRecord });
+                } else {
+                    // Record exists in both! Compare strict timestamps to keep the newest edit!
+                    const cloudTime = new Date(cloudRecord._lastModified || 0).getTime();
+                    const localTime = new Date(localRecord._lastModified || 0).getTime();
+                    
+                    if (cloudTime > localTime) {
+                        puts.push({ store: storeName, data: cloudRecord });
+                    }
+                }
+            }
+        }
+        
+        // Execute the atomic batch save!
+        if (puts.length > 0 && window.executeAtomicBatch) {
+            console.log(`Merging ${puts.length} newer records from the cloud...`);
+            await window.executeAtomicBatch(puts, []);
+        } else {
+            console.log("Local database is already perfectly up to date!");
+        }
+    },
+
     restore: async () => {
         Cloud.authenticate(async () => {
             window.Utils.showToast("Searching Google Drive...");
             try {
-                // 🚨 ENTERPRISE UPGRADE: "NEW PHONE" RECOVERY SHIELD
-                // Safely locks onto the active Firm ID to prevent overwriting Firm A with Firm B's data!
                 const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
                 let response = await gapi.client.drive.files.list({
                     q: `name = 'SOLLO_ERP_Backup_${activeFirmId}.json' and mimeType='application/json' and trashed=false`,
                     spaces: 'drive',
-                    orderBy: 'modifiedTime desc', // Forces the newest backup to be file [0]
+                    orderBy: 'modifiedTime desc',
                     fields: 'files(id, name, modifiedTime)'
                 });
 
@@ -322,13 +372,13 @@ const Cloud = {
                     return;
                 }
 
-                // Automatically selects the most recent backup found on the Drive
                 const fileId = response.result.files[0].id;
                 const foundName = response.result.files[0].name;
                 const modDate = new Date(response.result.files[0].modifiedTime).toLocaleString();
 
                 if (window.Utils) {
-                    const isConfirmed = await window.Utils.confirmModal(`Found backup: ${foundName}\nDate: ${modDate}\n\nDo you want to restore this? WARNING: This will overwrite your current data on this device!`, "Restore Backup", true);
+                    // 🚨 NEW WARNING: Reflects the non-destructive merge upgrade!
+                    const isConfirmed = await window.Utils.confirmModal(`Found backup: ${foundName}\nDate: ${modDate}\n\nDo you want to sync this? Your newest local edits will be safely preserved.`, "Sync Cloud Data", true);
                     if (!isConfirmed) return;
                 }
 
@@ -340,25 +390,23 @@ const Cloud = {
 
                 if (fileRes.ok) {
                     let jsonData = await fileRes.json();
-                    window.Utils.showToast("Installing Data...");
                     
-                    // FIX: Call the globally mapped import function directly
-                    await window.importDatabase(jsonData); 
+                    // 🚨 FIX: Trigger the new Smart Merge Engine instead of a blind database overwrite!
+                    await Cloud.smartMerge(jsonData); 
                     
-                    window.Utils.showToast("✅ Restore Successful! Reloading...");
+                    window.Utils.showToast("✅ Sync Successful! Reloading...");
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    // FIX: Catch expired tokens during Restore to prevent silent failures
                     if (fileRes.status === 401) {
                         gapi.client.setToken(null);
-                        if (window.Utils) window.Utils.alertModal("Cloud session expired. Please click Restore again to re-authenticate.", "Session Expired");
+                        if (window.Utils) window.Utils.alertModal("Cloud session expired. Please click Sync again to re-authenticate.", "Session Expired");
                         return;
                     }
                     throw new Error('Download failed');
                 }
             } catch (e) {
                 console.error(e);
-                if (window.Utils) window.Utils.alertModal("Cloud Restore Failed: " + (e.message || "Connection Error"), "Restore Error");
+                if (window.Utils) window.Utils.alertModal("Cloud Sync Failed: " + (e.message || "Connection Error"), "Sync Error");
             }
         });
     }

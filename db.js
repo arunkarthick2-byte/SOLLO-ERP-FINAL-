@@ -13,6 +13,13 @@ try {
             console.warn("⚠️ Closing database connection to allow another tab to upgrade!");
             db.close();
             db = null; // 🚨 CRITICAL FIX: Destroy the zombie variable so the app knows to reconnect!
+            
+            // 🚨 ENTERPRISE FIX: Protect the user from saving data into a closed database!
+            if (window.Utils && typeof window.Utils.alertModal === 'function') {
+                window.Utils.alertModal("The database was updated in another tab. Please refresh this page to sync the changes and continue working safely.", "🔄 Refresh Required");
+            } else {
+                alert("The database was updated in another tab. Please refresh this page.");
+            }
         }
     };
 } catch(e) {}
@@ -478,7 +485,15 @@ const applyStockImpact = async (storeName, record) => {
     }
 };
 
+window.isTransactionActive = false;
 const saveInvoiceTransaction = async (storeName, data) => {
+    // 🚨 ENTERPRISE FIX: Transaction Lock to prevent duplicate saves!
+    if (window.isTransactionActive) {
+        console.warn("Save blocked: Another transaction is in progress.");
+        return; 
+    }
+    window.isTransactionActive = true;
+
     // 🚨 ENTERPRISE UPGRADE: GLOBAL DATA NORMALIZER
     // Silently fixes messy typists before the data ever hits the database!
     if (data.customerName) {
@@ -615,6 +630,8 @@ const saveInvoiceTransaction = async (storeName, data) => {
             console.error("Rollback failed. Storage is likely physically exhausted.", rollbackError);
         }
         throw new Error("Transaction failed due to a system error. If storage is full, please free up space.");
+    } finally {
+        window.isTransactionActive = false; // 🚨 ENTERPRISE FIX: Unlocks the door for the next save!
     }
 };
 

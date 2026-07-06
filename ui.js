@@ -119,9 +119,9 @@ const UI = {
                 }
                 
                 if (target.type === 'number' && String(target.value).includes('-')) {
-                    if (!id.includes('adjust') && !id.includes('discount') && !id.includes('return')) {
-                        target.value = Math.abs(parseFloat(target.value) || 0);
-                    }
+                    // 🚨 ENTERPRISE FIX: Allowed 'balance' so Bank Overdrafts (negative balances) can be typed!
+                    if (!id.includes('adjust') && !id.includes('discount') && !id.includes('return') && !id.includes('stock') && !id.includes('balance')) {
+                        target.value = Math.abs(parseFloat(target.value) || 0);                    }
                 }
             }
         });
@@ -212,17 +212,17 @@ const UI = {
     },
 
     openNumpad: (inputElement, labelText) => {
-        // Force the input to stay focused so the blue highlighter ring stays visible!
+        // 🚨 CRITICAL FIX: Do NOT dynamically remove readonly, it causes the Android keyboard to ghost and stretch the screen!
         inputElement.focus();
         UI.state.activeNumpadInput = inputElement;
         document.getElementById('numpad-label').innerText = labelText || "Enter Value";
         document.getElementById('custom-numpad').classList.add('active');
         
         // 🚀 ENTERPRISE UX: Auto-Scroll to Input!
-        // Automatically pushes the screen up so the keypad never hides the box you are typing in.
+        // Use 'nearest' instead of 'center' so the screen doesn't violently jump up and look abnormal!
         setTimeout(() => {
-            inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 150);
+            inputElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 300);
     },
 
     closeNumpad: () => {
@@ -349,6 +349,12 @@ const UI = {
         // Cancels any pending GPU frames if multiple filters fire at the exact same millisecond!
         if (container.renderToken) cancelAnimationFrame(container.renderToken);
 
+        // 🚨 ENTERPRISE FIX: Prevent Memory Leaks! Disconnect any old background observers before rebuilding the list.
+        if (container.listObserver) {
+            container.listObserver.disconnect();
+            container.listObserver = null;
+        }
+
         if (!dataArray || dataArray.length === 0) {
             container.innerHTML = emptyStateHTML;
             return;
@@ -394,14 +400,14 @@ const UI = {
                     container.appendChild(sentinel);
 
                     // Use Intersection Observer to auto-load when the user scrolls near the bottom!
-                    const observer = new IntersectionObserver((entries) => {
+                    container.listObserver = new IntersectionObserver((entries) => {
                         if (entries[0].isIntersecting) {
-                            observer.disconnect(); // Stop observing this specific sentinel
+                            container.listObserver.disconnect(); // Stop observing this specific sentinel
                             renderNextChunk(); // Automatically load the next chunk!
                         }
                     }, { rootMargin: '4000px' }); 
 
-                    observer.observe(sentinel);
+                    container.listObserver.observe(sentinel);
                 }
             });
         };
@@ -871,9 +877,8 @@ const UI = {
         if (status === 'Shipped' || status === 'Unpaid' || (type === 'purchase' && status !== 'Open')) {
             if (shippedGroup) shippedGroup.classList.remove('hidden');
             
-            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date to Today!
-            const mainDateInput = document.getElementById(`${type}-date`);
-            if (shippedInput && (!shippedInput.value || (mainDateInput && shippedInput.value === mainDateInput.value))) {
+            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date ONLY if it is completely blank!
+            if (shippedInput && !shippedInput.value) {
                 shippedInput.value = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
             }
         } 
@@ -1017,10 +1022,11 @@ const UI = {
         // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
         // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
         const freight = safeNum((document.getElementById('sales-freight') || {}).value);
-        const exactTotal = finalSubtotal + totalGst + freight;
+        // 🚨 ENTERPRISE FIX: Strict Integer Math Engine (No more Ghost Pennies!)
+        const exactTotalCents = Math.round(finalSubtotal * 100) + Math.round(totalGst * 100) + Math.round(freight * 100);
+        const exactTotal = exactTotalCents / 100;
         const roundedTotal = Math.round(exactTotal);
-        let roundOff = roundedTotal - exactTotal;
-        if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
+        let roundOff = Math.round((roundedTotal - exactTotal) * 100) / 100;
 
         const subtotalEl = document.getElementById('sales-subtotal');
         if (subtotalEl) subtotalEl.innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
@@ -1110,10 +1116,11 @@ const UI = {
         // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
         // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
         const freight = safeNum((document.getElementById('purchase-freight') || {}).value);
-        const exactTotal = finalSubtotal + totalGst + freight;
+        // 🚨 ENTERPRISE FIX: Strict Integer Math Engine (No more Ghost Pennies!)
+        const exactTotalCents = Math.round(finalSubtotal * 100) + Math.round(totalGst * 100) + Math.round(freight * 100);
+        const exactTotal = exactTotalCents / 100;
         const roundedTotal = Math.round(exactTotal);
-        let roundOff = roundedTotal - exactTotal;
-        if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
+        let roundOff = Math.round((roundedTotal - exactTotal) * 100) / 100;
 
         const pSubtotalEl = document.getElementById('purchase-subtotal');
         if (pSubtotalEl) pSubtotalEl.innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
@@ -1404,6 +1411,20 @@ const UI = {
                 else if (activeFilter === 'Completed') matchFilter = s.status === 'Completed'; 
                 else if (activeFilter === 'Shipped') matchFilter = s.status === 'Shipped';
                 else if (activeFilter === 'To Receive') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return';
+                else if (activeFilter === 'Overdue') {
+                    matchFilter = false;
+                    if (balance >= 100 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return') {
+                        const baseDate = s.shippedDate ? s.shippedDate : s.date;
+                        if (baseDate) {
+                            const parts = baseDate.split('-'); 
+                            const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
+                            const tParts = todayStr.split('-');
+                            const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
+                            const exactDays = Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24));
+                            if (exactDays > 15) matchFilter = true;
+                        }
+                    }
+                }
                 else if (activeFilter === 'GST') matchFilter = s.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = s.invoiceType === 'Non-GST';
                 
@@ -2922,13 +2943,13 @@ const UI = {
                     const diffDays = Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24));
 
                     return `
-                    <li>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); cursor: pointer;" onclick="app.openForm('sales', '${s.id}', '${s.documentType || 'invoice'}')">
                         <div>
-                            <strong class="large-text">${s.customerName || 'Unknown Party'}</strong><br>
-                            <small class="color-primary">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small>
+                            <strong class="large-text" style="color: var(--md-on-surface); font-size: 15px;">${s.customerName || 'Unknown Party'}</strong><br>
+                            <small class="color-primary" style="font-size: 13px;">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small>
                         </div>
                         <span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">${diffDays} Days Overdue</span>
-                    </li>`;
+                    </div>`;
                 }).join('');
             } else {
                 overdueContainer.classList.add('hidden');
@@ -3489,12 +3510,12 @@ const UI = {
                 <div style="flex: 1; padding-right: 8px; min-width: 0;">
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
-                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" inputmode="none" readonly class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none; cursor: pointer;">
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" inputmode="none" class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 45px; padding: 4px 0; text-align: center; font-weight: bold; border: none; border-bottom: 1px solid var(--md-outline-variant); color: var(--md-on-surface); font-size: 16px; background: transparent; outline: none; cursor: pointer; border-radius: 0;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="text" inputmode="none" readonly class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none; cursor: pointer;">
-                        <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
+                        <input type="text" inputmode="none" class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 4px 0; text-align: center; font-weight: bold; border: none; border-bottom: 1px solid var(--md-outline-variant); color: var(--md-on-surface); font-size: 16px; background: transparent; outline: none; cursor: pointer; border-radius: 0;">
+                        <span style="font-size: 10px; color: var(--md-text-muted); background: transparent; padding: 4px 0; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
                         <input type="hidden" class="row-uom" value="${uom || 'Unit'}">
@@ -3502,7 +3523,7 @@ const UI = {
                     ${prefix === 'sales' ? `
                     <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                         <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="text" inputmode="none" readonly class="row-item-buyprice tap-target" value="${buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent; cursor: pointer;">
+                        <input type="text" inputmode="none" class="row-item-buyprice tap-target" value="${buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent; cursor: pointer; outline: none;">
                         <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                     </div>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
@@ -3629,7 +3650,7 @@ const UI = {
         const cb = li.querySelector('input'); cb.checked = !cb.checked;
         if (cb.checked) { 
             UI.state.selectedProducts.push({ id, name, price, gst, uom, hsn, buyPrice }); 
-            li.style.background = 'var(--md-surface-variant)'; 
+            li.style.background = 'transparent'; // 🚨 FIX: Neat and clean, no background highlight!
         } else { 
             UI.state.selectedProducts = UI.state.selectedProducts.filter(p => p.id !== id); 
             li.style.background = 'transparent'; 
@@ -3673,15 +3694,15 @@ const UI = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="text" inputmode="none" readonly class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
+                        <input type="text" inputmode="none" class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:4px 0; border:none; border-bottom:1px solid var(--md-outline-variant); border-radius:0; background:transparent; font-size:16px; font-weight:bold; color:var(--md-on-surface); outline:none; cursor:pointer;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="text" inputmode="none" readonly class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
+                        <input type="text" inputmode="none" class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:4px 0; border:none; border-bottom:1px solid var(--md-outline-variant); border-radius:0; background:transparent; font-size:16px; font-weight:bold; color:var(--md-on-surface); outline:none; cursor:pointer;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="text" inputmode="none" readonly class="row-gst tap-target" value="${p.gst || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter GST %')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
+                        <input type="text" inputmode="none" class="row-gst tap-target" value="${p.gst || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter GST %')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:4px 0; border:none; border-bottom:1px solid var(--md-outline-variant); border-radius:0; background:transparent; font-size:16px; font-weight:bold; color:var(--md-on-surface); outline:none; cursor:pointer;">
                     </div>
                 </div>
 
@@ -3690,7 +3711,7 @@ const UI = {
                         ${prefix === 'sales' ? `
                         <div>
                             <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
-                            <input type="text" inputmode="none" readonly class="row-item-buyprice tap-target" value="${p.buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px; cursor: pointer;">
+                            <input type="text" inputmode="none" class="row-item-buyprice tap-target" value="${p.buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px; cursor: pointer; outline: none;">
                         </div>
                         ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
                     </div>
@@ -4216,8 +4237,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeSheet) activeSheet.style.paddingBottom = `${keyboardHeight}px`;
                 if (activeScreen) activeScreen.style.paddingBottom = `${keyboardHeight + 40}px`;
                 
-                // Keep the active input visible, but DO NOT violently jerk the screen to the center!
-                if (document.activeElement) {
+                // 🚨 CRITICAL FIX: Ignore Numpad Inputs! If inputmode="none", do not trigger the auto-scroll glitch!
+                if (document.activeElement && document.activeElement.getAttribute('inputmode') !== 'none') {
                     setTimeout(() => {
                         document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 50);
@@ -4536,6 +4557,22 @@ window.addEventListener('popstate', (e) => {
             
             // Protect the main dashboard, but safely close the topmost activity
             if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
+                
+                // 🚨 ENTERPRISE FIX: The "Accidental Swipe" Data Wipe Shield!
+                if (topScreen.id.includes('-form') && window.isFormDirty) {
+                    window.history.pushState({ internalRoute: true }, ''); // Instantly trap them back in the form!
+                    
+                    if (window.Utils && window.Utils.confirmModal) {
+                        window.Utils.confirmModal("You have unsaved changes! Are you sure you want to leave and lose your work?", "Discard", true).then(isConfirmed => {
+                            if (isConfirmed) {
+                                window.isFormDirty = false;
+                                if (window.UI) window.UI.closeActivity(topScreen.id);
+                            }
+                        });
+                    }
+                    return; // Halt the back button entirely!
+                }
+                
                 if (window.UI) window.UI.closeActivity(topScreen.id);
                 trapped = true;
             }
@@ -4586,7 +4623,8 @@ document.addEventListener('focusout', (e) => {
             if (!sheet) return;
 
             // SCROLL AWARENESS: Check if the user is touching a scrollable area inside the sheet
-            const scrollTarget = e.target.closest('[style*="overflow-y: auto"], [style*="overflow: auto"], .activity-content, .list-view, .sheet-content');
+            // 🚨 FIX: Added #list-overdue and ul so the Overdue Notification menu can scroll normally!
+            const scrollTarget = e.target.closest('[style*="overflow-y: auto"], [style*="overflow: auto"], .activity-content, .list-view, .sheet-content, #list-overdue, ul');
             
             // If they are inside a scrollable area, ONLY allow drag if they are at the absolute top!
             if (scrollTarget && scrollTarget.scrollTop > 0) return;
