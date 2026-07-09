@@ -3,7 +3,7 @@
 // ==========================================
 const DB_NAME = 'SOLLO_ERP_DB';
 // ENTERPRISE FIX: Jumped to Version 20 to break the browser deadlock and forcefully build all missing tables!
-const DB_VERSION = 66.6; 
+const DB_VERSION = 66.7; 
 let db;
 // --- NEW: Global Database Connection Listener ---
 try {
@@ -1018,7 +1018,6 @@ const importDatabase = async (parsedData) => {
     }
 
     // 🚨 ENTERPRISE UPGRADE: RESTORE LOCAL STORAGE SETTINGS
-    // Re-applies your custom PDF colors, fonts, and invoice numbering formats instantly!
     if (parsedData.appSettings && parsedData.appSettings.length > 0) {
         const settings = parsedData.appSettings[0];
         Object.keys(settings).forEach(key => {
@@ -1027,12 +1026,20 @@ const importDatabase = async (parsedData) => {
         console.log("⚙️ App Settings & Themes Restored Successfully!");
     }
 
-    // ENTERPRISE FIX: The "New Phone" Restore Bug!
-    // The previous shield permanently blocked restoring backups onto a brand new device!
-    // We must accept the backup's Firm ID and command the app to dynamically adopt it.
+    // 🚨 GHOST DATA SHIELD: The "New Phone" Restore Bug Fix!
     let backupFirmId = null;
     if (parsedData.firms && parsedData.firms.length > 0) {
         backupFirmId = parsedData.firms[0].id;
+    } else {
+        // Legacy backups didn't save the 'firms' table! We must extract the ID and manually rebuild it.
+        const sampleRecord = (parsedData.sales && parsedData.sales[0]) || (parsedData.items && parsedData.items[0]);
+        backupFirmId = (sampleRecord && sampleRecord.firmId) ? sampleRecord.firmId : 'firm1';
+        
+        parsedData.firms = [{
+            id: backupFirmId,
+            name: 'Restored Company',
+            phone: '', email: '', gst: '', address: '', state: ''
+        }];
     }
 
     const stores = Object.keys(parsedData);
@@ -1045,19 +1052,16 @@ const importDatabase = async (parsedData) => {
         const transaction = db.transaction(validStores, 'readwrite');
         
         transaction.oncomplete = () => {
-            // ENTERPRISE FIX: Successfully restored! Now force the app to adopt the restored company's ID!
             if (backupFirmId && window.app && window.app.state) {
                 window.app.state.firmId = backupFirmId;
             }
             
-            // Clear the memory so the app doesn't show old ghost data
             if (window.AppCache) {
                 window.AppCache.items = null;
                 window.AppCache.ledgers = null;
                 window.AppCache.accounts = null;
             }
             
-            // Give the database a split second to settle, then instantly reload the screen!
             if (window.app && typeof window.app.refreshAll === 'function') {
                 setTimeout(() => window.app.refreshAll(), 50);
             }
@@ -1066,20 +1070,30 @@ const importDatabase = async (parsedData) => {
         
         transaction.onerror = () => reject(transaction.error);
 
-        // ENTERPRISE FIX: The Multi-Firm Annihilation Shield!
+        // Capture the currently active blank firm so we can destroy it!
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+
         validStores.forEach(storeName => {
             const store = transaction.objectStore(storeName);
             
-            // 1. Fetch ALL existing records to selectively delete
             const request = store.getAll();
             request.onsuccess = () => {
                 const existingRecords = request.result || [];
                 
-                // 2. SURGICAL WIPE: Only delete records that belong to the Firm we are restoring!
+                // 2. SURGICAL WIPE: Delete the blank company AND inject the restored one
                 existingRecords.forEach(record => {
-                    // If the record belongs to the backup's firm, or it's a global setting, delete it to make room.
-                    if (record.firmId === backupFirmId || record.id === backupFirmId || storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
-                        store.delete(record.id || record.firmId); 
+                    // 🚨 GHOST DATA SHIELD: Wipe the auto-generated blank firm from the new phone!
+                    const isTargetFirm = !backupFirmId || 
+                                         record.firmId === backupFirmId || record.id === backupFirmId || 
+                                         record.firmId === activeFirmId || record.id === activeFirmId;
+                                         
+                    const isGlobalSetting = storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories';
+                    
+                    if (isTargetFirm || isGlobalSetting) {
+                        const primaryKey = storeName === 'businessProfile' ? record.firmId : record.id;
+                        if (primaryKey !== undefined && primaryKey !== null) {
+                            store.delete(primaryKey); 
+                        }
                     }
                 });
 

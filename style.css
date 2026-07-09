@@ -6987,3 +6987,49 @@ input:focus:not([readonly]), select:focus, textarea:focus {
     transform: scale(0.98) !important; 
     transition: none !important; /* Instant response */
 }
+/* ==========================================
+   FIX: DOCUMENT FORMATS MENU LAYOUT
+   ========================================== */
+/* Protects the Prefix, Counter, and Suffix boxes from being squished */
+#sheet-document-formats div[style*="display: flex; align-items: center; gap: 6px;"] {
+    display: flex !important;
+    gap: 8px !important;
+}
+
+/* Make the Prefix and Suffix boxes take up equal, flexible space */
+#sheet-document-formats input[type="text"] {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 60px !important;
+    text-align: center !important;
+}
+
+/* Force the middle number box to stay compact and centered */
+#sheet-document-formats input[type="number"] {
+    flex: 0 0 auto !important;
+    width: 90px !important;
+    min-width: 90px !important;
+    max-width: 90px !important;
+    text-align: center !important;
+}
+/* ==========================================
+   PREMIUM DESIGN UPGRADE: NATIVE BACKGROUND COLOR
+   ========================================== */
+body, html, #app-container, #dashboard-tab, #master-tab {
+    background-color: #f4f5f8 !important; /* The premium light slate background */
+}
+
+/* Make sure the cards stay pure white so they pop! */
+.m3-card, .list-card, .activity-screen {
+    background-color: #ffffff !important; 
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important; /* Soft premium shadow */
+    margin-bottom: 12px;
+    border: 1px solid #e2e8f0; /* Subtle border matching the screenshot */
+}
+
+/* Keep the bottom navigation bar pure white */
+.bottom-nav {
+    background-color: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+}

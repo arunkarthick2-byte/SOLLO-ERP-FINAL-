@@ -3264,146 +3264,148 @@ const app = {
 // ==========================================
 // ENTERPRISE UPGRADE 4: SPLIT-TENDER ENGINE
 // ==========================================
+let splitConfirmed = null; // 🚨 FIX: Variable declared globally so it doesn't disappear!
+
 // 🚨 BIZOPS FIX: Only show the Payment Screen for BRAND NEW invoices that are fully COMPLETED. If Unpaid or Shipped, skip it!
 if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId) {
-    const splitConfirmed = await new Promise(async (resolve) => {
-                            const total = parseFloat(data.grandTotal) || 0;
-                            
-                            // Safely wipe any stuck blurry overlays from the screen
-                            const existingModal = document.getElementById('split-tender-modal');
-                            if (existingModal) existingModal.remove();
-                            const existingOverlay = document.getElementById('split-overlay');
-                            if (existingOverlay) existingOverlay.remove();
-                            
-                            // 🚨 CRITICAL FIX: Fetch actual Bank Accounts to inject into the modal!
-                                const allAccs = await window.getAllRecords('accounts', 'firmId', app.state.firmId);
-                                let bankOptions = allAccs.filter(a => a.id !== 'cash').map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-                                if (!bankOptions) bankOptions = `<option value="cash">Default Bank / Cash</option>`;
+    splitConfirmed = await new Promise(async (resolve) => {
+        const total = parseFloat(data.grandTotal) || 0;
+        
+        // Safely wipe any stuck blurry overlays from the screen
+        const existingModal = document.getElementById('split-tender-modal');
+        if (existingModal) existingModal.remove();
+        const existingOverlay = document.getElementById('split-overlay');
+        if (existingOverlay) existingOverlay.remove();
+        
+        // 🚨 CRITICAL FIX: Fetch actual Bank Accounts to inject into the modal!
+        const allAccs = await window.getAllRecords('accounts', 'firmId', app.state.firmId);
+        let bankOptions = allAccs.filter(a => a.id !== 'cash').map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+        if (!bankOptions) bankOptions = `<option value="cash">Default Bank / Cash</option>`;
 
-                                // Dynamically construct the gorgeous Split-Tender Bottom Sheet
-                                const modalHTML = `
-                                <div id="split-tender-modal" class="bottom-sheet" style="z-index: 99999; display: flex; flex-direction: column; background: var(--md-surface); border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2);">
-                                    <div style="padding: 20px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center;">
-                                        <h3 style="margin: 0; color: var(--md-primary); font-weight: 800;">Split Payment</h3>
-                                        <h3 style="margin: 0; color: var(--md-on-surface); font-weight: 900;">Total: ₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</h3>
-                                    </div>
-                                    <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
-                                        <div>
-                                            <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">CASH RECEIVED (₹)</label>
-                                            <input type="number" id="split-cash" placeholder="0.00" step="any" style="width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold; margin-top: 6px;" oninput="window.calcSplit()">
-                                        </div>
-                                        <div>
-                                            <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">BANK / UPI RECEIVED (₹)</label>
-                                            <div style="display: flex; gap: 8px; margin-top: 6px;">
-                                                <input type="number" id="split-bank" placeholder="0.00" step="any" style="flex: 1; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold;" oninput="window.calcSplit()">
-                                                <select id="split-bank-account" style="width: 140px; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-weight: bold; background: var(--md-surface-variant);">
-                                                    ${bankOptions}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div style="background: rgba(186, 26, 26, 0.1); padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
-                                            <span style="color: var(--md-error); font-weight: 900; font-size: 14px; letter-spacing: 0.5px;">PENDING CREDIT:</span>
-                                            <span id="split-credit" style="color: var(--md-error); font-size: 24px; font-weight: 900;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                                        </div>
-                                        <button id="split-confirm-btn" class="btn-primary" style="padding: 16px; font-size: 18px; border-radius: 12px; margin-top: 12px; font-weight: 900;">Finalize Split Invoice</button>
-                                        <button id="split-cancel-btn" style="padding: 12px; font-size: 14px; background: transparent; border: none; color: var(--md-secondary); font-weight: bold;">Cancel</button>
-                                    </div>
-                                </div>
-                                <div id="split-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99998; backdrop-filter: blur(3px);"></div>
-                                `;
-                                
-                                document.body.insertAdjacentHTML('beforeend', modalHTML);
+        // Dynamically construct the gorgeous Split-Tender Bottom Sheet
+        const modalHTML = `
+        <div id="split-tender-modal" class="bottom-sheet" style="z-index: 99999; display: flex; flex-direction: column; background: var(--md-surface); border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2);">
+            <div style="padding: 20px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: var(--md-primary); font-weight: 800;">Split Payment</h3>
+                <h3 style="margin: 0; color: var(--md-on-surface); font-weight: 900;">Total: ₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</h3>
+            </div>
+            <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">CASH RECEIVED (₹)</label>
+                    <input type="number" id="split-cash" placeholder="0.00" step="any" style="width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold; margin-top: 6px;" oninput="window.calcSplit()">
+                </div>
+                <div>
+                    <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">BANK / UPI RECEIVED (₹)</label>
+                    <div style="display: flex; gap: 8px; margin-top: 6px;">
+                        <input type="number" id="split-bank" placeholder="0.00" step="any" style="flex: 1; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold;" oninput="window.calcSplit()">
+                        <select id="split-bank-account" style="width: 140px; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-weight: bold; background: var(--md-surface-variant);">
+                            ${bankOptions}
+                        </select>
+                    </div>
+                </div>
+                <div style="background: rgba(186, 26, 26, 0.1); padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
+                    <span style="color: var(--md-error); font-weight: 900; font-size: 14px; letter-spacing: 0.5px;">PENDING CREDIT:</span>
+                    <span id="split-credit" style="color: var(--md-error); font-size: 24px; font-weight: 900;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                </div>
+                <button id="split-confirm-btn" class="btn-primary" style="padding: 16px; font-size: 18px; border-radius: 12px; margin-top: 12px; font-weight: 900;">Finalize Split Invoice</button>
+                <button id="split-cancel-btn" style="padding: 12px; font-size: 14px; background: transparent; border: none; color: var(--md-secondary); font-weight: bold;">Cancel</button>
+            </div>
+        </div>
+        <div id="split-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99998; backdrop-filter: blur(3px);"></div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-                                // The Live Math Engine
-                                window.calcSplit = () => {
-                                    const c = parseFloat(document.getElementById('split-cash').value) || 0;
-                                    const b = parseFloat(document.getElementById('split-bank').value) || 0;
-                                    let credit = total - (c + b);
-                                    if (credit < 0) credit = 0;
-                                    document.getElementById('split-credit').innerText = `₹${credit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-                                };
+        // The Live Math Engine
+        window.calcSplit = () => {
+            const c = parseFloat(document.getElementById('split-cash').value) || 0;
+            const b = parseFloat(document.getElementById('split-bank').value) || 0;
+            let credit = total - (c + b);
+            if (credit < 0) credit = 0;
+            document.getElementById('split-credit').innerText = `₹${credit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        };
 
-                                setTimeout(() => document.getElementById('split-tender-modal').classList.add('open'), 10);
+        setTimeout(() => document.getElementById('split-tender-modal').classList.add('open'), 10);
 
-                                const cleanup = () => {
-                                    document.getElementById('split-tender-modal').remove();
-                                    document.getElementById('split-overlay').remove();
-                                };
+        const cleanup = () => {
+            document.getElementById('split-tender-modal').remove();
+            document.getElementById('split-overlay').remove();
+        };
 
-                                document.getElementById('split-cancel-btn').onclick = () => { cleanup(); resolve(false); };
-                                document.getElementById('split-confirm-btn').onclick = () => {
-                                    const c = parseFloat(document.getElementById('split-cash').value) || 0;
-                                    const b = parseFloat(document.getElementById('split-bank').value) || 0;
-                                    const bAcc = document.getElementById('split-bank-account') ? document.getElementById('split-bank-account').value : 'cash';
-                                    cleanup();
-                                    resolve({ cash: c, bank: b, bankAcc: bAcc, credit: (total - (c + b)) });
-                                };
-                            });
+        document.getElementById('split-cancel-btn').onclick = () => { cleanup(); resolve(false); };
+        document.getElementById('split-confirm-btn').onclick = () => {
+            const c = parseFloat(document.getElementById('split-cash').value) || 0;
+            const b = parseFloat(document.getElementById('split-bank').value) || 0;
+            const bAcc = document.getElementById('split-bank-account') ? document.getElementById('split-bank-account').value : 'cash';
+            cleanup();
+            resolve({ cash: c, bank: b, bankAcc: bAcc, credit: (total - (c + b)) });
+        };
+    });
 
-                            if (!splitConfirmed) {
-                                if (window.Utils) window.Utils.showToast("⚠️ Save Cancelled.");
-                                // 🚨 CRITICAL FIX: Unlock the form so the user can click Save again!
-                                form.removeAttribute('data-is-submitting');
-                                if (submitBtn) { 
-                                    submitBtn.disabled = false; 
-                                    submitBtn.innerHTML = originalText; 
-                                    submitBtn.style.opacity = "1"; 
-                                    submitBtn.classList.remove('btn-loading');
-                                }
-                                return; 
-                            }
+    if (!splitConfirmed) {
+        if (window.Utils) window.Utils.showToast("⚠️ Save Cancelled.");
+        // 🚨 CRITICAL FIX: Unlock the form so the user can click Save again!
+        form.removeAttribute('data-is-submitting');
+        if (submitBtn) { 
+            submitBtn.disabled = false; 
+            submitBtn.innerHTML = originalText; 
+            submitBtn.style.opacity = "1"; 
+            submitBtn.classList.remove('btn-loading');
+        }
+        return; 
+    }
 
-                            data.splitData = splitConfirmed;
-                            data.paymentMethod = 'Split';
-                            
-                            // We assign 'Unpaid' so the central FIFO waterfall engine correctly calculates the remaining debt and dynamically marks it 'Completed' if fully paid!
-                            data.status = 'Unpaid'; 
-                            data.completedDate = ''; // 🚨 FIX 2: Erase the completed date so the PDF doesn't print it!
-                            data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Pending: ₹${splitConfirmed.credit}]`;
-                        }
+    data.splitData = splitConfirmed;
+    data.paymentMethod = 'Split';
+    
+    // We assign 'Unpaid' so the central FIFO waterfall engine correctly calculates the remaining debt and dynamically marks it 'Completed' if fully paid!
+    data.status = 'Unpaid'; 
+    data.completedDate = ''; // 🚨 FIX 2: Erase the completed date so the PDF doesn't print it!
+    data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Pending: ₹${splitConfirmed.credit}]`;
+}
 
-                        // Execute the perfect database math with the upgraded data payload
-                        // 🚨 NEW: Save the invoice FIRST to prevent database corruption!
-                        const savedInvoiceId = await saveInvoiceTransaction(storeName, data);
+// Execute the perfect database math with the upgraded data payload
+// 🚨 NEW: Save the invoice FIRST to prevent database corruption!
+await saveInvoiceTransaction(storeName, data);
 
-                        // 🚨 CRITICAL FIX: The Split-Tender Blackhole Shield!
-                        // Save receipts AFTER the invoice is safely stored to prevent phantom money if the phone's storage is full!
-                        if (savedInvoiceId && typeof splitConfirmed !== 'undefined') {
-                            if (splitConfirmed.cash > 0) {
-                                await saveRecord('receipts', {
-                                    id: Utils.generateId(), // FIX: Generates a truly unique ID for the Cash receipt
-                                    receiptNo: 'REC-' + data.invoiceNo,
-                                    firmId: data.firmId,
-                                    date: data.date,
-                                    ledgerId: data.customerId,
-                                    ledgerName: data.customerName,
-                                    type: 'in',
-                                    amount: splitConfirmed.cash,
-                                    mode: 'Cash',
-                                    accountId: 'cash',
-                                    invoiceRef: data.id,
-                                    desc: `Cash Split for ${data.invoiceNo}`,
-                                    isAutoGenerated: true
-                                });
-                            }
-                            if (splitConfirmed.bank > 0) {
-                                await saveRecord('receipts', {
-                                    id: Utils.generateId(), // FIX: Generates a truly unique ID for the Bank receipt
-                                    receiptNo: 'REC-' + data.invoiceNo,
-                                    firmId: data.firmId,
-                                    date: data.date,
-                                    ledgerId: data.customerId,
-                                    ledgerName: data.customerName,
-                                    type: 'in',
-                                    amount: splitConfirmed.bank,
-                                    mode: 'Bank Transfer',
-                                    accountId: splitConfirmed.bankAcc || 'cash',
-                                    invoiceRef: data.id,
-                                    desc: `Bank Split for ${data.invoiceNo}`,
-                                    isAutoGenerated: true
-                                });
-                            }
-                        }
+// 🚨 CRITICAL FIX: The Split-Tender Blackhole Shield!
+// Use 'data.id' directly and verify splitConfirmed exists!
+if (data.id && splitConfirmed) {
+    if (splitConfirmed.cash > 0) {
+        await saveRecord('receipts', {
+            id: Utils.generateId(), // FIX: Generates a truly unique ID for the Cash receipt
+            receiptNo: 'REC-' + data.invoiceNo,
+            firmId: data.firmId,
+            date: data.date,
+            ledgerId: data.customerId,
+            ledgerName: data.customerName,
+            type: 'in',
+            amount: splitConfirmed.cash,
+            mode: 'Cash',
+            accountId: 'cash',
+            invoiceRef: data.id,
+            desc: `Cash Split for ${data.invoiceNo}`,
+            isAutoGenerated: true
+        });
+    }
+    if (splitConfirmed.bank > 0) {
+        await saveRecord('receipts', {
+            id: Utils.generateId(), // FIX: Generates a truly unique ID for the Bank receipt
+            receiptNo: 'REC-' + data.invoiceNo,
+            firmId: data.firmId,
+            date: data.date,
+            ledgerId: data.customerId,
+            ledgerName: data.customerName,
+            type: 'in',
+            amount: splitConfirmed.bank,
+            mode: 'Bank Transfer',
+            accountId: splitConfirmed.bankAcc || 'cash',
+            invoiceRef: data.id,
+            desc: `Bank Split for ${data.invoiceNo}`,
+            isAutoGenerated: true
+        });
+    }
+}
 
                         // THE STATE TRANSITION LOCK
                         app.state.currentEditId = data.id;
@@ -4355,29 +4357,59 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
         const balType = party ? (party.balanceType || '').toLowerCase() : '';
         
-        // 1. ELITE UPGRADE: SPLIT ADVANCE POOLS BY TAX TYPE
-        // FIX: Calculate True Net Balance vs Total Pending Debt to find the TRUE advance pool
-        let trueBalance = 0;
-        if (isSales && (balType.includes('pay') || balType.includes('credit'))) trueBalance = -ob;
-        else if (!isSales && (balType.includes('receive') || balType.includes('debit'))) trueBalance = -ob;
-        else trueBalance = ob;
+        // 1. ELITE UPGRADE: STRICT TAX POOL SEGREGATION
+        let trueBalanceGST = 0;
+        let trueBalanceNonGST = 0;
+
+        // Legacy Fix: Opening Balance defaults to Non-GST
+        if (isSales && (balType.includes('pay') || balType.includes('credit'))) {
+            trueBalanceNonGST = -ob;
+        } else if (!isSales && (balType.includes('receive') || balType.includes('debit'))) {
+            trueBalanceNonGST = -ob;
+        } else {
+            trueBalanceNonGST = ob;
+        }
 
         allDocs.forEach(d => {
             if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
                 const amt = parseFloat(d.grandTotal) || 0;
-                trueBalance += (d.documentType === 'return' ? -amt : amt);
+                if (d.invoiceType === 'Non-GST') {
+                    trueBalanceNonGST += (d.documentType === 'return' ? -amt : amt);
+                } else {
+                    trueBalanceGST += (d.documentType === 'return' ? -amt : amt);
+                }
             }
         });
 
         allReceipts.forEach(c => {
              if (c.firmId === app.state.firmId && c.ledgerId === partyId) {
                 let amt = parseFloat(c.amount) || 0;
-                if (isSales) trueBalance += (c.type === 'in' ? -amt : amt);
-                else trueBalance += (c.type === 'in' ? amt : -amt);
+                
+                let isNonGstReceipt = c.taxPool === 'Non-GST';
+                const legacyRef = c.invoiceRef || c.linkedInvoice;
+                
+                // Route untagged/legacy receipts correctly
+                if (!c.taxPool || c.taxPool === 'All') {
+                    isNonGstReceipt = true;
+                    if (legacyRef) {
+                        const firstRef = String(legacyRef).split(',')[0].trim();
+                        const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                        if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                    }
+                }
+
+                if (isNonGstReceipt) {
+                    if (isSales) trueBalanceNonGST += (c.type === 'in' ? -amt : amt);
+                    else trueBalanceNonGST += (c.type === 'in' ? amt : -amt);
+                } else {
+                    if (isSales) trueBalanceGST += (c.type === 'in' ? -amt : amt);
+                    else trueBalanceGST += (c.type === 'in' ? amt : -amt);
+                }
              }
         });
         
-        let totalPendingDebt = 0;
+        let totalPendingDebtGST = 0;
+        let totalPendingDebtNonGST = 0;
         let partyDocsForDebt = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open' && doc.status !== 'Cancelled');
         
         // Fast calculate total unpaid debt without allocations
@@ -4399,15 +4431,17 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
                  }
              });
              const balance = Math.max(0, (parseFloat(doc.grandTotal) || 0) - explicitPaid - returned);
-             if (balance > 0.01) totalPendingDebt += balance;
+             if (balance > 0.01) {
+                 if (doc.invoiceType === 'Non-GST') totalPendingDebtNonGST += balance;
+                 else totalPendingDebtGST += balance;
+             }
         });
 
-        // The True Advance Pool is whatever money is left over after all debt is subtracted from the ledger balance
-        const totalAdvancePool = Math.max(0, totalPendingDebt - trueBalance);
+        // 🚨 CRITICAL FIX: Mathematically secure Tax-Pool Isolation!
+        const totalAdvancePoolGST = Math.max(0, totalPendingDebtGST - trueBalanceGST);
+        const totalAdvancePoolNonGST = Math.max(0, totalPendingDebtNonGST - trueBalanceNonGST);
         
-        // For simplicity, we dump the advance into the GST pool. If you need strict separation, 
-        // you must loop the receipts and split them by their 'taxPool' tag like in loadPendingInvoices.
-        const floatingPools = { 'GST': totalAdvancePool, 'Non-GST': 0 };
+        const floatingPools = { 'GST': totalAdvancePoolGST, 'Non-GST': totalAdvancePoolNonGST };
 
         // 2. PRE-CALCULATE RETURNS TO PREVENT THE BLACKHOLE TRAP
         const returnMap = {};

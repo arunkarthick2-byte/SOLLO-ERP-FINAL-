@@ -2095,26 +2095,58 @@
     </div>
 
 
-    <div id="sheet-fab-menu" class="bottom-sheet">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Create New</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-fab-menu')">close</span>
+    <div id="sheet-fab-menu" class="bottom-sheet" style="background: #ffffff !important; padding: 0 !important; max-height: 90vh; border-top-left-radius: 24px; border-top-right-radius: 24px;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f1f5f9;">
+            <span style="font-size: 18px; font-weight: 700; color: #0f172a;">Create New</span>
+            <span class="material-symbols-outlined tap-target" style="color: #94a3b8; font-size: 24px; cursor: pointer;" onclick="UI.closeBottomSheet('sheet-fab-menu')">close</span>
         </div>
-        <div style="padding: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center;">
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'invoice'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(0, 97, 164, 0.1);  color: #0061a4;"><span class="material-symbols-outlined">receipt_long</span></div><small>Sale Inv</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('in'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">payments</span></div><small>Payment In</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'invoice'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #fbe9e7; color: #d84315;"><span class="material-symbols-outlined">local_shipping</span></div><small>Purchase</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('out'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">outbox</span></div><small>Payment Out</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('expense'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined">account_balance_wallet</span></div><small>Expense</small></div>
+
+        <div style="flex: 1; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom, 0px);">
+
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'invoice'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 16px; color: #334155; font-weight: 600;">Sale Invoice</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('in'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Payment In</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'return'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Sale Return</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'invoice'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Purchase Invoice</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('out'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Payment Out</span>
+            </div>
             
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'return'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">assignment_return</span></div><small>Credit Note</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'return'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">assignment_returned</span></div><small>Debit Note</small></div>
-            
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('product'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('ledger'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
-            
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => { if(window.app) window.app.openAdjustmentSheet(); }, 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined">build</span></div><small>Adj Stock</small></div>
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('account'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #e0f7fa; color: #006064;"><span class="material-symbols-outlined">account_balance</span></div><small>Bank A/c</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'return'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Purchase Return</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('expense'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Expense</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('ledger'), 200); }" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Customer / Supplier</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('product'), 200); }" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Items</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => { if(window.app) window.app.openAdjustmentSheet(); }, 200); }" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Stock Adjustment</span>
+            </div>
+
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('account'), 200); }" style="padding: 16px 20px; border-bottom: none; cursor: pointer;">
+                <span style="font-size: 15px; color: #475569; font-weight: 500;">Bank Account</span>
+            </div>
         </div>
     </div>
 
@@ -3228,11 +3260,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=66.6"></script>
-    <script src="utils.js?v=66.6"></script>
-    <script src="ui.js?v=66.6"></script>
-    <script src="cloud.js?v=66.6"></script>
-    <script src="app.js?v=66.6"></script>
+    <script src="db.js?v=66.8"></script>
+    <script src="utils.js?v=66.8"></script>
+    <script src="ui.js?v=66.8"></script>
+    <script src="cloud.js?v=66.8"></script>
+    <script src="app.js?v=66.8"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3242,6 +3274,11 @@
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); 
+            
+            // 🚨 PWA SHIELD: If they already installed the app to their home screen, do not show the popup again!
+            const isNativeApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || document.referrer.includes('android-app://');
+            if (isNativeApp) return; 
+
             deferredPrompt = e;
             setTimeout(() => {
                 if (window.UI) window.UI.openBottomSheet('sheet-install-app');
@@ -3262,8 +3299,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=66.6' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=66.6`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=66.8' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=66.8`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour

@@ -539,32 +539,38 @@ const Utils = {
             
             // 🚨 RAM FIX: Compress to JPEG to prevent memory crashes!
             canvas.toBlob(async (blob) => {
-                const file = new File([blob], `${documentTitle}.jpg`, { type: 'image/jpeg' });
-
-                // 2. Check if the device's browser supports the Universal Share API with files
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        title: documentTitle,
-                        text: `Please find the attached document: ${documentTitle}`,
-                        files: [file]
-                    });
-                } else {
-                    // ENTERPRISE FIX: Added DOM Appending and RAM Garbage Collection to prevent silent download failures and Memory Leaks!
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement("a");
-                    link.href = url;
-                    link.download = `${documentTitle}.jpg`; // Fixed extension
-                    document.body.appendChild(link); // Required for strict mobile browsers
-                    link.click();
-                    
-                    if (window.Utils) window.Utils.alertModal("Universal sharing is not supported on this device. The document has been downloaded instead.", "Downloaded");
-                    
-                    // Safely destroy the Base64 Blob from the phone's RAM after 1 second!
-                    setTimeout(() => {
-                        URL.revokeObjectURL(url);
-                        if (link.parentNode) document.body.removeChild(link);
-                    }, 60000);
+                const exactFileName = `${documentTitle}.jpg`;
+                
+                try {
+                    // 🚨 ANDROID APK SHIELD
+                    const file = new File([blob], exactFileName, { type: 'image/jpeg' });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            title: documentTitle,
+                            text: `Please find the attached document: ${documentTitle}`,
+                            files: [file]
+                        });
+                        return; // Stop here if shared successfully
+                    }
+                } catch(err) {
+                    console.warn("Image sharing crashed, falling back to direct download.");
                 }
+
+                // 🚨 FAILSAFE DIRECT DOWNLOAD
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.style.display = "none";
+                link.href = url;
+                link.download = exactFileName;
+                document.body.appendChild(link);
+                link.click();
+                
+                if (window.Utils) window.Utils.showToast("✅ Image Downloaded Successfully!");
+                
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                    if (link.parentNode) document.body.removeChild(link);
+                }, 1500);
             }, 'image/jpeg', 0.90); // Added 90% compression
 
         } catch (error) {
@@ -602,7 +608,9 @@ A payment of ₹${Utils.safeNumber(balanceAmount).toFixed(2)} is currently pendi
 
 Please arrange the payment at your earliest convenience. Thank you!`);
         const whatsappUrl = `https://wa.me/${cleanPhone}?text=${message}`;
-        window.open(whatsappUrl, '_blank');
+        
+        // 🚨 VERCEL / PWA FIX: Opens WhatsApp safely in a new tab!
+        window.open(whatsappUrl, '_blank'); 
     },
 
     // ==========================================
@@ -668,7 +676,9 @@ Please process this accordingly. Thank you!`;
         }
 
         const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-        window.open(whatsappUrl, '_blank');
+        
+        // 🚨 VERCEL / PWA FIX: Opens WhatsApp safely in a new tab!
+        window.open(whatsappUrl, '_blank'); 
     },
 
     // ==========================================
@@ -706,13 +716,22 @@ Please process this accordingly. Thank you!`;
 
             // STRICT ERP LOGIC: Inject exact timestamp to prevent OS-level file overwriting!
             const timestamp = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
-            // ENTERPRISE FIX: The Timezone File-Naming Shift!
-            // 'toISOString()' converts to UTC. A backup at 2 AM IST will mathematically label the file with yesterday's date!
             const fileName = `SOLLO_Backup_${Utils.getLocalDate()}_${timestamp}.json`;
             const blob = new Blob(blobParts, { type: "application/json" });
-            const file = new File([blob], fileName, { type: "application/json" });
+            
+            try {
+                // 🚨 ANDROID APK SHIELD: Try Android Share first
+                const file = new File([blob], fileName, { type: "application/json" });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ title: "SOLLO Database Backup", files: [file] });
+                    if (window.Utils) window.Utils.showToast("✅ Backup Shared!");
+                    return;
+                }
+            } catch(e) {
+                console.warn("File sharing crashed, falling back to direct download.");
+            }
 
-            // ENTERPRISE FIX: Force direct download to the "Downloads" folder to prevent Share Menu crashes
+            // 🚨 FAILSAFE DIRECT DOWNLOAD
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.style.display = "none";
@@ -2123,25 +2142,35 @@ Thank you!`;
             // Generate and Download Excel File
             const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            const file = new File([blob], `GST_Report_${reportData.month}.xlsx`, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+            const exactFileName = `GST_Report_${reportData.month}.xlsx`;
 
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ title: "SOLLO GST Excel", text: "Here is your Excel GST Report.", files: [file] });
-            } else {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = file.name;
-                document.body.appendChild(a); // Mobile WebKit safety
-                a.click();
-                
-                // STRICT ERP LOGIC: Give Android 1 second to intercept the download before destroying the memory!
-                setTimeout(() => {
-                    URL.revokeObjectURL(url);
-                    if (a.parentNode) document.body.removeChild(a);
-                }, 1000);
+            try {
+                // 🚨 ANDROID APK SHIELD: Protects the app from crashing on mobile
+                const file = new File([blob], exactFileName, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ title: "SOLLO GST Excel", text: "Here is your Excel GST Report.", files: [file] });
+                    if (window.Utils) window.Utils.showToast("✅ Excel Report Shared!");
+                    return; 
+                }
+            } catch (err) {
+                console.warn("File sharing crashed, falling back to direct download.");
             }
-            if (window.Utils) window.Utils.showToast("✅ Excel Report Generated!");
+
+            // 🚨 FAILSAFE DIRECT DOWNLOAD
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = exactFileName; 
+            document.body.appendChild(a); 
+            a.click();
+            
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                if (a.parentNode) document.body.removeChild(a);
+            }, 1500);
+
+            if (window.Utils) window.Utils.showToast("✅ Excel Report Downloaded!");
         } catch (e) {
             console.error(e);
             alert("Excel Export failed.");
@@ -2159,24 +2188,32 @@ Thank you!`;
 
         const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const file = new File([blob], `${filename}.xlsx`, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const exactFileName = `${filename}.xlsx`;
 
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ title: filename, files: [file] });
-        } else {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = file.name;
-            document.body.appendChild(a); // Mobile WebKit safety
-            a.click();
-            
-            // STRICT ERP LOGIC: Prevent Android "Download Failed" Crash
-            setTimeout(() => {
-                URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            }, 1000);
+        try {
+            // 🚨 ANDROID APK SHIELD
+            const file = new File([blob], exactFileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ title: filename, files: [file] });
+                return;
+            }
+        } catch (err) {
+            console.warn("File sharing crashed, falling back to direct download.");
         }
+
+        // 🚨 FAILSAFE DIRECT DOWNLOAD
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = exactFileName;
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+            if (a.parentNode) document.body.removeChild(a);
+        }, 1500);
     },
 
     // --- LEGACY BRIDGES (Prevents your existing HTML buttons from breaking!) ---
@@ -2289,26 +2326,44 @@ Thank you!`;
             };
 
             const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
-            const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-
+            
             // 🚨 BIZOPS FIX: If user tapped download, skip sharing and just download!
             if (forceDownload) {
                 window.html2pdf().set(opt).from(el).save();
                 return;
             }
 
-            // 🚨 BIZOPS FIX: If user tapped Share, ONLY share. No fallback!
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                // Remove underscores from the preview title too!
-                const cleanTitle = filename.replace('.pdf', '').replace(/_/g, ' ');
-                await navigator.share({
-                    title: cleanTitle,
-                    text: shareText,
-                    files: [file]
-                });
-            } else {
-                window.Utils.showToast("⚠️ Native Share is only supported on mobile apps or secure servers.");
+            try {
+                // 🚨 ANDROID APK SHIELD
+                const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    const cleanTitle = filename.replace('.pdf', '').replace(/_/g, ' ');
+                    await navigator.share({
+                        title: cleanTitle,
+                        text: shareText,
+                        files: [file]
+                    });
+                    return;
+                }
+            } catch (err) {
+                console.warn("PDF sharing crashed, falling back to direct download.");
             }
+
+            // 🚨 FAILSAFE DIRECT DOWNLOAD
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement("a");
+            a.style.display = "none";
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            
+            if (window.Utils) window.Utils.showToast("✅ PDF Downloaded Successfully!");
+            
+            setTimeout(() => {
+                URL.revokeObjectURL(url);
+                if (a.parentNode) document.body.removeChild(a);
+            }, 1500);
         } catch (err) {
             console.error("PDF Engine RAM Exhaustion or Share Error:", err);
             
