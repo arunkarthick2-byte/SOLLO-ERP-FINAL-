@@ -97,8 +97,8 @@ const UI = {
             const target = e.target;
             if (!target) return;
 
-            // 1. Dirty Form Tracker
-            if (target.closest('form')) window.isFormDirty = true;
+            // 1. Dirty Form Tracker (Ignores search bars to prevent false alarms)
+            if (target.closest('form') && !target.closest('.search-bar')) window.isFormDirty = true;
 
             // 2. Auto-Expanding Notes & Textareas
             if (target.tagName === 'TEXTAREA') {
@@ -119,9 +119,9 @@ const UI = {
                 }
                 
                 if (target.type === 'number' && String(target.value).includes('-')) {
-                    // 🚨 ENTERPRISE FIX: Allowed 'balance' so Bank Overdrafts (negative balances) can be typed!
-                    if (!id.includes('adjust') && !id.includes('discount') && !id.includes('return') && !id.includes('stock') && !id.includes('balance')) {
-                        target.value = Math.abs(parseFloat(target.value) || 0);                    }
+                    if (!id.includes('adjust') && !id.includes('discount') && !id.includes('return')) {
+                        target.value = Math.abs(parseFloat(target.value) || 0);
+                    }
                 }
             }
         });
@@ -146,13 +146,6 @@ const UI = {
 
         window.isFormDirty = false;
         document.addEventListener('submit', (e) => { 
-            // 🚨 BUG FIX: Only reset the dirty tracker if we are saving the MAIN screen!
-            // This prevents nested Bottom Sheet forms (like new Product) from deleting your unsaved invoice!
-            const isBottomSheetForm = e.target.closest('.bottom-sheet') !== null;
-            if (!isBottomSheetForm) {
-                window.isFormDirty = false; 
-            }
-            
             // 🚨 ENTERPRISE FIX: The Double-Billing Shield!
             // Instantly locks the submit button so impatient users on slow phones cannot accidentally create duplicate invoices!
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -212,17 +205,17 @@ const UI = {
     },
 
     openNumpad: (inputElement, labelText) => {
-        // 🚨 CRITICAL FIX: Do NOT dynamically remove readonly, it causes the Android keyboard to ghost and stretch the screen!
+        // Force the input to stay focused so the blue highlighter ring stays visible!
         inputElement.focus();
         UI.state.activeNumpadInput = inputElement;
         document.getElementById('numpad-label').innerText = labelText || "Enter Value";
         document.getElementById('custom-numpad').classList.add('active');
         
         // 🚀 ENTERPRISE UX: Auto-Scroll to Input!
-        // Use 'nearest' instead of 'center' so the screen doesn't violently jump up and look abnormal!
+        // Automatically pushes the screen up so the keypad never hides the box you are typing in.
         setTimeout(() => {
-            inputElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 300);
+            inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
     },
 
     closeNumpad: () => {
@@ -349,12 +342,6 @@ const UI = {
         // Cancels any pending GPU frames if multiple filters fire at the exact same millisecond!
         if (container.renderToken) cancelAnimationFrame(container.renderToken);
 
-        // 🚨 ENTERPRISE FIX: Prevent Memory Leaks! Disconnect any old background observers before rebuilding the list.
-        if (container.listObserver) {
-            container.listObserver.disconnect();
-            container.listObserver = null;
-        }
-
         if (!dataArray || dataArray.length === 0) {
             container.innerHTML = emptyStateHTML;
             return;
@@ -385,13 +372,14 @@ const UI = {
                 currentIndex += chunkSize;
                 
                 // CRITICAL FIX: Scope the search exclusively to the current container so it doesn't break other screens!
-                const oldSentinel = container.querySelector('#scroll-sentinel-virtual');
+                const sentinelId = 'scroll-sentinel-' + (container.id || 'virtual');
+                const oldSentinel = container.querySelector('#' + sentinelId);
                 if (oldSentinel) oldSentinel.remove();
                 
                 if (currentIndex < dataArray.length) {
                     // 🚨 BIZOPS NATIVE THEME: Infinite Scroll Sentinel (Replaces the Load More button)
                     const sentinel = document.createElement('div');
-                    sentinel.id = 'scroll-sentinel-virtual';
+                    sentinel.id = sentinelId;
                     sentinel.style.cssText = 'height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; color: var(--md-primary); font-size: 13px; font-weight: bold;';
                     
                     // Sleek native loading spinner
@@ -400,14 +388,14 @@ const UI = {
                     container.appendChild(sentinel);
 
                     // Use Intersection Observer to auto-load when the user scrolls near the bottom!
-                    container.listObserver = new IntersectionObserver((entries) => {
+                    const observer = new IntersectionObserver((entries) => {
                         if (entries[0].isIntersecting) {
-                            container.listObserver.disconnect(); // Stop observing this specific sentinel
+                            observer.disconnect(); // Stop observing this specific sentinel
                             renderNextChunk(); // Automatically load the next chunk!
                         }
                     }, { rootMargin: '4000px' }); 
 
-                    container.listObserver.observe(sentinel);
+                    observer.observe(sentinel);
                 }
             });
         };
@@ -488,6 +476,9 @@ const UI = {
     // 1. SPLASH SCREEN & INSTANT NAVIGATION
     // ==========================================
     showSuccess: () => {
+        // 🚨 BUG FIX: Only clear the unsaved changes warning AFTER a successful save!
+        window.isFormDirty = false;
+        
         // --- ENTERPRISE UPGRADE: BUTTON MORPHING ---
         // Find the loading button and smoothly transition it to the green checkmark!
         document.querySelectorAll('.btn-loading').forEach(btn => {
@@ -877,8 +868,9 @@ const UI = {
         if (status === 'Shipped' || status === 'Unpaid' || (type === 'purchase' && status !== 'Open')) {
             if (shippedGroup) shippedGroup.classList.remove('hidden');
             
-            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date ONLY if it is completely blank!
-            if (shippedInput && !shippedInput.value) {
+            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date to Today!
+            const mainDateInput = document.getElementById(`${type}-date`);
+            if (shippedInput && (!shippedInput.value || (mainDateInput && shippedInput.value === mainDateInput.value))) {
                 shippedInput.value = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
             }
         } 
@@ -1000,9 +992,8 @@ const UI = {
             
             tr.querySelector('.row-total').innerText = rowTotal.toFixed(2);
             
-            // 🚨 ENTERPRISE FIX: Sum the exact rounded amounts so the visual rows perfectly match the grand total!
-            finalSubtotal += roundedDiscountedBase; 
-            totalGst += roundedGst;
+            finalSubtotal += discountedBase;
+            totalGst += gstAmount;
 
             // 🟢 ENTERPRISE FIX: Safe Null Check! Prevents fatal crashes when editing older invoices that lack this field.
             const buyPriceInput = tr.querySelector('.row-item-buyprice');
@@ -1023,11 +1014,10 @@ const UI = {
         // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
         // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
         const freight = safeNum((document.getElementById('sales-freight') || {}).value);
-        // 🚨 ENTERPRISE FIX: Strict Integer Math Engine (No more Ghost Pennies!)
-        const exactTotalCents = Math.round(finalSubtotal * 100) + Math.round(totalGst * 100) + Math.round(freight * 100);
-        const exactTotal = exactTotalCents / 100;
+        const exactTotal = finalSubtotal + totalGst + freight;
         const roundedTotal = Math.round(exactTotal);
-        let roundOff = Math.round((roundedTotal - exactTotal) * 100) / 100;
+        let roundOff = roundedTotal - exactTotal;
+        if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
 
         const subtotalEl = document.getElementById('sales-subtotal');
         if (subtotalEl) subtotalEl.innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
@@ -1110,19 +1100,17 @@ const UI = {
             
             tr.querySelector('.row-total').innerText = rowTotal.toFixed(2);
             
-            // 🚨 ENTERPRISE FIX: Sum the exact rounded amounts so the visual rows perfectly match the grand total!
-            finalSubtotal += roundedDiscountedBase; 
-            totalGst += roundedGst;
+            finalSubtotal += discountedBase;
+            totalGst += gstAmount;
         });
 
         // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
         // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
         const freight = safeNum((document.getElementById('purchase-freight') || {}).value);
-        // 🚨 ENTERPRISE FIX: Strict Integer Math Engine (No more Ghost Pennies!)
-        const exactTotalCents = Math.round(finalSubtotal * 100) + Math.round(totalGst * 100) + Math.round(freight * 100);
-        const exactTotal = exactTotalCents / 100;
+        const exactTotal = finalSubtotal + totalGst + freight;
         const roundedTotal = Math.round(exactTotal);
-        let roundOff = Math.round((roundedTotal - exactTotal) * 100) / 100;
+        let roundOff = roundedTotal - exactTotal;
+        if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
 
         const pSubtotalEl = document.getElementById('purchase-subtotal');
         if (pSubtotalEl) pSubtotalEl.innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
@@ -2744,14 +2732,14 @@ const UI = {
             });
         }
 
-        // 🚀 ENTERPRISE FIX: TRUE PNL MATCHING (COGS-Based Dashboard)
+        // 🚀 THE "3120" CASH-FLOW METHOD (Dashboard Only)
+        const purePurchases = totalPurchases - inputGst;
         const netRevenue = (totalSales - outputGst) + indirectIncome; 
         
-        // Gross Margin = Net Revenue minus Cost of Goods Sold (COGS) + Stock Adjustments
-        // This ensures buying bulk inventory doesn't artificially crash your dashboard profit!
-        const grossMargin = netRevenue - cogs + stockGain - stockLoss;
+        // Gross Margin = Total Sales Bills minus Total Purchase Bills (Ignores unsold stock in warehouse)
+        const grossMargin = netRevenue - purePurchases;
         
-        // True Net Profit = Gross Margin minus Operating Expenses
+        // True Net Profit = Gross Margin minus Expenses (Ignore stock loss adjustments in cash-flow mode)
         const totalOperatingCosts = totalExpenses + indirectExpense;
         const trueNetProfit = grossMargin - totalOperatingCosts; 
 
@@ -3512,12 +3500,12 @@ const UI = {
                 <div style="flex: 1; padding-right: 8px; min-width: 0;">
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
-                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" inputmode="none" class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 45px; padding: 4px 0; text-align: center; font-weight: bold; border: none; border-bottom: 1px solid var(--md-outline-variant); color: var(--md-on-surface); font-size: 16px; background: transparent; outline: none; cursor: pointer; border-radius: 0;">
+                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                        <input type="text" inputmode="none" readonly class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none; cursor: pointer;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="text" inputmode="none" class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 4px 0; text-align: center; font-weight: bold; border: none; border-bottom: 1px solid var(--md-outline-variant); color: var(--md-on-surface); font-size: 16px; background: transparent; outline: none; cursor: pointer; border-radius: 0;">
-                        <span style="font-size: 10px; color: var(--md-text-muted); background: transparent; padding: 4px 0; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
+                        <input type="text" inputmode="none" readonly class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none; cursor: pointer;">
+                        <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
                         <input type="hidden" class="row-uom" value="${uom || 'Unit'}">
@@ -3525,7 +3513,7 @@ const UI = {
                     ${prefix === 'sales' ? `
                     <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                         <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="text" inputmode="none" class="row-item-buyprice tap-target" value="${buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent; cursor: pointer; outline: none;">
+                        <input type="text" inputmode="none" readonly class="row-item-buyprice tap-target" value="${buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent; cursor: pointer;">
                         <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                     </div>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
@@ -3652,7 +3640,7 @@ const UI = {
         const cb = li.querySelector('input'); cb.checked = !cb.checked;
         if (cb.checked) { 
             UI.state.selectedProducts.push({ id, name, price, gst, uom, hsn, buyPrice }); 
-            li.style.background = 'transparent'; // 🚨 FIX: Neat and clean, no background highlight!
+            li.style.background = 'var(--md-surface-variant)'; 
         } else { 
             UI.state.selectedProducts = UI.state.selectedProducts.filter(p => p.id !== id); 
             li.style.background = 'transparent'; 
@@ -3696,15 +3684,15 @@ const UI = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="text" inputmode="none" class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:4px 0; border:none; border-bottom:1px solid var(--md-outline-variant); border-radius:0; background:transparent; font-size:16px; font-weight:bold; color:var(--md-on-surface); outline:none; cursor:pointer;">
+                        <input type="text" inputmode="none" readonly class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="text" inputmode="none" class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:4px 0; border:none; border-bottom:1px solid var(--md-outline-variant); border-radius:0; background:transparent; font-size:16px; font-weight:bold; color:var(--md-on-surface); outline:none; cursor:pointer;">
+                        <input type="text" inputmode="none" readonly class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="text" inputmode="none" class="row-gst tap-target" value="${p.gst || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter GST %')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:4px 0; border:none; border-bottom:1px solid var(--md-outline-variant); border-radius:0; background:transparent; font-size:16px; font-weight:bold; color:var(--md-on-surface); outline:none; cursor:pointer;">
+                        <input type="text" inputmode="none" readonly class="row-gst tap-target" value="${p.gst || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter GST %')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
                     </div>
                 </div>
 
@@ -3713,7 +3701,7 @@ const UI = {
                         ${prefix === 'sales' ? `
                         <div>
                             <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
-                            <input type="text" inputmode="none" class="row-item-buyprice tap-target" value="${p.buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px; cursor: pointer; outline: none;">
+                            <input type="text" inputmode="none" readonly class="row-item-buyprice tap-target" value="${p.buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px; cursor: pointer;">
                         </div>
                         ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
                     </div>
@@ -4239,8 +4227,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeSheet) activeSheet.style.paddingBottom = `${keyboardHeight}px`;
                 if (activeScreen) activeScreen.style.paddingBottom = `${keyboardHeight + 40}px`;
                 
-                // 🚨 CRITICAL FIX: Ignore Numpad Inputs! If inputmode="none", do not trigger the auto-scroll glitch!
-                if (document.activeElement && document.activeElement.getAttribute('inputmode') !== 'none') {
+                // Keep the active input visible, but DO NOT violently jerk the screen to the center!
+                if (document.activeElement) {
                     setTimeout(() => {
                         document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 50);
@@ -4559,22 +4547,6 @@ window.addEventListener('popstate', (e) => {
             
             // Protect the main dashboard, but safely close the topmost activity
             if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
-                
-                // 🚨 ENTERPRISE FIX: The "Accidental Swipe" Data Wipe Shield!
-                if (topScreen.id.includes('-form') && window.isFormDirty) {
-                    window.history.pushState({ internalRoute: true }, ''); // Instantly trap them back in the form!
-                    
-                    if (window.Utils && window.Utils.confirmModal) {
-                        window.Utils.confirmModal("You have unsaved changes! Are you sure you want to leave and lose your work?", "Discard", true).then(isConfirmed => {
-                            if (isConfirmed) {
-                                window.isFormDirty = false;
-                                if (window.UI) window.UI.closeActivity(topScreen.id);
-                            }
-                        });
-                    }
-                    return; // Halt the back button entirely!
-                }
-                
                 if (window.UI) window.UI.closeActivity(topScreen.id);
                 trapped = true;
             }

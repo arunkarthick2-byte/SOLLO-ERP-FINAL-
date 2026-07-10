@@ -322,14 +322,20 @@ const Cloud = {
                 if (window.getAllRecords) localRecords = await window.getAllRecords(storeName);
             } catch (e) { console.warn(`Could not read local store: ${storeName}`); }
             
+            // 🚨 BUG FIX: The "Ghost Profile" Sync Shield!
+            // Business Profiles use 'firmId' instead of 'id'. We must check for BOTH so the company logo and settings actually sync!
             const localMap = {};
-            localRecords.forEach(r => { if (r.id) localMap[r.id] = r; });
+            localRecords.forEach(r => { 
+                const primaryKey = r.id || r.firmId;
+                if (primaryKey) localMap[primaryKey] = r; 
+            });
             
             for (let j = 0; j < cloudRecords.length; j++) {
                 const cloudRecord = cloudRecords[j];
-                if (!cloudRecord.id) continue;
+                const recordKey = cloudRecord.id || cloudRecord.firmId;
+                if (!recordKey) continue;
                 
-                const localRecord = localMap[cloudRecord.id];
+                const localRecord = localMap[recordKey];
                 
                 if (!localRecord) {
                     // Record is new in the cloud, add it to phone safely

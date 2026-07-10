@@ -19,21 +19,22 @@ if (!document.getElementById('enterprise-master-fixes')) {
         #report-party-name,
         #report-party-balance { color: var(--md-on-surface, #0f172a) !important; }
 
-        /* 🚨 3. ENTERPRISE FIX: NATIVE CURSOR RESTORED */
-        input[inputmode="none"] {
-            caret-color: auto !important;
-            user-select: auto !important;
-            -webkit-user-select: auto !important;
+        /* 🚨 3. ENTERPRISE FIX: THE "NATIVE BUTTON" CURSOR SHIELD */
+        /* Permanently destroys the blinking text cursor on Custom Numpad inputs */
+        input[readonly], input[inputmode="none"] {
+            caret-color: transparent !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
             outline: none !important;
         }
-
-        /* 🚨 4. ENTERPRISE FIX: NEUTRAL NUMPAD HIGHLIGHTER */
-        /* Kills the blue glow completely so the box stays normal */
+        
+        /* 🚨 4. NUMPAD ACTIVE HIGHLIGHTER */
+        /* Safely highlights the box in blue so you know what you are editing, WITHOUT a cursor! */
         input:focus[readonly], input:focus[inputmode="none"] {
-            background-color: transparent !important;
-            border-color: var(--md-outline-variant, #e2e8f0) !important;
-            color: inherit !important;
-            box-shadow: none !important;
+            background-color: rgba(0, 97, 164, 0.05) !important;
+            border-color: var(--md-primary, #0061a4) !important;
+            color: var(--md-primary, #0061a4) !important;
+            box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
         }
         
         /* 🚨 5. PREMIUM NORMAL INPUT FOCUS */
@@ -146,6 +147,49 @@ window.addEventListener('offline', updateNetworkStatus);
 window.addEventListener('online', updateNetworkStatus);
 // Run once on boot just in case they open the app while already offline
 if (!navigator.onLine) updateNetworkStatus();
+
+// --- ENTERPRISE SECURITY: BANKING PRIVACY SHIELD ---
+// Generates an explicit Lock Screen with an Unlock Button to prevent mobile tap glitches!
+const showPrivacyLock = () => {
+    if (document.getElementById('privacy-lock-screen')) return; // Already locked
+    
+    const lockScreen = document.createElement('div');
+    lockScreen.id = 'privacy-lock-screen';
+    
+    // Checks if the app is in dark mode to match the lock screen colors
+    const isDark = document.body.classList.contains('dark-mode');
+    const bgColor = isDark ? 'rgba(18,18,18,0.85)' : 'rgba(255,255,255,0.85)';
+    const textColor = isDark ? '#ffffff' : '#000000';
+    
+    lockScreen.style.cssText = `position:fixed; top:0; left:0; width:100vw; height:100vh; background:${bgColor}; backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.3s ease;`;
+    
+    lockScreen.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-primary, #0061a4); margin-bottom: 16px;">lock</span>
+        <h2 style="margin:0 0 24px 0; font-family: 'Inter', sans-serif; color: ${textColor};">App Secured</h2>
+        <button id="btn-unlock-app" style="background: var(--md-primary, #0061a4); color:#fff; border:none; padding:16px 40px; border-radius:30px; font-size:16px; font-weight:bold; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); touch-action:manipulation;">Unlock Application</button>
+    `;
+    
+    document.body.appendChild(lockScreen);
+    
+    // Secure physical unlock button
+    const unlockBtn = document.getElementById('btn-unlock-app');
+    unlockBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        unlockBtn.innerText = 'Unlocking...';
+        lockScreen.style.opacity = '0';
+        setTimeout(() => {
+            if (lockScreen.parentNode) lockScreen.parentNode.removeChild(lockScreen);
+        }, 300);
+    });
+};
+
+// Trigger the lock screen the moment the app is pushed to the background
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        showPrivacyLock();
+    }
+});
 
 // ENTERPRISE FIX: Removed the hazardous 'DOUBLE-CHARGE PREVENTER' from app.js!
 // ui.js already contains a vastly superior 'Anti-Clone Shield' that doesn't break HTML form validators.
@@ -478,12 +522,8 @@ const app = {
             
             // 🚨 BATTERY OPTIMIZATION: Delay the heavy database scan so the app has time to fully boot and stabilize first!
             setTimeout(() => { 
-                if (window.requestIdleCallback) {
-                    // This forces Android to only run the heavy math when the CPU is resting!
-                    window.requestIdleCallback(() => app.cleanupDuplicates());
-                } else {
-                    app.cleanupDuplicates();
-                }
+                // OOM Crash Fix: Disabled heavy background duplicate scanning on boot. 
+                // (Runs only when explicitly called to save memory on large databases).
             }, 12000);
 
             // FIX: Parse PWA Home Screen Shortcuts and route the user!
@@ -2075,10 +2115,10 @@ const app = {
                             <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="none" class="row-qty tap-target" value="0" max="${maxAllowable}" required onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05); cursor: pointer; outline: none;">
+                                <input type="text" inputmode="none" class="row-qty" value="0" max="${maxAllowable}" required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05); cursor: pointer;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="none" class="row-rate tap-target" value="${item.rate}" required onclick="UI.openNumpad(this, 'Rate')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant); cursor: pointer; outline: none;">
+                                <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
@@ -2418,26 +2458,19 @@ const app = {
                 await app.populateEditForm(type, id);
             } else {
                 const dateInput = document.getElementById(`${type}-date`);
-                const orderDateInput = document.getElementById(`${type}-order-date`); // 🚨 FIX: Target the Order Date too!
-                
                 if(dateInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
                     const localDate = Utils.getLocalDate();
                     
                     // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY for the visible input
                     const parts = localDate.split('-');
-                    let displayDate = localDate;
                     if (parts.length === 3) {
-                        displayDate = `${parts[2]}/${parts[1]}/${parts[0]}`; 
-                    } 
-                    
-                    dateInput.value = displayDate;
-                    if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate); 
-                    
-                    // 🚨 FIX: Auto-fill the Order Date to today so it isn't left blank!
-                    if (orderDateInput) {
-                        orderDateInput.value = displayDate;
-                        if (orderDateInput._flatpickr) orderDateInput._flatpickr.setDate(localDate);
+                        dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+                    } else {
+                        dateInput.value = localDate;
                     }
+
+                    // 2. We still feed the standard YYYY-MM-DD into Flatpickr so its internal math doesn't break!
+                    if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate); 
                 }
                 
                 // ENTERPRISE FIX: Force status to "Open" for brand new documents
@@ -2618,10 +2651,10 @@ const app = {
                             ${maxLabel}
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="none" class="row-qty tap-target" value="${item.qty}" ${maxHtml} required onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); cursor: pointer; outline: none;">
+                                <input type="text" inputmode="none" class="row-qty" value="${item.qty}" ${maxHtml} required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); cursor: pointer;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="none" class="row-rate tap-target" value="${item.rate}" required ${record.documentType === 'return' ? 'readonly' : `onclick="UI.openNumpad(this, 'Rate')"`} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background); outline: none;' : 'background:var(--md-surface); cursor: pointer; outline: none;'}">
+                                <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required ${record.documentType === 'return' ? 'readonly' : `readonly onclick="UI.openNumpad(this, 'Rate')"`} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); cursor: pointer;'}">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
@@ -2633,7 +2666,7 @@ const app = {
                             ${type === 'sales' && record.documentType !== 'return' ? `
                             <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                                 <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="text" inputmode="none" class="row-item-buyprice tap-target" value="${item.buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent; cursor: pointer; outline: none;">
+                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent;">
                                 <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                             </div>
                             ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
@@ -3054,9 +3087,22 @@ const app = {
                         const partyKey = type === 'sales' ? 'customer' : 'supplier';
                     const partyId = document.getElementById(`${type}-${partyKey}-id`).value;
                     if (!partyId) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
                         await window.Utils.alertModal(`Please select a ${partyKey}.`, "Action Required");
                         return;
+                    }
+
+                    // STRICT ERP LOGIC: Block Future Dates to protect PnL and Aging Reports!
+                    const docDate = document.getElementById(`${type}-date`).value;
+                    if (docDate) {
+                        const selectedDate = window.Utils.safeDate(docDate); // ENTERPRISE FIX: Protect Apple/iOS
+                        const today = new Date();
+                        today.setDate(today.getDate() + 1); // Allow up to 1 day for timezone safety
+                        if (selectedDate > today) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            await window.Utils.alertModal("You cannot save a document with a future date. Please correct the date to protect your financial reports.", "Invalid Date");
+                            return;
+                        }
                     }
 
                     const items = [];
@@ -3073,13 +3119,11 @@ const app = {
                         const rateInput = tr.querySelector('.row-rate');
                         let rate = parseFloat(rateInput.value) || 0;
 
-                        // 🚨 ENTERPRISE FIX: Safely skip empty "0 qty" items from Partial Returns!
-                        if (qty === 0) return; 
-
                         // ENTERPRISE FIX: The Negative Quantity Exploit Shield!
-                        if (qty < 0) {
-                            alert("Error: Quantity cannot be negative. To refund an item, please use a proper Credit/Debit Note!");
-                            throw new Error("Invalid negative quantity detected.");
+                        // Prevents users from typing negative numbers to artificially shrink their taxable revenue and illegally inflate stock!
+                        if (qty <= 0) {
+                            alert("Error: Quantity must be greater than zero. To refund an item, please use a proper Credit/Debit Note!");
+                            throw new Error("Invalid negative or zero quantity detected.");
                         }
                         
                         // ENTERPRISE FIX: The Negative Rate (Price) Shield!
@@ -3097,6 +3141,8 @@ const app = {
                                 throw new Error("Return quantity exceeds original purchase.");
                             }
                         }
+                        
+                        if (qty <= 0) return; // FIX: Prevent saving empty "0 qty" items from Returns or accidental inputs
 
                         items.push({
                             itemId: tr.querySelector('.row-item-id').value,
@@ -3111,7 +3157,8 @@ const app = {
                     });
                     
                     if (items.length === 0) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText;                             submitBtn.style.opacity = "1"; 
+                        }
                         if (window.Utils) await window.Utils.alertModal("Please add at least one item with a quantity greater than 0.", "Action Required");
                         return;
                     }
@@ -3133,7 +3180,7 @@ const app = {
                             d.id !== app.state.currentEditId
                         );
                         if (isDuplicate) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
                             if (window.Utils) await window.Utils.alertModal(`Document number "${proposedDocNo}" already exists! Please use a unique number.`, "Duplicate Found");
                             return;
                         }
@@ -3172,7 +3219,7 @@ const app = {
                                 if (effectiveStock < parseFloat(row.qty)) {
                                     const isConfirmed = await window.Utils.confirmModal(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective ${poolName} stock is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`, "Continue", true);
                                     if (!isConfirmed) {
-                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
+                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
                                         return; 
                                     }
                                 }
@@ -3202,10 +3249,10 @@ const app = {
                     let safeShippedDate = document.getElementById(`${type}-shipped-date`).value;
                     let safeCompletedDate = document.getElementById(`${type}-completed-date`).value;
 
-                    if (currentStatus === 'Open') {
+                    if (currentStatus === 'Open' || currentStatus === 'Unpaid') {
                         safeShippedDate = '';
                         safeCompletedDate = '';
-                    } else if (currentStatus === 'Unpaid' || currentStatus === 'Shipped') {
+                    } else if (currentStatus === 'Shipped') {
                         safeCompletedDate = '';
                     }
 
@@ -4357,59 +4404,29 @@ if (data.id && splitConfirmed) {
         let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
         const balType = party ? (party.balanceType || '').toLowerCase() : '';
         
-        // 1. ELITE UPGRADE: STRICT TAX POOL SEGREGATION
-        let trueBalanceGST = 0;
-        let trueBalanceNonGST = 0;
-
-        // Legacy Fix: Opening Balance defaults to Non-GST
-        if (isSales && (balType.includes('pay') || balType.includes('credit'))) {
-            trueBalanceNonGST = -ob;
-        } else if (!isSales && (balType.includes('receive') || balType.includes('debit'))) {
-            trueBalanceNonGST = -ob;
-        } else {
-            trueBalanceNonGST = ob;
-        }
+        // 1. ELITE UPGRADE: SPLIT ADVANCE POOLS BY TAX TYPE
+        // FIX: Calculate True Net Balance vs Total Pending Debt to find the TRUE advance pool
+        let trueBalance = 0;
+        if (isSales && (balType.includes('pay') || balType.includes('credit'))) trueBalance = -ob;
+        else if (!isSales && (balType.includes('receive') || balType.includes('debit'))) trueBalance = -ob;
+        else trueBalance = ob;
 
         allDocs.forEach(d => {
             if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
                 const amt = parseFloat(d.grandTotal) || 0;
-                if (d.invoiceType === 'Non-GST') {
-                    trueBalanceNonGST += (d.documentType === 'return' ? -amt : amt);
-                } else {
-                    trueBalanceGST += (d.documentType === 'return' ? -amt : amt);
-                }
+                trueBalance += (d.documentType === 'return' ? -amt : amt);
             }
         });
 
         allReceipts.forEach(c => {
              if (c.firmId === app.state.firmId && c.ledgerId === partyId) {
                 let amt = parseFloat(c.amount) || 0;
-                
-                let isNonGstReceipt = c.taxPool === 'Non-GST';
-                const legacyRef = c.invoiceRef || c.linkedInvoice;
-                
-                // Route untagged/legacy receipts correctly
-                if (!c.taxPool || c.taxPool === 'All') {
-                    isNonGstReceipt = true;
-                    if (legacyRef) {
-                        const firstRef = String(legacyRef).split(',')[0].trim();
-                        const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
-                        if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
-                    }
-                }
-
-                if (isNonGstReceipt) {
-                    if (isSales) trueBalanceNonGST += (c.type === 'in' ? -amt : amt);
-                    else trueBalanceNonGST += (c.type === 'in' ? amt : -amt);
-                } else {
-                    if (isSales) trueBalanceGST += (c.type === 'in' ? -amt : amt);
-                    else trueBalanceGST += (c.type === 'in' ? amt : -amt);
-                }
+                if (isSales) trueBalance += (c.type === 'in' ? -amt : amt);
+                else trueBalance += (c.type === 'in' ? amt : -amt);
              }
         });
         
-        let totalPendingDebtGST = 0;
-        let totalPendingDebtNonGST = 0;
+        let totalPendingDebt = 0;
         let partyDocsForDebt = allDocs.filter(doc => doc.firmId === app.state.firmId && doc[partyKey] === partyId && doc.documentType !== 'return' && doc.status !== 'Open' && doc.status !== 'Cancelled');
         
         // Fast calculate total unpaid debt without allocations
@@ -4431,17 +4448,11 @@ if (data.id && splitConfirmed) {
                  }
              });
              const balance = Math.max(0, (parseFloat(doc.grandTotal) || 0) - explicitPaid - returned);
-             if (balance > 0.01) {
-                 if (doc.invoiceType === 'Non-GST') totalPendingDebtNonGST += balance;
-                 else totalPendingDebtGST += balance;
-             }
+             if (balance > 0.01) totalPendingDebt += balance;
         });
 
-        // 🚨 CRITICAL FIX: Mathematically secure Tax-Pool Isolation!
-        const totalAdvancePoolGST = Math.max(0, totalPendingDebtGST - trueBalanceGST);
-        const totalAdvancePoolNonGST = Math.max(0, totalPendingDebtNonGST - trueBalanceNonGST);
-        
-        const floatingPools = { 'GST': totalAdvancePoolGST, 'Non-GST': totalAdvancePoolNonGST };
+        // The True Advance Pool is whatever money is left over after all debt is subtracted from the ledger balance
+        let remainingAdvancePool = Math.max(0, totalPendingDebt - trueBalance);
 
         // 2. PRE-CALCULATE RETURNS TO PREVENT THE BLACKHOLE TRAP
         const returnMap = {};
@@ -4505,13 +4516,12 @@ if (data.id && splitConfirmed) {
         // 4. FIFO WATERFALL FOR STATUS UPDATE
         for (const item of pendingInvoices) {
             let finalBal = item.balance;
-            const poolKey = item.doc.invoiceType === 'Non-GST' ? 'Non-GST' : 'GST';
             
-            // Re-apply strict Tax Pool routing
-            if (floatingPools[poolKey] > 0 && finalBal > 0.01) {
-                const advanceApplied = Math.min(floatingPools[poolKey], finalBal);
+            // 🚨 ENTERPRISE FIX: Apply advance money seamlessly to ANY unpaid invoice!
+            if (remainingAdvancePool > 0 && finalBal > 0.01) {
+                const advanceApplied = Math.min(remainingAdvancePool, finalBal);
                 finalBal -= advanceApplied;
-                floatingPools[poolKey] -= advanceApplied;
+                remainingAdvancePool -= advanceApplied;
             }
             
             if (finalBal <= 0.01) {
@@ -4806,7 +4816,6 @@ if (data.id && splitConfirmed) {
             const totalLinked = linkedSales.length + linkedPurchases.length + linkedReceipts.length;
             if (totalLinked > 0) {
                 if (window.Utils) await window.Utils.alertModal(`Cannot delete this party. They have ${totalLinked} document(s) linked to them. To protect your financial reports, please delete their documents first, or just edit the party and rename them to "Inactive".`);
-                return; // 🚨 CRITICAL FIX: Actually abort the function so the deletion doesn't proceed!
             }
         }
 
@@ -7545,48 +7554,37 @@ document.addEventListener('input', (e) => {
     }
 });
 // ==========================================
-// 🚨 ENTERPRISE UPGRADE: BANK-GRADE PRIVACY SHIELD
+// ENTERPRISE UPGRADE: BANK-GRADE PRIVACY SHIELD
 // ==========================================
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        // 1. Create the shield ONLY when the app goes into the background
-        let shield = document.getElementById('master-privacy-shield');
-        if (!shield) {
-            shield = document.createElement('div');
-            shield.id = 'master-privacy-shield';
-            // Increased opacity slightly so it looks better with the button
-            shield.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(244, 246, 250, 0.95); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:9999999; display:flex; justify-content:center; align-items:center; flex-direction:column; opacity:0; transition:opacity 0.1s ease;';
-            
-            // 🚨 FIX: Added a manual Unlock Button for devices that freeze background apps!
-            shield.innerHTML = `
-                <span class="material-symbols-outlined" style="font-size: 56px; color: #0061a4; margin-bottom: 16px;">lock</span>
-                <strong style="font-size: 22px; color: #001d36; letter-spacing: 1px;">SOLLO ERP</strong>
-                <p style="color: #535f70; margin-top: 8px; margin-bottom: 32px; font-weight: 500;">Securely Locked</p>
-                <button onclick="document.getElementById('master-privacy-shield').remove()" style="padding: 14px 32px; background: #0061a4; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.3); display: flex; align-items: center; gap: 8px;">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">lock_open</span> Unlock App
-                </button>
-            `;
-            document.body.appendChild(shield);
-        }
-        
-        // Lock the screen and block all physical taps
-        shield.style.transition = 'none';
-        shield.style.opacity = '1';
-        shield.style.pointerEvents = 'auto'; 
-        
-    } else {
-        // 2. Smoothly unlock when the user returns
-        const shield = document.getElementById('master-privacy-shield');
-        if (shield) {
+// Blurs the screen when the app is minimized to the background to protect financial data!
+(function() {
+    const shield = document.createElement('div');
+    shield.id = 'privacy-shield';
+    // Deep blur with the brand's primary container color
+    shield.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(244, 246, 250, 0.85); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:9999999; display:flex; justify-content:center; align-items:center; flex-direction:column; opacity:0; pointer-events:none; transition:opacity 0.2s ease;';
+    
+    shield.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size: 56px; color: #0061a4; margin-bottom: 16px;">lock</span>
+        <strong style="font-size: 22px; color: #001d36; letter-spacing: 1px;">SOLLO ERP</strong>
+        <p style="color: #535f70; margin-top: 8px; font-weight: 500;">Securely Locked</p>
+    `;
+    
+    // Attach the shield to the very top of the app
+    document.body.appendChild(shield);
+
+    // Watch the phone's native hardware visibility state
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // App is swiped to the background (Recent Apps) -> INSTANT LOCK
+            shield.style.transition = 'none'; 
+            shield.style.opacity = '1';
+        } else {
+            // User opened the app again -> SMOOTH FADE OUT
             shield.style.transition = 'opacity 0.3s ease';
-            shield.style.opacity = '0';
-            shield.style.pointerEvents = 'none';
-            
-            // 3. Destroy the shield from memory to prevent RAM leaks
-            setTimeout(() => shield.remove(), 300); 
+            setTimeout(() => shield.style.opacity = '0', 100); 
         }
-    }
-});
+    });
+})();
 // ==========================================
 // ENTERPRISE UPGRADE: 3D TOUCH EMULATOR (LONG PRESS)
 // ==========================================
@@ -7899,13 +7897,20 @@ setInterval(() => {
 // ==========================================
 // Halts all CPU-intensive mathematical loops when the app is minimized, saving massive amounts of battery!
 // ==========================================
-// 🚨 ENTERPRISE SECURITY: HIBERNATION
+// 🚨 ENTERPRISE SECURITY: HIBERNATION & PRIVACY BLUR
 // ==========================================
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
         window.isHibernating = true;
+        // 🚨 PRIVACY SHIELD: Blur the screen instantly so financial data is hidden in the OS App-Switcher!
+        document.body.style.filter = 'blur(12px) grayscale(100%)';
+        document.body.style.transition = 'filter 0.1s ease';
+        document.body.style.pointerEvents = 'none';
     } else {
         window.isHibernating = false;
+        // Restore clarity the moment they re-enter the app
+        document.body.style.filter = 'none';
+        document.body.style.pointerEvents = 'auto';
     }
 });
 
@@ -8141,25 +8146,23 @@ document.addEventListener('input', (e) => {
     const target = e.target;
     if (!target || !target.id) return;
     
-        // 1. GSTIN Auto-Formatting: Forces Uppercase, max 15 chars, blocks invalid symbols instantly
-        // 🚨 ENTERPRISE FIX: Added 'target.type === 'text'' to protect the "gst-month-selector" (which uses hyphens)!
-        if (target.id.toLowerCase().includes('gst') && !target.id.toLowerCase().includes('stock') && target.type === 'text') {
-            const start = target.selectionStart; // Preserves cursor position so it doesn't jump!
-            target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 15);
-            // Only reset cursor if the element is currently focused
-            if (document.activeElement === target) {
-                target.setSelectionRange(start, start);
-            }
+    // 1. GSTIN Auto-Formatting: Forces Uppercase, max 15 chars, blocks invalid symbols instantly
+    if (target.id.toLowerCase().includes('gst')) {
+        const start = target.selectionStart; // Preserves cursor position so it doesn't jump!
+        target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 15);
+        // Only reset cursor if the element is currently focused
+        if (document.activeElement === target) {
+            target.setSelectionRange(start, start);
         }
-        
-        // 2. Phone Number Formatting: Allows Landlines, Country Codes (+91), and up to 15 digits
-        if (target.id.toLowerCase().includes('phone') || target.id.toLowerCase().includes('mobile')) {
-            // Only format if it's a text/tel input
-            if (target.type !== 'number') {
-                // 🚨 ENTERPRISE FIX: Allow +, -, spaces, and 15 chars for International/Landline compatibility!
-                target.value = target.value.replace(/[^0-9+\- \(\)]/g, '').substring(0, 15);
-            }
+    }
+    
+    // 2. Phone Number Formatting: Strips accidental letters, limits to 10 digits
+    if (target.id.toLowerCase().includes('phone') || target.id.toLowerCase().includes('mobile')) {
+        // Only format if it's a text/tel input (avoids breaking strict <input type="number"> fields)
+        if (target.type !== 'number') {
+            target.value = target.value.replace(/[^0-9]/g, '').substring(0, 10);
         }
+    }
 });
 // ==========================================
 // 🚨 BIZOPS NATIVE THEME: DASHBOARD PARALLAX SCROLLING
@@ -8244,61 +8247,104 @@ window.AnalyticsEngine = {
     },
 
     runProfitLeakageAudit: async () => {
-        if (window.Utils) window.Utils.showToast("Scanning historical sales for profit leakage... ⏳");
+        if (window.Utils) window.Utils.showToast("Generating True Net Profit (P&L) Statement... ⏳");
+        
         const sales = await window.getAllRecords('sales');
         const items = await window.getAllRecords('items');
+        const expenses = await window.getAllRecords('expenses'); // 🚨 NEW: Fetch all operating expenses!
         
-        let leakageHtml = '';
-        let totalLeakage = 0;
-        let flaggedCount = 0;
+        let totalRevenue = 0;
+        let totalCOGS = 0;
+        let totalExpenses = 0;
+        let expenseDetails = {};
 
         sales.forEach(sale => {
-            if (sale.status === 'Open' || sale.status === 'Cancelled' || sale.documentType === 'return') return;
+            if (sale.status === 'Open' || sale.status === 'Cancelled') return;
 
-            let invoiceLeakage = 0;
-            let invoiceIssues = [];
+            const isReturn = sale.documentType === 'return';
+            const mult = isReturn ? -1 : 1;
 
-            // Accurately calculate the true discount applied to this invoice
+            // 1. Calculate True Net Revenue (Subtotal - Discount + Freight)
             let rawSubtotal = 0;
             (sale.items || []).forEach(row => rawSubtotal += (Math.abs(parseFloat(row.qty))||0) * (parseFloat(row.rate)||0));
+            
             let discountAmt = sale.discountType === '%' ? (rawSubtotal * ((parseFloat(sale.discount)||0)/100)) : (parseFloat(sale.discount)||0);
-            let discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
+            let freight = parseFloat(sale.freightAmount) || parseFloat(sale.freight) || 0;
+            
+            let netRevenue = (rawSubtotal - discountAmt + freight) * mult;
+            totalRevenue += netRevenue;
 
+            // 2. Calculate COGS (Cost of Goods Sold)
+            let cogs = 0;
             (sale.items || []).forEach(row => {
                 const dbItem = items.find(i => i.id === (row.itemId || row.id));
-                if (dbItem) {
-                    const buyPrice = parseFloat(dbItem.buyPrice) || 0; // True MAC Cost
-                    const sellPrice = parseFloat(row.rate) || 0;
-                    const netSellPrice = sellPrice - (sellPrice * discountRatio); // True Selling Price after invoice discount
-                    
-                    if (netSellPrice < buyPrice && buyPrice > 0) {
-                        const lossPerItem = buyPrice - netSellPrice;
-                        const totalLoss = lossPerItem * Math.abs(parseFloat(row.qty) || 0);
-                        invoiceLeakage += totalLoss;
-                        invoiceIssues.push(`• <strong>${row.name}</strong><br>Sold @ ₹${netSellPrice.toFixed(2)} (Cost: ₹${buyPrice.toFixed(2)})`);
-                    }
-                }
+                const buyPrice = dbItem ? (parseFloat(dbItem.buyPrice) || 0) : 0;
+                cogs += (Math.abs(parseFloat(row.qty)) || 0) * buyPrice;
             });
-
-            if (invoiceLeakage > 0) {
-                totalLeakage += invoiceLeakage;
-                flaggedCount++;
-                leakageHtml += `
-                    <div style="border-left: 4px solid #ef4444; background: #fff5f5; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                        <div style="display: flex; justify-content: space-between; font-weight: bold; color: #991b1b; margin-bottom: 4px; font-size: 14px;">
-                            <span>Inv: ${sale.invoiceNo || 'N/A'} <span style="color:#dc2626; font-size:10px;">(${window.Utils.formatDateDisplay(sale.date)})</span></span>
-                            <span>Loss: -₹${invoiceLeakage.toFixed(2)}</span>
-                        </div>
-                        <div style="font-size: 11px; color: #b91c1c; font-weight: 600;">Customer: ${sale.customerName || 'Cash Sale'}</div>
-                        <div style="font-size: 12px; color: #7f1d1d; margin-top: 6px; line-height: 1.5;">${invoiceIssues.join('<br>')}</div>
-                    </div>
-                `;
-            }
+            totalCOGS += (cogs * mult);
         });
 
-        const summaryColor = totalLeakage > 0 ? '#dc2626' : '#16a34a';
-        const summaryText = totalLeakage > 0 ? `⚠️ Found ₹${totalLeakage.toFixed(2)} in Profit Leakage across ${flaggedCount} Invoices.` : '✅ All sales are mathematically profitable!';
-        window.AnalyticsEngine.showReportModal('Gross Profit Audit', summaryText, summaryColor, leakageHtml);
+        // 3. Calculate Operating Expenses (OPEX)
+        expenses.forEach(exp => {
+            // Ignore cancelled expenses if they exist
+            if (exp.status === 'Cancelled') return; 
+            
+            const amt = parseFloat(exp.amount) || 0;
+            totalExpenses += amt;
+            
+            const cat = exp.category || 'Uncategorized';
+            expenseDetails[cat] = (expenseDetails[cat] || 0) + amt;
+        });
+
+        // 4. The Final Accounting Math
+        const grossProfit = totalRevenue - totalCOGS;
+        const trueNetProfit = grossProfit - totalExpenses;
+
+        // 5. Build the beautiful HTML P&L Statement
+        const isProfitable = trueNetProfit >= 0;
+        const cardColor = isProfitable ? '#16a34a' : '#ef4444';
+        const bgCardColor = isProfitable ? '#f0fdf4' : '#fff5f5';
+
+        let html = `
+            <div style="border-left: 4px solid #3b82f6; background: #eff6ff; padding: 16px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #1e3a8a;">
+                    <span>Net Revenue (Sales - Returns):</span>
+                    <strong>₹${totalRevenue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #991b1b;">
+                    <span>Less COGS (Inventory Cost):</span>
+                    <strong>-₹${totalCOGS.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; padding-top: 8px; border-top: 1px dashed #bfdbfe; color: #1d4ed8;">
+                    <span>Gross Profit:</span>
+                    <span>₹${grossProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                </div>
+            </div>
+
+            <div style="border-left: 4px solid #f59e0b; background: #fffbeb; padding: 16px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #92400e; font-weight: bold;">
+                    <span>Less OPEX (Expenses):</span>
+                    <span>-₹${totalExpenses.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                </div>
+                <div style="font-size: 12px; color: #b45309; line-height: 1.6; margin-left: 10px;">
+                    ${Object.entries(expenseDetails).sort((a,b) => b[1]-a[1]).map(([cat, amt]) => `• ${cat}: ₹${amt.toLocaleString('en-IN', {minimumFractionDigits:2})}`).join('<br>')}
+                </div>
+            </div>
+
+            <div style="border-left: 4px solid ${cardColor}; background: ${bgCardColor}; padding: 16px; margin-top: 16px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 16px; font-weight: bold; color: ${isProfitable ? '#15803d' : '#991b1b'};">TRUE NET PROFIT:</span>
+                    <span style="font-size: 22px; font-weight: 900; color: ${cardColor};">${isProfitable ? '+' : '-'}₹${Math.abs(trueNetProfit).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+                </div>
+            </div>
+        `;
+
+        const summaryColor = isProfitable ? '#16a34a' : '#dc2626';
+        const summaryText = isProfitable ? 
+            '✅ Your business is operating at a Net Profit!' : 
+            '⚠️ WARNING: Your business is operating at a Net Loss!';
+            
+        window.AnalyticsEngine.showReportModal('True Net Profit (P&L) Statement', summaryText, summaryColor, html);
     },
 
     // (Legacy Dead Stock Scanner removed to make way for the new Visual Dashboard Engine)
@@ -8358,6 +8404,20 @@ document.addEventListener('focusout', (e) => {
 });
 
 // ==========================================
+// 🚨 ENTERPRISE SECURITY: BANKING PRIVACY SHIELD
+// ==========================================
+// Instantly blurs the screen when the app is sent to the background to protect financial data!
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        document.body.style.filter = 'blur(15px)';
+        document.body.style.transition = 'filter 0.1s ease-out';
+    } else {
+        document.body.style.filter = 'none';
+        document.body.style.transition = 'filter 0.3s ease-in';
+    }
+});
+
+// ==========================================
 // 🚀 PREMIUM POLISH: MOBILE KEYBOARD AUTO-CENTER
 // ==========================================
 // 🚨 BUG FIX: Legacy auto-scroll has been DELETED to prevent the "Double Scroll Jerk" conflict!
@@ -8392,20 +8452,5 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, 100); 
         };
-    }
-});
-// ==========================================
-// 🚨 CRITICAL BOOT FIX: INITIALIZE APPLICATION
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    // Ensure the 'app' object and its 'init' function are fully loaded
-    if (typeof app !== 'undefined' && typeof app.init === 'function') {
-        app.init();
-    } else {
-        console.error("Boot Failure: Application controller missing or corrupted.");
-        
-        // Failsafe: Hide the splash screen anyway so the user doesn't stare at it forever
-        const splash = document.getElementById('splash-screen');
-        if (splash) splash.style.display = 'none';
     }
 });

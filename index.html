@@ -166,10 +166,14 @@
             transition: all 0.2s ease !important;
         }
 
-        .item-entry-card input.row-item-buyprice:focus {
-            border-color: var(--md-primary) !important;
-            color: var(--md-primary) !important;
-            background: rgba(0, 97, 164, 0.05) !important;
+        /* Instantly glows green when the user taps to edit qty/rate */
+        .item-entry-card input.row-qty:focus, 
+        .item-entry-card input.row-rate:focus {
+            border-bottom: 2px solid var(--md-success) !important;
+            background: rgba(20, 108, 46, 0.05) !important;
+            color: var(--md-success) !important;
+            outline: none !important;
+            box-shadow: none !important;
         }
 
         /* FIX: Force Buy Price input to be compact and match the theme */
@@ -202,41 +206,12 @@
         }
     </style>
 
-    <!-- 🚨 BIZOPS FIX: SMART BANNER RELOCATOR -->
-    <script>
-        // Physically moves the banner inside the scrollable form area so it scrolls away naturally!
-        document.addEventListener('DOMContentLoaded', () => {
-            const observer = new MutationObserver((mutations) => {
-                mutations.forEach(mutation => {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.id && node.id.includes('risk-banner')) {
-                            const screen = node.closest('.activity-screen');
-                            if (screen) {
-                                const form = screen.querySelector('form');
-                                // Move it inside the form if it's not already there
-                                if (form && node.parentElement !== form) {
-                                    form.insertBefore(node, form.firstChild);
-                                }
-                            }
-                        }
-                    });
-                });
-            });
-            observer.observe(document.body, { childList: true, subtree: true });
-        });
-    </script>
+    <!-- 🚨 BIZOPS FIX: SMART BANNER RELOCATOR (Removed to prevent battery drain) -->
 
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" as="script">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" as="script">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-    <!-- NATIVE APP UX: Remove Android/iOS Blue Tap Highlight -->
-    <style>
-        * {
-            -webkit-tap-highlight-color: transparent !important;
-        }
-    </style>
 </head>
 
 <body>
@@ -668,7 +643,7 @@
                         <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Restore from Drive</strong></div>
                     </div>
                     
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.isFormDirty) { alert('⚠️ Please save your current invoice before updating!'); return; } if(window.Utils) window.Utils.showToast('Installing Update... 🔄'); if('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); r.update().then(() => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); }); })); setTimeout(() => window.location.reload(true), 1500); } else { window.location.reload(true); }">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.Utils) window.Utils.showToast('Installing Update... 🔄'); if('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); r.update().then(() => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); }); })); setTimeout(() => window.location.reload(true), 1500); } else { window.location.reload(true); }">
                         <span class="material-symbols-outlined" style="color: var(--md-success);">system_update</span>
                         <div style="flex: 1;">
                             <strong style="font-size:15px; color: var(--md-on-surface);">Run Update Manager</strong>
@@ -840,16 +815,16 @@
                     </select>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Invoice No</label>
                         <input type="text" id="sales-invoice-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Date</label>
                         <input type="date" id="sales-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Doc Status</label>
                         <select id="sales-order-status" onchange="UI.toggleDates('sales')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                             <option value="Open">Draft Estimate</option>
@@ -858,7 +833,7 @@
                             <option value="Completed" selected>Completed / Paid</option>
                         </select>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Tax Type</label>
                         <select id="sales-invoice-type" onchange="UI.calcSalesTotals()" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                             <option value="B2B">B2B (GST)</option>
@@ -866,20 +841,22 @@
                             <option value="Non-GST">Bill of Supply</option>
                         </select>
                     </div>
-                    <!-- Unified Order Details -->
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                </div>
+
+                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Order Ref</label>
                         <input type="text" id="sales-order-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Order Date</label>
                         <input type="date" id="sales-order-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div id="sales-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div id="sales-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Dispatch Date</label>
                         <input type="date" id="sales-shipped-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div id="sales-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div id="sales-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Completed Date</label>
                         <input type="date" id="sales-completed-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
@@ -1019,16 +996,14 @@
                     </div>
                 </details>
 
-                <!-- Slim-Dock Footer -->
-                <div style="height: 70px;"></div> 
-                <div class="form-sticky-footer" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--md-surface, #ffffff); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 8px 16px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 12px rgba(0,0,0,0.05);">
+                <div style="height: 100px;"></div> <div class="form-sticky-footer" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--md-surface, #ffffff); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);">
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Grand Total</span>
-                        <strong id="sales-sticky-total" style="font-size: 20px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
+                        <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Grand Total</span>
+                        <strong id="sales-sticky-total" style="font-size: 24px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn-primary-small" onclick="UI.closeActivity('activity-sales-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 40px; border-radius: 20px; font-weight: 600; font-size: 13px;">Cancel</button>
-                        <button type="submit" id="btn-save-sales" class="btn-primary" style="min-height: 40px; border-radius: 20px; padding: 0 20px; font-size: 14px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save <span class="material-symbols-outlined" style="font-size: 16px; margin-left: 6px;">done_all</span></button>
+                        <button type="button" class="btn-primary-small" onclick="UI.closeActivity('activity-sales-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 48px; border-radius: 24px; font-weight: 600; font-size: 14px;">Cancel</button>
+                        <button type="submit" id="btn-save-sales" class="btn-primary" style="min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 15px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span></button>
                     </div>
                 </div>
             </form>
@@ -1076,16 +1051,16 @@
                     </select>
                 </div>
 
-                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Bill / PO No</label>
                         <input type="text" id="purchase-po-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Bill Date</label>
                         <input type="date" id="purchase-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Doc Status</label>
                         <select id="purchase-order-status" onchange="UI.toggleDates('purchase')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                             <option value="Open" selected>Draft PO</option>
@@ -1093,27 +1068,29 @@
                             <option value="Completed">Completed / Paid</option>
                         </select>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Tax Type</label>
                         <select id="purchase-invoice-type" onchange="UI.calcPurchaseTotals()" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                             <option value="B2B">B2B (ITC Claimable)</option>
                             <option value="Non-GST">Non-GST / Exempt</option>
                         </select>
                     </div>
-                    <!-- Unified Order Details -->
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                </div>
+
+                <div class="m3-card" style="margin-bottom: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Our PO No</label>
                         <input type="text" id="purchase-order-no" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Order Date</label>
                         <input type="date" id="purchase-order-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div id="purchase-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div id="purchase-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Dispatch Date</label>
                         <input type="date" id="purchase-shipped-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
-                    <div id="purchase-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div id="purchase-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Completed Date</label>
                         <input type="date" id="purchase-completed-date" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 14px; background: var(--md-surface); outline: none;">
                     </div>
@@ -1177,17 +1154,16 @@
                     <textarea id="purchase-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
                 </div>
 
-                <!-- Slim-Dock Spacer -->
-                <div style="height: 70px;"></div>
+                <div style="height: 100px;"></div>
 
-                <div class="form-sticky-footer" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--md-surface, #ffffff); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 8px 16px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 12px rgba(0,0,0,0.05);">
+                <div class="form-sticky-footer" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--md-surface, #ffffff); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);">
                     <div style="display: flex; flex-direction: column;">
-                        <span style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Grand Total</span>
-                        <strong id="purchase-sticky-total" style="font-size: 20px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
+                        <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Grand Total</span>
+                        <strong id="purchase-sticky-total" style="font-size: 24px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
                     </div>
                     <div style="display: flex; gap: 8px;">
-                        <button type="button" class="btn-primary-small" onclick="UI.closeActivity('activity-purchase-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 40px; border-radius: 20px; font-weight: 600; font-size: 13px;">Cancel</button>
-                        <button type="submit" id="btn-save-purchase" class="btn-primary" style="min-height: 40px; border-radius: 20px; padding: 0 20px; font-size: 14px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save <span class="material-symbols-outlined" style="font-size: 16px; margin-left: 6px;">done_all</span></button>
+                        <button type="button" class="btn-primary-small" onclick="UI.closeActivity('activity-purchase-form')" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 0 16px; min-height: 48px; border-radius: 24px; font-weight: 600; font-size: 14px;">Cancel</button>
+                        <button type="submit" id="btn-save-purchase" class="btn-primary" style="min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 15px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span></button>
                     </div>
                 </div>
             </form>
@@ -1397,91 +1373,72 @@
                     </div>
                 </div>
 
-                <style>
-                    /* 📱 ULTRA-MODERN EDGE-TO-EDGE LIST UI (NO BOXES, NO STACKED LABELS) */
-                    .edge-form-section { background: var(--md-surface, #ffffff); border-top: 1px solid var(--md-outline-variant, #e2e8f0); border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); margin: 0 -16px 24px -16px; }
-                    .edge-row { display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--md-outline-variant, #f1f5f9); min-height: 54px; transition: background-color 0.2s ease; }
-                    .edge-row:focus-within { background-color: rgba(0, 97, 164, 0.02); }
-                    .edge-row:last-child { border-bottom: none; }
-                    .edge-label { font-size: 14px; font-weight: 600; color: var(--md-on-surface-variant, #475569); flex-shrink: 0; width: 40%; }
-                    .edge-input-container { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; }
-                    .edge-input { width: 100%; border: none !important; background: transparent !important; outline: none !important; box-shadow: none !important; text-align: right; font-size: 16px; font-family: inherit; color: var(--md-on-surface, #0f172a); font-weight: 600; padding: 0; margin: 0; }
-                    .edge-input::placeholder { color: #94a3b8; font-weight: 400; }
-                    .edge-input:focus { color: var(--md-primary) !important; }
-                    .edge-select { appearance: none; -webkit-appearance: none; background: transparent; border: none; font-size: 16px; font-weight: 600; color: var(--md-primary); text-align: right; outline: none; padding-right: 0; direction: rtl; }
-                    .edge-select-wrapper { position: relative; width: 100%; display: flex; align-items: center; justify-content: flex-end; }
-                    .edge-select-wrapper::after { content: 'expand_more'; font-family: 'Material Symbols Outlined'; position: absolute; right: -4px; font-size: 20px; color: var(--md-primary, #0061a4); pointer-events: none; }
-                    .req-star { color: var(--md-error, #ef4444); margin-left: 2px; }
-                </style>
-
-                <div class="edge-form-section">
-                    <div class="edge-row">
-                        <div class="edge-label" style="color: var(--md-primary);">Product Name<span class="req-star">*</span></div>
-                        <div class="edge-input-container">
-                            <input type="text" id="prod-name" name="name" required class="edge-input" placeholder="e.g. Apple iPhone 15">
+                <div style="padding: 0 16px 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Product Name<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="prod-name" name="name" required class="premium-input" placeholder="e.g., Apple iPhone 15">
                         </div>
                     </div>
-
-                    <div class="edge-row" style="background: rgba(0, 97, 164, 0.04);">
-                        <div class="edge-label" style="color: var(--md-primary); font-weight: 800;">Sell Price (₹)<span class="req-star">*</span></div>
-                        <div class="edge-input-container">
-                            <input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="any" required class="edge-input" style="font-size: 20px; font-weight: 800; color: var(--md-primary);" placeholder="0.00">
+                    <div class="premium-row" style="background: rgba(0, 97, 164, 0.04);">
+                        <div class="premium-label" style="color: var(--md-primary); font-weight: 800;">Sell Price (₹)<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="any" required class="premium-input" style="font-size: 18px; font-weight: 800; color: var(--md-primary);" placeholder="0.00">
                         </div>
                     </div>
-
-                    <div class="edge-row">
-                        <div class="edge-label">Buy Price (₹)</div>
-                        <div class="edge-input-container">
-                            <input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="any" class="edge-input" placeholder="0.00">
+                    <div class="premium-row">
+                        <div class="premium-label">Buy Price (₹)</div>
+                        <div class="premium-input-container">
+                            <input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="any" class="premium-input" placeholder="0.00">
                         </div>
                     </div>
                 </div>
 
-                <div style="padding: 0 16px 8px 16px; font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Inventory & Setup</div>
-
-                <div class="edge-form-section" style="margin-bottom: 16px;">
-                    <div class="edge-row">
-                        <div class="edge-label" style="color: var(--md-primary);">GST Stock</div>
-                        <div class="edge-input-container">
-                            <input type="text" id="prod-stock-gst" name="stockGst" value="0" class="edge-input" style="color: var(--md-primary);">
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Inventory Tracking</div>
+                <div class="premium-form-section">
+                    <div class="premium-row" style="background: rgba(0, 97, 164, 0.02);">
+                        <div class="premium-label" style="color: var(--md-primary);">GST Stock</div>
+                        <div class="premium-input-container">
+                            <input type="number" id="prod-stock-gst" inputmode="decimal" name="stockGst" value="0" step="any" class="premium-input" style="color: var(--md-primary); font-weight: 700;">
                         </div>
                     </div>
-
-                    <div class="edge-row">
-                        <div class="edge-label" style="color: var(--md-error);">Non-GST Stock</div>
-                        <div class="edge-input-container">
-                            <input type="text" id="prod-stock-nongst" name="stockNonGst" value="0" class="edge-input" style="color: var(--md-error);">
+                    <div class="premium-row" style="background: rgba(186, 26, 26, 0.02);">
+                        <div class="premium-label" style="color: var(--md-error);">Non-GST Stock</div>
+                        <div class="premium-input-container">
+                            <input type="number" id="prod-stock-nongst" inputmode="decimal" name="stockNonGst" value="0" step="any" class="premium-input" style="color: var(--md-error); font-weight: 700;">
                         </div>
                     </div>
-
-                    <div class="edge-row">
-                        <div class="edge-label">Unit (UOM)<span class="req-star">*</span></div>
-                        <div class="edge-input-container" style="gap: 12px;">
-                            <div class="edge-select-wrapper" style="flex: 1;">
-                                <select name="uom" id="product-uom-select" required class="edge-select"></select>
+                    <div class="premium-row">
+                        <div class="premium-label">Unit (UOM)<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container" style="gap: 12px;">
+                            <div class="premium-select-wrapper" style="flex: 1;">
+                                <select name="uom" id="product-uom-select" required class="premium-input premium-select"></select>
                             </div>
-                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: #e2e8f0; padding: 4px; border-radius: 50%; font-size: 18px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')">edit</span>
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: #e2e8f0; padding: 6px; border-radius: 50%; font-size: 18px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')">edit</span>
                         </div>
                     </div>
-
-                    <div class="edge-row">
-                        <div class="edge-label">Min Stock Alert</div>
-                        <div class="edge-input-container">
-                            <input type="number" inputmode="decimal" name="minStock" value="5" step="any" class="edge-input">
+                    <div class="premium-row">
+                        <div class="premium-label">Min Stock Alert</div>
+                        <div class="premium-input-container">
+                            <input type="number" inputmode="decimal" name="minStock" value="5" step="any" class="premium-input">
                         </div>
                     </div>
+                </div>
 
-                    <div class="edge-row">
-                        <div class="edge-label">Tax (GST %)</div>
-                        <div class="edge-input-container">
-                            <input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any" class="edge-input" placeholder="0">
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tax Information</div>
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Tax (GST %)</div>
+                        <div class="premium-input-container">
+                            <input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any" class="premium-input" placeholder="0">
                         </div>
                     </div>
-
-                    <div class="edge-row">
-                        <div class="edge-label">HSN/SAC Code</div>
-                        <div class="edge-input-container">
-                            <input type="text" name="hsn" class="edge-input" placeholder="Optional">
+                    <div class="premium-row">
+                        <div class="premium-label">HSN/SAC Code</div>
+                        <div class="premium-input-container">
+                            <input type="text" name="hsn" class="premium-input" placeholder="Optional">
                         </div>
                     </div>
                 </div>
@@ -1519,75 +1476,90 @@
         </div>
         <div class="activity-content" style="padding: 0; background: var(--md-surface-variant);">
             <form id="form-ledger">
-                <!-- 📱 BIZOPS ANDROID STYLE: PARTY FORM -->
-                <div style="margin: -16px; padding: 16px; background: var(--md-surface); display: flex; flex-direction: column;">
+                <div style="padding: 16px 16px 8px 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
+                </div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Party Name<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" name="name" id="ledger-name" required class="premium-input" placeholder="e.g., John Doe">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">Type<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select name="type" required class="premium-input premium-select">
+                                    <option value="Customer">Customer</option>
+                                    <option value="Supplier">Supplier</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">Phone</div>
+                        <div class="premium-input-container">
+                            <input type="tel" name="phone" id="ledger-phone" class="premium-input" placeholder="Optional">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Tax & Address</div>
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">GSTIN</div>
+                        <div class="premium-input-container" style="gap: 12px;">
+                            <input type="text" name="gst" id="ledger-gst" class="premium-input" placeholder="Optional" style="text-transform: uppercase; flex: 1;">
+                            <button type="button" id="btn-verify-gst" onclick="window.verifyGSTIN()" style="background: var(--md-primary-container); color: var(--md-primary); border: none; border-radius: 8px; padding: 6px 12px; font-weight: bold; cursor: pointer; font-size: 12px;">Verify</button>
+                        </div>
+                    </div>
+                    <div id="gst-status" style="padding: 0 16px 12px 16px; text-align: right; color: var(--md-text-muted); font-size: 11px; margin-top: -8px; background: var(--md-surface);">Tap verify to auto-fill details</div>
                     
-                    <!-- Party Name -->
-                    <div style="padding: 8px 0; border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
-                        <label style="font-size: 12px; font-weight: 600; color: var(--md-primary);">Party Name *</label>
-                        <input type="text" name="name" id="ledger-name" required style="width: 100%; border: none; font-size: 16px; font-weight: 500; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface);" placeholder="Enter Party Name">
-                    </div>
-                    
-                    <!-- Type & Phone -->
-                    <div style="display: flex; gap: 24px; padding: 8px 0; border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">Party Type *</label>
-                            <select name="type" required style="width: 100%; border: none; font-size: 16px; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface);">
-                                <option value="Customer">Customer</option>
-                                <option value="Supplier">Supplier</option>
-                            </select>
-                        </div>
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">Phone Number</label>
-                            <input type="tel" name="phone" id="ledger-phone" style="width: 100%; border: none; font-size: 16px; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface);" placeholder="Optional">
+                    <div class="premium-row" style="border-top: 1px solid var(--md-outline-variant);">
+                        <div class="premium-label">Pincode</div>
+                        <div class="premium-input-container">
+                            <input type="number" inputmode="decimal" name="pincode" id="ledger-pincode" placeholder="6 Digits" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'ledger')" class="premium-input">
                         </div>
                     </div>
+                    <div class="premium-row">
+                        <div class="premium-label">City / Dist.</div>
+                        <div class="premium-input-container">
+                            <input type="text" name="city" id="ledger-city" class="premium-input" placeholder="City">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">State</div>
+                        <div class="premium-input-container">
+                            <input type="text" name="state" id="ledger-state" class="premium-input" placeholder="State">
+                        </div>
+                    </div>
+                    <div class="premium-row" style="align-items: flex-start; min-height: 70px;">
+                        <div class="premium-label" style="margin-top: 4px;">Street</div>
+                        <div class="premium-input-container">
+                            <textarea name="address" id="ledger-address" rows="2" class="premium-input" placeholder="Full Address" style="resize: none;"></textarea>
+                        </div>
+                    </div>
+                </div>
 
-                    <!-- GSTIN -->
-                    <div style="padding: 8px 0; border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <label style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">GSTIN</label>
-                            <span id="gst-status" style="font-size: 11px; font-weight: 700; color: var(--md-primary); background: rgba(0, 97, 164, 0.08); padding: 4px 10px; border-radius: 12px; cursor: pointer;" onclick="window.verifyGSTIN()">Verify & Auto-fill</span>
-                        </div>
-                        <input type="text" name="gst" id="ledger-gst" style="width: 100%; border: none; font-size: 16px; font-weight: 500; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface); text-transform: uppercase;" placeholder="Enter 15-digit GSTIN">
-                    </div>
-
-                    <!-- Pincode & City -->
-                    <div style="display: flex; gap: 24px; padding: 8px 0; border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">Pincode</label>
-                            <input type="number" inputmode="decimal" name="pincode" id="ledger-pincode" placeholder="6 Digits" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'ledger')" style="width: 100%; border: none; font-size: 16px; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface);">
-                        </div>
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">City / District</label>
-                            <input type="text" name="city" id="ledger-city" style="width: 100%; border: none; font-size: 16px; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface);" placeholder="City">
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Opening Balance</div>
+                <div class="premium-form-section" style="margin-bottom: 16px;">
+                    <div class="premium-row" style="background: rgba(0, 97, 164, 0.04);">
+                        <div class="premium-label" style="color: var(--md-primary); font-weight: 800;">Amount (₹)</div>
+                        <div class="premium-input-container">
+                            <input type="number" inputmode="decimal" name="openingBalance" value="0" min="0" step="any" class="premium-input" style="font-size: 18px; font-weight: 800; color: var(--md-primary);">
                         </div>
                     </div>
-
-                    <!-- State -->
-                    <div style="padding: 8px 0; border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
-                        <label style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">State</label>
-                        <input type="text" name="state" id="ledger-state" style="width: 100%; border: none; font-size: 16px; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface);" placeholder="State">
-                    </div>
-
-                    <!-- Address -->
-                    <div style="padding: 8px 0; border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 16px;">
-                        <label style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">Street Address</label>
-                        <textarea name="address" id="ledger-address" rows="1" style="width: 100%; border: none; font-size: 16px; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface); resize: none; font-family: inherit;" placeholder="Full Address"></textarea>
-                    </div>
-
-                    <!-- Opening Balance -->
-                    <div style="display: flex; gap: 24px; padding: 12px 0;">
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; font-weight: 600; color: var(--md-primary);">Opening Bal (₹)</label>
-                            <input type="number" inputmode="decimal" name="openingBalance" value="0" min="0" step="any" style="width: 100%; border: none; font-size: 18px; font-weight: 700; color: var(--md-primary); padding: 8px 0 4px 0; background: transparent; outline: none;" placeholder="0.00">
-                        </div>
-                        <div style="flex: 1;">
-                            <label style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">Balance Type</label>
-                            <select name="balanceType" style="width: 100%; border: none; font-size: 16px; font-weight: 500; padding: 8px 0 4px 0; background: transparent; outline: none; color: var(--md-on-surface);">
-                                <option value="To Receive / Debit">To Receive (Dr)</option>
-                                <option value="To Pay / Credit">To Pay (Cr)</option>
-                            </select>
+                    <div class="premium-row">
+                        <div class="premium-label" style="color: var(--md-primary);">Type</div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select name="balanceType" class="premium-input premium-select" style="color: var(--md-primary);">
+                                    <option value="To Receive / Debit">To Receive (Debit)</option>
+                                    <option value="To Pay / Credit">To Pay (Credit)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2095,58 +2067,26 @@
     </div>
 
 
-    <div id="sheet-fab-menu" class="bottom-sheet" style="background: #ffffff !important; padding: 0 !important; max-height: 90vh; border-top-left-radius: 24px; border-top-right-radius: 24px;">
-
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f1f5f9;">
-            <span style="font-size: 18px; font-weight: 700; color: #0f172a;">Create New</span>
-            <span class="material-symbols-outlined tap-target" style="color: #94a3b8; font-size: 24px; cursor: pointer;" onclick="UI.closeBottomSheet('sheet-fab-menu')">close</span>
+    <div id="sheet-fab-menu" class="bottom-sheet">
+        <div class="sheet-header">
+            <span style="font-size: 18px; font-weight: 500;">Create New</span>
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-fab-menu')">close</span>
         </div>
-
-        <div style="flex: 1; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom, 0px);">
-
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'invoice'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 16px; color: #334155; font-weight: 600;">Sale Invoice</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('in'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Payment In</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'return'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Sale Return</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'invoice'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Purchase Invoice</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('out'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Payment Out</span>
-            </div>
+        <div style="padding: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center;">
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'invoice'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(0, 97, 164, 0.1);  color: #0061a4;"><span class="material-symbols-outlined">receipt_long</span></div><small>Sale Inv</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('in'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">payments</span></div><small>Payment In</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'invoice'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #fbe9e7; color: #d84315;"><span class="material-symbols-outlined">local_shipping</span></div><small>Purchase</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('out'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">outbox</span></div><small>Payment Out</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('expense'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined">account_balance_wallet</span></div><small>Expense</small></div>
             
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'return'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Purchase Return</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('expense'), 200)" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Expense</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('ledger'), 200); }" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Customer / Supplier</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('product'), 200); }" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Items</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => { if(window.app) window.app.openAdjustmentSheet(); }, 200); }" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Stock Adjustment</span>
-            </div>
-
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('account'), 200); }" style="padding: 16px 20px; border-bottom: none; cursor: pointer;">
-                <span style="font-size: 15px; color: #475569; font-weight: 500;">Bank Account</span>
-            </div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'return'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">assignment_return</span></div><small>Credit Note</small></div>
+            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'return'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">assignment_returned</span></div><small>Debit Note</small></div>
+            
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('product'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('ledger'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
+            
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => { if(window.app) window.app.openAdjustmentSheet(); }, 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined">build</span></div><small>Adj Stock</small></div>
+            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('account'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #e0f7fa; color: #006064;"><span class="material-symbols-outlined">account_balance</span></div><small>Bank A/c</small></div>
         </div>
     </div>
 
@@ -3260,11 +3200,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=66.10"></script>
-    <script src="utils.js?v=66.10"></script>
-    <script src="ui.js?v=66.10"></script>
-    <script src="cloud.js?v=66.10"></script>
-    <script src="app.js?v=66.10"></script>
+    <script src="db.js?v=70"></script>
+    <script src="utils.js?v=70"></script>
+    <script src="ui.js?v=70"></script>
+    <script src="cloud.js?v=70"></script>
+    <script src="app.js?v=70"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3274,11 +3214,6 @@
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); 
-            
-            // 🚨 PWA SHIELD: If they already installed the app to their home screen, do not show the popup again!
-            const isNativeApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || document.referrer.includes('android-app://');
-            if (isNativeApp) return; 
-
             deferredPrompt = e;
             setTimeout(() => {
                 if (window.UI) window.UI.openBottomSheet('sheet-install-app');
@@ -3299,8 +3234,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=66.10' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=66.10`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=70' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=70`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -3344,20 +3279,16 @@
         // ==========================================
         window.verifyGSTIN = async () => {
             const gstinInput = document.getElementById('ledger-gst').value.trim().toUpperCase();
-            
-            // 🚨 BUG FIX: Target the actual clickable span, not a non-existent button ID!
-            const statusBtn = document.getElementById('gst-status');
+            const statusText = document.getElementById('gst-status');
+            const btn = document.getElementById('btn-verify-gst');
 
             if (!gstinInput) return alert("Please type a GSTIN first.");
             if (gstinInput.length !== 15) return alert("GSTIN must be exactly 15 characters.");
 
-            // Store original text so we can reset it if the fetch fails
-            const originalText = statusBtn.innerText;
-            statusBtn.innerText = "⏳ Pinging GST Network...";
-            
-            // 🚨 BUG FIX: Span elements don't have a 'disabled' attribute. We must use pointer-events!
-            statusBtn.style.pointerEvents = "none"; 
-            statusBtn.style.color = "var(--md-primary)";
+            btn.innerText = "⏳...";
+            btn.disabled = true;
+            statusText.innerText = "Pinging GST Network...";
+            statusText.style.color = "var(--md-primary)";
 
             try {
                 // To activate: Replace the URL and API Key with a Free Tier account from Masters India or RapidAPI
@@ -3366,12 +3297,12 @@
                 const response = await fetch(apiUrl, {
                     method: 'GET',
                     headers: {
-                        'Authorization': 'Bearer YOUR_FREE_API_KEY', // <-- Paste your live API key here
+                        'Authorization': 'Bearer YOUR_FREE_API_KEY', // <-- Paste your free key here later
                         'Content-Type': 'application/json'
                     }
                 });
 
-                if (!response.ok) throw new Error("Network request failed or Unauthorized.");
+                if (!response.ok) throw new Error("Network request failed.");
                 const data = await response.json();
 
                 if (data && !data.error) {
@@ -3382,13 +3313,7 @@
                     // Auto-fill Full Address, Pincode, City, and State!
                     if (data.pradr && data.pradr.addr) {
                         const adr = data.pradr.addr;
-                        if (adr.pncd) {
-                            document.getElementById('ledger-pincode').value = adr.pncd;
-                            // 🚀 ENTERPRISE UPGRADE: Automatically trigger your Pincode engine to sync city/state!
-                            if (typeof app !== 'undefined' && typeof app.fetchPincode === 'function') {
-                                app.fetchPincode(adr.pncd, 'ledger');
-                            }
-                        }
+                        if (adr.pncd) document.getElementById('ledger-pincode').value = adr.pncd;
                         if (adr.dst || adr.loc) document.getElementById('ledger-city').value = adr.dst || adr.loc;
                         if (adr.stcd) document.getElementById('ledger-state').value = adr.stcd;
                         
@@ -3396,23 +3321,20 @@
                         document.getElementById('ledger-address').value = fullAddress;
                     }
 
-                    statusBtn.innerText = "✅ Verified & Auto-Filled!";
-                    statusBtn.style.color = "var(--md-success)";
+                    statusText.innerText = "✅ Verified & Auto-Filled!";
+                    statusText.style.color = "var(--md-success)";
                     if (window.Utils) window.Utils.showToast("GST Details Fetched Successfully!");
                 } else {
-                    throw new Error("Invalid GSTIN or empty data returned.");
+                    throw new Error("Invalid GSTIN");
                 }
 
             } catch (err) {
                 console.error("GST Fetch Error:", err);
-                statusBtn.innerText = "❌ Fetch Failed";
-                statusBtn.style.color = "var(--md-error)";
-                
-                // 🚨 BUG FIX: Gracefully reset the button after 3 seconds so the user can try again!
-                setTimeout(() => {
-                    statusBtn.innerText = originalText;
-                    statusBtn.style.pointerEvents = "auto";
-                }, 3000);
+                statusText.innerText = "❌ Could not auto-fetch. Please type address manually.";
+                statusText.style.color = "var(--md-error)";
+            } finally {
+                btn.innerText = "Verify";
+                btn.disabled = false;
             }
         };
 
@@ -4012,33 +3934,6 @@
             };
         }
     });
-
-    // ==========================================
-    // 🚀 SOLLO ERP FIX: KHATA LEDGER LAUNCHER
-    // ==========================================
-    window.triggerKhataFromForm = () => {
-        // 1. Grab the ID of the Party currently being edited
-        const partyId = window.app && window.app.state ? window.app.state.currentEditId : null;
-        
-        // 2. Prevent crashing if they tap it on a brand new, unsaved party
-        if (!partyId) {
-            if (window.Utils) window.Utils.showToast("⚠️ Please save this party first before viewing their Khata Ledger!");
-            else alert("Please save this party first before viewing their Khata Ledger!");
-            return;
-        }
-        
-        // 3. Grab the Party Name and Type directly from the open form!
-        const partyName = document.getElementById('ledger-name') ? document.getElementById('ledger-name').value : 'Unknown Party';
-        const typeSelect = document.querySelector('#form-ledger select[name="type"]');
-        const partyType = typeSelect ? typeSelect.value : 'Customer';
-        
-        // 4. Launch the TRUE Ledger Engine from app.js
-        if (window.app && typeof window.app.openPartyLedger === 'function') {
-            window.app.openPartyLedger(partyId, partyType, partyName);
-        } else {
-            if (window.Utils) window.Utils.showToast("⚠️ Error: Ledger engine is missing from app.js.");
-        }
-    };
 
     window.triggerItemLedgerFromForm = async () => {
         const id = window.app.state.currentEditId || document.getElementById('item-ledger-hidden-id').value;

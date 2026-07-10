@@ -807,9 +807,11 @@ body.dark-mode .activity-header {
     max-height: 85vh; 
     padding-bottom: env(safe-area-inset-bottom, 0px); 
     
-    /* 🚨 BIZOPS FIX: Removed 3D perspective to restore razor-sharp text! */
-    transform: translateY(100%); 
+    /* 🚀 ENTERPRISE UPGRADE: GPU HARDWARE ACCELERATION */
+    transform: translateY(100%) translateZ(0); 
     will-change: transform;
+    backface-visibility: hidden;
+    perspective: 1000px;
     
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease; 
 }
@@ -835,7 +837,8 @@ body.dark-mode .bottom-sheet::before {
 }
 
 .bottom-sheet.open { 
-    transform: translateY(0); 
+    /* Maintains GPU 3D lock while open */
+    transform: translateY(0) translateZ(0); 
     box-shadow: 0 -4px 24px rgba(0,0,0,0.4); 
 }
 
@@ -1639,17 +1642,17 @@ body.dark-mode .theme-toggle-knob {
    ENTERPRISE UPGRADE: HIGH-PERFORMANCE KEYBOARD SHIELD
    ========================================== */
 @media (max-width: 768px) {
-    body:has(input:not([readonly]):not([type="date"]):focus, textarea:focus) .bottom-nav,
-    body:has(input:not([readonly]):not([type="date"]):focus, textarea:focus) .floating-action-button,
-    body:has(input:not([readonly]):not([type="date"]):focus, textarea:focus) #update-banner {
+    body:has(input:focus, textarea:focus) .bottom-nav,
+    body:has(input:focus, textarea:focus) .floating-action-button,
+    body:has(input:focus, textarea:focus) #update-banner {
         opacity: 0 !important;
         pointer-events: none !important;
         transform: translateY(100px) !important;
         transition: none !important; 
     }
     
-    body:has(input:not([readonly]):not([type="date"]):focus, textarea:focus) .activity-content,
-    body:has(input:not([readonly]):not([type="date"]):focus, textarea:focus) .main-content {
+    body:has(input:focus, textarea:focus) .activity-content,
+    body:has(input:focus, textarea:focus) .main-content {
         padding-bottom: 250px !important; 
         transition: padding-bottom 0.3s ease-out;
     }
@@ -6465,9 +6468,9 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
 
 /* 4. FIX OVERLAY KEYBOARD JUMPING */
 /* Completely hides bottom bars when typing so they never jump to the middle of the screen */
-body:has(input:not([readonly]):not([type="date"]):focus, textarea:focus) .bottom-nav,
-body:has(input:not([readonly]):not([type="date"]):focus, textarea:focus) .floating-action-button,
-body:has(input:not([readonly]):not([type="date"]):focus, textarea:focus) .form-sticky-footer {
+body:has(input:focus, textarea:focus) .bottom-nav,
+body:has(input:focus, textarea:focus) .floating-action-button,
+body:has(input:focus, textarea:focus) .form-sticky-footer {
     display: none !important; 
 }
 
@@ -6898,135 +6901,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     };
 });
-/* ==========================================
-   🚀 FINAL BUSINESS CLASS POLISH (SaaS Standard)
-   ========================================== */
-
-/* 1. APP BACKGROUND: Professional Light Slate */
-/* Creates a soft contrast so the white data cards pop cleanly */
-body:not(.dark-mode), 
-body:not(.dark-mode) #app-shell, 
-body:not(.dark-mode) .main-content, 
-body:not(.dark-mode) .activity-screen {
-    background-color: #F1F5F9 !important; 
-    background-image: none !important;
-}
-
-/* 2. FLAT & CRISP CARDS (Stripe Style) */
-/* Removes heavy drop-shadows and replaces them with a crisp 1px border */
-body:not(.dark-mode) .m3-card, 
-body:not(.dark-mode) .dashboard-card {
-    background-color: #FFFFFF !important;
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important; 
-}
-
-/* 3. FLUSH DATA GRIDS (Zebra-Striped Lists) */
-/* Makes long lists of invoices or inventory read like a clean spreadsheet */
-body:not(.dark-mode) .list-view {
-    background-color: #FFFFFF !important;
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-    overflow: hidden !important;
-}
-body:not(.dark-mode) .list-view li {
-    border-bottom: 1px solid #F1F5F9 !important;
-    background-color: transparent !important;
-}
-body:not(.dark-mode) .list-view li:nth-child(even) {
-    background-color: #F8FAFC !important; /* Subtle Zebra Stripe */
-}
-body:not(.dark-mode) .list-view li:last-child {
-    border-bottom: none !important;
-}
-
-/* 4. iOS FROSTED GLASS NAVIGATION */
-/* Makes the top and bottom bars slightly transparent and blurs the data scrolling underneath */
-.app-header, .activity-header, .bottom-nav, .form-sticky-footer, .search-bar {
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border-color: #E2E8F0 !important;
-}
-/* Adapts the glass to Dark Mode automatically */
-body.dark-mode .app-header, body.dark-mode .activity-header, body.dark-mode .bottom-nav, body.dark-mode .form-sticky-footer, body.dark-mode .search-bar {
-    background: rgba(18, 18, 18, 0.85) !important;
-    border-color: #2C2C2E !important;
-}
-
-/* 5. CLEAN, PROFESSIONAL INPUT BOXES */
-/* Soft resting state, sharp primary-blue border when typing */
-body:not(.dark-mode) input[type="text"]:not(.search-bar input), 
-body:not(.dark-mode) input[type="number"], 
-body:not(.dark-mode) input[type="tel"], 
-body:not(.dark-mode) input[type="date"], 
-body:not(.dark-mode) select, 
-body:not(.dark-mode) textarea {
-    background-color: #F8FAFC !important;
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 6px !important;
-    color: #0F172A !important;
-}
-input:focus:not([readonly]), select:focus, textarea:focus {
-    background-color: #FFFFFF !important;
-    border-color: #2563EB !important; /* Trustworthy Financial Blue */
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
-}
-
-/* 6. INSTANT TACTILE BUTTONS (No Bouncing) */
-/* Makes tapping buttons feel physically solid and fast */
-.btn-primary, .btn-secondary, .m3-card.tap-target, .list-view li {
-    transition: transform 0.1s ease-out, background-color 0.1s ease-out !important;
-}
-.btn-primary:active, .m3-card.tap-target:active, .list-view li:active {
-    transform: scale(0.98) !important; 
-    transition: none !important; /* Instant response */
-}
-/* ==========================================
-   FIX: DOCUMENT FORMATS MENU LAYOUT
-   ========================================== */
-/* Protects the Prefix, Counter, and Suffix boxes from being squished */
-#sheet-document-formats div[style*="display: flex; align-items: center; gap: 6px;"] {
-    display: flex !important;
-    gap: 8px !important;
-}
-
-/* Make the Prefix and Suffix boxes take up equal, flexible space */
-#sheet-document-formats input[type="text"] {
-    flex: 1 1 auto !important;
-    width: 100% !important;
-    min-width: 60px !important;
-    text-align: center !important;
-}
-
-/* Force the middle number box to stay compact and centered */
-#sheet-document-formats input[type="number"] {
-    flex: 0 0 auto !important;
-    width: 90px !important;
-    min-width: 90px !important;
-    max-width: 90px !important;
-    text-align: center !important;
-}
-/* ==========================================
-   PREMIUM DESIGN UPGRADE: NATIVE BACKGROUND COLOR
-   ========================================== */
-body, html, #app-container, #dashboard-tab, #master-tab {
-    background-color: #f4f5f8 !important; /* The premium light slate background */
-}
-
-/* Make sure the cards stay pure white so they pop! */
-.m3-card, .list-card, .activity-screen {
-    background-color: #ffffff !important; 
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important; /* Soft premium shadow */
-    margin-bottom: 12px;
-    border: 1px solid #e2e8f0; /* Subtle border matching the screenshot */
-}
-
-/* Keep the bottom navigation bar pure white */
-.bottom-nav {
-    background-color: #ffffff !important;
-    border-top: 1px solid #e2e8f0 !important;
-}
