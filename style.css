@@ -807,11 +807,9 @@ body.dark-mode .activity-header {
     max-height: 85vh; 
     padding-bottom: env(safe-area-inset-bottom, 0px); 
     
-    /* 🚀 ENTERPRISE UPGRADE: GPU HARDWARE ACCELERATION */
-    transform: translateY(100%) translateZ(0); 
+    /* 🚨 BIZOPS FIX: Removed 3D perspective to restore razor-sharp text! */
+    transform: translateY(100%); 
     will-change: transform;
-    backface-visibility: hidden;
-    perspective: 1000px;
     
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease; 
 }
@@ -837,8 +835,7 @@ body.dark-mode .bottom-sheet::before {
 }
 
 .bottom-sheet.open { 
-    /* Maintains GPU 3D lock while open */
-    transform: translateY(0) translateZ(0); 
+    transform: translateY(0); 
     box-shadow: 0 -4px 24px rgba(0,0,0,0.4); 
 }
 
@@ -7033,60 +7030,3 @@ body, html, #app-container, #dashboard-tab, #master-tab {
     background-color: #ffffff !important;
     border-top: 1px solid #e2e8f0 !important;
 }
-/* ==========================================
-   🚀 ENTERPRISE UPGRADE: FAB-STYLE MASTER CARDS
-   ========================================== */
-.list-card {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    
-    /* 1. Generous FAB-style spacing */
-    padding: 16px 20px !important; 
-    margin-bottom: 12px !important;
-    
-    /* 2. Pure White Surface & Smooth Corners */
-    background-color: var(--md-surface, #ffffff) !important;
-    border-radius: 16px !important; 
-    
-    /* 3. Clean Separation (Flat & Modern instead of heavy shadows) */
-    border: 1px solid var(--md-outline-variant, #e2e8f0) !important; 
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02) !important; 
-    
-    /* 🚨 4. BIZOPS FIX: FORCE CRYSTAL CLEAR TEXT */
-    /* This completely strips away any accidental 3D GPU blurring from parent containers */
-    transform: none !important; 
-    will-change: auto !important;
-    backface-visibility: visible !important;
-    text-rendering: optimizeLegibility !important;
-    -webkit-font-smoothing: antialiased !important;
-    -moz-osx-font-smoothing: grayscale !important;
-}
-
-/* Mimic the FAB Menu's soft icon backgrounds */
-.list-card .material-symbols-outlined {
-    background: rgba(0, 97, 164, 0.08) !important; /* Soft primary tint */
-    color: var(--md-primary, #0061a4) !important;
-    padding: 12px !important;
-    border-radius: 50% !important;
-    margin-right: 16px !important;
-    font-size: 24px !important;
-}
-
-/* Make sure the Title text mimics the FAB's bold, sharp typography */
-.list-card h3, .list-card strong {
-    font-weight: 800 !important;
-    color: var(--md-on-surface, #0f172a) !important;
-    font-size: 16px !important;
-    letter-spacing: 0.2px !important;
-    margin: 0 !important;
-}
-
-/* Soften the subtitle text just like the FAB menu descriptions */
-.list-card p, .list-card small {
-    color: var(--md-on-surface-variant, #475569) !important;
-    font-weight: 600 !important;
-    font-size: 13px !important;
-    margin-top: 4px !important;
-}
-           
