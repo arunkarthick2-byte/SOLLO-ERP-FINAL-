@@ -265,7 +265,14 @@ const deleteRecordById = async (storeName, id) => {
         if (oldRecord && storeName !== 'trash') {
             oldRecord._module = storeName; 
             oldRecord._deletedAt = new Date().toISOString(); 
-            await saveRecord('trash', oldRecord); 
+            try {
+                await saveRecord('trash', oldRecord); 
+            } catch (trashError) {
+                // 🚨 ENTERPRISE FIX: The "Full Disk Deadlock" Shield!
+                // If the phone is 100% full, the recycle bin cannot save the file. 
+                // We must bypass the trash and perform a permanent hard delete to rescue the user's storage!
+                console.warn("Storage is too full to use the Recycle Bin. Bypassing trash for permanent deletion.");
+            }
         }
 
         if (oldRecord && (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments' || storeName === 'expenses')) {
@@ -393,15 +400,20 @@ const reverseStockImpact = async (storeName, record) => {
             let targetPoolIsNonGST = isNonGST;
             if (storeName === 'adjustments') targetPoolIsNonGST = record.pool !== 'gst';
             
+            // MATH FIX: Convert to paise (integers) to prevent decimal drift
+            let impactInPaise = Math.round(impact * 100);
+
             if (targetPoolIsNonGST) {
-                stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
-                dbItem.stockNonGst = stockNonGst;
+                let currentNonGstPaise = Math.round((stockNonGst || 0) * 100);
+                dbItem.stockNonGst = (currentNonGstPaise + impactInPaise) / 100;
             } else {
-                stockGst = Math.round((stockGst + impact) * 100) / 100;
-                dbItem.stockGst = stockGst;
+                let currentGstPaise = Math.round((stockGst || 0) * 100);
+                dbItem.stockGst = (currentGstPaise + impactInPaise) / 100;
             }
             
-            dbItem.stock = Math.round((stockGst + stockNonGst) * 100) / 100;
+            let finalGstPaise = Math.round((dbItem.stockGst || 0) * 100);
+            let finalNonGstPaise = Math.round((dbItem.stockNonGst || 0) * 100);
+            dbItem.stock = (finalGstPaise + finalNonGstPaise) / 100;
             await saveRecord('items', dbItem);
         }
     }
@@ -464,15 +476,20 @@ const applyStockImpact = async (storeName, record) => {
             let targetPoolIsNonGST = isNonGST;
             if (storeName === 'adjustments') targetPoolIsNonGST = record.pool !== 'gst';
             
+            // MATH FIX: Convert to paise (integers) to prevent decimal drift
+            let impactInPaise = Math.round(impact * 100);
+
             if (targetPoolIsNonGST) {
-                stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
-                dbItem.stockNonGst = stockNonGst;
+                let currentNonGstPaise = Math.round((stockNonGst || 0) * 100);
+                dbItem.stockNonGst = (currentNonGstPaise + impactInPaise) / 100;
             } else {
-                stockGst = Math.round((stockGst + impact) * 100) / 100;
-                dbItem.stockGst = stockGst;
+                let currentGstPaise = Math.round((stockGst || 0) * 100);
+                dbItem.stockGst = (currentGstPaise + impactInPaise) / 100;
             }
             
-            dbItem.stock = Math.round((stockGst + stockNonGst) * 100) / 100;
+            let finalGstPaise = Math.round((dbItem.stockGst || 0) * 100);
+            let finalNonGstPaise = Math.round((dbItem.stockNonGst || 0) * 100);
+            dbItem.stock = (finalGstPaise + finalNonGstPaise) / 100;
             await saveRecord('items', dbItem);
         }
     }
@@ -1101,11 +1118,14 @@ async function generateGSTReport(yearMonth, firmId) {
         
         // 🚨 LEGAL COMPLIANCE FIX: Track Non-GST/Exempt Sales for GSTR-1 Table 8 & GSTR-3B Table 3.1.c!
         if (s.invoiceType === 'Non-GST') {
-            let rawSubtotal = 0;
-            (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
-            let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
-            if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-            let exactTaxable = rawSubtotal - discountAmt;
+            let exactTaxable = parseFloat(s.subtotal);
+            if (isNaN(exactTaxable) || exactTaxable === 0) {
+                let rawSubtotal = 0;
+                (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
+                let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                exactTaxable = rawSubtotal - discountAmt;
+            }
             
             gstr1.nilRatedTaxable += (exactTaxable * mult);
             return; // Safely exit before adding to standard GST pools
@@ -1145,11 +1165,14 @@ async function generateGSTReport(yearMonth, firmId) {
         
         // 🚨 LEGAL COMPLIANCE FIX: Track Non-GST/Exempt Purchases for reporting!
         if (p.invoiceType === 'Non-GST') {
-            let rawSubtotal = 0;
-            (p.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
-            let discountAmt = p.discountType === '%' ? (rawSubtotal * ((parseFloat(p.discount) || 0) / 100)) : (parseFloat(p.discount) || 0);
-            if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-            let exactTaxable = rawSubtotal - discountAmt;
+            let exactTaxable = parseFloat(p.subtotal);
+            if (isNaN(exactTaxable) || exactTaxable === 0) {
+                let rawSubtotal = 0;
+                (p.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
+                let discountAmt = p.discountType === '%' ? (rawSubtotal * ((parseFloat(p.discount) || 0) / 100)) : (parseFloat(p.discount) || 0);
+                if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                exactTaxable = rawSubtotal - discountAmt;
+            }
             
             gstr2.nilRatedTaxable += (exactTaxable * mult);
             return; // Safely exit before adding to ITC

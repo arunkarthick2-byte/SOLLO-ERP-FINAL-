@@ -428,25 +428,9 @@ const Utils = {
 
     // --- ENTERPRISE UPGRADE: BULLETPROOF MATH PARSER ---
     safeNumber: (val) => {
-        let parsed = 0;
-        if (typeof val === 'number') {
-            parsed = isNaN(val) ? 0 : val;
-        } else if (val) {
-            // Strips out commas, spaces, currency symbols, and letters so math never crashes
-            let cleaned = String(val).replace(/[^0-9.-]+/g, '').replace(/(?!^)-/g, '');
-            // Bug Fix: Handle accidental multiple decimal points (e.g., typing 1.500.00 instead of 1,500.00)
-            const parts = cleaned.split('.');
-            if (parts.length > 2) {
-                const decimalPart = parts.pop();
-                cleaned = parts.join('') + '.' + decimalPart;
-            }
-            parsed = parseFloat(cleaned);
-        }
-        
-        if (isNaN(parsed)) return 0;
-
-        // 🚨 ENTERPRISE POLISH: Number.EPSILON destroys the Javascript "0.1 + 0.2 = 0.3000000004" bug!
-        return Math.round((parsed + Number.EPSILON) * 100000) / 100000;
+        let parsed = parseFloat(String(val || 0).replace(/[^0-9.-]+/g, '')) || 0;
+        // Force precision to 4 decimal places for internal math, standardizing all numbers
+        return Math.round(parsed * 10000) / 10000;
     },
 
     // --- ENTERPRISE UPGRADE: STRICT GSTIN VALIDATOR ---
@@ -1120,8 +1104,15 @@ Please process this accordingly. Thank you!`;
         });
 
         let discountAmt = doc.discountType === '%' ? (rawSubtotal * ((parseFloat(doc.discount) || 0) / 100)) : (parseFloat(doc.discount) || 0);
-        if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-        const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
+        
+        // 1. Flip flat discounts to negative if the subtotal is negative (Credit Notes)
+        if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
+        
+        // 2. Use absolute math to safely cap the discount to the subtotal
+        if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
+        
+        // 3. Use !== 0 so Credit Notes don't default to a 0 ratio
+        const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
 
         let itemsHtml = '';
         (doc.items || []).forEach((item, index) => {
@@ -2108,12 +2099,15 @@ Thank you!`;
                 if (gstin && gstin.trim().length === 15) {
                     // ENTERPRISE FIX: The Blank B2B Taxable Value Exploit!
                     // 's.subtotal' is often undefined in the database, causing the Excel file to export ₹0.00!
-                    // We MUST mathematically extract the exact Net Taxable value by reading the invoice items!
-                    let rawSubtotal = 0;
-                    (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
-                    let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
-                    if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-                    let exactTaxable = rawSubtotal - discountAmt;
+                    // ENTERPRISE FIX: Prioritize strict invoice rounding, but fallback to manual math for legacy DB records!
+                    let exactTaxable = parseFloat(s.subtotal);
+                    if (isNaN(exactTaxable) || exactTaxable === 0) {
+                        let rawSubtotal = 0;
+                        (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
+                        let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                        if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                        exactTaxable = rawSubtotal - discountAmt;
+                    }
                     
                     let taxable = exactTaxable * (s.documentType === 'return' ? -1 : 1);
                     let tax = (parseFloat(s.totalGst) || 0) * (s.documentType === 'return' ? -1 : 1);
@@ -2230,6 +2224,7 @@ Thank you!`;
 
             // ENTERPRISE FIX: Measure true desktop height BEFORE running the engine to kill blank space!
             const origW = el.style.width;
+            const origMinW = el.style.minWidth;
             const origMaxW = el.style.maxWidth;
             const origPos = el.style.position;
             
@@ -2244,6 +2239,7 @@ Thank you!`;
             
             // Cleanup
             el.style.width = origW;
+            el.style.minWidth = origMinW;
             el.style.maxWidth = origMaxW;
             el.style.minHeight = ''; 
             el.style.position = origPos;

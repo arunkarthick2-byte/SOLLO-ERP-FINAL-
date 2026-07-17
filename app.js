@@ -148,48 +148,6 @@ window.addEventListener('online', updateNetworkStatus);
 // Run once on boot just in case they open the app while already offline
 if (!navigator.onLine) updateNetworkStatus();
 
-// --- ENTERPRISE SECURITY: BANKING PRIVACY SHIELD ---
-// Generates an explicit Lock Screen with an Unlock Button to prevent mobile tap glitches!
-const showPrivacyLock = () => {
-    if (document.getElementById('privacy-lock-screen')) return; // Already locked
-    
-    const lockScreen = document.createElement('div');
-    lockScreen.id = 'privacy-lock-screen';
-    
-    // Checks if the app is in dark mode to match the lock screen colors
-    const isDark = document.body.classList.contains('dark-mode');
-    const bgColor = isDark ? 'rgba(18,18,18,0.85)' : 'rgba(255,255,255,0.85)';
-    const textColor = isDark ? '#ffffff' : '#000000';
-    
-    lockScreen.style.cssText = `position:fixed; top:0; left:0; width:100vw; height:100vh; background:${bgColor}; backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.3s ease;`;
-    
-    lockScreen.innerHTML = `
-        <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-primary, #0061a4); margin-bottom: 16px;">lock</span>
-        <h2 style="margin:0 0 24px 0; font-family: 'Inter', sans-serif; color: ${textColor};">App Secured</h2>
-        <button id="btn-unlock-app" style="background: var(--md-primary, #0061a4); color:#fff; border:none; padding:16px 40px; border-radius:30px; font-size:16px; font-weight:bold; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.2); touch-action:manipulation;">Unlock Application</button>
-    `;
-    
-    document.body.appendChild(lockScreen);
-    
-    // Secure physical unlock button
-    const unlockBtn = document.getElementById('btn-unlock-app');
-    unlockBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        unlockBtn.innerText = 'Unlocking...';
-        lockScreen.style.opacity = '0';
-        setTimeout(() => {
-            if (lockScreen.parentNode) lockScreen.parentNode.removeChild(lockScreen);
-        }, 300);
-    });
-};
-
-// Trigger the lock screen the moment the app is pushed to the background
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-        showPrivacyLock();
-    }
-});
 
 // ENTERPRISE FIX: Removed the hazardous 'DOUBLE-CHARGE PREVENTER' from app.js!
 // ui.js already contains a vastly superior 'Anti-Clone Shield' that doesn't break HTML form validators.
@@ -419,27 +377,22 @@ const app = {
     // ENTERPRISE UX: DASHBOARD QUICK LINKS
     // ==========================================
     viewFilteredSales: (status) => {
-        // 1. Navigate to the Documents Tab seamlessly
+        // 1. Navigate to the new Workspace Tab seamlessly
         if (window.UI && typeof window.UI.switchTab === 'function') {
-            const navBtn = document.getElementById('nav-docs');
-            window.UI.switchTab('tab-documents', 'Documents', navBtn);
+            const navBtn = document.getElementById('nav-workspace');
+            window.UI.switchTab('tab-workspace', 'Workspace', navBtn);
             
-            // 2. Ensure the Sales view is active (hiding Purchases if it was open)
-            const salesView = document.getElementById('doc-sales-view');
-            const purchView = document.getElementById('doc-purchase-view');
-            if (salesView && purchView) {
-                salesView.classList.remove('hidden');
-                purchView.classList.add('hidden');
-            }
+            // 2. Ensure the "Transactions" inner tab is active, and select "Sales"
+            if (typeof switchWorkspaceTab === 'function') switchWorkspaceTab('trans');
+            if (typeof switchTransView === 'function') switchTransView('sales');
             
             // 3. Wait 150ms for the screen to slide over, then apply the native filter!
             setTimeout(() => {
                 if (window.UI) {
-                    // Inject the status filter
                     window.UI.state.activeFilters = window.UI.state.activeFilters || {};
                     window.UI.state.activeFilters['sales'] = status;
                     
-                    // 🚨 ENTERPRISE FIX: Tell the Documents Tab to physically obey the Dashboard's Date Filter!
+                    // Tell the Documents Tab to physically obey the Dashboard's Date Filter!
                     window.UI.state.applyDashboardDateToDocuments = true;
                     
                     if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('sales');
@@ -532,7 +485,11 @@ const app = {
             if (action === 'new_sale') {
                 setTimeout(() => app.openForm('sales', null, 'invoice'), 300);
             } else if (action === 'cashbook') {
-                setTimeout(() => { if(window.UI) window.UI.switchTab('tab-cashbook', 'Cashbook & Banking', document.getElementById('nav-cashbook')); }, 300);
+                setTimeout(() => { 
+                    if(window.UI) window.UI.switchTab('tab-workspace', 'Workspace', document.getElementById('nav-workspace')); 
+                    if (typeof switchWorkspaceTab === 'function') switchWorkspaceTab('trans');
+                    if (typeof switchTransView === 'function') switchTransView('cashbook');
+                }, 300);
             }
             
             // ENTERPRISE FIX: Wipe the URL parameter so waking up the app doesn't force-open the sales form and delete unsaved work!
@@ -787,7 +744,7 @@ const app = {
             });
 
             const valEl = document.getElementById('dash-inventory-value');
-            if (valEl) valEl.innerText = `₹${totalValuation.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            if (valEl) valEl.innerText = `₹${totalValuation.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
 
             const lsText = document.getElementById('dash-low-stock-text');
             const lsIcon = document.getElementById('dash-low-stock-icon');
@@ -2189,7 +2146,8 @@ const app = {
         }
 
         allDocs.forEach(d => {
-            if (d.firmId === activeFirmId && d[partyKey] === partyId && d.status !== 'Open') {
+            // 🚨 ENTERPRISE FIX: Block Cancelled invoices from acting as Ghost Debt!
+            if (d.firmId === activeFirmId && d[partyKey] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
                 // 🚨 NEW: Split the Invoice Debt by Tax Pool
                 if (billFilter === 'GST' && d.invoiceType === 'Non-GST') return;
                 if (billFilter === 'Non-GST' && d.invoiceType !== 'Non-GST') return;
@@ -2272,7 +2230,8 @@ const app = {
         // 4. CALCULATE PENDING GROSS DEBT
         // (billFilter already grabbed dynamically in Step 1!)
         let partyDocs = allDocs.filter(doc => {
-            if (doc.firmId !== activeFirmId || doc[partyKey] !== partyId || doc.documentType === 'return' || doc.status === 'Open') return false;
+            // 🚨 ENTERPRISE FIX: Block Cancelled invoices from demanding payment in the dropdown!
+            if (doc.firmId !== activeFirmId || doc[partyKey] !== partyId || doc.documentType === 'return' || doc.status === 'Open' || doc.status === 'Cancelled') return false;
             
             // Apply the new GST/Non-GST filter
             if (billFilter === 'GST' && doc.invoiceType === 'Non-GST') return false;
@@ -8247,104 +8206,61 @@ window.AnalyticsEngine = {
     },
 
     runProfitLeakageAudit: async () => {
-        if (window.Utils) window.Utils.showToast("Generating True Net Profit (P&L) Statement... ⏳");
-        
+        if (window.Utils) window.Utils.showToast("Scanning historical sales for profit leakage... ⏳");
         const sales = await window.getAllRecords('sales');
         const items = await window.getAllRecords('items');
-        const expenses = await window.getAllRecords('expenses'); // 🚨 NEW: Fetch all operating expenses!
         
-        let totalRevenue = 0;
-        let totalCOGS = 0;
-        let totalExpenses = 0;
-        let expenseDetails = {};
+        let leakageHtml = '';
+        let totalLeakage = 0;
+        let flaggedCount = 0;
 
         sales.forEach(sale => {
-            if (sale.status === 'Open' || sale.status === 'Cancelled') return;
+            if (sale.status === 'Open' || sale.status === 'Cancelled' || sale.documentType === 'return') return;
 
-            const isReturn = sale.documentType === 'return';
-            const mult = isReturn ? -1 : 1;
+            let invoiceLeakage = 0;
+            let invoiceIssues = [];
 
-            // 1. Calculate True Net Revenue (Subtotal - Discount + Freight)
+            // Accurately calculate the true discount applied to this invoice
             let rawSubtotal = 0;
             (sale.items || []).forEach(row => rawSubtotal += (Math.abs(parseFloat(row.qty))||0) * (parseFloat(row.rate)||0));
-            
             let discountAmt = sale.discountType === '%' ? (rawSubtotal * ((parseFloat(sale.discount)||0)/100)) : (parseFloat(sale.discount)||0);
-            let freight = parseFloat(sale.freightAmount) || parseFloat(sale.freight) || 0;
-            
-            let netRevenue = (rawSubtotal - discountAmt + freight) * mult;
-            totalRevenue += netRevenue;
+            let discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
 
-            // 2. Calculate COGS (Cost of Goods Sold)
-            let cogs = 0;
             (sale.items || []).forEach(row => {
                 const dbItem = items.find(i => i.id === (row.itemId || row.id));
-                const buyPrice = dbItem ? (parseFloat(dbItem.buyPrice) || 0) : 0;
-                cogs += (Math.abs(parseFloat(row.qty)) || 0) * buyPrice;
+                if (dbItem) {
+                    const buyPrice = parseFloat(dbItem.buyPrice) || 0; // True MAC Cost
+                    const sellPrice = parseFloat(row.rate) || 0;
+                    const netSellPrice = sellPrice - (sellPrice * discountRatio); // True Selling Price after invoice discount
+                    
+                    if (netSellPrice < buyPrice && buyPrice > 0) {
+                        const lossPerItem = buyPrice - netSellPrice;
+                        const totalLoss = lossPerItem * Math.abs(parseFloat(row.qty) || 0);
+                        invoiceLeakage += totalLoss;
+                        invoiceIssues.push(`• <strong>${row.name}</strong><br>Sold @ ₹${netSellPrice.toFixed(2)} (Cost: ₹${buyPrice.toFixed(2)})`);
+                    }
+                }
             });
-            totalCOGS += (cogs * mult);
+
+            if (invoiceLeakage > 0) {
+                totalLeakage += invoiceLeakage;
+                flaggedCount++;
+                leakageHtml += `
+                    <div style="border-left: 4px solid #ef4444; background: #fff5f5; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                        <div style="display: flex; justify-content: space-between; font-weight: bold; color: #991b1b; margin-bottom: 4px; font-size: 14px;">
+                            <span>Inv: ${sale.invoiceNo || 'N/A'} <span style="color:#dc2626; font-size:10px;">(${window.Utils.formatDateDisplay(sale.date)})</span></span>
+                            <span>Loss: -₹${invoiceLeakage.toFixed(2)}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #b91c1c; font-weight: 600;">Customer: ${sale.customerName || 'Cash Sale'}</div>
+                        <div style="font-size: 12px; color: #7f1d1d; margin-top: 6px; line-height: 1.5;">${invoiceIssues.join('<br>')}</div>
+                    </div>
+                `;
+            }
         });
 
-        // 3. Calculate Operating Expenses (OPEX)
-        expenses.forEach(exp => {
-            // Ignore cancelled expenses if they exist
-            if (exp.status === 'Cancelled') return; 
-            
-            const amt = parseFloat(exp.amount) || 0;
-            totalExpenses += amt;
-            
-            const cat = exp.category || 'Uncategorized';
-            expenseDetails[cat] = (expenseDetails[cat] || 0) + amt;
-        });
-
-        // 4. The Final Accounting Math
-        const grossProfit = totalRevenue - totalCOGS;
-        const trueNetProfit = grossProfit - totalExpenses;
-
-        // 5. Build the beautiful HTML P&L Statement
-        const isProfitable = trueNetProfit >= 0;
-        const cardColor = isProfitable ? '#16a34a' : '#ef4444';
-        const bgCardColor = isProfitable ? '#f0fdf4' : '#fff5f5';
-
-        let html = `
-            <div style="border-left: 4px solid #3b82f6; background: #eff6ff; padding: 16px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #1e3a8a;">
-                    <span>Net Revenue (Sales - Returns):</span>
-                    <strong>₹${totalRevenue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #991b1b;">
-                    <span>Less COGS (Inventory Cost):</span>
-                    <strong>-₹${totalCOGS.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; padding-top: 8px; border-top: 1px dashed #bfdbfe; color: #1d4ed8;">
-                    <span>Gross Profit:</span>
-                    <span>₹${grossProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                </div>
-            </div>
-
-            <div style="border-left: 4px solid #f59e0b; background: #fffbeb; padding: 16px; margin-bottom: 12px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #92400e; font-weight: bold;">
-                    <span>Less OPEX (Expenses):</span>
-                    <span>-₹${totalExpenses.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                </div>
-                <div style="font-size: 12px; color: #b45309; line-height: 1.6; margin-left: 10px;">
-                    ${Object.entries(expenseDetails).sort((a,b) => b[1]-a[1]).map(([cat, amt]) => `• ${cat}: ₹${amt.toLocaleString('en-IN', {minimumFractionDigits:2})}`).join('<br>')}
-                </div>
-            </div>
-
-            <div style="border-left: 4px solid ${cardColor}; background: ${bgCardColor}; padding: 16px; margin-top: 16px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 16px; font-weight: bold; color: ${isProfitable ? '#15803d' : '#991b1b'};">TRUE NET PROFIT:</span>
-                    <span style="font-size: 22px; font-weight: 900; color: ${cardColor};">${isProfitable ? '+' : '-'}₹${Math.abs(trueNetProfit).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                </div>
-            </div>
-        `;
-
-        const summaryColor = isProfitable ? '#16a34a' : '#dc2626';
-        const summaryText = isProfitable ? 
-            '✅ Your business is operating at a Net Profit!' : 
-            '⚠️ WARNING: Your business is operating at a Net Loss!';
-            
-        window.AnalyticsEngine.showReportModal('True Net Profit (P&L) Statement', summaryText, summaryColor, html);
+        const summaryColor = totalLeakage > 0 ? '#dc2626' : '#16a34a';
+        const summaryText = totalLeakage > 0 ? `⚠️ Found ₹${totalLeakage.toFixed(2)} in Profit Leakage across ${flaggedCount} Invoices.` : '✅ All sales are mathematically profitable!';
+        window.AnalyticsEngine.showReportModal('Gross Profit Audit', summaryText, summaryColor, leakageHtml);
     },
 
     // (Legacy Dead Stock Scanner removed to make way for the new Visual Dashboard Engine)

@@ -3510,26 +3510,6 @@ body.dark-mode ul li:nth-child(even) {
     transition: transform 0.2s ease-out, opacity 0.2s ease-out !important; 
 }
 /* ==========================================
-   ENTERPRISE SECURITY: BANKING PRIVACY SHIELD
-   ========================================== */
-body.privacy-blur > * {
-    filter: blur(12px) grayscale(50%) !important;
-    opacity: 0.4 !important;
-    pointer-events: none !important;
-}
-
-body.privacy-blur::after {
-    content: "🔒 SECURED";
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--md-on-surface);
-    z-index: 999999;
-}
-/* ==========================================
    ENTERPRISE UI: OVER-SCROLL & BOUNDARY LOCK
    ========================================== */
 html, body {
@@ -4638,15 +4618,12 @@ body.dark-mode .skeleton::after, body.dark-mode .skeleton-card::after, body.dark
 /* ==========================================
    ENTERPRISE UX: MODAL BACKGROUND FREEZE
    ========================================== */
-/* The exact millisecond the custom Numpad, a Bottom Sheet, or the Privacy Lock is open, 
-   this physically locks the background invoice list from scrolling! */
-body:has(.numpad-container[style*="display: block"]),
-body:has(.numpad-container[style*="display: flex"]),
-body:has(.bottom-sheet.active),
-body:has(#privacy-lock-screen) {
+body:has(.pos-numpad-overlay.active),
+body:has(.bottom-sheet.open) {
     overflow: hidden !important;
-    touch-action: none !important; /* Paralyzes all background touch events */
+    touch-action: none !important; 
 }
+
 /* ==========================================
    ENTERPRISE UX: NATIVE MICRO-INTERACTIONS
    ========================================== */
@@ -6467,11 +6444,14 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
 }
 
 /* 4. FIX OVERLAY KEYBOARD JUMPING */
-/* Completely hides bottom bars when typing so they never jump to the middle of the screen */
+/* Smoothly slides bottom bars away when typing so they never jump to the middle of the screen */
 body:has(input:focus, textarea:focus) .bottom-nav,
 body:has(input:focus, textarea:focus) .floating-action-button,
 body:has(input:focus, textarea:focus) .form-sticky-footer {
-    display: none !important; 
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(120px) !important;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
 }
 
 /* 5. DISABLE DOM-INJECTED RIPPLES (Fixes Touch Delay) */
@@ -6901,3 +6881,374 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     };
 });
+/* ==========================================
+   ✨ THE PINNACLE SAAS OVERRIDE (CLEAN & NEAT)
+   ========================================== */
+
+/* 1. The Canvas: Pure, Breathable Off-White */
+body, html, #app-shell, .main-content, .activity-screen, .bottom-sheet {
+    background-color: #FAFAFA !important;
+    background-image: none !important;
+}
+
+/* 2. Crisp, Solid Headers & Footers */
+.app-header, .activity-header, .sheet-header, .search-bar, .date-divider, .bottom-nav, .form-sticky-footer, .thumb-action-bar {
+    background-color: #FFFFFF !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-color: #E5E7EB !important;
+    box-shadow: none !important;
+}
+
+/* 3. The "Floating Paper" Cards (Ultra-Neat) */
+/* Restores breathing room on the sides so data never touches the phone's bezel */
+.m3-card, .dashboard-card, .list-view {
+    background-color: #FFFFFF !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 12px !important;
+    margin-left: 0 !important;   
+    margin-right: 0 !important;  
+    margin-bottom: 16px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important; /* Micro-lift for elegance */
+    width: auto !important;
+}
+
+/* 4. Tidy Data Lists */
+.list-view li {
+    background-color: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid #F3F4F6 !important;
+    padding: 16px !important;
+    border-radius: 0 !important;
+}
+.list-view li:last-child {
+    border-bottom: none !important;
+}
+
+/* 5. Minimalist, Confident Inputs */
+input[type="text"], input[type="number"], input[type="tel"], input[type="date"], select, textarea {
+    background-color: #F4F4F5 !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    padding: 12px 16px !important;
+    font-size: 15px !important;
+    color: #111827 !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Sharp Input Focus */
+input:focus:not([readonly]), select:focus, textarea:focus {
+    background-color: #FFFFFF !important;
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.1) !important;
+}
+
+/* 6. Refined Buttons */
+.btn-primary, .btn-secondary, .floating-action-button, #main-fab {
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.3px !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* 7. Typography Clarity */
+.large-text, strong {
+    color: #111827 !important;
+    letter-spacing: -0.01em !important;
+}
+small, .text-muted {
+    color: #6B7280 !important;
+}
+
+/* 8. Pristine Dark Mode */
+body.dark-mode {
+    --md-background: #09090B !important; /* True deep black-grey */
+    --md-surface: #18181B !important;
+    --md-outline-variant: #27272A !important;
+}
+body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content, 
+body.dark-mode .activity-screen, body.dark-mode .bottom-sheet {
+    background-color: #09090B !important;
+}
+body.dark-mode .app-header, body.dark-mode .activity-header, body.dark-mode .sheet-header, 
+body.dark-mode .search-bar, body.dark-mode .date-divider, body.dark-mode .bottom-nav, 
+body.dark-mode .form-sticky-footer, body.dark-mode .thumb-action-bar {
+    background-color: #09090B !important;
+    border-color: #27272A !important;
+}
+body.dark-mode .m3-card, body.dark-mode .list-view {
+    background-color: #18181B !important;
+    border-color: #27272A !important;
+    box-shadow: none !important;
+}
+body.dark-mode .list-view li {
+    border-bottom-color: #27272A !important;
+}
+body.dark-mode input[type="text"], body.dark-mode input[type="number"], 
+body.dark-mode input[type="tel"], body.dark-mode input[type="date"], 
+body.dark-mode select, body.dark-mode textarea {
+    background-color: #27272A !important;
+    color: #F9FAFB !important;
+}
+body.dark-mode input:focus:not([readonly]), body.dark-mode select:focus, body.dark-mode textarea:focus {
+    background-color: #18181B !important;
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 0 0 3px rgba(143, 203, 251, 0.15) !important;
+}
+/* ==========================================
+   📊 HYBRID EDGE-TO-EDGE DATA & REPORT VIEWS
+   ========================================== */
+
+/* 1. Flush Edge-to-Edge Cards for Reports & Masters */
+#tab-reports .m3-card, 
+#ws-view-master .m3-card {
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+    margin-bottom: 0 !important; /* Stack them flush against each other */
+    border-bottom: 1px solid #E5E7EB !important;
+}
+
+/* Prevent double top-borders when stacked flush */
+#tab-reports .m3-card + .m3-card,
+#ws-view-master .m3-card + .m3-card {
+    border-top: none !important;
+}
+
+body.dark-mode #tab-reports .m3-card,
+body.dark-mode #ws-view-master .m3-card {
+    border-bottom-color: #27272A !important;
+}
+
+/* 2. Fused Workspace Top Navigation (Create | Transactions | Masters) */
+#tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"] {
+    padding: 0 !important;
+    gap: 0 !important; /* Kill the gaps */
+    border: 1px solid #E5E7EB !important;
+    background: transparent !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    margin-bottom: 24px !important;
+}
+
+#tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"] > div {
+    border-radius: 0 !important; /* Sharp inner edges */
+    box-shadow: none !important;
+    border-right: 1px solid #E5E7EB !important;
+    margin: 0 !important;
+}
+
+#tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"] > div:last-child {
+    border-right: none !important;
+}
+
+/* 3. Fused Transaction Sub-Navigation (Sales | Purchases | Cashbook) */
+#ws-view-trans > div[style*="display: flex; gap: 8px"] {
+    gap: 0 !important; /* Kill the gaps */
+    border-radius: 8px !important;
+    border: 1px solid #E5E7EB !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+}
+
+#ws-view-trans > div[style*="display: flex; gap: 8px"] > button {
+    border-radius: 0 !important;
+    border: none !important;
+    border-right: 1px solid #E5E7EB !important;
+    margin: 0 !important;
+    flex: 1 !important; /* Stretch buttons evenly */
+}
+
+#ws-view-trans > div[style*="display: flex; gap: 8px"] > button:last-child {
+    border-right: none !important;
+}
+
+/* 4. Fused Dark Mode Button Adapters */
+body.dark-mode #tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"],
+body.dark-mode #ws-view-trans > div[style*="display: flex; gap: 8px"] {
+    border-color: #27272A !important;
+}
+
+body.dark-mode #tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"] > div,
+body.dark-mode #ws-view-trans > div[style*="display: flex; gap: 8px"] > button {
+    border-right-color: #27272A !important;
+}
+/* ==========================================
+   🌟 THE PREMIUM DASHBOARD OVERRIDE (BENTO UI)
+   ========================================== */
+
+/* 1. Upgrade the Greeting */
+#greeting-text {
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+    color: #111827 !important;
+}
+body.dark-mode #greeting-text { color: #FFFFFF !important; }
+
+/* 2. Break apart the chunky edge-to-edge dashboard wrapper */
+#tab-dashboard > div[style*="margin: 0 -16px"] {
+    background: transparent !important;
+    border: none !important;
+    margin: 0 !important;
+}
+
+/* 3. The Hero Metrics (Sales & Profit) -> Bento Cards */
+#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] {
+    border: none !important;
+    gap: 16px !important;
+    margin-bottom: 16px !important;
+}
+
+#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div {
+    background: #FFFFFF !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 16px !important;
+    padding: 20px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+}
+
+/* Make the big numbers look like a FinTech app */
+#dash-total-sales, #dash-net-profit, #dash-inventory-value {
+    font-size: 26px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+    margin-top: 8px !important;
+}
+
+/* 4. Upgrade the other Dashboard sections into floating Bento cards */
+#tab-dashboard .tap-target[onclick*="masters"],
+#dash-ai-insights,
+#tab-dashboard .tap-target[onclick*="DeepAnalytics"],
+#tab-dashboard > div[style*="margin: 0 -16px"] > div:has(canvas) {
+    background: #FFFFFF !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+}
+
+/* 5. Group the "Order Fulfillment" section into one continuous block */
+#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="background: var(--md-surface-variant)"] {
+    background: #FFFFFF !important;
+    border-top: 1px solid #E5E7EB !important;
+    border-left: 1px solid #E5E7EB !important;
+    border-right: 1px solid #E5E7EB !important;
+    border-bottom: 1px solid #F3F4F6 !important;
+    border-radius: 16px 16px 0 0 !important;
+    margin-bottom: 0 !important;
+}
+
+#tab-dashboard > div[style*="margin: 0 -16px"] > .tap-target[onclick*="FilteredSales"] {
+    background: #FFFFFF !important;
+    border-left: 1px solid #E5E7EB !important;
+    border-right: 1px solid #E5E7EB !important;
+    border-bottom: 1px solid #F3F4F6 !important;
+    margin-bottom: 0 !important;
+}
+
+#tab-dashboard > div[style*="margin: 0 -16px"] > .tap-target[onclick*="'Completed'"] {
+    border-bottom: 1px solid #E5E7EB !important;
+    border-radius: 0 0 16px 16px !important;
+    margin-bottom: 16px !important;
+}
+
+/* 6. Dark Mode Fixes for the new Bento layout */
+body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div,
+body.dark-mode #tab-dashboard .tap-target[onclick*="masters"],
+body.dark-mode #dash-ai-insights,
+body.dark-mode #tab-dashboard .tap-target[onclick*="DeepAnalytics"],
+body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > div:has(canvas),
+body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="background: var(--md-surface-variant)"],
+body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > .tap-target[onclick*="FilteredSales"] {
+    background: #18181B !important;
+    border-color: #27272A !important;
+}
+body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > .tap-target[onclick*="FilteredSales"] {
+    border-bottom-color: #27272A !important;
+}
+/* ==========================================
+   ✨ DASHBOARD MICRO-POLISH (FIXING THE BENTO GRID)
+   ========================================== */
+
+/* 1. Premium FinTech Typography: Tight tracking, no ellipsis cutoff */
+#dash-total-sales, #dash-net-profit, #dash-inventory-value {
+    font-size: clamp(18px, 6vw, 26px) !important; 
+    white-space: nowrap !important; 
+    overflow: visible !important; 
+    letter-spacing: -1px !important; /* Pulls digits very tight like native banking apps */
+    font-weight: 900 !important; 
+    line-height: 1.1 !important;
+}
+
+/* 2. Maximum Breathing Room: Shrink gaps and padding to maximize data space */
+#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] {
+    gap: 12px !important; /* Tighter space between the two cards */
+}
+
+#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div {
+    padding: 16px 12px !important; /* Reduces side padding to give numbers maximum physical width */
+}
+
+/* 2. Soften the harsh card borders for a true Premium Dark Mode */
+body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div,
+body.dark-mode #tab-dashboard .tap-target[onclick*="masters"],
+body.dark-mode #dash-ai-insights,
+body.dark-mode #tab-dashboard .tap-target[onclick*="DeepAnalytics"],
+body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > div:has(canvas) {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important; /* Microscopic, elegant border */
+    background: #18181B !important; 
+}
+
+/* 3. Transform the chunky "This Month" dropdown into a sleek Pill */
+#dashboard-date-filter {
+    background: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: var(--md-on-surface) !important;
+    padding: 6px 14px !important;
+    border-radius: 20px !important; /* Perfect Pill Shape */
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.5px !important;
+    box-shadow: none !important;
+}
+body:not(.dark-mode) #dashboard-date-filter {
+    border: 1px solid #E5E7EB !important;
+    background: #FFFFFF !important;
+}
+
+/* 4. Clean up the AI Insight percentage highlight */
+body.dark-mode #dash-ai-insights strong[style*="background"] {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #FFFFFF !important;
+    padding: 2px 6px !important;
+    border-radius: 6px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 5. Fix alignment inside the top metric cards so elements don't crash into each other */
+#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+}
+
+/* 6. Refine the Chart Card Header */
+#tab-dashboard strong[style*="display:flex; align-items:center; gap:8px;"] {
+    font-size: 12px !important;
+    color: #6B7280 !important; /* Slate grey instead of glaring primary color */
+}
+body.dark-mode #tab-dashboard strong[style*="display:flex; align-items:center; gap:8px;"] {
+    color: #9CA3AF !important;
+}
+/* 🚨 FIX: Kill the gap between buttons in Reports & Masters tabs */
+#tab-reports div[style*="flex-direction: column"],
+#ws-view-master div[style*="flex-direction: column"] {
+    gap: 0 !important;
+}

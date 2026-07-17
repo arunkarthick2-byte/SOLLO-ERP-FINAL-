@@ -990,7 +990,7 @@ const UI = {
             const roundedGst = Math.round(gstAmount * 100) / 100;
             const rowTotal = roundedDiscountedBase + roundedGst;
             
-            tr.querySelector('.row-total').innerText = rowTotal.toFixed(2);
+            tr.querySelector('.row-total').innerText = Utils.roundFinancial(rowTotal).toFixed(2);
             
             finalSubtotal += discountedBase;
             totalGst += gstAmount;
@@ -1098,7 +1098,7 @@ const UI = {
             const roundedGst = Math.round(gstAmount * 100) / 100;
             const rowTotal = roundedDiscountedBase + roundedGst;
             
-            tr.querySelector('.row-total').innerText = rowTotal.toFixed(2);
+            tr.querySelector('.row-total').innerText = Utils.roundFinancial(rowTotal).toFixed(2);
             
             finalSubtotal += discountedBase;
             totalGst += gstAmount;
@@ -2732,15 +2732,14 @@ const UI = {
             });
         }
 
-        // 🚀 THE "3120" CASH-FLOW METHOD (Dashboard Only)
-        const purePurchases = totalPurchases - inputGst;
+        // 🚀 TRUE ACCRUAL PROFIT ENGINE (Matches Advanced PnL)
         const netRevenue = (totalSales - outputGst) + indirectIncome; 
         
-        // Gross Margin = Total Sales Bills minus Total Purchase Bills (Ignores unsold stock in warehouse)
-        const grossMargin = netRevenue - purePurchases;
+        // Gross Margin = Net Revenue minus Cost of Goods Sold (COGS) + Stock Gains
+        const grossMargin = netRevenue - cogs + stockGain;
         
-        // True Net Profit = Gross Margin minus Expenses (Ignore stock loss adjustments in cash-flow mode)
-        const totalOperatingCosts = totalExpenses + indirectExpense;
+        // True Net Profit = Gross Margin minus Expenses and Stock Losses
+        const totalOperatingCosts = totalExpenses + indirectExpense + stockLoss;
         const trueNetProfit = grossMargin - totalOperatingCosts; 
 
         // UPGRADE 1: Count-Up Animation Engine
@@ -2755,7 +2754,7 @@ const UI = {
                 const easeOut = 1 - Math.pow(1 - progress, 3);
                 const currentVal = (easeOut * (end - start) + start);
                 // STRICT ERP LOGIC: Safely format negative currency numbers with Indian Commas!
-                const formattedNum = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(currentVal));
+                const formattedNum = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.abs(currentVal));
                 obj.innerHTML = currentVal < 0 ? '-\u20B9' + formattedNum : '\u20B9' + formattedNum;
                 if (progress < 1) window.requestAnimationFrame(step);
             };
@@ -4082,7 +4081,7 @@ const UI = {
         const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
         
         let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
-        let indirectIncome = 0, stockLoss = 0;
+        let indirectIncome = 0, indirectExpense = 0, stockLoss = 0, stockGain = 0;
 
         UI.state.rawData.sales.forEach(s => {
             // 🚨 BUG FIX: Block Cancelled Sales from inflating PnL CSV Exports!
@@ -4092,45 +4091,50 @@ const UI = {
                 (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
             }
         });
+        
         UI.state.rawData.expenses.forEach(e => {
             if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= start && e.date <= end) totalExpenses += parseFloat(e.amount) || 0;
         });
         
         // STRICT ERP LOGIC: Synchronize CSV Export with On-Screen PnL
         UI.state.rawData.cashbook.forEach(c => {
-            // STRICT ERP LOGIC: Enforce the activeFirmId boundary so Shop B's income doesn't leak into Shop A's CSV!
-            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= start && c.date <= end && c.type === 'in' && !c.invoiceRef && !c.linkedInvoice) {
-                // STRICT ERP LOGIC: Prevent deleted customers from artificially inflating Net Profit in the CSV!
+            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= start && c.date <= end && !c.invoiceRef && !c.linkedInvoice) {
                 const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
                                              UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
                                              UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
                 if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
-                    indirectIncome += parseFloat(c.amount) || 0;
+                    if (c.type === 'in') indirectIncome += parseFloat(c.amount) || 0;
+                    else if (c.type === 'out') indirectExpense += parseFloat(c.amount) || 0;
                 }
             }
         });
+        
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
-                // FIX: Match the exact 'reduce' value submitted by the HTML dropdown
-                if (adj.type === 'reduce' && adj.date >= start && adj.date <= end) {
+                if (adj.date >= start && adj.date <= end) {
                     const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
-                    stockLoss += (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                    const value = (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                    if (adj.type === 'reduce') stockLoss += value;
+                    else if (adj.type === 'add') stockGain += value;
                 }
             });
         }
 
-        const grossProfit = (totalRevenue + indirectIncome) - totalCOGS;
-        const netProfit = grossProfit - (totalExpenses + stockLoss);
+        const grossProfit = (totalRevenue + indirectIncome + stockGain) - totalCOGS;
+        const totalOperatingCosts = totalExpenses + indirectExpense + stockLoss;
+        const netProfit = grossProfit - totalOperatingCosts;
 
         let csv = `Profit & Loss Statement (${start} to ${end})\n\n`;
         csv += `Account,Amount (INR)\n`;
         csv += `"Total Net Revenue","${totalRevenue.toFixed(2)}"\n`;
         if (indirectIncome > 0) csv += `"Indirect Income","${indirectIncome.toFixed(2)}"\n`;
+        if (stockGain > 0) csv += `"Stock Gain (Found/Added)","${stockGain.toFixed(2)}"\n`;
         csv += `"Cost of Goods Sold (COGS)","-${totalCOGS.toFixed(2)}"\n`;
         csv += `"Gross Profit","${grossProfit.toFixed(2)}"\n`;
         csv += `"Operating Expenses","-${totalExpenses.toFixed(2)}"\n`;
-        if (stockLoss > 0) csv += `"Stock Loss (Adjustments)","-${stockLoss.toFixed(2)}"\n`;
+        if (indirectExpense > 0) csv += `"Indirect Expenses","-${indirectExpense.toFixed(2)}"\n`;
+        if (stockLoss > 0) csv += `"Stock Loss (Damaged/Removed)","-${stockLoss.toFixed(2)}"\n`;
         csv += `"Net ${netProfit >= 0 ? 'Profit' : 'Loss'}","${netProfit.toFixed(2)}"\n`;
 
         // ENTERPRISE FIX: Inject the UTF-8 BOM (\ufeff) so Microsoft Excel doesn't scramble the Rupee (₹) symbol!
@@ -4388,10 +4392,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.requestAnimationFrame(() => {
                     if (lastScrollY > 50) {
                         if (fab) fab.classList.add('fab-hidden'); 
-                        if (bottomNav) bottomNav.style.transform = 'translateY(150%)'; 
+                        // 🚨 ENTERPRISE FIX: Removed bottomNav inline styles! app.js handles the Nav Bar cleanly.
                     } else {
                         if (fab) fab.classList.remove('fab-hidden'); 
-                        if (bottomNav) bottomNav.style.transform = 'translateY(0)'; 
                     }
                     isScrolling = false;
                 });

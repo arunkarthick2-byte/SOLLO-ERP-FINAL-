@@ -311,8 +311,17 @@ const Cloud = {
         const storeNames = Object.keys(cloudData);
         let puts = [];
         
+        // 🚨 ENTERPRISE FIX: Restore LocalStorage AppSettings safely!
+        if (cloudData.appSettings && cloudData.appSettings.length > 0) {
+            const settings = cloudData.appSettings[0];
+            Object.keys(settings).forEach(key => localStorage.setItem(key, settings[key]));
+            console.log("⚙️ App Settings & Themes Restored via Smart Merge!");
+        }
+        
         for (let i = 0; i < storeNames.length; i++) {
             const storeName = storeNames[i];
+            if (storeName === 'appSettings') continue; // Handled safely above
+            
             const cloudRecords = cloudData[storeName];
             if (!Array.isArray(cloudRecords)) continue;
             
@@ -322,20 +331,19 @@ const Cloud = {
                 if (window.getAllRecords) localRecords = await window.getAllRecords(storeName);
             } catch (e) { console.warn(`Could not read local store: ${storeName}`); }
             
-            // 🚨 BUG FIX: The "Ghost Profile" Sync Shield!
-            // Business Profiles use 'firmId' instead of 'id'. We must check for BOTH so the company logo and settings actually sync!
             const localMap = {};
+            // 🚨 ENTERPRISE FIX: Fallback to firmId so Business Profiles don't get permanently lost!
             localRecords.forEach(r => { 
-                const primaryKey = r.id || r.firmId;
-                if (primaryKey) localMap[primaryKey] = r; 
+                const key = r.id || r.firmId;
+                if (key) localMap[key] = r; 
             });
             
             for (let j = 0; j < cloudRecords.length; j++) {
                 const cloudRecord = cloudRecords[j];
-                const recordKey = cloudRecord.id || cloudRecord.firmId;
-                if (!recordKey) continue;
+                const key = cloudRecord.id || cloudRecord.firmId;
+                if (!key) continue;
                 
-                const localRecord = localMap[recordKey];
+                const localRecord = localMap[key];
                 
                 if (!localRecord) {
                     // Record is new in the cloud, add it to phone safely
