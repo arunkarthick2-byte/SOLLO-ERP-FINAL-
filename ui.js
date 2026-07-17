@@ -868,10 +868,12 @@ const UI = {
         if (status === 'Shipped' || status === 'Unpaid' || (type === 'purchase' && status !== 'Open')) {
             if (shippedGroup) shippedGroup.classList.remove('hidden');
             
-            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date to Today!
-            const mainDateInput = document.getElementById(`${type}-date`);
-            if (shippedInput && (!shippedInput.value || (mainDateInput && shippedInput.value === mainDateInput.value))) {
-                shippedInput.value = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date to Today (ONLY if blank!)
+            if (shippedInput && !shippedInput.value) {
+                const todayStr = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                shippedInput.value = todayStr;
+                // Force the calendar UI to update so it isn't visually blank!
+                if (shippedInput._flatpickr) shippedInput._flatpickr.setDate(todayStr, false);
             }
         } 
         
@@ -892,7 +894,8 @@ const UI = {
                 const completedInput = document.getElementById(`${type}-completed-date`);
                 const mainDateInput = document.getElementById(`${type}-date`);
                 
-                if (completedInput && (!completedInput.value || (mainDateInput && completedInput.value === mainDateInput.value))) {
+                // 🚨 ENTERPRISE FIX: Only run auto-completion math if the date is completely blank!
+                if (completedInput && !completedInput.value) {
                     
                     let bestDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
                     
@@ -1042,6 +1045,8 @@ const UI = {
         
         const stickySales = document.getElementById('sales-sticky-total');
         if (stickySales) stickySales.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        
+        if (window.UI.updateLiveInsight) window.UI.updateLiveInsight('sales');
     },
 
     calcPurchaseTotals: () => {
@@ -1135,6 +1140,8 @@ const UI = {
         
         const stickyPurchase = document.getElementById('purchase-sticky-total');
         if (stickyPurchase) stickyPurchase.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        
+        if (window.UI.updateLiveInsight) window.UI.updateLiveInsight('purchase');
     },
 
     // ==========================================
@@ -2770,7 +2777,7 @@ const UI = {
             netProfitEl.style.color = trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
         }
         
-        if(document.getElementById('profit-breakdown')) document.getElementById('profit-breakdown').innerText = `Gross: \u20B9${grossMargin.toFixed(0)} | Exp: \u20B9${totalExpenses.toFixed(0)}`;
+        if(document.getElementById('profit-breakdown')) document.getElementById('profit-breakdown').innerText = `Gross: \u20B9${grossMargin.toLocaleString('en-IN', {maximumFractionDigits: 0})} | Exp: \u20B9${totalExpenses.toLocaleString('en-IN', {maximumFractionDigits: 0})}`;
         
         // NEW: Operational Order Volume Tracking (Open, Shipped, Completed)
         let openOrders = 0, shippedOrders = 0, completedOrders = 0;
@@ -4166,6 +4173,114 @@ const UI = {
             skeletons += `<div class="skeleton-loader"></div>`;
         }
         container.innerHTML = skeletons;
+    },
+
+    updateLiveInsight: async (prefix) => {
+        const isSales = prefix === 'sales';
+        const partyIdEl = document.getElementById(`${prefix}-${isSales ? 'customer' : 'supplier'}-id`);
+        if (!partyIdEl || !partyIdEl.value) return;
+        const partyId = partyIdEl.value;
+
+        const partyKey = isSales ? 'customerId' : 'supplierId';
+        const activeFirmId = window.app && window.app.state ? window.app.state.firmId : 'firm1';
+        
+        const party = await getRecordById('ledgers', partyId);
+        if (!party) return;
+        
+        const allDocs = await getAllRecords(isSales ? 'sales' : 'purchases', 'firmId', activeFirmId);
+        const receipts = await getAllRecords('receipts', 'firmId', activeFirmId);
+        
+        const invTypeEl = document.getElementById(`${prefix}-invoice-type`);
+        const isNonGST = invTypeEl ? invTypeEl.value === 'Non-GST' : false;
+        
+        let ob = parseFloat(party.openingBalance) || 0;
+        const balType = (party.balanceType || '').toLowerCase();
+        let trueBalance = 0;
+        
+        // 🚨 ISOLATE POOL: Legacy OB falls to Non-GST
+        if (isNonGST) {
+            if (isSales) trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
+            else trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
+        }
+
+        allDocs.forEach(d => {
+            if (d.firmId === activeFirmId && d[partyKey] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
+                if ((isNonGST && d.invoiceType === 'Non-GST') || (!isNonGST && d.invoiceType !== 'Non-GST')) {
+                    const amt = parseFloat(d.grandTotal) || 0;
+                    trueBalance += (d.documentType === 'return' ? -amt : amt);
+                }
+            }
+        });
+
+        receipts.forEach(r => {
+            if (r.firmId === activeFirmId && r.ledgerId === partyId) {
+                let isNonGstReceipt = r.taxPool === 'Non-GST';
+                const legacyRef = r.invoiceRef || r.linkedInvoice;
+                if (!r.taxPool || r.taxPool === 'All') {
+                    isNonGstReceipt = true;
+                    if (legacyRef) {
+                        const firstRef = String(legacyRef).split(',')[0].trim();
+                        const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                        if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                    }
+                }
+
+                if ((isNonGST && isNonGstReceipt) || (!isNonGST && !isNonGstReceipt)) {
+                    const amt = parseFloat(r.amount) || 0;
+                    if (isSales) trueBalance += (r.type === 'in' ? -amt : amt);
+                    else trueBalance += (r.type === 'in' ? amt : -amt);
+                }
+            }
+        });
+        
+        // Exclude the currently editing invoice from the "Historical" pool so it doesn't double-count!
+        const currentEditId = window.app && window.app.state ? window.app.state.currentEditId : null;
+        if (currentEditId) {
+            const currentDoc = allDocs.find(d => d.id === currentEditId);
+            if (currentDoc && currentDoc.status !== 'Open' && currentDoc.status !== 'Cancelled') {
+                if ((isNonGST && currentDoc.invoiceType === 'Non-GST') || (!isNonGST && currentDoc.invoiceType !== 'Non-GST')) {
+                    trueBalance -= (currentDoc.documentType === 'return' ? -(parseFloat(currentDoc.grandTotal) || 0) : parseFloat(currentDoc.grandTotal) || 0);
+                }
+            }
+        }
+        
+        const currentTotal = parseFloat(document.getElementById(`${prefix}-grand-total`).innerText.replace(/[^\d.-]/g, '')) || 0;
+        
+        let banner = document.getElementById('risk-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'risk-banner';
+            banner.style.cssText = 'margin-bottom: 12px; border-radius: 8px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px;';
+            const targetGroup = document.getElementById(`${prefix}-return-ref-group`);
+            if (targetGroup) targetGroup.parentNode.insertBefore(banner, targetGroup);
+        }
+        
+        const totalDebt = Math.max(0, trueBalance);
+        const combined = totalDebt + currentTotal;
+        
+        const color = isSales ? 'var(--md-error)' : '#d84315';
+        const bg = isSales ? 'rgba(186,26,26,0.05)' : 'rgba(216, 67, 21, 0.05)';
+        const border = isSales ? 'rgba(186,26,26,0.2)' : 'rgba(216, 67, 21, 0.2)';
+        const icon = isSales ? 'warning' : 'local_shipping';
+        const title = isSales ? 'Live Customer Insight' : 'Live Supplier Insight';
+        const subTitle = isSales ? 'Previous Receivables' : 'Previous Payables';
+        
+        banner.style.background = bg;
+        banner.style.border = `1px solid ${border}`;
+        
+        banner.innerHTML = `
+            <span class="material-symbols-outlined" style="color: ${color}; font-size: 24px;">${icon}</span>
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">${title}</strong>
+                    <span style="font-size: 10px; background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px; color: ${color}; font-weight: 800; border: 1px solid ${border};">${subTitle}</span>
+                </div>
+                <strong style="font-size: 20px; color: ${color}; display: block; margin-bottom: 4px;">₹${combined.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                <div style="font-size: 11px; color: var(--md-text-muted);">
+                    Historical Due: ₹${totalDebt.toLocaleString('en-IN', {minimumFractionDigits: 2})} | This Bill: ₹${currentTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}
+                </div>
+            </div>
+        `;
     },
 
 }; // <--- MAKE SURE YOU HAVE THIS CLOSING BRACKET AND SEMICOLON!

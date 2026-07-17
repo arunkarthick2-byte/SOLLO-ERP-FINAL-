@@ -1133,8 +1133,9 @@ async function generateGSTReport(yearMonth, firmId) {
         
         // ENTERPRISE FIX: Removed secondary discount deduction because subtotal is ALREADY stored as Net Taxable Value!
         // Double-deducting here artificially deflates GSTR-1 and causes portal rejections.
-        let taxable = (parseFloat(s.subtotal) || 0) * mult;
-        let tax = (parseFloat(s.totalGst) || 0) * mult;
+        // ENTERPRISE FIX: Absolute Math prevents Double-Negatives on Legacy Credit Notes!
+        let taxable = Math.abs(parseFloat(s.subtotal) || 0) * mult;
+        let tax = Math.abs(parseFloat(s.totalGst) || 0) * mult;
 
         gstr1.totalTaxable += taxable;
         gstr1.totalTax += tax;
@@ -1180,8 +1181,9 @@ async function generateGSTReport(yearMonth, firmId) {
 
         // ENTERPRISE FIX: Mathematical Net Impact Shield!
         // Ensures Returns (Debit Notes) correctly reduce the ITC pool without causing CSV validation crashes.
-        let taxable = parseFloat(p.subtotal) || 0;
-        let tax = parseFloat(p.totalGst) || 0;
+        // ENTERPRISE FIX: Absolute Math prevents Double-Negatives on Legacy Debit Notes!
+        let taxable = Math.abs(parseFloat(p.subtotal) || 0);
+        let tax = Math.abs(parseFloat(p.totalGst) || 0);
 
         // ENTERPRISE FIX: The Fraudulent ITC Shield!
         // Only claim Input Tax Credit (ITC) if the supplier has a valid 15-digit GSTIN!

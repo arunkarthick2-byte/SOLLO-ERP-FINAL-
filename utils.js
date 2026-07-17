@@ -1316,10 +1316,16 @@ Please process this accordingly. Thank you!`;
                 </div>
                 <div style="text-align: right;">
                     <h2 style="color: #0061a4; font-size: 28px; font-weight: 900; margin: 0 0 12px 0; letter-spacing: 1px;">${title}</h2>
-                    <div style="font-size: 13px; color: #475569; background: #f8fafc; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; display: inline-block; text-align: left;">
-                        <div style="margin-bottom: 4px;"><strong>Document No:</strong> <span style="color: #0f172a; font-weight: 700; float: right; margin-left: 16px;">${safeDocNo}</span></div>
-                        <div><strong>Date:</strong> <span style="color: #0f172a; font-weight: 700; float: right; margin-left: 16px;">${Utils.formatDateDisplay(doc.date)}</span></div>
-                    </div>
+                    <table style="width: 240px; font-size: 13px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: inline-table; text-align: left; margin: 0; padding: 6px;">
+                        <tr>
+                            <td style="padding: 6px; border: none;"><strong>Document No:</strong></td>
+                            <td style="padding: 6px; border: none; text-align: right; color: #0f172a; font-weight: 700;">${safeDocNo}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px; border: none;"><strong>Date:</strong></td>
+                            <td style="padding: 6px; border: none; text-align: right; color: #0f172a; font-weight: 700;">${Utils.formatDateDisplay(doc.date)}</td>
+                        </tr>
+                    </table>
                 </div>
             </div>
 
@@ -1452,26 +1458,53 @@ Please process this accordingly. Thank you!`;
                                 finalHtml += `<div class="totals-row" style="margin-top: 12px; border-top: 1px dashed #cbd5e1; padding-top: 12px;"><span style="font-weight: 800; color: #0f172a; text-transform: uppercase;">Balance Due</span><span style="font-weight: 900; color: #16a34a; font-size: 16px;">₹0.00 (PAID)</span></div>`;
                             }
 
-                            // 🚨 PREVIOUS OUTSTANDING LOGIC (Restored perfectly)
-                            let partyBalance = parseFloat(safeParty.balance) || 0;
+                            // 🚨 PREVIOUS OUTSTANDING LOGIC (Now supports both Sales & Purchases perfectly)
+                            let partyBalance = 0;
                             let pendingOldInvoices = [];
                             
-                            if (isSales && window.UI && window.UI.state && window.UI.state.rawData) {
-                                let tSales = 0, tReceipts = 0, tReturns = 0;
-                                (window.UI.state.rawData.sales || []).forEach(s => {
-                                    if (s.customerId === safeParty.id && s.status !== 'Cancelled' && s.status !== 'Open') {
-                                        if (s.documentType === 'return') tReturns += (parseFloat(s.grandTotal) || 0);
-                                        else tSales += (parseFloat(s.grandTotal) || 0);
+                            if (window.UI && window.UI.state && window.UI.state.rawData) {
+                                let tDocs = 0, tReceipts = 0, tReturns = 0;
+                                const targetDocs = isSales ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;
+                                const partyKey = isSales ? 'customerId' : 'supplierId';
+                                
+                                targetDocs.forEach(s => {
+                                    if (s[partyKey] === safeParty.id && s.status !== 'Cancelled' && s.status !== 'Open') {
+                                        // 🚨 ISOLATE POOL: Only calculate balance for the matching Tax Type!
+                                        if (s.invoiceType === doc.invoiceType) {
+                                            if (s.documentType === 'return') tReturns += (parseFloat(s.grandTotal) || 0);
+                                            else tDocs += (parseFloat(s.grandTotal) || 0);
+                                        }
                                     }
                                 });
+
                                 (window.UI.state.rawData.cashbook || []).forEach(c => {
                                     if (c.ledgerId === safeParty.id) {
-                                        tReceipts += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                                        let isNonGstReceipt = c.taxPool === 'Non-GST';
+                                        const legacyRef = c.invoiceRef || c.linkedInvoice;
+                                        if (!c.taxPool || c.taxPool === 'All') {
+                                            isNonGstReceipt = true;
+                                            if (legacyRef) {
+                                                const firstRef = String(legacyRef).split(',')[0].trim();
+                                                const linkedDoc = targetDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                                                if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                                            }
+                                        }
+                                        
+                                        if ((doc.invoiceType === 'Non-GST' && isNonGstReceipt) || (doc.invoiceType !== 'Non-GST' && !isNonGstReceipt)) {
+                                            if (isSales) tReceipts += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                                            else tReceipts += c.type === 'out' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                                        }
                                     }
                                 });
+                                
                                 let ob = parseFloat(safeParty.openingBalance) || 0;
-                                let netOb = String(safeParty.balanceType || 'Dr').includes('Pay') || String(safeParty.balanceType || 'Dr').includes('Cr') ? -ob : ob;
-                                partyBalance = netOb + tSales - tReturns - tReceipts;
+                                let isAdv = isSales ? (String(safeParty.balanceType || 'Dr').includes('Pay') || String(safeParty.balanceType || 'Dr').includes('Cr')) : (String(safeParty.balanceType || 'Cr').includes('Receive') || String(safeParty.balanceType || 'Cr').includes('Debit'));
+                                let netOb = isAdv ? -ob : ob;
+                                
+                                // Legacy Opening Balances always fall into the Non-GST pool
+                                if (doc.invoiceType !== 'Non-GST') netOb = 0; 
+
+                                partyBalance = netOb + tDocs - tReturns - tReceipts;
 
                                 const exactPaymentMap = {};
                                 const exactReturnMap = {};
@@ -1482,27 +1515,27 @@ Please process this accordingly. Thank you!`;
                                         refs.forEach(ref => { exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length); });
                                     }
                                 });
-                                (window.UI.state.rawData.sales || []).forEach(d => {
-                                    if (d.documentType === 'return' && d.status !== 'Open' && d.customerId === safeParty.id && d.orderNo) {
+                                targetDocs.forEach(d => {
+                                    if (d.documentType === 'return' && d.status !== 'Open' && d[partyKey] === safeParty.id && d.orderNo) {
                                         exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
                                     }
                                 });
 
-                                (window.UI.state.rawData.sales || []).forEach(s => {
-                                    if (s.customerId === safeParty.id && s.id !== doc.id && s.status !== 'Cancelled' && s.status !== 'Open' && s.documentType !== 'return') {
+                                targetDocs.forEach(s => {
+                                    if (s[partyKey] === safeParty.id && s.id !== doc.id && s.status !== 'Cancelled' && s.status !== 'Open' && s.documentType !== 'return' && s.invoiceType === doc.invoiceType) {
                                         const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.poNo, s.id].filter(Boolean))];
                                         const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
                                         const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
                                         const docTotal = parseFloat(s.grandTotal) || 0;
                                         const unpaid = Math.max(0, docTotal - paid - returned);
                                         if (unpaid > 0.01) {
-                                            pendingOldInvoices.push({ no: s.invoiceNo || s.orderNo || s.id.slice(-6).toUpperCase(), date: s.date, unpaid: unpaid });
+                                            pendingOldInvoices.push({ no: s.invoiceNo || s.poNo || s.orderNo || s.id.slice(-6).toUpperCase(), date: s.date, unpaid: unpaid });
                                         }
                                     }
                                 });
                             }
 
-                            if (isSales && partyBalance > 0.01) {
+                            if (partyBalance > 0.01) {
                                 const previousDues = partyBalance - thisInvoiceDue;
                                 if (previousDues > 0.01) {
                                     finalHtml += `<div style="margin-top: 16px; border-top: 2px solid #e2e8f0; padding-top: 12px;">
@@ -2109,9 +2142,10 @@ Thank you!`;
                         exactTaxable = rawSubtotal - discountAmt;
                     }
                     
-                    let taxable = exactTaxable * (s.documentType === 'return' ? -1 : 1);
-                    let tax = (parseFloat(s.totalGst) || 0) * (s.documentType === 'return' ? -1 : 1);
-                    let total = (parseFloat(s.grandTotal) || 0) * (s.documentType === 'return' ? -1 : 1);
+                    // 🚨 ENTERPRISE FIX: The Double-Negative Shield ensures Returns stay negative in the CA Export!
+                    let taxable = Math.abs(exactTaxable) * (s.documentType === 'return' ? -1 : 1);
+                    let tax = Math.abs(parseFloat(s.totalGst) || 0) * (s.documentType === 'return' ? -1 : 1);
+                    let total = Math.abs(parseFloat(s.grandTotal) || 0) * (s.documentType === 'return' ? -1 : 1);
                     b2bData.push([s.date, s.invoiceNo, s.customerName || '', gstin.toUpperCase(), taxable, tax, total]);
                 }
             });
