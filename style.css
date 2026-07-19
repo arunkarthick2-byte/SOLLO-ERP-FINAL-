@@ -5124,14 +5124,15 @@ select:-webkit-autofill:focus {
     -webkit-backface-visibility: hidden !important;
 }
 /* ==========================================
-   🚨 EXTREME PERFORMANCE: GPU OFFLOADING
+   🚨 EXTREME PERFORMANCE: GPU OFFLOADING (FIXED)
    ========================================== */
-/* Forces the Android Graphics Card (GPU) to process the layout, dropping CPU battery drain by up to 40% while preserving the white canvas! */
-.activity-screen, .bottom-sheet, .list-view, .main-content, .m3-card, #app-shell {
-    -webkit-transform: translate3d(0, 0, 0) !important;
-    transform: translate3d(0, 0, 0) !important;
-    backface-visibility: hidden !important;
-    -webkit-backface-visibility: hidden !important;
+/* We ONLY apply GPU locks to sliding screens now. 
+   Locking the entire #app-shell causes Android to blur the screen when waking up from the background! */
+.activity-screen, .bottom-sheet {
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 /* ==========================================
@@ -7251,4 +7252,65 @@ body.dark-mode #tab-dashboard strong[style*="display:flex; align-items:center; g
 #tab-reports div[style*="flex-direction: column"],
 #ws-view-master div[style*="flex-direction: column"] {
     gap: 0 !important;
+}
+/* ==========================================
+   🚨 ULTIMATE ANDROID WEBVIEW CRASH FIX
+   ========================================== */
+/* 
+   Android WebViews physically cannot handle overlapping 'backdrop-filter: blur' elements. 
+   When resuming from the background, it corrupts the GPU and smears the screen!
+   This block permanently destroys all glassmorphism and replaces it with solid, battery-saving colors.
+*/
+
+* {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 1. Solidify Background Dimming Overlays */
+.sheet-overlay, 
+#success-animation, 
+#split-overlay, 
+#enterprise-dialog, 
+#enterprise-confirm, 
+#enterprise-swipe {
+    background-color: rgba(0, 0, 0, 0.75) !important; /* Solid dark tint instead of glass */
+}
+
+/* 2. Solidify Navigation & Headers (Light Mode) */
+body:not(.dark-mode) .bottom-nav, 
+body:not(.dark-mode) .activity-header, 
+body:not(.dark-mode) .sheet-header, 
+body:not(.dark-mode) .app-header, 
+body:not(.dark-mode) .form-sticky-footer, 
+body:not(.dark-mode) .thumb-action-bar,
+body:not(.dark-mode) .sticky-totals {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+}
+
+body:not(.dark-mode) .search-bar,
+body:not(.dark-mode) .search-container,
+body:not(.dark-mode) .date-divider {
+    background-color: #F8FAFC !important;
+    background: #F8FAFC !important;
+}
+
+/* 3. Solidify Navigation & Headers (Dark Mode) */
+body.dark-mode .bottom-nav, 
+body.dark-mode .activity-header, 
+body.dark-mode .sheet-header, 
+body.dark-mode .app-header, 
+body.dark-mode .form-sticky-footer, 
+body.dark-mode .thumb-action-bar,
+body.dark-mode .search-bar,
+body.dark-mode .search-container {
+    background-color: #121212 !important;
+    background: #121212 !important;
+}
+
+body.dark-mode .sticky-totals,
+body.dark-mode .date-divider {
+    background-color: #1e1e22 !important;
+    background: #1e1e22 !important;
 }

@@ -55,7 +55,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=81">
+    <link rel="stylesheet" href="style.css?v=82">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -288,7 +288,7 @@
                 <div style="background: var(--md-surface); margin: 0 -16px 24px -16px; border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
                     
                     <div style="display: flex; border-bottom: 1px solid var(--md-outline-variant);">
-                        <div class="tap-target" style="flex: 1; padding: 16px; border-right: 1px solid var(--md-outline-variant);" onclick="if(window.app) window.app.viewFilteredSales('All')">
+                        <div class="tap-target" style="flex: 1; padding: 16px; border-right: 1px solid var(--md-outline-variant);" onclick="if(window.app) window.app.openUniversalReport('sales_register')">
                             <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase;">Total Sales</small>
                             <div class="large-text color-primary" id="dash-total-sales" style="font-size: 20px; font-weight: 700; margin-top: 4px; min-height: 24px;">
                                 <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px;"></div>
@@ -303,7 +303,7 @@
                         </div>
                     </div>
 
-                    <div class="tap-target" style="padding: 16px; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;" onclick="UI.switchTab('tab-workspace', 'Workspace', document.getElementById('nav-workspace')); if(typeof switchWorkspaceTab==='function') switchWorkspaceTab('master'); setTimeout(() => { UI.openMasterView('products', 'Inventory Master'); document.getElementById('filter-master-view').value = 'In Stock'; if(window.UI) window.UI.setFilter('masters', 'In Stock', null); }, 150);">
+                    <div class="tap-target" style="padding: 16px; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;" onclick="if(window.UI) { UI.openMasterView('products', 'Inventory Master'); setTimeout(() => { document.getElementById('filter-master-view').value = 'In Stock'; window.UI.setFilter('masters', 'In Stock', null); }, 150); }">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
                                 <strong style="display:flex; align-items:center; gap:8px; font-size: 14px; color: var(--md-primary); text-transform: uppercase;">
@@ -382,7 +382,7 @@
                     
                     <!-- 🚨 THE HEADER: Clickable "View All" (Filters the Documents Tab for Overdue) -->
                     <div class="tap-target" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; cursor: pointer; padding-bottom: 12px; border-bottom: 1px dashed rgba(186, 26, 26, 0.2);" 
-                         onclick="UI.switchTab('tab-workspace', 'Workspace', document.getElementById('nav-workspace')); if(typeof switchWorkspaceTab==='function') switchWorkspaceTab('trans'); if(typeof switchTransView==='function') switchTransView('sales'); setTimeout(() => { if(window.UI) window.UI.setFilter('sales', 'Overdue', null); }, 150);">
+                         onclick="if(window.app) window.app.viewFilteredSales('Overdue')">
                         <div style="display: flex; align-items: center; gap: 8px; color: var(--md-error);">
                             <span class="material-symbols-outlined">warning</span>
                             <strong>Overdue Collections</strong>
@@ -397,60 +397,180 @@
                 </div>
             </div>
 
-            <!-- ================= NEW REPORTS TAB ================= -->
+            <!-- ================= ENTERPRISE REPORTS COMMAND CENTER ================= -->
             <div id="tab-reports" class="screen-section hidden">
-                <strong style="display:block; margin-bottom:12px; margin-top:8px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Analytics & Insights</strong>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <strong style="font-size: 24px; font-weight: 900; color: var(--md-on-surface); letter-spacing: -0.5px; display: block;">Reports & Books</strong>
+                        <small style="color: var(--md-text-muted); font-weight: 600; font-size: 13px;">Complete Financial Ledgers</small>
+                    </div>
+                </div>
+
+                <!-- 1. INVENTORY BOOKS -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">1. Inventory Books</strong>
                 <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.app) window.app.openProfitLeakageReport()">
-                        <span class="material-symbols-outlined" style="color: var(--md-error);">troubleshoot</span>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Profit Leakage Audit</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Scan invoices for below-cost sales</small></div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) window.UI.openMasterView('products', 'Inventory Master');">
+                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">inventory</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Stock Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Live snapshot & valuation</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.app) window.app.openDeadStockReport()">
-                        <span class="material-symbols-outlined" style="color: #f57f17;">inventory_2</span>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Dead Stock Scanner</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Identify inventory locked for >90 days</small></div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) UI.openSmartSearch('item_ledger_report', 'item_ledger_report');">
+                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">history</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item Ledger (Movement)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological lifecycle</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openReorderReport()">
+                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">warning</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Low Stock (Reorder)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Deficit & restock capital</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openDeadStockReport()">
+                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">auto_delete</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Dead Stock Scanner</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Trapped capital (>90 days)</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
                 </div>
 
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Tax & Financial Reports</strong>
+                <!-- 2. ACCOUNTS BOOKS -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">2. Accounts Books</strong>
                 <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="app.openGSTReport()">
-                        <span class="material-symbols-outlined" style="color: #0061a4;">request_quote</span>
-                        <div style="flex: 1;"><strong style="font-size:15px;">Monthly GST Reports</strong></div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="UI.openActivity('activity-advanced-reports'); UI.switchReportTab('daybook');">
+                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">menu_book</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Daybook (Daily Register)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological transaction flow</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
-                    <div class="m3-card tap-target" onclick="app.openPartyTaxReport()" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0;">
-                        <span class="material-symbols-outlined" style="color: #0061a4;">person_search</span>
-                        <div style="flex: 1;"><strong style="font-size:15px;">Party-Wise Tax Report</strong></div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('cashbook_summary')">
+                        <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance_wallet</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Cashbook Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Total Money In vs Out</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
-                    <div class="m3-card tap-target" onclick="app.openItemProfitReport()" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;">
-                        <span class="material-symbols-outlined" style="color: #0061a4;">monitoring</span>
-                        <div style="flex: 1;"><strong style="font-size:15px;">Item-Wise Profitability</strong></div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openBankLedgerMenu();">
+                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Bank / Cash Ledger</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Individual passbooks</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" onclick="app.openExpenseReport()" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;">
-                        <span class="material-symbols-outlined" style="color: #e11d48;">receipt_long</span>
-                        <div style="flex: 1;"><strong style="font-size:15px;">Expense Leakage Report</strong></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" onclick="app.openReorderReport()" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;">
-                        <span class="material-symbols-outlined" style="color: #f59e0b;">inventory_2</span>
-                        <div style="flex: 1;"><strong style="font-size:15px;">Low Stock Reorder</strong></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openActivity('activity-advanced-reports'); UI.renderDayBook();">
-                        <span class="material-symbols-outlined" style="color: #2e7d32;">analytics</span>
-                        <div style="flex: 1;"><strong style="font-size:15px;">Advanced Reports (PnL)</strong></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.app) window.app.closeFinancialYear()">
-                        <span class="material-symbols-outlined" style="color: var(--md-success);">menu_book</span>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Close Financial Year</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Generate CA Balances Report</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-success);">download</span>
                     </div>
                 </div>
+
+                <!-- 3. SALES REPORTS -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">3. Sales Reports</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('sales_register')">
+                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt_long</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Sales Register (Bill-wise)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">List of all generated invoices</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('customer_sales')">
+                        <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">groups</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Customer-wise Sales</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by sales volume</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openItemProfitReport()">
+                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">trending_up</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item-wise Profitability</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by profit margin</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openProfitLeakageReport()">
+                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">troubleshoot</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Profit Leakage Audit</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Items sold below cost</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
+
+                <!-- 4. PURCHASE REPORTS -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">4. Purchase Reports</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('purchase_register')">
+                        <div class="icon-circle" style="background: rgba(216, 67, 21, 0.1); color: #d84315; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Purchase Register (Bill-wise)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Gross purchases & ITC</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('supplier_purchases')">
+                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">store</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Supplier-wise Purchases</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by spend volume</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openUniversalReport('item_purchases')">
+                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">shopping_cart</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item-wise Purchases</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Raw materials bought</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
+
+                <!-- 5. EXPENSE REPORTS -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">5. Expense Reports</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="UI.openActivity('activity-expense-ledger')">
+                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt_long</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Expense Register</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological list of expenses</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openExpenseReport()">
+                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">pie_chart</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Category-wise Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Where the money is going</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openUniversalReport('job_costing')">
+                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">assignment</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Job Costing (Linked)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Expenses tied to sales orders</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
+
+                <!-- 6. OUTSTANDINGS -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">6. Outstandings (Aging & Dues)</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) { window.UI.openMasterView('customers', 'Customer Master'); setTimeout(() => { window.UI.state.activeFilters['masters'] = 'To Receive'; document.getElementById('filter-master-view').value = 'To Receive'; if(window.app) window.app.applySmartMasterFilter(); }, 150); }">
+                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">call_received</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Receivables (Sundry Debtors)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Pending dues & collections</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) { window.UI.openMasterView('suppliers', 'Supplier Master'); setTimeout(() => { window.UI.state.activeFilters['masters'] = 'To Pay'; document.getElementById('filter-master-view').value = 'To Pay'; if(window.app) window.app.applySmartMasterFilter(); }, 150); }">
+                        <div class="icon-circle" style="background: rgba(216, 67, 21, 0.1); color: #d84315; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">call_made</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Payables (Sundry Creditors)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Pending vendor bills</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="window.triggerKhataReport()">
+                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">menu_book</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Party Ledger (Khata)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Running balance statement</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
+
+                <!-- 7. FINAL ACCOUNTS -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">7. Final Accounts</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="UI.openActivity('activity-advanced-reports'); UI.switchReportTab('pnl');">
+                        <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">analytics</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Profit & Loss (P&L) A/c</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">The ultimate financial truth</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.closeFinancialYear()">
+                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">FY Closing Balances</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Export CA balances</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
+
+                <!-- 8. GST REPORTS -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">8. GST Reports</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="app.openGSTReport()">
+                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">request_quote</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">GSTR-1 & GSTR-3B</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Sales Summary & Net Payable</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('gstr2_purchases')">
+                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">find_in_page</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">GSTR-2 (Purchase Summary)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Total Input Tax Credit (ITC)</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0;" onclick="app.openPartyTaxReport()">
+                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">person_search</span></div>
+                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Party-wise Tax Report</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">B2B vs B2C Split by Ledger</small></div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
+
             </div>
 
             <!-- ================= NEW WORKSPACE TAB ================= -->
@@ -2554,7 +2674,7 @@
     </div>
 
 
-    <div id="sheet-payment-in" class="bottom-sheet" style="height: 85vh; display: flex; flex-direction: column;">
+    <div id="sheet-payment-in" class="bottom-sheet" data-no-swipe="true" style="height: 85vh; display: flex; flex-direction: column;">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Receive Payment</span>
             <div style="display: flex; gap: 8px;">
@@ -2635,7 +2755,7 @@
             </div>
     </div>
 
-    <div id="sheet-payment-out" class="bottom-sheet" style="height: 85vh; display: flex; flex-direction: column;">
+    <div id="sheet-payment-out" class="bottom-sheet" data-no-swipe="true" style="height: 85vh; display: flex; flex-direction: column;">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Make Payment</span>
             <div style="display: flex; gap: 8px;">
@@ -2717,46 +2837,81 @@
     </div>
 
 
-    <div id="sheet-products" class="bottom-sheet" style="height: 85vh; background: var(--md-background); display: flex; flex-direction: column;">
-        <div class="sheet-header">
+    <div id="sheet-products" class="bottom-sheet" data-no-swipe="true" style="height: 85vh; background: var(--md-background); display: flex; flex-direction: column; overflow: hidden;">
+        <div class="sheet-header" style="flex-shrink: 0; background: var(--md-surface); z-index: 10;">
             <span style="font-size: 18px; font-weight: 500;">Add Products</span>
             <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-products')">close</span>
         </div>
-        <div style="padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;">
-            <div class="search-bar" style="margin-bottom: 16px;">
+        
+        <!-- Sticky Search Bar -->
+        <div style="padding: 12px 16px 0 16px; background: var(--md-surface); flex-shrink: 0; z-index: 10;">
+            <div class="search-bar" style="margin-bottom: 12px; box-shadow: none !important; border: 1px solid var(--md-outline-variant) !important;">
                 <span class="material-symbols-outlined">search</span>
                 <input type="text" id="search-products" placeholder="Search products...">
             </div>
-            
-            <ul class="list-view" id="list-products" style="margin: 0; padding: 0; margin-bottom: 24px;"></ul>
-            
-            <div style="display: flex; gap: 8px; padding-bottom: 24px;">
-                <button class="btn-primary-small" style="flex: 1; background: var(--md-surface-variant); color: var(--md-on-surface);" onclick="UI.closeBottomSheet('sheet-products'); setTimeout(() => { if(window.app) window.app.openForm('product'); }, 200);">+ New Product</button>
-                <button class="btn-primary" style="flex: 2;" onclick="if(window.UI) window.UI.confirmProducts()">Add Selected</button>
+        </div>
+
+        <!-- Scrollable List Area -->
+        <div style="padding: 0 16px; flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 20px;">
+            <ul class="list-view" id="list-products" style="margin: 0; padding: 0; border: none;"></ul>
+        </div>
+        
+        <!-- Static Floating Action Footer -->
+        <div style="padding: 16px; background: var(--md-surface); border-top: 1px solid var(--md-outline-variant); flex-shrink: 0; z-index: 10; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));">
+            <div style="display: flex; gap: 12px;">
+                <button class="btn-primary-small" style="flex: 1; background: var(--md-surface-variant); color: var(--md-on-surface); height: 48px; font-size: 14px; font-weight: bold; border-radius: 8px;" onclick="UI.closeBottomSheet('sheet-products'); setTimeout(() => { if(window.app) window.app.openForm('product'); }, 200);">+ New Product</button>
+                <button class="btn-primary" style="flex: 2; height: 48px; border-radius: 8px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);" onclick="if(window.UI) window.UI.confirmProducts()">Add Selected</button>
             </div>
         </div>
     </div>
 
-<div id="sheet-linked-docs" class="bottom-sheet" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 8px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff); overflow: hidden;">
-    
-    <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 12px 16px;">
+<div id="sheet-linked-docs" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff); overflow: hidden;">
+    <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 12px 16px 0 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <strong style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Link to Document(s)</strong>
-            <span class="tap-target" style="color: var(--md-primary, #0061a4); font-weight: 700; font-size: 14px; text-transform: uppercase;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">DONE</span>
+            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary, #0061a4); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">close</span>
         </div>
-        <input type="text" id="search-linked-docs" placeholder="Search Order No or Inv No..." autocomplete="off" oninput="if(window.app) window.app.filterLinkedDocs(this.value)" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: var(--md-surface-variant, #f1f5f9); padding: 10px; border-radius: 8px; font-size: 14px; color: var(--md-on-surface, #1e293b); outline: none;">
+        <input type="text" id="search-linked-docs" placeholder="Search Order No or Inv No..." autocomplete="off" oninput="if(window.app) window.app.filterLinkedDocs(this.value)" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: var(--md-surface-variant, #f1f5f9); padding: 10px; border-radius: 8px; font-size: 14px; color: var(--md-on-surface, #1e293b); outline: none; margin-bottom: 12px;">
+
+        <!-- 🚀 ENTERPRISE UX: SMART TAB SWITCHER -->
+        <div style="display: flex; background: var(--md-surface-variant); padding: 4px; border-radius: 8px; margin-bottom: 12px;">
+            <div id="tab-btn-linked-sales" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; background: var(--md-surface); color: var(--md-primary); box-shadow: var(--elevation-1); font-size: 13px;" onclick="window.switchLinkedTab('sales')">Sales Invoices</div>
+            <div id="tab-btn-linked-purch" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="window.switchLinkedTab('purchases')">Purchase Bills</div>
+        </div>
+    </div>
+
+    <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface, #ffffff); position: relative;">
+        <div class="tap-target" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); text-align: center; color: #ba1a1a; font-weight: 700; font-size: 14px; cursor: pointer; background: transparent;" onclick="if(window.app) window.app.selectLinkedDoc('', '-- No Link (General Expense) --')">
+            Clear Link / General Expense
+        </div>
+        
+        <div id="view-linked-sales">
+            <ul class="list-view" id="list-linked-sales" style="margin: 0; padding: 0; padding-bottom: 16px; border: none; max-height: none !important; overflow: visible !important;"></ul>
+        </div>
+        
+        <div id="view-linked-purch" class="hidden">
+            <ul class="list-view" id="list-linked-purch" style="margin: 0; padding: 0; padding-bottom: 16px; border: none; max-height: none !important; overflow: visible !important;"></ul>
+        </div>
     </div>
     
-        <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface, #ffffff);">
-            <div class="tap-target" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); text-align: center; color: #ba1a1a; font-weight: 700; font-size: 14px; cursor: pointer; background: transparent;" onclick="if(window.app) window.app.selectLinkedDoc('', '-- No Link (General Expense) --')">
-                Clear Link / General Expense
-            </div>
-            <ul class="list-view" id="list-linked-docs" style="margin: 0; padding: 0; padding-bottom: 16px; max-height: none !important; overflow: visible !important;"></ul>
-        </div>
-
-        <div style="background: transparent; padding: 4px 16px 12px; text-align: right; flex-shrink: 0;">
-            <span class="tap-target" style="color: var(--md-primary, #0061a4); font-weight: 700; font-size: 14px; text-transform: uppercase; padding: 4px 0;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">CLOSE</span>
-        </div>
+    <script>
+        window.switchLinkedTab = function(tab) {
+            const btnS = document.getElementById('tab-btn-linked-sales');
+            const btnP = document.getElementById('tab-btn-linked-purch');
+            const viewS = document.getElementById('view-linked-sales');
+            const viewP = document.getElementById('view-linked-purch');
+            
+            if (tab === 'sales') {
+                btnS.style.background = 'var(--md-surface)'; btnS.style.color = 'var(--md-primary)'; btnS.style.boxShadow = 'var(--elevation-1)';
+                btnP.style.background = 'transparent'; btnP.style.color = 'var(--md-text-muted)'; btnP.style.boxShadow = 'none';
+                viewS.classList.remove('hidden'); viewP.classList.add('hidden');
+            } else {
+                btnP.style.background = 'var(--md-surface)'; btnP.style.color = 'var(--md-primary)'; btnP.style.boxShadow = 'var(--elevation-1)';
+                btnS.style.background = 'transparent'; btnS.style.color = 'var(--md-text-muted)'; btnS.style.boxShadow = 'none';
+                viewP.classList.remove('hidden'); viewS.classList.add('hidden');
+            }
+        };
+    </script>
 </div>
         <div id="activity-expense-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
@@ -3246,11 +3401,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=81"></script>
-    <script src="utils.js?v=81"></script>
-    <script src="ui.js?v=81"></script>
-    <script src="cloud.js?v=81"></script>
-    <script src="app.js?v=81"></script>
+    <script src="db.js?v=82"></script>
+    <script src="utils.js?v=82"></script>
+    <script src="ui.js?v=82"></script>
+    <script src="cloud.js?v=82"></script>
+    <script src="app.js?v=82"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3280,8 +3435,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=81' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=81`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=82' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=82`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -3530,40 +3685,6 @@
 
 
             // ==========================================
-            // ENTERPRISE UPGRADE: MATERIAL TOUCH RIPPLE
-            // ==========================================
-            document.addEventListener('mousedown', function(e) { // mousedown reacts faster than click
-                const target = e.target.closest('button, .btn'); // Catch all buttons and custom .btn classes
-                if (!target) return;
-
-                // Ensure the button can contain the absolutely positioned ripple
-                if (window.getComputedStyle(target).position === 'static') {
-                    target.style.position = 'relative';
-                }
-                target.style.overflow = 'hidden';
-
-                const rect = target.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                const circle = document.createElement('span');
-                circle.classList.add('ripple-span');
-                
-                // Calculate the diameter to ensure the circle covers the whole button
-                const diameter = Math.max(target.clientWidth, target.clientHeight);
-                circle.style.width = circle.style.height = `${diameter}px`;
-                circle.style.left = `${x - diameter / 2}px`;
-                circle.style.top = `${y - diameter / 2}px`;
-
-                target.appendChild(circle);
-
-                // Clean up the DOM after the animation finishes
-                setTimeout(() => {
-                    circle.remove();
-                }, 600);
-            });
-
-            // ==========================================
             // ENTERPRISE UPGRADE: SCROLL-WHEEL FINANCIAL SHIELD
             // ==========================================
             // Prevent mouse scroll wheels from secretly inflating numbers when an input is focused!
@@ -3654,25 +3775,6 @@
             const sortMasterView = document.getElementById('sort-master-view');
             if (sortMasterView) sortMasterView.addEventListener('change', () => UI.applyFilters('masters'));
 
-            document.querySelectorAll('.search-bar').forEach(bar => {
-                const input = bar.querySelector('input');
-                if (!input) return;
-                const clearBtn = document.createElement('span');
-                clearBtn.className = 'material-symbols-outlined tap-target hidden';
-                clearBtn.innerText = 'close';
-                clearBtn.style.cssText = 'font-size: 16px; color: var(--md-on-surface-variant); padding: 4px; margin-left: 4px; margin-right: 4px; border-radius: 50%; background: var(--md-surface-variant); cursor: pointer;';
-                input.parentNode.insertBefore(clearBtn, input.nextSibling);
-                input.addEventListener('input', () => {
-                    if (input.value.length > 0) clearBtn.classList.remove('hidden');
-                    else clearBtn.classList.add('hidden');
-                });
-                clearBtn.addEventListener('click', () => {
-                    input.value = '';
-                    clearBtn.classList.add('hidden');
-                    input.focus(); 
-                    input.dispatchEvent(new Event('input')); 
-                });
-            });
 
             let touchStartX = 0;
             let touchStartY = 0;
@@ -4041,7 +4143,7 @@
 
     <script>
     // 🚀 ENTERPRISE UPGRADE: SMART SEARCH OVERRIDE HOOKS
-    // We dynamically patch the UI.js Smart Search engine to support our new "Party" filter!
+    // We dynamically patch the UI.js Smart Search engine to support our new "Party" and "Item Ledger" filters!
     document.addEventListener('DOMContentLoaded', () => {
         if (window.UI) {
             const originalExecute = window.UI.executeSmartSearch;
@@ -4064,7 +4166,27 @@
                     });
                     if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No matches found.</div>`;
                     resultsContainer.innerHTML = html;
-                } else {
+                } 
+                // 🚨 THE FIX: A dedicated, clean Item Search engine exclusively for the Reports tab!
+                else if (window.UI.state.smartSearchTarget === 'item_ledger_report') {
+                    const query = (document.getElementById('smart-search-input').value || '').toLowerCase();
+                    const resultsContainer = document.getElementById('smart-search-results');
+                    
+                    let results = window.UI.state.rawData.items.filter(i => window.fuzzyMatch(query, i.name));
+                    let html = '';
+                    results.slice(0, 30).forEach(i => {
+                        const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        html += `
+                        <div class="tap-target" onclick="window.UI.closeBottomSheet('sheet-smart-search'); window.triggerItemLedgerFromForm('${i.id}', '${safeName}');" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(106, 27, 154, 0.1); color: #6a1b9a;"><span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span></div>
+                            <div style="flex:1; min-width:0;"><strong style="display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${window.UI.highlightText(i.name, query)}</strong><small style="color: var(--md-text-muted);">Stock: ${i.stock} ${i.uom || ''}</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>`;
+                    });
+                    if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found.</div>`;
+                    resultsContainer.innerHTML = html;
+                } 
+                else {
                     originalExecute.apply(this, arguments);
                 }
             };
@@ -4086,17 +4208,42 @@
         }
     });
 
-    window.triggerItemLedgerFromForm = async () => {
-        const id = window.app.state.currentEditId || document.getElementById('item-ledger-hidden-id').value;
-        const name = document.getElementById('prod-name').value || document.getElementById('item-ledger-hidden-name').value;
+    window.triggerItemLedgerFromForm = async (overrideId = null, overrideName = null) => {
+        // 🚨 FIX: Prioritize explicitly passed IDs, THEN the hidden inputs, THEN the form edit state!
+        let id = overrideId;
+        let name = overrideName;
+
+        // If no override is provided, check if we are currently inside an active Product Edit form
+        if (!id && window.app && window.app.state.currentEditId && document.getElementById('activity-product-form').classList.contains('open')) {
+            id = window.app.state.currentEditId;
+            name = document.getElementById('prod-name').value;
+        }
+
+        // Final fallback to the hidden inputs
+        if (!id) {
+            id = document.getElementById('item-ledger-hidden-id').value;
+            name = document.getElementById('item-ledger-hidden-name').value;
+        }
         
-        if (!id) return window.Utils.showToast("⚠️ Please save this product first before viewing its ledger!");
+        if (!id) return window.Utils.showToast("⚠️ Please select a product first!");
         
         document.getElementById('item-ledger-hidden-id').value = id;
         document.getElementById('item-ledger-hidden-name').value = name;
         document.getElementById('item-ledger-title').innerText = name + ' Movement';
 
-        // 🚨 Read the exact Party ID from the new UI selection block!
+        // 🚨 FIX: If opening fresh from the Reports tab, wipe any old Party filters out!
+        if (overrideId) {
+            const partyIdEl = document.getElementById('item-ledger-party-id');
+            const partyDispEl = document.getElementById('item-ledger-party-display');
+            const partyBtnEl = document.getElementById('btn-clear-item-ledger-party');
+            if (partyIdEl) partyIdEl.value = '';
+            if (partyDispEl) {
+                partyDispEl.innerText = 'All Parties (Global Ledger)';
+                partyDispEl.style.color = 'var(--md-text-muted)';
+            }
+            if (partyBtnEl) partyBtnEl.style.display = 'none';
+        }
+
         const filterPartyId = document.getElementById('item-ledger-party-id') ? document.getElementById('item-ledger-party-id').value : null;
         const filterPartyName = document.getElementById('item-ledger-party-display') ? document.getElementById('item-ledger-party-display').innerText : '';
 
@@ -4275,6 +4422,7 @@
         }, emptyHTML);
     };
     </script>
+    
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         
@@ -4341,7 +4489,7 @@
         }
     });
     </script>
-    <div id="sheet-smart-search" class="bottom-sheet" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: auto; max-height: none; border-radius: 8px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff);">
+    <div id="sheet-smart-search" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: auto; max-height: none; border-radius: 8px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff);">
         <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; border-radius: 8px 8px 0 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; padding-bottom: 8px;">
                 <strong id="smart-search-title" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Search</strong>

@@ -377,35 +377,75 @@ const app = {
     // ENTERPRISE UX: DASHBOARD QUICK LINKS
     // ==========================================
     viewFilteredSales: (status) => {
-        // 1. Navigate to the new Workspace Tab seamlessly
         if (window.UI && typeof window.UI.switchTab === 'function') {
             const navBtn = document.getElementById('nav-workspace');
             window.UI.switchTab('tab-workspace', 'Workspace', navBtn);
             
-            // 2. Ensure the "Transactions" inner tab is active, and select "Sales"
             if (typeof switchWorkspaceTab === 'function') switchWorkspaceTab('trans');
             if (typeof switchTransView === 'function') switchTransView('sales');
             
-            // 3. Wait 150ms for the screen to slide over, then apply the native filter!
+            // 🚨 ENTERPRISE UX: Inject a clean "Back to Home" banner inside the Workspace!
+            let banner = document.getElementById('return-to-dash-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'return-to-dash-banner';
+                banner.className = 'm3-card tap-target';
+                banner.style.cssText = 'background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; border-left: 4px solid var(--md-primary); cursor: pointer; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+                banner.innerHTML = `
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">arrow_back</span>
+                        <strong style="font-size: 15px;">Back to Home</strong>
+                    </div>
+                    <span id="return-dash-filter-text" style="font-size: 11px; font-weight: 800; opacity: 0.8; background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 6px; text-transform: uppercase;"></span>
+                `;
+                const container = document.getElementById('doc-sales-view');
+                container.insertBefore(banner, container.firstChild);
+                
+                banner.onclick = () => {
+                    banner.style.display = 'none';
+                    // 🚨 RESET FIX: Clear the filter when going back so the user isn't stuck with it later!
+                    if (window.UI) {
+                        window.UI.state.activeFilters['sales'] = 'All';
+                        if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('sales');
+                        window.UI.switchTab('tab-dashboard', 'Home', document.getElementById('nav-dash'));
+                    }
+                };
+            }
+            
+            banner.style.display = 'flex';
+            document.getElementById('return-dash-filter-text').innerText = `Filtered: ${status}`;
+            
+            // Hide the banner permanently if they manually tap any other tab on the bottom menu
+            document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
+                item.addEventListener('click', () => { if(banner) banner.style.display = 'none'; });
+            });
+
+            // Clean up the old ugly pill if it got stuck
+            const oldPill = document.getElementById('floating-back-dash');
+            if (oldPill) oldPill.remove();
+
             setTimeout(() => {
                 if (window.UI) {
+                    // 🚨 CRITICAL FIX: The Dashboard Date Filter Trap!
+                    // If we jump from the dashboard while it's set to "This Month", it hides older Overdue/Open invoices.
+                    // We must tell the engine to ignore the dashboard date, AND physically clear any local date filters!
+                    window.UI.state.applyDashboardDateToDocuments = false; 
+                    
+                    const startDateInput = document.getElementById('sales-start-date');
+                    const endDateInput = document.getElementById('sales-end-date');
+                    if (startDateInput) startDateInput.value = '';
+                    if (endDateInput) endDateInput.value = '';
+
                     window.UI.state.activeFilters = window.UI.state.activeFilters || {};
                     window.UI.state.activeFilters['sales'] = status;
                     
-                    // Tell the Documents Tab to physically obey the Dashboard's Date Filter!
-                    window.UI.state.applyDashboardDateToDocuments = true;
-                    
                     if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('sales');
-                    
-                    if (window.Utils) {
-                        const dashFilterEl = document.getElementById('dashboard-date-filter');
-                        const dateFilterName = dashFilterEl && dashFilterEl.options ? dashFilterEl.options[dashFilterEl.selectedIndex].text : 'Selected Date Range';
-                        window.Utils.showToast(`Filtered: ${status} (${dateFilterName})`);
-                    }
                 }
             }, 150);
         }
     },
+
+    // ==========================================
 
     // ==========================================
     // 1. BOOT SEQUENCE & FIRM MANAGEMENT
@@ -3168,9 +3208,17 @@ const app = {
                     const partyGst = targetLedger ? targetLedger.gst : '';
 
                     // 🚨 ENTERPRISE FIX: Strict Status Engine
-                    const currentStatus = document.getElementById(`${type}-order-status`).value;
+                    let currentStatus = document.getElementById(`${type}-order-status`).value;
                     let safeShippedDate = document.getElementById(`${type}-shipped-date`).value;
                     let safeCompletedDate = document.getElementById(`${type}-completed-date`).value;
+
+                    // 🚨 BIZOPS FIX: THE FAKE COMPLETION SHIELD
+                    // Prevent users from manually marking an invoice as "Completed" if it hasn't been paid!
+                    if (currentStatus === 'Completed' && (app.state.currentEditId || type === 'purchase')) {
+                        // Force it back to Unpaid. The Auto-FIFO engine will upgrade it to Completed 
+                        // automatically ONLY if the Cashbook receipts match the Grand Total!
+                        currentStatus = 'Unpaid';
+                    }
 
                     if (currentStatus === 'Open') {
                         // Drafts have no dispatch or completion dates
@@ -3346,7 +3394,7 @@ await saveInvoiceTransaction(storeName, data);
 if (data.id && splitConfirmed) {
     if (splitConfirmed.cash > 0) {
         await saveRecord('receipts', {
-            id: Utils.generateId(), // FIX: Generates a truly unique ID for the Cash receipt
+            id: 'split-cash-' + Utils.generateId(), // 🚨 CRITICAL FIX: Added prefix so the database doesn't delete it on edit!
             receiptNo: 'REC-' + data.invoiceNo,
             firmId: data.firmId,
             date: data.date,
@@ -3363,7 +3411,7 @@ if (data.id && splitConfirmed) {
     }
     if (splitConfirmed.bank > 0) {
         await saveRecord('receipts', {
-            id: Utils.generateId(), // FIX: Generates a truly unique ID for the Bank receipt
+            id: 'split-bank-' + Utils.generateId(), // 🚨 CRITICAL FIX: Added prefix so the database doesn't delete it on edit!
             receiptNo: 'REC-' + data.invoiceNo,
             firmId: data.firmId,
             date: data.date,
@@ -3490,8 +3538,9 @@ if (data.id && splitConfirmed) {
                             e.id !== data.id
                         );
                         if (isDuplicate) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                            return alert(`Error: Expense number "${data.expenseNo}" already exists! Please use a unique number.`);
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
+                            if (window.Utils) window.Utils.alertModal(`Error: Expense number "${data.expenseNo}" already exists! Please use a unique number.`, "Duplicate Found");
+                            return;
                         }
                     }
                 
@@ -3538,11 +3587,11 @@ if (data.id && splitConfirmed) {
                 } 
                 else if (type === 'expense') {
                     // ENTERPRISE FIX: The Negative Expense Shield!
-                    // Prevents users from logging negative expenses to artificially inject fake money into the Cashbook!
                     data.amount = parseFloat(data.amount) || 0;
                     if (data.amount < 0) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
-                        return alert("Error: Expense amount cannot be negative. If you received a refund, please log it as 'Money In' in the Cashbook.");
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
+                        if (window.Utils) window.Utils.alertModal("Error: Expense amount cannot be negative. If you received a refund, please log it as 'Money In' in the Cashbook.", "Invalid Amount");
+                        return;
                     }
                     const accEl = document.getElementById('expense-account-id');
                     data.accountId = accEl ? accEl.value : 'cash';
@@ -3550,7 +3599,6 @@ if (data.id && splitConfirmed) {
                     // STRICT ERP LOGIC: Prevent Expenses from silently overdrafting the Cashbook!
                     const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                     let currentBal = 0;
-                    // FIX: Read the Opening Balance for ALL accounts, including the default Cash Drawer!
                     const accRecord = await getRecordById('accounts', data.accountId);
                     if (accRecord) currentBal = parseFloat(accRecord.openingBalance) || 0;
                     
@@ -3561,8 +3609,10 @@ if (data.id && splitConfirmed) {
                     });
                     
                     if (currentBal - data.amount < 0) {
-                        if (!confirm(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This expense will drop the balance below zero. Continue anyway?`)) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                        // 🚨 BIZOPS FIX: Replaced native confirm() with our beautiful async modal to prevent iOS/Android thread blocking!
+                        const isConfirmed = await window.Utils.confirmModal(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This expense will drop the balance below zero. Continue anyway?`, "Continue", true);
+                        if (!isConfirmed) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
                             return;
                         }
                     }
@@ -3658,6 +3708,9 @@ if (data.id && splitConfirmed) {
                     };
                     await saveRecord('receipts', expenseReceipt);
                 }
+                
+                // 🚨 BIZOPS FIX: Trigger the gorgeous green checkmark animation!
+                if (window.UI) window.UI.showSuccess();
                 
                 // ENTERPRISE FIX: Prevent nested Master forms from closing the Invoice behind them!
                 UI.closeActivity(`activity-${type}-form`);
@@ -4883,39 +4936,72 @@ if (data.id && splitConfirmed) {
         
         const firmId = app.state.firmId;
         const sales = (window.UI.state.rawData.sales || []).filter(s => s.firmId === firmId && s.status !== 'Open' && s.status !== 'Cancelled');
+        const purchases = (window.UI.state.rawData.purchases || []).filter(p => p.firmId === firmId && p.status !== 'Open' && p.status !== 'Cancelled');
         const expenses = (window.UI.state.rawData.expenses || []).filter(e => e.firmId === firmId);
         
-        // 1. Top Products
+        // 1. Top Products (Drill to Item Ledger)
         const productSales = {};
         sales.forEach(s => {
             (s.items || []).forEach(item => {
+                const id = item.itemId || item.id || item.name;
                 const qty = parseFloat(item.qty) || 0;
                 const total = qty * (parseFloat(item.rate) || 0);
-                if (s.documentType === 'return') {
-                    productSales[item.name] = (productSales[item.name] || 0) - total;
-                } else {
-                    productSales[item.name] = (productSales[item.name] || 0) + total;
-                }
+                if (!productSales[id]) productSales[id] = { name: item.name, total: 0 };
+                productSales[id].total += (s.documentType === 'return' ? -total : total);
             });
         });
         
-        const topProducts = Object.keys(productSales).map(name => ({ name, total: productSales[name] })).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
-        let prodHtml = topProducts.map((p, idx) => `<div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--md-outline-variant);"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${p.name}</span><strong style="color: #0061a4; font-size: 15px;">₹${p.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`).join('');
+        const topProducts = Object.keys(productSales).map(id => ({ id, ...productSales[id] })).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
+        let prodHtml = topProducts.map((p, idx) => {
+            const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(p.name).replace(/'/g, "\\'") : p.name;
+            return `<div class="tap-target" onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${p.id}', '${safeName}')" style="display: flex; justify-content: space-between; padding: 12px 8px; border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${p.name}</span><strong style="color: #0061a4; font-size: 15px;">₹${p.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`;
+        }).join('');
         document.getElementById('analytics-top-products').innerHTML = prodHtml || '<small style="color: var(--md-text-muted);">No sales data available.</small>';
 
-        // 2. Top Customers
+        // 2. Top Customers (Drill to Party Ledger)
         const customerSales = {};
         sales.forEach(s => {
+            const id = s.customerId || s.customerName;
             const total = parseFloat(s.grandTotal) || 0;
-            if (s.documentType === 'return') customerSales[s.customerName] = (customerSales[s.customerName] || 0) - total;
-            else customerSales[s.customerName] = (customerSales[s.customerName] || 0) + total;
+            if (!customerSales[id]) customerSales[id] = { name: s.customerName, total: 0 };
+            customerSales[id].total += (s.documentType === 'return' ? -total : total);
         });
         
-        const topCustomers = Object.keys(customerSales).map(name => ({ name, total: customerSales[name] })).filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
-        let custHtml = topCustomers.map((c, idx) => `<div style="display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--md-outline-variant);"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${c.name}</span><strong style="color: var(--md-success); font-size: 15px;">₹${c.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`).join('');
+        const topCustomers = Object.keys(customerSales).map(id => ({ id, ...customerSales[id] })).filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
+        let custHtml = topCustomers.map((c, idx) => {
+            const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(c.name).replace(/'/g, "\\'") : c.name;
+            return `<div class="tap-target" onclick="if(window.app) window.app.openPartyLedger('${c.id}', 'Customer', '${safeName}')" style="display: flex; justify-content: space-between; padding: 12px 8px; border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${c.name}</span><strong style="color: var(--md-success); font-size: 15px;">₹${c.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`;
+        }).join('');
         document.getElementById('analytics-top-customers').innerHTML = custHtml || '<small style="color: var(--md-text-muted);">No customer data available.</small>';
 
-        // 3. Top Expenses
+        // 3. Top Suppliers (NEW! Drill to Party Ledger)
+        const supplierPurchases = {};
+        purchases.forEach(p => {
+            const id = p.supplierId || p.supplierName;
+            const total = parseFloat(p.grandTotal) || 0;
+            if (!supplierPurchases[id]) supplierPurchases[id] = { name: p.supplierName, total: 0 };
+            supplierPurchases[id].total += (p.documentType === 'return' ? -total : total);
+        });
+        const topSuppliers = Object.keys(supplierPurchases).map(id => ({ id, ...supplierPurchases[id] })).filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
+        let suppHtml = topSuppliers.map((c, idx) => {
+            const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(c.name).replace(/'/g, "\\'") : c.name;
+            return `<div class="tap-target" onclick="if(window.app) window.app.openPartyLedger('${c.id}', 'Supplier', '${safeName}')" style="display: flex; justify-content: space-between; padding: 12px 8px; border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${c.name}</span><strong style="color: #d84315; font-size: 15px;">₹${c.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`;
+        }).join('');
+        
+        // Dynamically inject the new Supplier Card if it doesn't exist
+        let suppCard = document.getElementById('analytics-top-suppliers-card');
+        if (!suppCard) {
+            const expCard = document.getElementById('analytics-top-expenses').parentElement;
+            suppCard = document.createElement('div');
+            suppCard.id = 'analytics-top-suppliers-card';
+            suppCard.className = 'm3-card';
+            suppCard.style.cssText = 'margin-bottom: 16px; padding: 16px;';
+            suppCard.innerHTML = `<strong style="color: #d84315; font-size: 14px; text-transform: uppercase; display: block; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Top Suppliers</strong><div id="analytics-top-suppliers"></div>`;
+            expCard.parentNode.insertBefore(suppCard, expCard);
+        }
+        document.getElementById('analytics-top-suppliers').innerHTML = suppHtml || '<small style="color: var(--md-text-muted);">No supplier data available.</small>';
+
+        // 4. Top Expenses
         const expMap = {};
         expenses.forEach(e => { expMap[e.category] = (expMap[e.category] || 0) + (parseFloat(e.amount) || 0); });
         
@@ -5196,7 +5282,6 @@ if (data.id && splitConfirmed) {
     },
 
     generateReceiptPDF: async (receiptId) => {
-        // ENTERPRISE FIX: If the HTML button forgets to send the ID, automatically grab the currently open receipt!
         const targetId = (typeof receiptId === 'string' && receiptId.trim() !== '') ? receiptId : app.state.currentReceiptId;
         
         if (!targetId) return alert("Please save the payment first before generating a PDF.");
@@ -5224,11 +5309,7 @@ if (data.id && splitConfirmed) {
         let linkedDocsTableHtml = '';
         if (receipt.invoiceRef) {
             const refs = String(receipt.invoiceRef).split(',').map(r => r.trim());
-            
-            // 🚨 FIX: Base the database search on the Party Type, NOT the direction of the money!
             const store = party ? (party.type === 'Customer' ? 'sales' : 'purchases') : (isMoneyIn ? 'sales' : 'purchases');
-            
-            // ENTERPRISE FIX: Prevent the PDF engine from crashing when printing receipts!
             const allDocs = await getAllRecords(store, 'firmId', receipt.firmId);
             
             let tableRows = '';
@@ -5274,8 +5355,6 @@ if (data.id && splitConfirmed) {
         if (party && typeof getKhataStatement === 'function') {
             const statement = await getKhataStatement(party.id, party.type);
             const bal = statement.finalBalance || 0;
-            
-            // 🚨 THE FIX: Calculate the math progression for a professional summary!
             const receiptAmt = parseFloat(receipt.amount) || 0;
             const prevBal = bal + (isMoneyIn ? receiptAmt : -receiptAmt);
             
@@ -5312,19 +5391,17 @@ if (data.id && splitConfirmed) {
             </table>`;
         }
 
-        // ENTERPRISE UPGRADE: Sync to the main Utils engine to properly calculate Paise!
         const amountInWords = window.Utils && window.Utils.numberToWords ? window.Utils.numberToWords(parseFloat(receipt.amount) || 0) : "Rupees " + parseFloat(receipt.amount).toFixed(2);
         
-        // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost Receipt!
         const uniquePdfId = 'pdf-receipt-' + Date.now();
+        const visualPdfId = uniquePdfId + '-visual';
 
-        const html = `
-        <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 100%; max-width: 100%; padding: 5%; box-sizing: border-box; position: relative; overflow-x: auto; min-height: auto !important;">
-            
+        const buildReceiptHTML = (targetId) => `
+        <div id="${targetId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 794px; min-width: 794px; max-width: 794px; padding: 40px; box-sizing: border-box; position: relative; margin: 0 auto; text-align: left;">
             <style>
-                #${uniquePdfId} table { page-break-inside: auto; }
-                #${uniquePdfId} tr { page-break-inside: avoid; page-break-after: auto; }
-                #${uniquePdfId} thead { display: table-header-group; }
+                #${targetId} table { page-break-inside: auto; }
+                #${targetId} tr { page-break-inside: avoid; page-break-after: auto; }
+                #${targetId} thead { display: table-header-group; }
                 .avoid-break { page-break-inside: avoid; }
             </style>
 
@@ -5431,35 +5508,39 @@ if (data.id && splitConfirmed) {
                 </div>
             </div> </div> </div>
         `;
-        
-        // ENTERPRISE UPGRADE: Interactive Receipt PDF Viewer
-        // FIX: Replaces slashes with dashes so the OS doesn't think the first half of the receipt number is a folder!
-        const safeFilename = `${title.replace(/ /g, '_')}_${safeDocNo.replace(/[\/\\]/g, '-')}.pdf`;
-        
-        // ENTERPRISE FIX: Ultimate Garbage Collection! 
-        // Detonate EVERY single old viewer and wipe the generic print-area so NOTHING ghosts!
-        document.querySelectorAll('#activity-receipt-viewer').forEach(el => el.remove());
-        const printArea = document.getElementById('print-area');
-        if (printArea) printArea.innerHTML = '';
 
+        const finalHTML = buildReceiptHTML(uniquePdfId);
+        const visualHTML = buildReceiptHTML(visualPdfId);
+
+        const printArea = document.getElementById('print-area');
+        if (printArea) printArea.innerHTML = finalHTML;
+        
+        const safeFilename = `${title.replace(/ /g, '_')}_${safeDocNo.replace(/[\/\\]/g, '-')}.pdf`;
+        document.querySelectorAll('#activity-receipt-viewer').forEach(el => el.remove());
+        
+        const initialZoom = window.innerWidth / 830; 
+
+        // 🚨 DARK MODE SHIELD
         let viewerHTML = `
-        <div id="activity-receipt-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column;">
-            <div class="activity-header">
-                <div style="display: flex; align-items: center; gap: 16px;">
-                    <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-receipt-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-receipt-viewer').remove(), 350);">arrow_back</span>
-                    <strong style="font-size: 18px;">${title}</strong>
+        <div id="activity-receipt-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column; background: var(--md-background, #94a3b8);">
+            <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; position: relative; padding: 8px 12px; min-height: 56px; background: var(--md-surface, white); border-bottom: 1px solid var(--md-outline-variant, #cbd5e1);">
+                <div style="display: flex; align-items: center; gap: 8px; flex: 1; z-index: 2;">
+                    <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-receipt-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-receipt-viewer').remove(), 350);" style="padding: 4px; position: static !important; transform: none !important; margin: 0 !important; color: var(--md-on-surface, #0f172a);">arrow_back</span>
+                    <strong style="font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; color: var(--md-on-surface, #0f172a); position: static !important; transform: none !important;">${title}</strong>
                 </div>
-                
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
-                    </div>
+                <div style="display: flex; align-items: center; background: var(--md-surface-variant, #f1f5f9); border-radius: 8px; margin-right: 12px; border: 1px solid var(--md-outline-variant, #cbd5e1); z-index: 2;">
+                    <span class="material-symbols-outlined tap-target" onclick="const p=document.getElementById('pdf-zoom-container-receipt'); let z=parseFloat(p.style.zoom||${initialZoom}); z-=0.1; if(z<0.2)z=0.2; p.style.zoom=z;" style="padding: 6px; font-size: 20px; color: var(--md-on-surface, #0f172a); position: static !important; transform: none !important; margin: 0 !important;">zoom_out</span>
+                    <span class="material-symbols-outlined tap-target" onclick="document.getElementById('pdf-zoom-container-receipt').style.zoom=${initialZoom};" style="padding: 6px; font-size: 18px; color: var(--md-on-surface, #0f172a); border-left: 1px solid var(--md-outline-variant, #cbd5e1); border-right: 1px solid var(--md-outline-variant, #cbd5e1); position: static !important; transform: none !important; margin: 0 !important;">fit_screen</span>
+                    <span class="material-symbols-outlined tap-target" onclick="const p=document.getElementById('pdf-zoom-container-receipt'); let z=parseFloat(p.style.zoom||${initialZoom}); z+=0.1; if(z>2)z=2; p.style.zoom=z;" style="padding: 6px; font-size: 20px; color: var(--md-on-surface, #0f172a); position: static !important; transform: none !important; margin: 0 !important;">zoom_in</span>
+                </div>
+                <div class="icon-circle tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}')" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; position: relative; z-index: 2; margin: 0; display: flex; align-items: center; justify-content: center;">
+                    <span class="material-symbols-outlined" style="font-size: 20px; position: static !important; transform: none !important; margin: 0 !important;">picture_as_pdf</span>
                 </div>
             </div>
-            <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
-                <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                    <div id="receipt-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box;">
-                        ${html}
+            <div class="activity-content" style="flex: 1; padding: 0; overflow: auto; text-align: center; -webkit-overflow-scrolling: touch;">
+                <div id="pdf-zoom-container-receipt" style="zoom: ${initialZoom}; display: inline-block; padding: 20px; transition: zoom 0.2s ease;">
+                    <div style="background: transparent; text-align: left; box-shadow: 0 12px 32px rgba(0,0,0,0.3);">
+                        ${visualHTML}
                     </div>
                 </div>
             </div>
@@ -5470,7 +5551,7 @@ if (data.id && splitConfirmed) {
         
         setTimeout(() => {
             document.getElementById('activity-receipt-viewer').classList.add('open');
-            window.Utils.showToast("✅ Document Ready!");
+            if(window.Utils) window.Utils.showToast("✅ Document Ready!");
         }, 50);
     },
 
@@ -5675,7 +5756,7 @@ if (data.id && splitConfirmed) {
                 (s.items || []).forEach(item => {
                     const id = item.itemId || item.name; 
                     if (!itemMap[id]) {
-                        itemMap[id] = { name: item.name, qty: 0, revenue: 0, cost: 0, profit: 0, uom: item.uom };
+                        itemMap[id] = { id: id, name: item.name, qty: 0, revenue: 0, cost: 0, profit: 0, uom: item.uom };
                     }
                     
                     const qty = parseFloat(item.qty) || 0;
@@ -5707,9 +5788,10 @@ if (data.id && splitConfirmed) {
                 const isLoss = item.profit < 0;
                 const profitColor = isLoss ? 'var(--md-error)' : 'var(--md-success)';
                 const profitSign = isLoss ? '' : '+';
+                const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(item.name).replace(/'/g, "\\'") : item.name;
                 
                 html += `
-                <div class="m3-card" style="padding: 12px; border-left: 4px solid ${profitColor};">
+                <div class="m3-card tap-target" onclick="window.triggerItemLedgerFromForm('${item.id}', '${safeName}')" style="padding: 12px; border-left: 4px solid ${profitColor}; cursor: pointer;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
                         <strong style="color: var(--md-on-surface); font-size: 14px;">${item.name}</strong>
                         <strong style="color: ${profitColor}; font-size: 15px;">${profitSign}₹${item.profit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
@@ -5886,8 +5968,9 @@ if (data.id && splitConfirmed) {
                     const restockCost = deficit * buyPrice;
                     estimatedCost += restockCost;
 
+                    const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(i.name).replace(/'/g, "\\'") : i.name;
                     html += `
-                    <div class="m3-card" style="padding: 12px; border-left: 4px solid #f59e0b;">
+                    <div class="m3-card tap-target" onclick="window.triggerItemLedgerFromForm('${i.id}', '${safeName}')" style="padding: 12px; border-left: 4px solid #f59e0b; cursor: pointer;">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
                             <div>
                                 <strong style="color: var(--md-on-surface); font-size: 15px; display:block;">${i.name}</strong>
@@ -5918,70 +6001,30 @@ if (data.id && splitConfirmed) {
     // ==========================================
     // NEW: EXPENSE LINK SEARCH ENGINE
     // ==========================================
-
-    // ==========================================
-    // NEW: EXPENSE LINK SEARCH ENGINE
-    // ==========================================
     loadLinkedDocsList: async () => {
-        const listEl = document.getElementById('list-linked-docs');
-        if (!listEl) return;
-        
-        // ENTERPRISE FIX: Stop the Expense screen from violently freezing by scoping the linked docs!
+        const listSales = document.getElementById('list-linked-sales');
+        const listPurch = document.getElementById('list-linked-purch');
+        if (!listSales || !listPurch) return;
+
+        // 1. Fetch raw data
         const sales = await getAllRecords('sales', 'firmId', app.state.firmId);
         const purchases = await getAllRecords('purchases', 'firmId', app.state.firmId);
-        
-        const currentSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
-        let html = '';
-        
+
+        // 2. Filter out Drafts
         const recentSales = sales.filter(s => s.firmId === app.state.firmId && s.status !== 'Open');
-        // 🚨 ENTERPRISE FIX: Mathematically flipped a and b to force DESCENDING alphanumeric order (Newest first!)
         recentSales.sort((a,b) => String(b.orderNo || b.invoiceNo || b.id).localeCompare(String(a.orderNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
-        
-        // Take only the top 50 to prevent freezing the UI
-        const slicedSales = recentSales.slice(0, 50);
 
-        if (slicedSales.length > 0) {
-            html += `<li style="background: var(--md-surface-variant); font-weight: bold; pointer-events: none; padding: 8px 16px; border-radius: 4px;">Sales Invoices</li>`;
-            slicedSales.forEach(s => {
-                // BULLETPROOF: Save the exact Order/Invoice number directly!
-                const docNo = s.orderNo || s.invoiceNo || s.id;
-                const displayNo = s.orderNo || s.invoiceNo || s.id.slice(-4).toUpperCase();
-                const isSelected = currentSelected.includes(docNo);
-                const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
-                const checked = isSelected ? 'checked' : '';
-
-                html += `<li style="background: ${bg};" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
-                    <div><strong style="color:var(--md-primary);">${displayNo}</strong><br><small>${s.customerName}</small></div>
-                    <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none;">
-                </li>`;
-            });
-        }
-        
         const recentPurch = purchases.filter(p => p.firmId === app.state.firmId && p.status !== 'Open');
-        // 🚨 ENTERPRISE FIX: Mathematically flipped a and b to force DESCENDING alphanumeric order (Newest first!)
         recentPurch.sort((a,b) => String(b.orderNo || b.poNo || b.invoiceNo || b.id).localeCompare(String(a.orderNo || a.poNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
-        
-        // Take only the top 50 to prevent freezing the UI
-        const slicedPurch = recentPurch.slice(0, 50);
 
-        if (slicedPurch.length > 0) {
-            html += `<li style="background: var(--md-surface-variant); font-weight: bold; pointer-events: none; padding: 8px 16px; border-radius: 4px; margin-top: 12px;">Purchase Bills</li>`;
-            slicedPurch.forEach(p => {
-                // BULLETPROOF: Save the exact PO/Order number directly!
-                const docNo = p.orderNo || p.poNo || p.invoiceNo || p.id;
-                const displayNo = p.orderNo || p.poNo || p.invoiceNo || p.id.slice(-4).toUpperCase();
-                
-                const isSelected = currentSelected.includes(docNo);
-                const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
-                const checked = isSelected ? 'checked' : '';
-
-                html += `<li style="background: ${bg};" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
-                    <div><strong style="color:var(--md-error);">${displayNo}</strong><br><small>${p.supplierName}</small></div>
-                    <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none;">
-                </li>`;
-            });
+        // 3. Save to memory for the high-speed search engine!
+        if (window.UI) {
+            window.UI.state.expenseLinkedSales = recentSales;
+            window.UI.state.expenseLinkedPurchases = recentPurch;
         }
-        listEl.innerHTML = html;
+
+        // 4. Trigger the initial render
+        app.filterLinkedDocs('');
     },
 
     selectLinkedDoc: (id, displayName, liElement = null) => {
@@ -5992,11 +6035,10 @@ if (data.id && splitConfirmed) {
             inputEl.value = '';
             displayEl.innerText = '-- No Link (General Expense) --';
             displayEl.style.color = 'var(--md-text-muted)';
-            // 🚨 ENTERPRISE FIX: Removed UI.closeBottomSheet so it just unlinks without closing the screen!
-            document.querySelectorAll('#list-linked-docs li input[type="checkbox"]').forEach(cb => cb.checked = false);
-            document.querySelectorAll('#list-linked-docs li').forEach(li => {
-                if(li.style.pointerEvents !== 'none') li.style.background = 'transparent';
-            });
+            
+            // 🚨 ENTERPRISE FIX: Because it's virtualized, we must wipe the HTML and trigger a re-render!
+            document.getElementById('search-linked-docs').value = '';
+            app.filterLinkedDocs('');
             return;
         }
 
@@ -6027,13 +6069,62 @@ if (data.id && splitConfirmed) {
     },
 
     filterLinkedDocs: (term) => {
-        const listItems = document.querySelectorAll('#list-linked-docs li');
-        listItems.forEach(li => {
-            if(li.style.pointerEvents === 'none') return; // Skip headers
-            const text = li.innerText;
-            // ENTERPRISE UX: Powered by the new Fuzzy Search Engine!
-            li.style.display = window.fuzzyMatch(term, text) ? 'flex' : 'none';
+        if (!window.UI || !window.UI.state) return;
+        const listSales = document.getElementById('list-linked-sales');
+        const listPurch = document.getElementById('list-linked-purch');
+        if (!listSales || !listPurch) return;
+
+        const currentSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
+        const emptySalesHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No completed sales match your search.</div>`;
+        const emptyPurchHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No completed purchases match your search.</div>`;
+
+        // 1. Filter and Virtual-Render Sales
+        const allSales = window.UI.state.expenseLinkedSales || [];
+        const filteredSales = allSales.filter(s => {
+            const searchStr = (s.orderNo || s.invoiceNo || s.id || '') + ' ' + (s.customerName || '');
+            return window.fuzzyMatch(term, searchStr);
         });
+
+        window.UI.renderVirtualList(listSales, filteredSales, (s) => {
+            const docNo = s.orderNo || s.invoiceNo || s.id;
+            const displayNo = s.orderNo || s.invoiceNo || s.id.slice(-4).toUpperCase();
+            
+            // 🚨 DYNAMIC STATE FETCH: Grab the live input value here inside the loop so checkboxes never lose memory!
+            const liveSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
+            const isSelected = liveSelected.includes(docNo);
+            
+            const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
+            const checked = isSelected ? 'checked' : '';
+
+            return `<li style="background: ${bg}; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
+                <div style="flex:1; min-width:0;"><strong style="color:var(--md-primary); display:block; font-size:15px;">${displayNo}</strong><small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName}</small></div>
+                <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none; flex-shrink: 0;">
+            </li>`;
+        }, emptySalesHTML);
+
+        // 2. Filter and Virtual-Render Purchases
+        const allPurch = window.UI.state.expenseLinkedPurchases || [];
+        const filteredPurch = allPurch.filter(p => {
+            const searchStr = (p.orderNo || p.poNo || p.invoiceNo || p.id || '') + ' ' + (p.supplierName || '');
+            return window.fuzzyMatch(term, searchStr);
+        });
+
+        window.UI.renderVirtualList(listPurch, filteredPurch, (p) => {
+            const docNo = p.orderNo || p.poNo || p.invoiceNo || p.id;
+            const displayNo = p.orderNo || p.poNo || p.invoiceNo || p.id.slice(-4).toUpperCase();
+            
+            // 🚨 DYNAMIC STATE FETCH: Grab the live input value here inside the loop!
+            const liveSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
+            const isSelected = liveSelected.includes(docNo);
+            
+            const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
+            const checked = isSelected ? 'checked' : '';
+
+            return `<li style="background: ${bg}; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
+                <div style="flex:1; min-width:0;"><strong style="color:var(--md-error); display:block; font-size:15px;">${displayNo}</strong><small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.supplierName}</small></div>
+                <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none; flex-shrink: 0;">
+            </li>`;
+        }, emptyPurchHTML);
     },
 
     // ==========================================
@@ -6090,7 +6181,12 @@ if (data.id && splitConfirmed) {
         const types = ['inv', 'ord', 'po', 'cn', 'exp', 'rec', 'vou'];
         types.forEach(type => {
             const el = document.getElementById(`format-${type}-start`);
-            if (el && el.value) localStorage.setItem(`sollo_${type}_start`, el.value);
+            if (el && el.value) {
+                localStorage.setItem(`sollo_${type}_start`, el.value);
+            } else if (el && !el.value) {
+                // 🚨 ENTERPRISE FIX: Actually delete the memory if the user clears the text box!
+                localStorage.removeItem(`sollo_${type}_start`);
+            }
         });
 
         if (window.Utils) window.Utils.showToast("Document Formats Saved! ✅");
@@ -6201,7 +6297,7 @@ if (data.id && splitConfirmed) {
             const file = new File([blob], `FY_Closing_Report_${new Date().getFullYear()}.csv`, { type: 'text/csv' });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ title: "Year End Report", files: [file] });
+                try { await navigator.share({ title: "Year End Report", files: [file] }); } catch (e) {}
             } else if (window.Utils) {
                 window.Utils.downloadFile(csvContent, file.name, 'text/csv;charset=utf-8;');
             }
@@ -6293,7 +6389,7 @@ if (data.id && splitConfirmed) {
         const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
         const file = new File([blob], `Stock_Snapshot_${targetDateStr}.csv`, { type: 'text/csv' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ title: "Historical Stock Snapshot", files: [file] });
+            try { await navigator.share({ title: "Historical Stock Snapshot", files: [file] }); } catch (e) {}
         } else if (window.Utils) {
             window.Utils.downloadFile(csvContent, file.name, 'text/csv');
         }
@@ -6362,6 +6458,7 @@ if (data.id && splitConfirmed) {
                     deadStockCapital += trappedValue;
                     
                     deadItems.push({
+                        id: item.id, // <-- ADDED THIS
                         name: item.name,
                         stock: stock,
                         uom: item.uom || 'Unit',
@@ -6384,8 +6481,10 @@ if (data.id && splitConfirmed) {
         if (deadItems.length === 0) {
             html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">check_circle</span>No dead stock found! Inventory is moving well.</div>';
         } else {
-            html = deadItems.map(item => `
-                <div class="m3-card" style="padding: 12px; border-left: 4px solid var(--md-error);">
+            html = deadItems.map(item => {
+                const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(item.name).replace(/'/g, "\\'") : item.name;
+                return `
+                <div class="m3-card tap-target" onclick="window.triggerItemLedgerFromForm('${item.id}', '${safeName}')" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
                         <div style="flex:1; min-width:0; padding-right:8px;">
                             <strong style="color: var(--md-on-surface); font-size: 15px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</strong>
@@ -6401,7 +6500,8 @@ if (data.id && splitConfirmed) {
                         <span style="font-size: 11px; font-weight:bold; color: var(--md-secondary);">Last Sold: ${item.lastSold}</span>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         document.getElementById('dead-stock-list').innerHTML = html;
@@ -6426,7 +6526,7 @@ if (data.id && splitConfirmed) {
         const file = new File([blob], `Dead_Stock_Report_${window.Utils.getLocalDate()}.csv`, { type: 'text/csv' });
         
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ title: "Dead Stock Report", files: [file] });
+            try { await navigator.share({ title: "Dead Stock Report", files: [file] }); } catch (e) {}
         } else if (window.Utils) {
             window.Utils.downloadFile(csvContent, file.name, 'text/csv');
         }
@@ -6459,8 +6559,11 @@ if (data.id && splitConfirmed) {
             // Calculate exact discount ratio to find the TRUE selling price
             const rawSubtotal = parseFloat(s.subtotal) || 0;
             let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
-            if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-            const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
+            
+            // 🚨 CRITICAL MATH FIX: Safely handle negative subtotals for Credit Notes!
+            if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
+            if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
+            const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
             
             (s.items || []).forEach(item => {
                 const qty = parseFloat(item.qty) || 0;
@@ -6477,6 +6580,8 @@ if (data.id && splitConfirmed) {
                         if (!isReturn) {
                             totalLostRevenue += totalLoss;
                             leakageItems.push({
+                                id: s.id,
+                                docType: s.documentType || 'invoice',
                                 invoiceNo: s.invoiceNo || s.orderNo || 'Draft',
                                 date: window.Utils.formatDateDisplay(s.date),
                                 customerName: s.customerName || 'Unknown Party',
@@ -6504,7 +6609,7 @@ if (data.id && splitConfirmed) {
             html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">check_circle</span>All sales are mathematically profitable!<br><br>Perfect! No issues found.</div>';
         } else {
             html = leakageItems.map(item => `
-                <div class="m3-card" style="padding: 12px; border-left: 4px solid var(--md-error);">
+                <div class="m3-card tap-target" onclick="app.openForm('sales', '${item.id}', '${item.docType}')" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
                         <div style="flex:1; min-width:0; padding-right:8px;">
                             <strong style="color: var(--md-on-surface); font-size: 15px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.itemName}</strong>
@@ -6545,9 +6650,721 @@ if (data.id && splitConfirmed) {
         const file = new File([blob], `Profit_Leakage_Report_${window.Utils.getLocalDate()}.csv`, { type: 'text/csv' });
         
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ title: "Profit Leakage Report", files: [file] });
+            try { await navigator.share({ title: "Profit Leakage Report", files: [file] }); } catch (e) {}
         } else if (window.Utils) {
             window.Utils.downloadFile(csvContent, file.name, 'text/csv');
+        }
+    },
+
+    // ==========================================
+    // 🚀 ENTERPRISE UPGRADE: LIVE REPORT & PDF ENGINE (V3)
+    // ==========================================
+    openUniversalReport: (reportType) => {
+        const reportNames = {
+            'sales_register': 'Sales Register (Bill-wise)',
+            'customer_sales': 'Customer-wise Sales Analysis',
+            'purchase_register': 'Purchase Register (Bill-wise)',
+            'supplier_purchases': 'Supplier-wise Spend Analysis',
+            'item_purchases': 'Item-wise Purchase Volume',
+            'job_costing': 'Job Costing & Linked Expenses',
+            'receivables_aging': 'Receivables Aging (Debtors)',
+            'payables_aging': 'Payables Aging (Creditors)',
+            'gstr2_purchases': 'GSTR-2 (Input Tax Credit)',
+            'cashbook_summary': 'Cashbook Summary (All Accounts)'
+        };
+        const title = reportNames[reportType] || 'Financial Report';
+        app.state.currentUniversalReport = reportType;
+        
+        // 🚨 ENTERPRISE FIX: Pre-fill state to prevent 'replace' crashes if tapped too fast!
+        app.state.currentReportTitle = title;
+        app.state.currentReportHeaders = [];
+        app.state.currentReportRows = '';
+        app.state.currentReportKPIs = '';
+
+        let activity = document.getElementById('activity-universal-report');
+        if (!activity) {
+            const html = `
+            <div id="activity-universal-report" class="activity-screen hidden" style="z-index: 5500;">
+                <style>
+                    .report-table th { padding: 12px; background: var(--md-surface-variant); color: var(--md-on-surface-variant); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-bottom: 1px solid var(--md-outline-variant); text-align: left; }
+                    .report-table td { padding: 12px; border-bottom: 1px solid var(--md-surface-variant); color: var(--md-on-surface); white-space: nowrap; font-size: 13px; }
+                    .report-table .total-row td { background: var(--md-surface-variant); font-weight: 900; font-size: 14px; border-top: 2px solid var(--md-outline-variant); }
+                    .number-col { text-align: right !important; }
+                    .kpi-box { background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); flex: 1; min-width: 130px; }
+                    .kpi-label { font-size: 11px; text-transform: uppercase; color: var(--md-text-muted); font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px; }
+                    .kpi-value { font-size: 20px; font-weight: 900; color: var(--md-primary); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+                </style>
+                <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; position: relative;">
+                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; z-index: 2;">
+                        <span class="material-symbols-outlined tap-target" onclick="if(window.UI) UI.closeActivity('activity-universal-report')" style="padding: 4px; margin-left: -4px;">arrow_back</span>
+                        <strong id="uni-report-title" style="font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; position: static !important; transform: none !important; margin: 0 !important;">Financial Report</strong>
+                    </div>
+                    
+                    <!-- 🚨 UI UPGRADE: Standard Orange PDF Icon -->
+                    <div class="icon-circle tap-target" onclick="if(window.app) window.app.exportUniversalReportPDF()" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; position: relative; z-index: 2; margin: 0; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-symbols-outlined" style="font-size: 20px; position: static !important; transform: none !important; margin: 0 !important;">picture_as_pdf</span>
+                    </div>
+                </div>
+                <div class="activity-content" style="background: var(--md-background); padding: 16px;">
+                    
+                    <!-- Date Filter Card -->
+                    <div class="m3-card" style="margin-bottom: 16px; padding: 16px;">
+                        <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch;">
+                            <div class="tap-target" onclick="app.setUniversalDates('month')" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); color: var(--md-on-surface); font-size: 13px; font-weight: 700;">This Month</div>
+                            <div class="tap-target" onclick="app.setUniversalDates('last_month')" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); color: var(--md-on-surface); font-size: 13px; font-weight: 700;">Last Month</div>
+                            <div class="tap-target" onclick="app.setUniversalDates('year')" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); color: var(--md-on-surface); font-size: 13px; font-weight: 700;">This Year</div>
+                            <div class="tap-target" onclick="app.setUniversalDates('all')" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); color: var(--md-on-surface); font-size: 13px; font-weight: 700;">All Time</div>
+                        </div>
+                        <div style="display: flex; gap: 12px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">From Date</label>
+                                <input type="date" id="uni-report-from" onchange="app.renderUniversalReport()" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface); font-size: 14px; font-weight: bold; outline: none; box-sizing: border-box;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">To Date</label>
+                                <input type="date" id="uni-report-to" onchange="app.renderUniversalReport()" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface); font-size: 14px; font-weight: bold; outline: none; box-sizing: border-box;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPIs -->
+                    <div id="uni-report-kpis" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;"></div>
+
+                    <!-- Data Table -->
+                    <div class="m3-card" style="padding: 0; overflow: hidden;">
+                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+                            <table class="report-table" style="width: 100%; min-width: 600px; border-collapse: collapse;">
+                                <thead>
+                                    <tr id="uni-report-thead"></tr>
+                                </thead>
+                                <tbody id="uni-report-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        document.getElementById('uni-report-title').innerText = title;
+        app.setUniversalDates('year'); 
+        if(window.UI) UI.openActivity('activity-universal-report');
+    },
+
+    setUniversalDates: (range) => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        let from = '', to = '';
+
+        const safeToday = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : d.toISOString().split('T')[0];
+
+        if (range === 'month') {
+            from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+            to = safeToday;
+        } else if (range === 'last_month') {
+            let lastM = m - 1; let lastY = y;
+            if (lastM < 0) { lastM = 11; lastY -= 1; }
+            from = `${lastY}-${String(lastM + 1).padStart(2, '0')}-01`;
+            const lastDay = new Date(lastY, lastM + 1, 0).getDate();
+            to = `${lastY}-${String(lastM + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        } else if (range === 'year') {
+            const fyStartYear = m < 3 ? y - 1 : y;
+            from = `${fyStartYear}-04-01`;
+            to = safeToday;
+        } else if (range === 'all') {
+            from = `2000-01-01`;
+            to = `2099-12-31`; 
+        }
+
+        document.getElementById('uni-report-from').value = from;
+        document.getElementById('uni-report-to').value = to;
+        app.renderUniversalReport(); 
+    },
+
+    renderUniversalReport: async () => {
+        try {
+            const reportType = app.state.currentUniversalReport;
+            const fromDate = document.getElementById('uni-report-from').value;
+            const toDate = document.getElementById('uni-report-to').value;
+            const firmId = app.state.firmId;
+            
+            document.getElementById('uni-report-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--md-text-muted);">Fetching Data...</td></tr>`;
+
+            let tableHeaders = [];
+            let tableRowsHTML = "";
+            let kpiCardsHTML = ""; 
+            
+            const formatMoney = (amt) => '₹' + parseFloat(amt).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+            
+            if (reportType === 'sales_register' || reportType === 'purchase_register') {
+                const isSale = reportType === 'sales_register';
+                tableHeaders = ['Date', 'Document No.', isSale ? 'Customer Name' : 'Supplier Name', 'Taxable Val', 'Tax Amt', 'Grand Total'];
+                
+                const docs = (await window.getAllRecords(isSale ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(s => s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromDate && s.date <= toDate);
+                docs.sort((a,b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+                
+                let tTaxable = 0, tGst = 0, tTotal = 0, cnCount = 0;
+                docs.forEach(s => {
+                    const mult = s.documentType === 'return' ? -1 : 1;
+                    if (mult < 0) cnCount++;
+                    const grand = (parseFloat(s.grandTotal)||0) * mult;
+                    const gst = (parseFloat(s.totalGst)||0) * mult;
+                    const taxable = grand - gst;
+                    tTaxable += taxable; tGst += gst; tTotal += grand;
+                    
+                    const docLabel = s.invoiceNo || s.poNo || s.orderNo || String(s.id).substring(0,6).toUpperCase();
+                    const partyName = isSale ? (s.customerName || 'Unknown') : (s.supplierName || 'Unknown');
+                    
+                    tableRowsHTML += `
+                    <tr>
+                        <td>${window.Utils.formatDateDisplay(s.date)}</td>
+                        <td><strong>${docLabel}</strong> ${mult < 0 ? `<br><span style="color:var(--md-error); font-size:9px; font-weight:800; letter-spacing:0.5px;">${isSale ? 'CREDIT NOTE' : 'DEBIT NOTE'}</span>` : ''}</td>
+                        <td>${partyName}</td>
+                        <td class="number-col">${formatMoney(taxable)}</td>
+                        <td class="number-col">${formatMoney(gst)}</td>
+                        <td class="number-col"><strong style="color: ${mult < 0 ? 'var(--md-error)' : 'var(--md-on-surface)'};">${formatMoney(grand)}</strong></td>
+                    </tr>`;
+                });
+
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Total Documents</div><div class="kpi-value">${docs.length} <span style="font-size: 11px; color: var(--md-error); font-weight: 600;">(${cnCount} Returns)</span></div></div>
+                    <div class="kpi-box"><div class="kpi-label">Total Taxable</div><div class="kpi-value">${formatMoney(tTaxable)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Total GST</div><div class="kpi-value" style="color: var(--md-primary);">${formatMoney(tGst)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-primary);">Net Grand Total</div><div class="kpi-value" style="color: var(--md-primary);">${formatMoney(tTotal)}</div></div>
+                `;
+                
+                if(docs.length > 0) {
+                    tableRowsHTML += `<tr class="total-row">
+                        <td colspan="3" style="text-align:right;">TOTAL:</td>
+                        <td class="number-col">${formatMoney(tTaxable)}</td>
+                        <td class="number-col">${formatMoney(tGst)}</td>
+                        <td class="number-col" style="color: var(--md-on-surface);">${formatMoney(tTotal)}</td>
+                    </tr>`;
+                }
+            }
+            else if (reportType === 'customer_sales' || reportType === 'supplier_purchases') {
+                const isSale = reportType === 'customer_sales';
+                tableHeaders = ['Rank', isSale ? 'Customer Name' : 'Supplier Name', 'Total Docs', 'Gross Volume', '% of Total'];
+                
+                const docs = (await window.getAllRecords(isSale ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(s => s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromDate && s.date <= toDate);
+                const pMap = {};
+                let globalVol = 0;
+
+                docs.forEach(s => {
+                    const pId = isSale ? s.customerId : s.supplierId;
+                    const pName = isSale ? s.customerName : s.supplierName;
+                    const mult = s.documentType === 'return' ? -1 : 1;
+                    const grand = (parseFloat(s.grandTotal)||0) * mult;
+                    
+                    if(!pMap[pId]) pMap[pId] = { name: pName, count: 0, total: 0 };
+                    pMap[pId].total += grand;
+                    globalVol += grand;
+                    if(mult > 0) pMap[pId].count += 1;
+                });
+                
+                const pArr = Object.values(pMap).filter(p => p.total > 0).sort((a,b) => b.total - a.total);
+                
+                pArr.forEach((c, idx) => {
+                    const pct = globalVol > 0 ? ((c.total / globalVol) * 100).toFixed(1) : 0;
+                    tableRowsHTML += `
+                    <tr>
+                        <td style="text-align:center;"><strong>#${idx+1}</strong></td>
+                        <td><strong>${c.name}</strong></td>
+                        <td style="text-align:center;">${c.count}</td>
+                        <td class="number-col"><strong>${formatMoney(c.total)}</strong></td>
+                        <td class="number-col"><span style="background: var(--md-surface-variant); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-size: 10px;">${pct}%</span></td>
+                    </tr>`;
+                });
+
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Active ${isSale ? 'Customers' : 'Suppliers'}</div><div class="kpi-value">${pArr.length}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Average Deal Size</div><div class="kpi-value">${formatMoney(docs.length > 0 ? (globalVol / docs.length) : 0)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-success);">Total ${isSale ? 'Revenue' : 'Spend'}</div><div class="kpi-value" style="color: var(--md-success);">${formatMoney(globalVol)}</div></div>
+                `;
+            }
+            else if (reportType === 'receivables_aging' || reportType === 'payables_aging') {
+                const isRec = reportType === 'receivables_aging';
+                tableHeaders = ['Party Name', 'Current (0-30 D)', 'Warning (31-60 D)', 'High Risk (60+ D)', 'Total Outstanding'];
+                
+                const allDocs = (await window.getAllRecords(isRec ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(d => d.status !== 'Open' && d.status !== 'Cancelled' && d.documentType !== 'return');
+                const allReturns = (await window.getAllRecords(isRec ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(d => d.status !== 'Open' && d.status !== 'Cancelled' && d.documentType === 'return');
+                const allReceipts = await window.getAllRecords('receipts', 'firmId', firmId) || [];
+                
+                const returnMap = {};
+                allReturns.forEach(r => { if(r.orderNo) returnMap[r.orderNo] = (returnMap[r.orderNo]||0) + (parseFloat(r.grandTotal)||0); });
+                
+                const paymentMap = {};
+                allReceipts.forEach(r => {
+                    if(r.invoiceRef && ((isRec && r.type==='in') || (!isRec && r.type==='out'))) {
+                        const refs = String(r.invoiceRef).split(',').map(x=>x.trim()).filter(Boolean);
+                        let rem = parseFloat(r.amount)||0;
+                        refs.forEach(ref => {
+                            let innerDoc = allDocs.find(d => d.id===ref || d.invoiceNo===ref || d.poNo===ref || d.orderNo===ref);
+                            let returned = [innerDoc?.orderNo, innerDoc?.invoiceNo, innerDoc?.poNo, innerDoc?.id, ref].filter(Boolean).reduce((sum, rx)=>sum+(returnMap[rx]||0), 0);
+                            let docTot = innerDoc ? Math.max(0, (parseFloat(innerDoc.grandTotal)||0) - returned) : rem/refs.length;
+                            let apply = Math.min(docTot, rem);
+                            if(apply > 0) { paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`]||0) + apply; rem -= apply; }
+                        });
+                        if(rem > 0 && refs[0]) paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`]||0) + rem;
+                    }
+                });
+
+                const partyAging = {};
+                const today = new Date();
+                
+                allDocs.forEach(doc => {
+                    const pId = isRec ? doc.customerId : doc.supplierId;
+                    if(!partyAging[pId]) partyAging[pId] = { name: isRec ? doc.customerName : doc.supplierName, b30: 0, b60: 0, b90: 0, total: 0 };
+                    
+                    const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                    const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${pId}_${ref}`] || 0), 0);
+                    const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
+                    const bal = Math.max(0, (parseFloat(doc.grandTotal)||0) - paid - returned);
+                    
+                    if(bal > 0.01) {
+                        const baseDate = doc.shippedDate ? doc.shippedDate : doc.date;
+                        const diffTime = today - window.Utils.safeDate(baseDate);
+                        if(diffTime >= 0) {
+                            const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                            if(days <= 30) partyAging[pId].b30 += bal;
+                            else if(days <= 60) partyAging[pId].b60 += bal;
+                            else partyAging[pId].b90 += bal;
+                            partyAging[pId].total += bal;
+                        } else {
+                            partyAging[pId].b30 += bal; 
+                            partyAging[pId].total += bal;
+                        }
+                    }
+                });
+
+                const paArr = Object.values(partyAging).filter(p => p.total > 0).sort((a,b) => b.total - a.total);
+                let tb30=0, tb60=0, tb90=0, tAll=0;
+                
+                paArr.forEach(p => {
+                    tb30+=p.b30; tb60+=p.b60; tb90+=p.b90; tAll+=p.total;
+                    tableRowsHTML += `<tr>
+                        <td><strong>${p.name}</strong></td>
+                        <td class="number-col" style="color:var(--md-success);">${p.b30 > 0 ? formatMoney(p.b30) : '-'}</td>
+                        <td class="number-col" style="color:#d97706;">${p.b60 > 0 ? formatMoney(p.b60) : '-'}</td>
+                        <td class="number-col" style="color:var(--md-error);">${p.b90 > 0 ? formatMoney(p.b90) : '-'}</td>
+                        <td class="number-col"><strong style="color: var(--md-on-surface);">${formatMoney(p.total)}</strong></td>
+                    </tr>`;
+                });
+                
+                if(paArr.length > 0) {
+                    tableRowsHTML += `<tr class="total-row">
+                        <td style="text-align:right;">TOTAL OUTSTANDING:</td>
+                        <td class="number-col" style="color:var(--md-success);">${formatMoney(tb30)}</td>
+                        <td class="number-col" style="color:#d97706;">${formatMoney(tb60)}</td>
+                        <td class="number-col" style="color:var(--md-error);">${formatMoney(tb90)}</td>
+                        <td class="number-col" style="color: var(--md-on-surface);">${formatMoney(tAll)}</td>
+                    </tr>`;
+                }
+
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-success);">Healthy (0-30 Days)</div><div class="kpi-value" style="color: var(--md-success);">${formatMoney(tb30)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: #d97706;">Warning (31-60 Days)</div><div class="kpi-value" style="color: #d97706;">${formatMoney(tb60)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-error);">High Risk (60+ Days)</div><div class="kpi-value" style="color: var(--md-error);">${formatMoney(tb90)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Total ${isRec ? 'Receivables' : 'Payables'}</div><div class="kpi-value">${formatMoney(tAll)}</div></div>
+                `;
+            }
+            else if (reportType === 'item_purchases') {
+                tableHeaders = ['Rank', 'Item Name', 'Qty Purchased', 'Avg Buy Price', 'Total Spend'];
+                
+                const docs = (await window.getAllRecords('purchases', 'firmId', firmId) || []).filter(p => p.status !== 'Open' && p.status !== 'Cancelled' && p.date >= fromDate && p.date <= toDate);
+                const itemMap = {};
+                let tVol = 0, tQty = 0;
+
+                docs.forEach(p => {
+                    const mult = p.documentType === 'return' ? -1 : 1;
+                    (p.items || []).forEach(row => {
+                        const id = row.itemId || row.name;
+                        if(!itemMap[id]) itemMap[id] = { name: row.name, qty: 0, val: 0, uom: row.uom || 'Unit' };
+                        
+                        const q = (parseFloat(row.qty) || 0) * mult;
+                        const v = q * (parseFloat(row.rate) || 0);
+                        itemMap[id].qty += q;
+                        itemMap[id].val += v;
+                        tVol += v;
+                        tQty += q;
+                    });
+                });
+
+                const iArr = Object.values(itemMap).filter(i => i.qty > 0).sort((a,b) => b.val - a.val);
+                
+                iArr.forEach((c, idx) => {
+                    const avgPrice = c.qty > 0 ? (c.val / c.qty) : 0;
+                    tableRowsHTML += `
+                    <tr>
+                        <td style="text-align:center;"><strong>#${idx+1}</strong></td>
+                        <td><strong>${c.name}</strong></td>
+                        <td style="text-align:center;">${c.qty.toFixed(2)} <span style="font-size:10px; color:var(--md-text-muted);">${c.uom}</span></td>
+                        <td class="number-col">${formatMoney(avgPrice)}</td>
+                        <td class="number-col"><strong style="color: var(--md-on-surface);">${formatMoney(c.val)}</strong></td>
+                    </tr>`;
+                });
+
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Unique Items Bought</div><div class="kpi-value">${iArr.length}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Total Units Acquired</div><div class="kpi-value">${tQty.toFixed(2)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-error);">Total Capital Deployed</div><div class="kpi-value" style="color: var(--md-error);">${formatMoney(tVol)}</div></div>
+                `;
+            }
+            else if (reportType === 'job_costing') {
+                tableHeaders = ['Date', 'Expense No.', 'Category', 'Linked Sale / Job', 'Expense Amount'];
+                
+                const expenses = (await window.getAllRecords('expenses', 'firmId', firmId) || []).filter(e => e.date >= fromDate && e.date <= toDate && e.linkedInvoice && e.linkedInvoice.trim() !== '');
+                expenses.sort((a,b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+                
+                let tExp = 0;
+                expenses.forEach(e => {
+                    const amt = parseFloat(e.amount) || 0;
+                    tExp += amt;
+                    
+                    const links = e.linkedInvoice.split(',').map(x => x.trim()).filter(Boolean);
+                    const displayLinks = links.map(link => {
+                        const cleanLink = link.startsWith('sollo-') ? link.slice(-4).toUpperCase() : link;
+                        return `<span style="background: var(--md-surface-variant); color: var(--md-primary); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; margin-right: 4px;">🔗 ${cleanLink}</span>`;
+                    }).join('');
+
+                    tableRowsHTML += `
+                    <tr>
+                        <td>${window.Utils.formatDateDisplay(e.date)}</td>
+                        <td><strong>${e.expenseNo || String(e.id).slice(-6).toUpperCase()}</strong></td>
+                        <td>${e.category} ${e.notes ? `<br><span style="font-size:10px; color:var(--md-text-muted);">${e.notes}</span>` : ''}</td>
+                        <td>${displayLinks}</td>
+                        <td class="number-col"><strong style="color: var(--md-error);">${formatMoney(amt)}</strong></td>
+                    </tr>`;
+                });
+
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Jobs/Sales Linked</div><div class="kpi-value">${expenses.length}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-error);">Total Linked Expenses</div><div class="kpi-value" style="color: var(--md-error);">${formatMoney(tExp)}</div></div>
+                `;
+            }
+            else if (reportType === 'gstr2_purchases') {
+                tableHeaders = ['Date', 'Bill No.', 'Supplier (GSTIN)', 'Taxable Val', 'CGST', 'SGST', 'Total ITC'];
+                
+                const docs = (await window.getAllRecords('purchases', 'firmId', firmId) || []).filter(p => p.status !== 'Open' && p.status !== 'Cancelled' && p.date >= fromDate && p.date <= toDate && p.invoiceType !== 'Non-GST');
+                docs.sort((a,b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+                
+                let tTaxable = 0, tCgst = 0, tSgst = 0, tItc = 0;
+                docs.forEach(p => {
+                    const mult = p.documentType === 'return' ? -1 : 1;
+                    const grand = (parseFloat(p.grandTotal)||0) * mult;
+                    const gst = (parseFloat(p.totalGst)||0) * mult;
+                    const taxable = grand - gst;
+                    const halfGst = gst / 2;
+                    
+                    tTaxable += taxable; tCgst += halfGst; tSgst += halfGst; tItc += gst;
+                    
+                    const docLabel = p.poNo || p.invoiceNo || p.orderNo || String(p.id).substring(0,6).toUpperCase();
+                    
+                    tableRowsHTML += `
+                    <tr>
+                        <td>${window.Utils.formatDateDisplay(p.date)}</td>
+                        <td><strong>${docLabel}</strong> ${mult < 0 ? `<br><span style="color:var(--md-error); font-size:9px; font-weight:800;">(DEBIT NOTE)</span>` : ''}</td>
+                        <td>${p.supplierName} <br><span style="font-size:10px; color:var(--md-text-muted); font-family: monospace;">${p.supplierGst || 'UNREGISTERED'}</span></td>
+                        <td class="number-col">${formatMoney(taxable)}</td>
+                        <td class="number-col" style="color:var(--md-primary);">${formatMoney(halfGst)}</td>
+                        <td class="number-col" style="color:var(--md-primary);">${formatMoney(halfGst)}</td>
+                        <td class="number-col"><strong style="color: var(--md-success);">${formatMoney(gst)}</strong></td>
+                    </tr>`;
+                });
+
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Total B2B Bills</div><div class="kpi-value">${docs.length}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Taxable Purchase Val</div><div class="kpi-value">${formatMoney(tTaxable)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-success);">Total ITC Claimable</div><div class="kpi-value" style="color: var(--md-success);">${formatMoney(tItc)}</div></div>
+                `;
+                
+                if(docs.length > 0) {
+                    tableRowsHTML += `<tr class="total-row">
+                        <td colspan="3" style="text-align:right;">TOTAL ITC:</td>
+                        <td class="number-col">${formatMoney(tTaxable)}</td>
+                        <td class="number-col">${formatMoney(tCgst)}</td>
+                        <td class="number-col">${formatMoney(tSgst)}</td>
+                        <td class="number-col" style="color: var(--md-success);">${formatMoney(tItc)}</td>
+                    </tr>`;
+                }
+            }
+            else if (reportType === 'cashbook_summary') {
+                tableHeaders = ['Date', 'Voucher No.', 'Party / Description', 'Account', 'Money In', 'Money Out'];
+                
+                const receipts = (await window.getAllRecords('receipts', 'firmId', firmId) || []).filter(r => r.date >= fromDate && r.date <= toDate);
+                receipts.sort((a,b) => window.Utils.safeDate(b.date) - window.Utils.safeDate(a.date));
+                
+                let tIn = 0, tOut = 0;
+                
+                receipts.forEach(r => {
+                    const amt = parseFloat(r.amount) || 0;
+                    const isIn = r.type === 'in';
+                    if (isIn) tIn += amt; else tOut += amt;
+                    
+                    const docLabel = r.receiptNo || String(r.id).slice(-6).toUpperCase();
+                    
+                    tableRowsHTML += `
+                    <tr>
+                        <td>${window.Utils.formatDateDisplay(r.date)}</td>
+                        <td><strong>${docLabel}</strong></td>
+                        <td><strong style="color: var(--md-on-surface);">${r.ledgerName || 'General'}</strong><br><span style="font-size: 10px; color: var(--md-text-muted);">${r.desc || '-'}</span></td>
+                        <td>${r.accountId === 'cash' || !r.accountId ? 'Cash Drawer' : 'Bank / Digital'}</td>
+                        <td class="number-col" style="color:var(--md-success); font-weight: bold;">${isIn ? formatMoney(amt) : '-'}</td>
+                        <td class="number-col" style="color:var(--md-error); font-weight: bold;">${!isIn ? formatMoney(amt) : '-'}</td>
+                    </tr>`;
+                });
+
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Total Transactions</div><div class="kpi-value">${receipts.length}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-success);">Total Money In</div><div class="kpi-value" style="color: var(--md-success);">${formatMoney(tIn)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-error);">Total Money Out</div><div class="kpi-value" style="color: var(--md-error);">${formatMoney(tOut)}</div></div>
+                    <div class="kpi-box" style="background: rgba(0, 97, 164, 0.05); border: 1px solid rgba(0, 97, 164, 0.2);"><div class="kpi-label" style="color: var(--md-primary);">Net Period Cashflow</div><div class="kpi-value" style="color: var(--md-primary);">${formatMoney(tIn - tOut)}</div></div>
+                `;
+                
+                if(receipts.length > 0) {
+                    tableRowsHTML += `<tr class="total-row">
+                        <td colspan="4" style="text-align:right;">PERIOD TOTALS:</td>
+                        <td class="number-col" style="color: var(--md-success);">${formatMoney(tIn)}</td>
+                        <td class="number-col" style="color: var(--md-error);">${formatMoney(tOut)}</td>
+                    </tr>`;
+                }
+            }
+
+            // =====================================
+            // INJECT INTO MOBILE SCREEN
+            // =====================================
+            document.getElementById('uni-report-thead').innerHTML = tableHeaders.map(th => `<th class="${th.includes('₹') || th.includes('Val') || th.includes('Amt') || th.includes('Total') || th.includes('Spend') || th.includes('Volume') || th.includes('CGST') || th.includes('SGST') || th.includes('ITC') || th.includes('Avg') || th.includes('Days') || th.includes('Money') ? 'number-col' : ''}">${th}</th>`).join('');
+            document.getElementById('uni-report-tbody').innerHTML = tableRowsHTML || `<tr><td colspan="${tableHeaders.length}" style="text-align:center; padding: 40px; color: var(--md-text-muted); font-weight: 600;">No records found for the selected period.</td></tr>`;
+            document.getElementById('uni-report-kpis').innerHTML = kpiCardsHTML;
+
+            // Save State for PDF Engine
+            app.state.currentReportHeaders = tableHeaders;
+            app.state.currentReportRows = tableRowsHTML;
+            app.state.currentReportKPIs = kpiCardsHTML;
+            
+        } catch (error) {
+            console.error("Live Report Render Error:", error);
+            if (window.Utils) window.Utils.showToast("Error rendering data.");
+        }
+    },
+
+    exportUniversalReportPDF: async () => {
+        try {
+            // 🚨 ENTERPRISE FIX: Safety net protects against the 'replace' crash!
+            if (!app.state.currentReportHeaders || app.state.currentReportHeaders.length === 0) {
+                if(window.Utils) window.Utils.showToast("Please wait for data to load... ⏳");
+                return;
+            }
+
+            if(window.Utils) window.Utils.showToast("Preparing Preview... ⏳");
+
+            const reportTitle = app.state.currentReportTitle || 'Report';
+            const thHTML = app.state.currentReportHeaders.map(th => `<th class="${th.includes('₹') || th.includes('Val') || th.includes('Amt') || th.includes('Total') || th.includes('Spend') || th.includes('Volume') || th.includes('CGST') || th.includes('SGST') || th.includes('ITC') || th.includes('Avg') || th.includes('Days') || th.includes('Money') ? 'number-col' : ''}">${th}</th>`).join('');
+            
+            // 🚨 CRASH FIX: Protects 'replace' from crashing if the HTML is ever blank
+            const cleanColors = (html) => (html || '').replace(/var\(--md-error\)/g, '#dc2626')
+                                            .replace(/var\(--md-success\)/g, '#16a34a')
+                                            .replace(/var\(--md-primary\)/g, '#0061a4')
+                                            .replace(/var\(--md-surface-variant\)/g, '#f1f5f9')
+                                            .replace(/var\(--md-on-surface\)/g, '#0f172a')
+                                            .replace(/var\(--md-text-muted\)/g, '#64748b');
+
+            const tableRowsHTML = cleanColors(app.state.currentReportRows);
+            const kpiCardsHTML = cleanColors(app.state.currentReportKPIs);
+
+            const fromDate = document.getElementById('uni-report-from').value;
+            const toDate = document.getElementById('uni-report-to').value;
+            const firmId = app.state.firmId;
+            
+            let biz = {};
+            if (typeof window.getRecordById === 'function') {
+                biz = await window.getRecordById('businessProfile', firmId) || {};
+            }
+
+            const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+            const dateRangeStr = (fromDate === '2000-01-01') ? 'All Time' : `${window.Utils.formatDateDisplay(fromDate)} to ${window.Utils.formatDateDisplay(toDate)}`;
+
+            const safeFilename = `${(reportTitle || 'Report').replace(/ /g, '_')}_${new Date().getTime()}.pdf`;
+            
+            // 🚨 THE FIX: Dual-ID System!
+            // One ID for the pure, unzoomed PDF export, and a second ID for the zoomed visual screen!
+            const uniquePdfId = 'pdf-report-' + Date.now();
+            const visualPdfId = uniquePdfId + '-visual';
+
+            // Function to generate the identical HTML for both targets
+            const buildDocumentHTML = (targetId) => `
+            <div id="${targetId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 794px; min-width: 794px; max-width: 794px; min-height: 1123px; padding: 40px; box-sizing: border-box; position: relative; margin: 0 auto; text-align: left;">
+                <style>
+                    #${targetId} table { page-break-inside: auto; border-collapse: collapse; width: 100%; font-size: 11px; margin-top: 24px; }
+                    #${targetId} tr { page-break-inside: avoid; page-break-after: auto; }
+                    #${targetId} thead { display: table-header-group; }
+                    #${targetId} th { background: #f8fafc; color: #475569; font-weight: 800; text-transform: uppercase; padding: 12px 8px; border-bottom: 2px solid #cbd5e1; text-align: left; font-size: 10px; letter-spacing: 0.5px; }
+                    #${targetId} td { padding: 12px 8px; border-bottom: 1px solid #e2e8f0; color: #1e293b; vertical-align: middle; white-space: normal; word-wrap: break-word; }
+                    #${targetId} th.number-col, #${targetId} td.number-col { text-align: right; font-variant-numeric: tabular-nums; }
+                    #${targetId} tbody tr:nth-child(even) { background-color: #f8fafc; }
+                    #${targetId} .total-row td { background: #f1f5f9; font-weight: 900; font-size: 13px; border-top: 2px solid #cbd5e1; }
+                    .kpi-container { display: flex; gap: 16px; margin-bottom: 24px; margin-top: 16px; page-break-inside: avoid; }
+                    .kpi-box { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center; flex: 1; }
+                    .kpi-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+                    .kpi-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 800; letter-spacing: 0.5px; }
+                </style>
+
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px;">
+                    <div style="max-width: 60%;">
+                        ${biz.logo ? `<img src="${biz.logo}" style="max-height: 50px; max-width: 150px; object-fit: contain; margin-bottom: 8px;">` : ''}
+                        <h1 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase;">${biz.name || 'Company Name'}</h1>
+                        <div style="font-size: 11px; color: #64748b; line-height: 1.5;">
+                            ${biz.address ? biz.address.replace(/\n/g, '<br>') + '<br>' : ''}
+                            ${bizLocationStr ? bizLocationStr + '<br>' : ''}
+                            ${biz.gst ? `<strong style="color: #0f172a;">GSTIN:</strong> ${biz.gst}` : ''}
+                        </div>
+                    </div>
+                    <div style="text-align: right; max-width: 40%;">
+                        <h2 style="margin: 0 0 10px 0; font-size: 18px; color: #0061a4; font-weight: 900; letter-spacing: 0.5px;">${reportTitle}</h2>
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 16px; border-radius: 6px; display: inline-block; text-align: right;">
+                            <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 4px;">Reporting Period</div>
+                            <div style="font-size: 13px; font-weight: 800; color: #0f172a;">${dateRangeStr}</div>
+                        </div>
+                    </div>
+                </div>
+
+                ${kpiCardsHTML ? `<div class="kpi-container">${kpiCardsHTML}</div>` : ''}
+
+                <table>
+                    <thead>
+                        <tr>${thHTML}</tr>
+                    </thead>
+                    <tbody>
+                        ${tableRowsHTML || `<tr><td colspan="${app.state.currentReportHeaders.length}" style="text-align:center; padding: 40px; color: #64748b; font-weight: 600;">No records found for the selected period.</td></tr>`}
+                    </tbody>
+                </table>
+
+                <div class="invoice-footer" style="text-align: center; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 10px; color: #94a3b8; font-weight: 600; page-break-inside: avoid;">
+                    Securely Generated by SOLLO ERP on ${new Date().toLocaleString('en-IN')}
+                </div>
+            </div>
+            `;
+
+            const finalHTML = buildDocumentHTML(uniquePdfId);
+            const visualHTML = buildDocumentHTML(visualPdfId);
+
+            // 1. 🚨 INJECT PURE UNZOOMED HTML INTO THE HIDDEN PRINT AREA 
+            // This guarantees the PDF generator gets a crystal clear, 100% scale document to export!
+            const printArea = document.getElementById('print-area');
+            if (printArea) {
+                printArea.innerHTML = finalHTML;
+            }
+
+            // 2. 🚨 INJECT THE VISUAL HTML INTO THE MOBILE ZOOM VIEWER (WITH DARK MODE SHIELD)
+            document.querySelectorAll('#activity-report-pdf-viewer').forEach(el => el.remove());
+            const initialZoom = window.innerWidth / 830; 
+
+            const viewerHTML = `
+            <div id="activity-report-pdf-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column; background: var(--md-background, #94a3b8);">
+                <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; position: relative; padding: 8px 12px; min-height: 56px; background: var(--md-surface, white); border-bottom: 1px solid var(--md-outline-variant, #cbd5e1);">
+                    
+                    <!-- ⬅️ Back Arrow & Title -->
+                    <div style="display: flex; align-items: center; gap: 8px; flex: 1; z-index: 2;">
+                        <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-report-pdf-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-report-pdf-viewer').remove(), 350);" style="padding: 4px; position: static !important; transform: none !important; margin: 0 !important; color: var(--md-on-surface, #0f172a);">arrow_back</span>
+                        <strong style="font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; color: var(--md-on-surface, #0f172a); position: static !important; transform: none !important;">A4 Preview</strong>
+                    </div>
+                    
+                    <!-- 🚀 ZOOM CONTROLS (DARK MODE SAFE) -->
+                    <div style="display: flex; align-items: center; background: var(--md-surface-variant, #f1f5f9); border-radius: 8px; margin-right: 12px; border: 1px solid var(--md-outline-variant, #cbd5e1); z-index: 2;">
+                        <span class="material-symbols-outlined tap-target" onclick="const p=document.getElementById('pdf-zoom-container'); let z=parseFloat(p.style.zoom||${initialZoom}); z-=0.1; if(z<0.2)z=0.2; p.style.zoom=z;" style="padding: 6px; font-size: 20px; color: var(--md-on-surface, #0f172a); position: static !important; transform: none !important; margin: 0 !important;">zoom_out</span>
+                        <span class="material-symbols-outlined tap-target" onclick="document.getElementById('pdf-zoom-container').style.zoom=${initialZoom};" style="padding: 6px; font-size: 18px; color: var(--md-on-surface, #0f172a); border-left: 1px solid var(--md-outline-variant, #cbd5e1); border-right: 1px solid var(--md-outline-variant, #cbd5e1); position: static !important; transform: none !important; margin: 0 !important;">fit_screen</span>
+                        <span class="material-symbols-outlined tap-target" onclick="const p=document.getElementById('pdf-zoom-container'); let z=parseFloat(p.style.zoom||${initialZoom}); z+=0.1; if(z>2)z=2; p.style.zoom=z;" style="padding: 6px; font-size: 20px; color: var(--md-on-surface, #0f172a); position: static !important; transform: none !important; margin: 0 !important;">zoom_in</span>
+                    </div>
+
+                    <!-- 🚀 PDF EXPORT BUTTON -->
+                    <div class="icon-circle tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}')" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; position: relative; z-index: 2; margin: 0; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-symbols-outlined" style="font-size: 20px; position: static !important; transform: none !important; margin: 0 !important;">picture_as_pdf</span>
+                    </div>
+
+                </div>
+                
+                <div class="activity-content" style="flex: 1; padding: 0; overflow: auto; text-align: center; -webkit-overflow-scrolling: touch;">
+                    <div id="pdf-zoom-container" style="zoom: ${initialZoom}; display: inline-block; padding: 20px; transition: zoom 0.2s ease;">
+                        <div style="background: transparent; text-align: left; box-shadow: 0 12px 32px rgba(0,0,0,0.3);">
+                            ${visualHTML}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', viewerHTML);
+            
+            setTimeout(() => {
+                document.getElementById('activity-report-pdf-viewer').classList.add('open');
+                if(window.Utils) window.Utils.showToast("✅ Document Ready!");
+            }, 50);
+
+        } catch (error) {
+            console.error("PDF Preview Error:", error);
+            if(window.Utils) window.Utils.alertModal("Error generating preview: " + error.message, "System Error");
+        }
+    },
+
+    // ==========================================
+    // 🏦 ENTERPRISE FIX: BANK LEDGER MENU ROUTING
+    // ==========================================
+    openBankLedgerMenu: async () => {
+        try {
+            const activeFirmId = app.state.firmId;
+            let allAccounts = [];
+            // 🚨 CRASH FIX: Added safe window fallback for db.js queries!
+            if (typeof window.getAllRecords === 'function') {
+                allAccounts = await window.getAllRecords('accounts') || [];
+            }
+            const accounts = allAccounts.filter(a => a.firmId === activeFirmId);
+            
+            // Ensure default cash drawer is always listed
+            const displayAccounts = [...accounts];
+            if (!displayAccounts.find(a => a.id === 'cash')) {
+                displayAccounts.unshift({ id: 'cash', name: 'Cash Drawer', type: 'Cash', openingBalance: 0 });
+            }
+
+            // Clean up any old ghost menus to prevent duplicates
+            const oldSheet = document.getElementById('sheet-bank-ledger-select');
+            if (oldSheet) oldSheet.remove();
+            const oldOverlay = document.getElementById('bank-ledger-overlay');
+            if (oldOverlay) oldOverlay.remove();
+
+            let sheetHTML = `
+            <div id="sheet-bank-ledger-select" class="bottom-sheet open" style="z-index: 9999; max-height: 80vh;">
+                <div class="sheet-header" style="background: var(--md-surface); position: sticky; top: 0; z-index: 10;">
+                    <div>
+                        <span style="font-size: 18px; font-weight: 600; display: block;">Bank & Cash Ledgers</span>
+                        <small style="color: var(--md-text-muted);">Select an account to view passbook</small>
+                    </div>
+                    <span class="material-symbols-outlined tap-target" onclick="this.closest('.bottom-sheet').remove(); document.getElementById('bank-ledger-overlay').remove();" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
+                </div>
+                <div style="padding: 16px; overflow-y: auto;">
+                    ${displayAccounts.map(a => `
+                        <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant);" 
+                             onclick="if(window.app) window.app.openAccountLedger('${a.id}'); this.closest('.bottom-sheet').remove(); document.getElementById('bank-ledger-overlay').remove();">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); box-shadow: none;">
+                                    <span class="material-symbols-outlined" style="font-size: 20px;">${a.id === 'cash' ? 'payments' : 'account_balance'}</span>
+                                </div>
+                                <div>
+                                    <strong style="font-size: 15px;">${a.name}</strong><br>
+                                    <small style="color:var(--md-text-muted)">${a.type || 'Bank'}</small>
+                                </div>
+                            </div>
+                            <span class="material-symbols-outlined" style="color: var(--md-text-muted);">chevron_right</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div id="bank-ledger-overlay" class="sheet-overlay open" style="z-index: 9998;" onclick="document.getElementById('sheet-bank-ledger-select').remove(); this.remove();"></div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', sheetHTML);
+        } catch (error) {
+            console.error("Bank Ledger Error:", error);
+            if(window.Utils) window.Utils.showToast("Error loading bank ledgers.");
         }
     }
 

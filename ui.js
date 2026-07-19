@@ -811,6 +811,9 @@ const UI = {
         
         // FIX: Populate the Master View Dropdowns immediately when the screen opens so they are never empty!
         if (filterSelect) {
+            // 🚨 BIZOPS FIX: Wipe polluted filter memory when switching between Customers and Products!
+            if (UI.state.activeFilters) UI.state.activeFilters['masters'] = 'All';
+            
             if (type === 'customers' || type === 'suppliers' || type === 'contacts') {
                 let extraContactsFilters = type === 'contacts' ? `<option value="Customers Only">Customers Only</option><option value="Suppliers Only">Suppliers Only</option>` : '';
                 filterSelect.innerHTML = `<option value="All">All Parties</option><option value="To Receive">To Receive (Due)</option><option value="To Pay">To Pay (Due)</option><option value="Advance">Advance (Paid / Received)</option><option value="GST">GST (Registered)</option><option value="Non-GST">Non-GST (Unregistered)</option>${extraContactsFilters}`;
@@ -3196,9 +3199,12 @@ const UI = {
         }
         else if (sheetId === 'sheet-products') {
             const searchBox = document.getElementById('search-products');
-            if (searchBox) { searchBox.value = ''; } // Keyboard auto-focus disabled!
+            if (searchBox) { searchBox.value = ''; } 
+            
+            // 🚨 DYNAMIC FIX: Clear the selection memory HERE when the sheet first opens!
+            UI.state.selectedProducts = []; 
+            
             UI.renderProductList(UI.state.rawData.items);
-            document.querySelectorAll('#list-products li').forEach(li => li.style.display = ''); // Force list to be visible
         }
         else if (sheetId === 'sheet-stock-adjustment') {
             // STRICT ERP LOGIC: Let app.js handle the dropdown so the Dual-Stock GST/Non-GST pools aren't erased!
@@ -3606,38 +3612,48 @@ const UI = {
         UI.closeBottomSheet(prefix === 'sales' || prefix === 'pay-in' ? 'sheet-customers' : 'sheet-suppliers');
     },
 
-    renderProductList: (items) => {
-        UI.state.selectedProducts = [];
+    renderProductList: (items, searchTerm = '') => {
+        // 🚨 STATIC FIX: We no longer clear the selection array here so it survives during searching!
         const isPurchase = UI.state.activeActivity === 'purchase';
         const container = document.getElementById('list-products');
         if(!container) return;
         
-        const emptyHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found. Please add one first!</div>`;
+        const emptyHTML = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found.</div>`;
 
-        // ENTERPRISE FIX: Route the products bottom sheet through the Virtualizer so it never freezes!
-        UI.renderVirtualList(container, items, (item) => {
+        // Filter items dynamically if a search term is passed
+        let displayItems = items;
+        if (searchTerm) {
+            displayItems = items.filter(i => window.fuzzyMatch(searchTerm, i.name) || window.fuzzyMatch(searchTerm, i.sku));
+        }
+
+        UI.renderVirtualList(container, displayItems, (item) => {
             const price = parseFloat(isPurchase ? (item.buyPrice || 0) : (item.sellPrice || 0)) || 0;
             const currentStock = parseFloat(item.stock) || 0;
             const minStock = parseFloat(item.minStock) || 0;
-            const isLowStock = minStock > 0 && currentStock <= minStock;
+            // 🚨 FIX: Sync visual badge with Reorder Report math (strictly less than minimum!)
+            const isLowStock = minStock > 0 && currentStock < minStock;
             
-            // NEW: Bulletproof Dual Stock Math (Fixes "undefined" text)
             const rawGst = parseFloat(item.stockGst);
             const rawNon = parseFloat(item.stockNonGst);
             const gstStock = isNaN(rawGst) ? currentStock : rawGst;
             const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
+
+            // 🚨 DYNAMIC STATE FETCH: Check if this item is currently in the active selection memory!
+            const isSelected = UI.state.selectedProducts.some(p => p.id === item.id);
+            const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
+            const checked = isSelected ? 'checked' : '';
             
             return `
-            <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
+            <li class="virtual-item tap-target" style="background: ${bg};" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
                 <div>
-                    <div class="large-text">${item.name || 'Unnamed Product'}</div>
+                    <div class="large-text">${window.UI.highlightText(item.name || 'Unnamed Product', searchTerm)}</div>
                     <small>
                         <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Tot: ${currentStock} ${item.uom || ''} ${isLowStock ? '⚠️' : ''}</span> 
                         | Rate: \u20B9${price.toFixed(2)}
                         <br><span style="font-size: 10px; color: var(--md-text-muted);">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
                     </small>
                 </div>
-                <input type="checkbox" style="width: 20px; height: 20px; pointer-events: none;">
+                <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none;">
             </li>`;
         }, emptyHTML);
     },
@@ -4523,11 +4539,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = document.getElementById(`search-${type}`);
         if(input) input.addEventListener('input', window.Utils.debounce((e) => {
             const term = (e.target.value || '').toLowerCase();
-            document.querySelectorAll(`#list-${type} li`).forEach(li => {
-                // ENTERPRISE UI: Fuzzy Search applied to Bottom Sheets!
-                li.style.display = window.fuzzyMatch(term, li.innerText) ? '' : 'none';
-            });
-        }, 300)); // UPGRADE: 300ms Debounce for instant bottom sheet typing
+            
+            // 🚨 ENTERPRISE FIX: Route Products through the Virtualizer so it doesn't crash!
+            if (type === 'products') {
+                if (window.UI && window.UI.state && window.UI.state.rawData.items) {
+                    window.UI.renderProductList(window.UI.state.rawData.items, term);
+                }
+            } else {
+                document.querySelectorAll(`#list-${type} li`).forEach(li => {
+                    li.style.display = window.fuzzyMatch(term, li.innerText) ? '' : 'none';
+                });
+            }
+        }, 300)); 
     });
 
     // (Swipe Gesture Engine Removed to prevent accidental deletions)
@@ -4713,6 +4736,10 @@ document.addEventListener('focusout', (e) => {
         document.addEventListener('touchstart', (e) => {
             const sheet = e.target.closest('.bottom-sheet.open');
             if (!sheet) return;
+            
+            // 🚨 STATIC FIX: If the sheet has data-no-swipe="true", abort dragging completely!
+            // This locks the screen in place so the user can scroll massively long lists without accidents!
+            if (sheet.getAttribute('data-no-swipe') === 'true') return;
 
             // SCROLL AWARENESS: Check if the user is touching a scrollable area inside the sheet
             // 🚨 FIX: Added #list-overdue and ul so the Overdue Notification menu can scroll normally!
@@ -4834,7 +4861,6 @@ window.playSuccessSound = () => {
         const gainNode = ctx.createGain();
         
         osc.type = 'sine';
-        // A pleasant, high-pitched "ding" (like Stripe or a cash register)
         osc.frequency.setValueAtTime(880, ctx.currentTime); 
         osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
         
@@ -4846,6 +4872,9 @@ window.playSuccessSound = () => {
         
         osc.start();
         osc.stop(ctx.currentTime + 0.15);
+        
+        // 🚨 CRITICAL FIX: Kill the context to prevent hardware RAM limit crashes!
+        setTimeout(() => { if (ctx.state !== 'closed') ctx.close(); }, 200);
     } catch (e) { 
         console.log("Audio engine suppressed by browser policy."); 
     }
@@ -4882,6 +4911,9 @@ window.playTickSound = () => {
         gainNode.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.05);
+        
+        // 🚨 CRITICAL FIX: Kill the context to prevent hardware RAM limit crashes!
+        setTimeout(() => { if (ctx.state !== 'closed') ctx.close(); }, 100);
     } catch (e) {}
 };
 

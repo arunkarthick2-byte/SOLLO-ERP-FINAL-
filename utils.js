@@ -531,11 +531,13 @@ const Utils = {
 
                 // 2. Check if the device's browser supports the Universal Share API with files
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        title: documentTitle,
-                        text: `Please find the attached document: ${documentTitle}`,
-                        files: [file]
-                    });
+                    try {
+                        await navigator.share({
+                            title: documentTitle,
+                            text: `Please find the attached document: ${documentTitle}`,
+                            files: [file]
+                        });
+                    } catch (e) { console.log("Share cancelled by user."); }
                 } else {
                     // ENTERPRISE FIX: Added DOM Appending and RAM Garbage Collection to prevent silent download failures and Memory Leaks!
                     const url = URL.createObjectURL(blob);
@@ -2158,7 +2160,9 @@ Thank you!`;
             const file = new File([blob], `GST_Report_${reportData.month}.xlsx`, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ title: "SOLLO GST Excel", text: "Here is your Excel GST Report.", files: [file] });
+                try {
+                    await navigator.share({ title: "SOLLO GST Excel", text: "Here is your Excel GST Report.", files: [file] });
+                } catch (e) { console.log("Share cancelled by user."); }
             } else {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -2194,7 +2198,9 @@ Thank you!`;
         const file = new File([blob], `${filename}.xlsx`, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ title: filename, files: [file] });
+            try {
+                await navigator.share({ title: filename, files: [file] });
+            } catch (e) { console.log("Share cancelled by user."); }
         } else {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
@@ -2254,7 +2260,7 @@ Thank you!`;
             const el = document.getElementById(elementId);
             if (!el) return;
             
-            window.Utils.showToast("⏳ Preparing PDF for Print...");
+            window.Utils.showToast("⏳ Preparing PDF...");
 
             // ENTERPRISE FIX: Measure true desktop height BEFORE running the engine to kill blank space!
             const origW = el.style.width;
@@ -2318,11 +2324,27 @@ Thank you!`;
                 },
                 image: { type: 'jpeg', quality: 0.90 }, // 🚨 RAM FIX: 0.90 saves ~60% memory vs 1.0!
                 // 🚀 SOLLO ERP FIX: SINGLE-PAGE SEAMLESS INVOICE ENGINE
-                // Disables awkward A4 page-breaks. The PDF will dynamically stretch to fit 1 item or 100 items perfectly on ONE beautiful continuous page!
                 jsPDF: { unit: 'px', format: [800, exactHeight + 10], orientation: 'portrait', compress: true }
             };
 
-            const pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
+            let pdfBlob;
+            try {
+                // Generates the PDF Blob in memory
+                pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
+            } catch (genErr) {
+                console.error("PDF Engine RAM Exhaustion Error:", genErr);
+                // 🚨 ENTERPRISE FIX: Ultimate Fallback to Native Browser Print if RAM is completely exhausted!
+                alert("The document is too large to share directly on this device. Falling back to Native Print.");
+                
+                const style = document.createElement('style');
+                style.innerHTML = `@media print { body * { visibility: hidden !important; } #${elementId}, #${elementId} * { visibility: visible !important; } #${elementId} { position: absolute; left: 0; top: 0; width: 100%; margin:0; padding:0; } }`;
+                document.head.appendChild(style);
+                
+                window.print();
+                setTimeout(() => document.head.removeChild(style), 2000);
+                return;
+            }
+
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
             // 🚨 BIZOPS FIX: If user tapped download, skip sharing and just download!
@@ -2331,35 +2353,25 @@ Thank you!`;
                 return;
             }
 
-            // 🚨 BIZOPS FIX: If user tapped Share, ONLY share. No fallback!
+            // 🚨 BIZOPS FIX: Safely wrap Native Share so cancelling it doesn't trigger the Print Fallback!
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                // Remove underscores from the preview title too!
                 const cleanTitle = filename.replace('.pdf', '').replace(/_/g, ' ');
-                await navigator.share({
-                    title: cleanTitle,
-                    text: shareText,
-                    files: [file]
-                });
+                try {
+                    await navigator.share({
+                        title: cleanTitle,
+                        text: shareText,
+                        files: [file]
+                    });
+                } catch (shareErr) {
+                    console.log("Share dialog closed by user.");
+                    // DO NOTHING! Silently abort so the print dialog doesn't pop up.
+                }
             } else {
-                window.Utils.showToast("⚠️ Native Share is only supported on mobile apps or secure servers.");
+                window.Utils.showToast("⚠️ Native Share is only supported on mobile apps or secure HTTPS servers. Downloading instead...");
+                window.html2pdf().set(opt).from(el).save(); // Fallback to safe download
             }
         } catch (err) {
-            console.error("PDF Engine RAM Exhaustion or Share Error:", err);
-            
-            // 🚨 ENTERPRISE FIX: Ultimate Fallback to Native Browser Print if RAM is completely exhausted!
-            alert("The document is too large to share directly on this device. Falling back to Native Print. You can 'Save as PDF' from there.");
-            
-            // Temporarily hide everything except the print area to allow clean native printing
-            const style = document.createElement('style');
-            style.innerHTML = `@media print { body * { visibility: hidden !important; } #${elementId}, #${elementId} * { visibility: visible !important; } #${elementId} { position: absolute; left: 0; top: 0; width: 100%; margin:0; padding:0; } }`;
-            document.head.appendChild(style);
-            
-            window.print();
-            
-            // Clean up the print styles after the native dialog closes
-            setTimeout(() => document.head.removeChild(style), 2000);
-            
-            window.Utils.showToast("❌ Share cancelled. Reverted to Print.");
+            console.error("Critical PDF System Error:", err);
         }
     },
 
