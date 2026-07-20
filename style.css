@@ -1642,17 +1642,17 @@ body.dark-mode .theme-toggle-knob {
    ENTERPRISE UPGRADE: HIGH-PERFORMANCE KEYBOARD SHIELD
    ========================================== */
 @media (max-width: 768px) {
-    body:has(input:focus, textarea:focus) .bottom-nav,
-    body:has(input:focus, textarea:focus) .floating-action-button,
-    body:has(input:focus, textarea:focus) #update-banner {
+    body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .bottom-nav,
+    body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .floating-action-button,
+    body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) #update-banner {
         opacity: 0 !important;
         pointer-events: none !important;
         transform: translateY(100px) !important;
         transition: none !important; 
     }
     
-    body:has(input:focus, textarea:focus) .activity-content,
-    body:has(input:focus, textarea:focus) .main-content {
+    body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .activity-content,
+    body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .main-content {
         padding-bottom: 250px !important; 
         transition: padding-bottom 0.3s ease-out;
     }
@@ -3757,14 +3757,10 @@ button[type="submit"], .btn-primary {
 }
 
 .btn-loading {
-    color: transparent !important; /* Instantly hide the text */
-    opacity: 1 !important; /* Override the old JS opacity fade */
-    border-radius: 50px !important; /* Morph into a circle */
-    width: 48px !important;
-    min-width: 48px !important;
-    padding: 0 !important;
-    margin: 0 auto !important; /* Center the circle in the screen */
-    pointer-events: none;
+    color: transparent !important; 
+    opacity: 0.9 !important; 
+    pointer-events: none !important;
+    /* Width and SVG spinner are handled smoothly by ui.js! */
 }
 
 .btn-loading::after {
@@ -6421,8 +6417,8 @@ body.dark-mode .bottom-sheet, body.dark-mode .sheet-overlay, body.dark-mode .act
     background-color: rgba(0, 0, 0, 0.6) !important; /* Solid dim, no blur */
 }
 
-/* 2. KILL FLICKERING & GHOSTING (Disable View Transitions & Cascades) */
-html, body, * { view-transition-name: none !important; }
+/* 2. KILL FLICKERING & GHOSTING (Disable Cascades) */
+/* View Transitions preserved for UI.js App-Morph engine */
 
 .active-screen, .bottom-sheet, .list-view li, .m3-card, .activity-content .list-card, .activity-content .timeline-item {
     animation: none !important; /* Kills waterfall lag */
@@ -6446,9 +6442,9 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
 
 /* 4. FIX OVERLAY KEYBOARD JUMPING */
 /* Smoothly slides bottom bars away when typing so they never jump to the middle of the screen */
-body:has(input:focus, textarea:focus) .bottom-nav,
-body:has(input:focus, textarea:focus) .floating-action-button,
-body:has(input:focus, textarea:focus) .form-sticky-footer {
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .bottom-nav,
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .floating-action-button,
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .form-sticky-footer {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translateY(120px) !important;
@@ -6469,8 +6465,6 @@ body:has(input:focus, textarea:focus) .form-sticky-footer {
 body { background-color: #F8FAFC !important; }
 
 /* 7. SOLIDIFY Z-INDEX HIERARCHY (Fixes overlapping elements) */
-.sheet-overlay { z-index: 99990 !important; }
-.bottom-sheet { z-index: 99995 !important; }
 .pos-numpad-overlay { z-index: 99998 !important; }
 #toast-container, #enterprise-dialog, #enterprise-confirm { z-index: 99999 !important; }
 

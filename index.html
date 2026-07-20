@@ -898,6 +898,22 @@
                 <!-- ZONE 3: APP EXPERIENCE -->
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">App Experience</strong>
                 <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+
+                    <div class="m3-card" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-error); width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                                <span class="material-symbols-outlined" style="font-size: 22px;">notifications_paused</span>
+                            </div>
+                            <div>
+                                <strong style="font-size:15px; color: var(--md-on-surface);">Hide Overdue Alerts</strong>
+                                <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Remove red overdue box from Home</small>
+                            </div>
+                        </div>
+                        <label class="ios-toggle-wrapper tap-target">
+                            <input type="checkbox" id="toggle-overdue-alerts" onchange="localStorage.setItem('sollo_hide_overdue', this.checked); document.body.classList.toggle('hide-overdue-alerts', this.checked); if(window.Utils) window.Utils.showToast(this.checked ? 'Alerts Hidden' : 'Alerts Visible');">
+                            <span class="ios-slider"></span>
+                        </label>
+                    </div>
                     
                     <div class="m3-card" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);">
                         <div style="display: flex; align-items: center; gap: 16px;">
@@ -1021,16 +1037,21 @@
                         observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
                     }
                     
+                    // Overdue Alerts Toggle Memory
+                    const hideOverdue = localStorage.getItem('sollo_hide_overdue') === 'true';
+                    if (hideOverdue) document.body.classList.add('hide-overdue-alerts');
+                    const overdueToggle = document.getElementById('toggle-overdue-alerts');
+                    if (overdueToggle) overdueToggle.checked = hideOverdue;
+                    
                     // Keep Haptics & Sounds toggles in sync with LocalStorage
                     const hapticsToggle = document.getElementById('toggle-haptics');
                     const soundsToggle = document.getElementById('toggle-sounds');
                     if (hapticsToggle) hapticsToggle.checked = localStorage.getItem('sollo_haptics') !== 'false';
                     if (soundsToggle) soundsToggle.checked = localStorage.getItem('sollo_sounds') !== 'false';
                     
-// Keep Discount Logic in sync with LocalStorage
+                    // Keep Discount Logic in sync with LocalStorage
                     const discountLogic = document.getElementById('setting-discount-logic');
                     if (discountLogic) discountLogic.value = localStorage.getItem('sollo_discount_logic') || 'pre_tax';
-
 
                 </script>
             </div>
