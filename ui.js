@@ -545,6 +545,15 @@ const UI = {
             // 🚨 ENTERPRISE FIX: If they switch tabs normally, instantly clear the Dashboard Date Lock!
             // This ensures they see ALL documents when navigating naturally.
             UI.state.applyDashboardDateToDocuments = false;
+            
+            // 🚨 CRITICAL BUG FIX: Reset Nav & Scroll Position!
+            // Forces the Bottom Nav and FAB to un-hide when switching tabs, and resets the scroll to the top!
+            const bNav = document.querySelector('.bottom-nav');
+            if (bNav) bNav.classList.remove('nav-hidden');
+            const floatBtn = document.querySelector('.floating-action-button');
+            if (floatBtn) floatBtn.classList.remove('fab-hidden');
+            const mainContainer = document.querySelector('.main-content');
+            if (mainContainer) mainContainer.scrollTop = 0;
 
             // ENTERPRISE FIX: Removed the 20ms delay!
             // View Transitions automatically pause the DOM paint for you. If you delay the render, 
