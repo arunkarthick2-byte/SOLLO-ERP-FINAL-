@@ -211,25 +211,32 @@ document.addEventListener('click', (e) => {
 // --- ENTERPRISE UI: SMART SCROLL MENU (AUTO-HIDE) ---
 // Hides the bottom navigation bar when scrolling down to give 100% screen reading space!
 let lastScrollY = 0;
-// We use { capture: true, passive: true } so the 120hz mobile scrolling never lags
 document.addEventListener('scroll', (e) => {
-    // ENTERPRISE FIX: Target the correct HTML class so the immersive scroll-hide actually works!
     const bottomNav = document.querySelector('.bottom-nav');
     if (!bottomNav) return;
 
     const target = e.target;
-    // Get the scroll position of whatever container is currently scrolling
-    const currentScroll = target.scrollTop || window.scrollY;
+
+    // 🚨 CRITICAL FIX: The Nested Scroll Trap!
+    // We MUST ignore scrolls from textareas, inner containers, or bottom sheets.
+    // We ONLY want to react to the main application body scrolling!
+    if (target !== document && (!target.classList || !target.classList.contains('main-content'))) return;
+
+    const currentScroll = target === document ? (window.scrollY || document.documentElement.scrollTop) : target.scrollTop;
 
     if (currentScroll === undefined || currentScroll < 0) return;
 
-    // Only hide if we've scrolled down past the top header, and ignore tiny accidental thumb twitches
-    if (currentScroll > lastScrollY && currentScroll > 60) {
+    // 🚨 SAFETY NET: Always force the menu to show if they hit the absolute bottom of the tab!
+    const maxScroll = target === document ? (document.documentElement.scrollHeight - window.innerHeight) : (target.scrollHeight - target.clientHeight);
+
+    if (currentScroll < 50 || (maxScroll > 0 && currentScroll >= maxScroll - 20)) {
+        bottomNav.classList.remove('nav-hidden');
+    } else if (currentScroll > lastScrollY && currentScroll > 60) {
         bottomNav.classList.add('nav-hidden'); // Scrolling Down = Hide Menu
-    } else if (currentScroll < lastScrollY - 5 || currentScroll < 50) {
+    } else if (currentScroll < lastScrollY - 10) { // Bumped threshold so tiny thumbs don't trigger it accidentally
         bottomNav.classList.remove('nav-hidden'); // Scrolling Up = Show Menu
     }
-    
+
     lastScrollY = currentScroll;
 }, { capture: true, passive: true });
 
@@ -1631,8 +1638,16 @@ const app = {
         const shareBtn = document.getElementById('btn-share-ledger');
         if(shareBtn) {
             shareBtn.style.display = 'flex';
-            shareBtn.onclick = () => {
-                window.executeKhataReport(partyId, partyName, partyType);
+            shareBtn.onclick = function() {
+                const btn = this;
+                const og = btn.innerHTML;
+                btn.innerHTML = '<span class="material-symbols-outlined rotating" style="font-size: 24px; color: #ffffff;">sync</span>';
+                if (window.Utils) window.Utils.showToast("Preparing Ledger PDF... ⏳");
+                
+                setTimeout(() => {
+                    if (window.executeKhataReport) window.executeKhataReport(partyId, partyName, partyType);
+                    btn.innerHTML = og;
+                }, 50);
             };
         }
         
@@ -1909,7 +1924,17 @@ const app = {
         const shareBtn = document.getElementById('btn-share-ledger');
         if (shareBtn) {
             shareBtn.style.display = 'flex';
-            shareBtn.onclick = () => window.executeAccountReport(accountId);
+            shareBtn.onclick = function() {
+                const btn = this;
+                const og = btn.innerHTML;
+                btn.innerHTML = '<span class="material-symbols-outlined rotating" style="font-size: 24px; color: #ffffff;">sync</span>';
+                if (window.Utils) window.Utils.showToast("Preparing Statement PDF... ⏳");
+                
+                setTimeout(() => {
+                    if (window.executeAccountReport) window.executeAccountReport(accountId);
+                    btn.innerHTML = og;
+                }, 50);
+            };
         }
         
         UI.openActivity('activity-report-viewer');
@@ -5057,23 +5082,30 @@ if (data.id && splitConfirmed) {
         
         if (window.UI) window.UI.closeBottomSheet('sheet-smart-share');
 
+        // 🚨 ENTERPRISE FIX: Asynchronous Yield Engine
+        // Forces the UI to paint the Toast and Button clicks BEFORE freezing the main thread!
         if (method === 'whatsapp') {
-            // Check if the phone supports Native Share (which allows sending text + file together)
             if (navigator.share && navigator.canShare) {
-                // Let the PDF engine pop up, user can manually trigger it.
-                if (window.Utils) window.Utils.showToast("Opening Document...");
-                window.app.generatePDF(type);
-                // We copy the text to clipboard so they can just paste it!
-                if (navigator.clipboard) navigator.clipboard.writeText(msg);
-                setTimeout(() => alert("Message copied to clipboard! You can paste it when sharing the PDF."), 1000);
+                if (window.Utils) window.Utils.showToast("Preparing Document... ⏳");
+                
+                // Yield the main thread for 50ms so the screen updates
+                setTimeout(() => {
+                    window.app.generatePDF(type);
+                    if (navigator.clipboard) navigator.clipboard.writeText(msg);
+                    setTimeout(() => alert("Message copied to clipboard! You can paste it when sharing the PDF."), 1000);
+                }, 50);
             } else {
-                // Fallback for PC/Older phones: Just open WhatsApp directly
                 const encodedMsg = encodeURIComponent(msg);
                 const url = phone ? `https://wa.me/91${phone}?text=${encodedMsg}` : `https://wa.me/?text=${encodedMsg}`;
                 window.open(url, '_blank');
             }
         } else if (method === 'pdf_only') {
-            if (window.app.generatePDF) window.app.generatePDF(type);
+            if (window.Utils) window.Utils.showToast("Preparing Document... ⏳");
+            
+            // Yield the main thread for 50ms
+            setTimeout(() => {
+                if (window.app.generatePDF) window.app.generatePDF(type);
+            }, 50);
         }
     },
 
@@ -5278,7 +5310,11 @@ if (data.id && splitConfirmed) {
         const profile = await getRecordById('businessProfile', app.state.firmId);
         const party = await getRecordById('ledgers', type === 'sales' ? record.customerId : record.supplierId);
 
-        window.Utils.generateInvoicePDF(record, profile || {}, party || {}, type);
+        // 🚨 ENTERPRISE FIX: Asynchronous Yield Engine
+        if (window.Utils) window.Utils.showToast("Preparing Invoice PDF... ⏳");
+        setTimeout(() => {
+            window.Utils.generateInvoicePDF(record, profile || {}, party || {}, type);
+        }, 50);
     },
 
     generateReceiptPDF: async (receiptId) => {
@@ -5533,7 +5569,7 @@ if (data.id && splitConfirmed) {
                     <span class="material-symbols-outlined tap-target" onclick="document.getElementById('pdf-zoom-container-receipt').style.zoom=${initialZoom};" style="padding: 6px; font-size: 18px; color: var(--md-on-surface, #0f172a); border-left: 1px solid var(--md-outline-variant, #cbd5e1); border-right: 1px solid var(--md-outline-variant, #cbd5e1); position: static !important; transform: none !important; margin: 0 !important;">fit_screen</span>
                     <span class="material-symbols-outlined tap-target" onclick="const p=document.getElementById('pdf-zoom-container-receipt'); let z=parseFloat(p.style.zoom||${initialZoom}); z+=0.1; if(z>2)z=2; p.style.zoom=z;" style="padding: 6px; font-size: 20px; color: var(--md-on-surface, #0f172a); position: static !important; transform: none !important; margin: 0 !important;">zoom_in</span>
                 </div>
-                <div class="icon-circle tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}')" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; position: relative; z-index: 2; margin: 0; display: flex; align-items: center; justify-content: center;">
+                <div class="icon-circle tap-target" onclick="const btn=this; const og=btn.innerHTML; btn.innerHTML='<span class=\\'material-symbols-outlined rotating\\' style=\\'font-size: 20px;\\'>sync</span>'; if(window.Utils) window.Utils.showToast('Preparing Native Share... ⏳'); setTimeout(() => { if(window.Utils) window.Utils.processPDFExport('${uniquePdfId}', '${safeFilename}'); btn.innerHTML=og; }, 50);" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; position: relative; z-index: 2; margin: 0; display: flex; align-items: center; justify-content: center;">
                     <span class="material-symbols-outlined" style="font-size: 20px; position: static !important; transform: none !important; margin: 0 !important;">picture_as_pdf</span>
                 </div>
             </div>

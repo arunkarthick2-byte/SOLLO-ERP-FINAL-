@@ -1213,7 +1213,7 @@ Please process this accordingly. Thank you!`;
                     // This causes a 1-Paisa legal mismatch on the final CA Tax PDF!
                     const roundedTax = Math.round((dBase * (g / 100)) * 100) / 100;
                     
-                    taxGroups[g].taxable += dBase;
+                    taxGroups[g].taxable += Math.round(dBase * 100) / 100;
                     taxGroups[g].tax += roundedTax;
                 }
             });

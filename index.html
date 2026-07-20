@@ -55,7 +55,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=82">
+    <link rel="stylesheet" href="style.css?v=83">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -123,6 +123,11 @@
             z-index: 1 !important;
             margin: 4px 0 16px 0 !important;
         }
+                /* 🚨 BIZOPS FIX: Master Shield to force Overdue Alerts to hide when toggled off */
+        body.hide-overdue-alerts #overdue-reminders-container {
+            display: none !important;
+        }
+
 
         /* 🚨 BIZOPS FIX: PROFESSIONAL INVOICE ITEM ROWS */
         /* Completely strips the bulky boxes and turns them into clean receipt lines */
@@ -529,7 +534,7 @@
                         <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Payables (Sundry Creditors)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Pending vendor bills</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="window.triggerKhataReport()">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.UI) window.UI.openSmartSearch('party', 'khata-view')">
                         <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">menu_book</span></div>
                         <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Party Ledger (Khata)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Running balance statement</small></div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
@@ -748,137 +753,288 @@
                 </script>
             </div>
 
-            <div id="tab-menu" class="screen-section hidden">
+            <!-- ================= ENTERPRISE COMMAND CENTER ================= -->
+            <div id="tab-menu" class="screen-section hidden" style="padding-top: 0 !important;">
                 
-                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; padding: 20px;" onclick="UI.openActivity('activity-business-profile')">
-                    <div class="icon-circle" style="background: var(--md-primary); color: white; width: 56px; height: 56px; flex-shrink: 0;"><span class="material-symbols-outlined" style="font-size: 28px;">domain</span></div>
+                <!-- 🚀 Premium iOS Toggle Switch CSS (Bulletproof) -->
+                <style>
+                    .ios-toggle-wrapper { position: relative; display: inline-block; width: 44px; height: 24px; margin: 0; flex-shrink: 0; }
+                    .ios-toggle-wrapper input { opacity: 0; width: 0; height: 0; position: absolute; pointer-events: none; }
+                    .ios-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--md-outline-variant); transition: 0.3s ease; border-radius: 24px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
+                    .ios-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 2px; bottom: 2px; background-color: #ffffff; transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+                    .ios-toggle-wrapper input:checked + .ios-slider { background-color: var(--md-primary); }
+                    .ios-toggle-wrapper input:checked + .ios-slider:before { transform: translateX(20px); }
+                    body.dark-mode .ios-slider { background-color: #334155; }
+                    body.dark-mode .ios-slider:before { background-color: #f8fafc; }
+                    body.dark-mode .ios-toggle-wrapper input:checked + .ios-slider { background-color: var(--md-primary); }
+                </style>
+
+                <!-- THE HERO HEADER (Minimalist & Clean) -->
+                <div style="margin: 0 0 24px 0; padding: calc(16px + env(safe-area-inset-top, 0px)) 0 8px 0; display: flex; align-items: center; gap: 16px;">
+                    <div class="icon-circle" style="width: 56px; height: 56px; background: var(--md-surface); color: var(--md-primary); flex-shrink: 0; border: 1px solid var(--md-outline-variant); box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                        <span class="material-symbols-outlined" style="font-size: 28px;">settings_suggest</span>
+                    </div>
                     <div style="flex: 1;">
-                        <strong class="large-text" style="font-size: 18px;">Business Profile</strong>
-                        <small style="display:block; color: var(--md-text-muted); margin-top: 4px;">Edit Company Details & Logo</small>
+                        <strong style="font-size: 26px; color: var(--md-on-surface) !important; display: block; margin-bottom: 2px; font-weight: 900; letter-spacing: -0.5px;">Settings</strong>
+                        <small style="color: var(--md-text-muted); font-size: 14px; font-weight: 500;">Manage your workspace</small>
+                    </div>
+                </div>
+
+                <!-- ZONE 1: ORGANIZATION -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">Organization</strong>
+                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px;" onclick="UI.openActivity('activity-business-profile')">
+                    <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                        <span class="material-symbols-outlined" style="font-size: 22px;">domain</span>
+                    </div>
+                    <div style="flex: 1;">
+                        <strong class="large-text" style="font-size: 16px;">Business Profile</strong>
+                        <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Name, Logo, Tax IDs, & Bank Details</small>
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                 </div>
+                
+                <!-- ================= RESTORED: LIVE AGING DASHBOARD ================= -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">Cash Recovery & Aging</strong>
+                <div style="background: var(--md-surface); margin-bottom: 24px; border-radius: 12px; overflow: hidden; border: 1px solid var(--md-outline-variant);">
+                    
+                    <!-- Total Header -->
+                    <div style="background: #fff0f2; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="font-size: 15px; color: #0f172a;">Total Receivables</strong>
+                        <strong id="aging-total-due" style="font-size: 18px; color: #0f172a; font-weight: 900;">₹0.00</strong>
+                    </div>
 
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Cash Recovery & Aging</strong>
-                <div class="m3-card" style="margin-bottom: 24px; padding: 0; overflow: hidden; border: 1px solid var(--md-outline-variant);">
-                    <div style="padding: 16px; background: rgba(186, 26, 26, 0.05); border-bottom: 1px solid var(--md-surface-variant);">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <strong style="color: var(--md-error); font-size: 16px;">Total Receivables</strong>
-                            <strong id="aging-total-due" style="font-size: 20px; color: var(--md-error);">₹0.00</strong>
-                        </div>
-                    </div>
-                    <div style="padding: 16px; background: var(--md-surface);">
+                    <!-- Aging Bars -->
+                    <div style="padding: 16px 16px 8px 16px;">
+                        <!-- 0-30 Days -->
                         <div style="margin-bottom: 12px;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <small style="color: var(--md-success); font-weight: bold;">0-30 Days (Healthy)</small>
-                                <small id="aging-30-amt" style="color: var(--md-success); font-weight: bold;">₹0.00</small>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                                <span style="color: var(--md-text-muted); font-weight: 500;">0 - 30 Days (Healthy)</span>
+                                <span id="aging-30-amt" style="font-weight: 700; color: var(--md-text-muted);">₹0.00</span>
                             </div>
-                            <div style="width: 100%; background: rgba(20, 108, 46, 0.15); border-radius: 4px; height: 8px; overflow: hidden;">
-                                <div id="aging-30-bar" style="width: 0%; height: 100%; background: var(--md-success); border-radius: 4px; transition: width 0.5s ease;"></div>
+                            <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                                <div id="aging-30-bar" style="height: 100%; width: 0%; background: #16a34a; border-radius: 3px; transition: width 0.8s ease;"></div>
                             </div>
                         </div>
+
+                        <!-- 31-60 Days -->
                         <div style="margin-bottom: 12px;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <small style="color: #f57f17; font-weight: bold;">31-60 Days (Warning)</small>
-                                <small id="aging-60-amt" style="color: #f57f17; font-weight: bold;">₹0.00</small>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                                <span style="color: var(--md-text-muted); font-weight: 500;">31 - 60 Days (Warning)</span>
+                                <span id="aging-60-amt" style="font-weight: 700; color: var(--md-text-muted);">₹0.00</span>
                             </div>
-                            <div style="width: 100%; background: rgba(245, 127, 23, 0.15); border-radius: 4px; height: 8px; overflow: hidden;">
-                                <div id="aging-60-bar" style="width: 0%; height: 100%; background: #f57f17; border-radius: 4px; transition: width 0.5s ease;"></div>
+                            <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                                <div id="aging-60-bar" style="height: 100%; width: 0%; background: #f59e0b; border-radius: 3px; transition: width 0.8s ease;"></div>
                             </div>
                         </div>
-                        <div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                <small style="color: var(--md-error); font-weight: bold;">60+ Days (High Risk)</small>
-                                <small id="aging-90-amt" style="color: var(--md-error); font-weight: bold;">₹0.00</small>
+
+                        <!-- 60+ Days -->
+                        <div style="margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
+                                <span style="color: var(--md-text-muted); font-weight: 500;">60+ Days (High Risk)</span>
+                                <span id="aging-90-amt" style="font-weight: 700; color: var(--md-text-muted);">₹0.00</span>
                             </div>
-                            <div style="width: 100%; background: rgba(186, 26, 26, 0.15); border-radius: 4px; height: 8px; overflow: hidden;">
-                                <div id="aging-90-bar" style="width: 0%; height: 100%; background: var(--md-error); border-radius: 4px; transition: width 0.5s ease;"></div>
+                            <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                                <div id="aging-90-bar" style="height: 100%; width: 0%; background: #fca5a5; border-radius: 3px; transition: width 0.8s ease;"></div>
                             </div>
                         </div>
                     </div>
-                    <div class="tap-target" onclick="UI.switchTab('tab-workspace', 'Workspace', document.getElementById('nav-workspace')); if(typeof switchWorkspaceTab==='function') switchWorkspaceTab('master'); setTimeout(() => { UI.openMasterView('customers', 'Customer Master'); setTimeout(() => { if(window.UI) window.UI.state.activeFilters['masters'] = 'To Receive'; document.getElementById('filter-master-view').value = 'To Receive'; if(window.app) window.app.applySmartMasterFilter(); }, 300); }, 300);" style="padding: 12px 16px; background: var(--md-surface-variant); text-align: center; color: var(--md-primary); font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                        View Defaulters <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
+
+                    <!-- View Defaulters Button -->
+                    <div style="padding: 0 16px 16px 16px;">
+                        <div class="tap-target" onclick="if(window.UI) { window.UI.openMasterView('customers', 'Customer Master'); setTimeout(() => { document.getElementById('filter-master-view').value = 'To Receive'; if(window.app) window.app.applySmartMasterFilter(); }, 150); }" style="background: #f8fafc; padding: 14px; text-align: center; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <strong style="color: #1e3a8a; font-size: 14px;">View Defaulters</strong>
+                            <span class="material-symbols-outlined" style="color: #1e3a8a; font-size: 18px;">arrow_forward</span>
+                        </div>
                     </div>
                 </div>
 
 
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Cloud Backup & Storage</strong>
-                <div style="text-align: center; margin-bottom: 12px; font-size: 12px; color: var(--md-text-muted);" id="cloud-status-tab">Checking Google Drive...</div>
+                <!-- ZONE 2: DOCUMENT STUDIO -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">Document Studio</strong>
                 <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.Cloud) window.Cloud.backup()">
-                        <span class="material-symbols-outlined" style="color: var(--md-primary);">cloud_upload</span>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Backup to Google Drive</strong></div>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.Cloud) window.Cloud.restore()">
-                        <span class="material-symbols-outlined" style="color: var(--md-error);">cloud_download</span>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Restore from Drive</strong></div>
-                    </div>
-                    
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.Utils) window.Utils.showToast('Installing Update... 🔄'); if('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); r.update().then(() => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); }); })); setTimeout(() => window.location.reload(true), 1500); } else { window.location.reload(true); }">
-                        <span class="material-symbols-outlined" style="color: var(--md-success);">system_update</span>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) window.UI.openBottomSheet('sheet-document-formats')">
+                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                            <span class="material-symbols-outlined" style="font-size: 22px;">123</span>
+                        </div>
                         <div style="flex: 1;">
-                            <strong style="font-size:15px; color: var(--md-on-surface);">Run Update Manager</strong>
-                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Force install the latest code</small>
+                            <strong style="font-size:15px; color: var(--md-on-surface);">Document Numbering</strong>
+                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Prefixes, Suffixes & Starting Numbers</small>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openActivity('activity-business-profile'); setTimeout(() => { const details = document.querySelectorAll('details.advanced-options'); if(details.length > 1) { details[1].open = true; details[1].scrollIntoView({behavior: 'smooth', block: 'center'}); } }, 350);">
+                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                            <span class="material-symbols-outlined" style="font-size: 22px;">palette</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <strong style="font-size:15px; color: var(--md-on-surface);">PDF Theme Designer</strong>
+                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Brand Colors & Invoice Typography</small>
+                        </div>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    </div>
+                </div>
+                
+
+                <!-- ZONE: BILLING & TAX RULES -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">Billing & Tax Rules</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    <div class="m3-card" style="padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px;">
+                            <div class="icon-circle" style="background: rgba(216, 67, 21, 0.1); color: #d84315; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                                <span class="material-symbols-outlined" style="font-size: 22px;">calculate</span>
+                            </div>
+                            <div style="flex: 1;">
+                                <strong style="font-size:15px; color: var(--md-on-surface);">Discount Application Logic</strong>
+                                <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">How global discounts affect GST</small>
+                            </div>
+                        </div>
+                        <select id="setting-discount-logic" onchange="localStorage.setItem('sollo_discount_logic', this.value); if(window.Utils) window.Utils.showToast('Billing math updated! 🧮');" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none; font-weight: 600;">
+                            <option value="pre_tax" selected>Pre-Tax (Reduces GST Liability)</option>
+                            <option value="post_tax">Post-Tax (Reduces Grand Total Only)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ZONE 3: APP EXPERIENCE -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">App Experience</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    
+                    <div class="m3-card" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface); width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                                <span class="material-symbols-outlined" style="font-size: 22px;">dark_mode</span>
+                            </div>
+                            <div>
+                                <strong style="font-size:15px; color: var(--md-on-surface);">Dark Mode</strong>
+                                <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">High-contrast AMOLED theme</small>
+                            </div>
+                        </div>
+                        <label class="ios-toggle-wrapper tap-target">
+                            <input type="checkbox" id="toggle-dark-mode" onchange="if(window.UI) window.UI.toggleDarkMode()">
+                            <span class="ios-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="m3-card" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface); width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                                <span class="material-symbols-outlined" style="font-size: 22px;">vibration</span>
+                            </div>
+                            <div>
+                                <strong style="font-size:15px; color: var(--md-on-surface);">Haptic Feedback</strong>
+                                <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Vibrate on taps and saves</small>
+                            </div>
+                        </div>
+                        <label class="ios-toggle-wrapper tap-target">
+                            <input type="checkbox" id="toggle-haptics" checked onchange="localStorage.setItem('sollo_haptics', this.checked); if(this.checked && window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('medium');">
+                            <span class="ios-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="m3-card" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; margin: 0;">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface); width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                                <span class="material-symbols-outlined" style="font-size: 22px;">volume_up</span>
+                            </div>
+                            <div>
+                                <strong style="font-size:15px; color: var(--md-on-surface);">Sound Effects</strong>
+                                <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Audio cues for billing</small>
+                            </div>
+                        </div>
+                        <label class="ios-toggle-wrapper tap-target">
+                            <input type="checkbox" id="toggle-sounds" checked onchange="localStorage.setItem('sollo_sounds', this.checked); if(this.checked && window.playSuccessSound) window.playSuccessSound();">
+                            <span class="ios-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- ZONE 4: DATA & CLOUD SECURITY -->
+                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">Data & Security</strong>
+                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                    
+                    <div style="padding: 16px; background: rgba(0, 97, 164, 0.05); border: 1px solid rgba(0, 97, 164, 0.2); border-radius: 8px 8px 0 0; border-bottom: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <strong style="font-size: 15px; color: #0061a4; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">cloud</span> Google Drive Sync</strong>
+                            <span id="cloud-status-tab" style="font-size: 11px; font-weight: 800; color: #0061a4; background: rgba(255,255,255,0.5); padding: 4px 8px; border-radius: 4px;">Checking...</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-primary-small tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 13px;" onclick="if(window.Cloud) window.Cloud.backup()">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span> Backup
+                            </button>
+                            <button class="btn-primary-small tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 13px;" onclick="if(window.Cloud) window.Cloud.restore()">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">cloud_download</span> Restore
+                            </button>
                         </div>
                     </div>
 
-                    <div style="display: flex; gap: 8px;">
-                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="window.Utils.exportData()">
+                    <div style="padding: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-bottom: none; display: flex; gap: 8px;">
+                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0; background: var(--md-surface-variant); border: none;" onclick="window.Utils.exportData()">
                             <span class="material-symbols-outlined" style="font-size: 20px;">save</span> <span style="font-size: 13px; font-weight: bold;">Manual Backup</span>
                         </div>
-                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0;" onclick="document.getElementById('import-file-tab').click()">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">restore_page</span> <span style="font-size: 13px; font-weight: bold;">Manual Restore</span>
+                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0; background: var(--md-surface-variant); border: none;" onclick="document.getElementById('import-file-tab').click()">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">restore_page</span> <span style="font-size: 13px; font-weight: bold;">Local Restore</span>
                         </div>
                         <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
                     </div>
-                </div>
 
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">System</strong>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.UI) window.UI.toggleDarkMode()">
-                        <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-primary); width: 40px; height: 40px; flex-shrink: 0;">
-                            <span class="material-symbols-outlined">dark_mode</span>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0; border-bottom: none;" onclick="UI.openMasterView('trash', 'Recycle Bin')">
+                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                            <span class="material-symbols-outlined" style="font-size: 22px;">delete</span>
                         </div>
                         <div style="flex: 1;">
-                            <strong class="large-text" style="font-size: 15px;">Enterprise Dark Mode</strong>
-                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Professional dark theme overlay</small>
+                            <strong style="font-size:15px; color: var(--md-on-surface);">Recycle Bin</strong>
+                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Restore deleted documents</small>
                         </div>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('trash', 'Recycle Bin')">
-                        <span class="material-symbols-outlined" style="color: var(--md-error);">delete</span>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-error);">Recycle Bin</strong></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); margin-top: 8px;" onclick="if(window.app && window.app.recalculateAllStock) window.app.recalculateAllStock()">
-                        <span class="material-symbols-outlined" style="color: #f57f17;">healing</span>
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0 0 8px 8px;" onclick="if(window.app && window.app.recalculateAllStock) window.app.recalculateAllStock()">
+                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                            <span class="material-symbols-outlined" style="font-size: 22px;">healing</span>
+                        </div>
                         <div style="flex: 1;">
-                            <strong style="font-size:15px; color: var(--md-on-surface);">Auto-Fix Corrupted Stock</strong>
+                            <strong style="font-size:15px; color: var(--md-on-surface);">Auto-Fix Stock & Capital</strong>
                             <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Recalculate warehouse from scratch</small>
                         </div>
                     </div>
-                    
                 </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-document-formats')">
-                        <span class="material-symbols-outlined" style="color: var(--md-primary);">receipt_long</span>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Document Formats</strong></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                <!-- ZONE 5: SYSTEM UPDATES -->
+                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.Utils) window.Utils.showToast('Checking for updates... 🔄'); if('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); r.update().then(() => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); }); })); setTimeout(() => window.location.reload(true), 1500); } else { window.location.reload(true); }">
+                    <span class="material-symbols-outlined" style="color: var(--md-success); font-size: 28px;">system_update</span>
+                    <div style="flex: 1;">
+                        <strong style="font-size:15px; color: var(--md-on-surface);">Run Update Manager</strong>
+                        <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Force install the latest version</small>
                     </div>
+                    <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">refresh</span>
+                </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; margin-top: 8px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.app) window.app.closeFinancialYear()">
-                        <span class="material-symbols-outlined" style="color: var(--md-success);">menu_book</span>
-                        <div style="flex: 1;">
-                            <strong style="font-size:15px; color: var(--md-on-surface);">Close Financial Year</strong>
-                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Generate CA Balances Report</small>
-                        </div>
-                        <span class="material-symbols-outlined" style="color: var(--md-success);">download</span>
-                    </div>
+                <!-- SYNC TOGGLES SCRIPT -->
+                <script>
+                    // Keep the Dark Mode toggle perfectly in sync with the body class
+                    const darkModeToggle = document.getElementById('toggle-dark-mode');
+                    if (darkModeToggle) {
+                        darkModeToggle.checked = document.body.classList.contains('dark-mode');
+                        const observer = new MutationObserver(() => {
+                            darkModeToggle.checked = document.body.classList.contains('dark-mode');
+                        });
+                        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+                    }
+                    
+                    // Keep Haptics & Sounds toggles in sync with LocalStorage
+                    const hapticsToggle = document.getElementById('toggle-haptics');
+                    const soundsToggle = document.getElementById('toggle-sounds');
+                    if (hapticsToggle) hapticsToggle.checked = localStorage.getItem('sollo_haptics') !== 'false';
+                    if (soundsToggle) soundsToggle.checked = localStorage.getItem('sollo_sounds') !== 'false';
+                    
+// Keep Discount Logic in sync with LocalStorage
+                    const discountLogic = document.getElementById('setting-discount-logic');
+                    if (discountLogic) discountLogic.value = localStorage.getItem('sollo_discount_logic') || 'pre_tax';
 
+
+                </script>
             </div>
+
             <div style="height: 80px;"></div>
         </main>
         
@@ -2066,102 +2222,141 @@
     </div>
     
     <div id="sheet-document-formats" class="bottom-sheet" style="height: 85vh; display: flex; flex-direction: column;">
+        <style>
+            /* 🚀 Premium Segmented Control UI for Document Formats */
+            .doc-format-card { padding: 16px; margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+            .doc-format-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+            .doc-format-input-group { display: flex; align-items: center; background: var(--md-surface-variant); border-radius: 8px; border: 1px solid var(--md-outline-variant); overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02); }
+            
+            /* 🚨 THE FIX: Force equal 1/3 widths on all inputs */
+            .doc-format-text { flex: 1; min-width: 0; width: 100%; background: transparent; border: none; font-size: 15px !important; font-weight: 800 !important; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace !important; color: var(--md-on-surface) !important; padding: 14px 8px !important; outline: none !important; border-radius: 0 !important; box-shadow: none !important; }
+            .doc-format-divider { width: 1px; height: 32px; background: var(--md-outline-variant); opacity: 0.8; border-radius: 1px; flex-shrink: 0; }
+            .doc-format-number { flex: 1; min-width: 0; width: 100%; text-align: center; border: none; font-size: 15px !important; font-weight: 900 !important; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace !important; padding: 14px 4px !important; outline: none !important; border-radius: 0 !important; box-shadow: inset 0 2px 4px rgba(0,0,0,0.04) !important; }
+        </style>
+
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Document Formats</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-document-formats')">close</span>
         </div>
         <div style="padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;">
-            <div style="background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px; border-radius: 8px; margin-bottom: 16px; display: flex; gap: 12px; align-items: center;">
-                <span class="material-symbols-outlined">info</span>
-                <p style="margin: 0; font-size: 12px; line-height: 1.5;">Type your Prefix and Suffix. Use <strong>{FY}</strong> for the Financial Year. The counter will auto-generate in the middle.</p>
+            
+            <div style="background: var(--md-surface-variant); padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px dashed var(--md-outline-variant);">
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <span class="material-symbols-outlined" style="color: var(--md-primary); font-size: 24px;">info</span>
+                    <div>
+                        <strong style="display: block; font-size: 13px; color: var(--md-on-surface); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Formatting Guide</strong>
+                        <p style="margin: 0; font-size: 12px; line-height: 1.5; color: var(--md-text-muted);">Set your prefix and suffix. Use <strong>{FY}</strong> to automatically inject the Financial Year. The middle counter will auto-increment.</p>
+                    </div>
+                </div>
             </div>
             
-            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--md-primary);">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(0, 97, 164, 0.1);  color: #0061a4;"><span class="material-symbols-outlined" style="font-size: 18px;">receipt_long</span></div>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">Sales Invoice</strong>
+            <!-- 1. Sales Invoice -->
+            <div class="doc-format-card" style="border-left: 4px solid var(--md-primary);">
+                <div class="doc-format-header">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); box-shadow: none;"><span class="material-symbols-outlined" style="font-size: 18px;">receipt_long</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface); letter-spacing: 0.3px;">Sales Invoice</strong>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
-                    <input type="text" id="format-inv-prefix" placeholder="INV/" style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                    <input type="number" id="format-inv-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid var(--md-primary-container); border-radius: 6px; padding: 6px 4px; outline: none;">
-                    <input type="text" id="format-inv-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                </div>
-            </div>
-
-            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--md-primary);">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(0, 97, 164, 0.1);  color: #0061a4;"><span class="material-symbols-outlined" style="font-size: 18px;">shopping_cart</span></div>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">Sales Order</strong>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
-                    <input type="text" id="format-ord-prefix" placeholder="ORD " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                    <input type="number" id="format-ord-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-primary); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid var(--md-primary-container); border-radius: 6px; padding: 6px 4px; outline: none;">
-                    <input type="text" id="format-ord-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                <div class="doc-format-input-group">
+                    <input type="text" id="format-inv-prefix" placeholder="INV/" class="doc-format-text" style="text-align: right;">
+                    <div class="doc-format-divider"></div>
+                    <input type="number" id="format-inv-start" placeholder="0001" class="doc-format-number" style="color: var(--md-primary); background: rgba(0, 97, 164, 0.05);">
+                    <div class="doc-format-divider"></div>
+                    <input type="text" id="format-inv-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
             </div>
 
-            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid #f57f17;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="icon-circle" style="width: 32px; height: 32px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined" style="font-size: 18px;">local_shipping</span></div>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">Purchase Order</strong>
+            <!-- 2. Sales Order -->
+            <div class="doc-format-card" style="border-left: 4px solid var(--md-primary);">
+                <div class="doc-format-header">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); box-shadow: none;"><span class="material-symbols-outlined" style="font-size: 18px;">shopping_cart</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface); letter-spacing: 0.3px;">Sales Order</strong>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
-                    <input type="text" id="format-po-prefix" placeholder="PO " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                    <input type="number" id="format-po-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: #f57f17; font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #ffe0b2; border-radius: 6px; padding: 6px 4px; outline: none;">
-                    <input type="text" id="format-po-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                </div>
-            </div>
-
-            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--md-error);">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined" style="font-size: 18px;">assignment_return</span></div>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">Credit Note (Return)</strong>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
-                    <input type="text" id="format-cn-prefix" placeholder="CN " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                    <input type="number" id="format-cn-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-error); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #ffcdd2; border-radius: 6px; padding: 6px 4px; outline: none;">
-                    <input type="text" id="format-cn-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                <div class="doc-format-input-group">
+                    <input type="text" id="format-ord-prefix" placeholder="ORD " class="doc-format-text" style="text-align: right;">
+                    <div class="doc-format-divider"></div>
+                    <input type="number" id="format-ord-start" placeholder="0001" class="doc-format-number" style="color: var(--md-primary); background: rgba(0, 97, 164, 0.05);">
+                    <div class="doc-format-divider"></div>
+                    <input type="text" id="format-ord-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
             </div>
 
-            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid #6a1b9a;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="icon-circle" style="width: 32px; height: 32px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined" style="font-size: 18px;">account_balance_wallet</span></div>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">Business Expense</strong>
+            <!-- 3. Purchase Order -->
+            <div class="doc-format-card" style="border-left: 4px solid #f57f17;">
+                <div class="doc-format-header">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #fff8e1; color: #f57f17; box-shadow: none;"><span class="material-symbols-outlined" style="font-size: 18px;">local_shipping</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface); letter-spacing: 0.3px;">Purchase Order</strong>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
-                    <input type="text" id="format-exp-prefix" placeholder="EXP " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                    <input type="number" id="format-exp-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: #6a1b9a; font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #e1bee7; border-radius: 6px; padding: 6px 4px; outline: none;">
-                    <input type="text" id="format-exp-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                </div>
-            </div>
-
-            <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--md-success);">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(20, 108, 46, 0.1); color: #146c2e;"><span class="material-symbols-outlined" style="font-size: 18px;">arrow_downward</span></div>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">Payment In (Receipt)</strong>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
-                    <input type="text" id="format-rec-prefix" placeholder="REC " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                    <input type="number" id="format-rec-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-success); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #c8e6c9; border-radius: 6px; padding: 6px 4px; outline: none;">
-                    <input type="text" id="format-rec-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                <div class="doc-format-input-group">
+                    <input type="text" id="format-po-prefix" placeholder="PO " class="doc-format-text" style="text-align: right;">
+                    <div class="doc-format-divider"></div>
+                    <input type="number" id="format-po-start" placeholder="0001" class="doc-format-number" style="color: #d84315; background: rgba(245, 127, 23, 0.05);">
+                    <div class="doc-format-divider"></div>
+                    <input type="text" id="format-po-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
             </div>
 
-            <div class="m3-card" style="padding: 12px; margin-bottom: 24px; border-left: 4px solid var(--md-error);">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined" style="font-size: 18px;">arrow_upward</span></div>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">Payment Out (Voucher)</strong>
+            <!-- 4. Credit Note -->
+            <div class="doc-format-card" style="border-left: 4px solid var(--md-error);">
+                <div class="doc-format-header">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); box-shadow: none;"><span class="material-symbols-outlined" style="font-size: 18px;">assignment_return</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface); letter-spacing: 0.3px;">Credit Note (Return)</strong>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px; background: var(--md-background); padding: 6px; border-radius: 8px; border: 1px solid var(--md-surface-variant);">
-                    <input type="text" id="format-vou-prefix" placeholder="VOU " style="flex: 1; text-align: right; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
-                    <input type="number" id="format-vou-start" placeholder="0001" style="width: 70px; text-align: center; font-weight: bold; color: var(--md-error); font-size: 15px; font-family: monospace; background: var(--md-surface); border: 1px solid #ffcdd2; border-radius: 6px; padding: 6px 4px; outline: none;">
-                    <input type="text" id="format-vou-suffix" placeholder="/{FY}" style="flex: 1; background: transparent; border: none; font-size: 14px; outline: none; width: 100%;">
+                <div class="doc-format-input-group">
+                    <input type="text" id="format-cn-prefix" placeholder="CN " class="doc-format-text" style="text-align: right;">
+                    <div class="doc-format-divider"></div>
+                    <input type="number" id="format-cn-start" placeholder="0001" class="doc-format-number" style="color: var(--md-error); background: rgba(186, 26, 26, 0.05);">
+                    <div class="doc-format-divider"></div>
+                    <input type="text" id="format-cn-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
+                </div>
+            </div>
+
+            <!-- 5. Business Expense -->
+            <div class="doc-format-card" style="border-left: 4px solid #6a1b9a;">
+                <div class="doc-format-header">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: #f3e5f5; color: #6a1b9a; box-shadow: none;"><span class="material-symbols-outlined" style="font-size: 18px;">account_balance_wallet</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface); letter-spacing: 0.3px;">Business Expense</strong>
+                </div>
+                <div class="doc-format-input-group">
+                    <input type="text" id="format-exp-prefix" placeholder="EXP " class="doc-format-text" style="text-align: right;">
+                    <div class="doc-format-divider"></div>
+                    <input type="number" id="format-exp-start" placeholder="0001" class="doc-format-number" style="color: #6a1b9a; background: rgba(106, 27, 154, 0.05);">
+                    <div class="doc-format-divider"></div>
+                    <input type="text" id="format-exp-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
+                </div>
+            </div>
+
+            <!-- 6. Payment In (Receipt) -->
+            <div class="doc-format-card" style="border-left: 4px solid var(--md-success);">
+                <div class="doc-format-header">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(20, 108, 46, 0.1); color: var(--md-success); box-shadow: none;"><span class="material-symbols-outlined" style="font-size: 18px;">arrow_downward</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface); letter-spacing: 0.3px;">Payment In (Receipt)</strong>
+                </div>
+                <div class="doc-format-input-group">
+                    <input type="text" id="format-rec-prefix" placeholder="REC " class="doc-format-text" style="text-align: right;">
+                    <div class="doc-format-divider"></div>
+                    <input type="number" id="format-rec-start" placeholder="0001" class="doc-format-number" style="color: var(--md-success); background: rgba(20, 108, 46, 0.05);">
+                    <div class="doc-format-divider"></div>
+                    <input type="text" id="format-rec-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
+                </div>
+            </div>
+
+            <!-- 7. Payment Out (Voucher) -->
+            <div class="doc-format-card" style="border-left: 4px solid var(--md-error); margin-bottom: 24px;">
+                <div class="doc-format-header">
+                    <div class="icon-circle" style="width: 32px; height: 32px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); box-shadow: none;"><span class="material-symbols-outlined" style="font-size: 18px;">arrow_upward</span></div>
+                    <strong style="font-size: 14px; color: var(--md-on-surface); letter-spacing: 0.3px;">Payment Out (Voucher)</strong>
+                </div>
+                <div class="doc-format-input-group">
+                    <input type="text" id="format-vou-prefix" placeholder="VOU " class="doc-format-text" style="text-align: right;">
+                    <div class="doc-format-divider"></div>
+                    <input type="number" id="format-vou-start" placeholder="0001" class="doc-format-number" style="color: var(--md-error); background: rgba(186, 26, 26, 0.05);">
+                    <div class="doc-format-divider"></div>
+                    <input type="text" id="format-vou-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
             </div>
             
         </div>
-        <div style="padding: 16px; background: var(--md-surface); border-top: 1px solid var(--md-outline-variant); flex-shrink: 0;">
+        <div style="padding: 16px; background: var(--md-surface); border-top: 1px solid var(--md-outline-variant); flex-shrink: 0; z-index: 20;">
             <button class="btn-primary tap-target" onclick="app.saveDocumentSettings()" style="width: 100%; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">Save Formats</button>
         </div>
     </div>
@@ -3401,11 +3596,11 @@
         </div>
     </div>
 
-    <script src="db.js?v=82"></script>
-    <script src="utils.js?v=82"></script>
-    <script src="ui.js?v=82"></script>
-    <script src="cloud.js?v=82"></script>
-    <script src="app.js?v=82"></script>
+    <script src="db.js?v=83"></script>
+    <script src="utils.js?v=83"></script>
+    <script src="ui.js?v=83"></script>
+    <script src="cloud.js?v=83"></script>
+    <script src="app.js?v=83"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -3435,8 +3630,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=82' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=82`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=83' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=83`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -4146,6 +4341,23 @@
     // We dynamically patch the UI.js Smart Search engine to support our new "Party" and "Item Ledger" filters!
     document.addEventListener('DOMContentLoaded', () => {
         if (window.UI) {
+            
+            // 1. Force the tabs to appear ONLY when searching for a Party
+            const originalOpen = window.UI.openSmartSearch;
+            window.UI.openSmartSearch = function(targetType, formPrefix) {
+                originalOpen.apply(this, arguments);
+                
+                const tabsEl = document.getElementById('smart-search-tabs');
+                if (tabsEl) {
+                    if (targetType === 'party') {
+                        tabsEl.style.display = 'flex';
+                        if(window.switchSmartTab) window.switchSmartTab('customer'); // Default to Customer Tab
+                    } else {
+                        tabsEl.style.display = 'none'; // Hide tabs for Products
+                    }
+                }
+            };
+
             const originalExecute = window.UI.executeSmartSearch;
             window.UI.executeSmartSearch = function() {
                 if (window.UI.state.smartSearchTarget === 'party') {
@@ -4153,14 +4365,24 @@
                     const resultsContainer = document.getElementById('smart-search-results');
                     const prefix = window.UI.state.smartSearchPrefix;
                     
-                    let results = window.UI.state.rawData.ledgers.filter(l => window.fuzzyMatch(query, l.name) || (l.phone && l.phone.includes(query)));
+                    // 🚨 INJECTED FILTER: Read the active tab state!
+                    const activeTab = window.UI.state.smartSearchPartyFilter || 'customer';
+                    
+                    let results = window.UI.state.rawData.ledgers.filter(l => 
+                        String(l.type).toLowerCase() === activeTab && 
+                        (window.fuzzyMatch(query, l.name) || (l.phone && l.phone.includes(query)))
+                    );
+                    
                     let html = '';
                     results.slice(0, 30).forEach(l => {
                         const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                        const icon = String(l.type).toLowerCase() === 'customer' ? 'person' : 'storefront';
+                        const icon = String(l.type).toLowerCase() === 'customer' ? 'person' : 'local_shipping';
+                        const iconColor = String(l.type).toLowerCase() === 'customer' ? 'var(--md-primary)' : '#ba1a1a';
+                        const iconBg = String(l.type).toLowerCase() === 'customer' ? 'var(--md-surface-variant)' : 'rgba(186, 26, 26, 0.1)';
+                        
                         html += `
                         <div class="tap-target" onclick="UI.selectSmartParty('${prefix}', '${l.id}', '${safeName}')" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
-                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span></div>
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${iconColor};"><span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span></div>
                             <div><strong style="display: block; font-size: 16px;">${window.UI.highlightText(l.name, query)}</strong><small style="color: var(--md-text-muted);">${l.phone || 'No Phone'}</small></div>
                         </div>`;
                     });
@@ -4201,7 +4423,16 @@
                     window.UI.closeBottomSheet('sheet-smart-search');
                     // Automatically reload the ledger with the new party!
                     if (typeof window.triggerItemLedgerFromForm === 'function') window.triggerItemLedgerFromForm();
-                } else {
+                } 
+                // 🚨 NEW FIX: Route the Khata Report through the Smart Search UI!
+                else if (typeId === 'khata-view') {
+                    window.UI.closeBottomSheet('sheet-smart-search');
+                    const party = window.UI.state.rawData.ledgers.find(l => l.id === id);
+                    if (party && window.app) {
+                        window.app.openPartyLedger(id, party.type, name);
+                    }
+                } 
+                else {
                     originalSelect.apply(this, [typeId, id, name]);
                 }
             };
@@ -4489,21 +4720,51 @@
         }
     });
     </script>
-    <div id="sheet-smart-search" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: auto; max-height: none; border-radius: 8px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff);">
-        <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; border-radius: 8px 8px 0 0;">
+    <div id="sheet-smart-search" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: auto; max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff);">
+        <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; border-radius: 12px 12px 0 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; padding-bottom: 8px;">
                 <strong id="smart-search-title" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Search</strong>
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-primary, #0061a4); font-size: 24px;" onclick="UI.createNewFromSearch()">add</span>
             </div>
-            <div style="background: var(--md-surface, #ffffff); border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); padding: 0 16px 12px 16px;">
-                <input type="text" id="smart-search-input" placeholder="Search..." autocomplete="off" oninput="if(window.st) clearTimeout(window.st); window.st = setTimeout(() => UI.executeSmartSearch(), 250);" style="width: 100%; border: none !important; background: transparent !important; outline: none !important; box-shadow: none !important; font-size: 16px; color: var(--md-on-surface, #1e293b); padding: 0; margin: 0; -webkit-appearance: none;">
+            
+            <div style="background: var(--md-surface, #ffffff); padding: 0 16px 12px 16px;">
+                <input type="text" id="smart-search-input" placeholder="Search name or phone..." autocomplete="off" oninput="if(window.st) clearTimeout(window.st); window.st = setTimeout(() => UI.executeSmartSearch(), 250);" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: var(--md-surface-variant, #f1f5f9); padding: 10px; border-radius: 8px; font-size: 14px; color: var(--md-on-surface, #1e293b); outline: none; margin-bottom: 0;">
             </div>
+
+            <!-- 🚀 ENTERPRISE UX: SMART PARTY TABS (Hidden by default) -->
+            <div id="smart-search-tabs" style="display: none; background: var(--md-surface-variant); padding: 4px; border-radius: 8px; margin: 0 16px 12px 16px;">
+                <div id="tab-btn-smart-customers" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; background: var(--md-surface); color: var(--md-primary); box-shadow: var(--elevation-1); font-size: 13px;" onclick="window.switchSmartTab('customer')">Customers</div>
+                <div id="tab-btn-smart-suppliers" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="window.switchSmartTab('supplier')">Suppliers</div>
+            </div>
+            <div style="height: 1px; background: var(--md-outline-variant, #e2e8f0); width: 100%;"></div>
         </div>
+        
         <div id="smart-search-results" style="flex: 1; overflow-y: auto; padding: 0; background: var(--md-surface, #ffffff);">
         </div>
         <div style="background: transparent; padding: 4px 16px 12px; text-align: right; flex-shrink: 0;">
             <span class="tap-target" style="color: var(--md-primary, #0061a4); font-weight: 700; font-size: 14px; text-transform: uppercase; padding: 4px 0;" onclick="UI.closeBottomSheet('sheet-smart-search')">CLOSE</span>
         </div>
+        
+        <!-- Tab Switching Logic -->
+        <script>
+            window.switchSmartTab = function(tab) {
+                const btnC = document.getElementById('tab-btn-smart-customers');
+                const btnS = document.getElementById('tab-btn-smart-suppliers');
+                
+                if (tab === 'customer') {
+                    btnC.style.background = 'var(--md-surface)'; btnC.style.color = 'var(--md-primary)'; btnC.style.boxShadow = 'var(--elevation-1)';
+                    btnS.style.background = 'transparent'; btnS.style.color = 'var(--md-text-muted)'; btnS.style.boxShadow = 'none';
+                } else {
+                    btnS.style.background = 'var(--md-surface)'; btnS.style.color = 'var(--md-primary)'; btnS.style.boxShadow = 'var(--elevation-1)';
+                    btnC.style.background = 'transparent'; btnC.style.color = 'var(--md-text-muted)'; btnC.style.boxShadow = 'none';
+                }
+                
+                if (window.UI) {
+                    window.UI.state.smartSearchPartyFilter = tab;
+                    window.UI.executeSmartSearch(); // Refresh the list instantly!
+                }
+            };
+        </script>
     </div>
 
     <!-- 🚨 ENTERPRISE UPGRADE: COMPACT POS NUMPAD OVERLAY -->

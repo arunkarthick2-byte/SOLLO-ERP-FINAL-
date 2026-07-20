@@ -6,6 +6,7 @@ const UI = {
 
     // --- PREMIUM UX: NATIVE HAPTICS & SCROLL NAV ---
     triggerHaptic: (type = 'light') => {
+        if (localStorage.getItem('sollo_haptics') === 'false') return; // 🚨 KILL SWITCH
         if (!navigator.vibrate) return;
         if (type === 'light') navigator.vibrate(10);
         if (type === 'medium') navigator.vibrate(25);
@@ -943,208 +944,131 @@ const UI = {
     },
 
     calcSalesTotals: () => {
-        let rawSubtotal = 0;
-        const typeEl = document.getElementById('sales-invoice-type');
-        const isGST = typeEl ? typeEl.value !== 'Non-GST' : true;
-
-        // ENTERPRISE FIX: Bulletproof Math Parser that ignores commas and text!
-        const safeNum = (val) => (window.Utils && window.Utils.safeNumber) ? window.Utils.safeNumber(val) : (parseFloat(String(val || '0').replace(/,/g, '')) || 0);
-
-        const rows = document.querySelectorAll('#sales-items-body .item-entry-card');
-        
-        rows.forEach(tr => {
-            const qty = safeNum(tr.querySelector('.row-qty').value);
-            const rate = safeNum(tr.querySelector('.row-rate').value);
-            // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift
-            const lineTotal = qty * rate;
-            rawSubtotal += Math.round(lineTotal * 100) / 100;
-        });
-
-        // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the invoice total!
-        // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors if the DOM elements are hidden or removed!
-        // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
-        const discountInput = Math.abs(safeNum((document.getElementById('sales-discount') || {}).value));
-        const discountTypeEl = document.getElementById('sales-discount-type');
-        const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
-        // ENTERPRISE FIX: Strict rounding on percentage discounts
-        let discountAmt = discountType === '%' 
-            ? Math.round((rawSubtotal * (discountInput / 100)) * 100) / 100 
-            : discountInput;
-        
-        // 🚨 ENTERPRISE FIX: The Credit Note Discount Trap!
-        // Flat discounts on negative subtotals must become negative, and the cap must safely evaluate absolute values!
-        if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
-        if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
-        
-        // CRITICAL FIX: Changed "> 0" to "!== 0" so discounts successfully apply to Return Invoices!
-        const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
-        
-        let finalSubtotal = 0;
-        let totalGst = 0;
-
-        rows.forEach(tr => {
-            // ENTERPRISE FIX: Apply the safe math parser here too!
-            const qty = safeNum(tr.querySelector('.row-qty').value);
-            const rate = safeNum(tr.querySelector('.row-rate').value);
-            const gstPercent = isGST ? safeNum(tr.querySelector('.row-gst').value) : 0;
-            
-            const baseAmount = qty * rate;
-            const discountedBase = baseAmount - (baseAmount * discountRatio);
-            const gstAmount = discountedBase * (gstPercent / 100);
-            
-            const roundedDiscountedBase = Math.round(discountedBase * 100) / 100;
-            const roundedGst = Math.round(gstAmount * 100) / 100;
-            const rowTotal = roundedDiscountedBase + roundedGst;
-            
-            tr.querySelector('.row-total').innerText = Utils.roundFinancial(rowTotal).toFixed(2);
-            
-            finalSubtotal += discountedBase;
-            totalGst += gstAmount;
-
-            // 🟢 ENTERPRISE FIX: Safe Null Check! Prevents fatal crashes when editing older invoices that lack this field.
-            const buyPriceInput = tr.querySelector('.row-item-buyprice');
-            const buyPrice = buyPriceInput ? (parseFloat(buyPriceInput.value) || 0) : 0;
-            
-            const marginSpan = tr.querySelector('.live-margin');
-            if (marginSpan) {
-                const effectiveRate = rate - (rate * discountRatio); 
-                const profitAmt = effectiveRate - buyPrice;
-                const marginPercent = effectiveRate > 0 ? ((profitAmt / effectiveRate) * 100).toFixed(1) : 0;
-                // Upgrade: Shows the exact profit amount per unit based on the custom editable buy price
-                marginSpan.innerText = `Margin: ${marginPercent}% (\u20B9${profitAmt.toFixed(2)}/unit)`;
-                marginSpan.style.color = profitAmt < 0 ? 'var(--md-error)' : 'var(--md-success)';
-            }
-        });
-
-        // ENTERPRISE FIX: Apply safeNum to Sales Freight so commas don't break the grand total!
-        // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
-        // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
-        const freight = safeNum((document.getElementById('sales-freight') || {}).value);
-        const exactTotal = finalSubtotal + totalGst + freight;
-        const roundedTotal = Math.round(exactTotal);
-        let roundOff = roundedTotal - exactTotal;
-        if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
-
-        const subtotalEl = document.getElementById('sales-subtotal');
-        if (subtotalEl) subtotalEl.innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
-        
-        const gstTotalEl = document.getElementById('sales-gst-total');
-        if (gstTotalEl) gstTotalEl.innerText = `\u20B9${totalGst.toFixed(2)}`;
-        
-        // 🚀 ENTERPRISE UPGRADE: Live CGST/SGST Splitter
-        const halfSalesGst = totalGst / 2;
-        const sCgstEl = document.getElementById('sales-cgst-total');
-        if (sCgstEl) sCgstEl.innerText = `\u20B9${halfSalesGst.toFixed(2)}`;
-        const sSgstEl = document.getElementById('sales-sgst-total');
-        if (sSgstEl) sSgstEl.innerText = `\u20B9${halfSalesGst.toFixed(2)}`;
-        
-        const roundOffEl = document.getElementById('sales-round-off');
-        if (roundOffEl) {
-            roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
-        }
-        
-        const grandTotalEl = document.getElementById('sales-grand-total');
-        if (grandTotalEl) grandTotalEl.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
-        
-        const stickySales = document.getElementById('sales-sticky-total');
-        if (stickySales) stickySales.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
-        
-        if (window.UI.updateLiveInsight) window.UI.updateLiveInsight('sales');
+        UI.calculateDocumentTotals('sales');
     },
 
     calcPurchaseTotals: () => {
-        let rawSubtotal = 0;
-        const typeEl = document.getElementById('purchase-invoice-type');
+        UI.calculateDocumentTotals('purchase');
+    },
+
+    calculateDocumentTotals: (prefix) => {
+        const isSales = prefix === 'sales';
+        const typeEl = document.getElementById(`${prefix}-invoice-type`);
         const isGST = typeEl ? typeEl.value !== 'Non-GST' : true;
 
-        // ENTERPRISE FIX: Bulletproof Math Parser that ignores commas and text!
         const safeNum = (val) => (window.Utils && window.Utils.safeNumber) ? window.Utils.safeNumber(val) : (parseFloat(String(val || '0').replace(/,/g, '')) || 0);
 
-        const rows = document.querySelectorAll('#purchase-items-body .item-entry-card');
+        const rows = document.querySelectorAll(`#${prefix}-items-body .item-entry-card`);
         
+        // 1. Calculate Gross Subtotal
+        let rawSubtotal = 0;
         rows.forEach(tr => {
             const qty = safeNum(tr.querySelector('.row-qty').value);
             const rate = safeNum(tr.querySelector('.row-rate').value);
-            // ENTERPRISE FIX: Strict 2-decimal rounding to prevent floating-point drift
             const lineTotal = qty * rate;
             rawSubtotal += Math.round(lineTotal * 100) / 100;
         });
 
-        // STRICT ERP LOGIC: Block "Reverse Discount" fraud where negative numbers inflate the PO total!
-        // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
-        // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
-        const discountInput = Math.abs(safeNum((document.getElementById('purchase-discount') || {}).value));
-        const discountTypeEl = document.getElementById('purchase-discount-type');
+        // 2. Parse Global Discount
+        const discountInput = Math.abs(safeNum((document.getElementById(`${prefix}-discount`) || {}).value));
+        const discountTypeEl = document.getElementById(`${prefix}-discount-type`);
         const discountType = discountTypeEl ? discountTypeEl.value : '\u20B9';
-        // ENTERPRISE FIX: Strict rounding on percentage discounts
-        let discountAmt = discountType === '%' 
+        
+        let globalDiscountAmt = discountType === '%' 
             ? Math.round((rawSubtotal * (discountInput / 100)) * 100) / 100 
             : discountInput;
         
-        // 🚨 ENTERPRISE FIX: The Credit Note Discount Trap!
-        // Flat discounts on negative subtotals must become negative, and the cap must safely evaluate absolute values!
-        if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
-        if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
-        
-        // CRITICAL FIX: Changed "> 0" to "!== 0" so discounts successfully apply to Return Invoices!
-        const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
+        if (rawSubtotal < 0 && globalDiscountAmt > 0) globalDiscountAmt = -globalDiscountAmt;
+        if (Math.abs(globalDiscountAmt) > Math.abs(rawSubtotal)) globalDiscountAmt = rawSubtotal;
 
+        const discountRatio = rawSubtotal !== 0 ? (globalDiscountAmt / rawSubtotal) : 0;
+
+        // 3. APPLY ENTERPRISE DISCOUNT LOGIC (Pre-Tax vs Post-Tax)
+        const logic = localStorage.getItem('sollo_discount_logic') || 'pre_tax';
+        
         let finalSubtotal = 0;
         let totalGst = 0;
 
         rows.forEach(tr => {
-            // ENTERPRISE FIX: Apply the safe math parser here too!
             const qty = safeNum(tr.querySelector('.row-qty').value);
             const rate = safeNum(tr.querySelector('.row-rate').value);
             const gstPercent = isGST ? safeNum(tr.querySelector('.row-gst').value) : 0;
             
             const baseAmount = qty * rate;
-            const discountedBase = baseAmount - (baseAmount * discountRatio);
-            const gstAmount = discountedBase * (gstPercent / 100);
+            
+            // Pre-tax vs Post-tax Handling
+            let taxableBase = baseAmount;
+            let discountedBase = baseAmount - (baseAmount * discountRatio);
+
+            if (logic === 'pre_tax') {
+                // GST is calculated on the discounted price
+                taxableBase = discountedBase;
+            }
+            
+            const gstAmount = taxableBase * (gstPercent / 100);
             
             const roundedDiscountedBase = Math.round(discountedBase * 100) / 100;
             const roundedGst = Math.round(gstAmount * 100) / 100;
             const rowTotal = roundedDiscountedBase + roundedGst;
             
-            tr.querySelector('.row-total').innerText = Utils.roundFinancial(rowTotal).toFixed(2);
+            // Update Row Total UI
+            const rowTotalEl = tr.querySelector('.row-total');
+            if (rowTotalEl) {
+                rowTotalEl.innerText = (window.Utils && window.Utils.roundFinancial) 
+                    ? window.Utils.roundFinancial(rowTotal).toFixed(2) 
+                    : rowTotal.toFixed(2);
+            }
             
             finalSubtotal += discountedBase;
             totalGst += gstAmount;
+
+            // Update Live Margin (Only for Sales)
+            if (isSales) {
+                const buyPriceInput = tr.querySelector('.row-item-buyprice');
+                const buyPrice = buyPriceInput ? (parseFloat(buyPriceInput.value) || 0) : 0;
+                const marginSpan = tr.querySelector('.live-margin');
+                if (marginSpan) {
+                    const effectiveRate = rate - (rate * discountRatio); 
+                    const profitAmt = effectiveRate - buyPrice;
+                    const marginPercent = effectiveRate > 0 ? ((profitAmt / effectiveRate) * 100).toFixed(1) : 0;
+                    marginSpan.innerText = `Margin: ${marginPercent}% (\u20B9${profitAmt.toFixed(2)}/unit)`;
+                    marginSpan.style.color = profitAmt < 0 ? 'var(--md-error)' : 'var(--md-success)';
+                }
+            }
         });
 
-        // ENTERPRISE FIX: Added '?.' to prevent fatal TypeErrors!
-        // ENTERPRISE FIX: Removed '?.value' to prevent fatal calculator crashes on older iPhones/Androids!
-        const freight = safeNum((document.getElementById('purchase-freight') || {}).value);
+        // 4. Calculate Final Totals
+        const freight = safeNum((document.getElementById(`${prefix}-freight`) || {}).value);
         const exactTotal = finalSubtotal + totalGst + freight;
+        
         const roundedTotal = Math.round(exactTotal);
         let roundOff = roundedTotal - exactTotal;
-        if (Math.abs(roundOff) < 0.01) roundOff = 0; // 🚨 FIX: Eradicates the "-0.00" math glitch!
+        if (Math.abs(roundOff) < 0.01) roundOff = 0;
 
-        const pSubtotalEl = document.getElementById('purchase-subtotal');
-        if (pSubtotalEl) pSubtotalEl.innerText = `\u20B9${finalSubtotal.toFixed(2)}`;
+        // 5. Inject Results into the UI
+        const subtotalEl = document.getElementById(`${prefix}-subtotal`);
+        if (subtotalEl) subtotalEl.innerHTML = `&#8377;${rawSubtotal.toFixed(2)}`;
         
-        const pGstTotalEl = document.getElementById('purchase-gst-total');
-        if (pGstTotalEl) pGstTotalEl.innerText = `\u20B9${totalGst.toFixed(2)}`;
+        const gstTotalEl = document.getElementById(`${prefix}-gst-total`);
+        if (gstTotalEl) gstTotalEl.innerHTML = `&#8377;${totalGst.toFixed(2)}`;
         
-        // 🚀 ENTERPRISE UPGRADE: Live CGST/SGST Splitter
-        const halfPurchGst = totalGst / 2;
-        const pCgstEl = document.getElementById('purchase-cgst-total');
-        if (pCgstEl) pCgstEl.innerText = `\u20B9${halfPurchGst.toFixed(2)}`;
-        const pSgstEl = document.getElementById('purchase-sgst-total');
-        if (pSgstEl) pSgstEl.innerText = `\u20B9${halfPurchGst.toFixed(2)}`;
+        const halfGst = totalGst / 2;
+        const cgstEl = document.getElementById(`${prefix}-cgst-total`);
+        if (cgstEl) cgstEl.innerHTML = `&#8377;${halfGst.toFixed(2)}`;
         
-        const roundOffEl = document.getElementById('purchase-round-off');
-        if (roundOffEl) {
-            roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
-        }
+        const sgstEl = document.getElementById(`${prefix}-sgst-total`);
+        if (sgstEl) sgstEl.innerHTML = `&#8377;${halfGst.toFixed(2)}`;
         
-        const pGrandTotalEl = document.getElementById('purchase-grand-total');
-        if (pGrandTotalEl) pGrandTotalEl.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        const roundOffEl = document.getElementById(`${prefix}-round-off`);
+        if (roundOffEl) roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
         
-        const stickyPurchase = document.getElementById('purchase-sticky-total');
-        if (stickyPurchase) stickyPurchase.innerText = `\u20B9${roundedTotal.toFixed(2)}`;
+        const grandTotalEl = document.getElementById(`${prefix}-grand-total`);
+        if (grandTotalEl) grandTotalEl.innerHTML = `&#8377;${roundedTotal.toFixed(2)}`;
         
-        if (window.UI.updateLiveInsight) window.UI.updateLiveInsight('purchase');
+        const stickyTotal = document.getElementById(`${prefix}-sticky-total`);
+        if (stickyTotal) stickyTotal.innerHTML = `&#8377;${roundedTotal.toFixed(2)}`;
+        
+        if (window.UI && window.UI.updateLiveInsight) window.UI.updateLiveInsight(prefix);
     },
 
     // ==========================================
@@ -4725,6 +4649,18 @@ document.addEventListener('focusout', (e) => {
         }
     }
 });
+
+// 🚨 ENTERPRISE UX: REVERT CURRENCY FORMATTER ON TAP
+// Strips the commas and restores the Native Mobile Numpad when editing!
+document.addEventListener('focusin', (e) => {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'text' && !e.target.id.toLowerCase().includes('pincode') && (e.target.classList.contains('currency-input') || e.target.id.includes('amount') || e.target.id.includes('rate') || e.target.id.includes('price'))) {
+        // Strip commas and revert back to a number input
+        const rawVal = String(e.target.value).replace(/,/g, '');
+        e.target.type = 'number';
+        e.target.value = rawVal;
+    }
+});
+
         // ==========================================
         // 🚨 ENTERPRISE UX: DRAG-TO-DISMISS SHEETS
         // ==========================================
@@ -4853,6 +4789,7 @@ window.addEventListener('wheel', function() {}, passiveConfig);
 
 // 1. Create a professional, synthesized "Success Ding"
 window.playSuccessSound = () => {
+    if (localStorage.getItem('sollo_sounds') === 'false') return; // 🚨 KILL SWITCH
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
@@ -4897,6 +4834,7 @@ if (window.UI && typeof window.UI.showSuccess === 'function') {
 
 // 3. Add a subtle "Tick" sound when adding items to the cart
 window.playTickSound = () => {
+    if (localStorage.getItem('sollo_sounds') === 'false') return; // 🚨 KILL SWITCH
     try {
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         if (!AudioContext) return;
