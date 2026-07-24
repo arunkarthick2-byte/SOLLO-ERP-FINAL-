@@ -50,17 +50,28 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-    <!-- 🚨 BIZOPS FIX: Injected Chart.js Library -->
+    <!-- 🚨 SOLLO FIX: Injected Chart.js Library -->
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=83">
+    <link rel="stylesheet" href="style.css?v=85">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
 
     <style>
+        /* 🔥 THE KEYBOARD OVERLAP FIX: Forces the phone to scroll higher so the field underneath is always visible and tappable! */
+        input, select, textarea {
+            scroll-margin-bottom: 90px !important; 
+        }
+        
+        /* Prevents invisible focus layers from blocking your taps */
+        input:focus, select:focus, textarea:focus {
+            z-index: 1 !important;
+            transform: none !important;
+        }
+
         .search-bar input {
             border: none !important;
             background: transparent !important;
@@ -98,7 +109,7 @@
             overscroll-behavior-y: none; 
         }
 
-        /* 🚨 BIZOPS FIX: RESTORE STICKY FOOTER & UN-STICK DYNAMIC BANNER */
+        /* 🚨 SOLLO FIX: RESTORE STICKY FOOTER & UN-STICK DYNAMIC BANNER */
         
         /* 1. Repair the screen layout so the Header & Save Button lock back into place! */
         body .activity-screen.open,
@@ -113,23 +124,29 @@
             flex: 1 !important;
         }
 
-        /* 2. Force ALL dynamically injected Insight Banners to scroll away normally */
+        /* 🚨 SOLLO FIX: PERMANENTLY HIDE LIVE INSIGHT BANNERS (STEALTH MODE) */
+        /* Hides them visually without breaking the app's background math calculations! */
         #sales-risk-banner, 
         #purchase-risk-banner,
         #risk-banner,
         [id*="risk-banner"] {
-            position: relative !important;
-            top: auto !important;
-            z-index: 1 !important;
-            margin: 4px 0 16px 0 !important;
+            position: absolute !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            pointer-events: none !important;
+            z-index: -1 !important;
         }
-                /* 🚨 BIZOPS FIX: Master Shield to force Overdue Alerts to hide when toggled off */
+                /* 🚨 SOLLO FIX: Master Shield to force Overdue Alerts to hide when toggled off */
         body.hide-overdue-alerts #overdue-reminders-container {
             display: none !important;
         }
 
 
-        /* 🚨 BIZOPS FIX: PROFESSIONAL INVOICE ITEM ROWS */
+        /* 🚨 SOLLO FIX: PROFESSIONAL INVOICE ITEM ROWS */
         /* Completely strips the bulky boxes and turns them into clean receipt lines */
         .item-entry-card {
             border: none !important;
@@ -181,37 +198,32 @@
             box-shadow: none !important;
         }
 
-        /* FIX: Force Buy Price input to be compact and match the theme */
-        .item-entry-card input.row-item-buyprice {
-            background: transparent !important;
-            min-height: 18px !important;     /* Shrinks the minimum height */
-            height: 18px !important;         /* Shrinks the actual height */
-            line-height: 18px !important;    /* Keeps the numbers centered inside the tiny box */
-            padding: 0px 4px !important;     /* Removes the bulky padding inside the box */
-            font-size: 11px !important;
-            color: var(--md-text-muted) !important;
-            width: 45px !important;          /* Makes the box narrower */
-            text-align: center !important;
-            border-radius: 3px !important;   /* Slightly sharper corners for a compact look */
-            box-shadow: none !important;
-            border: 1px solid var(--md-outline-variant) !important;
-        }
-
-        .item-entry-card input.row-item-buyprice:focus {
-            border-color: var(--md-primary) !important;
-            color: var(--md-primary) !important;
-            background: rgba(0, 97, 164, 0.05) !important;
-        }
-
         /* Subdue the Delete 'X' so it isn't distracting */
         .item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"],
         .item-entry-card span[onclick*="remove"] {
             background: transparent !important;
             color: var(--md-text-muted) !important;
         }
+
+        /* 🚨 MOBILE KEYBOARD FIX: Hide floating buttons when typing */
+        @media screen and (max-height: 600px) and (orientation: portrait) {
+            .thumb-action-bar, 
+            .form-sticky-footer {
+                display: none !important;
+            }
+        }
+
+        /* 🚀 PROGRESSIVE DISCLOSURE ANIMATION */
+        .animate-step {
+            animation: fadeSlideDown 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        @keyframes fadeSlideDown {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 
-    <!-- 🚨 BIZOPS FIX: SMART BANNER RELOCATOR (Removed to prevent battery drain) -->
+    <!-- 🚨 SOLLO FIX: SMART BANNER RELOCATOR (Removed to prevent battery drain) -->
 
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" as="script">
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" as="script">
@@ -240,6 +252,8 @@
         <main class="main-content">
             
             <div id="tab-dashboard" class="screen-section active-screen">
+                
+
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     
                     <!-- 🚀 ENTERPRISE UX: SMART COMMAND CENTER GREETING -->
@@ -295,7 +309,7 @@
                     <div style="display: flex; border-bottom: 1px solid var(--md-outline-variant);">
                         <div class="tap-target" style="flex: 1; padding: 16px; border-right: 1px solid var(--md-outline-variant);" onclick="if(window.app) window.app.openUniversalReport('sales_register')">
                             <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase;">Total Sales</small>
-                            <div class="large-text color-primary" id="dash-total-sales" style="font-size: 20px; font-weight: 700; margin-top: 4px; min-height: 24px;">
+                            <div class="large-text color-primary" id="dash-total-sales" data-bind="totalSalesDisplay" style="font-size: 20px; font-weight: 700; margin-top: 4px; min-height: 24px;">
                                 <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px;"></div>
                             </div>
                         </div>
@@ -414,11 +428,16 @@
                 <!-- 1. INVENTORY BOOKS -->
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">1. Inventory Books</strong>
                 <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) window.UI.openMasterView('products', 'Inventory Master');">
-                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">inventory</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Stock Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Live snapshot & valuation</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
+                    
+                    <!-- NEW CLEAN WEB COMPONENT -->
+                    <sollo-nav-card 
+                        title="Stock Summary" 
+                        subtitle="Live snapshot & valuation" 
+                        icon="inventory" 
+                        icon-color="var(--md-primary)" 
+                        icon-bg="rgba(0, 97, 164, 0.1)"
+                        onclick-action="if(window.UI) window.UI.openMasterView('products', 'Inventory Master');">
+                    </sollo-nav-card>
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) UI.openSmartSearch('item_ledger_report', 'item_ledger_report');">
                         <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">history</span></div>
                         <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item Ledger (Movement)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological lifecycle</small></div>
@@ -758,12 +777,37 @@
                 
                 <!-- 🚀 Premium iOS Toggle Switch CSS (Bulletproof) -->
                 <style>
+                    /* 1. THE JUMP FIX: Stop the whole card from jumping up 2px when the toggle is clicked! */
+                    #tab-menu .m3-card:focus-within {
+                        transform: none !important;
+                        box-shadow: none !important;
+                        border-color: var(--md-surface-variant) !important;
+                    }
+                    body.dark-mode #tab-menu .m3-card:focus-within {
+                        border-color: rgba(255, 255, 255, 0.05) !important;
+                    }
+
+                    /* 2. THE SQUISH FIX: Stop the toggle itself from physically shrinking when tapped */
+                    .ios-toggle-wrapper.tap-target:active {
+                        transform: none !important;
+                    }
+
+                    /* 3. The Toggle Design */
                     .ios-toggle-wrapper { position: relative; display: inline-block; width: 44px; height: 24px; margin: 0; flex-shrink: 0; }
-                    .ios-toggle-wrapper input { opacity: 0; width: 0; height: 0; position: absolute; pointer-events: none; }
+                    
+                    /* Completely hide the real checkbox so it cannot be styled or take physical space */
+                    .ios-toggle-wrapper input { 
+                        position: absolute !important; 
+                        opacity: 0 !important;
+                        visibility: hidden !important; 
+                        pointer-events: none !important; 
+                    }
+                    
                     .ios-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--md-outline-variant); transition: 0.3s ease; border-radius: 24px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
                     .ios-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 2px; bottom: 2px; background-color: #ffffff; transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
                     .ios-toggle-wrapper input:checked + .ios-slider { background-color: var(--md-primary); }
                     .ios-toggle-wrapper input:checked + .ios-slider:before { transform: translateX(20px); }
+                    
                     body.dark-mode .ios-slider { background-color: #334155; }
                     body.dark-mode .ios-slider:before { background-color: #f8fafc; }
                     body.dark-mode .ios-toggle-wrapper input:checked + .ios-slider { background-color: var(--md-primary); }
@@ -1151,6 +1195,9 @@
                     <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
                 </div>
 
+                <!-- 🚀 PROGRESSIVE DISCLOSURE: STEP 2 (HIDDEN BY DEFAULT) -->
+                <div id="sales-step-2" class="hidden">
+
                 <div id="sales-return-ref-group" class="hidden" style="margin-bottom: 12px; background: rgba(186, 26, 26, 0.05); padding: 12px; border-radius: 8px; border: 1px solid var(--md-error);">
                     <div style="font-size: 12px; font-weight: bold; color: var(--md-error); margin-bottom: 6px;">Original Invoice Reference *</div>
                     <select id="sales-original-ref" onchange="app.loadReturnItems(this.value, 'sales')" style="box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid rgba(186, 26, 26, 0.3); border-radius: 6px; font-size: 15px; background: var(--md-surface); outline: none; color: var(--md-error);">
@@ -1225,7 +1272,7 @@
                                 <option value="&#8377;">&#8377;</option>
                                 <option value="%">%</option>
                             </select>
-                            <input type="text" inputmode="none" readonly id="sales-discount" class="tap-target" value="0" onclick="if(window.UI) window.UI.openNumpad(this, 'Discount Amount')" oninput="UI.calcSalesTotals()" style="width: 100px !important; text-align: right; cursor: pointer;">
+                            <input type="text" inputmode="decimal" id="sales-discount" value="0" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'); UI.calcSalesTotals();" style="width: 100px !important; text-align: right; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 6px;">
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Total GST:</span><strong id="sales-gst-total">&#8377;0.00</strong></div>
@@ -1237,7 +1284,7 @@
                         <span>Freight & Extra:</span>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <span style="font-weight: bold; color: var(--md-text-muted);">₹</span>
-                            <input type="text" inputmode="none" readonly id="sales-freight" class="tap-target" value="0" onclick="if(window.UI) window.UI.openNumpad(this, 'Freight Amount')" oninput="UI.calcSalesTotals()" style="width: 100px !important; text-align: right; cursor: pointer;">
+                            <input type="text" inputmode="decimal" id="sales-freight" value="0" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'); UI.calcSalesTotals();" style="width: 100px !important; text-align: right; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 6px;">
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--md-text-muted); font-size: 14px;">
@@ -1330,7 +1377,7 @@
 
                         <div style="margin-top: 16px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
                             <label style="color: var(--md-text-muted); font-weight: bold; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">note_alt</span> Document Notes / Remarks</label>
-                            <textarea id="sales-internal-notes" rows="2" placeholder="Add notes, shipping details, or internal remarks here..." style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
+                            <textarea id="sales-internal-notes" rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
                             <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--md-on-surface); cursor: pointer; padding-left: 4px;">
                                 <input type="checkbox" id="sales-print-notes" style="width: 16px; height: 16px; cursor: pointer;">
                                 Print these notes on the final PDF
@@ -1339,7 +1386,11 @@
                     </div>
                 </details>
 
-                <div style="height: 100px;"></div> <div class="form-sticky-footer" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--md-surface, #ffffff); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);">
+                <div style="height: 100px;"></div>
+                
+                </div> <!-- END OF STEP 2 WRAPPER -->
+
+                <div id="sales-sticky-footer" class="form-sticky-footer hidden" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--md-surface, #ffffff); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);">
                     <div style="display: flex; flex-direction: column;">
                         <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Grand Total</span>
                         <strong id="sales-sticky-total" style="font-size: 24px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
@@ -1386,6 +1437,9 @@
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
                 </div>
+
+                <!-- 🚀 PROGRESSIVE DISCLOSURE: STEP 2 (HIDDEN BY DEFAULT) -->
+                <div id="purchase-step-2" class="hidden">
 
                 <div id="purchase-return-ref-group" class="hidden" style="margin-bottom: 12px; background: rgba(20, 108, 46, 0.05); padding: 12px; border-radius: 8px; border: 1px solid var(--md-success);">
                     <div style="font-size: 12px; font-weight: bold; color: var(--md-success); margin-bottom: 6px;">Original PO/Bill Reference *</div>
@@ -1459,7 +1513,7 @@
                                 <option value="&#8377;">&#8377;</option>
                                 <option value="%">%</option>
                             </select>
-                            <input type="text" inputmode="none" readonly id="purchase-discount" class="tap-target" value="0" onclick="if(window.UI) window.UI.openNumpad(this, 'Discount Amount')" oninput="UI.calcPurchaseTotals()" style="width: 100px !important; text-align: right; cursor: pointer;">
+                            <input type="text" inputmode="decimal" id="purchase-discount" value="0" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'); UI.calcPurchaseTotals();" style="width: 100px !important; text-align: right; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 6px;">
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Total Input GST:</span><strong id="purchase-gst-total" style="color:var(--md-success);">&#8377;0.00</strong></div>
@@ -1471,7 +1525,7 @@
                         <span>Freight / Extra Charges:</span>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <span style="font-weight: bold; color: var(--md-text-muted);">₹</span>
-                            <input type="text" inputmode="none" readonly id="purchase-freight" class="tap-target" value="0" onclick="if(window.UI) window.UI.openNumpad(this, 'Freight & Extra')" oninput="UI.calcPurchaseTotals()" style="width: 100px !important; text-align: right; cursor: pointer;">
+                            <input type="text" inputmode="decimal" id="purchase-freight" value="0" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1'); UI.calcPurchaseTotals();" style="width: 100px !important; text-align: right; padding: 6px; border: 1px solid var(--md-outline-variant); border-radius: 6px;">
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; color: var(--md-text-muted); font-size: 14px;">
@@ -1494,12 +1548,14 @@
 
                 <div style="margin-top: 16px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px;">
                     <label style="color: var(--md-text-muted); font-weight: bold; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
-                    <textarea id="purchase-internal-notes" rows="2" placeholder="Notes for your reference only (will not be printed)..." style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
+                    <textarea id="purchase-internal-notes" rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
                 </div>
 
                 <div style="height: 100px;"></div>
+                
+                </div> <!-- END OF STEP 2 WRAPPER -->
 
-                <div class="form-sticky-footer" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--md-surface, #ffffff); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);">
+                <div id="purchase-sticky-footer" class="form-sticky-footer hidden" style="position: fixed; bottom: 0; left: 0; right: 0; max-width: 600px; margin: 0 auto; background: var(--md-surface, #ffffff); backdrop-filter: blur(12px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: space-between; align-items: center; z-index: 100; box-shadow: 0 -4px 16px rgba(0,0,0,0.05);">
                     <div style="display: flex; flex-direction: column;">
                         <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Grand Total</span>
                         <strong id="purchase-sticky-total" style="font-size: 24px; color: var(--md-primary); line-height: 1.1;">₹0.00</strong>
@@ -1647,7 +1703,8 @@
                     <div class="premium-row" style="background: rgba(0, 97, 164, 0.04);">
                         <div class="premium-label" style="color: var(--md-primary); font-weight: 800;">Amount (₹)<span class="required-star">*</span></div>
                         <div class="premium-input-container">
-                            <input type="number" id="exp-amount" inputmode="decimal" name="amount" min="0" step="any" required class="premium-input" style="font-size: 20px; font-weight: 800; color: var(--md-primary);" placeholder="0.00">
+                            <!-- 🔥 SOLLO FIX: Bulletproof typing shield -->
+                            <input type="text" id="exp-amount" inputmode="decimal" name="amount" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" style="font-size: 20px; font-weight: 800; color: var(--md-primary);" placeholder="0.00">
                         </div>
                     </div>
 
@@ -1722,19 +1779,20 @@
                     <div class="premium-row">
                         <div class="premium-label">Product Name<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
                         <div class="premium-input-container">
-                            <input type="text" id="prod-name" name="name" required class="premium-input" placeholder="e.g., Apple iPhone 15">
+                            <input type="text" id="prod-name" name="name" required class="premium-input">
                         </div>
                     </div>
                     <div class="premium-row" style="background: rgba(0, 97, 164, 0.04);">
                         <div class="premium-label" style="color: var(--md-primary); font-weight: 800;">Sell Price (₹)<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
                         <div class="premium-input-container">
-                            <input type="number" id="prod-sell" inputmode="decimal" name="sellPrice" min="0" step="any" required class="premium-input" style="font-size: 18px; font-weight: 800; color: var(--md-primary);" placeholder="0.00">
+                            <!-- 🔥 SOLLO FIX: Bulletproof typing shield -->
+                            <input type="text" id="prod-sell" inputmode="decimal" name="sellPrice" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" style="font-size: 18px; font-weight: 800; color: var(--md-primary);" placeholder="0.00">
                         </div>
                     </div>
                     <div class="premium-row">
                         <div class="premium-label">Buy Price (₹)</div>
                         <div class="premium-input-container">
-                            <input type="number" id="prod-buy" inputmode="decimal" name="buyPrice" min="0" step="any" class="premium-input" placeholder="0.00">
+                            <input type="text" id="prod-buy" inputmode="decimal" name="buyPrice" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" placeholder="0.00">
                         </div>
                     </div>
                 </div>
@@ -1744,13 +1802,14 @@
                     <div class="premium-row" style="background: rgba(0, 97, 164, 0.02);">
                         <div class="premium-label" style="color: var(--md-primary);">GST Stock</div>
                         <div class="premium-input-container">
-                            <input type="number" id="prod-stock-gst" inputmode="decimal" name="stockGst" value="0" step="any" class="premium-input" style="color: var(--md-primary); font-weight: 700;">
+                            <!-- 🔥 SOLLO FIX: Bulletproof typing shield -->
+                            <input type="text" id="prod-stock-gst" inputmode="decimal" name="stockGst" value="0" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" style="color: var(--md-primary); font-weight: 700;">
                         </div>
                     </div>
                     <div class="premium-row" style="background: rgba(186, 26, 26, 0.02);">
                         <div class="premium-label" style="color: var(--md-error);">Non-GST Stock</div>
                         <div class="premium-input-container">
-                            <input type="number" id="prod-stock-nongst" inputmode="decimal" name="stockNonGst" value="0" step="any" class="premium-input" style="color: var(--md-error); font-weight: 700;">
+                            <input type="text" id="prod-stock-nongst" inputmode="decimal" name="stockNonGst" value="0" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" style="color: var(--md-error); font-weight: 700;">
                         </div>
                     </div>
                     <div class="premium-row">
@@ -1765,7 +1824,7 @@
                     <div class="premium-row">
                         <div class="premium-label">Min Stock Alert</div>
                         <div class="premium-input-container">
-                            <input type="number" inputmode="decimal" name="minStock" value="5" step="any" class="premium-input">
+                            <input type="text" inputmode="decimal" name="minStock" value="5" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input">
                         </div>
                     </div>
                 </div>
@@ -1775,7 +1834,7 @@
                     <div class="premium-row">
                         <div class="premium-label">Tax (GST %)</div>
                         <div class="premium-input-container">
-                            <input type="number" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any" class="premium-input" placeholder="0">
+                            <input type="text" inputmode="decimal" name="gst" value="0" min="0" max="100" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" placeholder="0">
                         </div>
                     </div>
                     <div class="premium-row">
@@ -1827,7 +1886,7 @@
                     <div class="premium-row">
                         <div class="premium-label">Party Name<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
                         <div class="premium-input-container">
-                            <input type="text" name="name" id="ledger-name" required class="premium-input" placeholder="e.g., John Doe">
+                            <input type="text" name="name" id="ledger-name" required class="premium-input">
                         </div>
                     </div>
                     <div class="premium-row">
@@ -1863,7 +1922,8 @@
                     <div class="premium-row" style="border-top: 1px solid var(--md-outline-variant);">
                         <div class="premium-label">Pincode</div>
                         <div class="premium-input-container">
-                            <input type="number" inputmode="decimal" name="pincode" id="ledger-pincode" placeholder="6 Digits" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'ledger')" class="premium-input">
+                            <!-- 🔥 SOLLO FIX: Forces the clean 0-9 Phone Dialpad on mobile! -->
+                            <input type="tel" name="pincode" id="ledger-pincode" placeholder="6 Digits" oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value.length===6) app.fetchPincode(this.value, 'ledger');" class="premium-input">
                         </div>
                     </div>
                     <div class="premium-row">
@@ -1891,7 +1951,8 @@
                     <div class="premium-row" style="background: rgba(0, 97, 164, 0.04);">
                         <div class="premium-label" style="color: var(--md-primary); font-weight: 800;">Amount (₹)</div>
                         <div class="premium-input-container">
-                            <input type="number" inputmode="decimal" name="openingBalance" value="0" min="0" step="any" class="premium-input" style="font-size: 18px; font-weight: 800; color: var(--md-primary);">
+                            <!-- 🔥 SOLLO FIX: Shielded Party Opening Balance -->
+                            <input type="text" inputmode="decimal" name="openingBalance" value="0" min="0" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" style="font-size: 18px; font-weight: 800; color: var(--md-primary);">
                         </div>
                     </div>
                     <div class="premium-row">
@@ -1947,7 +2008,7 @@
                     <div class="premium-row" style="display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--md-outline-variant); min-height: 54px; transition: background-color 0.2s ease;">
                         <div class="premium-label" style="font-size: 14px; font-weight: 600; color: var(--md-text-muted); width: 120px; flex-shrink: 0;">Account Name<span style="color: var(--md-error); margin-left: 2px;">*</span></div>
                         <div class="premium-input-container" style="flex: 1; display: flex; justify-content: flex-end;">
-                            <input type="text" id="account-name" name="name" required class="premium-input" placeholder="e.g., HDFC Current" style="width: 100%; border: none; background: transparent; text-align: right; font-size: 16px; font-family: inherit; color: var(--md-on-surface); font-weight: 600; outline: none; padding: 0; box-shadow: none;">
+                            <input type="text" id="account-name" name="name" required class="premium-input" style="width: 100%; border: none; background: transparent; text-align: right; font-size: 16px; font-family: inherit; color: var(--md-on-surface); font-weight: 600; outline: none; padding: 0; box-shadow: none;">
                         </div>
                     </div>
                     
@@ -1974,7 +2035,8 @@
                     <div class="premium-row" style="display: flex; align-items: center; padding: 14px 16px; background: rgba(0, 97, 164, 0.04); min-height: 54px;">
                         <div class="premium-label" style="font-size: 14px; font-weight: 800; color: var(--md-primary); width: 120px; flex-shrink: 0;">Opening Bal (₹)</div>
                         <div class="premium-input-container" style="flex: 1; display: flex; justify-content: flex-end;">
-                            <input type="number" inputmode="decimal" id="account-opening-balance" name="openingBalance" step="any" class="premium-input" placeholder="0.00" style="width: 100%; border: none; background: transparent; text-align: right; font-size: 18px; font-family: inherit; color: var(--md-primary); font-weight: 800; outline: none; padding: 0; box-shadow: none;">
+                            <!-- 🔥 SOLLO FIX: Shielded Bank Opening Balance -->
+                            <input type="text" inputmode="decimal" id="account-opening-balance" name="openingBalance" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" placeholder="0.00" style="width: 100%; border: none; background: transparent; text-align: right; font-size: 18px; font-family: inherit; color: var(--md-primary); font-weight: 800; outline: none; padding: 0; box-shadow: none;">
                         </div>
                     </div>
                 </div>
@@ -1997,7 +2059,7 @@
                 
                 <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
                 
-                <!-- 🚀 BIZOPS FIX: Unified Sort & Filter Icon -->
+                <!-- 🚀 SOLLO FIX: Unified Sort & Filter Icon -->
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-expenses-filter')">tune</span>
 
                 <span class="material-symbols-outlined tap-target" style="background: var(--md-primary); color: var(--md-on-primary); padding: 6px; border-radius: 50%; margin-left: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="if(window.app) window.app.openForm('expense')">add</span>
@@ -2033,28 +2095,29 @@
 
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Business Name *</label>
-                    <input type="text" id="profile-name" required style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                    <input type="text" id="profile-name" data-bind="profileName" required style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                 </div>
 
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Phone Number *</label>
-                    <input type="tel" id="profile-phone" required style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                    <input type="tel" id="profile-phone" data-bind="profilePhone" required style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                 </div>
 
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Email</label>
-                    <input type="email" id="profile-email" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                    <input type="email" id="profile-email" data-bind="profileEmail" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                 </div>
 
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">GSTIN</label>
-                    <input type="text" id="profile-gst" style="text-transform: uppercase; box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                    <input type="text" id="profile-gst" data-bind="profileGst" style="text-transform: uppercase; box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                 </div>
                 
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Pincode</label>
-                        <input type="number" inputmode="numeric" id="profile-pincode" placeholder="Optional" oninput="if(this.value.length===6) app.fetchPincode(this.value, 'profile')" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                        <!-- 🔥 SOLLO FIX: Forces the clean 0-9 Phone Dialpad on mobile! -->
+                        <input type="tel" id="profile-pincode" placeholder="Optional" oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value.length===6) app.fetchPincode(this.value, 'profile');" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                     </div>
                     <div style="flex: 2; display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">City / District</label>
@@ -2068,7 +2131,7 @@
                 </div>
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Street Address</label>
-                    <textarea id="profile-address" rows="2" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface); font-family: inherit; resize: none;"></textarea>
+                    <textarea id="profile-address" data-bind="profileAddress" rows="2" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface); font-family: inherit; resize: none;"></textarea>
                 </div>
                 
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
@@ -2078,7 +2141,7 @@
 
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">UPI ID (For Smart QR Code)</label>
-                    <input type="text" id="profile-upi" placeholder="e.g., yourbusiness@upi" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                    <input type="text" id="profile-upi" style="box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                 </div>
 
                 <div style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
@@ -2092,17 +2155,17 @@
                         
                         <div style="margin-bottom: 12px;">
                             <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Custom Field 1 Name</div>
-                            <input type="text" id="profile-cf1-name" placeholder="e.g., E-Way Bill No" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                            <input type="text" id="profile-cf1-name" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                         </div>
                         
                         <div style="margin-bottom: 12px;">
                             <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Custom Field 2 Name</div>
-                            <input type="text" id="profile-cf2-name" placeholder="e.g., Vehicle No" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                            <input type="text" id="profile-cf2-name" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                         </div>
                         
                         <div style="margin-bottom: 12px;">
                             <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Custom Field 3 Name</div>
-                            <input type="text" id="profile-cf3-name" placeholder="e.g., Sales Rep" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                            <input type="text" id="profile-cf3-name" style="box-sizing: border-box; width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                         </div>
 
                     </div>
@@ -2224,7 +2287,8 @@
                 <div style="display: flex; gap: 12px; margin-bottom: 16px;">
                     <div style="flex: 1;">
                         <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Amount (₹)</label>
-                        <input type="number" id="contra-amount" required step="any" min="0.01" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 18px; font-weight: bold; color: var(--md-primary); background: var(--md-surface);">
+                        <!-- 🔥 SOLLO FIX: Shielded Contra Transfer to prevent Comma wipeouts! -->
+                        <input type="text" inputmode="decimal" id="contra-amount" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 18px; font-weight: bold; color: var(--md-primary); background: var(--md-surface);">
                     </div>
                     <div style="flex: 1;">
                         <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Date</label>
@@ -2234,7 +2298,7 @@
                 
                 <div style="margin-bottom: 24px;">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Remarks (Optional)</label>
-                    <input type="text" id="contra-notes" placeholder="e.g., ATM Withdrawal" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 15px; background: var(--md-surface);">
+                    <input type="text" id="contra-notes" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 15px; background: var(--md-surface);">
                 </div>
                 
                 <button type="submit" id="btn-save-contra" class="btn-primary tap-target" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold;">Execute Transfer</button>
@@ -2280,7 +2344,7 @@
                 <div class="doc-format-input-group">
                     <input type="text" id="format-inv-prefix" placeholder="INV/" class="doc-format-text" style="text-align: right;">
                     <div class="doc-format-divider"></div>
-                    <input type="number" id="format-inv-start" placeholder="0001" class="doc-format-number" style="color: var(--md-primary); background: rgba(0, 97, 164, 0.05);">
+                    <input type="text" inputmode="numeric" id="format-inv-start" placeholder="0001" oninput="this.value = this.value.replace(/[^0-9]/g, '');" class="doc-format-number" style="color: var(--md-primary); background: rgba(0, 97, 164, 0.05);">
                     <div class="doc-format-divider"></div>
                     <input type="text" id="format-inv-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
@@ -2295,7 +2359,7 @@
                 <div class="doc-format-input-group">
                     <input type="text" id="format-ord-prefix" placeholder="ORD " class="doc-format-text" style="text-align: right;">
                     <div class="doc-format-divider"></div>
-                    <input type="number" id="format-ord-start" placeholder="0001" class="doc-format-number" style="color: var(--md-primary); background: rgba(0, 97, 164, 0.05);">
+                    <input type="text" inputmode="numeric" id="format-ord-start" placeholder="0001" oninput="this.value = this.value.replace(/[^0-9]/g, '');" class="doc-format-number" style="color: var(--md-primary); background: rgba(0, 97, 164, 0.05);">
                     <div class="doc-format-divider"></div>
                     <input type="text" id="format-ord-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
@@ -2310,7 +2374,7 @@
                 <div class="doc-format-input-group">
                     <input type="text" id="format-po-prefix" placeholder="PO " class="doc-format-text" style="text-align: right;">
                     <div class="doc-format-divider"></div>
-                    <input type="number" id="format-po-start" placeholder="0001" class="doc-format-number" style="color: #d84315; background: rgba(245, 127, 23, 0.05);">
+                    <input type="text" inputmode="numeric" id="format-po-start" placeholder="0001" oninput="this.value = this.value.replace(/[^0-9]/g, '');" class="doc-format-number" style="color: #d84315; background: rgba(245, 127, 23, 0.05);">
                     <div class="doc-format-divider"></div>
                     <input type="text" id="format-po-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
@@ -2325,7 +2389,7 @@
                 <div class="doc-format-input-group">
                     <input type="text" id="format-cn-prefix" placeholder="CN " class="doc-format-text" style="text-align: right;">
                     <div class="doc-format-divider"></div>
-                    <input type="number" id="format-cn-start" placeholder="0001" class="doc-format-number" style="color: var(--md-error); background: rgba(186, 26, 26, 0.05);">
+                    <input type="text" inputmode="numeric" id="format-cn-start" placeholder="0001" oninput="this.value = this.value.replace(/[^0-9]/g, '');" class="doc-format-number" style="color: var(--md-error); background: rgba(186, 26, 26, 0.05);">
                     <div class="doc-format-divider"></div>
                     <input type="text" id="format-cn-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
@@ -2340,7 +2404,7 @@
                 <div class="doc-format-input-group">
                     <input type="text" id="format-exp-prefix" placeholder="EXP " class="doc-format-text" style="text-align: right;">
                     <div class="doc-format-divider"></div>
-                    <input type="number" id="format-exp-start" placeholder="0001" class="doc-format-number" style="color: #6a1b9a; background: rgba(106, 27, 154, 0.05);">
+                    <input type="text" inputmode="numeric" id="format-exp-start" placeholder="0001" oninput="this.value = this.value.replace(/[^0-9]/g, '');" class="doc-format-number" style="color: #6a1b9a; background: rgba(106, 27, 154, 0.05);">
                     <div class="doc-format-divider"></div>
                     <input type="text" id="format-exp-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
@@ -2355,7 +2419,7 @@
                 <div class="doc-format-input-group">
                     <input type="text" id="format-rec-prefix" placeholder="REC " class="doc-format-text" style="text-align: right;">
                     <div class="doc-format-divider"></div>
-                    <input type="number" id="format-rec-start" placeholder="0001" class="doc-format-number" style="color: var(--md-success); background: rgba(20, 108, 46, 0.05);">
+                    <input type="text" inputmode="numeric" id="format-rec-start" placeholder="0001" oninput="this.value = this.value.replace(/[^0-9]/g, '');" class="doc-format-number" style="color: var(--md-success); background: rgba(20, 108, 46, 0.05);">
                     <div class="doc-format-divider"></div>
                     <input type="text" id="format-rec-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
@@ -2370,7 +2434,7 @@
                 <div class="doc-format-input-group">
                     <input type="text" id="format-vou-prefix" placeholder="VOU " class="doc-format-text" style="text-align: right;">
                     <div class="doc-format-divider"></div>
-                    <input type="number" id="format-vou-start" placeholder="0001" class="doc-format-number" style="color: var(--md-error); background: rgba(186, 26, 26, 0.05);">
+                    <input type="text" inputmode="numeric" id="format-vou-start" placeholder="0001" oninput="this.value = this.value.replace(/[^0-9]/g, '');" class="doc-format-number" style="color: var(--md-error); background: rgba(186, 26, 26, 0.05);">
                     <div class="doc-format-divider"></div>
                     <input type="text" id="format-vou-suffix" placeholder="/{FY}" class="doc-format-text" style="text-align: left; color: var(--md-text-muted) !important;">
                 </div>
@@ -2506,7 +2570,8 @@
                 </div>
                 <div style="margin-bottom: 16px;">
                     <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Quantity *</div>
-                    <input type="number" inputmode="decimal" id="adj-qty" min="0.01" step="any" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    <!-- 🔥 SOLLO FIX: Shielded Stock Adjustment Quantity -->
+                    <input type="text" inputmode="decimal" id="adj-qty" min="0.01" step="any" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                 </div>
                 
                 <div style="margin-bottom: 16px;">
@@ -2515,7 +2580,7 @@
                 </div>
                 <div style="margin-bottom: 24px;">
                     <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Reason / Notes *</div>
-                    <input type="text" id="adj-notes" placeholder="e.g., Damaged, Audit Correction" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    <input type="text" id="adj-notes" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                 </div>
                 
                 <button type="submit" class="btn-primary" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600;">Save Adjustment</button>
@@ -2927,7 +2992,8 @@
                 <div style="display: flex; gap: 12px; margin-bottom: 16px;">
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Amount (₹) *</div>
-                        <input type="number" id="pay-in-amount" required inputmode="decimal" step="any" min="0.01" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                        <!-- 🔥 BIZOPS FIX: Bulletproof typing shield that blocks commas, minus signs, and double decimals! -->
+                        <input type="text" id="pay-in-amount" required inputmode="decimal" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
@@ -3008,7 +3074,8 @@
                 <div style="display: flex; gap: 12px; margin-bottom: 16px;">
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Amount (₹) *</div>
-                        <input type="number" id="pay-out-amount" required inputmode="decimal" step="any" min="0.01" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                        <!-- 🔥 BIZOPS FIX: Bulletproof typing shield that blocks commas, minus signs, and double decimals! -->
+                        <input type="text" id="pay-out-amount" required inputmode="decimal" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
                     </div>
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
@@ -3617,21 +3684,23 @@
         </div>
     </div>
 
-    <script src="db.js?v=83"></script>
-    <script src="utils.js?v=83"></script>
-    <script src="ui.js?v=83"></script>
-    <script src="cloud.js?v=83"></script>
-    <script src="app.js?v=83"></script>
+    <script src="components.js"></script>
+    <script src="db.js?v=85"></script>
+    <script src="utils.js?v=85"></script>
+    <script src="ui.js?v=85"></script>
+    <script src="cloud.js?v=85"></script>
+    <script src="app.js?v=85"></script>
+    <script src="state.js"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
-
+    
     <script>
         // UPGRADE 4: PWA Custom Install Prompt Engine
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault(); 
-            deferredPrompt = e;o
+            deferredPrompt = e;
             setTimeout(() => {
                 if (window.UI) window.UI.openBottomSheet('sheet-install-app');
             }, 4000);
@@ -3651,8 +3720,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=83' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=83`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=85' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=85`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -3799,14 +3868,19 @@
             const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
             
             document.querySelectorAll('input[type="date"]').forEach(el => {
-                if (!el.value) el.value = today;
+                // 🚨 THE FIX: Do NOT auto-fill Future/Lifecycle dates! Leave them blank until actually needed!
+                const isFutureDate = el.id.includes('completed') || el.id.includes('shipped');
+                
+                if (!el.value && !isFutureDate) {
+                    el.value = today;
+                }
                 
                 // Initialize the Custom Date Picker (Indian Format)
                 flatpickr(el, {
                     dateFormat: "Y-m-d", // Keeps database sorting perfectly unbroken
                     altInput: true,      // Creates a visual clone for the user
                     altFormat: "d/m/Y",  // Displays as DD/MM/YYYY (Indian Standard)
-                    defaultDate: el.value || today,
+                    defaultDate: el.value || null, // 🔥 Allows Completed/Shipped to be truly blank!
                     // ENTERPRISE UI: Triggers the native Android/iOS date wheel for perfect mobile visibility!
                     disableMobile: false 
                 });
@@ -3888,17 +3962,9 @@
             };
 
             // ==========================================
-            // ENTERPRISE UPGRADE: SMOOTH KEYBOARD SCROLL
+            // NATIVE KEYBOARD SCROLL ENGINE
             // ==========================================
-            document.addEventListener('focusin', (e) => {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
-                    // Wait 300ms for the mobile keyboard to physically slide up first
-                    setTimeout(() => {
-                        e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }, 300); 
-                }
-            });
-
+            // Forced jumping is disabled. The phone's native browser will naturally handle scrolling!
 
             // ==========================================
             // ENTERPRISE UPGRADE: SCROLL-WHEEL FINANCIAL SHIELD
@@ -4899,6 +4965,96 @@
             </div>
         </div>
     </div>
+        <!-- 🚀 SOLLO ANDROID FIX: HARDWARE BACK BUTTON HIJACK -->
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Push an initial state into the browser history to trap the back button
+        window.history.pushState({ noBackExitsApp: true }, '');
+
+        window.addEventListener('popstate', function (event) {
+            let preventedAction = false;
+
+            // 1. Check if a Bottom Sheet is open
+            const openSheet = document.querySelector('.bottom-sheet.open');
+            if (openSheet) {
+                if (window.UI) window.UI.closeBottomSheet(openSheet.id);
+                preventedAction = true;
+            }
+            
+            // 2. Check if a Full-Screen Form/Activity is open
+            else {
+                const openActivity = document.querySelector('.activity-screen.open');
+                if (openActivity) {
+                    if (window.UI) window.UI.closeActivity(openActivity.id);
+                    preventedAction = true;
+                }
+            }
+
+            // If we closed a menu/form, we must push a new state so the trap stays active for the next swipe!
+            if (preventedAction) {
+                window.history.pushState({ noBackExitsApp: true }, '');
+            }
+        });
+    });
+    </script>
+    
+    <!-- 🚀 SOLLO FIX: GLOBAL INVOICE MATH SHIELD & COMMA-PARSING ENGINE -->
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. THE UPGRADER: Converts dynamic number fields to protected text fields
+        document.addEventListener('focusin', function(e) {
+            if (e.target && e.target.tagName === 'INPUT') {
+                if (e.target.classList.contains('row-qty') || 
+                    e.target.classList.contains('row-rate') || 
+                    e.target.classList.contains('row-item-buyprice') ||
+                    e.target.classList.contains('row-gst')) {
+                    if (e.target.type === 'number') {
+                        e.target.type = 'text';
+                        e.target.inputMode = 'decimal';
+                    }
+                }
+            }
+        });
+
+        // 2. THE SHIELD: Intercepts bad typing (commas, minus signs) BEFORE math runs
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.tagName === 'INPUT') {
+                if (e.target.getAttribute('inputmode') === 'decimal' || 
+                    e.target.classList.contains('row-qty') || 
+                    e.target.classList.contains('row-rate') || 
+                    e.target.classList.contains('row-item-buyprice') ||
+                    e.target.classList.contains('row-gst')) {
+                    
+                    const oldVal = e.target.value;
+                    const newVal = oldVal.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                    if (oldVal !== newVal) e.target.value = newVal;
+                }
+            }
+        }, true); 
+    });
+
+    (function() {
+        // 3. CORE MATH OVERRIDE: Destroys commas so parseFloat() doesn't fail
+        const originalParseFloat = window.parseFloat;
+        window.parseFloat = function(val) {
+            if (typeof val === 'string') val = val.replace(/,/g, '');
+            return originalParseFloat(val);
+        };
+
+        // 4. DATABASE SANITIZER: Wipes commas perfectly just before clicking Save
+        document.addEventListener('submit', function(e) {
+            if (e.target && e.target.tagName === 'FORM') {
+                const mathInputs = e.target.querySelectorAll('input[inputmode="decimal"], .row-qty, .row-rate, .row-item-buyprice, .row-gst');
+                mathInputs.forEach(input => {
+                    if (input.value && typeof input.value === 'string') {
+                        input.value = input.value.replace(/,/g, '');
+                    }
+                });
+            }
+        }, true);
+    })();
+    </script>
+
 
 </body>
 </html>

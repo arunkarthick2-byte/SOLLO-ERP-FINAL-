@@ -206,6 +206,9 @@ const UI = {
     },
 
     openNumpad: (inputElement, labelText) => {
+        // 🚨 SOLLO FIX: Force native keyboard to hide first so they don't overlap!
+        if (document.activeElement) document.activeElement.blur();
+
         // Force the input to stay focused so the blue highlighter ring stays visible!
         inputElement.focus();
         UI.state.activeNumpadInput = inputElement;
@@ -213,10 +216,10 @@ const UI = {
         document.getElementById('custom-numpad').classList.add('active');
         
         // 🚀 ENTERPRISE UX: Auto-Scroll to Input!
-        // Automatically pushes the screen up so the keypad never hides the box you are typing in.
+        // Increased delay so the native keyboard has time to disappear before jumping!
         setTimeout(() => {
             inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 150);
+        }, 300);
     },
 
     closeNumpad: () => {
@@ -378,7 +381,7 @@ const UI = {
                 if (oldSentinel) oldSentinel.remove();
                 
                 if (currentIndex < dataArray.length) {
-                    // 🚨 BIZOPS NATIVE THEME: Infinite Scroll Sentinel (Replaces the Load More button)
+                    // 🚨 SOLLO NATIVE THEME: Infinite Scroll Sentinel (Replaces the Load More button)
                     const sentinel = document.createElement('div');
                     sentinel.id = sentinelId;
                     sentinel.style.cssText = 'height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; color: var(--md-primary); font-size: 13px; font-weight: bold;';
@@ -571,7 +574,7 @@ const UI = {
         // UPGRADE 4: Cinematic View Transitions
         if (document.startViewTransition) {
             const transition = document.startViewTransition(doSwitch);
-            // 🚨 BIZOPS FIX: Force the Nav to stay visible AFTER the animation finishes!
+            // 🚨 SOLLO FIX: Force the Nav to stay visible AFTER the animation finishes!
             // iOS Safari loves to restore old scroll positions when view transitions end.
             transition.finished.then(() => {
                 const bNav = document.querySelector('.bottom-nav');
@@ -833,7 +836,7 @@ const UI = {
         
         // FIX: Populate the Master View Dropdowns immediately when the screen opens so they are never empty!
         if (filterSelect) {
-            // 🚨 BIZOPS FIX: Wipe polluted filter memory when switching between Customers and Products!
+            // 🚨 SOLLO FIX: Wipe polluted filter memory when switching between Customers and Products!
             if (UI.state.activeFilters) UI.state.activeFilters['masters'] = 'All';
             
             if (type === 'customers' || type === 'suppliers' || type === 'contacts') {
@@ -909,57 +912,60 @@ const UI = {
                 if (shippedInput) shippedInput.disabled = false; 
             }
             
-            // 🚨 THE FIX: The user is absolutely right! We do NOT need the Completed Date for Purchases!
-            if (completedGroup && type === 'sales') { 
+            // 🚨 RESTORED: Show Completed Date for both Sales AND Purchases!
+            if (completedGroup) { 
                 completedGroup.classList.remove('hidden');
             }
             
-            // 🚨 ENTERPRISE FIX: Smart "Last Payment" Radar (Only runs for Sales now!)
-            if (type === 'sales') {
-                const completedInput = document.getElementById(`${type}-completed-date`);
-                const mainDateInput = document.getElementById(`${type}-date`);
+            // 🚨 ENTERPRISE FIX: Aggressive "Auto-Healing" Last Payment Radar
+            const completedInput = document.getElementById(`${type}-completed-date`);
+            const mainDateInput = document.getElementById(`${type}-date`);
+            
+            if (completedInput) {
+                // Default to whatever is already saved, or today if completely blank
+                let bestDate = completedInput.value || ((window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0]);
                 
-                // 🚨 ENTERPRISE FIX: Only run auto-completion math if the date is completely blank!
-                if (completedInput && !completedInput.value) {
+                // Scan the Cashbook for the absolute latest payment made against this document
+                try {
+                    const currentId = window.app && window.app.state ? window.app.state.currentEditId : null;
+                    const invoiceNo = document.getElementById(`${type}-invoice-no`) ? document.getElementById(`${type}-invoice-no`).value : null;
+                    const poNo = document.getElementById(`${type}-po-no`) ? document.getElementById(`${type}-po-no`).value : null;
+                    const orderNo = document.getElementById(`${type}-order-no`) ? document.getElementById(`${type}-order-no`).value : null;
                     
-                    let bestDate = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-                    
-                    // Scan the Cashbook for the absolute latest payment made against this document
-                    try {
-                        const currentId = window.app && window.app.state ? window.app.state.currentEditId : null;
-                        const invoiceNo = document.getElementById(`${type}-invoice-no`) ? document.getElementById(`${type}-invoice-no`).value : null;
-                        const orderNo = document.getElementById(`${type}-order-no`) ? document.getElementById(`${type}-order-no`).value : null;
+                    if (currentId || invoiceNo || orderNo || poNo) {
+                        const linkedPayments = (UI.state.rawData.cashbook || []).filter(c => {
+                            const refs = String(c.invoiceRef || c.linkedInvoice || '').split(',').map(r => r.trim());
+                            return (currentId && refs.includes(currentId)) || 
+                                   (invoiceNo && refs.includes(invoiceNo)) || 
+                                   (poNo && refs.includes(poNo)) || 
+                                   (orderNo && refs.includes(orderNo));
+                        });
                         
-                        if (currentId || invoiceNo || orderNo) {
-                            const linkedPayments = (UI.state.rawData.cashbook || []).filter(c => {
-                                const refs = String(c.invoiceRef || c.linkedInvoice || '').split(',').map(r => r.trim());
-                                return (currentId && refs.includes(currentId)) || 
-                                       (invoiceNo && refs.includes(invoiceNo)) || 
-                                       (orderNo && refs.includes(orderNo));
-                            });
-                            
-                            if (linkedPayments.length > 0) {
-                                // Sort chronologically to find the newest payment
-                                linkedPayments.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
-                                if (linkedPayments[0].date) {
+                        if (linkedPayments.length > 0) {
+                            // Sort chronologically to find the newest payment
+                            linkedPayments.sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0));
+                            if (linkedPayments[0].date) {
+                                // 🚨 THE FIX: Force the date to update if the payment is newer than the saved DB date!
+                                if (!completedInput.value || new Date(linkedPayments[0].date) > new Date(completedInput.value)) {
                                     bestDate = linkedPayments[0].date;
                                 }
                             }
                         }
-                    } catch (e) {
-                        console.warn("Could not calculate last payment date, falling back to today.");
                     }
-                    
-                    // 🚨 ENTERPRISE FIX: Chronological Coherence for Advances!
-                    // An invoice cannot be "Completed" before it is actually billed or shipped!
-                    if (shippedInput && shippedInput.value && new Date(bestDate) < new Date(shippedInput.value)) {
-                        bestDate = shippedInput.value; // Advance payment detected: Fallback to Shipped Date
-                    } else if (mainDateInput && mainDateInput.value && new Date(bestDate) < new Date(mainDateInput.value)) {
-                        bestDate = mainDateInput.value; // Ultimate fallback: Use the Invoice Creation Date
-                    }
-                    
-                    completedInput.value = bestDate;
+                } catch (e) {
+                    console.warn("Could not calculate last payment date, falling back to today.");
                 }
+                
+                // Chronological Coherence for Advances
+                if (shippedInput && shippedInput.value && new Date(bestDate) < new Date(shippedInput.value)) {
+                    bestDate = shippedInput.value; 
+                } else if (mainDateInput && mainDateInput.value && new Date(bestDate) < new Date(mainDateInput.value)) {
+                    bestDate = mainDateInput.value; 
+                }
+                
+                completedInput.value = bestDate;
+                // 🚨 CRITICAL FIX: Force the Calendar UI to actually draw the date!
+                if (completedInput._flatpickr) completedInput._flatpickr.setDate(bestDate, false);
             }
         }
     },
@@ -1824,7 +1830,7 @@ const UI = {
                         <span style="font-size: 11px; color: var(--md-text-muted); display: block; margin-top: 2px;">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
                     `;
 
-                    const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    const safeName = String(i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
                     <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
                         <div class="tap-target" style="display: flex; align-items: center; gap: 12px;" onclick="app.openForm('product', '${i.id}')">
@@ -1941,7 +1947,7 @@ const UI = {
                     const subTextHTML = subText ? `<small style="display:block; color:var(--md-error); font-weight:600; font-size:10px; margin-top:2px; line-height:1.2;">${subText}</small>` : '';
 
                     // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
-                    const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
                     <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
                         <div class="tap-target" style="display: flex; align-items: center; gap: 12px;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
@@ -2073,7 +2079,7 @@ const UI = {
                 UI.renderVirtualList(container, data, (e) => {
                     let displayLink = e.linkedInvoice;
                     if (displayLink) {
-                        const links = displayLink.split(',').map(x => x.trim()).filter(x => x);
+                        const links = String(displayLink || '').split(',').map(x => x.trim()).filter(x => x);
                         const displayNames = links.map(linkId => {
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
@@ -2109,7 +2115,7 @@ const UI = {
             const cbStartEl = document.getElementById('cashbook-start-date');
             const cbEndEl = document.getElementById('cashbook-end-date');
             
-            // 🚨 BIZOPS FIX: Auto-Inject Financial Year on First Load!
+            // 🚨 SOLLO FIX: Auto-Inject Financial Year on First Load!
             // Prevents the Bank Tab from overloading by defaulting to April 1st - March 31st!
             if (cbStartEl && !cbStartEl.getAttribute('data-fy-set')) {
                 const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
@@ -2262,7 +2268,7 @@ const UI = {
             const tStartEl = document.getElementById('timeline-start-date');
             const tEndEl = document.getElementById('timeline-end-date');
             
-            // 🚨 BIZOPS FIX: Auto-Inject Financial Year on First Load!
+            // 🚨 SOLLO FIX: Auto-Inject Financial Year on First Load!
             if (tStartEl && !tStartEl.getAttribute('data-fy-set')) {
                 const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
                 const currentYear = parseInt(todayStr.split('-')[0], 10);
@@ -2285,7 +2291,7 @@ const UI = {
                 let matchDate = true;
 
                 // 1. Check Date Range
-                // 🚨 BIZOPS FIX: Always show the "Opening Balance" regardless of the date filter so the math doesn't break!
+                // 🚨 SOLLO FIX: Always show the "Opening Balance" regardless of the date filter so the math doesn't break!
                 if (startDate && endDate && t.date) {
                     if (t.id === 'open-bal') matchDate = true;
                     else matchDate = (t.date >= startDate && t.date <= endDate);
@@ -2626,7 +2632,7 @@ const UI = {
             if (p.status !== 'Open' && p.status !== 'Cancelled' && isDateInRange(p.date)) { 
                 const isReturn = p.documentType === 'return';
                 const modifier = isReturn ? -1 : 1;
-                // 🚨 BIZOPS FIX: Calculate Gross Purchases so the chart visually matches Gross Sales!
+                // 🚨 SOLLO FIX: Calculate Gross Purchases so the chart visually matches Gross Sales!
                 totalPurchases += (parseFloat(p.grandTotal) || 0) * modifier; 
                 inputGst += (parseFloat(p.totalGst) || 0) * modifier; 
             } 
@@ -2900,7 +2906,7 @@ const UI = {
             }
         }
 
-        // 🚨 BIZOPS FIX: Trigger the Chart Engine to render the Financial Overview!
+        // 🚨 SOLLO FIX: Trigger the Chart Engine to render the Financial Overview!
         if (typeof UI.updateChart === 'function') {
             UI.updateChart(totalSales, totalPurchases, totalExpenses);
         }
@@ -2914,7 +2920,7 @@ const UI = {
         let canvas = document.getElementById('dashboard-chart');
         if (!canvas) return;
 
-        // 🚨 BIZOPS FIX: The "Fast Boot" Shield
+        // 🚨 SOLLO FIX: The "Fast Boot" Shield
         if (typeof Chart === 'undefined') {
             if (!window.chartRetryCount) window.chartRetryCount = 0;
             if (window.chartRetryCount < 10) {
@@ -3285,7 +3291,7 @@ const UI = {
             results = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === dbType.toLowerCase() && window.fuzzyMatch(query, l.name));
             
             results.slice(0, 30).forEach(l => {
-                const safeName = (l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 html += `
                 <div class="tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
                     <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">${isCust?'person':'storefront'}</span></div>
@@ -3321,7 +3327,7 @@ const UI = {
             });
             
             results.slice(0, 30).forEach(i => {
-                const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const safeName = String(i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 
                 if (prefix === 'adj') {
                     const rawGst = parseFloat(i.stockGst);
@@ -3336,8 +3342,8 @@ const UI = {
                     </div>`;
                 } else {
                     const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
-                    const safeUom = (i.uom || '').replace(/'/g, "\\'");
-                    const safeHsn = (i.hsn || '').replace(/'/g, "\\'");
+                    const safeUom = String(i.uom || '').replace(/'/g, "\\'");
+                    const safeHsn = String(i.hsn || '').replace(/'/g, "\\'");
                     const stockVal = parseFloat(i.stock) || 0;
                     const stockStr = `<span style="color: ${stockVal<=0 ? 'var(--md-error)' : 'var(--md-success)'}; font-weight: bold;">Stock: ${stockVal}</span>`;
                     
@@ -3380,6 +3386,18 @@ const UI = {
         
         // ENTERPRISE FIX: Correctly parse Cashbook prefixes AND await the database fetch BEFORE closing!
         const prefix = typeId.replace('-customer', '').replace('-supplier', ''); 
+        
+        // 🚀 PROGRESSIVE DISCLOSURE TRIGGER
+        if (prefix === 'sales' || prefix === 'purchase') {
+            const step2 = document.getElementById(`${prefix}-step-2`);
+            const footer = document.getElementById(`${prefix}-sticky-footer`);
+            if (step2 && step2.classList.contains('hidden')) {
+                step2.classList.remove('hidden');
+                step2.classList.add('animate-step');
+                if (footer) footer.classList.remove('hidden');
+            }
+        }
+
         if (typeof app !== 'undefined') {
             if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
                 app.loadOriginalDocuments(id, prefix);
@@ -3447,8 +3465,9 @@ const UI = {
         
         const hiddenInputs = `
             <input type="hidden" class="row-item-id" value="${id}">
-            <input type="hidden" class="row-item-name" value="${name.replace(/"/g, '&quot;')}">
-            <input type="hidden" class="row-uom" value="${uom}">
+            <!-- 🚨 SOLLO FIX: Force String coercion to prevent purely numeric product names (like "100") from crashing the .replace() function! -->
+            <input type="hidden" class="row-item-name" value="${String(name || '').replace(/"/g, '&quot;')}">
+            <input type="hidden" class="row-uom" value="${uom || ''}">
         `;
 
         itemCard.innerHTML = `
@@ -3457,11 +3476,12 @@ const UI = {
                 <div style="flex: 1; padding-right: 8px; min-width: 0;">
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
+                    <!-- 🚨 ENTERPRISE UPGRADE: NATIVE KEYBOARD -->
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" inputmode="none" readonly class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none; cursor: pointer;">
+                        <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="text" inputmode="none" readonly class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width: 80px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none; cursor: pointer;">
+                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
@@ -3470,7 +3490,7 @@ const UI = {
                     ${prefix === 'sales' ? `
                     <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                         <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="text" inputmode="none" readonly class="row-item-buyprice tap-target" value="${buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent; cursor: pointer;">
+                        <input type="text" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
                         <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                     </div>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
@@ -3528,7 +3548,7 @@ const UI = {
         // ENTERPRISE FIX: Route the bottom sheet lists through the Virtualizer so they never freeze!
         UI.renderVirtualList(container, ledgers, (l) => {
             return `
-            <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.selectLedger('${l.id}', '${(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${prefix}')">
+            <li class="virtual-item tap-target" onclick="if(window.UI) window.UI.selectLedger('${l.id}', '${String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', '${prefix}')">
                 <div><div class="large-text">${l.name || 'Unnamed'}</div><small class="color-primary">${l.phone || 'No Phone'}</small></div>
             </li>`;
         }, emptyHTML);
@@ -3544,6 +3564,17 @@ const UI = {
             display.style.color = 'var(--md-on-surface)';
         }
         
+        // 🚀 PROGRESSIVE DISCLOSURE TRIGGER
+        if (prefix === 'sales' || prefix === 'purchase') {
+            const step2 = document.getElementById(`${prefix}-step-2`);
+            const footer = document.getElementById(`${prefix}-sticky-footer`);
+            if (step2 && step2.classList.contains('hidden')) {
+                step2.classList.remove('hidden');
+                step2.classList.add('animate-step');
+                if (footer) footer.classList.remove('hidden');
+            }
+        }
+
         if (typeof app !== 'undefined') {
             if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
                 app.loadOriginalDocuments(id, prefix);
@@ -3589,7 +3620,7 @@ const UI = {
             const checked = isSelected ? 'checked' : '';
             
             return `
-            <li class="virtual-item tap-target" style="background: ${bg};" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${(item.uom || '').replace(/'/g, "\\'")}', '${(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
+            <li class="virtual-item tap-target" style="background: ${bg};" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${String(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${String(item.uom || '').replace(/'/g, "\\'")}', '${String(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
                 <div>
                     <div class="large-text">${window.UI.highlightText(item.name || 'Unnamed Product', searchTerm)}</div>
                     <small>
@@ -3633,7 +3664,8 @@ const UI = {
             
             const hiddenInputs = `
                 <input type="hidden" class="row-item-id" value="${p.id}">
-                <input type="hidden" class="row-item-name" value="${(p.name || '').replace(/"/g, '&quot;')}">
+                <!-- 🚨 SOLLO FIX: Force String coercion to prevent purely numeric product names (like "100") from crashing the .replace() function! -->
+                <input type="hidden" class="row-item-name" value="${String(p.name || '').replace(/"/g, '&quot;')}">
                 <input type="hidden" class="row-uom" value="${p.uom || ''}">
             `;
 
@@ -3651,15 +3683,15 @@ const UI = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="text" inputmode="none" readonly class="row-qty tap-target" value="1" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Quantity')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
+                        <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="text" inputmode="none" readonly class="row-rate tap-target" value="${smart.price}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Rate')" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
+                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="text" inputmode="none" readonly class="row-gst tap-target" value="${p.gst || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter GST %')" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none; cursor: pointer;">
+                        <input type="text" inputmode="decimal" class="row-gst" value="${p.gst || 0}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                 </div>
 
@@ -3668,7 +3700,7 @@ const UI = {
                         ${prefix === 'sales' ? `
                         <div>
                             <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
-                            <input type="text" inputmode="none" readonly class="row-item-buyprice tap-target" value="${p.buyPrice || 0}" onclick="if(window.UI) window.UI.openNumpad(this, 'Enter Buy Price')" oninput="UI.calcSalesTotals()" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px; cursor: pointer;">
+                            <input type="text" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
                         </div>
                         ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
                     </div>
@@ -4136,113 +4168,6 @@ const UI = {
         container.innerHTML = skeletons;
     },
 
-    updateLiveInsight: async (prefix) => {
-        const isSales = prefix === 'sales';
-        const partyIdEl = document.getElementById(`${prefix}-${isSales ? 'customer' : 'supplier'}-id`);
-        if (!partyIdEl || !partyIdEl.value) return;
-        const partyId = partyIdEl.value;
-
-        const partyKey = isSales ? 'customerId' : 'supplierId';
-        const activeFirmId = window.app && window.app.state ? window.app.state.firmId : 'firm1';
-        
-        const party = await getRecordById('ledgers', partyId);
-        if (!party) return;
-        
-        const allDocs = await getAllRecords(isSales ? 'sales' : 'purchases', 'firmId', activeFirmId);
-        const receipts = await getAllRecords('receipts', 'firmId', activeFirmId);
-        
-        const invTypeEl = document.getElementById(`${prefix}-invoice-type`);
-        const isNonGST = invTypeEl ? invTypeEl.value === 'Non-GST' : false;
-        
-        let ob = parseFloat(party.openingBalance) || 0;
-        const balType = (party.balanceType || '').toLowerCase();
-        let trueBalance = 0;
-        
-        // 🚨 ISOLATE POOL: Legacy OB falls to Non-GST
-        if (isNonGST) {
-            if (isSales) trueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-            else trueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
-        }
-
-        allDocs.forEach(d => {
-            if (d.firmId === activeFirmId && d[partyKey] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
-                if ((isNonGST && d.invoiceType === 'Non-GST') || (!isNonGST && d.invoiceType !== 'Non-GST')) {
-                    const amt = parseFloat(d.grandTotal) || 0;
-                    trueBalance += (d.documentType === 'return' ? -amt : amt);
-                }
-            }
-        });
-
-        receipts.forEach(r => {
-            if (r.firmId === activeFirmId && r.ledgerId === partyId) {
-                let isNonGstReceipt = r.taxPool === 'Non-GST';
-                const legacyRef = r.invoiceRef || r.linkedInvoice;
-                if (!r.taxPool || r.taxPool === 'All') {
-                    isNonGstReceipt = true;
-                    if (legacyRef) {
-                        const firstRef = String(legacyRef).split(',')[0].trim();
-                        const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
-                        if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
-                    }
-                }
-
-                if ((isNonGST && isNonGstReceipt) || (!isNonGST && !isNonGstReceipt)) {
-                    const amt = parseFloat(r.amount) || 0;
-                    if (isSales) trueBalance += (r.type === 'in' ? -amt : amt);
-                    else trueBalance += (r.type === 'in' ? amt : -amt);
-                }
-            }
-        });
-        
-        // Exclude the currently editing invoice from the "Historical" pool so it doesn't double-count!
-        const currentEditId = window.app && window.app.state ? window.app.state.currentEditId : null;
-        if (currentEditId) {
-            const currentDoc = allDocs.find(d => d.id === currentEditId);
-            if (currentDoc && currentDoc.status !== 'Open' && currentDoc.status !== 'Cancelled') {
-                if ((isNonGST && currentDoc.invoiceType === 'Non-GST') || (!isNonGST && currentDoc.invoiceType !== 'Non-GST')) {
-                    trueBalance -= (currentDoc.documentType === 'return' ? -(parseFloat(currentDoc.grandTotal) || 0) : parseFloat(currentDoc.grandTotal) || 0);
-                }
-            }
-        }
-        
-        const currentTotal = parseFloat(document.getElementById(`${prefix}-grand-total`).innerText.replace(/[^\d.-]/g, '')) || 0;
-        
-        let banner = document.getElementById('risk-banner');
-        if (!banner) {
-            banner = document.createElement('div');
-            banner.id = 'risk-banner';
-            banner.style.cssText = 'margin-bottom: 12px; border-radius: 8px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px;';
-            const targetGroup = document.getElementById(`${prefix}-return-ref-group`);
-            if (targetGroup) targetGroup.parentNode.insertBefore(banner, targetGroup);
-        }
-        
-        const totalDebt = Math.max(0, trueBalance);
-        const combined = totalDebt + currentTotal;
-        
-        const color = isSales ? 'var(--md-error)' : '#d84315';
-        const bg = isSales ? 'rgba(186,26,26,0.05)' : 'rgba(216, 67, 21, 0.05)';
-        const border = isSales ? 'rgba(186,26,26,0.2)' : 'rgba(216, 67, 21, 0.2)';
-        const icon = isSales ? 'warning' : 'local_shipping';
-        const title = isSales ? 'Live Customer Insight' : 'Live Supplier Insight';
-        const subTitle = isSales ? 'Previous Receivables' : 'Previous Payables';
-        
-        banner.style.background = bg;
-        banner.style.border = `1px solid ${border}`;
-        
-        banner.innerHTML = `
-            <span class="material-symbols-outlined" style="color: ${color}; font-size: 24px;">${icon}</span>
-            <div style="flex: 1;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">${title}</strong>
-                    <span style="font-size: 10px; background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px; color: ${color}; font-weight: 800; border: 1px solid ${border};">${subTitle}</span>
-                </div>
-                <strong style="font-size: 20px; color: ${color}; display: block; margin-bottom: 4px;">₹${combined.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                <div style="font-size: 11px; color: var(--md-text-muted);">
-                    Historical Due: ₹${totalDebt.toLocaleString('en-IN', {minimumFractionDigits: 2})} | This Bill: ₹${currentTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}
-                </div>
-            </div>
-        `;
-    },
 
 }; // <--- MAKE SURE YOU HAVE THIS CLOSING BRACKET AND SEMICOLON!
 
@@ -4341,7 +4266,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // ENTERPRISE FIX: Only block the native 'Enter' key if there is actually a next input to jump to!
                 e.preventDefault(); 
                 focusable[index + 1].focus(); // Jump to next input
-                if (focusable[index + 1].select) focusable[index + 1].select(); // Highlight text for fast replacing
+                // Auto-highlight removed for a cleaner native experience
             } else {
                 // If it's a standalone input (like Add Unit) or the final input, let the 'Enter' key work normally!
                 e.target.blur(); // Close the keyboard
@@ -4502,9 +4427,6 @@ document.addEventListener('DOMContentLoaded', () => {
 }); // <--- CRITICAL FIX: This closes the massive event listener!
 
 // ==========================================
-// NEW CODE: ES MODULE EXPORT & GLOBAL MAP
-// ==========================================
-// ==========================================
 // ENTERPRISE UPGRADE: SMART SEARCH WATCHERS
 // ==========================================
 // 1. Hide dropdowns when clicking outside of them
@@ -4542,8 +4464,13 @@ document.addEventListener('click', (e) => {
 // ENTERPRISE FIX 2: SMART KEYBOARD DISMISSAL
 // ==========================================
 document.addEventListener('click', (e) => {
-    // 🚨 CRITICAL BUG FIX: Do NOT close the keyboard if the user is actually tapping an input field!
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    // 🚨 SOLLO FIX: Close the custom numpad if the user taps a normal text field!
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+        if (!e.target.hasAttribute('readonly') && window.UI && window.UI.closeNumpad) {
+            window.UI.closeNumpad();
+        }
+        return;
+    }
 
     // If the user taps ANY clickable list item or card in the app
     const target = e.target.closest('.tap-target, .m3-card, li');
@@ -4671,14 +4598,63 @@ document.addEventListener('focusout', (e) => {
     }
 });
 
-// 🚨 ENTERPRISE UX: REVERT CURRENCY FORMATTER ON TAP
-// Strips the commas and restores the Native Mobile Numpad when editing!
+// 🚨 ENTERPRISE UX: CLEAN CURRENCY FORMATTER ON TAP
+// Strips commas cleanly and lets the native mobile browser place the cursor naturally!
+
+// Centralized checker to easily grab ALL numeric fields in the entire app!
+const isNumericField = (el) => {
+    if (el.tagName !== 'INPUT') return false;
+    const id = String(el.id).toLowerCase();
+    return el.classList.contains('currency-input') || 
+           el.classList.contains('row-qty') || 
+           el.classList.contains('row-rate') || 
+           el.classList.contains('row-item-buyprice') || 
+           el.classList.contains('row-gst') ||
+           id.includes('amount') || 
+           id.includes('rate') || 
+           id.includes('price') || 
+           id.includes('discount') || 
+           id.includes('freight');
+};
+
 document.addEventListener('focusin', (e) => {
-    if (e.target.tagName === 'INPUT' && e.target.type === 'text' && !e.target.id.toLowerCase().includes('pincode') && (e.target.classList.contains('currency-input') || e.target.id.includes('amount') || e.target.id.includes('rate') || e.target.id.includes('price'))) {
-        // Strip commas and revert back to a number input
+    if (isNumericField(e.target)) {
         const rawVal = String(e.target.value).replace(/,/g, '');
-        e.target.type = 'number';
-        e.target.value = rawVal;
+        
+        if (e.target.type !== 'text') e.target.type = 'text'; 
+        if (e.target.getAttribute('inputmode') !== 'decimal') e.target.setAttribute('inputmode', 'decimal'); 
+        
+        if (e.target.value !== rawVal) {
+            e.target.value = rawVal;
+        }
+        
+        // 🚨 ULTIMATE FIX: Cascading Timers
+        const clearHighlight = () => {
+            try {
+                if (e.target.selectionStart === 0 && e.target.selectionEnd === e.target.value.length && e.target.value.length > 0) {
+                    const len = e.target.value.length;
+                    e.target.setSelectionRange(len, len);
+                }
+            } catch(err) {}
+        };
+
+        clearHighlight();
+        setTimeout(clearHighlight, 50);
+        setTimeout(clearHighlight, 150);
+    }
+});
+
+// 🚨 SECONDARY SHIELD: Catch Touch Release
+document.addEventListener('pointerup', (e) => {
+    if (isNumericField(e.target)) {
+        setTimeout(() => {
+            try {
+                if (e.target.selectionStart === 0 && e.target.selectionEnd === e.target.value.length && e.target.value.length > 0) {
+                    const len = e.target.value.length;
+                    e.target.setSelectionRange(len, len);
+                }
+            } catch(err) {}
+        }, 10);
     }
 });
 

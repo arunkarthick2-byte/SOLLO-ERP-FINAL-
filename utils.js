@@ -857,7 +857,7 @@ Please process this accordingly. Thank you!`;
                 document.head.appendChild(s2);
             }
             
-            // 🚨 BIZOPS FIX: Auto-Resume Engine (With Failsafe)
+            // 🚨 SOLLO FIX: Auto-Resume Engine (With Failsafe)
             let retries = 0;
             const checkInterval = setInterval(() => {
                 retries++;
@@ -1056,8 +1056,8 @@ Please process this accordingly. Thank you!`;
         const partyLocationStr = window.Utils.sanitizeHTML([safeParty.city, safeParty.state].filter(Boolean).join(', ') + (safeParty.pincode ? ' - ' + safeParty.pincode : ''));
         const bizLocationStr = window.Utils.sanitizeHTML([biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : ''));
         
-        const partyGst = window.Utils.sanitizeHTML(safeParty.gst ? safeParty.gst.toUpperCase() : '');
-        const bizGst = window.Utils.sanitizeHTML(biz && biz.gst ? biz.gst.toUpperCase() : 'N/A');
+        const partyGst = window.Utils.sanitizeHTML(safeParty.gst ? String(safeParty.gst).toUpperCase() : '');
+        const bizGst = window.Utils.sanitizeHTML(biz && biz.gst ? String(biz.gst).toUpperCase() : 'N/A');
         
         // Sanitize Business fields to prevent malicious injections from the Business Profile
         const safeBizName = window.Utils.sanitizeHTML(biz.name || 'Company Name');
@@ -1198,7 +1198,7 @@ Please process this accordingly. Thank you!`;
         let gstSummaryHtml = '';
         if (!isNonGST && (parseFloat(doc.totalGst) || 0) > 0) {
             let taxGroups = {};
-            let isIGST = biz.state && safeParty.state && (biz.state.trim().toLowerCase() !== safeParty.state.trim().toLowerCase());
+            let isIGST = biz.state && safeParty.state && (String(biz.state).trim().toLowerCase() !== String(safeParty.state).trim().toLowerCase());
             
             (doc.items || []).forEach(item => {
                 const g = parseFloat(item.gstPercent) || 0;
@@ -1619,7 +1619,7 @@ Please process this accordingly. Thank you!`;
         const brandColor = localStorage.getItem('sollo_brand_color') || '#000000';
         const pdfFont = localStorage.getItem('sollo_pdf_font') || 'inter';
 
-        // 🚨 BIZOPS FIX: Corrected the regex to target 'Inter' so the user's Font Settings actually apply!
+        // 🚨 SOLLO FIX: Corrected the regex to target 'Inter' so the user's Font Settings actually apply!
         if (pdfFont === 'serif') {
             themedHtml = themedHtml.replace(/font-family: 'Inter', sans-serif;/g, "font-family: 'Times New Roman', Times, serif;");
         } else if (pdfFont === 'mono') {
@@ -1773,10 +1773,10 @@ Thank you!`;
         const partyName = nameEl.innerText.trim();
         let isAccount = false;
         
-        let party = window.UI.state.rawData.ledgers.find(l => (l.name || '').trim().toLowerCase() === partyName.toLowerCase());
+        let party = window.UI.state.rawData.ledgers.find(l => String(l.name || '').trim().toLowerCase() === partyName.toLowerCase());
         
         if (!party) {
-            party = window.UI.state.rawData.accounts.find(a => (a.name || '').trim().toLowerCase() === partyName.toLowerCase());
+            party = window.UI.state.rawData.accounts.find(a => String(a.name || '').trim().toLowerCase() === partyName.toLowerCase());
             if (!party && partyName.toLowerCase().includes('cash')) {
                 party = { id: 'cash', name: 'Cash Drawer', type: 'Account', firmId: typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1' };
             }
@@ -1786,7 +1786,7 @@ Thank you!`;
         let isItem = false;
         if (!party && partyName.toLowerCase().startsWith('item ledger:')) {
             const rawItemName = partyName.replace(/item ledger:\s*/i, '').trim();
-            party = window.UI.state.rawData.items.find(i => (i.name || '').trim().toLowerCase() === rawItemName.toLowerCase());
+            party = window.UI.state.rawData.items.find(i => String(i.name || '').trim().toLowerCase() === rawItemName.toLowerCase());
             if (party) {
                 isItem = true;
                 party.type = 'Item';
@@ -2040,7 +2040,7 @@ Thank you!`;
                             ${party.address || ''} ${party.address ? '<br>' : ''}
                             ${statementPartyLocationStr || ''} ${statementPartyLocationStr ? '<br>' : ''}
                             ${party.phone ? `Ph: ${party.phone}<br>` : ''}
-                            ${party.gst ? `<strong style="color:#0f172a;">GSTIN: ${party.gst.toUpperCase()}</strong>` : ''}
+                            ${party.gst ? `<strong style="color:#0f172a;">GSTIN: ${String(party.gst).toUpperCase()}</strong>` : ''}
                         </div>
                     </div>
 
@@ -2148,7 +2148,7 @@ Thank you!`;
                     let taxable = Math.abs(exactTaxable) * (s.documentType === 'return' ? -1 : 1);
                     let tax = Math.abs(parseFloat(s.totalGst) || 0) * (s.documentType === 'return' ? -1 : 1);
                     let total = Math.abs(parseFloat(s.grandTotal) || 0) * (s.documentType === 'return' ? -1 : 1);
-                    b2bData.push([s.date, s.invoiceNo, s.customerName || '', gstin.toUpperCase(), taxable, tax, total]);
+                    b2bData.push([s.date, s.invoiceNo, s.customerName || '', String(gstin).toUpperCase(), taxable, tax, total]);
                 }
             });
             const wsB2B = XLSX.utils.aoa_to_sheet(b2bData);
@@ -2242,7 +2242,7 @@ Thank you!`;
                     document.head.appendChild(s2);
                 }
                 
-                // 🚨 BIZOPS FIX: Auto-Resume Engine (With Failsafe)
+                // 🚨 SOLLO FIX: Auto-Resume Engine (With Failsafe)
                 let retries = 0;
                 const checkInterval = setInterval(() => {
                     retries++;
@@ -2268,7 +2268,7 @@ Thank you!`;
             const origMaxW = el.style.maxWidth;
             const origPos = el.style.position;
             
-            // 🚨 BIZOPS FIX: Force EXACT A4 Dimensions for Native Background Sharing!
+            // 🚨 SOLLO FIX: Force EXACT A4 Dimensions for Native Background Sharing!
             el.style.setProperty('width', '800px', 'important');
             el.style.setProperty('min-width', '800px', 'important');
             el.style.setProperty('max-width', '800px', 'important');
@@ -2347,13 +2347,13 @@ Thank you!`;
 
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
 
-            // 🚨 BIZOPS FIX: If user tapped download, skip sharing and just download!
+            // 🚨 SOLLO FIX: If user tapped download, skip sharing and just download!
             if (forceDownload) {
                 window.html2pdf().set(opt).from(el).save();
                 return;
             }
 
-            // 🚨 BIZOPS FIX: Safely wrap Native Share so cancelling it doesn't trigger the Print Fallback!
+            // 🚨 SOLLO FIX: Safely wrap Native Share so cancelling it doesn't trigger the Print Fallback!
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 const cleanTitle = filename.replace('.pdf', '').replace(/_/g, ' ');
                 try {
@@ -2502,7 +2502,7 @@ Thank you!`;
 
                     <div style="padding: 20px; font-size: 13px; color: #334155; line-height: 1.5; border-bottom: 1px solid #475569; background: #f8fafc;">
                         <strong>Remarks / Notes:</strong><br>
-                        ${expense.notes ? expense.notes.replace(/\\n/g, '<br>') : 'No additional remarks.'}
+                        ${expense.notes ? String(expense.notes).replace(/\\n/g, '<br>') : 'No additional remarks.'}
                     </div>
 
                     <div style="display: flex; padding: 40px 20px 20px 20px; justify-content: space-between; align-items: flex-end;">

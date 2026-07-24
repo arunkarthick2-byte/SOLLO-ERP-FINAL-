@@ -600,7 +600,7 @@ const saveInvoiceTransaction = async (storeName, data) => {
                         if (r.desc && r.desc.includes(docNo)) {
                             // 🚨 ENTERPRISE FIX: Escape special characters so invoice numbers like "INV[2024]" don't crash the database engine!
                             const safeDocNo = String(docNo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            const strictRegex = new RegExp('\\b' + safeDocNo + '\\b', 'g');
+                            const strictRegex = new RegExp('(?<=^|\\s)' + safeDocNo + '(?=\\s|$)', 'g');
                             r.desc = r.desc.replace(strictRegex, newDocNo); 
                         }
                             await saveRecord('receipts', r);

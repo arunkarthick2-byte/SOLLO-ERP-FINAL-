@@ -1,3 +1,91 @@
+// --- BACKGROUND WORKER ENGINE ---
+if (window.Worker) {
+    window.DataWorker = new Worker('worker.js');
+    
+    window.DataWorker.addEventListener('message', function(e) {
+        const response = e.data;
+        
+        if (response && response.type === 'DASHBOARD_INVENTORY_RESULT') {
+            // 1. Update the Total Capital UI
+            const valEl = document.getElementById('dash-inventory-value');
+            if (valEl) {
+                valEl.innerText = '₹' + response.totalValuation.toLocaleString('en-IN', {
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2
+                });
+            }
+
+            // 2. Draw the Restock Required Mini-Table
+            const lsText = document.getElementById('dash-low-stock-text');
+            const lsIcon = document.getElementById('dash-low-stock-icon');
+            const lsBtn = document.getElementById('dash-low-stock-btn');
+
+            if (lsText && lsIcon && lsBtn) {
+                const oldTable = document.getElementById('dash-mini-table');
+                if (oldTable) oldTable.remove();
+
+                if (response.lowStockItems.length > 0) {
+                    lsBtn.style.display = '';
+                    response.lowStockItems.sort((a, b) => a.score - b.score);
+                    const topItems = response.lowStockItems.slice(0, 3);
+                    
+                    let tableRows = topItems.map(item => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 6px 0; border-bottom: 1px dashed rgba(186, 26, 26, 0.2);">
+                            <span style="color: #410002; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; font-weight: 600;">${item.name}</span>
+                            <span style="color: var(--md-error); font-weight: 800; background: #ffe4e6; padding: 2px 6px; border-radius: 4px;">${item.reason}</span>
+                        </div>
+                    `).join('');
+                    
+                    let extraCount = response.lowStockItems.length - 3;
+                    let extraText = extraCount > 0 ? `<div style="text-align: center; font-size: 10px; color: var(--md-error); margin-top: 8px; font-weight: 800; text-transform: uppercase;">+${extraCount} MORE ITEMS CRITICAL</div>` : '';
+
+                    lsText.innerHTML = `<span style="font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">RESTOCK REQUIRED</span>`;
+                    lsText.style.color = 'var(--md-error)';
+                    lsIcon.innerText = 'warning';
+                    lsIcon.style.color = 'var(--md-error)';
+                    lsBtn.style.borderLeft = '4px solid var(--md-error)';
+                    lsBtn.style.background = 'rgba(186, 26, 26, 0.05)';
+                    
+                    const tableHTML = `<div id="dash-mini-table" style="width: 100%; margin-top: 12px; background: rgba(255,255,255,0.8); border-radius: 6px; padding: 4px 12px; border: 1px solid rgba(186,26,26,0.2); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${tableRows}${extraText}</div>`;
+                    lsBtn.insertAdjacentHTML('beforeend', tableHTML);
+                    
+                    lsBtn.onclick = () => {
+                        if (window.UI) {
+                            window.UI.state.currentMasterType = 'products'; 
+                            window.UI.openBottomSheet('sheet-products');
+                            setTimeout(() => {
+                                window.UI.state.activeFilters = window.UI.state.activeFilters || {};
+                                window.UI.state.activeFilters['masters'] = 'Low Stock';
+                                if (window.Utils) window.Utils.showToast("Filtered: Critical Restock ⚠️");
+                                if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('masters');
+                            }, 150);
+                        }
+                    };
+                } else {
+                    lsBtn.style.display = 'none';
+                }
+            }
+        } 
+        else if (response && response.type === 'AGING_RESULT') {
+            // Update the Receivables Aging UI
+            const totalEl = document.getElementById('aging-total-due');
+            if (totalEl) {
+                const formatMoney = (amt) => '₹' + amt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                
+                totalEl.innerText = formatMoney(response.totalDue);
+                document.getElementById('aging-30-amt').innerText = formatMoney(response.bucket30);
+                document.getElementById('aging-60-amt').innerText = formatMoney(response.bucket60);
+                document.getElementById('aging-90-amt').innerText = formatMoney(response.bucket90);
+                
+                document.getElementById('aging-30-bar').style.width = response.totalDue > 0 ? `${(response.bucket30/response.totalDue)*100}%` : '0%';
+                document.getElementById('aging-60-bar').style.width = response.totalDue > 0 ? `${(response.bucket60/response.totalDue)*100}%` : '0%';
+                document.getElementById('aging-90-bar').style.width = response.totalDue > 0 ? `${(response.bucket90/response.totalDue)*100}%` : '0%';
+            }
+        }
+    });
+}
+
+
 // ==========================================
 // SOLLO ERP - MAIN APPLICATION CONTROLLER (v6.1 Enterprise)
 // ==========================================
@@ -55,7 +143,7 @@ if (!document.getElementById('enterprise-master-fixes')) {
 document.addEventListener('reset', (e) => {
     const form = e.target;
     setTimeout(() => {
-        // 🚨 BIZOPS FIX: The "Ghost Supplier" Race Condition!
+        // 🚨 SOLLO FIX: The "Ghost Supplier" Race Condition!
         // Prevents the reset timeout from destroying the Supplier/Customer ID when opening a Saved Entry!
         if (window.app && window.app.state && (window.app.state.currentEditId || window.app.state.currentReceiptId)) return;
 
@@ -366,7 +454,7 @@ const app = {
                     const phoneEl = document.getElementById('ledger-phone');
                     if (phoneEl) {
                         // Clean up the phone number (removes spaces, hyphens, and parentheses)
-                        let cleanPhone = contact.tel[0].replace(/[\s\-\(\)]/g, '');
+                        let cleanPhone = String(contact.tel[0] || '').replace(/[\s\-\(\)]/g, '');
                         phoneEl.value = cleanPhone;
                         phoneEl.dispatchEvent(new Event('input', { bubbles: true })); // Trigger listeners
                     }
@@ -576,11 +664,12 @@ const app = {
         
         const firmData = await getRecordById('businessProfile', app.state.firmId);
         if (firmData) {
-            document.getElementById('profile-name').value = firmData.name || '';
-            document.getElementById('profile-phone').value = firmData.phone || '';
-            document.getElementById('profile-email').value = firmData.email || '';
-            document.getElementById('profile-gst').value = firmData.gst || '';
-            document.getElementById('profile-address').value = firmData.address || '';
+            // WE NOW TALK TO THE BRAIN INSTEAD OF THE HTML!
+            window.AppState.profileName = firmData.name || '';
+            window.AppState.profilePhone = firmData.phone || '';
+            window.AppState.profileEmail = firmData.email || '';
+            window.AppState.profileGst = firmData.gst || '';
+            window.AppState.profileAddress = firmData.address || '';
             // 🚨 ENTERPRISE FIX: Load the missing City field so the form doesn't stay blank!
             if (document.getElementById('profile-city')) document.getElementById('profile-city').value = firmData.city || '';
             if (document.getElementById('profile-pincode')) document.getElementById('profile-pincode').value = firmData.pincode || ''; // 🚨 ADDED PINCODE LOAD
@@ -692,161 +781,20 @@ const app = {
         // ENTERPRISE UPGRADE: WAREHOUSE MINI-TABLE ENGINE (VELOCITY PREDICTOR)
         // ==========================================
         if (UI.state.rawData.items) {
-            let totalValuation = 0;
-            let lowStockItems = []; 
-
-            // 🚨 VELOCITY ENGINE: Calculate the date 30 days ago to measure demand!
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            const salesHistory = UI.state.rawData.sales || [];
-            
-            // 🚨 CAPITAL ENGINE: Pull historical purchases to calculate real-world costs
-            const purchaseHistory = UI.state.rawData.purchases || [];
-
-            UI.state.rawData.items.forEach(i => {
-                const rawGst = parseFloat(i.stockGst);
-                const rawNon = parseFloat(i.stockNonGst);
-                const stockGst = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
-                const stockNonGst = isNaN(rawNon) ? 0 : rawNon;
-                // 🚨 ENTERPRISE FIX: Allow negative stock to accurately reduce warehouse capital!
-                const totalStock = stockGst + stockNonGst; 
-                
-                // 🚨 CAPITAL ENGINE: True Weighted Average Cost (WAC) Valuation
-                let trueCost = parseFloat(i.buyPrice) || 0; // Fallback to master price if no bills exist
-                let totalBoughtQty = 0;
-                let totalBoughtValue = 0;
-
-                purchaseHistory.forEach(p => {
-                    if (p.firmId === app.state.firmId && p.status !== 'Open' && p.status !== 'Cancelled') {
-                        (p.items || []).forEach(row => {
-                            if (String(row.itemId) === String(i.id)) {
-                                let q = parseFloat(row.qty) || 0;
-                                let r = parseFloat(row.rate) || 0; // The actual rate paid on the bill
-                                if (p.documentType === 'return') {
-                                    totalBoughtQty -= q;
-                                    totalBoughtValue -= (q * r);
-                                } else {
-                                    totalBoughtQty += q;
-                                    totalBoughtValue += (q * r);
-                                }
-                            }
-                        });
-                    }
-                });
-
-                // Mathematically calculate the true average cost of the items
-                if (totalBoughtQty > 0) {
-                    trueCost = totalBoughtValue / totalBoughtQty; 
-                }
-
-                // Add the true audited value to the dashboard total
-                totalValuation += (totalStock * trueCost);
-
-                const minStock = parseFloat(i.minStock) || 0;
-                
-                // 🚨 VELOCITY ENGINE: Calculate exact daily sales for this specific item!
-                let soldIn30Days = 0;
-                salesHistory.forEach(s => {
-                    if (s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled') {
-                        if (window.Utils.safeDate(s.date) >= thirtyDaysAgo) {
-                            (s.items || []).forEach(row => {
-                                if (String(row.itemId) === String(i.id)) {
-                                    soldIn30Days += (s.documentType === 'return' ? -(parseFloat(row.qty)||0) : (parseFloat(row.qty)||0));
-                                }
-                            });
-                        }
-                    }
-                });
-                
-                const dailyVelocity = Math.max(0, soldIn30Days / 30);
-                const daysRemaining = dailyVelocity > 0 ? (totalStock / dailyVelocity) : 999;
-                
-                let isCritical = false;
-                let triggerReason = '';
-                let urgencyScore = 999; // Lower is worse
-                
-                // Trigger 1: Hard Limit (They hit their exact minimum)
-                if (minStock > 0 && totalStock <= minStock) {
-                    isCritical = true;
-                    triggerReason = `${totalStock} / ${minStock}`;
-                    urgencyScore = totalStock - minStock; // Negative means they are deep in deficit
-                } 
-                // Trigger 2: Velocity Alert (They have stock, but it will run out in < 7 days based on heavy sales!)
-                else if (dailyVelocity > 0 && daysRemaining <= 7 && totalStock > 0) {
-                    isCritical = true;
-                    triggerReason = `${Math.ceil(daysRemaining)} Days Left`;
-                    urgencyScore = daysRemaining; 
-                }
-
-                if (isCritical) {
-                    lowStockItems.push({ 
-                        name: i.name, 
-                        stock: totalStock, 
-                        min: minStock, 
-                        uom: i.uom || 'Pcs',
-                        reason: triggerReason,
-                        score: urgencyScore
-                    });
-                }
-            });
-
             const valEl = document.getElementById('dash-inventory-value');
-            if (valEl) valEl.innerText = `₹${totalValuation.toLocaleString('en-IN', {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
-
-            const lsText = document.getElementById('dash-low-stock-text');
-            const lsIcon = document.getElementById('dash-low-stock-icon');
-            const lsBtn = document.getElementById('dash-low-stock-btn');
-
-            if (lsText && lsIcon && lsBtn) {
-                const oldTable = document.getElementById('dash-mini-table');
-                if (oldTable) oldTable.remove();
-
-                if (lowStockItems.length > 0) {
-                    lsBtn.style.display = '';
-                    
-                    // 🚨 VELOCITY ENGINE: Sort items by pure urgency so the most dangerous shortages are at the top!
-                    lowStockItems.sort((a, b) => a.score - b.score);
-                    const topItems = lowStockItems.slice(0, 3);
-                    
-                    let tableRows = topItems.map(item => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 6px 0; border-bottom: 1px dashed rgba(186, 26, 26, 0.2);">
-                            <span style="color: #410002; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; font-weight: 600;">${item.name}</span>
-                            <span style="color: var(--md-error); font-weight: 800; background: #ffe4e6; padding: 2px 6px; border-radius: 4px;">${item.reason}</span>
-                        </div>
-                    `).join('');
-                    
-                    let extraCount = lowStockItems.length - 3;
-                    let extraText = extraCount > 0 ? `<div style="text-align: center; font-size: 10px; color: var(--md-error); margin-top: 8px; font-weight: 800; text-transform: uppercase;">+${extraCount} MORE ITEMS CRITICAL</div>` : '';
-
-                    lsText.innerHTML = `<span style="font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">RESTOCK REQUIRED</span>`;
-                    lsText.style.color = 'var(--md-error)';
-                    lsIcon.innerText = 'warning';
-                    lsIcon.style.color = 'var(--md-error)';
-                    lsBtn.style.borderLeft = '4px solid var(--md-error)';
-                    lsBtn.style.background = 'rgba(186, 26, 26, 0.05)'; // Tint the entire card red for extreme visibility!
-                    
-                    // Inject the gorgeous Mini-Table right into the dashboard
-                    const tableHTML = `<div id="dash-mini-table" style="width: 100%; margin-top: 12px; background: rgba(255,255,255,0.8); border-radius: 6px; padding: 4px 12px; border: 1px solid rgba(186,26,26,0.2); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${tableRows}${extraText}</div>`;
-                    lsBtn.insertAdjacentHTML('beforeend', tableHTML);
-                    
-                    // Keep the Smart Router attached so tapping the card still works!
-                    lsBtn.onclick = () => {
-                        if (window.UI) {
-                            window.UI.state.currentMasterType = 'products'; 
-                            window.UI.openBottomSheet('sheet-products');
-                            setTimeout(() => {
-                                window.UI.state.activeFilters = window.UI.state.activeFilters || {};
-                                window.UI.state.activeFilters['masters'] = 'Low Stock';
-                                if (window.Utils) window.Utils.showToast("Filtered: Critical Restock ⚠️");
-                                if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('masters');
-                            }, 150);
-                        }
-                    };
-
-                } else {
-                    // THE GHOST UI: Completely hide the card to save screen space when stock is perfect!
-                    lsBtn.style.display = 'none';
-                }
+            
+            // Show a sleek shimmering skeleton loader while the worker thinks!
+            if (valEl) valEl.innerHTML = '<div class="skeleton-card" style="height: 24px; width: 70%; margin: 0; border-radius: 4px;"></div>';
+            
+            // Fire the heavy math off to the background worker!
+            if (window.DataWorker) {
+                window.DataWorker.postMessage({
+                    command: 'CALCULATE_DASHBOARD_INVENTORY',
+                    firmId: app.state.firmId,
+                    items: UI.state.rawData.items,
+                    purchases: UI.state.rawData.purchases,
+                    sales: UI.state.rawData.sales
+                });
             }
         }
 
@@ -854,90 +802,22 @@ const app = {
         // ENTERPRISE UPGRADE: RECEIVABLES AGING ENGINE
         // ==========================================
         if (UI.state.rawData.sales && UI.state.rawData.cashbook) {
-            let bucket30 = 0, bucket60 = 0, bucket90 = 0, totalDue = 0;
-            const today = new Date();
-            
-            // 🚨 ENTERPRISE FIX: Pre-calculate Returns so Credit Notes don't swallow payments!
-            const dashboardReturnMap = {};
-            UI.state.rawData.sales.forEach(d => {
-                if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
-                    dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
-                }
-            });
-
-            // Build an instant payment lookup map
-            const paymentMap = {};
-            UI.state.rawData.cashbook.forEach(r => {
-                if (r.firmId === app.state.firmId && r.invoiceRef && r.type === 'in') {
-                    const refs = String(r.invoiceRef).split(',').map(x => x.trim()).filter(Boolean);
-                    let remainingPayment = parseFloat(r.amount) || 0;
-                    refs.forEach(ref => {
-                        const linkedDoc = UI.state.rawData.sales.find(d => d.id === ref || d.invoiceNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
-                        
-                        // 🚨 FIX: The Blackhole Credit Note Trap
-                        // Deduct the return to find the true net total, allowing excess money to waterfall!
-                        const returned = [linkedDoc?.orderNo, linkedDoc?.invoiceNo, linkedDoc?.id, ref].filter(Boolean).reduce((sum, r) => sum + (dashboardReturnMap[r] || 0), 0);
-                        let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / refs.length);
-                        
-                        let applyAmt = Math.min(docTotal, remainingPayment);
-                        if (applyAmt > 0) {
-                            paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + applyAmt;
-                            remainingPayment -= applyAmt;
-                        }
-                    });
-                    if (remainingPayment > 0.01 && refs[0]) {
-                        paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`] || 0) + remainingPayment;
-                    }
-                }
-            });
-
-            UI.state.rawData.sales.forEach(sale => {
-                // ENTERPRISE FIX: The Phantom Debt Shield!
-                // Added 'Cancelled' to the ignore list so voided invoices don't permanently bloat the High-Risk aging bucket!
-                if (sale.firmId === app.state.firmId && sale.status !== 'Completed' && sale.status !== 'Open' && sale.status !== 'Cancelled' && sale.documentType !== 'return') {
-                    // Match the precise true balance using the core payment map
-                    const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean))];
-                    // ENTERPRISE FIX: Check the map using the customer ID prefix!
-                    const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${sale.customerId}_${ref}`] || 0), 0);
-                    
-                    // ENTERPRISE FIX: Subtract Credit Notes so returned items don't falsely inflate dashboard debt!
-                    const linkedReturns = UI.state.rawData.sales.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && uniqueRefs.includes(d.orderNo));
-                    const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
-                    
-                    const balance = (parseFloat(sale.grandTotal) || 0) - paid - returnTotal;
-
-                    if (balance > 0.01) {
-                        totalDue += balance;
-                        // 🚨 FIX: Calculate aging from the Dispatched Date (if available), otherwise fallback to Invoice Date
-                        const baseDate = sale.shippedDate ? sale.shippedDate : sale.date;
-                        const diffTime = today - window.Utils.safeDate(baseDate);
-                        
-                        // ENTERPRISE FIX: The "Post-Dated" Aging Panic Shield!
-                        // The old 'Math.abs' converted future invoices into past-due invoices, triggering fake High-Risk 90+ Day alerts!
-                        if (diffTime >= 0) {
-                            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-
-                            if (diffDays <= 30) bucket30 += balance;
-                            else if (diffDays <= 60) bucket60 += balance;
-                            else bucket90 += balance;
-                        }
-                    }
-                }
-            });
-
             const totalEl = document.getElementById('aging-total-due');
+            
             if (totalEl) {
-                totalEl.innerText = `₹${totalDue.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('aging-30-amt').innerText = `₹${bucket30.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('aging-60-amt').innerText = `₹${bucket60.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                document.getElementById('aging-90-amt').innerText = `₹${bucket90.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                totalEl.innerHTML = '<span style="font-size: 14px; color: #0f172a;">Calculating...</span>';
                 
-                document.getElementById('aging-30-bar').style.width = totalDue > 0 ? `${(bucket30/totalDue)*100}%` : '0%';
-                document.getElementById('aging-60-bar').style.width = totalDue > 0 ? `${(bucket60/totalDue)*100}%` : '0%';
-                document.getElementById('aging-90-bar').style.width = totalDue > 0 ? `${(bucket90/totalDue)*100}%` : '0%';
+                if (window.DataWorker) {
+                    window.DataWorker.postMessage({
+                        command: 'CALCULATE_AGING',
+                        firmId: app.state.firmId,
+                        sales: UI.state.rawData.sales,
+                        cashbook: UI.state.rawData.cashbook
+                    });
+                }
             }
         }
-    },
+    }, // <--- ADD THIS CLOSING BRACKET AND COMMA!
 
     // ==========================================
     // CORE UI REFRESH ENGINE (Restored)
@@ -1065,8 +945,8 @@ const app = {
             const ledgerMap = {};
             for (const l of ledgers) {
                 if (l.firmId !== app.state.firmId) continue;
-                const safePhone = (l.phone || '').trim();
-                const key = `${(l.name || '').trim().toLowerCase()}_${safePhone}_${l.type}`;
+                const safePhone = String(l.phone || '').trim();
+                const key = `${String(l.name || '').trim().toLowerCase()}_${safePhone}_${l.type}`;
                 
                 if (!ledgerMap[key]) {
                     ledgerMap[key] = l;
@@ -1074,7 +954,7 @@ const app = {
                     const master = ledgerMap[key];
                     const getSignedBal = (party) => {
                         let bal = parseFloat(party.openingBalance) || 0;
-                        const bType = (party.balanceType || '').toLowerCase();
+                        const bType = String(party.balanceType || '').toLowerCase();
                         if (party.type === 'Customer') return (bType.includes('pay') || bType.includes('credit')) ? -bal : bal;
                         return (bType.includes('receive') || bType.includes('debit')) ? -bal : bal;
                     };
@@ -1123,7 +1003,7 @@ const app = {
 
             for (const a of accounts) {
                 if (a.firmId !== app.state.firmId) continue;
-                const key = (a.name || '').trim().toLowerCase();
+                const key = String(a.name || '').trim().toLowerCase();
                 
                 if ((key === 'cash drawer' || key === 'cash' || key === 'default cash drawer') && a.id !== 'cash') {
                     if (!realCash) {
@@ -1737,7 +1617,7 @@ const app = {
             // 🚨 ENTERPRISE UPGRADE: Perfect Proportional Job Costing
             allExpenses.forEach(e => {
                 if (e.linkedInvoice) {
-                    const links = e.linkedInvoice.split(',').map(l => l.trim());
+                    const links = String(e.linkedInvoice || '').split(',').map(l => l.trim());
                     
                     let customerShareCount = 0;
                     links.forEach(link => {
@@ -1823,7 +1703,7 @@ const app = {
             if ((partyType === 'Customer' && bal > 0.01) || (partyType !== 'Customer' && bal < -0.01)) {
                 const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
                 let ob = parseFloat(party.openingBalance) || 0;
-                let isAdv = partyType === 'Customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
+                let isAdv = partyType === 'Customer' ? (String(party.balanceType || '').toLowerCase().includes('pay') || String(party.balanceType || '').toLowerCase().includes('credit')) : (String(party.balanceType || '').toLowerCase().includes('receive') || String(party.balanceType || '').toLowerCase().includes('debit'));
                 
                 // 🚨 THE FIX: ISOLATE LEDGER UI BADGES TO MATCH THE PAYMENT ENGINE!
                 let trueBalGST = 0;
@@ -2125,15 +2005,15 @@ const app = {
                             <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="none" class="row-qty" value="0" max="${maxAllowable}" required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05); cursor: pointer;">
+                                <input type="text" inputmode="decimal" class="row-qty" value="0" max="${maxAllowable}" required oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05);">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required readonly oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
+                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" required readonly style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
                                 <input type="hidden" class="row-item-id" value="${item.itemId}">
-                                <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                                <input type="hidden" class="row-item-name" value="${String(item.name || '').replace(/"/g, '&quot;')}">
                                 <input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">
                                 <input type="hidden" class="row-uom" value="${item.uom || ''}">
                             </div>
@@ -2182,7 +2062,7 @@ const app = {
         // 1. ELITE UPGRADE: CALCULATE THE EXACT TRUE LEDGER BALANCE FIRST
         const party = await getRecordById('ledgers', partyId);
         let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
-        const balType = party ? (party.balanceType || '').toLowerCase() : '';
+        const balType = party ? String(party.balanceType || '').toLowerCase() : '';
         
         const billFilterEl = document.getElementById(isMoneyIn ? 'pay-in-bill-filter' : 'pay-out-bill-filter');
         const billFilter = billFilterEl ? billFilterEl.value : 'All';
@@ -2281,7 +2161,7 @@ const app = {
         const pendingInvoices = [];
 
         for (const doc of partyDocs) {
-            const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+            const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
             const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
             const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
             
@@ -2384,6 +2264,24 @@ const app = {
 
             if (type === 'sales' || type === 'purchase') {
                 document.getElementById(`${type}-items-body`).innerHTML = '';
+
+                // 🚀 PROGRESSIVE DISCLOSURE RESET
+                if (type === 'sales' || type === 'purchase') {
+                    const step2 = document.getElementById(`${type}-step-2`);
+                    const footer = document.getElementById(`${type}-sticky-footer`);
+                    if (step2 && footer) {
+                        if (id) {
+                            // If editing an old document, show everything instantly
+                            step2.classList.remove('hidden', 'animate-step');
+                            footer.classList.remove('hidden');
+                        } else {
+                            // If brand new document, hide step 2 until party is picked
+                            step2.classList.add('hidden');
+                            step2.classList.remove('animate-step');
+                            footer.classList.add('hidden');
+                        }
+                    }
+                }
 
                 // NEW: Prepare Custom Fields for Sales Form
                 if (type === 'sales') {
@@ -2554,13 +2452,15 @@ const app = {
             };
 
             document.getElementById(`${type}-order-status`).value = record.status || 'Completed';
-            if (window.UI && window.UI.toggleDates) window.UI.toggleDates(type);
 
             // Safely inject from the isolated memory cache instead of the raw record
             setDateSafe(`${type}-date`, window.app.state.cachedDates.date);
             setDateSafe(`${type}-order-date`, window.app.state.cachedDates.orderDate);
             setDateSafe(`${type}-shipped-date`, window.app.state.cachedDates.shippedDate);
             setDateSafe(`${type}-completed-date`, window.app.state.cachedDates.completedDate);
+            
+            // 🚨 THE FIX: Trigger the UI display logic AFTER the database dates are securely in the boxes!
+            if (window.UI && window.UI.toggleDates) window.UI.toggleDates(type);
             
             document.getElementById(`${type}-order-no`).value = record.orderNo || '';
             document.getElementById(`${type}-freight`).value = record.freightAmount || 0;
@@ -2607,6 +2507,10 @@ const app = {
             const tbody = document.getElementById(`${type}-items-body`);
             tbody.innerHTML = '';
 
+            // 🚨 SOLLO FIX: Hide the "No items" text when opening a saved invoice!
+            const emptyState = document.getElementById(`${type}-empty-items`);
+            if (emptyState) emptyState.style.display = 'none';
+
             // --- FETCH RETURN MAX ALLOWABLE LOGIC ---
             let returnedQtyMap = {};
             let originalDoc = null;
@@ -2638,24 +2542,24 @@ const app = {
                         <div style="flex: 1; padding-right: 8px; min-width: 0;">
                             <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name || 'Archived / Unknown Item'}</strong>
                             ${maxLabel}
-                            <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
+                            <!-- 🚨 ENTERPRISE UPGRADE: NATIVE KEYBOARD -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="none" class="row-qty" value="${item.qty}" ${maxHtml} required readonly onclick="UI.openNumpad(this, 'Quantity')" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 60px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); cursor: pointer;">
+                                <input type="text" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} required oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); outline: none;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="none" class="row-rate" value="${item.rate}" required ${record.documentType === 'return' ? 'readonly' : `readonly onclick="UI.openNumpad(this, 'Rate')"`} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); cursor: pointer;'}">
+                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" required ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); outline: none;'}">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
                                 <input type="hidden" class="row-item-id" value="${item.itemId}">
-                                <input type="hidden" class="row-item-name" value="${(item.name || '').replace(/"/g, '&quot;')}">
+                                <input type="hidden" class="row-item-name" value="${String(item.name || '').replace(/"/g, '&quot;')}">
                                 <input type="hidden" class="row-uom" value="${item.uom || ''}">
                             </div>
                             
                             ${type === 'sales' && record.documentType !== 'return' ? `
                             <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                                 <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="number" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:60px; padding:2px 4px; font-size:10px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent;">
+                                <input type="text" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:65px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent;">
                                 <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                             </div>
                             ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
@@ -2685,7 +2589,7 @@ const app = {
             const historyList = document.getElementById(`${type}-payment-history-list`);
             if (historyCard && historyList) {
                 // FIX: Check ALL references to catch cross-linked payments in the history view!
-                const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean))];
+                const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean).map(String))];
                 const partyId = type === 'sales' ? record.customerId : record.supplierId;
                 const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
                 
@@ -2745,7 +2649,7 @@ const app = {
                     const partyId = type === 'sales' ? record.customerId : record.supplierId;
                     const party = await getRecordById('ledgers', partyId);
                     let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
-                    const balType = party ? (party.balanceType || '').toLowerCase() : '';
+                    const balType = party ? String(party.balanceType || '').toLowerCase() : '';
                     
                     let trueBalance = 0;
                     let isCustomer = type === 'sales';
@@ -2840,7 +2744,7 @@ const app = {
                     const pendingInvoices = [];
 
                     for (const doc of partyDocs) {
-                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
                         const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (fastPaymentMap[ref] || 0), 0);
                         const returned = uniqueRefs.reduce((sum, ref) => sum + (fastReturnMap[ref] || 0), 0);
                         
@@ -2912,12 +2816,12 @@ const app = {
             const expCard = document.getElementById(`${type}-expense-history-card`);
             const expList = document.getElementById(`${type}-expense-history-list`);
             if (expCard && expList) {
-                const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean))];
+                const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean).map(String))];
                 const allExpenses = await getAllRecords('expenses');
                 // FIX: Trim whitespace and check against ALL possible IDs to prevent broken links!
                 const linkedExpenses = allExpenses.filter(e => {
                     if (e.firmId !== app.state.firmId || !e.linkedInvoice) return false;
-                    const cleanLinks = e.linkedInvoice.split(',').map(link => link.trim());
+                    const cleanLinks = String(e.linkedInvoice || '').split(',').map(link => link.trim());
                     return cleanLinks.some(link => uniqueRefs.includes(link));
                 });
                 
@@ -3002,7 +2906,7 @@ const app = {
 
                 // NEW: Recover the document names for the UI Display (Multi-Link)
                 if (record.linkedInvoice) {
-                    const links = record.linkedInvoice.split(',').map(x => x.trim()).filter(x => x);
+                    const links = String(record.linkedInvoice || '').split(',').map(x => x.trim()).filter(x => x);
                     const displayNames = links.map(linkId => {
                         // SELF-HEALING: Catch broken fragments and protect against corrupted empty IDs!
                         const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || (s.id && s.id.endsWith(linkId)));
@@ -3237,7 +3141,7 @@ const app = {
                     let safeShippedDate = document.getElementById(`${type}-shipped-date`).value;
                     let safeCompletedDate = document.getElementById(`${type}-completed-date`).value;
 
-                    // 🚨 BIZOPS FIX: THE FAKE COMPLETION SHIELD
+                    // 🚨 SOLLO FIX: THE FAKE COMPLETION SHIELD
                     // Prevent users from manually marking an invoice as "Completed" if it hasn't been paid!
                     if (currentStatus === 'Completed' && (app.state.currentEditId || type === 'purchase')) {
                         // Force it back to Unpaid. The Auto-FIFO engine will upgrade it to Completed 
@@ -3312,7 +3216,7 @@ const app = {
 // ==========================================
 let splitConfirmed = null; // 🚨 FIX: Variable declared globally so it doesn't disappear!
 
-// 🚨 BIZOPS FIX: Only show the Payment Screen for BRAND NEW invoices that are fully COMPLETED. If Unpaid or Shipped, skip it!
+// 🚨 SOLLO FIX: Only show the Payment Screen for BRAND NEW invoices that are fully COMPLETED. If Unpaid or Shipped, skip it!
 if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId) {
     splitConfirmed = await new Promise(async (resolve) => {
         const total = parseFloat(data.grandTotal) || 0;
@@ -3634,7 +3538,7 @@ if (data.id && splitConfirmed) {
                     });
                     
                     if (currentBal - data.amount < 0) {
-                        // 🚨 BIZOPS FIX: Replaced native confirm() with our beautiful async modal to prevent iOS/Android thread blocking!
+                        // 🚨 SOLLO FIX: Replaced native confirm() with our beautiful async modal to prevent iOS/Android thread blocking!
                         const isConfirmed = await window.Utils.confirmModal(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This expense will drop the balance below zero. Continue anyway?`, "Continue", true);
                         if (!isConfirmed) {
                             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
@@ -3734,7 +3638,7 @@ if (data.id && splitConfirmed) {
                     await saveRecord('receipts', expenseReceipt);
                 }
                 
-                // 🚨 BIZOPS FIX: Trigger the gorgeous green checkmark animation!
+                // 🚨 SOLLO FIX: Trigger the gorgeous green checkmark animation!
                 if (window.UI) window.UI.showSuccess();
                 
                 // ENTERPRISE FIX: Prevent nested Master forms from closing the Invoice behind them!
@@ -3868,11 +3772,12 @@ if (data.id && splitConfirmed) {
                 e.preventDefault();
                 const data = {
                     firmId: app.state.firmId,
-                    name: document.getElementById('profile-name').value,
-                    phone: document.getElementById('profile-phone').value,
-                    email: document.getElementById('profile-email').value,
-                    gst: document.getElementById('profile-gst').value,
-                    address: document.getElementById('profile-address').value,
+                    // WE NOW PULL THE SAVED TEXT DIRECTLY FROM THE BRAIN!
+                    name: window.AppState.profileName,
+                    phone: window.AppState.profilePhone,
+                    email: window.AppState.profileEmail,
+                    gst: window.AppState.profileGst,
+                    address: window.AppState.profileAddress,
                     // 🚨 ENTERPRISE FIX: Save the missing City field into the database!
                     city: document.getElementById('profile-city') ? document.getElementById('profile-city').value : '',
                     pincode: document.getElementById('profile-pincode') ? document.getElementById('profile-pincode').value : '', // 🚨 ADDED PINCODE SAVE
@@ -4406,7 +4311,7 @@ if (data.id && splitConfirmed) {
         
         const party = await getRecordById('ledgers', partyId);
         let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
-        const balType = party ? (party.balanceType || '').toLowerCase() : '';
+        const balType = party ? String(party.balanceType || '').toLowerCase() : '';
         
         // 🚨 ISOLATE THE TAX POOLS FOR BACKGROUND AUTO-COMPLETION
         let trueBalGST = 0;
@@ -4495,7 +4400,7 @@ if (data.id && splitConfirmed) {
         const pendingInvoices = [];
 
         for (const doc of partyDocs) {
-            const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+            const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
             const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[ref] || 0), 0);
             const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
             
@@ -4714,7 +4619,7 @@ if (data.id && splitConfirmed) {
         // ORPHAN PROTECTION: Check for linked manual receipts safely
         if (type === 'sales' || type === 'purchase') {
             // FIX: Safely capture ALL possible linked IDs to prevent orphaned receipts
-            const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean))];
+            const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean).map(String))];
             const partyId = type === 'sales' ? record.customerId : record.supplierId;
             
             if (uniqueRefs.length > 0 && partyId) {
@@ -5077,7 +4982,7 @@ if (data.id && splitConfirmed) {
         if (record) {
             const partyId = type === 'sales' ? record.customerId : record.supplierId;
             const party = await window.getRecordById('ledgers', partyId);
-            if (party && party.phone) phone = party.phone.replace(/[^0-9]/g, '');
+            if (party && party.phone) phone = String(party.phone || '').replace(/[^0-9]/g, '');
         }
         
         if (window.UI) window.UI.closeBottomSheet('sheet-smart-share');
@@ -5122,7 +5027,7 @@ if (data.id && splitConfirmed) {
         // ENTERPRISE FIX: Stop the PDF Generator from freezing by scoping the database lookup!
         const receipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
         // FIX: Match against ALL references so the printed PDF never misses a cross-linked payment!
-        const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean))];
+        const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean).map(String))];
         const partyId = type === 'sales' ? record.customerId : record.supplierId;
         
         let totalPaid = 0;
@@ -5172,7 +5077,7 @@ if (data.id && splitConfirmed) {
         if (explicitCoverage < grandTotal - 0.01) {
             const party = await getRecordById('ledgers', partyId);
             let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
-            const balType = party ? (party.balanceType || '').toLowerCase() : '';
+            const balType = party ? String(party.balanceType || '').toLowerCase() : '';
             let trueBalGST = 0;
             let trueBalNonGST = 0;
             let isCustomer = type === 'sales';
@@ -5253,7 +5158,7 @@ if (data.id && splitConfirmed) {
             const pendingInvoices = [];
 
             for (const doc of partyDocs) {
-                const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
                 const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (fastPaymentMap[ref] || 0), 0);
                 const returned = uniqueRefs.reduce((sum, ref) => sum + (fastReturnMap[ref] || 0), 0);
                 
@@ -5456,7 +5361,7 @@ if (data.id && splitConfirmed) {
                         ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
                         <h1 style="margin: 0 0 6px 0; font-size: 20px; font-weight: 800;">${biz.name || 'Company Name'}</h1>
                         <div style="font-size: 12px; color: #334155; line-height: 1.5;">
-                            ${biz.address ? biz.address.replace(/\n/g, '<br>') + '<br>' : ''}
+                            ${biz.address ? String(biz.address).replace(/\n/g, '<br>') + '<br>' : ''}
                             ${bizLocationStr ? bizLocationStr + '<br>' : ''}
                             ${biz.phone ? `<strong>Phone:</strong> ${biz.phone}` : ''} ${biz.email ? ` | <strong>Email:</strong> ${biz.email}` : ''}
                         </div>
@@ -5480,7 +5385,7 @@ if (data.id && splitConfirmed) {
                         <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #64748b; margin-bottom: 6px;">${isMoneyIn ? 'Received From' : 'Paid To'}</div>
                         <strong style="font-size: 15px; display: block; margin-bottom: 4px; word-wrap: break-word;">${receipt.ledgerName}</strong>
                         <div style="font-size: 12px; color: #334155; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word;">
-                            ${party ? (party.address ? party.address.replace(/\n/g, '<br>') + '<br>' : '') : ''}
+                            ${party ? (party.address ? String(party.address).replace(/\n/g, '<br>') + '<br>' : '') : ''}
                             ${partyLocationStr ? partyLocationStr + '<br>' : ''}
                             ${party && party.phone ? `Ph: ${party.phone}` : ''}
                         </div>
@@ -5551,7 +5456,7 @@ if (data.id && splitConfirmed) {
         const printArea = document.getElementById('print-area');
         if (printArea) printArea.innerHTML = finalHTML;
         
-        const safeFilename = `${title.replace(/ /g, '_')}_${safeDocNo.replace(/[\/\\]/g, '-')}.pdf`;
+        const safeFilename = `${String(title || '').replace(/ /g, '_')}_${String(safeDocNo || '').replace(/[\/\\]/g, '-')}.pdf`;
         document.querySelectorAll('#activity-receipt-viewer').forEach(el => el.remove());
         
         const initialZoom = window.innerWidth / 830; 
@@ -6257,7 +6162,7 @@ if (data.id && splitConfirmed) {
             ledgers.forEach(l => {
                 if (l.firmId !== app.state.firmId) return;
                 let ob = parseFloat(l.openingBalance) || 0;
-                const balType = (l.balanceType || '').toLowerCase();
+                const balType = String(l.balanceType || '').toLowerCase();
                 if (l.type === 'Customer') {
                     balanceCache[l.id] = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
                 } else {
@@ -6299,7 +6204,7 @@ if (data.id && splitConfirmed) {
                 if (party.type === 'Customer') status = bal > 0.01 ? 'To Receive' : (bal < -0.01 ? 'Advance' : 'Settled');
                 else status = bal > 0.01 ? 'To Pay' : (bal < -0.01 ? 'Advance' : 'Settled');
                 
-                csvContent += `"${party.name.replace(/"/g, '""')}","${party.type}","${party.phone || ''}",${Math.abs(bal).toFixed(2)},"${status}"\n`;
+                csvContent += `"${String(party.name || '').replace(/"/g, '""')}","${party.type}","${party.phone || ''}",${Math.abs(bal).toFixed(2)},"${status}"\n`;
             }
             
             csvContent += "\n2. BANK & CASH ACCOUNTS\n";
@@ -6325,7 +6230,7 @@ if (data.id && splitConfirmed) {
                 allReceipts.filter(r => r.firmId === app.state.firmId && r.accountId === acc.id).forEach(r => {
                     accBal += (r.type === 'in' ? parseFloat(r.amount) : -parseFloat(r.amount));
                 });
-                csvContent += `"${acc.name.replace(/"/g, '""')}",${accBal.toFixed(2)}\n`;
+                csvContent += `"${String(acc.name || '').replace(/"/g, '""')}",${accBal.toFixed(2)}\n`;
             }
             
             // Download the Non-Destructive Report
@@ -6416,7 +6321,7 @@ if (data.id && splitConfirmed) {
             if (historicalStock !== 0) {
                 const itemValue = historicalStock * buyPrice;
                 totalValuation += itemValue;
-                csvContent += `"${item.name.replace(/"/g, '""')}",${historicalStock.toFixed(2)},${buyPrice},${itemValue.toFixed(2)}\n`;
+                csvContent += `"${String(item.name || '').replace(/"/g, '""')}",${historicalStock.toFixed(2)},${buyPrice},${itemValue.toFixed(2)}\n`;
             }
         });
         
@@ -6553,7 +6458,7 @@ if (data.id && splitConfirmed) {
         let csvContent = "SOLLO ERP - DEAD STOCK ANALYSIS (90+ DAYS)\n\nItem Name,Current Stock,Buy Price,Trapped Capital,Last Sold Date\n";
         
         data.forEach(item => {
-            csvContent += `"${item.name.replace(/"/g, '""')}",${item.stock},${item.buyPrice},${item.trappedValue.toFixed(2)},"${item.lastSold}"\n`;
+            csvContent += `"${String(item.name || '').replace(/"/g, '""')}",${item.stock},${item.buyPrice},${item.trappedValue.toFixed(2)},"${item.lastSold}"\n`;
         });
         
         csvContent += `\nTOTAL TRAPPED CAPITAL,,,${total.toFixed(2)}\n`;
@@ -6677,7 +6582,7 @@ if (data.id && splitConfirmed) {
         let csvContent = "SOLLO ERP - PROFIT LEAKAGE AUDIT\n\nInvoice No,Date,Customer,Item Name,Qty,Buy Price,Sold At (Effective),Total Loss\n";
         
         data.forEach(item => {
-            csvContent += `"${item.invoiceNo}","${item.date}","${item.customerName.replace(/"/g, '""')}","${item.itemName.replace(/"/g, '""')}",${item.qty},${item.buyPrice},${item.effectiveRate.toFixed(2)},${item.totalLoss.toFixed(2)}\n`;
+            csvContent += `"${item.invoiceNo}","${item.date}","${String(item.customerName || '').replace(/"/g, '""')}","${String(item.itemName || '').replace(/"/g, '""')}",${item.qty},${item.buyPrice},${item.effectiveRate.toFixed(2)},${item.totalLoss.toFixed(2)}\n`;
         });
         
         csvContent += `\nTOTAL LOST REVENUE,,,,,,,${total.toFixed(2)}\n`;
@@ -6953,7 +6858,7 @@ if (data.id && splitConfirmed) {
                     const pId = isRec ? doc.customerId : doc.supplierId;
                     if(!partyAging[pId]) partyAging[pId] = { name: isRec ? doc.customerName : doc.supplierName, b30: 0, b60: 0, b90: 0, total: 0 };
                     
-                    const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                    const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${pId}_${ref}`] || 0), 0);
                     const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
                     const bal = Math.max(0, (parseFloat(doc.grandTotal)||0) - paid - returned);
@@ -7058,7 +6963,7 @@ if (data.id && splitConfirmed) {
                     const amt = parseFloat(e.amount) || 0;
                     tExp += amt;
                     
-                    const links = e.linkedInvoice.split(',').map(x => x.trim()).filter(Boolean);
+                    const links = String(e.linkedInvoice || '').split(',').map(x => x.trim()).filter(Boolean);
                     const displayLinks = links.map(link => {
                         const cleanLink = link.startsWith('sollo-') ? link.slice(-4).toUpperCase() : link;
                         return `<span style="background: var(--md-surface-variant); color: var(--md-primary); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; margin-right: 4px;">🔗 ${cleanLink}</span>`;
@@ -7251,7 +7156,7 @@ if (data.id && splitConfirmed) {
                         ${biz.logo ? `<img src="${biz.logo}" style="max-height: 50px; max-width: 150px; object-fit: contain; margin-bottom: 8px;">` : ''}
                         <h1 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase;">${biz.name || 'Company Name'}</h1>
                         <div style="font-size: 11px; color: #64748b; line-height: 1.5;">
-                            ${biz.address ? biz.address.replace(/\n/g, '<br>') + '<br>' : ''}
+                            ${biz.address ? String(biz.address).replace(/\n/g, '<br>') + '<br>' : ''}
                             ${bizLocationStr ? bizLocationStr + '<br>' : ''}
                             ${biz.gst ? `<strong style="color: #0f172a;">GSTIN:</strong> ${biz.gst}` : ''}
                         </div>
@@ -7745,7 +7650,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                 <strong style="font-size: 18px;">Ledger Statement</strong>
             </div>
             
-            <!-- 🚨 BIZOPS FIX: Unified PDF button to show EXACT Document Preview -->
+            <!-- 🚨 SOLLO FIX: Unified PDF button to show EXACT Document Preview -->
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('khata-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
@@ -8009,7 +7914,7 @@ window.executeAccountReport = async (accountId) => {
                 <strong style="font-size: 18px;">Account Statement</strong>
             </div>
             
-            <!-- 🚨 BIZOPS FIX: Unified PDF button to show EXACT Document Preview -->
+            <!-- 🚨 SOLLO FIX: Unified PDF button to show EXACT Document Preview -->
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('account-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: #fff3e0; color: #e65100; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
@@ -8882,7 +8787,7 @@ document.addEventListener('error', function(e) {
     }
 }, true); // The 'true' capture phase is strictly required to intercept resource loading errors!
 // ==========================================
-// 🚨 BIZOPS NATIVE THEME: HARDWARE BACK-BUTTON SHIELD
+// 🚨 SOLLO NATIVE THEME: HARDWARE BACK-BUTTON SHIELD
 // ==========================================
 // This intercepts the physical Android/iOS swipe-back gesture and destroys any 
 // full-screen overlays before the user gets permanently stuck!
@@ -8910,7 +8815,7 @@ window.addEventListener('popstate', (e) => {
     }
 });
 // ==========================================
-// 🚨 BIZOPS NATIVE THEME: DATA INTEGRITY MASKS
+// 🚨 SOLLO NATIVE THEME: DATA INTEGRITY MASKS
 // ==========================================
 // This global shield watches all inputs and automatically formats sensitive financial data 
 // without needing to rewrite any of your HTML forms!
@@ -8937,7 +8842,7 @@ document.addEventListener('input', (e) => {
     }
 });
 // ==========================================
-// 🚨 BIZOPS NATIVE THEME: DASHBOARD PARALLAX SCROLLING
+// 🚨 SOLLO NATIVE THEME: DASHBOARD PARALLAX SCROLLING
 // ==========================================
 // Disabled Parallax to prevent black screen and allow normal scrolling!
 const setupParallax = () => {
@@ -8949,7 +8854,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(setupParallax, 500);
 });
 // ==========================================
-// 🚨 BIZOPS NATIVE THEME: FLOATING LABEL ENGINE
+// 🚨 SOLLO NATIVE THEME: FLOATING LABEL ENGINE
 // ==========================================
 // Silently watches all form inputs. If they have text, it applies a 'has-value' lock
 document.addEventListener('input', (e) => {

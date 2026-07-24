@@ -89,7 +89,7 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="date"],
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
 
 :root {
-    /* 🚨 BIZOPS NATIVE THEME: High-Contrast Android Native Palette */
+    /* 🚨 SOLLO NATIVE THEME: High-Contrast Android Native Palette */
     --md-primary: #1A237E; /* Deep Android Indigo */
     --md-on-primary: #ffffff;
     --md-primary-container: #E8EAF6; 
@@ -177,14 +177,14 @@ html, body, input, button, select, textarea, table, th, td, span, strong, div {
     scrollbar-width: none; /* Firefox: Hide scrollbars */
 }
 
-/* 🚨 BIZOPS FIX: Kills ugly Android focus squares when tapping buttons */
+/* 🚨 SOLLO FIX: Kills ugly Android focus squares when tapping buttons */
 *:focus:not(:focus-visible) {
     outline: none !important;
 }
 
 /* 🚨 ANDROID UPGRADE: Native OS Typography Engine */
 body {
-    /* 🚨 BIZOPS THEME: Forces the official Android 'Roboto' font globally! */
+    /* 🚨 SOLLO THEME: Forces the official Android 'Roboto' font globally! */
     font-family: var(--app-font); 
     font-variant-numeric: tabular-nums; 
     color: var(--md-on-surface);
@@ -420,7 +420,7 @@ body.dark-mode .swipe-card {
     /* The spring curve above makes this width expansion physically 'bounce' */
 }
 
-/* 🚨 BIZOPS NATIVE THEME: True Circular Floating Action Button */
+/* 🚨 SOLLO NATIVE THEME: True Circular Floating Action Button */
 .floating-action-button {
     position: fixed;
     bottom: calc(84px + env(safe-area-inset-bottom, 0px)); 
@@ -460,7 +460,7 @@ body.dark-mode .swipe-card {
 /* ==========================================
    UI COMPONENTS (Cards, Buttons, Inputs, Lists)
    ========================================== */
-/* 🚨 BIZOPS NATIVE THEME: Flat, Professional Material Cards */
+/* 🚨 SOLLO NATIVE THEME: Flat, Professional Material Cards */
 .m3-card {
     background: var(--md-surface);
     border-radius: 8px; /* Sharper Android corners */
@@ -594,7 +594,7 @@ body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea
     background: var(--md-outline-variant);
 }
 
-/* 🚨 BIZOPS NATIVE THEME: High-Density Ledger Lists */
+/* 🚨 SOLLO NATIVE THEME: High-Density Ledger Lists */
 .list-view {
     list-style: none;
     padding: 0;
@@ -660,7 +660,7 @@ body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea
 }
 
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: Material Pill Chips
+   🚨 SOLLO NATIVE THEME: Material Pill Chips
    ========================================== */
 .filter-chips {
     display: flex;
@@ -763,7 +763,7 @@ body:has(.numpad-overlay.active) .floating-action-button {
     display: flex; align-items: center; justify-content: space-between; 
     padding: 12px 16px; 
     padding-top: calc(12px + env(safe-area-inset-top, 0px));
-    /* 🚨 BIZOPS NATIVE THEME: Solid Primary Color Action Bar */
+    /* 🚨 SOLLO NATIVE THEME: Solid Primary Color Action Bar */
     background-color: var(--md-primary); 
     color: var(--md-on-primary); /* Forces text and icons to be white */
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); /* Classic Android Elevation Drop Shadow */
@@ -886,7 +886,7 @@ body.dark-mode .bottom-sheet::before {
     font-weight: normal;
 }
 
-/* 🚨 BIZOPS NATIVE THEME: Left-Aligned Material Subheaders */
+/* 🚨 SOLLO NATIVE THEME: Left-Aligned Material Subheaders */
 .date-divider {
     position: sticky !important;
     top: 0 !important;
@@ -1202,54 +1202,60 @@ body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
         border: none;
     }
 }
-/* 🚨 ENTERPRISE UPGRADE: Floating Dynamic Offline Pill */
+/* 🚨 ENTERPRISE UPGRADE: Transparent Outline Offline Pill */
 .offline-banner {
     position: fixed !important; 
-    /* Safely pushes it below the physical camera notch and status bar! */
     top: calc(12px + env(safe-area-inset-top, 0px)) !important; 
     left: 50% !important;
-    
-    /* Centers it perfectly and hides it off-screen by default */
     transform: translateX(-50%) translateY(-150%) !important; 
-    
     width: auto !important;
     min-width: 220px;
     
-    /* Premium Translucent Red Glass */
-    background: rgba(186, 26, 26, 0.90) !important; 
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    /* 🔥 THE FIX: Fully Transparent Background & Lower Z-Index */
+    background: transparent !important; 
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 2000 !important; /* Drops behind bottom sheets and dark overlays! */
+    pointer-events: none !important; /* Lets clicks pass straight through! */
     
-    color: #ffffff !important;
-    font-size: 13px !important;
-    font-weight: 700 !important;
+    color: #ba1a1a !important; /* Bold Red Text */
+    text-shadow: 0 1px 2px #ffffff !important; /* White glow so text stays readable */
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
     letter-spacing: 0.5px !important;
     text-align: center !important;
     padding: 10px 24px !important;
-    border-radius: 50px !important; /* Perfect Pill Shape */
+    border-radius: 50px !important; 
+    border: 2px solid #ba1a1a !important; 
+    box-shadow: none !important;
     
-    /* 3D Drop Shadow so it pops off the background */
-    box-shadow: 0 12px 24px rgba(186, 26, 26, 0.3), 0 2px 8px rgba(0,0,0,0.1) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    
-    z-index: 99999 !important; /* Absolute top layer, nothing covers it */
-    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s ease, box-shadow 0.4s ease !important;
-    
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), border 0.4s ease !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 8px !important;
 }
 
-/* The Apple-style spring bounce when it drops down */
 .offline-banner.show {
     transform: translateX(-50%) translateY(0) !important;
 }
 
-/* Smooth transition to Neon Green when the internet reconnects */
 .offline-banner.online {
-    background: rgba(20, 108, 46, 0.90) !important;
-    box-shadow: 0 12px 24px rgba(20, 108, 46, 0.3), 0 2px 8px rgba(0,0,0,0.1) !important;
+    color: #146c2e !important; 
+    border: 2px solid #146c2e !important;
+    text-shadow: 0 1px 2px #ffffff !important;
+}
+
+/* Dark Mode Adapter */
+body.dark-mode .offline-banner {
+    color: #ffb4ab !important;
+    border: 2px solid #ffb4ab !important;
+    text-shadow: 0 1px 2px #000000 !important; /* Black glow so text pops */
+}
+body.dark-mode .offline-banner.online {
+    color: #81c995 !important;
+    border: 2px solid #81c995 !important;
+    text-shadow: 0 1px 2px #000000 !important;
 }
 /* UPGRADE 2: Fintech Success Animation */
 .success-circle {
@@ -1339,7 +1345,7 @@ body.dark-mode .date-divider {
     background: rgba(17, 19, 21, 0.85) !important;
     border-bottom: 1px solid rgba(255,255,255,0.05) !important;
 }
-/* 🚨 BIZOPS NATIVE THEME: Strict Android Square Checkboxes */
+/* 🚨 SOLLO NATIVE THEME: Strict Android Square Checkboxes */
 input[type="checkbox"] {
     -webkit-appearance: none;
     appearance: none;
@@ -1600,15 +1606,16 @@ body.dark-mode .bottom-nav {
     box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
 }
 
-/* 3. Premium Custom Text Selection (Matches your Blue Brand) */
+/* 3. Invisible Auto-Selection (Cursor Only!) */
+/* Hides the clunky highlight block when phones auto-select pre-filled numbers */
 ::selection {
-    background: var(--md-primary) !important;
-    color: var(--md-on-primary) !important;
+    background: transparent !important;
+    color: inherit !important;
     text-shadow: none !important;
 }
 ::-moz-selection {
-    background: var(--md-primary) !important;
-    color: var(--md-on-primary) !important;
+    background: transparent !important;
+    color: inherit !important;
     text-shadow: none !important;
 }
 
@@ -1842,7 +1849,7 @@ body.dark-mode tbody tr:active {
 }
 
 /* ========================================== */
-/* 🚨 BIZOPS NATIVE THEME: ULTIMATE FUSED SEARCH BAR */
+/* 🚨 SOLLO NATIVE THEME: ULTIMATE FUSED SEARCH BAR */
 /* ========================================== */
 
 .search-bar, 
@@ -2177,7 +2184,7 @@ header, .header, .top-bar {
    (8-Point Grid, Hairline Emboss, Float & Sink)
    ========================================== */
 
-/* 🚨 BIZOPS NATIVE THEME: Strict 16dp Material Padding */
+/* 🚨 SOLLO NATIVE THEME: Strict 16dp Material Padding */
 .m3-card {
     padding: 16px !important; /* Standard Google Material Padding */
     margin-bottom: 12px !important; 
@@ -2215,10 +2222,10 @@ body.dark-mode .m3-card, body.dark-mode .list-view li {
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
-/* 🚨 BIZOPS NATIVE THEME: Material Design Form Fields */
+/* 🚨 SOLLO NATIVE THEME: Material Design Form Fields */
 input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
     /* Flat grey background with a sharp bottom line */
-    -webkit-appearance: none !important; /* 🚨 BIZOPS FIX: Kills Apple's secret 3D inner-shadow */
+    -webkit-appearance: none !important; /* 🚨 SOLLO FIX: Kills Apple's secret 3D inner-shadow */
     appearance: none !important;
     border: none !important; 
     border-bottom: 1px solid var(--md-outline) !important; 
@@ -2374,7 +2381,7 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="email"]
     border-radius: 0 10px 10px 0 !important;
 }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: EDGE-TO-EDGE MENU LISTS
+   🚨 SOLLO NATIVE THEME: EDGE-TO-EDGE MENU LISTS
    ========================================== */
 
 /* 1. Pull the Vertical Menus (Settings, Reports, Masters) to the screen edges! */
@@ -2413,7 +2420,7 @@ body.dark-mode #tab-masters div[style*="flex-direction: column"] > .m3-card {
     border-bottom: none !important;
 }
 
-/* 🚨 BIZOPS NATIVE THEME: Edge-to-Edge Horizontal Menu Buttons */
+/* 🚨 SOLLO NATIVE THEME: Edge-to-Edge Horizontal Menu Buttons */
 #tab-menu div[style*="display: flex; gap: 8px;"] {
     gap: 0 !important;
     border: none !important; /* Remove outer box */
@@ -2694,7 +2701,7 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
 .activity-screen.hidden {
     display: none !important;
 }
-/* 🚨 BIZOPS NATIVE THEME: Premium Top-Screen Alerts */
+/* 🚨 SOLLO NATIVE THEME: Premium Top-Screen Alerts */
 #toast-container {
     top: calc(20px + env(safe-area-inset-top, 0px)) !important; 
     bottom: auto !important;
@@ -2998,7 +3005,7 @@ select {
     background-color: #f1f5f9; /* Subtle hover effect for tracking data */
 }
 /* ========================================== */
-/* 🚨 BIZOPS NATIVE THEME: EDGE-TO-EDGE FLUSH LISTS */
+/* 🚨 SOLLO NATIVE THEME: EDGE-TO-EDGE FLUSH LISTS */
 /* ========================================== */
 
 /* Target all the rows inside the lists to make them flat and borderless on the sides */
@@ -3159,7 +3166,7 @@ body.dark-mode small[style*="color:var(--md-error)"],
 body.dark-mode small[style*="color: var(--md-error)"] {
      animation: soft-breathe-danger-dark 2.5s infinite cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
-/* 🚨 BIZOPS NATIVE THEME: Flat Edge-to-Edge Action Bar */
+/* 🚨 SOLLO NATIVE THEME: Flat Edge-to-Edge Action Bar */
 .activity-bottom-bar, .activity-footer, #activity-sales-form .bottom-bar, #activity-purchase-form .bottom-bar, .bottom-action-bar {
     position: fixed !important;
     bottom: 0 !important;
@@ -3263,7 +3270,7 @@ body.dark-mode textarea {
     color: var(--md-on-surface) !important;
     border: 1px solid var(--md-outline) !important;
 }
-/* 🚨 BIZOPS NATIVE THEME: Solid Material Bottom Sheets */
+/* 🚨 SOLLO NATIVE THEME: Solid Material Bottom Sheets */
 /* The Menu Sheet */
 .bottom-sheet {
     transition: transform 0.25s cubic-bezier(0.0, 0.0, 0.2, 1) !important; /* Fast, linear slide (No bouncing!) */
@@ -3334,7 +3341,7 @@ label[for="pay-in-amount"], label[for="pay-out-amount"],
     margin-bottom: -10px !important;
 }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: FLAT WIDGET DASHBOARD CARDS
+   🚨 SOLLO NATIVE THEME: FLAT WIDGET DASHBOARD CARDS
    ========================================== */
 .dashboard-card, .item-entry-card {
     border-radius: 8px !important; /* Flat Android corners */
@@ -3372,7 +3379,7 @@ body.dark-mode .m3-card .icon-circle {
     box-shadow: none !important;
 }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: FLAT DASHBOARD HERO
+   🚨 SOLLO NATIVE THEME: FLAT DASHBOARD HERO
    ========================================== */
 #tab-dashboard .m3-card:first-of-type, 
 .dashboard-hero-card {
@@ -3518,8 +3525,8 @@ html, body {
     left: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    margin: 0 !important;      /* 🚨 BIZOPS FIX: Kills the default 8px L-shaped browser border! */
-    padding: 0 !important;     /* 🚨 BIZOPS FIX: Locks the app flush against the physical screen edge! */
+    margin: 0 !important;      /* 🚨 SOLLO FIX: Kills the default 8px L-shaped browser border! */
+    padding: 0 !important;     /* 🚨 SOLLO FIX: Locks the app flush against the physical screen edge! */
     overflow: hidden !important; /* Disables browser elastic rubber-banding */
     /* overscroll-behavior-y: none !important; DISABLED TO FIX ANDROID SCROLL BUG */
 }
@@ -3973,7 +3980,7 @@ body.compact-mode input, body.compact-mode select {
 }
 .smart-chip:active { border-color: #0061a4; background-color: #f8fafc !important; transform: scale(0.96); }
 
-/* 🚨 BIZOPS NATIVE THEME: EDGE-TO-EDGE POS NUMPAD */
+/* 🚨 SOLLO NATIVE THEME: EDGE-TO-EDGE POS NUMPAD */
 .pos-numpad-overlay {
     position: fixed; bottom: -100%; left: 0; width: 100%; background-color: var(--md-surface) !important; 
     border-top: 1px solid var(--md-outline-variant); box-shadow: 0 -8px 10px -5px rgba(0,0,0,0.2); 
@@ -4039,7 +4046,7 @@ body.dark-mode .m3-card, [data-theme="dark"] .m3-card {
     box-shadow: none !important; 
 }
 
-/* --- 2. BIZOPS NATIVE BOTTOM NAV --- */
+/* --- 2. SOLLO NATIVE BOTTOM NAV --- */
 .bottom-nav, #bottom-nav {
     position: fixed !important;
     bottom: 0 !important; 
@@ -4617,7 +4624,12 @@ body.dark-mode .skeleton::after, body.dark-mode .skeleton-card::after, body.dark
 body:has(.pos-numpad-overlay.active),
 body:has(.bottom-sheet.open) {
     overflow: hidden !important;
-    touch-action: none !important; 
+    /* 🔥 THE FIX: Removed touch-action:none because it breaks scrolling inside the bottom sheets! */
+}
+
+/* Ensure the bottom sheets themselves are always allowed to scroll vertically */
+.bottom-sheet {
+    touch-action: pan-y !important;
 }
 
 /* ==========================================
@@ -4669,7 +4681,7 @@ body:has(.bottom-sheet.open) {
     100% { opacity: 1; transform: translateY(0); }
 }
 /* ========================================== */
-/* 🚨 BIZOPS NATIVE THEME: MASTER UI OVERRIDE */
+/* 🚨 SOLLO NATIVE THEME: MASTER UI OVERRIDE */
 /* ========================================== */
 
 .activity-header, .top-app-bar, .app-header {
@@ -4699,7 +4711,7 @@ body.dark-mode .sheet-header, body.dark-mode .screen-header {
     background-color: #1e1e1e !important;
 }
 /* ========================================== */
-/* 🚨 BIZOPS NATIVE THEME: FLAT DASHBOARD JS INJECTIONS */
+/* 🚨 SOLLO NATIVE THEME: FLAT DASHBOARD JS INJECTIONS */
 /* ========================================== */
 #tab-dashboard .m3-card,
 #tab-dashboard div[id*="overdue"],
@@ -4737,7 +4749,7 @@ body.dark-mode #expense-ledger-container {
     margin: 0 !important;
 }
 /* ========================================== */
-/* 🚨 BIZOPS NATIVE THEME: HEADER ICON CONTRAST FIX */
+/* 🚨 SOLLO NATIVE THEME: HEADER ICON CONTRAST FIX */
 /* ========================================== */
 .activity-header .material-symbols-outlined,
 .top-app-bar .material-symbols-outlined,
@@ -4781,7 +4793,7 @@ body.dark-mode .activity-header strong {
     color: #ffffff !important;
 }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: PURE WHITE CANVAS
+   🚨 SOLLO NATIVE THEME: PURE WHITE CANVAS
    ========================================== */
 /* Smoothly layers the pure white surfaces on top of the soft grey canvas */
 body:not(.dark-mode) #app-shell,
@@ -4807,7 +4819,7 @@ body:not(.dark-mode) .bottom-nav {
     background: rgba(255, 255, 255, 0.95) !important;
 }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: EDGE-TO-EDGE LEDGER SUMMARIES
+   🚨 SOLLO NATIVE THEME: EDGE-TO-EDGE LEDGER SUMMARIES
    ========================================== */
 
 /* 1. Account Statement & Party Ledger Summary Card */
@@ -4877,7 +4889,7 @@ body.dark-mode #activity-item-ledger .activity-content > div[style*="gap: 8px"] 
     border-right: 1px solid rgba(255,255,255,0.05) !important;
 }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: EDGE-TO-EDGE MENU CARDS
+   🚨 SOLLO NATIVE THEME: EDGE-TO-EDGE MENU CARDS
    ========================================== */
 /* Target standalone cards in the Menu Tab (Business Profile, Cash Recovery, Doc Formats, Close FY) */
 #tab-menu > .m3-card {
@@ -4909,7 +4921,7 @@ body.dark-mode #tab-menu > .m3-card {
     margin-top: 0 !important;
 }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: CASH RECOVERY CONTRAST FIX
+   🚨 SOLLO NATIVE THEME: CASH RECOVERY CONTRAST FIX
    ========================================== */
 /* Fixes the hardcoded light-pink background on the Total Receivables header in Dark Mode */
 body.dark-mode #tab-menu div[style*="linear-gradient(135deg, #fff0f2 0%, #ffebee 100%)"] {
@@ -4922,7 +4934,7 @@ body.dark-mode #tab-menu div[style*="linear-gradient(135deg, #fff0f2 0%, #ffebee
     color: var(--md-error) !important;
 }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: WATERFALL LIST CASCADE
+   🚨 SOLLO NATIVE THEME: WATERFALL LIST CASCADE
    ========================================== */
 /* The animation engine: start transparent and slightly down, then slide up to visible */
 @keyframes waterfall-cascade {
@@ -4950,7 +4962,7 @@ body.dark-mode #tab-menu div[style*="linear-gradient(135deg, #fff0f2 0%, #ffebee
 .list-view li:nth-child(11) { animation-delay: 0.50s !important; }
 .list-view li:nth-child(n+12) { animation-delay: 0.55s !important; }
 /* ==========================================
-   🚨 BIZOPS NATIVE THEME: FLOATING FORM LABELS
+   🚨 SOLLO NATIVE THEME: FLOATING FORM LABELS
    ========================================== */
 .form-group {
     position: relative !important;
@@ -5287,7 +5299,7 @@ body.dark-mode #tab-menu .m3-card[style*="background"] {
     border-color: var(--md-outline-variant) !important;
 }
 /* ==========================================
-   🚨 BIZOPS MENU TAB DARK MODE FIX
+   🚨 SOLLO MENU TAB DARK MODE FIX
    ========================================== */
 /* Forces all cards in the Menu Tab to obey Dark Mode, overriding any inline pastel HTML colors */
 body.dark-mode #tab-menu .m3-card {
@@ -5421,7 +5433,7 @@ body.dark-mode #sheet-fab-menu small {
     opacity: 1 !important;
 }
 /* ==========================================
-   🚨 BIZOPS FIX: FINAL INLINE-STYLE OVERRIDES (DARK MODE)
+   🚨 SOLLO FIX: FINAL INLINE-STYLE OVERRIDES (DARK MODE)
    ========================================== */
 
 /* 1. FORCE REPORT SCREENS TO DARK BACKGROUND */
@@ -6529,7 +6541,7 @@ input, textarea, select {
     user-select: auto !important;
 }
 /* ==========================================
-   🚨 BIZOPS FIX: INVOICE ROW SIZES (QTY, RATE, BUY PRICE)
+   🚨 SOLLO FIX: INVOICE ROW SIZES (QTY, RATE, BUY PRICE)
    ========================================== */
 /* 1. Make Qty and Rate boxes taller and easier to tap */
 #form-sales .item-entry-card input.row-qty, 
@@ -6548,13 +6560,16 @@ input, textarea, select {
 #form-sales .item-entry-card input[type="number"].row-item-buyprice,
 #form-purchase .item-entry-card input[type="number"].row-item-buyprice,
 .item-entry-card input[type="number"].row-item-buyprice {
-    width: 65px !important;
-    min-width: 65px !important;
-    max-width: 65px !important;
-    min-height: 24px !important;
-    height: 24px !important;
+    width: 75px !important; /* Slightly wider to fit the larger text safely */
+    min-width: 75px !important;
+    max-width: 75px !important;
+    min-height: 28px !important;
+    height: 28px !important;
     padding: 2px 4px !important;
-    font-size: 12px !important;
+    
+    /* 🔥 THE FIX: Must be exactly 16px to prevent iOS Safari from auto-zooming! */
+    font-size: 16px !important; 
+    
     font-weight: 700 !important;
     border-radius: 4px !important;
     text-align: center !important;
@@ -6562,7 +6577,7 @@ input, textarea, select {
     border: 1px solid var(--md-outline-variant) !important;
 }
 /* ==========================================
-   🚨 BIZOPS FIX: REMOVE INPUT FOCUS GLOW
+   🚨 SOLLO FIX: REMOVE INPUT FOCUS GLOW
    ========================================== */
 /* Kills the default blue/green glowing outline when tapping a text box */
 input:focus, 
@@ -6576,7 +6591,7 @@ select:focus-visible {
     border-color: var(--md-outline-variant, #e2e8f0) !important;
 }
 /* ==========================================
-   🚨 BIZOPS FIX: PREVENT ACCIDENTAL PULL-TO-REFRESH
+   🚨 SOLLO FIX: PREVENT ACCIDENTAL PULL-TO-REFRESH
    ========================================== */
 /* Locks the screen vertically so pulling down at the top doesn't accidentally reload the app and delete unsaved data! */
 body, html {
@@ -6584,7 +6599,7 @@ body, html {
     overscroll-behavior-x: none !important;
 }
 /* ==========================================
-   🚨 BIZOPS FIX: BUSINESS PROFILE DARK MODE
+   🚨 SOLLO FIX: BUSINESS PROFILE DARK MODE
    ========================================== */
 /* Forces the Business Profile screen to properly obey Dark Mode rules */
 body.dark-mode #form-business-profile,
@@ -6611,7 +6626,7 @@ body.dark-mode #form-business-profile h4 {
     color: var(--md-on-surface) !important;
 }
 /* ==========================================
-   🚨 BIZOPS FIX: TIGHTER INVOICE FORM SPACING
+   🚨 SOLLO FIX: TIGHTER INVOICE FORM SPACING
    ========================================== */
 /* Shrinks the vertical dead space between input groups so the form requires less scrolling */
 #form-sales .input-group,
@@ -6629,7 +6644,7 @@ body.dark-mode #form-business-profile h4 {
     margin-bottom: 4px !important;
 }
 /* ==========================================
-   🚨 BIZOPS FIX: ADVANCED OPTIONS DARK MODE
+   🚨 SOLLO FIX: ADVANCED OPTIONS DARK MODE
    ========================================== */
 /* Fixes the "Invoice Custom Fields" and "PDF Theme Designer" boxes in the Business Profile */
 body.dark-mode details.advanced-options {
@@ -6666,7 +6681,7 @@ body.dark-mode details.advanced-options input::placeholder {
     color: var(--md-text-muted) !important;
 }
 /* ==========================================
-   🚨 BIZOPS FIX: DARK MODE SPLASH SCREEN
+   🚨 SOLLO FIX: DARK MODE SPLASH SCREEN
    ========================================== */
 /* Prevents a blinding white flash when opening the app at night */
 body.dark-mode .splash-screen {
@@ -7307,4 +7322,319 @@ body.dark-mode .sticky-totals,
 body.dark-mode .date-divider {
     background-color: #1e1e22 !important;
     background: #1e1e22 !important;
+}
+/* ==========================================
+   CLEAN & NEAT INPUTS: Remove blue/green highlights
+   ========================================== */
+body .item-entry-card input.row-qty:focus, 
+body .item-entry-card input.row-rate:focus,
+body .item-entry-card input.row-item-buyprice:focus,
+body input#sales-discount:focus,
+body input#purchase-discount:focus,
+body input#sales-freight:focus,
+body input#purchase-freight:focus {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 1px solid #CBD5E1 !important;
+    color: #0f172a !important;
+    border-bottom: 1px solid #CBD5E1 !important;
+}
+
+body.dark-mode .item-entry-card input:focus {
+    border: 1px solid #4B5563 !important;
+    color: #F8FAFC !important;
+    border-bottom: 1px solid #4B5563 !important;
+}
+/* ==========================================
+   🚨 ULTIMATE FIX: PROFESSIONAL INVOICE INPUTS & CURSOR
+   ========================================== */
+
+/* 1. Destroy the Native Blue Highlight on Numbers (Invisibility Cloak) */
+.item-entry-card input::selection,
+#sales-discount::selection, #sales-freight::selection,
+#purchase-discount::selection, #purchase-freight::selection {
+    background: transparent !important;
+    color: inherit !important;
+}
+
+/* 2. Professional, Crisp Spreadsheet Cell Design */
+.item-entry-card input.row-qty,
+.item-entry-card input.row-rate,
+.item-entry-card input.row-item-buyprice,
+.item-entry-card input.row-gst,
+#sales-discount, #sales-freight,
+#purchase-discount, #purchase-freight {
+    background: var(--md-surface-variant) !important; /* Soft grey resting state */
+    border: 1px solid var(--md-outline-variant) !important; /* Clean, thin border */
+    border-radius: 6px !important; /* Subtle, professional curve */
+    padding: 6px 8px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: var(--md-on-surface) !important;
+    text-align: center !important;
+    min-height: 36px !important; /* Compact, touch-friendly height */
+    height: 36px !important;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; /* Micro-depth */
+    transition: all 0.15s ease !important;
+}
+
+/* 3. Kill the ugly green "Valid" borders on spreadsheet cells */
+.item-entry-card input:required,
+.item-entry-card input:valid,
+.item-entry-card input:required:placeholder-shown,
+.item-entry-card input:required:not(:placeholder-shown):valid {
+    border-left-width: 1px !important; 
+    border-left-color: var(--md-outline-variant) !important;
+}
+
+/* 4. Exact widths for perfect alignment */
+.item-entry-card input.row-qty { width: 70px !important; }
+.item-entry-card input.row-rate { width: 90px !important; }
+.item-entry-card input.row-gst { width: 50px !important; }
+
+/* Right-align the totals/discounts */
+#sales-discount, #sales-freight, #purchase-discount, #purchase-freight {
+    text-align: right !important;
+    width: 90px !important;
+}
+
+/* Make the Buy Price field perfectly proportional to Qty & Rate */
+.item-entry-card input.row-item-buyprice { 
+    width: 85px !important; 
+    margin-left: 4px !important;
+    /* Height, padding, and font-size are automatically inherited from the Master Spreadsheet Cell design! */
+}
+
+/* 5. The Focus State: Clean Blue Outline, No Clunky Green/Red Boxes */
+.item-entry-card input.row-qty:focus,
+.item-entry-card input.row-rate:focus,
+.item-entry-card input.row-item-buyprice:focus,
+.item-entry-card input.row-gst:focus,
+#sales-discount:focus, #sales-freight:focus,
+#purchase-discount:focus, #purchase-freight:focus {
+    background: #ffffff !important;
+    border: 1px solid var(--md-primary) !important;
+    box-shadow: 0 0 0 2px rgba(0, 97, 164, 0.15) !important;
+    color: var(--md-primary) !important;
+    transform: none !important; /* Kill the bouncy "lift" effect for spreadsheets */
+}
+
+/* 6. Dark Mode Support */
+body.dark-mode .item-entry-card input.row-qty,
+body.dark-mode .item-entry-card input.row-rate,
+body.dark-mode .item-entry-card input.row-item-buyprice,
+body.dark-mode .item-entry-card input.row-gst,
+body.dark-mode #sales-discount, body.dark-mode #sales-freight,
+body.dark-mode #purchase-discount, body.dark-mode #purchase-freight {
+    background: #1e1e22 !important;
+    border-color: #44474e !important;
+    color: #ffffff !important;
+}
+body.dark-mode .item-entry-card input:focus,
+body.dark-mode #sales-discount:focus, body.dark-mode #sales-freight:focus {
+    background: #000000 !important;
+    border-color: #7CB1FF !important;
+    box-shadow: 0 0 0 2px rgba(124, 177, 255, 0.2) !important;
+}
+/* ==========================================
+   🚨 ULTIMATE FIX: EDGE-TO-EDGE INVOICE FORMS
+   ========================================== */
+
+/* 1. Fuse all form cards into a single, seamless paper sheet */
+#form-sales .m3-card,
+#form-purchase .m3-card,
+#risk-banner,
+#sales-return-ref-group,
+#purchase-return-ref-group {
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+    margin-bottom: 0 !important;      /* 🔥 Kills the ugly grey gaps between cards */
+    border-radius: 0 !important;      
+    border-left: none !important;     
+    border-right: none !important;    
+    border-bottom: 1px solid #E5E7EB !important; /* Adds a crisp divider line instead of a gap */
+    box-shadow: none !important;      
+    padding-left: 20px !important;    
+    padding-right: 20px !important;
+}
+
+/* 2. Pull the Customer/Supplier card up so it sits completely flush against the top header */
+#form-sales > .m3-card:first-of-type,
+#form-purchase > .m3-card:first-of-type {
+    margin-top: -16px !important;
+    border-top: none !important;
+}
+
+/* 3. Clean up the Return boxes */
+#sales-return-ref-group,
+#purchase-return-ref-group {
+    margin-top: 0 !important; 
+    border-top: none !important;
+    border-radius: 0 !important;
+}
+
+/* 4. Ensure Dark Mode borders remain crisp and visible */
+body.dark-mode #form-sales .m3-card,
+body.dark-mode #form-purchase .m3-card,
+body.dark-mode #risk-banner {
+    border-bottom: 1px solid #27272A !important;
+}
+/* ==========================================
+   💎 THE FULLY TRANSPARENT HEADER
+   ========================================== */
+
+/* 1. THE TRANSPARENT CONTAINER */
+html body #app-shell .activity-screen .activity-header {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 16px !important;
+    z-index: 9999 !important;
+    
+    /* 🔥 THE FIX: Fully Transparent Background & No Blur */
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    
+    border-bottom: none !important; /* Removes the bottom line */
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+}
+
+/* Push content down safely */
+html body #app-shell .activity-screen .activity-content {
+    padding-top: calc(76px + env(safe-area-inset-top, 0px)) !important;
+}
+
+/* 2. RIGHT SIDE - ACTIONS (Trash, WhatsApp, PDF) */
+html body #app-shell .activity-screen .activity-header > div:last-child {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 16px !important; 
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* FORCE ALL ICONS TO BE PERFECT, ALIGNED SQUARES */
+html body #app-shell .activity-screen .activity-header .icon-circle,
+html body #app-shell .activity-screen .activity-header div[id*="delete"] {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    background: transparent !important; 
+    border: none !important;
+    box-shadow: none !important;
+    transition: background-color 0.2s ease, transform 0.1s ease !important;
+}
+
+/* Soft hover/tap effect */
+html body #app-shell .activity-screen .activity-header .icon-circle:active,
+html body #app-shell .activity-screen .activity-header div[id*="delete"]:active {
+    background-color: rgba(0, 0, 0, 0.06) !important;
+    transform: scale(0.92) !important;
+}
+
+/* Align the actual vector shapes perfectly in the center */
+html body #app-shell .activity-screen .activity-header .icon-circle .material-symbols-outlined,
+html body #app-shell .activity-screen .activity-header .icon-circle svg,
+html body #app-shell .activity-screen .activity-header div[id*="delete"] .material-symbols-outlined {
+    font-size: 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+    color: #475569 !important; 
+    fill: #475569 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    display: block !important;
+}
+
+/* Keep the Trash Icon Red */
+html body #app-shell .activity-screen .activity-header div[id*="delete"] .material-symbols-outlined {
+    color: #E11D48 !important; 
+}
+
+/* 3. LEFT SIDE - X BUTTON & TITLE */
+html body #app-shell .activity-screen .activity-header > div:first-child {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* The "X" / Back Button */
+html body #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined.tap-target {
+    font-size: 26px !important;
+    color: #0F172A !important;
+    width: 36px !important;
+    height: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 0 0 -8px !important; 
+    padding: 0 !important;
+    border-radius: 50% !important;
+}
+
+html body #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined.tap-target:active {
+    background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* The Title */
+html body #app-shell .activity-screen .activity-header span[id^="form-title-"],
+html body #app-shell .activity-screen .activity-header #expense-form-title,
+html body #app-shell .activity-screen .activity-header #master-view-title,
+html body #app-shell .activity-screen .activity-header #item-ledger-title {
+    font-size: 19px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+    color: #0F172A !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.2 !important;
+    position: static !important;
+    transform: none !important;
+}
+
+/* 4. DARK MODE ADAPTER */
+body.dark-mode #app-shell .activity-screen .activity-header {
+    background: transparent !important;
+    border-bottom: none !important;
+}
+body.dark-mode #app-shell .activity-screen .activity-header span[id^="form-title-"],
+body.dark-mode #app-shell .activity-screen .activity-header #expense-form-title,
+body.dark-mode #app-shell .activity-screen .activity-header #master-view-title,
+body.dark-mode #app-shell .activity-screen .activity-header #item-ledger-title,
+body.dark-mode #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined {
+    color: #F8FAFC !important;
+}
+body.dark-mode #app-shell .activity-screen .activity-header .material-symbols-outlined,
+body.dark-mode #app-shell .activity-screen .activity-header svg {
+    color: #CBD5E1 !important;
+    fill: #CBD5E1 !important;
+}
+body.dark-mode #app-shell .activity-screen .activity-header div[id*="delete"] .material-symbols-outlined {
+    color: #FDA4AF !important; 
+}
+body.dark-mode #app-shell .activity-screen .activity-header .icon-circle:active,
+body.dark-mode #app-shell .activity-screen .activity-header div[id*="delete"]:active,
+body.dark-mode #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined.tap-target:active {
+    background-color: rgba(255, 255, 255, 0.1) !important;
 }
