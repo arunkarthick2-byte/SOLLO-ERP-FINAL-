@@ -2310,6 +2310,11 @@ const app = {
                 document.getElementById(`${type}-subtotal`).innerText = '\u20B90.00';
                 document.getElementById(`${type}-gst-total`).innerText = '\u20B90.00';
                 document.getElementById(`${type}-grand-total`).innerText = '\u20B90.00';
+                
+                if (document.getElementById(`${type}-sticky-total`)) document.getElementById(`${type}-sticky-total`).innerText = '\u20B90.00';
+                if (document.getElementById(`${type}-installment-tracker`)) document.getElementById(`${type}-installment-tracker`).style.display = 'none';
+                if (document.getElementById(`${type}-payment-history-list`)) document.getElementById(`${type}-payment-history-list`).innerHTML = '';
+                
                 document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).innerText = `Select ${type === 'sales' ? 'Customer' : 'Supplier'}...`;
                 document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).style.color = 'var(--md-text-muted)';
                 
