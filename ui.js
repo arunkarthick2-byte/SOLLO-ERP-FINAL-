@@ -3401,6 +3401,7 @@ const UI = {
         if (typeof app !== 'undefined') {
             if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
                 app.loadOriginalDocuments(id, prefix);
+                if (typeof app.updateInlineInsights === 'function') app.updateInlineInsights(id, prefix);
             } else if (prefix === 'pay-in' && typeof app.loadPendingInvoices === 'function') {
                 await app.loadPendingInvoices(id, 'in'); // Added await
             } else if (prefix === 'pay-out' && typeof app.loadPendingInvoices === 'function') {
@@ -3478,10 +3479,10 @@ const UI = {
                     <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                     <!-- 🚨 ENTERPRISE UPGRADE: NATIVE KEYBOARD -->
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="text" inputmode="decimal" class="row-qty" value="1" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
@@ -3578,6 +3579,7 @@ const UI = {
         if (typeof app !== 'undefined') {
             if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
                 app.loadOriginalDocuments(id, prefix);
+                if (typeof app.updateInlineInsights === 'function') app.updateInlineInsights(id, prefix);
             } else if (prefix === 'pay-in' && typeof app.loadPendingInvoices === 'function') {
                 await app.loadPendingInvoices(id, 'in'); // ENTERPRISE FIX: Added await!
             } else if (prefix === 'pay-out' && typeof app.loadPendingInvoices === 'function') {
@@ -4232,23 +4234,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (activeSheet) activeSheet.style.paddingBottom = `${keyboardHeight}px`;
                 if (activeScreen) activeScreen.style.paddingBottom = `${keyboardHeight + 40}px`;
                 
-                // Keep the active input visible, but DO NOT violently jerk the screen to the center!
-                if (document.activeElement) {
-                    setTimeout(() => {
-                        document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 50);
-                }
+                // 🚨 SOLLO FIX: Removed the violent 'scrollIntoView' engine. 
+                // The native mobile browser handles scrolling perfectly. Forcing it with JS causes severe screen jerks!
             } else {
                 // Keyboard is closed! Snap the padding back to normal instantly
                 if (activeSheet) activeSheet.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
                 if (activeScreen) activeScreen.style.paddingBottom = 'calc(40px + env(safe-area-inset-bottom, 0px))';
-            }
-        });
-    } else {
-        // Fallback for very old devices
-        document.addEventListener('focusin', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
-                setTimeout(() => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 350);
             }
         });
     }

@@ -1941,6 +1941,104 @@ const app = {
     },
 
 
+    // ==========================================
+    // 🚨 ENTERPRISE UPGRADE: INLINE PARTY INSIGHTS
+    // ==========================================
+    updateInlineInsights: async (partyId, type) => {
+        const insightCard = document.getElementById(`${type}-party-insight`);
+        const totalText = document.getElementById(`${type}-party-balance-total`);
+        const gstText = document.getElementById(`${type}-party-balance-gst`);
+        const nongstText = document.getElementById(`${type}-party-balance-nongst`);
+        
+        if (!insightCard || !totalText) return;
+        
+        if (!partyId) {
+            insightCard.style.display = 'none';
+            insightCard.classList.add('hidden');
+            return;
+        }
+
+        try {
+            const isCustomer = type === 'sales';
+            const partyType = isCustomer ? 'Customer' : 'Supplier';
+            const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
+            
+            let ob = parseFloat(party.openingBalance) || 0;
+            let isAdv = isCustomer ? (String(party.balanceType || '').toLowerCase().includes('pay') || String(party.balanceType || '').toLowerCase().includes('credit')) : (String(party.balanceType || '').toLowerCase().includes('receive') || String(party.balanceType || '').toLowerCase().includes('debit'));
+            
+            let trueBalGST = 0;
+            let trueBalNonGST = !isAdv ? ob : -ob; // Legacy Opening Balance falls to Non-GST pool
+
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+            const partyDocs = window.UI.state.rawData[isCustomer ? 'sales' : 'purchases'] || [];
+            const partyReceipts = window.UI.state.rawData.cashbook || [];
+
+            partyDocs.forEach(d => {
+                if (d.firmId === activeFirmId && (isCustomer ? d.customerId : d.supplierId) === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
+                    const amt = parseFloat(d.grandTotal) || 0;
+                    const impact = (d.documentType === 'return' ? -amt : amt);
+                    if (d.invoiceType === 'Non-GST') trueBalNonGST += impact;
+                    else trueBalGST += impact;
+                }
+            });
+
+            partyReceipts.forEach(r => {
+                if (r.firmId === activeFirmId && r.ledgerId === partyId) {
+                    let isNonGstReceipt = r.taxPool === 'Non-GST';
+                    const legacyRef = r.invoiceRef || r.linkedInvoice;
+                    
+                    if (!r.taxPool || r.taxPool === 'All') {
+                        isNonGstReceipt = true;
+                        if (legacyRef) {
+                            const firstRef = String(legacyRef).split(',')[0].trim();
+                            const linkedDoc = partyDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                        }
+                    }
+
+                    const amt = parseFloat(r.amount) || 0;
+                    const impact = isCustomer ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
+                    
+                    if (isNonGstReceipt) trueBalNonGST += impact;
+                    else trueBalGST += impact;
+                }
+            });
+
+            const formatBal = (bal) => {
+                if (Math.abs(bal) < 0.01) return { text: '₹0.00', color: 'var(--md-text-muted)' };
+                if (isCustomer) {
+                    return bal > 0 ? { text: `Due: ₹${bal.toFixed(2)}`, color: 'var(--md-error)' } : { text: `Adv: ₹${Math.abs(bal).toFixed(2)}`, color: 'var(--md-success)' };
+                } else {
+                    return bal < 0 ? { text: `Due: ₹${Math.abs(bal).toFixed(2)}`, color: 'var(--md-error)' } : { text: `Adv: ₹${bal.toFixed(2)}`, color: 'var(--md-success)' };
+                }
+            };
+            
+            const totalBal = trueBalGST + trueBalNonGST;
+            
+            const totalFmt = formatBal(totalBal);
+            const gstFmt = formatBal(trueBalGST);
+            const nonGstFmt = formatBal(trueBalNonGST);
+
+            totalText.innerText = totalFmt.text;
+            totalText.style.color = totalFmt.color;
+            
+            if (gstText) {
+                gstText.innerText = gstFmt.text;
+                gstText.style.color = gstFmt.color;
+            }
+            if (nongstText) {
+                nongstText.innerText = nonGstFmt.text;
+                nongstText.style.color = nonGstFmt.color;
+            }
+
+            insightCard.style.display = 'flex';
+            insightCard.classList.remove('hidden');
+            
+        } catch (err) {
+            console.error("Insight Error:", err);
+        }
+    },
+
     loadOriginalDocuments: (partyId, type) => {
         if (app.state.currentDocType !== 'return') return;
 
@@ -1995,7 +2093,7 @@ const app = {
 
             if (maxAllowable > 0) {
                 const tr = document.createElement('div');
-                tr.className = 'item-entry-card m3-card tap-target';
+                tr.className = 'item-entry-card m3-card'; /* 🚨 ROOT FIX: Removed 'tap-target' */
                 tr.style.cssText = `padding: 12px; margin-bottom: 8px; border-left: 4px solid var(--md-error);`;
                 
                 tr.innerHTML = `
@@ -2005,10 +2103,10 @@ const app = {
                             <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
                             <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="decimal" class="row-qty" value="0" max="${maxAllowable}" required oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05);">
+                                <input type="text" inputmode="decimal" class="row-qty" value="0" max="${maxAllowable}" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05);">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" required readonly style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
+                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" readonly style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
@@ -2318,7 +2416,12 @@ const app = {
                 document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).innerText = `Select ${type === 'sales' ? 'Customer' : 'Supplier'}...`;
                 document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).style.color = 'var(--md-text-muted)';
                 
-                // NEW: Hide payment history when creating a brand new record
+                // NEW: Hide insight card and payment history when creating a brand new record
+                const insightCard = document.getElementById(`${type}-party-insight`);
+                if (insightCard) {
+                    insightCard.style.display = 'none';
+                    insightCard.classList.add('hidden');
+                }
                 const historyCard = document.getElementById(`${type}-payment-history-card`);
                 if (historyCard) historyCard.classList.add('hidden');
                 const expenseCard = document.getElementById(`${type}-expense-history-card`);
@@ -2500,6 +2603,10 @@ const app = {
             document.getElementById(`${type}-${partyKey}-id`).value = record[partyIdKey] || '';
             document.getElementById(`${type}-${partyKey}-display`).innerText = record[partyNameKey] || `Select ${type === 'sales' ? 'Customer' : 'Supplier'}...`;
             document.getElementById(`${type}-${partyKey}-display`).style.color = 'var(--md-on-surface)';
+            
+            if (typeof app.updateInlineInsights === 'function') {
+                app.updateInlineInsights(record[partyIdKey], type);
+            }
 
             if (type === 'sales') {
                 document.getElementById('sales-invoice-no').value = record.invoiceNo || '';
@@ -2539,7 +2646,7 @@ const app = {
                 }
 
                 const tr = document.createElement('div');
-                tr.className = 'item-entry-card m3-card tap-target';
+                tr.className = 'item-entry-card m3-card'; /* 🚨 ROOT FIX: Removed 'tap-target' */
                 tr.style.cssText = `padding: 12px; margin-bottom: 8px; border-left: 4px solid ${type === 'sales' ? 'var(--md-primary)' : 'var(--md-error)'};`;
                 
                 tr.innerHTML = `
@@ -2549,10 +2656,10 @@ const app = {
                             ${maxLabel}
                             <!-- 🚨 ENTERPRISE UPGRADE: NATIVE KEYBOARD -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} required oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); outline: none;">
+                                <input type="text" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); outline: none;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" required ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); outline: none;'}">
+                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); outline: none;'}">
                                 <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">

@@ -1,59 +1,15 @@
 /* ==========================================
-   PREMIUM APP POLISH: "ANTI-WEB" SHIELD
+   PREMIUM APP POLISH: "ANTI-WEB" SHIELD (CLEANED)
    ========================================== */
-/* 🚨 ENTERPRISE FIX: THE PURE WHITE CANVAS LOCK */
-/* Guarantees the app background remains strictly white and text stays dark, completely bypassing OS-level Dark Mode inversions */
-:root {
-    color-scheme: light !important;
-    background-color: #ffffff !important;
-}
-
-/* ==========================================
-   🚨 ENTERPRISE FIX: THE ABSOLUTE WHITE SHIELD
-   ========================================== */
-/* Prevents OS-level dark mode from hijacking CSS variables in the Master Tab, Bottom Nav, and Cards */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --md-background: #ffffff !important;
-        --md-surface: #ffffff !important;
-        --md-surface-variant: #f8fafc !important;
-        --md-on-background: #0f172a !important;
-        --md-on-surface: #0f172a !important;
-        --md-on-surface-variant: #475569 !important;
-        --md-text-muted: #64748b !important;
-        --md-border: #e2e8f0 !important;
-    }
-    
-    body, html, #app-container, .app-header, .bottom-nav, .m3-card, .list-card, .activity-screen, .bottom-sheet, .menu-item, #custom-numpad {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-    }
-    
-    /* Ensure shaded elements like icon circles don't turn completely white and disappear */
-    .icon-circle, .numpad-btn {
-        background-color: #f1f5f9 !important;
-        color: #475569 !important;
-    }
-    
-    /* Add a crisp border to the bottom nav so it doesn't bleed into the white background */
-    .bottom-nav {
-        border-top: 1px solid #e2e8f0 !important;
-    }
-}
-
 body {
-    background-color: #ffffff !important;
-    color: #0f172a !important;
-    /* 🚨 ENTERPRISE SHIELD: Locks BOTH X and Y axes to prevent Pull-to-Refresh AND accidental iOS Swipe-Back data loss! */
-    /* overscroll-behavior: none !important;  DISABLED TO FIX ANDROID SCROLL BUG */
-    /* Disable text selection on UI elements */
+    background-color: var(--md-background) !important;
+    color: var(--md-on-surface) !important;
+    
+    /* Keeps all your original anti-web tap protections intact */
     user-select: none;
     -webkit-user-select: none;
-    /* Remove the blue flash when tapping */
     -webkit-tap-highlight-color: transparent;
-    /* Completely destroys the native 300ms mobile click delay! */
     touch-action: manipulation;
-    /* Prevents Chrome from randomly inflating text sizes when the phone rotates */
     -webkit-text-size-adjust: 100%;
 }
 
@@ -89,34 +45,35 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="date"],
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
 
 :root {
-    /* 🚨 SOLLO NATIVE THEME: High-Contrast Android Native Palette */
-    --md-primary: #1A237E; /* Deep Android Indigo */
+    color-scheme: light;
+    --app-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* Primary Accents */
+    --md-primary: #0061a4;
     --md-on-primary: #ffffff;
     --md-primary-container: #E8EAF6; 
     --md-on-primary-container: #1A237E;
-    --md-secondary: #455A64; /* Sharp Blue-Grey */
+    --md-secondary: #455A64;
     --md-on-secondary: #ffffff;
-    --md-surface: #ffffff; /* Stark White Surfaces for cards to sit on the background */
-    --md-background: #f6f8fa; /* ✨ NEW: Soft off-white/grey background canvas matching your screenshot */
-    --md-on-surface: #000000; /* Pure Black Text for severe contrast */
-    --md-surface-variant: #F5F5F5; /* Crisp Native Gray */
-    --md-on-surface-variant: #424242;
-    --md-outline: #BDBDBD;
-    --md-outline-variant: #E0E0E0;
     
-    /* Strict Status Colors */
-    --md-error: #D32F2F; /* Native Android Red */
+    /* Surfaces & Backgrounds */
+    --md-background: #F7F9FC;
+    --md-surface: #ffffff;
+    --md-surface-variant: #F8FAFC;
+    --md-on-surface: #0f172a;
+    --md-on-surface-variant: #1e293b;
+    --md-text-muted: #64748b;
+    --md-outline: #BDBDBD;
+    --md-outline-variant: #E2E8F0;
+    
+    /* Status Colors */
+    --md-error: #ba1a1a;
     --md-on-error: #ffffff;
-    --md-success: #2E7D32; /* Native Android Green */
-    --md-text-muted: #757575;
+    --md-success: #146c2e;
+    --md-warning: #f57f17;
 
-    /* Native Android Elevation Shadows (Harder, shorter shadows) */
-    --elevation-1: 0 2px 4px -1px rgba(0,0,0,0.2), 0 4px 5px 0 rgba(0,0,0,0.14), 0 1px 10px 0 rgba(0,0,0,0.12);
-    --elevation-2: 0 4px 5px -2px rgba(0,0,0,0.2), 0 7px 10px 1px rgba(0,0,0,0.14), 0 2px 16px 1px rgba(0,0,0,0.12);
-    --elevation-3: 0 8px 10px -5px rgba(0,0,0,0.2), 0 16px 24px 2px rgba(0,0,0,0.14), 0 6px 30px 5px rgba(0,0,0,0.12);
-
-    /* ENTERPRISE UPGRADE: Z-INDEX DICTIONARY */
-    --z-base: 10;
+    /* Elevations & Z-Index */
+    --elevation-1: 0 2px 4px -1px rgba(0,0,0,0.05), 0 4px 5px 0 rgba(0,0,0,0.02);
     --z-header: 100;
     --z-bottom-nav: 1000;
     --z-fab: 1500;
@@ -125,12 +82,28 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="date"],
     --z-overlay: 5000;
     --z-toast: 6000;
     --z-dialog: 9999;
+}
+
+/* 🌙 DARK MODE MASTER OVERRIDES */
+body.dark-mode {
+    color-scheme: dark;
+    --md-background: #09090B;
+    --md-surface: #18181B;
+    --md-surface-variant: #27272A;
+    --md-on-surface: #F8FAFC;
+    --md-on-surface-variant: #c3c7cf;
+    --md-text-muted: #A1AAB8;
+    --md-outline: #44474e;
+    --md-outline-variant: #3E434A;
     
-    /* ENTERPRISE UPGRADE: REUSABLE GLASSMORPHISM */
-    --glass-blur: blur(16px) saturate(180%);
+    --md-primary: #7CB1FF;
+    --md-on-primary: #000000;
+    --md-primary-container: #004a7a;
+    --md-on-primary-container: #cce5ff;
     
-    /* Switch entire app to Roboto Font */
-    --app-font: 'Roboto', 'Inter', sans-serif;
+    --md-error: #ffb4ab;
+    --md-success: #81c995;
+    --md-warning: #ffb74d;
 }
 
 /* ==========================================
@@ -1036,25 +1009,7 @@ body.dark-mode .skeleton {
 /* NEW CODE: DARK MODE & TOAST NOTIFICATIONS  */
 /* ========================================== */
 
-/* 1. Dark Mode Color Overrides */
-body.dark-mode {
-    --md-primary: #8fcbfb;
-    --md-on-primary: #000000;
-    --md-primary-container: #004a7a;
-    --md-on-primary-container: #cce5ff;
-    /* TRUE BLACK AMOLED FIX */
-    --md-surface: #0c0c0c; 
-    --md-background: #000000; 
-    --md-on-surface: #e2e2e6;
-    --md-surface-variant: #1c1c1e;
-    --md-on-surface-variant: #c3c7cf;
-    --md-text-muted: #8d9199;
-    --md-outline-variant: #2c2c2e;
-    
-    background-color: var(--md-background);
-    color: var(--md-on-surface);
-    color-scheme: dark; /* NATIVE BROWSER DARK MODE TIE-IN */
-}
+/* Cleaned old dark mode variables */
 
 /* Fix card borders and shadows in Dark Mode */
 body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
@@ -3211,65 +3166,7 @@ body.dark-mode small[style*="color: var(--md-error)"] {
 .activity-content, .scrollable-content {
     padding-bottom: 110px !important;
 }
-/* ==========================================
-   ENTERPRISE UI: TRUE AMOLED OBSIDIAN DARK THEME
-   ========================================== */
-[data-theme="dark"], body.dark-mode, body.dark-theme {
-    /* AMOLED Battery-Saver Core */
-    --md-background: #000000 !important; /* True Black - Turns off OLED pixels completely! */
-    --md-surface: #121214 !important; /* Elevated Level 1 tone so cards float cleanly */
-    --md-surface-variant: #1a1a1e !important;
-    
-    /* Neon Contrast Text */
-    --md-on-surface: #f1f5f9 !important; /* Crisp, readable white */
-    --md-on-surface-variant: #c4c6d0 !important;
-    
-    /* Adjusted Primary Accents for Dark Backgrounds */
-    --md-primary: #8cbbf1 !important;
-    --md-on-primary: #00315a !important;
-    --md-primary-container: #00487d !important;
-    --md-on-primary-container: #d1e4ff !important;
-    
-    /* Adjusted Status Colors for Dark Mode */
-    --md-outline: #44474e !important;
-    --md-error: #ffb4ab !important; /* Soft Neon Red */
-    --md-success: #81c995 !important; /* Soft Neon Green */
-    --md-warning: #ffb74d !important;
-}
-
-/* Force specific elements to respect the AMOLED aesthetic */
-[data-theme="dark"] .m3-card,
-[data-theme="dark"] .bottom-sheet,
-[data-theme="dark"] .activity-screen,
-body.dark-mode .m3-card,
-body.dark-mode .bottom-sheet,
-body.dark-mode .activity-screen {
-    background-color: var(--md-surface) !important;
-    border: 1px solid var(--md-outline) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* Glassmorphism adjustment for the Floating Pill in Dark Mode */
-[data-theme="dark"] .activity-bottom-bar,
-[data-theme="dark"] .activity-footer,
-body.dark-mode .activity-bottom-bar,
-body.dark-mode .activity-footer {
-    background: rgba(18, 18, 18, 0.85) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(140, 187, 241, 0.1) !important;
-}
-
-/* Ensure inputs don't blind the user */
-[data-theme="dark"] input,
-[data-theme="dark"] select,
-[data-theme="dark"] textarea,
-body.dark-mode input,
-body.dark-mode select,
-body.dark-mode textarea {
-    background-color: var(--md-surface-variant) !important;
-    color: var(--md-on-surface) !important;
-    border: 1px solid var(--md-outline) !important;
-}
+/* Cleaned hardcoded dark mode colors 2 */
 /* 🚨 SOLLO NATIVE THEME: Solid Material Bottom Sheets */
 /* The Menu Sheet */
 .bottom-sheet {
@@ -3341,24 +3238,16 @@ label[for="pay-in-amount"], label[for="pay-out-amount"],
     margin-bottom: -10px !important;
 }
 /* ==========================================
-   🚨 SOLLO NATIVE THEME: FLAT WIDGET DASHBOARD CARDS
+   🚨 SOLLO NATIVE THEME: FLAT WIDGET DASHBOARD CARDS (CLEANED)
    ========================================== */
 .dashboard-card, .item-entry-card {
-    border-radius: 8px !important; /* Flat Android corners */
+    border-radius: 8px !important; 
     border: 1px solid var(--md-outline-variant) !important; 
-    box-shadow: none !important; /* Removed iOS drop shadow */
-    background: #ffffff !important; /* Strict Solid White Surface */
-    transition: background-color 0.2s ease !important; /* Removed bouncy physics */
+    box-shadow: none !important; 
+    background: var(--md-surface) !important; 
+    transition: background-color 0.2s ease !important; 
     position: relative !important;
     overflow: hidden !important;
-}
-
-[data-theme="dark"] .dashboard-card, 
-body.dark-mode .dashboard-card,
-[data-theme="dark"] .item-entry-card,
-body.dark-mode .item-entry-card {
-    background: #ffffff !important; /* Forced White Background */
-    border: 1px solid var(--md-outline-variant) !important;
 }
 
 /* Flat tap feedback */
@@ -4680,35 +4569,16 @@ body:has(.bottom-sheet.open) {
     0% { opacity: 0; transform: translateY(10px); }
     100% { opacity: 1; transform: translateY(0); }
 }
-/* ========================================== */
-/* 🚨 SOLLO NATIVE THEME: MASTER UI OVERRIDE */
-/* ========================================== */
-
-.activity-header, .top-app-bar, .app-header {
-    background-color: #ffffff !important; /* 🚨 Pure White Header Canvas */
-    color: #000000 !important;
+/* ==========================================
+   🚨 SOLLO NATIVE THEME: MASTER UI OVERRIDE (CLEANED)
+   ========================================== */
+.activity-header, .top-app-bar, .app-header, .sheet-header, .screen-header {
+    background-color: var(--md-surface) !important;
+    color: var(--md-on-surface) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-bottom: 1px solid rgba(0,0,0,0.08) !important; /* Premium crisp separator */
+    border-bottom: 1px solid var(--md-outline-variant) !important;
     box-shadow: none !important;
-}
-
-body.dark-mode .activity-header, body.dark-mode .top-app-bar, body.dark-mode .app-header {
-    background-color: #121212 !important;
-    color: #ffffff !important;
-    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-    box-shadow: none !important;
-}
-
-.sheet-header, .screen-header {
-    background-color: #ffffff !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-bottom: 1px solid rgba(0,0,0,0.08) !important;
-}
-
-body.dark-mode .sheet-header, body.dark-mode .screen-header {
-    background-color: #1e1e1e !important;
 }
 /* ========================================== */
 /* 🚨 SOLLO NATIVE THEME: FLAT DASHBOARD JS INJECTIONS */
@@ -4792,32 +4662,7 @@ body.dark-mode .activity-header strong {
 .activity-header span[id*="delete"] {
     color: #ffffff !important;
 }
-/* ==========================================
-   🚨 SOLLO NATIVE THEME: PURE WHITE CANVAS
-   ========================================== */
-/* Smoothly layers the pure white surfaces on top of the soft grey canvas */
-body:not(.dark-mode) #app-shell,
-body:not(.dark-mode) .main-content {
-    background-color: var(--md-background) !important; /* Uses the new soft grey */
-    background-image: none !important;
-}
-body:not(.dark-mode) .activity-screen,
-body:not(.dark-mode) .bottom-sheet {
-    background-color: var(--md-surface) !important; /* Keeps panels and forms crisp white */
-    background-image: none !important;
-}
-
-/* Elevates the cards with ultra-thin, razor-sharp borders instead of grey shadows */
-body:not(.dark-mode) .m3-card {
-    background-color: #ffffff !important;
-    border: 1px solid #f0f0f0 !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
-}
-
-/* Brightens the frosted glass bottom navigation */
-body:not(.dark-mode) .bottom-nav {
-    background: rgba(255, 255, 255, 0.95) !important;
-}
+/* Cleaned Pure White Canvas Overrides */
 /* ==========================================
    🚨 SOLLO NATIVE THEME: EDGE-TO-EDGE LEDGER SUMMARIES
    ========================================== */
@@ -5322,21 +5167,7 @@ body.dark-mode #tab-menu .m3-card small {
 /* ==========================================
    🚨 ULTIMATE UNIFIED DARK MODE (HIGH-CONTRAST)
    ========================================== */
-/* 1. High-Contrast Backgrounds & Variables */
-body.dark-mode {
-    --md-background: #000000 !important;
-    --md-surface: #181A1F !important; /* Lighter surface to separate cards from pure black */
-    --md-surface-variant: #272A30 !important; /* Brighter input boxes so you can see them */
-    --md-on-surface: #FFFFFF !important; /* Pure crisp white text for maximum readability */
-    --md-on-surface-variant: #F8FAFC !important;
-    --md-primary: #7CB1FF !important; /* Bright Neon Blue for active icons/buttons */
-    --md-on-primary: #000000 !important;
-    --md-outline-variant: #3E434A !important; /* Sharp, highly visible card borders */
-    --md-text-muted: #A1AAB8 !important; /* Brighter grey for subtexts so it doesn't fade away */
-    
-    background-color: var(--md-background) !important;
-    color: var(--md-on-surface) !important;
-}
+/* Cleaned duplicate high-contrast variables */
 
 /* 2. Force all screens, sheets, and menus to obey the high-contrast dark background */
 body.dark-mode #app-shell, 
@@ -5657,94 +5488,8 @@ body.dark-mode .item-entry-card span[onclick*="remove"]:active {
     align-items: center !important;
     justify-content: center !important;
 }
-/* ==========================================
-   🚨 FIX: GLOBAL BACKGROUND COLOR OVERRIDE
-   ========================================== */
-:root {
-    /* This is the exact soft-grey color from your reference screenshot */
-    --md-background: #f3f3f3 !important; 
-}
-
-/* 1. Apply the new background color to the entire app shell and all screens */
-body:not(.dark-mode),
-body:not(.dark-mode) #app-shell,
-body:not(.dark-mode) .main-content,
-body:not(.dark-mode) .activity-screen,
-body:not(.dark-mode) .activity-content,
-body:not(.dark-mode) .screen-section {
-    background-color: var(--md-background) !important;
-    background-image: none !important;
-}
-
-/* 2. Override any hardcoded inline background colors on specific report pages */
-body:not(.dark-mode) div[style*="background-color: #f4f6fa"],
-body:not(.dark-mode) div[style*="background-color: #f2f2f7"],
-body:not(.dark-mode) div[style*="background: #f2f2f7"],
-body:not(.dark-mode) div[style*="background-color: var(--md-background)"] {
-    background-color: var(--md-background) !important;
-    background: var(--md-background) !important;
-}
-
-/* 3. Ensure all Cards, Lists, and Sheets remain crisp white so they pop out */
-body:not(.dark-mode) .m3-card,
-body:not(.dark-mode) .bottom-sheet,
-body:not(.dark-mode) .list-view {
-    background-color: #ffffff !important;
-}
-
-/* 4. Ensure Top Headers and Bottom Navigation stay pure white */
-body:not(.dark-mode) .app-header,
-body:not(.dark-mode) .activity-header,
-body:not(.dark-mode) .sheet-header,
-body:not(.dark-mode) .bottom-nav {
-    background-color: #ffffff !important;
-}
-/* ==========================================
-   🚨 FIX: MAXIMUM TEXT SHARPNESS & CONTRAST
-   ========================================== */
-:root {
-    /* Force primary text to absolute pure black for maximum sharpness */
-    --md-on-surface: #000000 !important; 
-    
-    /* Darken the "faded/grey" text (like dates, labels, and small text) to a sharp charcoal */
-    --md-text-muted: #334155 !important; 
-    
-    /* Darken secondary text to a deep slate grey */
-    --md-on-surface-variant: #1e293b !important; 
-}
-
-/* 1. Make all small text and labels slightly thicker so they don't look blurry */
-body:not(.dark-mode) small, 
-body:not(.dark-mode) label,
-body:not(.dark-mode) p {
-    font-weight: 500 !important;
-}
-
-/* 2. Force text inside input boxes (like pricing and names) to be bold and pure black */
-body:not(.dark-mode) input[type="text"], 
-body:not(.dark-mode) input[type="number"], 
-body:not(.dark-mode) input[type="tel"], 
-body:not(.dark-mode) input[type="date"], 
-body:not(.dark-mode) select, 
-body:not(.dark-mode) textarea {
-    color: #000000 !important;
-    font-weight: 600 !important;
-}
-
-/* 3. Darken placeholder text (e.g., "Search..." or "0.00") so it doesn't look washed out */
-body:not(.dark-mode) input::placeholder, 
-body:not(.dark-mode) textarea::placeholder {
-    color: #475569 !important;
-    font-weight: 500 !important;
-    opacity: 1 !important;
-}
-/* ==========================================
-   🚨 FIX: PREMIUM SAAS POLISH (FONT & BORDERS)
-   ========================================== */
-:root {
-    /* 1. Swap from the default Android Roboto to the highly professional 'Inter' font */
-    --app-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; 
-}
+/* Cleaned global background overrides to rely on root variables */
+/* Cleaned parasite root variables */
 
 /* 2. Soften card borders to look like premium paper rather than rigid plastic boxes */
 body:not(.dark-mode) .m3-card,
@@ -5849,26 +5594,7 @@ body:not(.dark-mode) textarea {
     70% { box-shadow: 0 0 0 8px rgba(186, 26, 26, 0); }
     100% { box-shadow: 0 0 0 0 rgba(186, 26, 26, 0); }
 }
-/* ==========================================
-   🚨 ENTERPRISE UX: PURE WHITE FOCUS MODE
-   ========================================== */
-/* Forces all bottom sheets and full-screen activities to maintain a strict pure white background */
-.bottom-sheet, .activity-screen, body {
-    background-color: #ffffff !important;
-}
-
-/* Upgrades the Bottom Navigation Bar to a premium floating white panel */
-.bottom-nav {
-    background-color: #ffffff !important;
-    border-top: none !important;
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.06) !important;
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-}
-
-/* Ensures input fields maintain maximum contrast against the pure white app background */
-input[type="text"], input[type="number"], textarea, select {
-    background-color: #ffffff !important;
-}
+/* Cleaned Pure White Focus Mode Overrides */
 /* ==========================================
    🚨 ENTERPRISE UX: NATIVE SCROLLBAR ERADICATOR
    ========================================== */
@@ -6014,29 +5740,7 @@ small, .text-muted {
     color: #6B7280 !important; /* Muted steel grey */
 }
 
-/* 7. DARK MODE ADAPTER FOR THE NEW FLAT UI */
-body.dark-mode .bottom-sheet, 
-body.dark-mode .bottom-nav, 
-body.dark-mode .activity-header, 
-body.dark-mode .sheet-header,
-body.dark-mode .date-divider,
-body.dark-mode .m3-card,
-body.dark-mode .thumb-action-bar,
-body.dark-mode .form-sticky-footer {
-    background-color: #121212 !important;
-    border-color: rgba(255,255,255,0.1) !important;
-}
-
-body.dark-mode .list-view li {
-    border-bottom: 1px solid rgba(255,255,255,0.06) !important;
-}
-
-body.dark-mode .large-text, body.dark-mode strong {
-    color: #F9FAFB !important;
-}
-body.dark-mode small, body.dark-mode .text-muted {
-    color: #9CA3AF !important;
-}
+/* Cleaned Flat UI Dark Mode Adapter */
 /* ==========================================
    🚀 ENTERPRISE SAAS UI: STRICT FORM AESTHETIC
    ========================================== */
@@ -6183,38 +5887,7 @@ body.dark-mode input[disabled] {
     backdrop-filter: blur(5px) !important; 
     -webkit-backdrop-filter: blur(5px) !important;
 }
-/* ==========================================
-   🚀 ENTERPRISE SAAS UI: PREMIUM SLATE CANVAS
-   ========================================== */
-
-/* 1. Change the blinding white global background to a premium, soft Slate Grey */
-body, html, #app-container, .activity-screen, #master-list-container {
-    background-color: #F8FAFC !important; /* Soft Slate-50 used by Top SaaS apps */
-}
-
-/* 2. Keep the App Header and Bottom Nav pure white so they "float" securely */
-.app-header, .bottom-nav, .activity-header, .form-sticky-footer {
-    background-color: #FFFFFF !important;
-    border-color: #E2E8F0 !important;
-}
-
-/* 3. Ensure Forms, Master Lists, and Dialogs look like crisp white paper on the slate desk */
-form, .m3-card, .list-view li, #enterprise-dialog, #enterprise-confirm {
-    background-color: #FFFFFF !important;
-}
-
-/* 4. Fix any lingering transparent backgrounds on specific screens */
-#form-business-profile, #form-sales-invoice, #form-purchase-invoice {
-    background-color: #F8FAFC !important;
-}
-
-/* 5. Dark Mode Adapter (Deep Navy Canvas with Lighter Navy Cards) */
-body.dark-mode, body.dark-mode #app-container, body.dark-mode .activity-screen, body.dark-mode #master-list-container, body.dark-mode #form-sales-invoice {
-    background-color: #0B1120 !important; /* Deepest Canvas */
-}
-body.dark-mode .app-header, body.dark-mode .bottom-nav, body.dark-mode form, body.dark-mode .m3-card, body.dark-mode .list-view li {
-    background-color: #1E293B !important; /* Elevated Surface */
-}
+/* Cleaned hardcoded Navy Blue canvas theme */
 /* ==========================================
    🚀 ENTERPRISE SAAS UI: PADDING & TYPOGRAPHY POLISH
    ========================================== */
@@ -6358,17 +6031,7 @@ body.dark-mode .form-sticky-footer {
     border-bottom: 1px solid #E2E8F0 !important;
 }
 
-/* 3. 🏢 BUSINESS CLASS AESTHETIC: FLAT & NEAT */
-/* Removes heavy, messy shadows and replaces them with crisp, professional borders. */
-.m3-card, .list-view li {
-    box-shadow: none !important;
-    border: 1px solid #E2E8F0 !important;
-    background: #FFFFFF !important;
-    border-radius: 8px !important; /* Subtle, professional curves */
-}
-body {
-    background-color: #F8FAFC !important; /* Soft premium slate canvas */
-}
+/* Cleaned boxed-in list overrides 1 */
 
 /* 4. 🚀 ANTI-FLICKER ANIMATIONS */
 /* Replaces slow, bouncy "spring" physics with instant, linear snaps. */
@@ -6468,13 +6131,7 @@ body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus)
     display: none !important; 
 }
 
-/* 6. STRICT BUSINESS UI (Flat, Crisp, High-Contrast) */
-.m3-card, .list-view li {
-    box-shadow: none !important;
-    border: 1px solid #E2E8F0 !important;
-    border-radius: 8px !important;
-}
-body { background-color: #F8FAFC !important; }
+/* Cleaned boxed-in list overrides 2 */
 
 /* 7. SOLIDIFY Z-INDEX HIERARCHY (Fixes overlapping elements) */
 .pos-numpad-overlay { z-index: 99998 !important; }
@@ -6891,156 +6548,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     };
 });
+/* Cleaned Pinnacle SaaS Overrides completely */
 /* ==========================================
-   ✨ THE PINNACLE SAAS OVERRIDE (CLEAN & NEAT)
+   🚨 ULTIMATE EDGE-TO-EDGE REPORTS & WORKSPACE
    ========================================== */
 
-/* 1. The Canvas: Pure, Breathable Off-White */
-body, html, #app-shell, .main-content, .activity-screen, .bottom-sheet {
-    background-color: #FAFAFA !important;
-    background-image: none !important;
+/* 1. CRITICAL: Destroy Flexbox Gaps! 
+   (If the cards are wrapped in a flex container, margins won't work unless we kill the gap) */
+#tab-reports div:has(> .m3-card),
+#tab-workspace div:has(> .m3-card),
+#tab-settings div:has(> .m3-card) {
+    gap: 0 !important;
+    padding-bottom: 0 !important;
 }
 
-/* 2. Crisp, Solid Headers & Footers */
-.app-header, .activity-header, .sheet-header, .search-bar, .date-divider, .bottom-nav, .form-sticky-footer, .thumb-action-bar {
-    background-color: #FFFFFF !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-color: #E5E7EB !important;
-    box-shadow: none !important;
-}
-
-/* 3. The "Floating Paper" Cards (Ultra-Neat) */
-/* Restores breathing room on the sides so data never touches the phone's bezel */
-.m3-card, .dashboard-card, .list-view {
-    background-color: #FFFFFF !important;
-    border: 1px solid #E5E7EB !important;
-    border-radius: 12px !important;
-    margin-left: 0 !important;   
-    margin-right: 0 !important;  
-    margin-bottom: 16px !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important; /* Micro-lift for elegance */
-    width: auto !important;
-}
-
-/* 4. Tidy Data Lists */
-.list-view li {
-    background-color: transparent !important;
-    border: none !important;
-    border-bottom: 1px solid #F3F4F6 !important;
-    padding: 16px !important;
-    border-radius: 0 !important;
-}
-.list-view li:last-child {
-    border-bottom: none !important;
-}
-
-/* 5. Minimalist, Confident Inputs */
-input[type="text"], input[type="number"], input[type="tel"], input[type="date"], select, textarea {
-    background-color: #F4F4F5 !important;
-    border: 1px solid transparent !important;
-    border-radius: 8px !important;
-    padding: 12px 16px !important;
-    font-size: 15px !important;
-    color: #111827 !important;
-    font-weight: 600 !important;
-    box-shadow: none !important;
-    transition: all 0.2s ease !important;
-}
-
-/* Sharp Input Focus */
-input:focus:not([readonly]), select:focus, textarea:focus {
-    background-color: #FFFFFF !important;
-    border-color: var(--md-primary) !important;
-    box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.1) !important;
-}
-
-/* 6. Refined Buttons */
-.btn-primary, .btn-secondary, .floating-action-button, #main-fab {
-    border-radius: 8px !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.3px !important;
-    box-shadow: none !important;
-    border: none !important;
-}
-
-/* 7. Typography Clarity */
-.large-text, strong {
-    color: #111827 !important;
-    letter-spacing: -0.01em !important;
-}
-small, .text-muted {
-    color: #6B7280 !important;
-}
-
-/* 8. Pristine Dark Mode */
-body.dark-mode {
-    --md-background: #09090B !important; /* True deep black-grey */
-    --md-surface: #18181B !important;
-    --md-outline-variant: #27272A !important;
-}
-body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content, 
-body.dark-mode .activity-screen, body.dark-mode .bottom-sheet {
-    background-color: #09090B !important;
-}
-body.dark-mode .app-header, body.dark-mode .activity-header, body.dark-mode .sheet-header, 
-body.dark-mode .search-bar, body.dark-mode .date-divider, body.dark-mode .bottom-nav, 
-body.dark-mode .form-sticky-footer, body.dark-mode .thumb-action-bar {
-    background-color: #09090B !important;
-    border-color: #27272A !important;
-}
-body.dark-mode .m3-card, body.dark-mode .list-view {
-    background-color: #18181B !important;
-    border-color: #27272A !important;
-    box-shadow: none !important;
-}
-body.dark-mode .list-view li {
-    border-bottom-color: #27272A !important;
-}
-body.dark-mode input[type="text"], body.dark-mode input[type="number"], 
-body.dark-mode input[type="tel"], body.dark-mode input[type="date"], 
-body.dark-mode select, body.dark-mode textarea {
-    background-color: #27272A !important;
-    color: #F9FAFB !important;
-}
-body.dark-mode input:focus:not([readonly]), body.dark-mode select:focus, body.dark-mode textarea:focus {
-    background-color: #18181B !important;
-    border-color: var(--md-primary) !important;
-    box-shadow: 0 0 0 3px rgba(143, 203, 251, 0.15) !important;
-}
-/* ==========================================
-   📊 HYBRID EDGE-TO-EDGE DATA & REPORT VIEWS
-   ========================================== */
-
-/* 1. Flush Edge-to-Edge Cards for Reports & Masters */
+/* 2. Stretch the cards edge-to-edge, remove all borders and rounding */
 #tab-reports .m3-card, 
-#ws-view-master .m3-card {
+#tab-workspace .m3-card,
+#tab-settings .m3-card {
     margin-left: -16px !important;
     margin-right: -16px !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
     border-radius: 0 !important;
     border-left: none !important;
     border-right: none !important;
-    box-shadow: none !important;
-    margin-bottom: 0 !important; /* Stack them flush against each other */
-    border-bottom: 1px solid #E5E7EB !important;
-}
-
-/* Prevent double top-borders when stacked flush */
-#tab-reports .m3-card + .m3-card,
-#ws-view-master .m3-card + .m3-card {
     border-top: none !important;
+    box-shadow: none !important;
+    width: auto !important; /* Force them to stretch to the screen edges */
+    background: transparent !important; /* Inherit the main canvas color */
+    
+    /* Elegant separator line */
+    border-bottom: 1px solid var(--md-outline-variant) !important;
 }
 
+/* Ensure the dark mode uses the clean neon-grey separator line */
 body.dark-mode #tab-reports .m3-card,
-body.dark-mode #ws-view-master .m3-card {
-    border-bottom-color: #27272A !important;
+body.dark-mode #tab-workspace .m3-card,
+body.dark-mode #tab-settings .m3-card {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
-/* 2. Fused Workspace Top Navigation (Create | Transactions | Masters) */
+/* Hide the line on the very last card to keep the bottom clean */
+#tab-reports .m3-card:last-child, 
+#tab-workspace .m3-card:last-child,
+#tab-settings .m3-card:last-child {
+    border-bottom: none !important;
+}
+
+/* 3. Fused Workspace Top Navigation (Create | Transactions | Masters) */
 #tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"] {
     padding: 0 !important;
-    gap: 0 !important; /* Kill the gaps */
-    border: 1px solid #E5E7EB !important;
+    gap: 0 !important;
+    border: 1px solid var(--md-outline-variant) !important;
     background: transparent !important;
     border-radius: 8px !important;
     overflow: hidden !important;
@@ -7048,9 +6608,9 @@ body.dark-mode #ws-view-master .m3-card {
 }
 
 #tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"] > div {
-    border-radius: 0 !important; /* Sharp inner edges */
+    border-radius: 0 !important;
     box-shadow: none !important;
-    border-right: 1px solid #E5E7EB !important;
+    border-right: 1px solid var(--md-outline-variant) !important;
     margin: 0 !important;
 }
 
@@ -7058,11 +6618,11 @@ body.dark-mode #ws-view-master .m3-card {
     border-right: none !important;
 }
 
-/* 3. Fused Transaction Sub-Navigation (Sales | Purchases | Cashbook) */
+/* 4. Fused Transaction Sub-Navigation (Sales | Purchases | Cashbook) */
 #ws-view-trans > div[style*="display: flex; gap: 8px"] {
-    gap: 0 !important; /* Kill the gaps */
+    gap: 0 !important;
     border-radius: 8px !important;
-    border: 1px solid #E5E7EB !important;
+    border: 1px solid var(--md-outline-variant) !important;
     overflow: hidden !important;
     padding: 0 !important;
 }
@@ -7070,27 +6630,25 @@ body.dark-mode #ws-view-master .m3-card {
 #ws-view-trans > div[style*="display: flex; gap: 8px"] > button {
     border-radius: 0 !important;
     border: none !important;
-    border-right: 1px solid #E5E7EB !important;
+    border-right: 1px solid var(--md-outline-variant) !important;
     margin: 0 !important;
-    flex: 1 !important; /* Stretch buttons evenly */
+    flex: 1 !important;
 }
 
 #ws-view-trans > div[style*="display: flex; gap: 8px"] > button:last-child {
     border-right: none !important;
 }
 
-/* 4. Fused Dark Mode Button Adapters */
+/* Dark Mode fixes for sub-nav borders */
 body.dark-mode #tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"],
-body.dark-mode #ws-view-trans > div[style*="display: flex; gap: 8px"] {
-    border-color: #27272A !important;
-}
-
+body.dark-mode #ws-view-trans > div[style*="display: flex; gap: 8px"],
 body.dark-mode #tab-workspace > div[style*="display: flex; background: var(--md-surface-variant)"] > div,
 body.dark-mode #ws-view-trans > div[style*="display: flex; gap: 8px"] > button {
-    border-right-color: #27272A !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    border-right-color: rgba(255, 255, 255, 0.1) !important;
 }
 /* ==========================================
-   🌟 THE PREMIUM DASHBOARD OVERRIDE (BENTO UI)
+   🌟 THE PREMIUM DASHBOARD OVERRIDE (BENTO UI CLEANED)
    ========================================== */
 
 /* 1. Upgrade the Greeting */
@@ -7098,9 +6656,8 @@ body.dark-mode #ws-view-trans > div[style*="display: flex; gap: 8px"] > button {
     font-size: 22px !important;
     font-weight: 800 !important;
     letter-spacing: -0.5px !important;
-    color: #111827 !important;
+    color: var(--md-on-surface) !important;
 }
-body.dark-mode #greeting-text { color: #FFFFFF !important; }
 
 /* 2. Break apart the chunky edge-to-edge dashboard wrapper */
 #tab-dashboard > div[style*="margin: 0 -16px"] {
@@ -7116,12 +6673,23 @@ body.dark-mode #greeting-text { color: #FFFFFF !important; }
     margin-bottom: 16px !important;
 }
 
-#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div {
-    background: #FFFFFF !important;
-    border: 1px solid #E5E7EB !important;
+/* Unified Bento Card Styling */
+#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div,
+#tab-dashboard .tap-target[onclick*="masters"],
+#dash-ai-insights,
+#tab-dashboard .tap-target[onclick*="DeepAnalytics"],
+#tab-dashboard > div[style*="margin: 0 -16px"] > div:has(canvas) {
+    background: var(--md-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
     border-radius: 16px !important;
-    padding: 20px !important;
+    margin-bottom: 16px !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+}
+
+/* Specific Hero Card padding */
+#tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div {
+    padding: 20px !important;
+    margin-bottom: 0 !important;
 }
 
 /* Make the big numbers look like a FinTech app */
@@ -7132,56 +6700,29 @@ body.dark-mode #greeting-text { color: #FFFFFF !important; }
     margin-top: 8px !important;
 }
 
-/* 4. Upgrade the other Dashboard sections into floating Bento cards */
-#tab-dashboard .tap-target[onclick*="masters"],
-#dash-ai-insights,
-#tab-dashboard .tap-target[onclick*="DeepAnalytics"],
-#tab-dashboard > div[style*="margin: 0 -16px"] > div:has(canvas) {
-    background: #FFFFFF !important;
-    border: 1px solid #E5E7EB !important;
-    border-radius: 16px !important;
-    margin-bottom: 16px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
-}
-
-/* 5. Group the "Order Fulfillment" section into one continuous block */
+/* 4. Group the "Order Fulfillment" section into one continuous block */
 #tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="background: var(--md-surface-variant)"] {
-    background: #FFFFFF !important;
-    border-top: 1px solid #E5E7EB !important;
-    border-left: 1px solid #E5E7EB !important;
-    border-right: 1px solid #E5E7EB !important;
-    border-bottom: 1px solid #F3F4F6 !important;
+    background: var(--md-surface) !important;
+    border-top: 1px solid var(--md-outline-variant) !important;
+    border-left: 1px solid var(--md-outline-variant) !important;
+    border-right: 1px solid var(--md-outline-variant) !important;
+    border-bottom: 1px solid var(--md-surface-variant) !important;
     border-radius: 16px 16px 0 0 !important;
     margin-bottom: 0 !important;
 }
 
 #tab-dashboard > div[style*="margin: 0 -16px"] > .tap-target[onclick*="FilteredSales"] {
-    background: #FFFFFF !important;
-    border-left: 1px solid #E5E7EB !important;
-    border-right: 1px solid #E5E7EB !important;
-    border-bottom: 1px solid #F3F4F6 !important;
+    background: var(--md-surface) !important;
+    border-left: 1px solid var(--md-outline-variant) !important;
+    border-right: 1px solid var(--md-outline-variant) !important;
+    border-bottom: 1px solid var(--md-surface-variant) !important;
     margin-bottom: 0 !important;
 }
 
 #tab-dashboard > div[style*="margin: 0 -16px"] > .tap-target[onclick*="'Completed'"] {
-    border-bottom: 1px solid #E5E7EB !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
     border-radius: 0 0 16px 16px !important;
     margin-bottom: 16px !important;
-}
-
-/* 6. Dark Mode Fixes for the new Bento layout */
-body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="display: flex"] > div,
-body.dark-mode #tab-dashboard .tap-target[onclick*="masters"],
-body.dark-mode #dash-ai-insights,
-body.dark-mode #tab-dashboard .tap-target[onclick*="DeepAnalytics"],
-body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > div:has(canvas),
-body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > div[style*="background: var(--md-surface-variant)"],
-body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > .tap-target[onclick*="FilteredSales"] {
-    background: #18181B !important;
-    border-color: #27272A !important;
-}
-body.dark-mode #tab-dashboard > div[style*="margin: 0 -16px"] > .tap-target[onclick*="FilteredSales"] {
-    border-bottom-color: #27272A !important;
 }
 /* ==========================================
    ✨ DASHBOARD MICRO-POLISH (FIXING THE BENTO GRID)
@@ -7286,42 +6827,15 @@ body.dark-mode #tab-dashboard strong[style*="display:flex; align-items:center; g
     background-color: rgba(0, 0, 0, 0.75) !important; /* Solid dark tint instead of glass */
 }
 
-/* 2. Solidify Navigation & Headers (Light Mode) */
-body:not(.dark-mode) .bottom-nav, 
-body:not(.dark-mode) .activity-header, 
-body:not(.dark-mode) .sheet-header, 
-body:not(.dark-mode) .app-header, 
-body:not(.dark-mode) .form-sticky-footer, 
-body:not(.dark-mode) .thumb-action-bar,
-body:not(.dark-mode) .sticky-totals {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
+/* 2 & 3. Universal Navigation & Header Theme Link */
+.bottom-nav, .form-sticky-footer, .thumb-action-bar, .sticky-totals {
+    background-color: var(--md-surface) !important;
+    background: var(--md-surface) !important;
 }
 
-body:not(.dark-mode) .search-bar,
-body:not(.dark-mode) .search-container,
-body:not(.dark-mode) .date-divider {
-    background-color: #F8FAFC !important;
-    background: #F8FAFC !important;
-}
-
-/* 3. Solidify Navigation & Headers (Dark Mode) */
-body.dark-mode .bottom-nav, 
-body.dark-mode .activity-header, 
-body.dark-mode .sheet-header, 
-body.dark-mode .app-header, 
-body.dark-mode .form-sticky-footer, 
-body.dark-mode .thumb-action-bar,
-body.dark-mode .search-bar,
-body.dark-mode .search-container {
-    background-color: #121212 !important;
-    background: #121212 !important;
-}
-
-body.dark-mode .sticky-totals,
-body.dark-mode .date-divider {
-    background-color: #1e1e22 !important;
-    background: #1e1e22 !important;
+.search-bar, .search-container, .date-divider {
+    background-color: var(--md-surface-variant) !important;
+    background: var(--md-surface-variant) !important;
 }
 /* ==========================================
    CLEAN & NEAT INPUTS: Remove blue/green highlights
@@ -7357,25 +6871,28 @@ body.dark-mode .item-entry-card input:focus {
     color: inherit !important;
 }
 
-/* 2. Professional, Crisp Spreadsheet Cell Design */
+/* 2. Professional, Crisp Spreadsheet Cell Design (ZERO-JERK) */
 .item-entry-card input.row-qty,
 .item-entry-card input.row-rate,
 .item-entry-card input.row-item-buyprice,
 .item-entry-card input.row-gst,
 #sales-discount, #sales-freight,
 #purchase-discount, #purchase-freight {
-    background: var(--md-surface-variant) !important; /* Soft grey resting state */
-    border: 1px solid var(--md-outline-variant) !important; /* Clean, thin border */
-    border-radius: 6px !important; /* Subtle, professional curve */
+    background-color: var(--md-surface-variant) !important; 
+    border: 1px solid var(--md-outline-variant) !important; /* Locked at exactly 1px */
+    border-radius: 6px !important; 
     padding: 6px 8px !important;
     font-size: 15px !important;
     font-weight: 700 !important;
     color: var(--md-on-surface) !important;
     text-align: center !important;
-    min-height: 36px !important; /* Compact, touch-friendly height */
-    height: 36px !important;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; /* Micro-depth */
-    transition: all 0.15s ease !important;
+    min-height: 36px !important; 
+    height: 36px !important; /* Force physical height to never change */
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    outline: none !important;
+    transform: translateZ(0) !important; /* GPU lock prevents layout reflows */
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 /* 3. Kill the ugly green "Valid" borders on spreadsheet cells */
@@ -7398,25 +6915,25 @@ body.dark-mode .item-entry-card input:focus {
     width: 90px !important;
 }
 
-/* Make the Buy Price field perfectly proportional to Qty & Rate */
 .item-entry-card input.row-item-buyprice { 
     width: 85px !important; 
     margin-left: 4px !important;
-    /* Height, padding, and font-size are automatically inherited from the Master Spreadsheet Cell design! */
 }
 
-/* 5. The Focus State: Clean Blue Outline, No Clunky Green/Red Boxes */
+/* 5. The Focus State: Clean White Background, Blue Outline, ZERO Dimension Change! */
 .item-entry-card input.row-qty:focus,
 .item-entry-card input.row-rate:focus,
 .item-entry-card input.row-item-buyprice:focus,
 .item-entry-card input.row-gst:focus,
 #sales-discount:focus, #sales-freight:focus,
 #purchase-discount:focus, #purchase-freight:focus {
-    background: #ffffff !important;
-    border: 1px solid var(--md-primary) !important;
-    box-shadow: 0 0 0 2px rgba(0, 97, 164, 0.15) !important;
-    color: var(--md-primary) !important;
-    transform: none !important; /* Kill the bouncy "lift" effect for spreadsheets */
+    background-color: #ffffff !important; /* Clean white resting background (No Green!) */
+    border: 1px solid var(--md-primary) !important; /* Stays exactly 1px, but turns blue */
+    color: var(--md-primary) !important; /* Blue text */
+    /* Uses an inset shadow to look thick without changing outer dimensions */
+    box-shadow: inset 0 0 0 1px var(--md-primary) !important; 
+    transform: translateZ(0) !important;
+    outline: none !important;
 }
 
 /* 6. Dark Mode Support */
@@ -7637,4 +7154,107 @@ body.dark-mode #app-shell .activity-screen .activity-header .icon-circle:active,
 body.dark-mode #app-shell .activity-screen .activity-header div[id*="delete"]:active,
 body.dark-mode #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined.tap-target:active {
     background-color: rgba(255, 255, 255, 0.1) !important;
+}
+/* ==========================================
+   🚨 PHASE 5: UNIVERSAL DARK MODE ICONS
+   ========================================== */
+/* Forces all pastel/white circles into a sleek, uniform dark grey */
+body.dark-mode .icon-circle,
+body.dark-mode .icon-circle[style] {
+    background: var(--md-surface-variant) !important;
+    background-color: var(--md-surface-variant) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    color: var(--md-on-surface-variant) !important;
+    box-shadow: none !important;
+}
+
+/* Ensures the icons inside the circles turn light grey/white */
+body.dark-mode .icon-circle .material-symbols-outlined {
+    color: inherit !important;
+}
+
+/* Brightens the ">" arrows on the right side of the menu cards */
+body.dark-mode .m3-card .material-symbols-outlined[style*="var(--md-outline-variant)"] {
+    color: var(--md-text-muted) !important;
+}
+/* ==========================================
+   🚨 WORKSPACE "CREATE" GRID CLEANUP
+   ========================================== */
+/* Removes the horizontal lines between the icon rows for a clean App Drawer look (Light & Dark Mode) */
+#ws-view-create .m3-card,
+body.dark-mode #ws-view-create .m3-card {
+    border-bottom: none !important;
+}
+/* ==========================================
+   🚨 TRANSACTIONS LIST TEXT PADDING FIX
+   ========================================== */
+/* Stops the transaction rows from double-stretching and restores the text breathing room */
+#sales-history-container .m3-card,
+#purchase-history-container .m3-card,
+#cashbook-container .m3-card {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+}
+/* ==========================================
+   🚨 INLINE PARTY INSIGHTS (NON-STICKY)
+   ========================================== */
+/* The container for the live customer/supplier data */
+.party-insight-card {
+    position: relative !important; /* 🚨 This completely kills the "sticky" screen-blocking bug! */
+    top: auto !important;
+    z-index: 1 !important;
+    
+    /* Premium Bento Design */
+    background: var(--md-surface-variant) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    border-radius: 8px !important;
+    padding: 12px 16px !important;
+    margin-bottom: 16px !important;
+    margin-top: -8px !important; /* Tucks it elegantly under the selection box */
+    
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    
+    /* Smooth fade-in when a customer is selected */
+    animation: nativeFadeIn 0.3s ease forwards;
+}
+
+.party-insight-card .insight-data {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+}
+
+.party-insight-card .insight-data strong {
+    font-size: 14px !important;
+    color: var(--md-primary) !important; /* Highlights their balance in primary blue */
+    margin: 0 !important;
+    border: none !important;
+}
+
+.party-insight-card .insight-data small {
+    font-size: 11px !important;
+    color: var(--md-text-muted) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    font-weight: 700 !important;
+}
+
+/* Subtle icon to indicate it's an analytics card */
+.party-insight-card > .material-symbols-outlined {
+    color: var(--md-primary) !important;
+    opacity: 0.5 !important;
+    font-size: 28px !important;
+}
+
+/* Dark mode support */
+body.dark-mode .party-insight-card {
+    background: rgba(143, 203, 251, 0.08) !important; /* Soft blue tint */
+    border-color: rgba(143, 203, 251, 0.15) !important;
+}
+body.dark-mode .party-insight-card .insight-data strong {
+    color: #8CB1FF !important;
 }

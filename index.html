@@ -55,7 +55,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=85">
+    <link rel="stylesheet" href="style.css?v=86">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -145,58 +145,6 @@
             display: none !important;
         }
 
-
-        /* 🚨 SOLLO FIX: PROFESSIONAL INVOICE ITEM ROWS */
-        /* Completely strips the bulky boxes and turns them into clean receipt lines */
-        .item-entry-card {
-            border: none !important;
-            border-bottom: 1px dashed var(--md-outline-variant) !important;
-            border-radius: 0 !important;
-            margin: 0 !important;
-            padding: 12px 8px !important;
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-        
-        .item-entry-card:last-child {
-            border-bottom: none !important;
-        }
-
-        /* Clean up the product title */
-        .item-entry-card strong {
-            font-size: 14px !important;
-            text-transform: uppercase !important;
-            letter-spacing: 0.5px !important;
-            color: var(--md-on-surface) !important;
-        }
-
-        /* Makes the Quantity and Rate inputs look like subtle, pro spreadsheet cells */
-        .item-entry-card input.row-qty, 
-        .item-entry-card input.row-rate {
-            background: transparent !important;
-            border: none !important;
-            border-bottom: 1px solid var(--md-outline-variant) !important;
-            border-radius: 0 !important;
-            padding: 4px !important;
-            font-size: 16px !important;
-            font-weight: 800 !important;
-            color: var(--md-primary) !important;
-            box-shadow: none !important;
-            text-align: center !important;
-            min-height: auto !important;
-            width: 80px !important;
-            transition: all 0.2s ease !important;
-        }
-
-        /* Instantly glows green when the user taps to edit qty/rate */
-        .item-entry-card input.row-qty:focus, 
-        .item-entry-card input.row-rate:focus {
-            border-bottom: 2px solid var(--md-success) !important;
-            background: rgba(20, 108, 46, 0.05) !important;
-            color: var(--md-success) !important;
-            outline: none !important;
-            box-shadow: none !important;
-        }
 
         /* Subdue the Delete 'X' so it isn't distracting */
         .item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"],
@@ -1195,6 +1143,25 @@
                     <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
                 </div>
 
+                <!-- 🚀 3-PART PARTY INSIGHT CARD -->
+                <div id="sales-party-insight" class="hidden" style="display: none; flex-direction: column; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px 16px; margin-top: -6px; margin-bottom: 16px; animation: fadeSlideDown 0.3s ease forwards;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 8px;">
+                        <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">Total Balance</span>
+                        <strong id="sales-party-balance-total" style="font-size: 16px; margin: 0; border: none; letter-spacing: -0.2px;">₹0.00</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">GST Due</small>
+                            <strong id="sales-party-balance-gst" style="font-size: 13px; color: var(--md-on-surface);">₹0.00</strong>
+                        </div>
+                        <div style="width: 1px; height: 24px; background: var(--md-outline-variant); margin: 0 12px;"></div>
+                        <div style="flex: 1; text-align: right;">
+                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">Non-GST Due</small>
+                            <strong id="sales-party-balance-nongst" style="font-size: 13px; color: var(--md-on-surface);">₹0.00</strong>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 🚀 PROGRESSIVE DISCLOSURE: STEP 2 (HIDDEN BY DEFAULT) -->
                 <div id="sales-step-2" class="hidden">
 
@@ -1436,6 +1403,25 @@
                         <input type="hidden" id="purchase-supplier-id">
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
+                </div>
+
+                <!-- 🚀 3-PART PARTY INSIGHT CARD -->
+                <div id="purchase-party-insight" class="hidden" style="display: none; flex-direction: column; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px 16px; margin-top: -6px; margin-bottom: 16px; animation: fadeSlideDown 0.3s ease forwards;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 8px;">
+                        <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">Total Balance</span>
+                        <strong id="purchase-party-balance-total" style="font-size: 16px; margin: 0; border: none; letter-spacing: -0.2px;">₹0.00</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">GST Due</small>
+                            <strong id="purchase-party-balance-gst" style="font-size: 13px; color: var(--md-on-surface);">₹0.00</strong>
+                        </div>
+                        <div style="width: 1px; height: 24px; background: var(--md-outline-variant); margin: 0 12px;"></div>
+                        <div style="flex: 1; text-align: right;">
+                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">Non-GST Due</small>
+                            <strong id="purchase-party-balance-nongst" style="font-size: 13px; color: var(--md-on-surface);">₹0.00</strong>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 🚀 PROGRESSIVE DISCLOSURE: STEP 2 (HIDDEN BY DEFAULT) -->
@@ -3685,11 +3671,11 @@
     </div>
 
     <script src="components.js"></script>
-    <script src="db.js?v=85"></script>
-    <script src="utils.js?v=85"></script>
-    <script src="ui.js?v=85"></script>
-    <script src="cloud.js?v=85"></script>
-    <script src="app.js?v=85"></script>
+    <script src="db.js?v=86"></script>
+    <script src="utils.js?v=86"></script>
+    <script src="ui.js?v=86"></script>
+    <script src="cloud.js?v=86"></script>
+    <script src="app.js?v=86"></script>
     <script src="state.js"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
@@ -3720,8 +3706,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=85' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=85`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=86' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=86`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
