@@ -6102,7 +6102,7 @@ if (data.id && splitConfirmed) {
             currentIds = currentIds.filter(i => i !== id);
             currentNames = currentNames.filter(n => n !== displayName);
             if (liElement) {
-                liElement.style.background = 'transparent';
+                liElement.style.setProperty('background', 'transparent', 'important');
                 const cb = liElement.querySelector('input');
                 if (cb) cb.checked = false;
             }
@@ -6110,7 +6110,7 @@ if (data.id && splitConfirmed) {
             currentIds.push(id);
             currentNames.push(displayName);
             if (liElement) {
-                liElement.style.background = 'var(--md-surface-variant)';
+                liElement.style.setProperty('background', 'var(--md-surface-variant)', 'important');
                 const cb = liElement.querySelector('input');
                 if (cb) cb.checked = true;
             }
@@ -6149,7 +6149,7 @@ if (data.id && splitConfirmed) {
             const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
             const checked = isSelected ? 'checked' : '';
 
-            return `<li style="background: ${bg}; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
+            return `<li style="background: ${isSelected ? 'var(--md-surface-variant)' : 'transparent'} !important; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
                 <div style="flex:1; min-width:0;"><strong style="color:var(--md-primary); display:block; font-size:15px;">${displayNo}</strong><small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName}</small></div>
                 <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none; flex-shrink: 0;">
             </li>`;
@@ -6173,7 +6173,7 @@ if (data.id && splitConfirmed) {
             const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
             const checked = isSelected ? 'checked' : '';
 
-            return `<li style="background: ${bg}; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
+            return `<li style="background: ${isSelected ? 'var(--md-surface-variant)' : 'transparent'} !important; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
                 <div style="flex:1; min-width:0;"><strong style="color:var(--md-error); display:block; font-size:15px;">${displayNo}</strong><small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.supplierName}</small></div>
                 <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none; flex-shrink: 0;">
             </li>`;

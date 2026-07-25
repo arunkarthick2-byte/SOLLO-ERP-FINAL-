@@ -4768,15 +4768,27 @@ body.dark-mode #tab-menu > .m3-card {
 /* ==========================================
    🚨 SOLLO NATIVE THEME: CASH RECOVERY CONTRAST FIX
    ========================================== */
-/* Fixes the hardcoded light-pink background on the Total Receivables header in Dark Mode */
-body.dark-mode #tab-menu div[style*="linear-gradient(135deg, #fff0f2 0%, #ffebee 100%)"] {
+/* 1. Fix the glaring pink Total Receivables header */
+body.dark-mode #tab-menu div[style*="background: #fff0f2"] {
     background: rgba(186, 26, 26, 0.15) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
+body.dark-mode #tab-menu div[style*="background: #fff0f2"] strong {
+    color: #ffb4ab !important; /* Glowing neon red for readability */
+}
 
-/* Ensure the text inside it glows perfectly in Dark Mode */
-body.dark-mode #tab-menu div[style*="linear-gradient(135deg, #fff0f2 0%, #ffebee 100%)"] strong {
-    color: var(--md-error) !important;
+/* 2. Fix the blinding white progress bar tracks */
+body.dark-mode #tab-menu div[style*="background: #e2e8f0"] {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 3. Fix the glaring white "View Defaulters" button */
+body.dark-mode #tab-menu div[style*="background: #f8fafc"] {
+    background: rgba(0, 97, 164, 0.15) !important; /* Soft primary blue background */
+}
+body.dark-mode #tab-menu div[style*="background: #f8fafc"] strong,
+body.dark-mode #tab-menu div[style*="background: #f8fafc"] span {
+    color: #7CB1FF !important; /* Glowing neon blue text and icon */
 }
 /* ==========================================
    🚨 SOLLO NATIVE THEME: WATERFALL LIST CASCADE
@@ -5275,23 +5287,38 @@ body.dark-mode .activity-content {
     background-color: var(--md-background) !important;
 }
 
-/* 2. BULLETPROOF FAB "CREATE NEW" MENU FIX */
+/* 2. BULLETPROOF FAB & WORKSPACE "CREATE" GRID FIX */
 /* Forces the pastel circles to become dark grey, ignoring inline HTML styles */
-body.dark-mode #sheet-fab-menu .icon-circle[style*="background"] {
+body.dark-mode #sheet-fab-menu .icon-circle[style*="background"],
+body.dark-mode #ws-view-create .icon-circle[style*="background"] {
     background: #272A30 !important; 
     border: 1px solid #4B5563 !important;
     box-shadow: none !important;
 }
 /* Force the icons inside the circles to glow Neon Blue */
-body.dark-mode #sheet-fab-menu .icon-circle .material-symbols-outlined {
+body.dark-mode #sheet-fab-menu .icon-circle .material-symbols-outlined,
+body.dark-mode #ws-view-create .icon-circle .material-symbols-outlined {
     color: #7CB1FF !important; 
 }
 /* Force the labels to pure white */
-body.dark-mode #sheet-fab-menu small {
+body.dark-mode #sheet-fab-menu small,
+body.dark-mode #ws-view-create small {
     color: #FFFFFF !important;
     font-weight: 600 !important;
     font-size: 12px !important;
     opacity: 1 !important;
+}
+
+/* ==========================================
+   🚨 SOLLO NATIVE THEME: GOOGLE DRIVE DARK MODE
+   ========================================== */
+/* Fixes the invisible dark blue text and glaring white pill in Data & Security */
+body.dark-mode div[style*="background: rgba(0, 97, 164, 0.05)"] strong[style*="color: #0061a4"] {
+    color: #7CB1FF !important; /* Glowing neon blue text */
+}
+body.dark-mode div[style*="background: rgba(0, 97, 164, 0.05)"] #cloud-status-tab {
+    color: #7CB1FF !important;
+    background: rgba(124, 177, 255, 0.15) !important; /* Soft translucent blue pill */
 }
 
 /* 3. OVERDUE COLLECTIONS TEXT VISIBILITY */
@@ -5403,26 +5430,41 @@ body.dark-mode .empty-state {
    ========================================== */
    
 /* --- FIX 1: Linked Expense Documents Dark Mode --- */
-body.dark-mode #list-linked-docs li {
-    background: var(--md-surface) !important;
-    border-color: var(--md-outline-variant) !important;
-}
-/* Safely restores the subtle zebra striping in dark mode */
-body.dark-mode #list-linked-docs li:nth-child(even) {
-    background: var(--md-surface-variant) !important; 
+/* 1. Kill the glaring white background shining through from the parent container */
+#list-linked-sales,
+#list-linked-purch {
+    background: transparent !important;
+    border: none !important;
 }
 
-/* Force all text inside the linked docs list to be pure white/grey */
-body.dark-mode #list-linked-docs li *,
-body.dark-mode #list-linked-docs li strong,
-body.dark-mode #list-linked-docs li div {
+/* 2. Force all unselected items to be completely transparent without shadows */
+#list-linked-sales li,
+#list-linked-purch li {
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* 3. Highlight Selected Items */
+#list-linked-sales li[style*="var(--md-surface-variant)"],
+#list-linked-purch li[style*="var(--md-surface-variant)"] {
+    background: var(--md-surface-variant) !important;
+}
+body.dark-mode #list-linked-sales li[style*="var(--md-surface-variant)"],
+body.dark-mode #list-linked-purch li[style*="var(--md-surface-variant)"] {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 4. Text Readability in Dark Mode */
+body.dark-mode #list-linked-sales li *,
+body.dark-mode #list-linked-purch li *,
+body.dark-mode #list-linked-sales li strong,
+body.dark-mode #list-linked-purch li strong,
+body.dark-mode #list-linked-sales li div,
+body.dark-mode #list-linked-purch li div {
     color: var(--md-on-surface) !important;
 }
-
-/* Mute the date/ID text slightly so it looks professional */
-body.dark-mode #list-linked-docs li div[style*="color: #666"],
-body.dark-mode #list-linked-docs li div[style*="color: #555"],
-body.dark-mode #list-linked-docs li div[style*="color: #888"] {
+body.dark-mode #list-linked-sales li small,
+body.dark-mode #list-linked-purch li small {
     color: var(--md-text-muted) !important;
 }
 
@@ -7257,4 +7299,46 @@ body.dark-mode .party-insight-card {
 }
 body.dark-mode .party-insight-card .insight-data strong {
     color: #8CB1FF !important;
+}
+/* ==========================================
+   🚨 FINAL DARK MODE CATCH-ALL (MONTH, EXPORT, BOXES)
+   ========================================== */
+
+/* 1. Fix Month Pickers (Dashboard & GST Report) */
+body.dark-mode input[type="month"] {
+    background-color: var(--md-surface-variant) !important;
+    color: #FFFFFF !important;
+    border: 1px solid #4B5563 !important;
+    color-scheme: dark !important;
+}
+
+/* 2. Fix Export CSV Buttons (Hardcoded Green/Blue backgrounds) */
+body.dark-mode button[style*="background: rgba(20, 108, 46"],
+body.dark-mode button[style*="background: rgba(0, 97, 164"] {
+    background: var(--md-surface-variant) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark-mode button[style*="color: var(--md-success)"] {
+    color: #81c995 !important; /* Glowing Neon Green */
+}
+body.dark-mode button[style*="color: var(--md-primary)"] {
+    color: #7CB1FF !important; /* Glowing Neon Blue */
+}
+
+/* 3. Fix Item Ledger, Cashbook, & PnL Summary Boxes (Hardcoded pastel backgrounds) */
+body.dark-mode div[style*="background: rgba(20, 108, 46, 0.1)"],
+body.dark-mode div[style*="background: rgba(186, 26, 26, 0.1)"],
+body.dark-mode div[style*="background: rgba(20, 108, 46, 0.08)"],
+body.dark-mode div[style*="background: rgba(186, 26, 26, 0.08)"],
+body.dark-mode div[style*="background: rgba(0, 97, 164, 0.1)"],
+body.dark-mode div[style*="background: rgba(245, 127, 23, 0.1)"] {
+    background: var(--md-surface-variant) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Ensure the text inside the PnL Summary Boxes turns bright white */
+body.dark-mode div[style*="background: rgba(0, 97, 164, 0.1)"] span,
+body.dark-mode div[style*="background: rgba(245, 127, 23, 0.1)"] span {
+    color: var(--md-on-surface) !important;
 }

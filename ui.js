@@ -3298,8 +3298,8 @@ const UI = {
                     <div><strong style="display: block; font-size: 16px;">${UI.highlightText(l.name, query)}</strong><small style="color: var(--md-text-muted);">${l.phone || 'No Phone'}</small></div>
                 </div>`;
             });
+            
             if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No matches found.</div>`;
-            // Bottom '+ Create New' button has been intentionally removed!
             
         } else if (targetType === 'item') {
             const isSales = prefix === 'sales';
@@ -3366,8 +3366,8 @@ const UI = {
                     </div>`;
                 }
             });
+            
             if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found.</div>`;
-            // Bottom '+ Create New' button has been intentionally removed!
         }
 
         resultsContainer.innerHTML = html;
