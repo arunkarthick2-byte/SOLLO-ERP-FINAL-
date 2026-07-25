@@ -7342,3 +7342,12 @@ body.dark-mode div[style*="background: rgba(0, 97, 164, 0.1)"] span,
 body.dark-mode div[style*="background: rgba(245, 127, 23, 0.1)"] span {
     color: var(--md-on-surface) !important;
 }
+ /* ==========================================
+   🚨 WORKSPACE TRANSACTION PILLS - DARK MODE FIX
+   ========================================== */
+/* Fixes the invisible white text inside the active light-blue pill */
+body.dark-mode button[id^="ws-pill-"][style*="var(--md-primary)"] {
+    color: #0f172a !important; /* Deep dark blue/black text for perfect contrast */
+    font-weight: 900 !important;
+}
+           
