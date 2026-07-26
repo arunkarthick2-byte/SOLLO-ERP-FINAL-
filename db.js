@@ -1119,7 +1119,8 @@ async function generateGSTReport(yearMonth, firmId) {
         // 🚨 LEGAL COMPLIANCE FIX: Track Non-GST/Exempt Sales for GSTR-1 Table 8 & GSTR-3B Table 3.1.c!
         if (s.invoiceType === 'Non-GST') {
             let exactTaxable = parseFloat(s.subtotal);
-            if (isNaN(exactTaxable) || exactTaxable === 0) {
+            // 🚨 BUG FIX: Removed '|| exactTaxable === 0' to allow Free Samples & 100% Discounts!
+            if (isNaN(exactTaxable)) { 
                 let rawSubtotal = 0;
                 (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
                 let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
@@ -1167,7 +1168,8 @@ async function generateGSTReport(yearMonth, firmId) {
         // 🚨 LEGAL COMPLIANCE FIX: Track Non-GST/Exempt Purchases for reporting!
         if (p.invoiceType === 'Non-GST') {
             let exactTaxable = parseFloat(p.subtotal);
-            if (isNaN(exactTaxable) || exactTaxable === 0) {
+            // 🚨 BUG FIX: Removed '|| exactTaxable === 0' to allow Free Samples & 100% Discounts!
+            if (isNaN(exactTaxable)) { 
                 let rawSubtotal = 0;
                 (p.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
                 let discountAmt = p.discountType === '%' ? (rawSubtotal * ((parseFloat(p.discount) || 0) / 100)) : (parseFloat(p.discount) || 0);

@@ -4309,7 +4309,8 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = '';
             clearBtn.classList.add('hidden');
             input.focus(); 
-            input.dispatchEvent(new Event('input')); // Instantly updates the list below it
+            // 🚨 BUG FIX: Added { bubbles: true } so the Master List detects the clear command!
+            input.dispatchEvent(new Event('input', { bubbles: true })); 
         });
     });
 

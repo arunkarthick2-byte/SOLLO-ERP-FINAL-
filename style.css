@@ -3196,48 +3196,6 @@ body.dark-mode .bottom-sheet {
     -webkit-backdrop-filter: none !important;
 }
 /* ==========================================
-   ELITE UPGRADE 4: GPAY-STYLE PAYMENT INPUTS
-   ========================================== */
-/* Make the Amount input massive and center it */
-#pay-in-amount, #pay-out-amount {
-    font-size: 56px !important;
-    font-weight: 900 !important;
-    text-align: center !important;
-    border: none !important;
-    background: transparent !important;
-    padding: 20px 0 10px 0 !important;
-    width: 100% !important;
-    outline: none !important;
-    box-shadow: none !important;
-    letter-spacing: -2px !important;
-    border-bottom: 2px solid var(--md-surface-variant) !important;
-    border-radius: 0 !important;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-}
-
-/* Color Code: Green for Money In, Red for Money Out */
-#pay-in-amount { color: var(--md-success) !important; }
-#pay-out-amount { color: var(--md-error) !important; }
-
-/* The "Pop" effect when the user taps to type the number */
-#pay-in-amount:focus, #pay-out-amount:focus {
-    border-bottom: 2px solid var(--md-primary) !important;
-    transform: scale(1.05) !important;
-}
-
-/* Center and style the label above the massive number */
-label[for="pay-in-amount"], label[for="pay-out-amount"], 
-#form-payment-in label:first-of-type, #form-payment-out label:first-of-type {
-    text-align: center !important;
-    display: block !important;
-    width: 100% !important;
-    font-size: 13px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 1.5px !important;
-    font-weight: 800 !important;
-    margin-bottom: -10px !important;
-}
-/* ==========================================
    🚨 SOLLO NATIVE THEME: FLAT WIDGET DASHBOARD CARDS (CLEANED)
    ========================================== */
 .dashboard-card, .item-entry-card {
@@ -3409,15 +3367,12 @@ body.dark-mode ul li:nth-child(even) {
    ENTERPRISE UI: OVER-SCROLL & BOUNDARY LOCK
    ========================================== */
 html, body {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
     width: 100% !important;
     height: 100% !important;
-    margin: 0 !important;      /* 🚨 SOLLO FIX: Kills the default 8px L-shaped browser border! */
-    padding: 0 !important;     /* 🚨 SOLLO FIX: Locks the app flush against the physical screen edge! */
-    overflow: hidden !important; /* Disables browser elastic rubber-banding */
-    /* overscroll-behavior-y: none !important; DISABLED TO FIX ANDROID SCROLL BUG */
+    margin: 0 !important;      
+    padding: 0 !important;     
+    overflow: hidden !important; 
+    /* 🚨 BUG FIX: 'position: fixed' removed so the mobile browser can physically scroll the page up when the keyboard opens! */
 }
 
 /* Re-enable beautiful, fast scrolling safely inside your isolated containers only */
@@ -3508,33 +3463,6 @@ body.compact-mode .icon-circle span {
         transform: translateY(0) scale(1); 
         opacity: 1; 
     }
-}
-/* ==========================================
-   ENTERPRISE UI: SMART FORM VALIDATION
-   ========================================== */
-
-/* 1. Untouched required fields get a subtle red hint */
-input:required:placeholder-shown, select:required:invalid, textarea:required:placeholder-shown {
-    border-left: 4px solid #ffb4ab !important;
-}
-
-/* 2. When a user clicks an empty required field, it glows red to warn them */
-input:required:placeholder-shown:focus, select:required:invalid:focus, textarea:required:placeholder-shown:focus {
-    background-color: #fff0f2 !important;
-    border-color: var(--md-error) !important;
-    box-shadow: 0 0 0 4px rgba(186, 26, 26, 0.12) !important;
-}
-
-/* 3. When the user types correctly, it instantly locks in with a green indicator! */
-input:required:not(:placeholder-shown):valid, select:required:valid, textarea:required:not(:placeholder-shown):valid {
-    border-left: 4px solid var(--md-success) !important;
-}
-
-/* 4. Correctly filled focused fields glow green */
-input:required:not(:placeholder-shown):valid:focus, select:required:valid:focus, textarea:required:not(:placeholder-shown):valid:focus {
-    background-color: #e8f5e9 !important;
-    border-color: var(--md-success) !important;
-    box-shadow: 0 0 0 4px rgba(20, 108, 46, 0.12) !important;
 }
 /* ==========================================
    ENTERPRISE UI: NATIVE MOBILE FEEL (PHYSICS & GLASS)
@@ -4219,48 +4147,6 @@ body.dark-mode .thumb-action-bar {
     padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
-/* ------------------------------------------
-   3. ZERO-JS TRAFFIC LIGHT VALIDATION
-   ------------------------------------------ */
-/* State 1: Untouched required fields get a subtle red warning line on the left */
-input:required:placeholder-shown, 
-select:required:invalid, 
-textarea:required:placeholder-shown {
-    border-left: 3px solid #ffb4ab !important;
-}
-
-/* State 2: Focused but empty - soft red glow to warn the user */
-input:required:placeholder-shown:focus, 
-select:required:invalid:focus, 
-textarea:required:placeholder-shown:focus {
-    background-color: #fff0f2 !important;
-    border-color: var(--md-error) !important;
-    box-shadow: 0 0 0 3px rgba(186, 26, 26, 0.1) !important;
-}
-
-/* State 3: The exact millisecond valid text is typed - Instantly Turn Green! */
-input:required:not(:placeholder-shown):valid, 
-select:required:valid, 
-textarea:required:not(:placeholder-shown):valid {
-    border-left: 3px solid var(--md-success) !important;
-}
-
-/* State 4: Focused AND Valid - Glowing Green Success */
-input:required:not(:placeholder-shown):valid:focus, 
-select:required:valid:focus, 
-textarea:required:not(:placeholder-shown):valid:focus {
-    background-color: #e8f5e9 !important;
-    border-color: var(--md-success) !important;
-    box-shadow: 0 0 0 3px rgba(20, 108, 46, 0.1) !important;
-}
-
-/* Dark mode overrides for the soft validation backgrounds */
-body.dark-mode input:required:placeholder-shown:focus {
-    background-color: rgba(186, 26, 26, 0.15) !important;
-}
-body.dark-mode input:required:not(:placeholder-shown):valid:focus {
-    background-color: rgba(20, 108, 46, 0.15) !important;
-}
 /* ==========================================
    ENTERPRISE FIX: RESTORE STRICT EDGE-TO-EDGE FOOTER
    ========================================== */
@@ -7342,7 +7228,7 @@ body.dark-mode div[style*="background: rgba(0, 97, 164, 0.1)"] span,
 body.dark-mode div[style*="background: rgba(245, 127, 23, 0.1)"] span {
     color: var(--md-on-surface) !important;
 }
- /* ==========================================
+/* ==========================================
    🚨 WORKSPACE TRANSACTION PILLS - DARK MODE FIX
    ========================================== */
 /* Fixes the invisible white text inside the active light-blue pill */
@@ -7350,4 +7236,44 @@ body.dark-mode button[id^="ws-pill-"][style*="var(--md-primary)"] {
     color: #0f172a !important; /* Deep dark blue/black text for perfect contrast */
     font-weight: 900 !important;
 }
-           
+/* ==========================================
+   🚨 ENTERPRISE UX: GLASSMORPHISM & CLEANUP
+   ========================================== */
+
+/* 1. Global Scrollbar Annihilation */
+::-webkit-scrollbar { display: none !important; }
+* { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* 2. Glassmorphism Bottom Nav */
+.bottom-nav {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(0,0,0,0.05) !important;
+}
+body.dark-mode .bottom-nav {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border-top: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+/* 3. True Glassmorphism Top Toolbars */
+.activity-header {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0,0,0,0.05) !important;
+}
+body.dark-mode .activity-header {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+/* 🚨 THE FIX: Increased to 88px so the Customer/Supplier card clears the header perfectly! */
+.activity-content {
+    padding-top: 88px !important; 
+}

@@ -55,8 +55,13 @@ self.addEventListener('message', function(e) {
 
             (sales || []).forEach(s => {
                 if (s.firmId === firmId && s.status !== 'Open' && s.status !== 'Cancelled') {
-                    // Safe native date parsing for Web Worker
-                    const sDate = new Date(s.date);
+                    // 🚨 BUG FIX: Timezone-Safe Manual Parsing!
+                    let sDate = thirtyDaysAgo; 
+                    if (s.date) {
+                        const parts = String(s.date).split('-');
+                        sDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(s.date);
+                    }
+                    
                     if (sDate >= thirtyDaysAgo) {
                         (s.items || []).forEach(row => {
                             if (String(row.itemId) === String(i.id)) {

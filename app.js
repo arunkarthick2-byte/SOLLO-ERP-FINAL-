@@ -4182,7 +4182,7 @@ if (data.id && splitConfirmed) {
                         }
 
                         UI.showSuccess(); // UPGRADE: Trigger GPay Animation!
-                        UI.closeBottomSheet(`sheet-payment-${type}`);
+                        UI.closeActivity(`activity-payment-${type}-form`);
                         app.refreshAll();
                     } catch (error) {
             console.error("Payment save failed:", error);
@@ -4214,7 +4214,7 @@ if (data.id && splitConfirmed) {
         app.state.currentReceiptId = null;
         const isOut = type === 'out';
         const prefix = isOut ? 'pay-out' : 'pay-in';
-        const sheetId = `sheet-payment-${type}`;
+        const activityId = `activity-payment-${type}-form`; // Updated
 
         // 1. Reset the form completely
         const form = document.getElementById(`form-payment-${type}`);
@@ -4267,7 +4267,7 @@ if (data.id && splitConfirmed) {
         if (window.UI) window.UI.toggleDeleteButton(`receipt-${type}`, false);
 
         // 7. Finally, pop open the bottom sheet!
-        if (window.UI) window.UI.openBottomSheet(sheetId);
+        if (window.UI) window.UI.openActivity(activityId); // Updated
     },
 
     // ==========================================
@@ -4284,7 +4284,7 @@ if (data.id && splitConfirmed) {
 
         app.state.currentReceiptId = id;
         
-        await UI.openBottomSheet(`sheet-payment-${type}`);
+        await UI.openActivity(`activity-payment-${type}-form`);
         
         setTimeout(async () => {
             // Restore the custom document number (Fallback to ID for older unpatched records)
@@ -4883,7 +4883,7 @@ if (data.id && splitConfirmed) {
         }
 
         if (type === 'sales' || type === 'purchase') UI.closeActivity(`activity-${type}-form`);
-        else if (type === 'receipt-in' || type === 'receipt-out') UI.closeBottomSheet(`sheet-payment-${type.split('-')[1]}`);
+        else if (type === 'receipt-in' || type === 'receipt-out') UI.closeActivity(`activity-payment-${type.split('-')[1]}-form`);
         else UI.closeActivity(`activity-${type}-form`);
         
         app.refreshAll();

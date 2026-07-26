@@ -55,7 +55,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=87">
+    <link rel="stylesheet" href="style.css?v=88">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -2936,166 +2936,234 @@
     </div>
 
 
-    <div id="sheet-payment-in" class="bottom-sheet" data-no-swipe="true" style="height: 85vh; display: flex; flex-direction: column;">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Receive Payment</span>
-            <div style="display: flex; gap: 8px;">
-                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { if(window.UI) UI.closeBottomSheet('sheet-payment-in'); window.app.generateReceiptPDF(id); } else { alert('Please save the receipt first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
-                <span id="btn-delete-receipt-in" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); padding: 4px;" onclick="app.deleteRecord('receipt-in')">delete</span>
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-in')" style="padding: 4px;">close</span>
+    <div id="activity-payment-in-form" class="activity-screen hidden">
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-payment-in-form')" style="padding: 4px;">arrow_back</span>
+                <span style="font-size: 18px; font-weight: 500;">Receive Payment</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { window.app.generateReceiptPDF(id); } else { alert('Please save the receipt first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
+                <div id="btn-delete-receipt-in" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-in')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
             </div>
         </div>
-        <div style="padding: 16px; flex: 1; overflow-y: auto; padding-bottom: 40px; -webkit-overflow-scrolling: touch;">
+        <div class="activity-content" style="padding: 0; background: var(--md-surface-variant);">
             <form id="form-payment-in">
-                <div class="m3-card tap-target" style="margin-bottom: 16px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('customer', 'pay-in')">
-                    <div>
-                        <div style="color: var(--md-on-surface); font-weight: 600; font-size: 13px; margin-bottom: 4px;">From Customer *</div>
-                        <div id="pay-in-customer-display" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface);">Select Customer...</div>
-                        <input type="hidden" id="pay-in-customer-id">
-                    </div>
-                    <span class="material-symbols-outlined" style="color: #0061a4;">search</span>
-                </div>
-
-                <div style="margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 13px; font-weight: 600; color: var(--md-on-surface);">Select Invoices to Settle</span> 
-                        <select id="pay-in-bill-filter" onchange="if(window.app) window.app.loadPendingInvoices(document.getElementById('pay-in-customer-id').value, 'in')" style="font-size: 11px; font-weight: bold; color: var(--md-primary); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); outline: none; cursor: pointer;">
-                            <option value="All">All Bills</option>
-                            <option value="GST">GST Only</option>
-                            <option value="Non-GST">Non-GST Only</option>
-                        </select>
-                    </div>
-                    <select id="pay-in-invoice-ref" multiple style="display: none;">
-                        <option value="">On Account / Advance</option>
-                    </select>
-                </div>
-
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Amount (₹) *</div>
-                        <!-- 🔥 BIZOPS FIX: Bulletproof typing shield that blocks commas, minus signs, and double decimals! -->
-                        <input type="text" id="pay-in-amount" required inputmode="decimal" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
-                        <input type="date" id="pay-in-date" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                
+                <div style="padding: 16px 16px 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Customer Details</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row tap-target" style="cursor: pointer;" onclick="if(window.UI) UI.openSmartSearch('customer', 'pay-in')">
+                        <div class="premium-label" style="color: var(--md-primary);">Customer<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <span id="pay-in-customer-display" style="font-size: 16px; color: var(--md-text-muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: right;">Select Customer...</span>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px; margin-left: 8px;">chevron_right</span>
+                            <input type="hidden" id="pay-in-customer-id">
+                        </div>
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Mode *</div>
-                        <select id="pay-in-mode" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                            <option value="Cash">Cash</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="UPI">UPI / QR</option>
-                            <option value="Cheque">Cheque</option>
-                        </select>
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Payment Details</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Amount (₹)<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-in-amount" required inputmode="decimal" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" placeholder="0.00">
+                        </div>
                     </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Receipt No. *</div>
-                        <input type="text" id="pay-in-no" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    
+                    <div class="premium-row">
+                        <div class="premium-label">Date<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="date" id="pay-in-date" required class="premium-input" style="direction: rtl;">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Mode<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select id="pay-in-mode" required class="premium-input premium-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="UPI">UPI / QR</option>
+                                    <option value="Cheque">Cheque</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Receipt No.<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-in-no" required class="premium-input" placeholder="Auto">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Deposit To<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select id="pay-in-account" required class="premium-input premium-select"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Settle Invoices</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row tap-target" style="cursor: pointer;" onclick="openSettleSheet('in')">
+                        <div class="premium-label" style="color: var(--md-primary);">Select Bills</div>
+                        <div class="premium-input-container">
+                            <span id="pay-in-bills-display" style="font-size: 15px; color: var(--md-text-muted); font-weight: 600;">Advance / On Account</span>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px; margin-left: 8px;">chevron_right</span>
+                            <!-- Hidden elements to keep app.js math working perfectly -->
+                            <select id="pay-in-bill-filter" style="display:none;"><option value="All">All</option><option value="GST">GST</option><option value="Non-GST">Non-GST</option></select>
+                            <select id="pay-in-invoice-ref" multiple style="display:none;"><option value="">Advance</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Additional Info</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Ref / Txn ID</div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-in-ref" class="premium-input" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">Notes</div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-in-notes" class="premium-input" placeholder="Internal remarks...">
+                        </div>
                     </div>
                 </div>
                 
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Deposit To *</div>
-                    <select id="pay-in-account" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
+                <div style="padding: 16px; padding-bottom: 40px;">
+                    <button type="submit" class="btn-primary" style="width: 100%; height: 54px; border-radius: 27px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,97,164,0.25);">Save Receipt</button>
                 </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Reference / Txn ID <span style="font-weight: normal; font-size: 11px;">(Optional)</span></div>
-                    <input type="text" id="pay-in-ref" placeholder="Transaction ID / Cheque No" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-                
-                <div style="margin-bottom: 24px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Internal Notes</div>
-                    <textarea id="pay-in-notes" rows="2" placeholder="Add a note or remark..." style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none; resize: none; font-family: inherit;"></textarea>
-                </div>
-                
-                <button type="submit" class="btn-primary tap-target" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.2);">Save Receipt</button>
             </form>
-            </div>
+        </div>
     </div>
 
-    <div id="sheet-payment-out" class="bottom-sheet" data-no-swipe="true" style="height: 85vh; display: flex; flex-direction: column;">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Make Payment</span>
-            <div style="display: flex; gap: 8px;">
-                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { if(window.UI) UI.closeBottomSheet('sheet-payment-out'); window.app.generateReceiptPDF(id); } else { alert('Please save the payment first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
-                <span id="btn-delete-receipt-out" class="material-symbols-outlined tap-target hidden" style="color: var(--md-error); padding: 4px;" onclick="app.deleteRecord('receipt-out')">delete</span>
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-payment-out')" style="padding: 4px;">close</span>
+    <div id="activity-payment-out-form" class="activity-screen hidden">
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-payment-out-form')" style="padding: 4px;">arrow_back</span>
+                <span style="font-size: 18px; font-weight: 500;">Make Payment</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { window.app.generateReceiptPDF(id); } else { alert('Please save the payment first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
+                <div id="btn-delete-receipt-out" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-out')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
             </div>
         </div>
-        <div style="padding: 16px; flex: 1; overflow-y: auto; padding-bottom: 40px; -webkit-overflow-scrolling: touch;">
+        <div class="activity-content" style="padding: 0; background: var(--md-surface-variant);">
             <form id="form-payment-out">
-                <div class="m3-card tap-target" style="margin-bottom: 16px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'pay-out')">
-                    <div>
-                        <div style="color: var(--md-on-surface); font-weight: 600; font-size: 13px; margin-bottom: 4px;">Paid To Supplier *</div>
-                        <div id="pay-out-supplier-display" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface);">Select Supplier...</div>
-                        <input type="hidden" id="pay-out-supplier-id">
-                    </div>
-                    <span class="material-symbols-outlined" style="color: #e11d48;">search</span>
-                </div>
-
-                <div style="margin-bottom: 16px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 13px; font-weight: 600; color: var(--md-on-surface);">Select Bills to Clear</span> 
-                        <select id="pay-out-bill-filter" onchange="if(window.app) window.app.loadPendingInvoices(document.getElementById('pay-out-supplier-id').value, 'out')" style="font-size: 11px; font-weight: bold; color: var(--md-error); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); outline: none; cursor: pointer;">
-                            <option value="All">All Bills</option>
-                            <option value="GST">GST Only</option>
-                            <option value="Non-GST">Non-GST Only</option>
-                        </select>
-                    </div>
-                    <select id="pay-out-invoice-ref" multiple style="display: none;">
-                        <option value="">On Account / Advance</option>
-                    </select>
-                </div>
-
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Amount (₹) *</div>
-                        <!-- 🔥 BIZOPS FIX: Bulletproof typing shield that blocks commas, minus signs, and double decimals! -->
-                        <input type="text" id="pay-out-amount" required inputmode="decimal" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Date *</div>
-                        <input type="date" id="pay-out-date" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                
+                <div style="padding: 16px 16px 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Supplier Details</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row tap-target" style="cursor: pointer;" onclick="if(window.UI) UI.openSmartSearch('supplier', 'pay-out')">
+                        <div class="premium-label" style="color: var(--md-error);">Supplier<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <span id="pay-out-supplier-display" style="font-size: 16px; color: var(--md-text-muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; text-align: right;">Select Supplier...</span>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px; margin-left: 8px;">chevron_right</span>
+                            <input type="hidden" id="pay-out-supplier-id">
+                        </div>
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Mode *</div>
-                        <select id="pay-out-mode" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                            <option value="Cash">Cash</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="UPI">UPI / QR</option>
-                            <option value="Cheque">Cheque</option>
-                        </select>
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Payment Details</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Amount (₹)<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-out-amount" required inputmode="decimal" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" class="premium-input" placeholder="0.00">
+                        </div>
                     </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Voucher No. *</div>
-                        <input type="text" id="pay-out-no" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    
+                    <div class="premium-row">
+                        <div class="premium-label">Date<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="date" id="pay-out-date" required class="premium-input" style="direction: rtl;">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Mode<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select id="pay-out-mode" required class="premium-input premium-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="UPI">UPI / QR</option>
+                                    <option value="Cheque">Cheque</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Voucher No.<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-out-no" required class="premium-input" placeholder="Auto">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Paid From<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <div class="premium-select-wrapper">
+                                <select id="pay-out-account" required class="premium-input premium-select"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Clear Bills</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row tap-target" style="cursor: pointer;" onclick="openSettleSheet('out')">
+                        <div class="premium-label" style="color: var(--md-error);">Select Bills</div>
+                        <div class="premium-input-container">
+                            <span id="pay-out-bills-display" style="font-size: 15px; color: var(--md-text-muted); font-weight: 600;">Advance / On Account</span>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px; margin-left: 8px;">chevron_right</span>
+                            <!-- Hidden elements to keep app.js math working perfectly -->
+                            <select id="pay-out-bill-filter" style="display:none;"><option value="All">All</option><option value="GST">GST</option><option value="Non-GST">Non-GST</option></select>
+                            <select id="pay-out-invoice-ref" multiple style="display:none;"><option value="">Advance</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Additional Info</div>
+                
+                <div class="premium-form-section">
+                    <div class="premium-row">
+                        <div class="premium-label">Ref / Txn ID</div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-out-ref" class="premium-input" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div class="premium-row">
+                        <div class="premium-label">Notes</div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-out-notes" class="premium-input" placeholder="Internal remarks...">
+                        </div>
                     </div>
                 </div>
                 
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Paid From *</div>
-                    <select id="pay-out-account" required style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;"></select>
+                <div style="padding: 16px; padding-bottom: 40px;">
+                    <button type="submit" class="btn-primary" style="width: 100%; height: 54px; border-radius: 27px; font-size: 16px; font-weight: bold; background: var(--md-error); box-shadow: 0 4px 14px rgba(186, 26, 26, 0.25);">Save Payment</button>
                 </div>
-                
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Reference / Txn ID <span style="font-weight: normal; font-size: 11px;">(Optional)</span></div>
-                    <input type="text" id="pay-out-ref" placeholder="Transaction ID / Cheque No" style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                </div>
-                
-                <div style="margin-bottom: 24px;">
-                    <div style="font-size: 13px; font-weight: 600; color: var(--md-on-surface); margin-bottom: 6px;">Internal Notes</div>
-                    <textarea id="pay-out-notes" rows="2" placeholder="Add a note or remark..." style="box-sizing: border-box; width: 100%; padding: 12px 14px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 15px; background: var(--md-surface); color: var(--md-on-surface); outline: none; resize: none; font-family: inherit;"></textarea>
-                </div>
-                
-                <button type="submit" class="btn-primary tap-target" style="width: 100%; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: 600; background: #e11d48; box-shadow: 0 4px 12px rgba(186, 26, 26, 0.2);">Save Payment</button>
             </form>
         </div>
     </div>
@@ -3669,11 +3737,11 @@
     </div>
 
     <script src="components.js"></script>
-    <script src="db.js?v=87"></script>
-    <script src="utils.js?v=87"></script>
-    <script src="ui.js?v=87"></script>
-    <script src="cloud.js?v=87"></script>
-    <script src="app.js?v=87"></script>
+    <script src="db.js?v=88"></script>
+    <script src="utils.js?v=88"></script>
+    <script src="ui.js?v=88"></script>
+    <script src="cloud.js?v=88"></script>
+    <script src="app.js?v=88"></script>
     <script src="state.js"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
@@ -3704,8 +3772,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=87' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=87`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=88' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=88`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -3961,23 +4029,54 @@
             }, { passive: true });
 
             // ==========================================
-            // ENTERPRISE UPGRADE: DYNAMIC STATUS BAR (ANDROID)
+            // 🚀 ELITE UPGRADE: CHAMELEON STATUS BAR ENGINE
             // ==========================================
-            // Darkens the phone's top clock/battery bar when a menu opens, just like native apps!
-            const sheetOverlay = document.getElementById('sheet-overlay');
+            // Automatically samples the exact background color of your currently active screen 
+            // and forces the phone's status bar to seamlessly melt into it!
             const themeMeta = document.getElementById('meta-theme-color');
-            if (sheetOverlay && themeMeta) {
-                new MutationObserver(() => {
-                    // Dynamically checks if the device or app is currently in Dark Mode
-                    const isDark = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) || document.body.classList.contains('dark-mode') || document.body.classList.contains('dark-theme');
+            const sheetOverlay = document.getElementById('sheet-overlay');
+
+            if (themeMeta) {
+                const syncStatusBar = () => {
+                    const isDark = document.body.classList.contains('dark-mode');
                     
-                    if (sheetOverlay.classList.contains('hidden')) {
-                        // Always reverts to pure white normally, but safely switches to dark grey in Dark Mode
-                        themeMeta.setAttribute('content', isDark ? '#0f172a' : '#ffffff'); 
-                    } else {
-                        themeMeta.setAttribute('content', '#002a4a'); // Darkened overlay blue
+                    // 1. If a bottom sheet is open, dim the status bar beautifully
+                    if (sheetOverlay && !sheetOverlay.classList.contains('hidden')) {
+                        themeMeta.setAttribute('content', isDark ? '#080c17' : '#64748b'); 
+                        return;
                     }
-                }).observe(sheetOverlay, { attributes: true, attributeFilter: ['class'] });
+
+                    // 2. Check if a full-screen Activity (like Sales, Purchase, or Payment) is open
+                    const openActivity = document.querySelector('.activity-screen.open');
+                    if (openActivity) {
+                        const header = openActivity.querySelector('.activity-header');
+                        if (header) {
+                            // Extract the exact color of the header and paint the status bar!
+                            const bgColor = window.getComputedStyle(header).backgroundColor;
+                            if (bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+                                themeMeta.setAttribute('content', bgColor);
+                                return;
+                            }
+                        }
+                    }
+
+                    // 3. Default state (Dashboard/Home)
+                    themeMeta.setAttribute('content', isDark ? '#0f172a' : '#ffffff');
+                };
+
+                // Watch for bottom sheets opening/closing
+                if (sheetOverlay) {
+                    new MutationObserver(syncStatusBar).observe(sheetOverlay, { attributes: true, attributeFilter: ['class'] });
+                }
+
+                // Watch for Activity Screens opening/closing
+                const appShell = document.getElementById('app-shell');
+                if (appShell) {
+                    new MutationObserver(syncStatusBar).observe(appShell, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+                }
+
+                // Watch for Dark Mode toggling
+                new MutationObserver(syncStatusBar).observe(document.body, { attributes: true, attributeFilter: ['class'] });
             }
 
             // ==========================================
@@ -4113,143 +4212,318 @@
         }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK
     </script>
 
+    <!-- 🚀 UPGRADED: EXPLICIT ALLOCATION MODAL (FLAT UI + TRUE MATH ENGINE) -->
+    <div id="sheet-settle-bills" class="bottom-sheet" data-no-swipe="true" style="top: 16px !important; bottom: 16px !important; left: 16px !important; right: 16px !important; width: auto !important; height: calc(100% - 32px) !important; max-height: none !important; border-radius: 12px !important; display: flex !important; flex-direction: column !important; padding: 0 !important; z-index: 6000 !important; box-shadow: 0 12px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important; overflow: hidden !important;">
+        
+        <!-- Header -->
+        <div class="sheet-header" style="flex-shrink: 0; background: var(--md-surface); z-index: 10; padding: 16px !important; border-bottom: none;">
+            <span style="font-size: 18px; font-weight: 500; color: var(--md-on-surface);">Select Bills to Settle</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-settle-bills')">close</span>
+        </div>
+        
+        <!-- Filter Tabs -->
+        <div style="padding: 0 16px 12px 16px; background: var(--md-surface); flex-shrink: 0; z-index: 10; border-bottom: 1px solid var(--md-outline-variant);">
+            <div style="display: flex; background: var(--md-surface-variant); padding: 4px; border-radius: 8px;">
+                <div id="filter-btn-all" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; background: var(--md-surface); color: var(--md-primary); box-shadow: var(--elevation-1); font-size: 13px;" onclick="changeBillFilter('All')">All Bills</div>
+                <div id="filter-btn-gst" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="changeBillFilter('GST')">GST Only</div>
+                <div id="filter-btn-nongst" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="changeBillFilter('Non-GST')">Non-GST</div>
+            </div>
+        </div>
+
+        <!-- Edge-to-Edge List Area -->
+        <div style="flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0; padding-bottom: 30px;" id="settle-bills-list">
+            <!-- JavaScript will inject the Explicit Allocation rows here -->
+        </div>
+        
+        <!-- Compact Action Footer -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--md-outline-variant); padding: 16px; flex-shrink: 0; background: var(--md-surface);">
+            <div style="display: flex; flex-direction: column;">
+                <span style="font-size: 12px; color: var(--md-text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Allocated</span>
+                <strong id="settle-bills-total" style="font-size: 20px; color: var(--md-primary); font-weight: 900;">₹0.00</strong>
+            </div>
+            <button class="btn-primary tap-target" style="height: 48px; min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 14px; font-weight: bold; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);" onclick="confirmBillSelection()">Apply Payment</button>
+        </div>
+    </div>
+
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        function upgradePaymentUI(selectId, amountInputId, themeColor) {
-            const selectEl = document.getElementById(selectId);
-            if (!selectEl) return;
+    // 🚀 DEDICATED EXPLICIT SETTLEMENT ENGINE
+    let currentSettleType = 'in'; 
 
-            // Create the beautiful container
-            let smartContainer = document.getElementById(selectId + '-smart');
-            if (!smartContainer) {
-                smartContainer = document.createElement('div');
-                smartContainer.id = selectId + '-smart';
-                // ENTERPRISE FIX: Expanded height to 450px so you can easily see up to 10 invoices without scrolling!
-                smartContainer.style.cssText = 'display: flex; flex-direction: column; gap: 8px; margin-top: 12px; max-height: 450px; overflow-y: auto; padding-right: 4px;';
-                selectEl.parentNode.insertBefore(smartContainer, selectEl.nextSibling);
-                
-                // Hide the ugly original box and the "Hold Ctrl" text
-                selectEl.style.display = 'none'; 
-                const smallText = selectEl.parentNode.querySelector('small');
-                if (smallText) smallText.style.display = 'none';
-            }
-
-            // Function to generate the premium checkboxes
-            const renderSmartList = () => {
-                smartContainer.innerHTML = ''; 
-                const options = Array.from(selectEl.options);
-
-                // Show an elegant empty state if no bills are pending
-                if (options.length <= 1) {
-                    smartContainer.innerHTML = '<div style="padding: 16px; text-align: center; background: var(--md-surface, #ffffff); border-radius: 12px; color: var(--md-text-muted); font-size: 13px; font-weight: 500; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">No pending bills found. (Advance Payment)</div>';
-                    return;
-                }
-
-                // Generate a premium row for every pending invoice
-                options.forEach(opt => {
-                    if (!opt.value) return; 
-
-                    // AI Math: Extract the pending amount from the text
-                    let pendingAmt = 0;
-                    const match = opt.text.match(/(?:₹|Rs\.?)\s*([\d,.]+)/i);
-                    if (match) pendingAmt = parseFloat(match[1].replace(/,/g, ''));
-
-                    const row = document.createElement('div');
-                    row.className = 'tap-target';
-                    row.style.cssText = `display: flex; justify-content: space-between; align-items: center; background: var(--md-surface, #ffffff); padding: 14px 12px; border-radius: 12px; border: 2px solid transparent; box-shadow: 0 2px 8px rgba(0,0,0,0.04); cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);`;
-
-                    const checkbox = document.createElement('input');
-                    checkbox.type = 'checkbox';
-                    checkbox.style.cssText = `width: 20px; height: 20px; accent-color: ${themeColor}; margin-right: 12px; pointer-events: none; flex-shrink: 0;`;
-                    checkbox.checked = opt.selected;
-
-                    const labelDiv = document.createElement('div');
-                    labelDiv.style.flex = '1';
-                    labelDiv.style.minWidth = '0';
-                    const mainText = opt.text.split('(')[0].split('- ₹')[0].trim(); 
-                    labelDiv.innerHTML = `<strong style="font-size: 14px; display: block; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${mainText}</strong>`;
-
-                    const amtDiv = document.createElement('div');
-                    if (pendingAmt > 0) {
-                        amtDiv.innerHTML = `<span style="color: ${themeColor}; font-weight: bold; font-size: 15px;">₹${pendingAmt.toFixed(2)}</span>`;
-                    }
-
-                    if (opt.selected) {
-                        row.style.border = `2px solid ${themeColor}`;
-                        row.style.background = `${themeColor}15`; 
-                    }
-
-// The Magic Click Event (Auto-Sums the math!)
-                    row.onclick = (e) => {
-                        e.preventDefault(); // 🚨 FIX 1: Kills the native mobile double-toggle glitch
-                        
-                        // Use the option state as the absolute source of truth
-                        const isNowChecked = !opt.selected;
-                        opt.selected = isNowChecked;
-                        checkbox.checked = isNowChecked; 
-                        
-                        // 🚨 BROWSER OVERRIDE: Physically force the HTML to reflect the state so the Save button reads it accurately!
-                        if (isNowChecked) {
-                            opt.setAttribute('selected', 'selected');
-                        } else {
-                            opt.removeAttribute('selected');
-                        }
-
-                        // 🚨 FIX 2: Force the hidden dropdown to release the final item!
-                        if (!isNowChecked) {
-                            const anySelected = Array.from(selectEl.options).some(o => o.selected && o.value);
-                            if (!anySelected) selectEl.selectedIndex = -1;
-                        }
-                        if (isNowChecked) {
-                            row.style.border = `2px solid ${themeColor}`;
-                            row.style.background = `${themeColor}15`; 
-                        } else {
-                            row.style.border = `2px solid transparent`;
-                            row.style.background = `var(--md-surface, #ffffff)`;
-                        }
-
-                        let total = 0;
-                        Array.from(selectEl.options).forEach(o => {
-                            if (o.selected && o.value) {
-                                const m = o.text.match(/(?:₹|Rs\.?)\s*([\d,.]+)/i);
-                                if (m) total += parseFloat(m[1].replace(/,/g, ''));
-                            }
-                        });
-                        
-                        const amtInput = document.getElementById(amountInputId);
-                        if (total > 0) {
-                            amtInput.value = total.toFixed(2);
-                            amtInput.style.backgroundColor = `${themeColor}30`;
-                            setTimeout(() => amtInput.style.backgroundColor = '', 300);
-                        } else {
-                            amtInput.value = '';
-                        }
-                        
-                        // 🚨 FIX 3: Force the form to instantly recognize the new math!
-                        amtInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    };
-
-                    row.appendChild(checkbox);
-                    row.appendChild(labelDiv);
-                    row.appendChild(amtDiv);
-                    smartContainer.appendChild(row);
-                });
-            };
-
-            // Command the app to secretly watch the old box for changes
-            const observer = new MutationObserver(renderSmartList);
-            observer.observe(selectEl, { childList: true });
-            
-            // 🚨 ENTERPRISE FIX: Also listen for Javascript 'change' events! 
-            // When app.js reopens a saved receipt and selects the hidden options, this forces the custom checkboxes to redraw with the blue ticks!
-            selectEl.addEventListener('change', renderSmartList);
+    window.openSettleSheet = async (type) => {
+        currentSettleType = type;
+        const partyId = document.getElementById(`pay-${type}-${type === 'in' ? 'customer' : 'supplier'}-id`).value;
+        
+        if (!partyId) {
+            window.Utils.showToast("⚠️ Please select a party first!");
+            return;
         }
 
-        // Boot up the engine (Green for Money In, Red for Money Out)
-        setTimeout(() => {
-            upgradePaymentUI('pay-in-invoice-ref', 'pay-in-amount', '#146c2e'); 
-            upgradePaymentUI('pay-out-invoice-ref', 'pay-out-amount', '#ba1a1a'); 
-        }, 1000);
+        const currentFilter = document.getElementById(`pay-${type}-bill-filter`).value || 'All';
+        changeBillFilter(currentFilter, false);
+
+        if (window.UI) window.UI.openBottomSheet('sheet-settle-bills');
+        renderSettleSheet();
+    };
+
+    window.changeBillFilter = async (filterType, reloadData = true) => {
+        ['All', 'GST', 'Non-GST'].forEach(t => {
+            const btnId = 'filter-btn-' + t.toLowerCase().replace('-', '');
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                if (t === filterType) {
+                    btn.style.background = 'var(--md-surface)';
+                    btn.style.color = currentSettleType === 'in' ? 'var(--md-primary)' : '#ba1a1a';
+                    btn.style.boxShadow = 'var(--elevation-1)';
+                } else {
+                    btn.style.background = 'transparent';
+                    btn.style.color = 'var(--md-text-muted)';
+                    btn.style.boxShadow = 'none';
+                }
+            }
+        });
+
+        const hiddenFilterEl = document.getElementById(`pay-${currentSettleType}-bill-filter`);
+        if (hiddenFilterEl) hiddenFilterEl.value = filterType;
+
+        if (reloadData) {
+            const partyId = document.getElementById(`pay-${currentSettleType}-${currentSettleType === 'in' ? 'customer' : 'supplier'}-id`).value;
+            const hiddenSelect = document.getElementById(`pay-${currentSettleType}-invoice-ref`);
+            
+            // 🚨 GHOSTING FIX: Identify the exact tax pool of the preserved selections
+            const preservedSelections = [];
+            if (hiddenSelect) {
+                Array.from(hiddenSelect.options).forEach(o => {
+                    if (o.selected && o.value) {
+                        const store = currentSettleType === 'in' ? 'sales' : 'purchases';
+                        const doc = window.UI?.state?.rawData[store]?.find(d => d.id === o.value || d.invoiceNo === o.value || d.poNo === o.value || d.orderNo === o.value);
+                        let docIsNonGST = doc ? doc.invoiceType === 'Non-GST' : false;
+                        
+                        preservedSelections.push({ 
+                            value: o.value, 
+                            text: o.text,
+                            allocated: o.getAttribute('data-allocated') || o.getAttribute('data-bal'),
+                            isNonGST: docIsNonGST
+                        });
+                    }
+                });
+            }
+
+            window.Utils.showToast("Fetching pending bills...");
+            if (window.app) await window.app.loadPendingInvoices(partyId, currentSettleType);
+
+            // 🚨 RE-INJECT ONLY IF IT MATCHES THE CURRENT TAB
+            if (hiddenSelect && preservedSelections.length > 0) {
+                preservedSelections.forEach(savedOpt => {
+                    let shouldInject = false;
+                    if (filterType === 'All') shouldInject = true;
+                    else if (filterType === 'GST' && !savedOpt.isNonGST) shouldInject = true;
+                    else if (filterType === 'Non-GST' && savedOpt.isNonGST) shouldInject = true;
+                    
+                    if (shouldInject) {
+                        let matchOpt = Array.from(hiddenSelect.options).find(o => o.value === savedOpt.value);
+                        if (!matchOpt) {
+                            matchOpt = document.createElement('option');
+                            matchOpt.value = savedOpt.value;
+                            matchOpt.text = savedOpt.text;
+                            hiddenSelect.appendChild(matchOpt);
+                        }
+                        matchOpt.selected = true;
+                        matchOpt.setAttribute('selected', 'selected');
+                        matchOpt.setAttribute('data-allocated', savedOpt.allocated || ''); 
+                    }
+                });
+            }
+
+            renderSettleSheet();
+        }
+    };
+
+    window.renderSettleSheet = () => {
+        const listContainer = document.getElementById('settle-bills-list');
+        const hiddenSelect = document.getElementById(`pay-${currentSettleType}-invoice-ref`);
+        const themeColor = currentSettleType === 'in' ? 'var(--md-primary)' : '#ba1a1a';
+        const themeBg = currentSettleType === 'in' ? 'rgba(0, 97, 164, 0.05)' : 'rgba(186, 26, 26, 0.05)';
+        
+        if (!hiddenSelect) return;
+        
+        Array.from(hiddenSelect.options).forEach(opt => {
+            if (opt.selected) opt.setAttribute('selected', 'selected');
+            else opt.removeAttribute('selected');
+        });
+
+        const options = Array.from(hiddenSelect.options);
+
+        // Empty State
+        if (options.length <= 1) {
+            listContainer.innerHTML = '<div style="padding: 40px 20px; text-align: center; color: var(--md-text-muted); font-size: 14px; font-weight: 500;">No pending bills match this filter.<br><br>Any amount entered will be saved as an Advance.</div>';
+            updateSettleTotalUI(currentSettleType);
+            return;
+        }
+
+        listContainer.innerHTML = '';
+        
+        options.forEach(opt => {
+            if (!opt.value) return; 
+            
+            // 🚀 EXPLICIT MATH ENGINE
+            let maxPending = parseFloat(opt.getAttribute('data-bal'));
+            let currentAllocated = parseFloat(opt.getAttribute('data-allocated'));
+            
+            // Fallback: Parse the text string just in case data-bal is missing
+            let textAmt = 0;
+            const match = opt.text.match(/(?:₹|Rs\.?)\s*([\d,.]+)/i);
+            if (match) textAmt = parseFloat(match[1].replace(/,/g, ''));
+            
+            if (isNaN(maxPending)) maxPending = textAmt; 
+
+            // 🚨 EDIT MODE REVERSE-ENGINEERING: Find the exact amount previously paid!
+            if (isNaN(currentAllocated)) {
+                if (opt.selected && window.app && window.app.state.currentReceiptId) {
+                    const rec = window.UI?.state?.rawData?.cashbook?.find(c => c.id === window.app.state.currentReceiptId);
+                    if (rec && rec.invoiceRef && rec.invoiceRef.includes(opt.value)) {
+                        const refs = rec.invoiceRef.split(',').filter(r => r.trim());
+                        currentAllocated = (parseFloat(rec.amount) || 0) / (refs.length || 1);
+                    } else {
+                        currentAllocated = maxPending;
+                    }
+                } else {
+                    currentAllocated = maxPending;
+                }
+            }
+            
+            const mainText = opt.text.split('(Due:')[0].split('(Settled:')[0].trim(); 
+            const isSelected = opt.selected;
+
+            const card = document.createElement('div');
+            card.style.cssText = `border-bottom: 1px solid var(--md-surface-variant); background: ${isSelected ? themeBg : 'transparent'}; transition: background 0.2s ease;`;
+            
+            const iconSymbol = isSelected ? 'check_circle' : 'receipt_long';
+            const iconStyle = isSelected 
+                ? `background: ${themeColor}; color: #ffffff; box-shadow: 0 4px 12px ${themeColor}40; border: none;` 
+                : `background: var(--md-surface-variant); color: ${themeColor}; box-shadow: none; border: none;`;
+
+            const tagText = opt.text.includes('(Settled') 
+                ? '<span style="color:var(--md-success); font-weight:700;">Fully Settled</span>' 
+                : (isSelected ? `<span style="color:${themeColor}; font-weight:700;">Paying</span>` : 'Tap to select bill');
+
+            let htmlContent = `
+                <div class="tap-target" style="padding: 16px; display: flex; align-items: center; gap: 16px; cursor: pointer;">
+                    <div class="icon-circle" style="width: 40px; height: 40px; flex-shrink: 0; ${iconStyle}">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">${iconSymbol}</span>
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <strong style="display: block; font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${mainText}</strong>
+                        <small style="color: var(--md-text-muted);">${tagText}</small>
+                    </div>
+                    <div style="text-align: right; flex-shrink: 0;">
+                        <strong style="font-size: 16px; color: ${isSelected ? themeColor : 'var(--md-text-muted)'};">Due: ₹${maxPending.toFixed(2)}</strong>
+                    </div>
+                </div>
+            `;
+
+            // 🚀 PROGRESSIVE DISCLOSURE: Slide down the allocation box if selected!
+            if (isSelected) {
+                htmlContent += `
+                <div style="padding: 0 16px 16px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; animation: fadeSlideDown 0.2s ease forwards;">
+                    <span style="font-size: 12px; font-weight: 800; color: ${themeColor}; text-transform: uppercase;">Amount to Pay:</span>
+                    <input type="number" inputmode="decimal" class="allocation-input" value="${currentAllocated.toFixed(2)}" max="${maxPending}" style="width: 130px; padding: 10px 12px; border: 2px solid ${themeColor}; border-radius: 8px; font-size: 16px; font-weight: 900; color: ${themeColor}; text-align: right; background: #ffffff; outline: none; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                </div>
+                `;
+            }
+
+            card.innerHTML = htmlContent;
+
+            // Row click toggles selection
+            const rowTarget = card.querySelector('.tap-target');
+            rowTarget.onclick = () => {
+                opt.selected = !opt.selected;
+                if (opt.selected) {
+                    opt.setAttribute('selected', 'selected');
+                    opt.setAttribute('data-allocated', maxPending); 
+                } else {
+                    opt.removeAttribute('selected');
+                    opt.removeAttribute('data-allocated');
+                }
+                hiddenSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                renderSettleSheet(); 
+            };
+
+            // Input typing updates the allocation math instantly
+            if (isSelected) {
+                const inputEl = card.querySelector('.allocation-input');
+                inputEl.onclick = (e) => e.stopPropagation(); // Don't trigger the row click
+                
+                inputEl.oninput = (e) => {
+                    let val = parseFloat(e.target.value);
+                    if (isNaN(val) || val < 0) val = 0;
+                    
+                    if (val > maxPending) {
+                        val = maxPending;
+                        e.target.value = val.toFixed(2);
+                        if (window.Utils) window.Utils.showToast(`Maximum allowed is ₹${maxPending.toFixed(2)}`);
+                    }
+                    
+                    opt.setAttribute('data-allocated', val);
+                    updateSettleTotalUI(currentSettleType); // Live update the grand total
+                };
+            }
+
+            listContainer.appendChild(card);
+        });
+        
+        updateSettleTotalUI(currentSettleType);
+    };
+
+    window.updateSettleTotalUI = (type) => {
+        const hiddenSelect = document.getElementById(`pay-${type}-invoice-ref`);
+        const themeColor = type === 'in' ? 'var(--md-primary)' : '#ba1a1a';
+        let totalAllocated = 0;
+        let count = 0;
+        
+        if (hiddenSelect) {
+            Array.from(hiddenSelect.options).forEach(o => {
+                if (o.selected && o.value) {
+                    let allocated = parseFloat(o.getAttribute('data-allocated'));
+                    if (isNaN(allocated)) allocated = parseFloat(o.getAttribute('data-bal')) || 0;
+                    totalAllocated += allocated;
+                    count++;
+                }
+            });
+        }
+
+        const totalDisplay = document.getElementById('settle-bills-total');
+        if (totalDisplay && currentSettleType === type) {
+            totalDisplay.innerText = `₹${totalAllocated.toFixed(2)}`;
+            totalDisplay.style.color = themeColor;
+        }
+        
+        const mainDisplay = document.getElementById(`pay-${type}-bills-display`);
+        if (mainDisplay) {
+            if (count > 0) mainDisplay.innerHTML = `<span style="color:${themeColor}">${count} Bill(s) Selected</span>`;
+            else mainDisplay.innerText = 'Advance / On Account';
+        }
+    };
+
+    window.confirmBillSelection = () => {
+        const totalStr = document.getElementById('settle-bills-total').innerText.replace(/[^\d.-]/g, '');
+        const totalNum = parseFloat(totalStr) || 0;
+        
+        const amountInput = document.getElementById(`pay-${currentSettleType}-amount`);
+        const themeColor = currentSettleType === 'in' ? '#0061a4' : '#ba1a1a';
+
+        if (totalNum > 0) {
+            amountInput.value = totalNum.toFixed(2);
+            amountInput.style.backgroundColor = currentSettleType === 'in' ? 'rgba(0, 97, 164, 0.15)' : 'rgba(186, 26, 26, 0.15)';
+            setTimeout(() => amountInput.style.backgroundColor = '', 400);
+            amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        if (window.UI) window.UI.closeBottomSheet('sheet-settle-bills');
+    };
+
+    document.addEventListener('change', (e) => {
+        if (e.target.id === 'pay-in-invoice-ref') updateSettleTotalUI('in');
+        if (e.target.id === 'pay-out-invoice-ref') updateSettleTotalUI('out');
     });
     </script>
 
