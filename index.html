@@ -55,7 +55,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=88">
+    <link rel="stylesheet" href="style.css?v=89">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -3737,11 +3737,11 @@
     </div>
 
     <script src="components.js"></script>
-    <script src="db.js?v=88"></script>
-    <script src="utils.js?v=88"></script>
-    <script src="ui.js?v=88"></script>
-    <script src="cloud.js?v=88"></script>
-    <script src="app.js?v=88"></script>
+    <script src="db.js?v=89"></script>
+    <script src="utils.js?v=89"></script>
+    <script src="ui.js?v=89"></script>
+    <script src="cloud.js?v=89"></script>
+    <script src="app.js?v=89"></script>
     <script src="state.js"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
@@ -3772,8 +3772,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=88' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=88`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=89' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=89`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -4212,7 +4212,7 @@
         }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK
     </script>
 
-    <!-- 🚀 UPGRADED: EXPLICIT ALLOCATION MODAL (FLAT UI + TRUE MATH ENGINE) -->
+    <!-- 🚀 UPGRADED: EXPLICIT ALLOCATION MODAL (ZERO-CORRUPTION UI) -->
     <div id="sheet-settle-bills" class="bottom-sheet" data-no-swipe="true" style="top: 16px !important; bottom: 16px !important; left: 16px !important; right: 16px !important; width: auto !important; height: calc(100% - 32px) !important; max-height: none !important; border-radius: 12px !important; display: flex !important; flex-direction: column !important; padding: 0 !important; z-index: 6000 !important; box-shadow: 0 12px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important; overflow: hidden !important;">
         
         <!-- Header -->
@@ -4289,48 +4289,38 @@
             const partyId = document.getElementById(`pay-${currentSettleType}-${currentSettleType === 'in' ? 'customer' : 'supplier'}-id`).value;
             const hiddenSelect = document.getElementById(`pay-${currentSettleType}-invoice-ref`);
             
-            // 🚨 GHOSTING FIX: Identify the exact tax pool of the preserved selections
+            // 🚨 MEMORY SHIELD: Preserve the exact typed allocation amounts AND selections across tabs!
             const preservedSelections = [];
             if (hiddenSelect) {
                 Array.from(hiddenSelect.options).forEach(o => {
                     if (o.selected && o.value) {
-                        const store = currentSettleType === 'in' ? 'sales' : 'purchases';
-                        const doc = window.UI?.state?.rawData[store]?.find(d => d.id === o.value || d.invoiceNo === o.value || d.poNo === o.value || d.orderNo === o.value);
-                        let docIsNonGST = doc ? doc.invoiceType === 'Non-GST' : false;
-                        
                         preservedSelections.push({ 
                             value: o.value, 
                             text: o.text,
-                            allocated: o.getAttribute('data-allocated') || o.getAttribute('data-bal'),
-                            isNonGST: docIsNonGST
+                            allocated: o.getAttribute('data-allocated') || o.getAttribute('data-bal')
                         });
                     }
                 });
             }
 
             window.Utils.showToast("Fetching pending bills...");
+            // This backend function wipes the dropdown and populates it based on the active tab filter
             if (window.app) await window.app.loadPendingInvoices(partyId, currentSettleType);
 
-            // 🚨 RE-INJECT ONLY IF IT MATCHES THE CURRENT TAB
+            // 🚨 MEMORY RESTORE: Re-inject the preserved selections back into the dropdown!
+            // Even if they don't belong to this tab, they MUST be in the DOM so the form saves them!
             if (hiddenSelect && preservedSelections.length > 0) {
                 preservedSelections.forEach(savedOpt => {
-                    let shouldInject = false;
-                    if (filterType === 'All') shouldInject = true;
-                    else if (filterType === 'GST' && !savedOpt.isNonGST) shouldInject = true;
-                    else if (filterType === 'Non-GST' && savedOpt.isNonGST) shouldInject = true;
-                    
-                    if (shouldInject) {
-                        let matchOpt = Array.from(hiddenSelect.options).find(o => o.value === savedOpt.value);
-                        if (!matchOpt) {
-                            matchOpt = document.createElement('option');
-                            matchOpt.value = savedOpt.value;
-                            matchOpt.text = savedOpt.text;
-                            hiddenSelect.appendChild(matchOpt);
-                        }
-                        matchOpt.selected = true;
-                        matchOpt.setAttribute('selected', 'selected');
-                        matchOpt.setAttribute('data-allocated', savedOpt.allocated || ''); 
+                    let matchOpt = Array.from(hiddenSelect.options).find(o => o.value === savedOpt.value);
+                    if (!matchOpt) {
+                        matchOpt = document.createElement('option');
+                        matchOpt.value = savedOpt.value;
+                        matchOpt.text = savedOpt.text;
+                        hiddenSelect.appendChild(matchOpt);
                     }
+                    matchOpt.selected = true;
+                    matchOpt.setAttribute('selected', 'selected');
+                    if (savedOpt.allocated) matchOpt.setAttribute('data-allocated', savedOpt.allocated); // Restore their custom math!
                 });
             }
 
@@ -4343,6 +4333,7 @@
         const hiddenSelect = document.getElementById(`pay-${currentSettleType}-invoice-ref`);
         const themeColor = currentSettleType === 'in' ? 'var(--md-primary)' : '#ba1a1a';
         const themeBg = currentSettleType === 'in' ? 'rgba(0, 97, 164, 0.05)' : 'rgba(186, 26, 26, 0.05)';
+        const currentFilter = document.getElementById(`pay-${currentSettleType}-bill-filter`).value || 'All';
         
         if (!hiddenSelect) return;
         
@@ -4361,10 +4352,21 @@
         }
 
         listContainer.innerHTML = '';
+        let visibleCount = 0;
         
         options.forEach(opt => {
             if (!opt.value) return; 
             
+            // 🚨 TAB VISIBILITY SHIELD: Prevent Ghosting Across Tabs
+            const store = currentSettleType === 'in' ? 'sales' : 'purchases';
+            const doc = window.UI?.state?.rawData[store]?.find(d => d.id === opt.value || d.invoiceNo === opt.value || d.poNo === opt.value || d.orderNo === opt.value);
+            const isNonGST = doc ? doc.invoiceType === 'Non-GST' : false;
+            
+            if (currentFilter === 'GST' && isNonGST) return;
+            if (currentFilter === 'Non-GST' && !isNonGST) return;
+
+            visibleCount++;
+
             // 🚀 EXPLICIT MATH ENGINE
             let maxPending = parseFloat(opt.getAttribute('data-bal'));
             let currentAllocated = parseFloat(opt.getAttribute('data-allocated'));
@@ -4380,9 +4382,29 @@
             if (isNaN(currentAllocated)) {
                 if (opt.selected && window.app && window.app.state.currentReceiptId) {
                     const rec = window.UI?.state?.rawData?.cashbook?.find(c => c.id === window.app.state.currentReceiptId);
-                    if (rec && rec.invoiceRef && rec.invoiceRef.includes(opt.value)) {
-                        const refs = rec.invoiceRef.split(',').filter(r => r.trim());
-                        currentAllocated = (parseFloat(rec.amount) || 0) / (refs.length || 1);
+                    
+                    let isExactMatch = false;
+                    let numRefs = 1;
+                    
+                    if (rec && rec.invoiceRef) {
+                        const refs = String(rec.invoiceRef).split(',').map(r => r.trim());
+                        numRefs = refs.length;
+                        
+                        if (refs.includes(opt.value)) isExactMatch = true;
+                        
+                        if (!isExactMatch) {
+                            if (doc && (refs.includes(doc.id) || refs.includes(doc.invoiceNo) || refs.includes(doc.orderNo))) {
+                                isExactMatch = true;
+                            }
+                        }
+                    }
+
+                    if (isExactMatch) {
+                        // 🚨 EDIT MODE FIX: Read the exact numbers from the map!
+                        currentAllocated = (rec.allocationMap && rec.allocationMap[opt.value] !== undefined) 
+                            ? parseFloat(rec.allocationMap[opt.value]) 
+                            : (parseFloat(rec.amount) || 0) / numRefs;
+                        if (currentAllocated > maxPending) currentAllocated = maxPending;
                     } else {
                         currentAllocated = maxPending;
                     }
@@ -4471,6 +4493,10 @@
             listContainer.appendChild(card);
         });
         
+        if (visibleCount === 0 && options.length > 1) {
+            listContainer.innerHTML = '<div style="padding: 40px 20px; text-align: center; color: var(--md-text-muted); font-size: 14px; font-weight: 500;">No pending bills match this filter.<br><br>Switch tabs to view selected items.</div>';
+        }
+
         updateSettleTotalUI(currentSettleType);
     };
 
@@ -4485,7 +4511,14 @@
                 if (o.selected && o.value) {
                     let allocated = parseFloat(o.getAttribute('data-allocated'));
                     if (isNaN(allocated)) allocated = parseFloat(o.getAttribute('data-bal')) || 0;
-                    totalAllocated += allocated;
+                    
+                    // Fallback for Edit Mode UI bugs
+                    if (isNaN(allocated) || allocated === 0) {
+                        const match = o.text.match(/(?:₹|Rs\.?)\s*([\d,.]+)/i);
+                        if (match) allocated = parseFloat(match[1].replace(/,/g, ''));
+                    }
+
+                    totalAllocated += (allocated || 0);
                     count++;
                 }
             });
@@ -4510,12 +4543,29 @@
         
         const amountInput = document.getElementById(`pay-${currentSettleType}-amount`);
         const themeColor = currentSettleType === 'in' ? '#0061a4' : '#ba1a1a';
+        const hiddenSelect = document.getElementById(`pay-${currentSettleType}-invoice-ref`);
+
+        let hasSelections = false;
+        if (hiddenSelect) {
+            Array.from(hiddenSelect.options).forEach(o => {
+                if (o.selected && o.value) hasSelections = true;
+            });
+        }
 
         if (totalNum > 0) {
             amountInput.value = totalNum.toFixed(2);
             amountInput.style.backgroundColor = currentSettleType === 'in' ? 'rgba(0, 97, 164, 0.15)' : 'rgba(186, 26, 26, 0.15)';
-            setTimeout(() => amountInput.style.backgroundColor = '', 400);
+            setTimeout(() => { amountInput.style.backgroundColor = 'var(--md-surface-variant)'; }, 400);
             amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        // 🚨 ENTERPRISE LOCK: If bills are selected, lock the amount field so users can't accidentally break the math!
+        if (hasSelections) {
+            amountInput.setAttribute('readonly', 'readonly');
+            amountInput.title = "Clear bill selections to manually edit amount.";
+        } else {
+            amountInput.removeAttribute('readonly');
+            amountInput.title = "";
         }
 
         if (window.UI) window.UI.closeBottomSheet('sheet-settle-bills');

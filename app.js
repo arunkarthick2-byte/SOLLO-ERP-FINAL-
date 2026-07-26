@@ -2231,11 +2231,18 @@ const app = {
                             const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
                             const returnedAmt = [linkedDoc?.orderNo, linkedDoc?.invoiceNo, linkedDoc?.poNo, linkedDoc?.id, ref].filter(Boolean).reduce((sum, r) => sum + (returnMap[r] || 0), 0);
                             
-                            let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returnedAmt) : (impact / refs.length);
-                            let applyAmt = Math.min(docTotal, remainingPayment);
+                            let applyAmt = 0;
+                            // 🚨 EXPLICIT MATH: Read from DB!
+                            if (c.allocationMap && c.allocationMap[ref] !== undefined) {
+                                applyAmt = parseFloat(c.allocationMap[ref]) || 0;
+                                remainingPayment -= applyAmt;
+                            } else {
+                                let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returnedAmt) : (impact / refs.length);
+                                applyAmt = Math.min(docTotal, remainingPayment);
+                                if (applyAmt > 0) remainingPayment -= applyAmt;
+                            }
                             if (applyAmt > 0) {
                                 paymentMap[ref] = (paymentMap[ref] || 0) + applyAmt;
-                                remainingPayment -= applyAmt;
                             }
                         });
                         if (remainingPayment > 0.01 && refs[0]) paymentMap[refs[0]] = (paymentMap[refs[0]] || 0) + remainingPayment;
@@ -4071,8 +4078,22 @@ if (data.id && splitConfirmed) {
                         }
                     }
 
+                    // 🚨 EXPLICIT MATH: Capture the exact amounts the user typed!
+                    const hiddenSelectForMath = document.getElementById(`pay-${type}-invoice-ref`);
+                    let explicitAllocations = null;
+                    if (hiddenSelectForMath && selectedInvoiceRef) {
+                        explicitAllocations = {};
+                        Array.from(hiddenSelectForMath.options).forEach(o => {
+                            if (o.selected && o.value) {
+                                let allocated = parseFloat(o.getAttribute('data-allocated'));
+                                if (!isNaN(allocated)) explicitAllocations[o.value] = allocated;
+                            }
+                        });
+                    }
+
                     const data = {
                         id: app.state.currentReceiptId || Utils.generateId(),
+                        allocationMap: explicitAllocations, // 🚨 Save exact math to DB!
                         receiptNo: docNoInput, // NEW: Save the custom document number
                         firmId: app.state.firmId,
                         date: document.getElementById(`pay-${type}-date`).value,
@@ -4125,14 +4146,20 @@ if (data.id && splitConfirmed) {
                                     let remainingPayment = parseFloat(r.amount) || 0;
                                     let applyAmt = 0;
                                     rRefs.forEach(rRef => {
-                                        const innerDoc = allDocs.find(d => d.id === rRef || d.invoiceNo === rRef || d.poNo === rRef || d.orderNo === rRef || String(d.id).endsWith(rRef));
-                                        
-                                        // 🚨 FIX: Subtract the return from the docTotal. This prevents the overpayment from being artificially swallowed by the first invoice!
-                                        const returned = [innerDoc?.orderNo, innerDoc?.invoiceNo, innerDoc?.poNo, innerDoc?.id, rRef].filter(Boolean).reduce((sum, r) => sum + (paymentReturnMap[r] || 0), 0);
-                                        let dTotal = innerDoc ? Math.max(0, (parseFloat(innerDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / rRefs.length);
-                                        
-                                        let aAmt = Math.min(dTotal, remainingPayment);
-                                        if (aAmt > 0) remainingPayment -= aAmt;
+                                        let aAmt = 0;
+                                        // 🚨 EXPLICIT MATH: Read the exact allocation from the database!
+                                        if (r.allocationMap && r.allocationMap[rRef] !== undefined) {
+                                            aAmt = parseFloat(r.allocationMap[rRef]) || 0;
+                                            remainingPayment -= aAmt;
+                                        } else {
+                                            // Fallback to FIFO for older legacy payments
+                                            const innerDoc = allDocs.find(d => d.id === rRef || d.invoiceNo === rRef || d.poNo === rRef || d.orderNo === rRef || String(d.id).endsWith(rRef));
+                                            const returned = [innerDoc?.orderNo, innerDoc?.invoiceNo, innerDoc?.poNo, innerDoc?.id, rRef].filter(Boolean).reduce((sum, rx) => sum + (paymentReturnMap[rx] || 0), 0);
+                                            let dTotal = innerDoc ? Math.max(0, (parseFloat(innerDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / rRefs.length);
+                                            
+                                            aAmt = Math.min(dTotal, remainingPayment);
+                                            if (aAmt > 0) remainingPayment -= aAmt;
+                                        }
                                         if (rRef === ref) applyAmt += aAmt;
                                     });
                                     if (remainingPayment > 0.01 && rRefs[0] === ref) applyAmt += remainingPayment;
@@ -4490,11 +4517,18 @@ if (data.id && splitConfirmed) {
                             const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
                             const returnedAmt = [linkedDoc?.orderNo, linkedDoc?.invoiceNo, linkedDoc?.poNo, linkedDoc?.id, ref].filter(Boolean).reduce((sum, r) => sum + (returnMap[r] || 0), 0);
                             
-                            let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returnedAmt) : (impact / refs.length);
-                            let applyAmt = Math.min(docTotal, remainingPayment);
+                            let applyAmt = 0;
+                            // 🚨 EXPLICIT MATH: Read from DB!
+                            if (c.allocationMap && c.allocationMap[ref] !== undefined) {
+                                applyAmt = parseFloat(c.allocationMap[ref]) || 0;
+                                remainingPayment -= applyAmt;
+                            } else {
+                                let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returnedAmt) : (impact / refs.length);
+                                applyAmt = Math.min(docTotal, remainingPayment);
+                                if (applyAmt > 0) remainingPayment -= applyAmt;
+                            }
                             if (applyAmt > 0) {
                                 paymentMap[ref] = (paymentMap[ref] || 0) + applyAmt;
-                                remainingPayment -= applyAmt;
                             }
                         });
                         if (remainingPayment > 0.01 && refs[0]) paymentMap[refs[0]] = (paymentMap[refs[0]] || 0) + remainingPayment;
@@ -4780,6 +4814,23 @@ if (data.id && splitConfirmed) {
 
         // STRICT ERP LOGIC 1: Revert Invoice Status when Payment is Deleted
         if (type === 'receipt-in' || type === 'receipt-out') {
+            // 🚨 ENTERPRISE FIX: The Half-Contra Free Money Shield!
+            // If deleting a Bank Transfer, simultaneously delete the paired receipt so money isn't magically created!
+            if (String(actualId).startsWith('contra-')) {
+                const pairedId = actualId.startsWith('contra-in-') ? actualId.replace('contra-in-', 'contra-out-') : actualId.replace('contra-out-', 'contra-in-');
+                const pairedRecord = await getRecordById('receipts', pairedId);
+                if (pairedRecord) {
+                    pairedRecord._module = 'receipts';
+                    pairedRecord._deletedAt = new Date().toISOString();
+                    await saveRecord('trash', pairedRecord);
+                    await new Promise((res) => {
+                        const tx = db.transaction('receipts', 'readwrite');
+                        tx.objectStore('receipts').delete(pairedId);
+                        tx.oncomplete = () => res();
+                    });
+                }
+            }
+
             if (record.invoiceRef && !record.isAutoGenerated) {
                 // ENTERPRISE FIX: The Cross-Table Refund Trap!
                 // Hardcoding 'receipt-out' to 'purchases' completely breaks Sales Refunds and Purchase Refunds!
@@ -5242,11 +5293,17 @@ if (data.id && splitConfirmed) {
                             let remainingPayment = impact;
                             refs.forEach(ref => {
                                 const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
-                                let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (impact / refs.length);
-                                let applyAmt = Math.min(docTotal, remainingPayment);
+                                let applyAmt = 0;
+                                if (c.allocationMap && c.allocationMap[ref] !== undefined) {
+                                    applyAmt = parseFloat(c.allocationMap[ref]) || 0;
+                                    remainingPayment -= applyAmt;
+                                } else {
+                                    let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (impact / refs.length);
+                                    applyAmt = Math.min(docTotal, remainingPayment);
+                                    if (applyAmt > 0) remainingPayment -= applyAmt;
+                                }
                                 if (applyAmt > 0) {
                                     fastPaymentMap[ref] = (fastPaymentMap[ref] || 0) + applyAmt;
-                                    remainingPayment -= applyAmt;
                                 }
                             });
                             if (remainingPayment > 0.01 && refs[0]) fastPaymentMap[refs[0]] = (fastPaymentMap[refs[0]] || 0) + remainingPayment;

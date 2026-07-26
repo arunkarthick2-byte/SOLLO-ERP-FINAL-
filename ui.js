@@ -1253,10 +1253,13 @@ const UI = {
                             const docTotal = doc.grandTotal === Infinity ? Infinity : Math.max(0, (parseFloat(doc.grandTotal) || 0) - returned);
                             
                             let allocation = 0;
-                            if (remainingAmt > 0) {
+                            // 🚨 EXPLICIT MATH: Read the exact allocation from the database!
+                            if (c.allocationMap && c.allocationMap[doc.id] !== undefined) {
+                                allocation = parseFloat(c.allocationMap[doc.id]) || 0;
+                            } else if (c.allocationMap && c.allocationMap[doc.invoiceNo || doc.poNo] !== undefined) {
+                                allocation = parseFloat(c.allocationMap[doc.invoiceNo || doc.poNo]) || 0;
+                            } else if (remainingAmt > 0) {
                                 allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                                // 🚨 BUG FIX: DO NOT DUMP OVERPAYMENTS! 
-                                // Let the excess money float back into the pool so Auto-FIFO can pay off other bills!
                             } else {
                                 allocation = Math.max(-currentPaid, remainingAmt); 
                             }
@@ -2559,9 +2562,13 @@ const UI = {
                         const docTotal = doc.grandTotal === Infinity ? Infinity : (parseFloat(doc.grandTotal) || 0);
                         
                         let allocation = 0;
-                        if (remainingAmt > 0) {
+                        // 🚨 EXPLICIT MATH: Read the exact allocation from the database!
+                        if (c.allocationMap && c.allocationMap[doc.id] !== undefined) {
+                            allocation = parseFloat(c.allocationMap[doc.id]) || 0;
+                        } else if (c.allocationMap && c.allocationMap[doc.invoiceNo || doc.poNo] !== undefined) {
+                            allocation = parseFloat(c.allocationMap[doc.invoiceNo || doc.poNo]) || 0;
+                        } else if (remainingAmt > 0) {
                             allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
-                            // 🚨 BUG FIX: DO NOT DUMP OVERPAYMENTS!
                         } else {
                             allocation = Math.max(-currentPaid, remainingAmt); 
                         }
