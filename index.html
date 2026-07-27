@@ -55,7 +55,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=89">
+    <link rel="stylesheet" href="style.css?v=90">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -624,6 +624,12 @@
 
                 <!-- 3. MASTERS VIEW -->
                 <div id="ws-view-master" class="hidden" style="padding-bottom: 40px;">
+                    
+                    <!-- ✨ ADDED: General Masters Header -->
+                    <div style="margin-top: 8px; margin-bottom: 12px; padding: 0 4px;">
+                        <strong style="color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">General Masters</strong>
+                    </div>
+
                     <div style="display: flex; flex-direction: column;">
                         <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('products', 'Inventory Master')">
                             <div class="icon-circle" style="background: var(--md-primary-container); color: var(--md-primary); width: 48px; height: 48px;"><span class="material-symbols-outlined">inventory_2</span></div>
@@ -2187,15 +2193,15 @@
     </div>
 
     <div id="activity-report-viewer" class="activity-screen hidden">
-        <div class="activity-header" style="background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-report-viewer')" style="padding: 4px; flex-shrink: 0; margin-left: -4px;">arrow_back</span>
+        <div class="activity-header" style="position: relative !important; height: auto !important; min-height: 64px !important; background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px;">
+            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-report-viewer')" style="padding: 4px; flex-shrink: 0; margin-left: -4px; margin-top: -2px;">arrow_back</span>
             
-            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-                <div id="report-party-name" style="font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Party Name</div>
-                <div id="report-party-balance" style="font-size: 13px; opacity: 0.9; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Closing Balance: &#8377;0.00</div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-start;">
+                <div id="report-party-name" style="font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">Party Name</div>
+                <div id="report-party-balance" style="font-size: 14px; font-weight: 700; opacity: 0.9; margin-top: 4px; white-space: normal; overflow-wrap: anywhere; line-height: 1.4;">Bal: &#8377;0.00</div>
             </div>
             
-            <div style="display: flex; gap: 16px; flex-shrink: 0; align-items: center; margin-right: 8px;">
+            <div style="display: flex; gap: 16px; flex-shrink: 0; align-items: flex-start; margin-right: 8px; margin-top: -2px;">
                 <div id="btn-edit-ledger" class="tap-target" style="display: flex; align-items: center; justify-content: center;">
                     <span class="material-symbols-outlined" style="font-size: 24px; color: #ffffff;">edit</span>
                 </div>
@@ -2209,9 +2215,9 @@
                 </div>
             </div>
         </div>
-        <div class="activity-content" style="background: var(--md-background); padding: 0px 12px 12px 12px;">
+        <div class="activity-content" style="background: var(--md-background); padding: 0px 12px 12px 12px !important;">
             
-            <div class="search-bar" style="margin-bottom: 12px;">
+            <div class="search-bar" style="margin-top: 0 !important; margin-bottom: 12px;">
                 <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                 <input type="text" id="search-timeline" placeholder="Search transactions..." style="flex: 1; min-width: 0;">
                 
@@ -3737,11 +3743,11 @@
     </div>
 
     <script src="components.js"></script>
-    <script src="db.js?v=89"></script>
-    <script src="utils.js?v=89"></script>
-    <script src="ui.js?v=89"></script>
-    <script src="cloud.js?v=89"></script>
-    <script src="app.js?v=89"></script>
+    <script src="db.js?v=90"></script>
+    <script src="utils.js?v=90"></script>
+    <script src="ui.js?v=90"></script>
+    <script src="cloud.js?v=90"></script>
+    <script src="app.js?v=90"></script>
     <script src="state.js"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
@@ -3772,8 +3778,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=89' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=89`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=90' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=90`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour

@@ -100,8 +100,14 @@ if (!document.getElementById('enterprise-master-fixes')) {
         /* 1. Fix Screen Bottom Overlaps (Business Profile & Inventory Master) */
         #form-business-profile, #master-list-container { padding-bottom: 95px !important; }
         
-        /* 2. Fix Ledger Header Visibility */
-        #activity-report-viewer .activity-header { background: var(--md-surface, #ffffff) !important; color: var(--md-on-surface, #0f172a) !important; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0) !important; }
+        /* 2. Fix Ledger Header Visibility & Glassmorphism */
+        #activity-report-viewer .activity-header { 
+            background: rgba(255, 255, 255, 0.85) !important; 
+            backdrop-filter: blur(12px) !important; 
+            -webkit-backdrop-filter: blur(12px) !important; 
+            border-bottom: 1px solid var(--md-outline-variant, #e2e8f0) !important; 
+        }
+        body.dark-mode #activity-report-viewer .activity-header { background: rgba(18, 18, 18, 0.85) !important; }
         #activity-report-viewer .activity-header .material-symbols-outlined,
         #activity-report-viewer .activity-header strong,
         #report-party-name,
@@ -1916,7 +1922,7 @@ const app = {
             });
 
             const balEl = document.getElementById('report-party-balance');
-            balEl.innerText = `Available Balance: \u20B9${runningBalance.toFixed(2)}`;
+            balEl.innerText = `Bal: \u20B9${runningBalance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             balEl.style.color = runningBalance >= 0 ? 'var(--md-success)' : 'var(--md-error)';
 
             // Move state assignment ABOVE the early return!

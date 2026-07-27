@@ -2273,11 +2273,11 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="email"]
     padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important; 
 }
 
-/* KILL THE GAP: Force zero top-padding on screens where the Search Bar needs to touch the header */
+/* KILL THE GAP: Pull the search bar up flush against the header */
 #activity-master-view .activity-content,
 #activity-expense-ledger .activity-content,
 #activity-report-viewer .activity-content {
-    padding-top: 0 !important;
+    padding-top: calc(56px + env(safe-area-inset-top, 0px)) !important;
 }
 
 /* Ensure bottom sheets don't waste space */
@@ -6925,17 +6925,16 @@ body.dark-mode #risk-banner {
     border-bottom: 1px solid #27272A !important;
 }
 /* ==========================================
-   💎 THE FULLY TRANSPARENT HEADER (RESTRICTED TO FORMS ONLY)
+   💎 THE FULLY TRANSPARENT HEADER
    ========================================== */
 
 /* 1. THE TRANSPARENT CONTAINER */
-/* 🚨 FIX: Notice the [id$="-form"]! This protects all your Report and Master screens! */
-html body #app-shell .activity-screen[id$="-form"] .activity-header {
+html body #app-shell .activity-screen .activity-header {
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
-    height: 64px !important;
+    height: auto !important;
     min-height: 64px !important;
     display: flex !important;
     align-items: center !important;
@@ -6943,10 +6942,10 @@ html body #app-shell .activity-screen[id$="-form"] .activity-header {
     padding: 0 16px !important;
     z-index: 9999 !important;
     
-    /* 🔥 THE FIX: Fully Transparent Background & No Blur */
-    background: transparent !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    /* Restored Glass Background */
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
     
     border-bottom: none !important; /* Removes the bottom line */
     box-shadow: none !important;
@@ -6954,12 +6953,12 @@ html body #app-shell .activity-screen[id$="-form"] .activity-header {
 }
 
 /* Push content down safely */
-html body #app-shell .activity-screen[id$="-form"] .activity-content {
+html body #app-shell .activity-screen .activity-content {
     padding-top: calc(76px + env(safe-area-inset-top, 0px)) !important;
 }
 
 /* 2. RIGHT SIDE - ACTIONS (Trash, WhatsApp, PDF) */
-html body #app-shell .activity-screen[id$="-form"] .activity-header > div:last-child {
+html body #app-shell .activity-screen .activity-header > div:last-child {
     display: flex !important;
     align-items: center !important;
     justify-content: flex-end !important;
@@ -6970,8 +6969,8 @@ html body #app-shell .activity-screen[id$="-form"] .activity-header > div:last-c
 }
 
 /* FORCE ALL ICONS TO BE PERFECT, ALIGNED SQUARES */
-html body #app-shell .activity-screen[id$="-form"] .activity-header .icon-circle,
-html body #app-shell .activity-screen[id$="-form"] .activity-header div[id*="delete"] {
+html body #app-shell .activity-screen .activity-header .icon-circle,
+html body #app-shell .activity-screen .activity-header div[id*="delete"] {
     width: 36px !important;
     height: 36px !important;
     min-width: 36px !important;
@@ -6989,16 +6988,16 @@ html body #app-shell .activity-screen[id$="-form"] .activity-header div[id*="del
 }
 
 /* Soft hover/tap effect */
-html body #app-shell .activity-screen[id$="-form"] .activity-header .icon-circle:active,
-html body #app-shell .activity-screen[id$="-form"] .activity-header div[id*="delete"]:active {
+html body #app-shell .activity-screen .activity-header .icon-circle:active,
+html body #app-shell .activity-screen .activity-header div[id*="delete"]:active {
     background-color: rgba(0, 0, 0, 0.06) !important;
     transform: scale(0.92) !important;
 }
 
 /* Align the actual vector shapes perfectly in the center */
-html body #app-shell .activity-screen[id$="-form"] .activity-header .icon-circle .material-symbols-outlined,
-html body #app-shell .activity-screen[id$="-form"] .activity-header .icon-circle svg,
-html body #app-shell .activity-screen[id$="-form"] .activity-header div[id*="delete"] .material-symbols-outlined {
+html body #app-shell .activity-screen .activity-header .icon-circle .material-symbols-outlined,
+html body #app-shell .activity-screen .activity-header .icon-circle svg,
+html body #app-shell .activity-screen .activity-header div[id*="delete"] .material-symbols-outlined {
     font-size: 24px !important;
     width: 24px !important;
     height: 24px !important;
@@ -7011,12 +7010,12 @@ html body #app-shell .activity-screen[id$="-form"] .activity-header div[id*="del
 }
 
 /* Keep the Trash Icon Red */
-html body #app-shell .activity-screen[id$="-form"] .activity-header div[id*="delete"] .material-symbols-outlined {
+html body #app-shell .activity-screen .activity-header div[id*="delete"] .material-symbols-outlined {
     color: #E11D48 !important; 
 }
 
 /* 3. LEFT SIDE - X BUTTON & TITLE */
-html body #app-shell .activity-screen[id$="-form"] .activity-header > div:first-child {
+html body #app-shell .activity-screen .activity-header > div:first-child {
     display: flex !important;
     align-items: center !important;
     gap: 12px !important;
@@ -7026,7 +7025,7 @@ html body #app-shell .activity-screen[id$="-form"] .activity-header > div:first-
 }
 
 /* The "X" / Back Button */
-html body #app-shell .activity-screen[id$="-form"] .activity-header > div:first-child > span.material-symbols-outlined.tap-target {
+html body #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined.tap-target {
     font-size: 26px !important;
     color: #0F172A !important;
     width: 36px !important;
@@ -7039,13 +7038,15 @@ html body #app-shell .activity-screen[id$="-form"] .activity-header > div:first-
     border-radius: 50% !important;
 }
 
-html body #app-shell .activity-screen[id$="-form"] .activity-header > div:first-child > span.material-symbols-outlined.tap-target:active {
+html body #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined.tap-target:active {
     background-color: rgba(0, 0, 0, 0.06) !important;
 }
 
 /* The Title */
-html body #app-shell .activity-screen[id$="-form"] .activity-header span[id^="form-title-"],
-html body #app-shell .activity-screen[id$="-form"] .activity-header #expense-form-title {
+html body #app-shell .activity-screen .activity-header span[id^="form-title-"],
+html body #app-shell .activity-screen .activity-header #expense-form-title,
+html body #app-shell .activity-screen .activity-header #master-view-title,
+html body #app-shell .activity-screen .activity-header #item-ledger-title {
     font-size: 19px !important;
     font-weight: 800 !important;
     letter-spacing: -0.5px !important;
@@ -7058,26 +7059,28 @@ html body #app-shell .activity-screen[id$="-form"] .activity-header #expense-for
 }
 
 /* 4. DARK MODE ADAPTER */
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header {
+body.dark-mode #app-shell .activity-screen .activity-header {
     background: transparent !important;
     border-bottom: none !important;
 }
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header span[id^="form-title-"],
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header #expense-form-title,
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header > div:first-child > span.material-symbols-outlined {
+body.dark-mode #app-shell .activity-screen .activity-header span[id^="form-title-"],
+body.dark-mode #app-shell .activity-screen .activity-header #expense-form-title,
+body.dark-mode #app-shell .activity-screen .activity-header #master-view-title,
+body.dark-mode #app-shell .activity-screen .activity-header #item-ledger-title,
+body.dark-mode #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined {
     color: #F8FAFC !important;
 }
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header .material-symbols-outlined,
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header svg {
+body.dark-mode #app-shell .activity-screen .activity-header .material-symbols-outlined,
+body.dark-mode #app-shell .activity-screen .activity-header svg {
     color: #CBD5E1 !important;
     fill: #CBD5E1 !important;
 }
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header div[id*="delete"] .material-symbols-outlined {
+body.dark-mode #app-shell .activity-screen .activity-header div[id*="delete"] .material-symbols-outlined {
     color: #FDA4AF !important; 
 }
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header .icon-circle:active,
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header div[id*="delete"]:active,
-body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header > div:first-child > span.material-symbols-outlined.tap-target:active {
+body.dark-mode #app-shell .activity-screen .activity-header .icon-circle:active,
+body.dark-mode #app-shell .activity-screen .activity-header div[id*="delete"]:active,
+body.dark-mode #app-shell .activity-screen .activity-header > div:first-child > span.material-symbols-outlined.tap-target:active {
     background-color: rgba(255, 255, 255, 0.1) !important;
 }
 /* ==========================================
@@ -7253,9 +7256,9 @@ body.dark-mode .bottom-nav {
     border-top: 1px solid rgba(255,255,255,0.05) !important;
 }
 
-/* 3. True Glassmorphism Top Toolbars (Fixed for Reports & Masters) */
+/* 3. True Glassmorphism Top Toolbars */
 .activity-header {
-    position: sticky !important; /* 🚨 FIX: Restores normal layout behavior for non-form screens */
+    position: absolute !important;
     top: 0;
     left: 0;
     width: 100%;
@@ -7270,44 +7273,7 @@ body.dark-mode .activity-header {
     border-bottom: 1px solid rgba(255,255,255,0.05) !important;
 }
 
-/* 🚨 FIX: Restores normal padding so Master and Report lists don't get squished */
+/* 🚨 THE FIX: Increased to 88px so the Customer/Supplier card clears the header perfectly! */
 .activity-content {
-    padding-top: 16px !important; 
-}
-
-
-/* ==========================================
-   💎 THE FULLY TRANSPARENT HEADER (RESTRICTED TO FORMS ONLY)
-   ========================================== */
-/* 1. Make ONLY the Invoice/Expense Forms transparent */
-html body #app-shell .activity-screen[id$="-form"] .activity-header {
-    position: absolute !important;
-    background: transparent !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-bottom: none !important;
-}
-
-/* 2. Push only the form content down safely */
-html body #app-shell .activity-screen[id$="-form"] .activity-content {
-    padding-top: calc(76px + env(safe-area-inset-top, 0px)) !important;
-}
-
-/* 3. Force the icons in the transparent header to be Black (or White in Dark Mode) */
-html body #app-shell .activity-screen[id$="-form"] .activity-header .material-symbols-outlined,
-html body #app-shell .activity-screen[id$="-form"] .activity-header span[id^="form-title-"],
-html body #app-shell .activity-screen[id$="-form"] .activity-header #expense-form-title {
-    color: #0F172A !important;
-}
-html body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header .material-symbols-outlined,
-html body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header span[id^="form-title-"],
-html body.dark-mode #app-shell .activity-screen[id$="-form"] .activity-header #expense-form-title {
-    color: #F8FAFC !important;
-}
-
-/* 4. Remove shadows from the Trash/PDF icon circles */
-html body #app-shell .activity-screen[id$="-form"] .activity-header .icon-circle,
-html body #app-shell .activity-screen[id$="-form"] .activity-header div[id*="delete"] {
-    background: transparent !important; 
-    box-shadow: none !important;
+    padding-top: 88px !important; 
 }
