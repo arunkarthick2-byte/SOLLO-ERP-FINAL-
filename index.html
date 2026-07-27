@@ -255,13 +255,57 @@
                 <div style="background: var(--md-surface); margin: 0 -16px 24px -16px; border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
                     
                     <div style="display: flex; border-bottom: 1px solid var(--md-outline-variant);">
-                        <div class="tap-target" style="flex: 1; padding: 16px; border-right: 1px solid var(--md-outline-variant);" onclick="if(window.app) window.app.openUniversalReport('sales_register')">
+                        <div class="tap-target" style="flex: 1; padding: 16px; border-right: 1px solid var(--md-outline-variant);" onclick="
+                            if(window.app && typeof window.app.viewFilteredSales === 'function') {
+                                window.app.viewFilteredSales('All');
+                                setTimeout(() => {
+                                    const filter = document.getElementById('dashboard-date-filter').value;
+                                    const today = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                                    let s = today, e = today;
+                                    const y = parseInt(today.split('-')[0]);
+                                    const m = parseInt(today.split('-')[1]) - 1;
+                                    
+                                    if(filter === 'month') { s = `${y}-${String(m+1).padStart(2,'0')}-01`; }
+                                    else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = new Date(ty, tm+1, 0).toISOString().split('T')[0]; }
+                                    else if(filter === 'year') { s = `${m<3 ? y-1 : y}-04-01`; }
+                                    else if(filter === 'all') { s = ''; e = ''; }
+                                    else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = new Date(cy, cm, 0).toISOString().split('T')[0]; } }
+                                    
+                                    document.getElementById('sales-start-date').value = s;
+                                    document.getElementById('sales-end-date').value = e;
+                                    
+                                    const fText = document.getElementById('return-dash-filter-text');
+                                    if (fText) fText.innerText = filter === 'all' ? 'All Sales' : 'Filtered: Date Range';
+                                    
+                                    if(window.UI) window.UI.applyFilters('sales');
+                                }, 200);
+                            }
+                        ">
                             <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase;">Total Sales</small>
                             <div class="large-text color-primary" id="dash-total-sales" data-bind="totalSalesDisplay" style="font-size: 20px; font-weight: 700; margin-top: 4px; min-height: 24px;">
                                 <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px;"></div>
                             </div>
                         </div>
-                        <div class="tap-target" style="flex: 1; padding: 16px;" onclick="UI.openActivity('activity-advanced-reports'); setTimeout(() => { UI.switchReportTab('pnl'); }, 100);">
+                        <div class="tap-target" style="flex: 1; padding: 16px;" onclick="
+                            UI.openActivity('activity-advanced-reports'); 
+                            setTimeout(() => { 
+                                const filter = document.getElementById('dashboard-date-filter').value;
+                                const today = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                                let s = today, e = today;
+                                const y = parseInt(today.split('-')[0]);
+                                const m = parseInt(today.split('-')[1]) - 1;
+                                
+                                if(filter === 'month') { s = `${y}-${String(m+1).padStart(2,'0')}-01`; }
+                                else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = new Date(ty, tm+1, 0).toISOString().split('T')[0]; }
+                                else if(filter === 'year') { s = `${m<3 ? y-1 : y}-04-01`; }
+                                else if(filter === 'all') { s = '2000-01-01'; }
+                                else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = new Date(cy, cm, 0).toISOString().split('T')[0]; } }
+                                
+                                document.getElementById('report-pnl-start').value = s;
+                                document.getElementById('report-pnl-end').value = e;
+                                UI.switchReportTab('pnl'); 
+                            }, 100);
+                        ">
                             <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase;">True Net Profit</small>
                             <div class="large-text" id="dash-net-profit" style="font-size: 20px; font-weight: 700; margin-top: 4px; color: var(--md-success); min-height: 24px;">
                                 <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px; animation-delay: 0.1s;"></div>
@@ -4075,11 +4119,9 @@
                     new MutationObserver(syncStatusBar).observe(sheetOverlay, { attributes: true, attributeFilter: ['class'] });
                 }
 
-                // Watch for Activity Screens opening/closing
-                const appShell = document.getElementById('app-shell');
-                if (appShell) {
-                    new MutationObserver(syncStatusBar).observe(appShell, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-                }
+                // 🚨 PERFORMANCE FIX: Destroyed the heavy subtree MutationObserver!
+                // Watching the entire app for class changes and running getComputedStyle caused severe Layout Thrashing and battery drain.
+                // Status bar colors are already handled natively by the UI routing engine!
 
                 // Watch for Dark Mode toggling
                 new MutationObserver(syncStatusBar).observe(document.body, { attributes: true, attributeFilter: ['class'] });

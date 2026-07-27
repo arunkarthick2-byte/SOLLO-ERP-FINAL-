@@ -528,14 +528,31 @@ const app = {
             setTimeout(() => {
                 if (window.UI) {
                     // 🚨 CRITICAL FIX: The Dashboard Date Filter Trap!
-                    // If we jump from the dashboard while it's set to "This Month", it hides older Overdue/Open invoices.
-                    // We must tell the engine to ignore the dashboard date, AND physically clear any local date filters!
+                    // Pass the active dashboard dates directly into the Sales list!
                     window.UI.state.applyDashboardDateToDocuments = false; 
                     
+                    const filter = document.getElementById('dashboard-date-filter') ? document.getElementById('dashboard-date-filter').value : 'all';
+                    const today = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+                    let s = today, e = today;
+                    const y = parseInt(today.split('-')[0]);
+                    const m = parseInt(today.split('-')[1]) - 1;
+                    
+                    if(filter === 'month') { s = `${y}-${String(m+1).padStart(2,'0')}-01`; }
+                    else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = new Date(ty, tm+1, 0).toISOString().split('T')[0]; }
+                    else if(filter === 'year') { s = `${m<3 ? y-1 : y}-04-01`; }
+                    else if(filter === 'all') { s = ''; e = ''; }
+                    else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = new Date(cy, cm, 0).toISOString().split('T')[0]; } }
+                    
+                    // 🚨 THE LOGIC FIX: Overdue and Open orders should ALWAYS show all-time data so nothing is missed!
+                    if (status === 'Overdue' || status === 'Open') {
+                        s = ''; 
+                        e = ''; 
+                    }
+
                     const startDateInput = document.getElementById('sales-start-date');
                     const endDateInput = document.getElementById('sales-end-date');
-                    if (startDateInput) startDateInput.value = '';
-                    if (endDateInput) endDateInput.value = '';
+                    if (startDateInput) startDateInput.value = s;
+                    if (endDateInput) endDateInput.value = e;
 
                     window.UI.state.activeFilters = window.UI.state.activeFilters || {};
                     window.UI.state.activeFilters['sales'] = status;
@@ -5033,10 +5050,42 @@ if (data.id && splitConfirmed) {
     openDeepAnalytics: async () => {
         if (window.UI) window.UI.openActivity('activity-deep-analytics');
         
+        const filterEl = document.getElementById('dashboard-date-filter');
+        const customMonthEl = document.getElementById('dashboard-custom-month');
+        const dateFilter = filterEl ? filterEl.value : 'all';
+        const dashboardCustomDate = customMonthEl ? customMonthEl.value : '';
+        const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+        const currentYear = parseInt(todayStr.split('-')[0], 10);
+        const currentMonth = parseInt(todayStr.split('-')[1], 10) - 1;
+
+        const isDateInRange = (dateStr) => {
+            if (dateFilter === 'all') return true;
+            if (!dateStr) return false;
+            if (dateFilter === 'today') return dateStr === todayStr;
+            const [yearStr, monthStr] = dateStr.split('-');
+            const itemYear = parseInt(yearStr, 10);
+            const itemMonth = parseInt(monthStr, 10) - 1;
+            
+            if (dateFilter === 'month') return itemMonth === currentMonth && itemYear === currentYear;
+            if (dateFilter === 'last_month') {
+                let targetMonth = currentMonth - 1;
+                let targetYear = currentYear;
+                if (targetMonth < 0) { targetMonth = 11; targetYear -= 1; }
+                return itemMonth === targetMonth && itemYear === targetYear;
+            }
+            if (dateFilter === 'custom') {
+                if (!dashboardCustomDate) return false; 
+                const [cYear, cMonth] = dashboardCustomDate.split('-');
+                return itemYear === parseInt(cYear, 10) && itemMonth === (parseInt(cMonth, 10) - 1);
+            }
+            if (dateFilter === 'year') return itemYear === currentYear;
+            return true;
+        };
+
         const firmId = app.state.firmId;
-        const sales = (window.UI.state.rawData.sales || []).filter(s => s.firmId === firmId && s.status !== 'Open' && s.status !== 'Cancelled');
-        const purchases = (window.UI.state.rawData.purchases || []).filter(p => p.firmId === firmId && p.status !== 'Open' && p.status !== 'Cancelled');
-        const expenses = (window.UI.state.rawData.expenses || []).filter(e => e.firmId === firmId);
+        const sales = (window.UI.state.rawData.sales || []).filter(s => s.firmId === firmId && s.status !== 'Open' && s.status !== 'Cancelled' && isDateInRange(s.date));
+        const purchases = (window.UI.state.rawData.purchases || []).filter(p => p.firmId === firmId && p.status !== 'Open' && p.status !== 'Cancelled' && isDateInRange(p.date));
+        const expenses = (window.UI.state.rawData.expenses || []).filter(e => e.firmId === firmId && isDateInRange(e.date));
         
         // 1. Top Products (Drill to Item Ledger)
         const productSales = {};
