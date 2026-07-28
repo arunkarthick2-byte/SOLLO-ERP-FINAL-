@@ -1742,9 +1742,13 @@ body.dark-mode tbody tr:active {
     box-shadow: none !important; /* Remove harsh solid shadows to let the glass shine */
 }
 
-/* 4. Fix the specific Report Viewer header so it gets a tinted glass effect */
-#activity-report-viewer .activity-header {
+/* 4. Fix the specific Report Viewer & Item Ledger headers so they get a tinted glass effect */
+#activity-report-viewer .activity-header,
+#activity-item-ledger .activity-header {
     background: color-mix(in srgb, var(--md-primary-container) 85%, transparent) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    z-index: 100 !important;
 }
 
 /* 4. Add a premium glow and elevate the actual text box above the dimmed background */
@@ -5240,9 +5244,12 @@ body.dark-mode button[style*="background: white"] {
 /* Makes the on-screen Ledger/Report Viewer blend seamlessly into Dark Mode 
    while strictly keeping the actual exported PDFs pure white! */
    
-body.dark-mode #activity-report-viewer .activity-header {
-    background: var(--md-surface) !important;
-    border-bottom: 1px solid var(--md-outline-variant) !important;
+body.dark-mode #activity-report-viewer .activity-header,
+body.dark-mode #activity-item-ledger .activity-header {
+    background: color-mix(in srgb, var(--md-surface) 85%, transparent) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 
 body.dark-mode #activity-report-viewer .activity-header .material-symbols-outlined,
@@ -7276,4 +7283,122 @@ body.dark-mode .activity-header {
 /* 🚨 THE FIX: Increased to 88px so the Customer/Supplier card clears the header perfectly! */
 .activity-content {
     padding-top: 88px !important; 
+}
+/* ==========================================
+   🟢 GLASSMORPHISM HEADER & FLUSH SEARCH BAR
+   ========================================== */
+
+/* 1. Restore the standard screen layout */
+#activity-report-viewer,
+#activity-item-ledger {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+/* 2. Force Glassmorphism Header (Bypasses global disable) */
+#activity-report-viewer .activity-header,
+#activity-item-ledger .activity-header {
+    position: relative !important;
+    width: 100% !important;
+    min-height: 72px !important;
+    z-index: 100 !important;
+    
+    /* Solid translucent white + forced frosted blur */
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+    
+    align-items: center !important;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 12px !important;
+    box-sizing: border-box !important;
+}
+
+/* Dark Mode Glass Header */
+body.dark-mode #activity-report-viewer .activity-header,
+body.dark-mode #activity-item-ledger .activity-header {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+#activity-report-viewer .activity-header *,
+#activity-item-ledger .activity-header * {
+    color: var(--md-on-surface) !important;
+}
+
+/* 3. Flush Content (Zero Gap under Header) */
+#activity-report-viewer .activity-content,
+#activity-item-ledger .activity-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    height: auto !important;
+    padding-top: 0px !important; /* Eliminates the top gap */
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+}
+
+/* 4. Flush Sticky Glass Search Bar */
+#activity-report-viewer .search-bar,
+#activity-item-ledger .search-bar {
+    position: sticky !important;
+    top: 0px !important; 
+    z-index: 90 !important;
+    
+    /* Pull flush to edges */
+    margin-top: 0 !important;
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+    margin-bottom: 16px !important;
+    border-radius: 0 !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+
+    /* Matching Glassmorphism for the search bar */
+    background: rgba(253, 252, 255, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+}
+
+body.dark-mode #activity-report-viewer .search-bar,
+body.dark-mode #activity-item-ledger .search-bar {
+    background: rgba(15, 23, 42, 0.85) !important;
+}
+/* ==========================================
+   🚨 UI POLISH: SPINNING ICONS & STICKY BALANCES
+   ========================================== */
+
+/* 1. BRING THE SYNC ICONS TO LIFE */
+/* This matches the 'rotating' class your app.js tries to trigger on PDF export */
+.rotating {
+    animation: sollo-spin-linear 1.2s linear infinite !important;
+    display: inline-block;
+}
+
+@keyframes sollo-spin-linear {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 2. STICKY FINTECH LEDGER BALANCES */
+/* Locks the Total Debit/Credit Summary directly under your new search bar while scrolling! */
+#ledger-summary-card {
+    position: sticky !important;
+    top: 52px !important; /* Locks safely right underneath your search bar */
+    z-index: 85 !important; /* Ensures the search bar floats above it */
+    
+    /* Give it a frosted glass effect so scrolling transaction rows slide under it beautifully */
+    background: rgba(253, 252, 255, 0.9) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ensure the sticky balance box looks sharp in Dark Mode too */
+body.dark-mode #ledger-summary-card {
+    background: rgba(15, 23, 42, 0.9) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
 }

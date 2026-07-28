@@ -207,22 +207,21 @@ const updateNetworkStatus = () => {
     if (!banner) {
         banner = document.createElement('div');
         banner.id = 'offline-banner';
-        banner.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; text-align: center; padding: 6px; font-size: 12px; font-weight: 600; color: white; transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); transform: translateY(-100%); display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);';
+        banner.className = 'offline-banner'; // Let your premium CSS handle all styling!
         document.body.appendChild(banner);
     }
     
     if (!navigator.onLine) {
         // Drop down the red warning banner
-        banner.style.backgroundColor = 'var(--md-error, #ba1a1a)';
-        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">cloud_off</span> You are offline. Working locally.';
-        banner.style.transform = 'translateY(0)';
+        banner.className = 'offline-banner show'; // Removes the green 'online' class
+        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_off</span> You are offline. Working locally.';
     } else {
         // Turn it green, tell them they are connected, then slide it away after 3 seconds
-        banner.style.backgroundColor = 'var(--md-success, #146c2e)';
-        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">cloud_done</span> Back online. Sync ready.';
+        banner.className = 'offline-banner show online';
+        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_done</span> Back online. Sync ready.';
         
         if (window.networkBannerTimeout) clearTimeout(window.networkBannerTimeout);
-        window.networkBannerTimeout = setTimeout(() => { banner.style.transform = 'translateY(-100%)'; }, 3000);
+        window.networkBannerTimeout = setTimeout(() => { banner.classList.remove('show'); }, 3000);
 
         // ENTERPRISE UPGRADE: SMART AUTO-RECOVERY
         // The moment internet is restored, silently push all offline work to Google Drive!
@@ -1710,15 +1709,17 @@ const app = {
             let balColor = 'var(--md-text-muted)';
             let subText = ''; // 🚀 ENTERPRISE GST SPLIT ENGINE FOR UI HEADER
 
-            // 🚨 ENTERPRISE FIX: Drop "To Pay/Receive" to a new line as a beautiful badge so long Party Names don't get squished!
+            // 🚨 ENTERPRISE FIX: Restored the beautiful Pill Badges and multiline layout!
+            const formatAmt = (amt) => '\u20B9' + Math.abs(amt).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            
             if (partyType === 'Customer') {
-                if (bal > 0.01) { balText = `Closing Balance: \u20B9${bal.toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO RECEIVE</span>`; balColor = '#ef4444'; }
-                else if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#16a34a; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = '#22c55e'; }
-                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = '#94a3b8'; }
+                if (bal > 0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO RECEIVE</span>`; balColor = 'var(--md-on-surface)'; }
+                else if (bal < -0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#16a34a; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = 'var(--md-on-surface)'; }
+                else { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(0)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = 'var(--md-text-muted)'; }
             } else {
-                if (bal < -0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO PAY</span>`; balColor = '#ef4444'; }
-                else if (bal > 0.01) { balText = `Closing Balance: \u20B9${Math.abs(bal).toFixed(2)} <br><span style="display:inline-block; margin-top:6px; background:#16a34a; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = '#22c55e'; }
-                else { balText = `Closing Balance: \u20B90.00 <br><span style="display:inline-block; margin-top:6px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = '#94a3b8'; }
+                if (bal < -0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO PAY</span>`; balColor = 'var(--md-on-surface)'; }
+                else if (bal > 0.01) { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(bal)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#16a34a; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`; balColor = 'var(--md-on-surface)'; }
+                else { balText = `Closing Balance:<br><span style="font-size: 16px;">${formatAmt(0)}</span> <br><span style="display:inline-block; margin-top:6px; margin-bottom:2px; background:#475569; color:#ffffff; padding:4px 10px; border-radius:6px; font-weight:900; font-size:11px; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(71,85,105,0.3);">SETTLED</span>`; balColor = 'var(--md-text-muted)'; }
             }
             
             // 🚀 ENTERPRISE UPGRADE: EXPLICIT TAX-SPLIT ENGINE FOR LEDGER
@@ -1771,12 +1772,12 @@ const app = {
                 let debitsGst = Math.max(0, trueBalGST);
                 let debitsNon = Math.max(0, trueBalNonGST);
 
-                if (debitsGst > 0.01 && debitsNon > 0.01) subText = `<br><span style="font-size:12px; color:var(--md-error); font-weight: 800;">GST Due: \u20B9${debitsGst.toFixed(2)} | Non-GST Due: \u20B9${debitsNon.toFixed(2)}</span>`;
-                else if (debitsGst > 0.01) subText = `<br><span style="font-size:12px; color:var(--md-error); font-weight: 800;">GST Due: \u20B9${debitsGst.toFixed(2)}</span>`;
-                else if (debitsNon > 0.01) subText = `<br><span style="font-size:12px; color:var(--md-error); font-weight: 800;">Non-GST Due: \u20B9${debitsNon.toFixed(2)}</span>`;
+                if (debitsGst > 0.01 && debitsNon > 0.01) subText = `<br><span style="font-size:11px; color:var(--md-on-surface); font-weight: 800;">GST Due: \u20B9${debitsGst.toLocaleString('en-IN', {minimumFractionDigits:2})} | Non-GST Due: \u20B9${debitsNon.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>`;
+                else if (debitsGst > 0.01) subText = `<br><span style="font-size:11px; color:var(--md-on-surface); font-weight: 800;">GST Due: \u20B9${debitsGst.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>`;
+                else if (debitsNon > 0.01) subText = `<br><span style="font-size:11px; color:var(--md-on-surface); font-weight: 800;">Non-GST Due: \u20B9${debitsNon.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>`;
             }
 
-            balEl.innerHTML = balText + subText; // Upgraded to innerHTML so the span tags safely render!
+            balEl.innerHTML = balText + subText; 
             balEl.style.color = balColor;
 
             // Move state assignment ABOVE the early return to clear previous memory!
@@ -1804,6 +1805,11 @@ const app = {
         let account = await getRecordById('accounts', accountId) || { name: 'Cash Drawer', openingBalance: 0 };
 
         document.getElementById('report-party-name').innerText = account.name;
+        
+        // 🚨 SOLLO FIX: Hide the LTV Card so it doesn't ghost into the Bank Account view!
+        const ltvCard = document.getElementById('ledger-ltv-card');
+        if (ltvCard) ltvCard.className = 'hidden';
+        
         const timelineContainer = document.getElementById('timeline-list');
         
         // UPGRADE 3: Inject Skeleton Loaders instead of text
@@ -5111,29 +5117,60 @@ if (data.id && splitConfirmed) {
         sales.forEach(s => {
             const id = s.customerId || s.customerName;
             const total = parseFloat(s.grandTotal) || 0;
-            if (!customerSales[id]) customerSales[id] = { name: s.customerName, total: 0 };
+            if (!customerSales[id]) customerSales[id] = { name: s.customerName, total: 0, docCount: 0 };
             customerSales[id].total += (s.documentType === 'return' ? -total : total);
+            // Count the number of invoices/returns for this customer
+            customerSales[id].docCount += 1;
         });
         
+        // Calculate total sales sum to figure out the percentage
+        const totalSalesSum = Object.values(customerSales).reduce((sum, c) => sum + c.total, 0);
+
         const topCustomers = Object.keys(customerSales).map(id => ({ id, ...customerSales[id] })).filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
         let custHtml = topCustomers.map((c, idx) => {
             const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(c.name).replace(/'/g, "\\'") : c.name;
-            return `<div class="tap-target" onclick="if(window.app) window.app.openPartyLedger('${c.id}', 'Customer', '${safeName}')" style="display: flex; justify-content: space-between; padding: 12px 8px; border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${c.name}</span><strong style="color: var(--md-success); font-size: 15px;">₹${c.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`;
+            const percentage = totalSalesSum > 0 ? ((c.total / totalSalesSum) * 100).toFixed(1) : 0;
+            
+            // 🚨 We add the 'onclick' event to trigger the Party Ledger!
+            return `
+            <div class="m3-card tap-target" onclick="app.openPartyLedger('${c.id}', 'Customer', '${safeName}')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;">
+                <div>
+                    <strong style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${c.name}</strong>
+                    <small style="display: block; font-size: 11px; color: var(--md-text-muted);">Docs: ${c.docCount} | ${percentage}% of Sales</small>
+                </div>
+                <strong style="color: var(--md-success); font-size: 15px;">₹${c.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+            </div>`;
         }).join('');
         document.getElementById('analytics-top-customers').innerHTML = custHtml || '<small style="color: var(--md-text-muted);">No customer data available.</small>';
 
-        // 3. Top Suppliers (NEW! Drill to Party Ledger)
+        // 3. Top Suppliers (Drill to Party Ledger)
         const supplierPurchases = {};
         purchases.forEach(p => {
             const id = p.supplierId || p.supplierName;
             const total = parseFloat(p.grandTotal) || 0;
-            if (!supplierPurchases[id]) supplierPurchases[id] = { name: p.supplierName, total: 0 };
+            if (!supplierPurchases[id]) supplierPurchases[id] = { name: p.supplierName, total: 0, docCount: 0 };
             supplierPurchases[id].total += (p.documentType === 'return' ? -total : total);
+            // Count the number of bills/returns for this supplier
+            supplierPurchases[id].docCount += 1;
         });
+        
+        // Calculate total purchase sum to figure out the percentage
+        const totalPurchSum = Object.values(supplierPurchases).reduce((sum, c) => sum + c.total, 0);
+
         const topSuppliers = Object.keys(supplierPurchases).map(id => ({ id, ...supplierPurchases[id] })).filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 5);
         let suppHtml = topSuppliers.map((c, idx) => {
             const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(c.name).replace(/'/g, "\\'") : c.name;
-            return `<div class="tap-target" onclick="if(window.app) window.app.openPartyLedger('${c.id}', 'Supplier', '${safeName}')" style="display: flex; justify-content: space-between; padding: 12px 8px; border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;"><span style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${c.name}</span><strong style="color: #d84315; font-size: 15px;">₹${c.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></div>`;
+            const percentage = totalPurchSum > 0 ? ((c.total / totalPurchSum) * 100).toFixed(1) : 0;
+
+            // 🚨 We add the 'onclick' event to trigger the Party Ledger!
+            return `
+            <div class="m3-card tap-target" onclick="app.openPartyLedger('${c.id}', 'Supplier', '${safeName}')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;">
+                <div>
+                    <strong style="font-size: 14px; font-weight: 600; color: var(--md-on-surface);">${idx + 1}. ${c.name}</strong>
+                    <small style="display: block; font-size: 11px; color: var(--md-text-muted);">Docs: ${c.docCount} | ${percentage}% of Spend</small>
+                </div>
+                <strong style="color: #d84315; font-size: 15px;">₹${c.total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+            </div>`;
         }).join('');
         
         // Dynamically inject the new Supplier Card if it doesn't exist
