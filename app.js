@@ -2038,7 +2038,8 @@ const app = {
                 if (isCustomer) {
                     return bal > 0 ? { text: `Due: ₹${bal.toFixed(2)}`, color: 'var(--md-error)' } : { text: `Adv: ₹${Math.abs(bal).toFixed(2)}`, color: 'var(--md-success)' };
                 } else {
-                    return bal < 0 ? { text: `Due: ₹${Math.abs(bal).toFixed(2)}`, color: 'var(--md-error)' } : { text: `Adv: ₹${bal.toFixed(2)}`, color: 'var(--md-success)' };
+                    // supplier balance text updated to "To Pay"
+                    return bal > 0 ? { text: `To Pay: ₹${bal.toFixed(2)}`, color: 'var(--md-error)' } : { text: `Adv: ₹${Math.abs(bal).toFixed(2)}`, color: 'var(--md-success)' };
                 }
             };
             
@@ -2370,6 +2371,13 @@ const app = {
             const form = document.getElementById(`form-${type}`);
             if(form) {
                 form.reset();
+                
+                // 🚨 FIX: Wipe the cached invoice number from previous sessions!
+                if (type === 'sales') {
+                    const invInput = document.getElementById('sales-invoice-no');
+                    if (invInput) invInput.removeAttribute('data-cached-no');
+                }
+
                 // Wipe ghost images from previous sessions
                 form.querySelectorAll('img').forEach(img => {
                     img.src = '';
@@ -3089,14 +3097,18 @@ const app = {
         if (typeDropdown && invInput) {
             typeDropdown.addEventListener('change', async (e) => {
                 if (e.target.value === 'Non-GST') {
-                    // Save the current number in memory before clearing it!
-                    invInput.setAttribute('data-cached-no', invInput.value);
+                    // 🚨 FIX: Only cache the number if the input actually has a value to prevent caching blanks!
+                    if (invInput.value) {
+                        invInput.setAttribute('data-cached-no', invInput.value);
+                    }
                     invInput.value = '';
                     invInput.placeholder = 'Optional for Bill of Supply';
                 } else {
                     // Restore the number if they switch back to GST
                     const cached = invInput.getAttribute('data-cached-no');
-                    if (cached) {
+                    
+                    // 🚨 FIX: ONLY restore the cached number if the user hasn't typed a custom one while in Non-GST mode!
+                    if (cached && !invInput.value) {
                         invInput.value = cached;
                     } else if (!invInput.value && typeof getNextDocumentNumber === 'function') {
                         const prefix = app.state.currentDocType === 'return' ? 'CN' : 'INV';

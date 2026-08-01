@@ -55,7 +55,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=91">
+    <link rel="stylesheet" href="style.css?v=92">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -714,7 +714,7 @@
                             <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: var(--md-primary-container); padding: 6px; border-radius: 50%; font-size: 20px;" onclick="if(window.app) window.app.openForm('account')">add</span>
                         </div>
                     </div>
-                    <div id="bank-balances-container" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;"></div>
+                    <div id="bank-balances-container" style="display: flex; flex-direction: column; gap: 0; margin-bottom: 24px;"></div>
                 </div>
 
                 <!-- Inner Tab Switcher Script -->
@@ -837,10 +837,10 @@
                 
                 <!-- ================= RESTORED: LIVE AGING DASHBOARD ================= -->
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">Cash Recovery & Aging</strong>
-                <div style="background: var(--md-surface); margin-bottom: 24px; border-radius: 12px; overflow: hidden; border: 1px solid var(--md-outline-variant);">
+                <div style="background: var(--md-surface); margin-left: -16px; margin-right: -16px; margin-bottom: 24px; overflow: hidden; border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
                     
                     <!-- Total Header -->
-                    <div style="background: #fff0f2; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="background: #fff0f2; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center;">
                         <strong style="font-size: 15px; color: #0f172a;">Total Receivables</strong>
                         <strong id="aging-total-due" style="font-size: 18px; color: #0f172a; font-weight: 900;">₹0.00</strong>
                     </div>
@@ -1201,12 +1201,12 @@
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="flex: 1;">
-                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">GST Due</small>
+                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">GST</small>
                             <strong id="sales-party-balance-gst" style="font-size: 13px; color: var(--md-on-surface);">₹0.00</strong>
                         </div>
                         <div style="width: 1px; height: 24px; background: var(--md-outline-variant); margin: 0 12px;"></div>
                         <div style="flex: 1; text-align: right;">
-                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">Non-GST Due</small>
+                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">Non-GST</small>
                             <strong id="sales-party-balance-nongst" style="font-size: 13px; color: var(--md-on-surface);">₹0.00</strong>
                         </div>
                     </div>
@@ -1316,9 +1316,9 @@
                             <span style="color: var(--md-success);">Total Paid: <span id="sales-tracker-paid">₹0.00</span></span>
                             <span style="color: var(--md-error);">Balance Due: <span id="sales-tracker-due">₹0.00</span></span>
                         </div>
-                        <div style="width: 100%; background: #e3e3e3; border-radius: 6px; height: 8px; overflow: hidden;">
-                            <div id="sales-tracker-bar" style="width: 0%; height: 100%; background: var(--md-success); border-radius: 6px; transition: width 0.8s ease;"></div>
-                        </div>
+<div style="width: 100%; background: var(--md-outline-variant); border-radius: 6px; height: 8px; overflow: hidden;">
+    <div id="sales-tracker-bar" style="width: 0%; height: 100%; background: var(--md-success); border-radius: 6px; transition: width 0.8s ease;"></div>
+</div>
                     </div>
                 </div>
 
@@ -1462,12 +1462,12 @@
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="flex: 1;">
-                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">GST Due</small>
+                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">GST</small>
                             <strong id="purchase-party-balance-gst" style="font-size: 13px; color: var(--md-on-surface);">₹0.00</strong>
                         </div>
                         <div style="width: 1px; height: 24px; background: var(--md-outline-variant); margin: 0 12px;"></div>
                         <div style="flex: 1; text-align: right;">
-                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">Non-GST Due</small>
+                            <small style="font-size: 10px; color: var(--md-text-muted); text-transform: uppercase; font-weight: 700; display: block;">Non-GST</small>
                             <strong id="purchase-party-balance-nongst" style="font-size: 13px; color: var(--md-on-surface);">₹0.00</strong>
                         </div>
                     </div>
@@ -1569,6 +1569,16 @@
                     </div>
                     <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="purchase-grand-total">&#8377;0.00</strong></div>
+                    
+                    <div id="purchase-installment-tracker" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--md-outline-variant);">
+                        <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px;">
+                            <span style="color: var(--md-success);">Total Paid: <span id="purchase-tracker-paid">₹0.00</span></span>
+                            <span style="color: var(--md-error);">Balance Due: <span id="purchase-tracker-due">₹0.00</span></span>
+                        </div>
+<div style="width: 100%; background: var(--md-outline-variant); border-radius: 6px; height: 8px; overflow: hidden;">
+    <div id="purchase-tracker-bar" style="width: 0%; height: 100%; background: var(--md-success); border-radius: 6px; transition: width 0.8s ease;"></div>
+</div>
+                    </div>
                 </div>
 
                 <div id="purchase-payment-history-card" class="m3-card hidden" style="margin-bottom: 24px; border: 1px solid var(--md-outline-variant);">
@@ -1576,15 +1586,61 @@
                     <div id="purchase-payment-history-list"></div>
                 </div>
 
+                <script>
+                    setTimeout(() => {
+                        const historyList = document.getElementById('purchase-payment-history-list');
+                        if (historyList) {
+                            new MutationObserver(() => {
+                                const tracker = document.getElementById('purchase-installment-tracker');
+                                const grandTotalEl = document.getElementById('purchase-grand-total');
+                                const card = document.getElementById('purchase-payment-history-card');
+                                
+                                if (card && !card.classList.contains('hidden')) {
+                                    let totalPaid = 0;
+                                    Array.from(historyList.children).forEach(row => {
+                                        const match = row.innerText.match(/(?:\+|-)?\s*(?:₹|Rs\.?)\s*([\d,.]+)/i);
+                                        if (match) {
+                                            const amt = parseFloat(match[1].replace(/,/g, ''));
+                                            // Handle refunds/debit notes perfectly
+                                            if (row.innerText.includes('-₹')) totalPaid -= amt;
+                                            else totalPaid += amt;
+                                        }
+                                    });
+                                    
+                                    const grandTotal = parseFloat(grandTotalEl.innerText.replace(/[^\d.-]/g, '')) || 0;
+                                    const balanceDue = Math.max(0, grandTotal - totalPaid);
+                                    const percent = grandTotal > 0 ? Math.min(100, (totalPaid / grandTotal) * 100) : 0;
+                                    
+                                    document.getElementById('purchase-tracker-paid').innerText = '₹' + totalPaid.toFixed(2);
+                                    document.getElementById('purchase-tracker-due').innerText = '₹' + balanceDue.toFixed(2);
+                                    document.getElementById('purchase-tracker-bar').style.width = percent + '%';
+                                    tracker.style.display = 'block';
+                                } else {
+                                    tracker.style.display = 'none';
+                                }
+                            }).observe(historyList, { childList: true, subtree: true });
+                        }
+                    }, 2000);
+                </script>
+
                 <div id="purchase-expense-history-card" class="m3-card hidden" style="margin-bottom: 24px; border: 1px solid var(--md-outline-variant);">
                     <strong style="display: block; margin-bottom: 12px; color: var(--md-error);">Linked Order Expenses</strong>
                     <div id="purchase-expense-history-list"></div>
                 </div>
 
-                <div style="margin-top: 16px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px;">
-                    <label style="color: var(--md-text-muted); font-weight: bold; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">lock</span> Private Internal Notes</label>
-                    <textarea id="purchase-internal-notes" rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
-                </div>
+                <details class="advanced-options">
+                    <summary>Advanced Options & Notes</summary>
+                    <div>
+                        <div style="margin-top: 16px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
+                            <label style="color: var(--md-text-muted); font-weight: bold; font-size: 12px;"><span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">note_alt</span> Document Notes / Remarks</label>
+                            <textarea id="purchase-internal-notes" rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--md-on-surface); cursor: pointer; padding-left: 4px;">
+                                <input type="checkbox" id="purchase-print-notes" style="width: 16px; height: 16px; cursor: pointer;">
+                                Print these notes on the final PDF
+                            </label>
+                        </div>
+                    </div>
+                </details>
 
                 <div style="height: 100px;"></div>
                 
@@ -1807,7 +1863,7 @@
                     </div>
                 </div>
 
-                <div style="padding: 0 16px 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
+                <div style="padding: 16px 16px 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
                 
                 <div class="premium-form-section">
                     <div class="premium-row">
@@ -1935,8 +1991,13 @@
                     </div>
                     <div class="premium-row">
                         <div class="premium-label">Phone</div>
-                        <div class="premium-input-container">
-                            <input type="tel" name="phone" id="ledger-phone" class="premium-input" placeholder="Optional">
+                        <div class="premium-input-container" style="gap: 12px;">
+                            <input type="tel" name="phone" id="ledger-phone" class="premium-input" placeholder="Optional" style="flex: 1;">
+                            
+                            <!-- The Auto-Hiding Native Contacts Button -->
+                            <div id="btn-import-contact" class="icon-circle tap-target" style="display: none; width: 36px; height: 36px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); box-shadow: none; flex-shrink: 0;" onclick="if(window.app) window.app.importContact()">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">contacts</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2493,6 +2554,14 @@
             
             <!-- Date Filter Section -->
             <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
+            
+            <!-- 🚀 NEW QUICK DATE FILTERS -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'expenses-start-date', 'expenses-end-date', 'expenses', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'expenses-start-date', 'expenses-end-date', 'expenses', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'expenses-start-date', 'expenses-end-date', 'expenses', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            </div>
+
             <div style="background: rgba(186, 26, 26, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(186, 26, 26, 0.3); margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('expenses-start-date').value=''; document.getElementById('expenses-end-date').value=''; UI.applyFilters('expenses');">close</span>
@@ -2691,6 +2760,14 @@
         <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
             
             <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
+            
+            <!-- 🚀 NEW QUICK DATE FILTERS -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            </div>
+
             <div style="background: rgba(0, 97, 164, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0, 97, 164, 0.3); margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('cashbook-start-date').value=''; document.getElementById('cashbook-end-date').value=''; UI.applyFilters('cashbook');">close</span>
@@ -2771,6 +2848,14 @@
             
             <!-- Date Filter Section -->
             <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
+            
+            <!-- 🚀 NEW QUICK DATE FILTERS -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            </div>
+
             <div style="background: rgba(0, 97, 164, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0, 97, 164, 0.3); margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('sales-start-date').value=''; document.getElementById('sales-end-date').value=''; UI.applyFilters('sales');">close</span>
@@ -2900,6 +2985,14 @@
             
             <!-- Date Filter Section -->
             <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
+            
+            <!-- 🚀 NEW QUICK DATE FILTERS -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            </div>
+
             <div style="background: rgba(245, 127, 23, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(245, 127, 23, 0.3); margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('purchases-start-date').value=''; document.getElementById('purchases-end-date').value=''; UI.applyFilters('purchases');">close</span>
@@ -3569,8 +3662,8 @@
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             
             <div style="display: flex; gap: 8px; margin-bottom: 16px; background: var(--md-surface-variant); padding: 4px; border-radius: 8px;">
-                <div id="btn-tab-daybook" class="tap-target" style="flex: 1; text-align: center; padding: 8px; background: var(--md-surface); border-radius: 6px; font-weight: bold; box-shadow: var(--elevation-1);" onclick="UI.switchReportTab('daybook')">Day Book</div>
-                <div id="btn-tab-pnl" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold;" onclick="UI.switchReportTab('pnl')">Profit & Loss</div>
+                <div id="btn-tab-daybook" class="tap-target" style="flex: 1; text-align: center; padding: 8px; background: var(--md-surface); border-radius: 6px; font-weight: bold; color: var(--md-primary); box-shadow: var(--elevation-1);" onclick="UI.switchReportTab('daybook')">Day Book</div>
+                <div id="btn-tab-pnl" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted);" onclick="UI.switchReportTab('pnl')">Profit & Loss</div>
             </div>
 
             <div id="view-daybook">
@@ -3606,6 +3699,14 @@
         <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
             
             <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
+            
+            <!-- 🚀 NEW QUICK DATE FILTERS -->
+            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'timeline-start-date', 'timeline-end-date', 'timeline', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'timeline-start-date', 'timeline-end-date', 'timeline', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'timeline-start-date', 'timeline-end-date', 'timeline', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            </div>
+
             <div style="background: rgba(0, 97, 164, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0, 97, 164, 0.3); margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('timeline-start-date').value=''; document.getElementById('timeline-end-date').value=''; UI.applyFilters('timeline');">close</span>
@@ -3663,6 +3764,48 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // 🚀 SMART QUICK-DATE ENGINE FOR BANK & CASHBOOK FILTERS
+        window.setQuickDates = function(type, startId, endId, tabName, btnElement) {
+            const today = new Date();
+            let s = '', e = '';
+            const y = today.getFullYear();
+            const m = today.getMonth(); // 0-11
+            
+            if (type === 'month') {
+                s = y + '-' + String(m+1).padStart(2,'0') + '-01';
+                e = new Date(y, m+1, 0).toISOString().split('T')[0];
+            } else if (type === 'last_month') {
+                let tm = m - 1; let ty = y;
+                if (tm < 0) { tm = 11; ty--; }
+                s = ty + '-' + String(tm+1).padStart(2,'0') + '-01';
+                e = new Date(ty, tm+1, 0).toISOString().split('T')[0];
+            } else if (type === 'fy') {
+                const fyStart = m >= 3 ? y : y - 1;
+                s = fyStart + '-04-01';
+                e = (fyStart + 1) + '-03-31';
+            }
+            
+            // Set the exact dates into the input fields
+            document.getElementById(startId).value = s;
+            document.getElementById(endId).value = e;
+
+            // 🎨 Visual State Update (Color Change)
+            if (btnElement) {
+                const siblings = btnElement.parentElement.querySelectorAll('button');
+                siblings.forEach(btn => {
+                    btn.style.background = 'var(--md-surface)';
+                    btn.style.color = 'var(--md-primary)';
+                });
+                btnElement.style.background = 'var(--md-primary)';
+                btnElement.style.color = 'white';
+            }
+            
+            // Force the system to instantly filter and re-draw the data!
+            if(window.UI) window.UI.applyFilters(tabName);
+        };
+    </script>
 
     <div id="print-area" class="print-only"></div>
     
@@ -3792,11 +3935,11 @@
     </div>
 
     <script src="components.js"></script>
-    <script src="db.js?v=91"></script>
-    <script src="utils.js?v=91"></script>
-    <script src="ui.js?v=91"></script>
-    <script src="cloud.js?v=91"></script>
-    <script src="app.js?v=91"></script>
+    <script src="db.js?v=92"></script>
+    <script src="utils.js?v=92"></script>
+    <script src="ui.js?v=92"></script>
+    <script src="cloud.js?v=92"></script>
+    <script src="app.js?v=92"></script>
     <script src="state.js"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
@@ -3827,8 +3970,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=91' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=91`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=92' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=92`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -4143,36 +4286,6 @@
                     input.setAttribute('autocapitalize', 'characters');
                 } else if (!id.includes('search')) {
                     input.setAttribute('autocapitalize', 'words');
-                }
-            });
-
-            // ==========================================
-            // ENTERPRISE UPGRADE: HIGH-SPEED "ENTER-TO-NEXT" ENGINE
-            // ==========================================
-            // Allows users to breeze through forms using the "Enter" or "Next" key on their mobile keyboard!
-            document.addEventListener('keydown', function(e) {
-                // Support both modern .key and older mobile .keyCode implementations
-                if (e.key === 'Enter' || e.keyCode === 13) {
-                    const active = document.activeElement;
-                    // Ignore textareas (they need Enter for new lines) and search bars
-                    if (active.tagName === 'TEXTAREA' || (active.id && active.id.includes('search'))) return;
-                    
-                    if (active.tagName === 'INPUT' || active.tagName === 'SELECT') {
-                        e.preventDefault(); // Stop accidental form submission
-                        const form = active.closest('form');
-                        if (form) {
-                            // Find all visible, editable inputs in this exact form (ignoring readonly)
-                            const focusable = Array.from(form.querySelectorAll('input:not([type="hidden"]):not([disabled]):not([readonly]), select:not([disabled]), button[type="submit"]'));
-                            const index = focusable.indexOf(active);
-                            
-                            if (index > -1 && index < focusable.length - 1) {
-                                // ENTERPRISE FIX: Wait 50ms before jumping so the mobile keyboard doesn't glitch and blink!
-                                setTimeout(() => {
-                                    focusable[index + 1].focus(); 
-                                }, 50);
-                            }
-                        }
-                    }
                 }
             });
 

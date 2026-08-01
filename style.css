@@ -1466,18 +1466,20 @@ body.dark-mode #success-animation { background: rgba(17, 19, 21, 0.85) !importan
    ELITE UI: STICKY FORM TOTALS
    ========================================== */
 .sticky-totals {
-    position: relative; /* FIX: Stops the box from aggressively floating over the keyboard */
+    position: relative; 
     z-index: 10;
-    margin-top: 16px; /* Gives some breathing room from the items table */
+    margin-top: 16px; 
+    margin-left: -16px !important;     /* 🔥 Stretches to the left edge */
+    margin-right: -16px !important;    /* 🔥 Stretches to the right edge */
+    border-radius: 0 !important;       /* 🔥 Removes rounded corners */
+    border-left: none !important;      
+    border-right: none !important;
+    border-top: 1px solid var(--md-outline-variant) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
     
-    /* Kept the premium glass look */
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    
-    /* Standardized the shadow so it blends with the other cards */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
-    border: 1px solid var(--md-outline-variant) !important;
+    background: var(--md-surface) !important;
+    box-shadow: none !important;
+    padding: 16px 20px !important;     /* Consistent inner padding */
     transition: all 0.3s ease;
 }
 
@@ -1615,7 +1617,7 @@ body.dark-mode .theme-toggle-knob {
     
     body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .activity-content,
     body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .main-content {
-        padding-bottom: 250px !important; 
+        /* padding-bottom: 250px !important;  <-- DISABLED TO STOP SCREEN JUMPING */
         transition: padding-bottom 0.3s ease-out;
     }
 }
@@ -4102,7 +4104,7 @@ body.dark-mode .sku-pill {
 form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:focus, textarea:focus, select:focus)) {
     opacity: 0.4 !important;
     filter: grayscale(30%) !important;
-    transform: scale(0.98) !important;
+    /* transform: scale(0.98) !important; <-- DISABLED TO STOP BOXES SHRINKING */
 }
 
 /* ------------------------------------------
@@ -5777,7 +5779,8 @@ body.dark-mode input[disabled] {
 /* 1. Transform bulky invoice item cards into a sleek, connected spreadsheet */
 #sales-items-body .item-entry-card, 
 #purchase-items-body .item-entry-card {
-    border: none !important;
+    border-top: none !important;
+    border-right: none !important;
     border-bottom: 1px solid #E5E7EB !important; /* Clean underline */
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -5993,7 +5996,7 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="date"],
 }
 
 /* The Stripe-Style Focus: Sharp, serious, high-contrast dark blue/slate outline */
-input:focus:not([readonly]), select:focus, textarea:focus {
+input:focus:not([readonly]), select:focus, textarea:focus, .numpad-focused {
     background: #FFFFFF !important;
     border-color: #0F172A !important; 
     box-shadow: 0 0 0 1px #0F172A !important; 
@@ -6053,8 +6056,7 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
 /* 4. FIX OVERLAY KEYBOARD JUMPING */
 /* Smoothly slides bottom bars away when typing so they never jump to the middle of the screen */
 body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .bottom-nav,
-body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .floating-action-button,
-body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .form-sticky-footer {
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .floating-action-button {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translateY(120px) !important;
@@ -6129,8 +6131,12 @@ body, .m3-card, .list-view li, .tap-target, button, .bottom-nav, .activity-heade
 /* 4. PROTECT INPUT BOXES */
 /* We MUST allow text selection inside actual typing boxes so users can copy/paste their data! */
 input, textarea, select {
-    -webkit-user-select: auto !important;
-    user-select: auto !important;
+    /* 🚨 FIX: 'text' forces iOS Safari to unlock the keyboard inside blocked cards */
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    /* Ensure the input sits above the surrounding card to receive taps */
+    position: relative; 
+    z-index: 10;
 }
 /* ==========================================
    🚨 SOLLO FIX: INVOICE ROW SIZES (QTY, RATE, BUY PRICE)
@@ -6897,24 +6903,36 @@ body.dark-mode #sales-discount:focus, body.dark-mode #sales-freight:focus {
 #form-purchase .m3-card,
 #risk-banner,
 #sales-return-ref-group,
-#purchase-return-ref-group {
+#purchase-return-ref-group,
+#sales-party-insight,
+#purchase-party-insight,
+#form-sales details.advanced-options,
+#form-purchase details.advanced-options {
     margin-left: -16px !important;
     margin-right: -16px !important;
-    margin-bottom: 0 !important;      /* 🔥 Kills the ugly grey gaps between cards */
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;      
     border-radius: 0 !important;      
     border-left: none !important;     
-    border-right: none !important;    
-    border-bottom: 1px solid #E5E7EB !important; /* Adds a crisp divider line instead of a gap */
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid #E5E7EB !important; 
     box-shadow: none !important;      
     padding-left: 20px !important;    
     padding-right: 20px !important;
 }
 
 /* 2. Pull the Customer/Supplier card up so it sits completely flush against the top header */
-#form-sales > .m3-card:first-of-type,
+#form-sales > .m3-card:first-of-type {
+    margin-top: -16px !important;
+    border-top: none !important;
+    border-left: 4px solid var(--md-primary) !important;
+}
+
 #form-purchase > .m3-card:first-of-type {
     margin-top: -16px !important;
     border-top: none !important;
+    border-left: 4px solid #d84315 !important;
 }
 
 /* 3. Clean up the Return boxes */
@@ -6928,7 +6946,11 @@ body.dark-mode #sales-discount:focus, body.dark-mode #sales-freight:focus {
 /* 4. Ensure Dark Mode borders remain crisp and visible */
 body.dark-mode #form-sales .m3-card,
 body.dark-mode #form-purchase .m3-card,
-body.dark-mode #risk-banner {
+body.dark-mode #risk-banner,
+body.dark-mode #sales-party-insight,
+body.dark-mode #purchase-party-insight,
+body.dark-mode #form-sales details.advanced-options,
+body.dark-mode #form-purchase details.advanced-options {
     border-bottom: 1px solid #27272A !important;
 }
 /* ==========================================

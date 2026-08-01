@@ -733,8 +733,9 @@ Please process this accordingly. Thank you!`;
                     const data = JSON.parse(e.target.result);
                     if (typeof window.importDatabase === 'function') {
                         await window.importDatabase(data);
-                        if (window.Utils) await window.Utils.alertModal("Database imported successfully! Reloading app...", "Import Complete");
-                        window.location.reload();
+                        // ACODE APP FIX: Removed the hard reload. 
+                        // The app will now just softly refresh the screen so Acode doesn't crash!
+                        if (window.Utils) await window.Utils.alertModal("Database imported successfully! Your data is now on the screen.", "Import Complete");
                     }
                 } catch (err) {
                     alert("Invalid backup file. Make sure it is a valid SOLLO JSON backup.");
@@ -742,14 +743,11 @@ Please process this accordingly. Thank you!`;
             };
             reader.readAsText(file);
             
-            // 🚀 CHROME FIX: Wait 1 second before clearing the input so Chrome's Garbage Collector 
-            // doesn't destroy the file before it finishes reading into memory!
             setTimeout(() => { event.target.value = ''; }, 1000); 
             
             return;
         }
 
-        // Bug Fix: Replaced dangerous text area freeze vulnerability with a strict file requirement
         alert("Please select a valid JSON backup file to restore your database.");
     },
 

@@ -46,7 +46,8 @@ const UI = {
         document.addEventListener('focusin', (e) => {
             if (e.target.tagName !== 'INPUT') return;
             
-            if (!e.target.getAttribute('enterkeyhint')) e.target.setAttribute('enterkeyhint', 'next');
+            // DISABLED: Let the native mobile keyboard show "Done" naturally!
+            // if (!e.target.getAttribute('enterkeyhint')) e.target.setAttribute('enterkeyhint', 'next');
             
             if (e.target.type === 'number') {
                 if (!e.target.getAttribute('inputmode')) e.target.setAttribute('inputmode', 'decimal');
@@ -85,8 +86,8 @@ const UI = {
                     const activeTag = (document.activeElement || {}).tagName;
                     if (activeTag !== 'INPUT' && activeTag !== 'TEXTAREA' && activeTag !== 'SELECT') {
                         // Secretly nudge the scroll by 1 pixel to force Safari to repaint the screen without losing the user's place!
-                        window.scrollBy(0, 1);
-                        window.scrollBy(0, -1);
+                        // window.scrollBy(0, 1);   <-- DISABLED TO FIX STUTTER
+                        // window.scrollBy(0, -1);  <-- DISABLED TO FIX STUTTER
                     }
                 }, 50);
             }
@@ -206,17 +207,19 @@ const UI = {
     },
 
     openNumpad: (inputElement, labelText) => {
-        // 🚨 SOLLO FIX: Force native keyboard to hide first so they don't overlap!
+        // Force native keyboard to hide first so they don't overlap!
         if (document.activeElement) document.activeElement.blur();
 
-        // Force the input to stay focused so the blue highlighter ring stays visible!
-        inputElement.focus();
+        // DISABLED .focus() so the native keyboard doesn't instantly pop back up!
+        // inputElement.focus(); 
+        
+        // Manually add the focus highlight class instead
+        inputElement.classList.add('numpad-focused');
+        
         UI.state.activeNumpadInput = inputElement;
         document.getElementById('numpad-label').innerText = labelText || "Enter Value";
         document.getElementById('custom-numpad').classList.add('active');
         
-        // 🚀 ENTERPRISE UX: Auto-Scroll to Input!
-        // Increased delay so the native keyboard has time to disappear before jumping!
         setTimeout(() => {
             inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 300);
@@ -224,7 +227,10 @@ const UI = {
 
     closeNumpad: () => {
         document.getElementById('custom-numpad').classList.remove('active');
-        if (UI.state.activeNumpadInput) UI.state.activeNumpadInput.blur();
+        if (UI.state.activeNumpadInput) {
+            UI.state.activeNumpadInput.classList.remove('numpad-focused'); // Remove the blue glow
+            UI.state.activeNumpadInput.blur();
+        }
         UI.state.activeNumpadInput = null;
     },
 
@@ -449,7 +455,7 @@ const UI = {
             const safeAccName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(acc.name) : acc.name;
             
             html += `
-                <div class="m3-card tap-target" onclick="${clickAction}" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--md-border); border-radius: 8px;">
+                <div class="m3-card tap-target" onclick="${clickAction}" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;">
                     <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 48px; height: 48px; flex-shrink: 0; box-shadow: none;">
                         <span class="material-symbols-outlined">${icon}</span>
                     </div>
@@ -2168,19 +2174,29 @@ const UI = {
             });
 
             // 🚨 ENTERPRISE UPGRADE: Smart Net-Flow Calculator for Cashbook
-            let netSum = 0;
+            let totalIn = 0;
+            let totalOut = 0;
+            
             data.forEach(c => {
                 let amt = parseFloat(c.amount) || 0;
-                if (activeFilter === 'All') {
-                    if (c.type === 'in') netSum += amt;
-                    else netSum -= amt; 
+                if (c.type === 'in') {
+                    totalIn += amt;
                 } else {
-                    netSum += amt;
+                    totalOut += amt;
                 }
             });
 
+            // Update the new dedicated UI cards
+            const inCard = document.getElementById('cashbook-total-in');
+            const outCard = document.getElementById('cashbook-total-out');
+            
+            if (inCard) inCard.innerText = `₹${totalIn.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            if (outCard) outCard.innerText = `₹${totalOut.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+            // Keep backward compatibility for the old badge just in case
             const badge = document.getElementById('sum-cashbook');
             if (badge) {
+                let netSum = totalIn - totalOut;
                 badge.innerText = (activeFilter === 'All' && netSum < 0 ? '-' : '') + `\u20B9${Math.abs(netSum).toFixed(2)}`;
                 if (activeFilter === 'All') {
                     badge.style.color = netSum >= 0 ? '#146c2e' : '#ba1a1a';
@@ -2903,13 +2919,22 @@ const UI = {
                     const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
                     const diffDays = Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24));
 
+                    // Find the customer's phone number from the loaded memory
+                    const customer = window.UI.state.rawData.ledgers.find(l => l.id === s.customerId);
+                    const phone = customer ? customer.phone : '';
+
                     return `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); cursor: pointer;" onclick="app.openForm('sales', '${s.id}', '${s.documentType || 'invoice'}')">
-                        <div>
+                        <div style="flex: 1;">
                             <strong class="large-text" style="color: var(--md-on-surface); font-size: 15px;">${s.customerName || 'Unknown Party'}</strong><br>
                             <small class="color-primary" style="font-size: 13px;">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small>
+                            <div style="margin-top: 4px;"><span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">${diffDays} Days Overdue</span></div>
                         </div>
-                        <span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:4px 8px; border-radius:4px; font-size:12px; font-weight:bold;">${diffDays} Days Overdue</span>
+                        
+                        <!-- The WhatsApp Smart Button -->
+                        <div class="icon-circle tap-target" style="width: 40px; height: 40px; background: rgba(37, 211, 102, 0.1); color: #25D366; flex-shrink: 0; box-shadow: none;" onclick="event.stopPropagation(); window.Utils.shareOverdueReminder('${phone}', '${String(s.customerName || '').replace(/'/g, "\\'")}', ${balance}, '${s.invoiceNo || ''}')">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                        </div>
                     </div>`;
                 }).join('');
             } else {
@@ -3470,7 +3495,7 @@ const UI = {
         const smart = UI.getSmartRate(prefix, id, price);
         
         const itemCard = document.createElement('div');
-        itemCard.className = 'item-entry-card m3-card';
+        itemCard.className = 'item-entry-card';
         itemCard.style.padding = '14px';
         itemCard.style.marginBottom = '0';
         itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
@@ -3670,7 +3695,7 @@ const UI = {
             const smart = UI.getSmartRate(prefix, p.id, p.price);
 
             const itemCard = document.createElement('div');
-            itemCard.className = 'item-entry-card m3-card';
+            itemCard.className = 'item-entry-card';
             itemCard.style.padding = '14px';
             itemCard.style.marginBottom = '0';
             itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
@@ -3797,19 +3822,26 @@ const UI = {
     switchReportTab: (tab) => {
         document.getElementById('view-daybook').classList.add('hidden');
         document.getElementById('view-pnl').classList.add('hidden');
+        
+        // Reset both tabs to transparent background and grey text
         document.getElementById('btn-tab-daybook').style.background = 'transparent';
         document.getElementById('btn-tab-daybook').style.boxShadow = 'none';
+        document.getElementById('btn-tab-daybook').style.color = 'var(--md-text-muted)';
+        
         document.getElementById('btn-tab-pnl').style.background = 'transparent';
         document.getElementById('btn-tab-pnl').style.boxShadow = 'none';
+        document.getElementById('btn-tab-pnl').style.color = 'var(--md-text-muted)';
 
         if (tab === 'daybook') {
             document.getElementById('view-daybook').classList.remove('hidden');
             document.getElementById('btn-tab-daybook').style.background = 'var(--md-surface)';
+            document.getElementById('btn-tab-daybook').style.color = 'var(--md-primary)';
             document.getElementById('btn-tab-daybook').style.boxShadow = 'var(--elevation-1)';
             UI.renderDayBook();
         } else {
             document.getElementById('view-pnl').classList.remove('hidden');
             document.getElementById('btn-tab-pnl').style.background = 'var(--md-surface)';
+            document.getElementById('btn-tab-pnl').style.color = 'var(--md-primary)';
             document.getElementById('btn-tab-pnl').style.boxShadow = 'var(--elevation-1)';
             UI.renderPnL();
         }
@@ -4627,16 +4659,17 @@ document.addEventListener('focusin', (e) => {
         if (e.target.type !== 'text') e.target.type = 'text'; 
         if (e.target.getAttribute('inputmode') !== 'decimal') e.target.setAttribute('inputmode', 'decimal'); 
         
-        if (e.target.value !== rawVal) {
-            e.target.value = rawVal;
-        }
+        // DISABLED: This rewrites the value on tap, forcing the cursor to the end of the line!
+        // if (e.target.value !== rawVal) {
+        //     e.target.value = rawVal;
+        // }
         
         // 🚨 ULTIMATE FIX: Cascading Timers
         const clearHighlight = () => {
             try {
                 if (e.target.selectionStart === 0 && e.target.selectionEnd === e.target.value.length && e.target.value.length > 0) {
                     const len = e.target.value.length;
-                    e.target.setSelectionRange(len, len);
+                    // e.target.setSelectionRange(len, len);  <-- DISABLED TO FIX CURSOR JUMPING
                 }
             } catch(err) {}
         };
@@ -4648,6 +4681,8 @@ document.addEventListener('focusin', (e) => {
 });
 
 // 🚨 SECONDARY SHIELD: Catch Touch Release
+// DISABLED: This was forcing the cursor to the end of the line when the user lifted their finger.
+/*
 document.addEventListener('pointerup', (e) => {
     if (isNumericField(e.target)) {
         setTimeout(() => {
@@ -4660,6 +4695,7 @@ document.addEventListener('pointerup', (e) => {
         }, 10);
     }
 });
+*/
 
         // ==========================================
         // 🚨 ENTERPRISE UX: DRAG-TO-DISMISS SHEETS
@@ -4739,7 +4775,12 @@ const scrollContainers = document.querySelectorAll('.activity-content, .view');
 
 scrollContainers.forEach(container => {
     // 🚨 ENTERPRISE FIX: Instantly dismiss the Keyboard Overlay when the user scrolls the list!
-    container.addEventListener('touchstart', () => {
+    container.addEventListener('touchstart', (e) => {
+        // FIXED BUG: Do not forcefully close the keyboard if the user is just tapping another input box!
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+        
         if (document.activeElement && document.activeElement.tagName === 'INPUT') {
             document.activeElement.blur();
         }
