@@ -1,6 +1,14 @@
+// 🚀 ENTERPRISE MATH SHIELD: Zero-Drift Currency Parser
+// Converts floats to integer paise internally to eliminate floating-point rounding bugs
+const safeMoney = (amount) => {
+    const num = parseFloat(amount);
+    if (isNaN(num)) return 0;
+    return Math.round(num * 100) / 100;
+};
+
 // --- BACKGROUND WORKER ENGINE ---
 if (window.Worker) {
-    window.DataWorker = new Worker('worker.js');
+    window.DataWorker = new Worker('worker.js?v=93');
     
     window.DataWorker.addEventListener('message', function(e) {
         const response = e.data;
@@ -215,6 +223,11 @@ const updateNetworkStatus = () => {
         // Drop down the red warning banner
         banner.className = 'offline-banner show'; // Removes the green 'online' class
         banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_off</span> You are offline. Working locally.';
+        
+        // 🚨 ENTERPRISE FIX: Trigger the Offline Queue Counter!
+        if (window.app && typeof window.app.checkPendingSyncs === 'function') {
+            window.app.checkPendingSyncs();
+        }
     } else {
         // Turn it green, tell them they are connected, then slide it away after 3 seconds
         banner.className = 'offline-banner show online';
@@ -287,7 +300,7 @@ document.addEventListener('input', (e) => {
 
 // Force validation check the moment any form is opened
 document.addEventListener('click', (e) => {
-    if (e.target.closest('.tap-target') || e.target.closest('.floating-action-button')) {
+    if (e.target.closest('.tap-target')) {
         setTimeout(() => {
             document.querySelectorAll('form').forEach(f => {
                 if (f.closest('.open')) f.dispatchEvent(new Event('input', { bubbles: true }));
@@ -568,6 +581,9 @@ const app = {
     // 1. BOOT SEQUENCE & FIRM MANAGEMENT
     // ==========================================
     init: async () => {
+        // 🚨 CRITICAL FIX: Expose the app engine globally so PDF icons work!
+        window.app = app; 
+        
         try {
             // --- NEW CODE: Apply theme immediately on boot ---
             UI.initTheme();
@@ -804,20 +820,62 @@ const app = {
         // ==========================================
         if (UI.state.rawData.items) {
             const valEl = document.getElementById('dash-inventory-value');
-            
-            // Show a sleek shimmering skeleton loader while the worker thinks!
             if (valEl) valEl.innerHTML = '<div class="skeleton-card" style="height: 24px; width: 70%; margin: 0; border-radius: 4px;"></div>';
             
-            // Fire the heavy math off to the background worker!
-            if (window.DataWorker) {
-                window.DataWorker.postMessage({
-                    command: 'CALCULATE_DASHBOARD_INVENTORY',
-                    firmId: app.state.firmId,
-                    items: UI.state.rawData.items,
-                    purchases: UI.state.rawData.purchases,
-                    sales: UI.state.rawData.sales
-                });
-            }
+            setTimeout(() => {
+                try {
+                    let totalValuation = 0;
+                    let lowStockItems = [];
+                    const thirtyDaysAgo = new Date();
+                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+                    const purchaseMap = {};
+                    (UI.state.rawData.purchases || []).forEach(p => {
+                        if (p.status !== 'Open' && p.status !== 'Cancelled') {
+                            (p.items || []).forEach(row => {
+                                const id = String(row.itemId || row.id);
+                                if (!purchaseMap[id]) purchaseMap[id] = { qty: 0, val: 0 };
+                                let q = parseFloat(row.qty) || 0;
+                                let r = parseFloat(row.rate) || 0;
+                                if (p.documentType === 'return') { purchaseMap[id].qty -= q; purchaseMap[id].val -= (q * r); } 
+                                else { purchaseMap[id].qty += q; purchaseMap[id].val += (q * r); }
+                            });
+                        }
+                    });
+
+                    const velocityMap = {};
+                    (UI.state.rawData.sales || []).forEach(s => {
+                        if (s.status !== 'Open' && s.status !== 'Cancelled') {
+                            let sDate = thirtyDaysAgo; 
+                            if (s.date) {
+                                const parts = String(s.date).split('-');
+                                sDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(s.date);
+                            }
+                            if (sDate >= thirtyDaysAgo) {
+                                (s.items || []).forEach(row => {
+                                    const id = String(row.itemId || row.id);
+                                    if (!velocityMap[id]) velocityMap[id] = 0;
+                                    velocityMap[id] += (s.documentType === 'return' ? -(parseFloat(row.qty)||0) : (parseFloat(row.qty)||0));
+                                });
+                            }
+                        }
+                    });
+
+                    (UI.state.rawData.items || []).forEach(i => {
+                        const rawGst = parseFloat(i.stockGst);
+                        const rawNon = parseFloat(i.stockNonGst);
+                        const totalStock = (isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst) + (isNaN(rawNon) ? 0 : rawNon);
+
+                        const pData = purchaseMap[String(i.id)] || { qty: 0, val: 0 };
+                        let trueCost = parseFloat(i.buyPrice) || 0;
+                        if (pData.qty > 0) trueCost = pData.val / pData.qty;
+
+                        totalValuation += (totalStock * trueCost);
+                    });
+
+                    if (valEl) valEl.innerText = '₹' + totalValuation.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                } catch (e) { console.error(e); }
+            }, 50);
         }
 
         // ==========================================
@@ -825,18 +883,77 @@ const app = {
         // ==========================================
         if (UI.state.rawData.sales && UI.state.rawData.cashbook) {
             const totalEl = document.getElementById('aging-total-due');
-            
             if (totalEl) {
                 totalEl.innerHTML = '<span style="font-size: 14px; color: #0f172a;">Calculating...</span>';
-                
-                if (window.DataWorker) {
-                    window.DataWorker.postMessage({
-                        command: 'CALCULATE_AGING',
-                        firmId: app.state.firmId,
-                        sales: UI.state.rawData.sales,
-                        cashbook: UI.state.rawData.cashbook
-                    });
-                }
+                setTimeout(() => {
+                    try {
+                        let bucket30 = 0, bucket60 = 0, bucket90 = 0, totalDue = 0;
+                        const today = new Date();
+                        const sales = UI.state.rawData.sales || [];
+                        const cashbook = UI.state.rawData.cashbook || [];
+                        
+                        const dashboardReturnMap = {};
+                        sales.forEach(d => {
+                            if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                                dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                            }
+                        });
+
+                        const paymentMap = {};
+                        cashbook.forEach(r => {
+                            if (r.invoiceRef && r.type === 'in') {
+                                const refs = String(r.invoiceRef).split(',').map(x => x.trim()).filter(Boolean);
+                                let remainingPayment = parseFloat(r.amount) || 0;
+                                refs.forEach(ref => {
+                                    const linkedDoc = sales.find(d => String(d.id) === ref || String(d.invoiceNo) === ref || String(d.orderNo) === ref || String(d.id).endsWith(ref));
+                                    const returned = [linkedDoc?.orderNo, linkedDoc?.invoiceNo, linkedDoc?.id, ref].filter(Boolean).reduce((sum, rx) => sum + (dashboardReturnMap[rx] || 0), 0);
+                                    let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / refs.length);
+                                    let applyAmt = Math.min(docTotal, remainingPayment);
+                                    if (applyAmt > 0) {
+                                        paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + applyAmt;
+                                        remainingPayment -= applyAmt;
+                                    }
+                                });
+                                if (remainingPayment > 0.01 && refs[0]) paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`] || 0) + remainingPayment;
+                            }
+                        });
+
+                        sales.forEach(sale => {
+                            if (sale.status !== 'Completed' && sale.status !== 'Open' && sale.status !== 'Cancelled' && sale.documentType !== 'return') {
+                                const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean).map(String))];
+                                const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${sale.customerId}_${ref}`] || 0), 0);
+                                const returnTotal = uniqueRefs.reduce((sum, ref) => sum + (dashboardReturnMap[ref] || 0), 0);
+                                const balance = (parseFloat(sale.grandTotal) || 0) - paid - returnTotal;
+
+                                if (balance > 0.01) {
+                                    totalDue += balance;
+                                    const baseDate = sale.shippedDate ? sale.shippedDate : sale.date;
+                                    let invoiceDate = today;
+                                    if (baseDate) {
+                                        const parts = String(baseDate).split('-');
+                                        invoiceDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(baseDate);
+                                    }
+                                    const diffTime = today - invoiceDate;
+                                    if (diffTime >= 0) {
+                                        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
+                                        if (diffDays <= 30) bucket30 += balance;
+                                        else if (diffDays <= 60) bucket60 += balance;
+                                        else bucket90 += balance;
+                                    }
+                                }
+                            }
+                        });
+
+                        const formatMoney = (amt) => '₹' + amt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        totalEl.innerText = formatMoney(totalDue);
+                        document.getElementById('aging-30-amt').innerText = formatMoney(bucket30);
+                        document.getElementById('aging-60-amt').innerText = formatMoney(bucket60);
+                        document.getElementById('aging-90-amt').innerText = formatMoney(bucket90);
+                        document.getElementById('aging-30-bar').style.width = totalDue > 0 ? `${(bucket30/totalDue)*100}%` : '0%';
+                        document.getElementById('aging-60-bar').style.width = totalDue > 0 ? `${(bucket60/totalDue)*100}%` : '0%';
+                        document.getElementById('aging-90-bar').style.width = totalDue > 0 ? `${(bucket90/totalDue)*100}%` : '0%';
+                    } catch (err) { console.error("Aging calculation failed:", err); totalEl.innerText = "₹0.00"; }
+                }, 50);
             }
         }
     }, // <--- ADD THIS CLOSING BRACKET AND COMMA!
@@ -844,7 +961,7 @@ const app = {
     // ==========================================
     // CORE UI REFRESH ENGINE (Restored)
     // ==========================================
-    refreshAll: async () => {
+    refreshAll: async (isPassiveSync = false) => {
         await app.loadAllData();
         if (window.UI) {
             window.UI.applyFilters('sales');
@@ -856,13 +973,62 @@ const app = {
             window.UI.renderDashboard();
         }
         
-        // Trigger silent background backup if active
-        if (typeof Cloud !== 'undefined' && Cloud.autoBackup) {
+        // 🚨 ENTERPRISE UPGRADE: Calculate and Update Pending Cloud Syncs
+        if (typeof app.checkPendingSyncs === 'function') {
+            app.checkPendingSyncs();
+        }
+        
+        // Trigger silent background backup if active (Skip if this is just a passive cross-tab sync to prevent API flooding)
+        if (!isPassiveSync && typeof Cloud !== 'undefined' && Cloud.autoBackup) {
             // ENTERPRISE FIX: Only run background backup if Google Drive is ALREADY authenticated!
             // This prevents the Google Drive login screen from violently interrupting your workflow after saving.
             if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
                 Cloud.autoBackup();
             }
+        }
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: OFFLINE MUTATION QUEUE INDICATOR
+    // ==========================================
+    checkPendingSyncs: async () => {
+        try {
+            const lastBackup = parseInt(localStorage.getItem('sollo_last_backup')) || 0;
+            let pendingCount = 0;
+            
+            const stores = ['sales', 'purchases', 'receipts', 'expenses', 'items', 'ledgers', 'adjustments', 'trash'];
+            
+            for (const store of stores) {
+                const records = await window.getAllRecords(store).catch(() => []);
+                pendingCount += records.filter(r => {
+                    if (!r._lastModified) return true;
+                    return new Date(r._lastModified).getTime() > lastBackup;
+                }).length;
+            }
+
+            const statusEl = document.getElementById('cloud-status-tab');
+            if (statusEl) {
+                if (pendingCount > 0) {
+                    statusEl.innerText = `${pendingCount} Pending Syncs`;
+                    statusEl.style.color = 'var(--md-error)';
+                    statusEl.style.background = 'rgba(186, 26, 26, 0.1)';
+                } else {
+                    if (typeof gapiInited !== 'undefined' && gapiInited && typeof gisInited !== 'undefined' && gisInited) {
+                        statusEl.innerText = 'Sync Up to Date';
+                        statusEl.style.color = 'var(--md-success)';
+                        statusEl.style.background = 'rgba(20, 108, 46, 0.1)';
+                    }
+                }
+            }
+
+            const banner = document.getElementById('offline-banner');
+            if (banner && !navigator.onLine) {
+                banner.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px; margin-right: 6px;">wifi_off</span> Offline: ${pendingCount > 0 ? pendingCount + ' unsaved changes' : 'Working locally'}`;
+            }
+            
+            return pendingCount;
+        } catch (e) {
+            console.warn("Could not calculate pending syncs:", e);
         }
     },
 
@@ -927,13 +1093,13 @@ const app = {
                 }
             });
             
-            // 4. Save corrected numbers to hard drive
-            for (let i of allItems) {
-                i.stockGst = Math.round(i.stockGst * 100) / 100;
-                i.stockNonGst = Math.round(i.stockNonGst * 100) / 100;
-                i.stock = Math.round((i.stockGst + i.stockNonGst) * 100) / 100;
+            // 4. Save corrected numbers concurrently to hard drive (Zero Main-Thread Blocking)
+            await Promise.all(allItems.map(async (i) => {
+                i.stockGst = safeMoney(i.stockGst);
+                i.stockNonGst = safeMoney(i.stockNonGst);
+                i.stock = safeMoney(i.stockGst + i.stockNonGst);
                 await window.saveRecord('items', i);
-            }
+            }));
             
             // Force RAM wipe and Dashboard Refresh
             if (window.AppCache) window.AppCache.items = null;
@@ -949,6 +1115,12 @@ const app = {
     // ENTERPRISE UPGRADE: DATA DEDUPLICATION ENGINE
     // ==========================================
     cleanupDuplicates: async () => {
+        // 🚨 ENTERPRISE UX: Ask for permission before permanently merging data!
+        const isConfirmed = await window.Utils.confirmModal("Scan the database and automatically merge duplicate Customers, Suppliers, and Bank Accounts? This will combine their balances and histories seamlessly.", "Merge Duplicates", false);
+        if (!isConfirmed) return;
+        
+        if (window.Utils) window.Utils.showToast("Scanning for duplicates... ⏳");
+
         try {
             let cleaned = false;
             const activeFirmId = app.state.firmId;
@@ -2474,16 +2646,17 @@ const app = {
                 const btnEl = document.getElementById(`btn-save-${type}`);
                 const headerEl = document.getElementById(`activity-${type}-form`).querySelector('.activity-header');
 
+                const verb = id ? 'Update' : 'Save';
                 if (docType === 'return') {
                     if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Credit Note' : 'Debit Note'}` : `New ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
-                    if (btnEl) btnEl.innerHTML = `Save ${type === 'sales' ? 'Credit Note' : 'Debit Note'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
+                    if (btnEl) btnEl.innerHTML = `${verb} ${type === 'sales' ? 'Credit Note' : 'Debit Note'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
                     if (headerEl) headerEl.style.backgroundColor = type === 'sales' ? '#fff0f2' : '#e8f5e9';
                     
                     const refGroup = document.getElementById(`${type}-return-ref-group`);
                     if (refGroup) refGroup.classList.remove('hidden');
                 } else {
                     if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}` : `New ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}`;
-                    if (btnEl) btnEl.innerHTML = `Save ${type === 'sales' ? 'Invoice' : 'Purchase'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
+                    if (btnEl) btnEl.innerHTML = `${verb} ${type === 'sales' ? 'Invoice' : 'Purchase'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
                     if (headerEl) headerEl.style.backgroundColor = 'var(--md-surface)';
                     
                     const refGroup = document.getElementById(`${type}-return-ref-group`);
@@ -2563,6 +2736,15 @@ const app = {
                 
                 // Build the new search screen for BOTH new and edit modes so the checkboxes match the true state
                 if (typeof app.loadLinkedDocsList === 'function') app.loadLinkedDocsList();
+            }
+
+            // 🚨 ENTERPRISE UX: SMART "UPDATE" vs "SAVE" BUTTONS
+            const formSubmitBtn = form ? form.querySelector('button[type="submit"]') : null;
+            if (formSubmitBtn) {
+                if (type === 'expense') formSubmitBtn.innerText = id ? 'Update Expense' : 'Save Expense';
+                else if (type === 'product') formSubmitBtn.innerText = id ? 'Update Product' : 'Save Product';
+                else if (type === 'ledger') formSubmitBtn.innerText = id ? 'Update Party' : 'Save Party';
+                else if (type === 'account') formSubmitBtn.innerText = id ? 'Update Account' : 'Save Account';
             }
             
             UI.openActivity(`activity-${type}-form`);
@@ -3890,15 +4072,17 @@ if (data.id && splitConfirmed) {
                     
                     let impact = type === 'add' ? qty : -qty;
                     if (pool === 'gst') {
-                        item.stockGst = Math.round((stockGst + impact) * 100) / 100;
+                        item.stockGst = safeMoney(stockGst + impact);
                     } else {
-                        item.stockNonGst = Math.round((stockNonGst + impact) * 100) / 100;
+                        item.stockNonGst = safeMoney(stockNonNongst || stockNonGst + impact); // Fallback safe handling
                     }
-                    // STRICT ERP LOGIC: ParseFloat prevents legacy items from corrupting into NaN!
-                    item.stock = Math.round(((parseFloat(item.stockGst) || 0) + (parseFloat(item.stockNonGst) || 0)) * 100) / 100;
+                    item.stock = safeMoney((parseFloat(item.stockGst) || 0) + (parseFloat(item.stockNonGst) || 0));
                     
-                    await saveRecord('adjustments', adjData);
-                    await saveRecord('items', item);
+                    // Execute parallel writes for absolute speed
+                    await Promise.all([
+                        saveRecord('adjustments', adjData),
+                        saveRecord('items', item)
+                    ]);
                     
                     // STRICT ERP LOGIC: Wipe the RAM Cache so the UI instantly shows the new stock!
                     if (window.AppCache) window.AppCache.items = null;
@@ -4286,7 +4470,11 @@ if (data.id && splitConfirmed) {
 
         // 1. Reset the form completely
         const form = document.getElementById(`form-payment-${type}`);
-        if (form) form.reset();
+        if (form) {
+            form.reset();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.innerText = type === 'in' ? 'Save Receipt' : 'Save Payment';
+        }
 
         // 2. Clear selected Party (Customer or Supplier) so old data doesn't leak
         const displayEl = document.getElementById(`${prefix}-${isOut ? 'supplier' : 'customer'}-display`);
@@ -4351,6 +4539,12 @@ if (data.id && splitConfirmed) {
         }
 
         app.state.currentReceiptId = id;
+        
+        const form = document.getElementById(`form-payment-${type}`);
+        if (form) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.innerText = type === 'in' ? 'Update Receipt' : 'Update Payment';
+        }
         
         await UI.openActivity(`activity-payment-${type}-form`);
         
@@ -4780,6 +4974,71 @@ if (data.id && splitConfirmed) {
     // ==========================================
     // 7. ORPHAN PROTECTION & DELETION ENGINE
     // ==========================================
+    cancelDocument: async (type, id) => {
+        const isConfirmed = await window.Utils.confirmModal("Are you sure you want to cancel this document? This will reverse its inventory impact and mark it as void.", "Cancel Document", true);
+        if (!isConfirmed) return;
+
+        const storeName = type === 'sales' ? 'sales' : 'purchases';
+        const record = await getRecordById(storeName, id);
+        if (!record) return;
+
+        if (record.status === 'Cancelled') {
+            if (window.Utils) window.Utils.showToast("Document is already cancelled.");
+            return;
+        }
+
+        // ORPHAN PROTECTION: Check for linked manual receipts safely
+        const uniqueRefs = [...new Set([record.orderNo, record.invoiceNo, record.poNo, record.id].filter(Boolean).map(String))];
+        const partyId = type === 'sales' ? record.customerId : record.supplierId;
+        
+        if (uniqueRefs.length > 0 && partyId) {
+            const receipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
+            
+            const linkedManualReceipts = receipts.filter(r => {
+                const refs = String(r.invoiceRef || '').split(',').map(x => x.trim());
+                return refs.some(ref => uniqueRefs.includes(ref)) && r.ledgerId === partyId && r.isAutoGenerated === false;
+            });
+            
+            if (linkedManualReceipts.length > 0) {
+                await window.Utils.alertModal("Cannot cancel this document! It has manual payments linked to it in the Cashbook. Please delete or unlink the payments first to protect your financial ledger.", "Action Blocked");
+                return;
+            }
+            
+            // Silently annihilate any Auto-Generated Split-Tender payments tied to this invoice
+            const linkedAutoReceipts = receipts.filter(r => {
+                const refs = String(r.invoiceRef || '').split(',').map(x => x.trim());
+                return refs.some(ref => uniqueRefs.includes(ref)) && r.isAutoGenerated === true;
+            });
+            
+            for (const r of linkedAutoReceipts) {
+                await deleteRecordById('receipts', r.id);
+            }
+        }
+
+        // Apply the cancellation
+        record.status = 'Cancelled';
+
+        // STRICT ERP LOGIC: Use saveInvoiceTransaction so the background engine mathematically reverses the stock!
+        if (typeof saveInvoiceTransaction === 'function') {
+            await saveInvoiceTransaction(storeName, record);
+        } else if (window.saveInvoiceTransaction) {
+            await window.saveInvoiceTransaction(storeName, record);
+        } else {
+            await saveRecord(storeName, record);
+        }
+
+        // Wipe RAM Cache so the UI refreshes perfectly
+        if (window.AppCache) {
+            window.AppCache.items = null;
+            window.AppCache[storeName] = null;
+        }
+
+        if (window.Utils) window.Utils.showToast("✅ Document Cancelled Successfully");
+        
+        if (window.UI) window.UI.closeActivity('activity-invoice-overview');
+        app.refreshAll();
+    },
+
     deleteRecord: async (type) => {
         const id = type === 'receipt-in' || type === 'receipt-out' ? app.state.currentReceiptId : app.state.currentEditId;
 
@@ -4857,19 +5116,10 @@ if (data.id && splitConfirmed) {
         if (type === 'receipt-in' || type === 'receipt-out') {
             // 🚨 ENTERPRISE FIX: The Half-Contra Free Money Shield!
             // If deleting a Bank Transfer, simultaneously delete the paired receipt so money isn't magically created!
-            if (String(actualId).startsWith('contra-')) {
-                const pairedId = actualId.startsWith('contra-in-') ? actualId.replace('contra-in-', 'contra-out-') : actualId.replace('contra-out-', 'contra-in-');
-                const pairedRecord = await getRecordById('receipts', pairedId);
-                if (pairedRecord) {
-                    pairedRecord._module = 'receipts';
-                    pairedRecord._deletedAt = new Date().toISOString();
-                    await saveRecord('trash', pairedRecord);
-                    await new Promise((res) => {
-                        const tx = db.transaction('receipts', 'readwrite');
-                        tx.objectStore('receipts').delete(pairedId);
-                        tx.oncomplete = () => res();
-                    });
-                }
+            if (String(id).startsWith('contra-')) {
+                const pairedId = id.startsWith('contra-in-') ? id.replace('contra-in-', 'contra-out-') : id.replace('contra-out-', 'contra-in-');
+                // FIX: Use the global database engine instead of trying to access 'db' directly!
+                await window.deleteRecordById('receipts', pairedId);
             }
 
             if (record.invoiceRef && !record.isAutoGenerated) {
@@ -5568,9 +5818,27 @@ if (data.id && splitConfirmed) {
         let finalBalHtml = '';
         if (party && typeof getKhataStatement === 'function') {
             const statement = await getKhataStatement(party.id, party.type);
-            const bal = statement.finalBalance || 0;
+            
+            // 🚨 CRITICAL ACCOUNTING FIX: The Historical Balance Shield!
+            // We MUST fetch the balance from the exact moment in time this receipt was created.
+            // Using 'statement.finalBalance' prints today's balance on a 6-month-old receipt!
+            let bal = 0;
+            let prevBal = 0;
+            
+            // FIX: Lifted receiptAmt OUT of the else block!
             const receiptAmt = parseFloat(receipt.amount) || 0;
-            const prevBal = bal + (isMoneyIn ? receiptAmt : -receiptAmt);
+            
+            const timelineEntry = statement.timeline.find(t => t.id === targetId);
+            
+            if (timelineEntry) {
+                bal = timelineEntry.runningBalance || 0;
+                // Impact is exactly how much this receipt changed the ledger at that moment
+                prevBal = bal - timelineEntry.impact;
+            } else {
+                // Failsafe fallback if the timeline entry is mysteriously missing
+                bal = statement.finalBalance || 0;
+                prevBal = bal + (isMoneyIn ? receiptAmt : -receiptAmt);
+            }
             
             const getStatus = (b) => {
                 if (Math.abs(b) < 0.01) return '';
@@ -5869,10 +6137,12 @@ if (data.id && splitConfirmed) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const isB2B = s.invoiceType === 'B2B';
                 
-                // ENTERPRISE FIX: Match the global database logic! 
-                // Subtotal is ALREADY Net Taxable. Do NOT double-deduct discounts, or the Party Tax Report will deflate the user's revenue!
-                const taxable = (parseFloat(s.subtotal) || 0) * mult;
+                // 🚨 CRITICAL FIX: Deduct the discount to find the true Taxable Value for the Party!
+                let rawSubtotal = Math.abs(parseFloat(s.subtotal) || 0);
+                let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
                 
+                const taxable = (rawSubtotal - discountAmt) * mult;
                 const tax = (parseFloat(s.totalGst) || 0) * mult;
 
                 if (isB2B) {
@@ -5920,7 +6190,8 @@ if (data.id && splitConfirmed) {
         const toVal = document.getElementById('item-profit-to').value;
         if (!fromVal || !toVal) return;
 
-        const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
+        // 🚀 ENTERPRISE FIX: Fetch ONLY the dates needed directly from the hard drive!
+        const sales = await window.getRecordsByDateRange('sales', app.state.firmId, fromVal, toVal);
         
         const itemMap = {};
         let totalFreight = 0;
@@ -5977,8 +6248,11 @@ if (data.id && splitConfirmed) {
                     const rate = parseFloat(item.rate) || 0;
                     const buyPrice = parseFloat(item.buyPrice) || 0; 
                     
-                    // PURE ITEM MATH: No invoice-level discounts applied here!
-                    const actualRevenue = qty * rate;
+                    // 🚨 CRITICAL FIX: Proportionally apply the invoice discount to the item to get true Net Revenue!
+                    let itemGrossRevenue = qty * rate;
+                    let discountRatio = rawSubtotal !== 0 ? (Math.abs(discountAmt) / Math.abs(rawSubtotal)) : 0;
+                    const actualRevenue = itemGrossRevenue - (itemGrossRevenue * discountRatio);
+                    
                     const totalCost = qty * buyPrice;
                     
                     itemMap[id].qty += (qty * mult);
@@ -6110,8 +6384,8 @@ if (data.id && splitConfirmed) {
         const toVal = document.getElementById('expense-report-to').value;
         if (!fromVal || !toVal) return;
 
-        // ENTERPRISE FIX: Scoped the database fetch to prevent a RAM freeze!
-        const allExpenses = await window.getAllRecords('expenses', 'firmId', app.state.firmId);
+        // 🚀 ENTERPRISE FIX: Fetch ONLY the dates needed directly from the hard drive!
+        const allExpenses = await window.getRecordsByDateRange('expenses', app.state.firmId, fromVal, toVal);
         
         const catMap = {};
         let totalExpenses = 0;
@@ -6210,6 +6484,241 @@ if (data.id && splitConfirmed) {
 
         document.getElementById('reorder-report-list').innerHTML = html;
         document.getElementById('reorder-report-total').innerHTML = `₹${estimatedCost.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: DEAD STOCK SCANNER
+    // ==========================================
+    openDeadStockReport: async () => {
+        if (window.UI) window.UI.openActivity('activity-dead-stock-report');
+        if (typeof app.generateDeadStockReport === 'function') await app.generateDeadStockReport();
+    },
+
+    generateDeadStockReport: async () => {
+        const firmId = app.state.firmId;
+        const items = (await window.getAllRecords('items', 'firmId', firmId)) || [];
+        const sales = (await window.getAllRecords('sales', 'firmId', firmId)) || [];
+        
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        
+        // Track the exact last sold date for each item
+        const lastSoldMap = {};
+        sales.forEach(s => {
+            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return') {
+                const sDate = window.Utils.safeDate(s.date);
+                (s.items || []).forEach(row => {
+                    const id = String(row.itemId || row.id);
+                    if (!lastSoldMap[id] || sDate > lastSoldMap[id]) {
+                        lastSoldMap[id] = sDate;
+                    }
+                });
+            }
+        });
+
+        let totalTrappedCapital = 0;
+        let deadItems = [];
+
+        items.forEach(i => {
+            const stock = parseFloat(i.stock) || 0;
+            if (stock > 0) {
+                const lastSold = lastSoldMap[String(i.id)];
+                let isDead = false;
+                let daysSinceSale = 'Never Sold';
+                
+                if (!lastSold) {
+                    isDead = true; 
+                } else if (lastSold < ninetyDaysAgo) {
+                    isDead = true;
+                    const diffTime = Math.abs(new Date() - lastSold);
+                    daysSinceSale = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + ' Days Ago';
+                }
+
+                if (isDead) {
+                    const buyPrice = parseFloat(i.buyPrice) || 0;
+                    const trappedValue = stock * buyPrice;
+                    totalTrappedCapital += trappedValue;
+                    
+                    deadItems.push({
+                        id: i.id,
+                        name: i.name,
+                        stock: stock,
+                        uom: i.uom || 'Unit',
+                        buyPrice: buyPrice,
+                        trappedValue: trappedValue,
+                        lastSoldText: daysSinceSale
+                    });
+                }
+            }
+        });
+
+        deadItems.sort((a, b) => b.trappedValue - a.trappedValue);
+        
+        let html = '';
+        if (deadItems.length === 0) {
+            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">verified</span>Excellent! No dead stock detected.</div>';
+        } else {
+            html = deadItems.map(item => {
+                const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(item.name).replace(/'/g, "\\'") : item.name;
+                return `
+                <div class="m3-card tap-target" onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${item.id}', '${safeName}')" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                        <div>
+                            <strong style="color: var(--md-on-surface); font-size: 14px; display:block;">${item.name}</strong>
+                            <small style="color: var(--md-error); font-weight:bold;">Trapped Stock: ${item.stock} ${item.uom}</small>
+                        </div>
+                        <div style="text-align:right;">
+                            <small style="color: var(--md-text-muted); display:block;">Locked Capital</small>
+                            <strong style="color: var(--md-error); font-size: 16px;">₹${item.trappedValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dashed var(--md-outline-variant); padding-top: 8px; margin-top: 4px;">
+                        <span style="font-size: 11px; color: var(--md-text-muted);">Buy Price: ₹${item.buyPrice.toFixed(2)}</span>
+                        <span style="font-size: 11px; font-weight:bold; color: var(--md-error);">Last Sold: ${item.lastSoldText}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        document.getElementById('dead-stock-list').innerHTML = html;
+        document.getElementById('dead-stock-total').innerHTML = `₹${totalTrappedCapital.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        
+        if (!app.state) app.state = {};
+        app.state.deadStockData = deadItems;
+    },
+
+    exportDeadStockCSV: () => {
+        const data = app.state.deadStockData;
+        if (!data || data.length === 0) return alert("No dead stock data to export!");
+        
+        let csv = "Item Name,Stock Quantity,Unit,Buy Price (INR),Trapped Capital (INR),Last Sold\n";
+        data.forEach(row => {
+            const safeItem = String(row.name || '').replace(/"/g, '""');
+            csv += `"${safeItem}","${row.stock}","${row.uom}","${row.buyPrice.toFixed(2)}","${row.trappedValue.toFixed(2)}","${row.lastSoldText}"\n`;
+        });
+        
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Dead_Stock_Report.csv`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: PROFIT LEAKAGE AUDIT
+    // ==========================================
+    openProfitLeakageReport: async () => {
+        if (window.UI) window.UI.openActivity('activity-profit-leakage-report');
+        if (typeof app.generateProfitLeakageReport === 'function') await app.generateProfitLeakageReport();
+    },
+
+    generateProfitLeakageReport: async () => {
+        const firmId = app.state.firmId;
+        const sales = (await window.getAllRecords('sales', 'firmId', firmId)) || [];
+        
+        let totalLeakage = 0;
+        let html = '';
+        let leakageItems = [];
+
+        sales.forEach(s => {
+            // Ignore Drafts, Cancelled Invoices, and Returns
+            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return') {
+                
+                // Calculate actual discount ratio to find the true selling price per unit
+                let rawSubtotal = 0;
+                (s.items || []).forEach(item => {
+                    rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
+                });
+                
+                let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                
+                const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
+
+                (s.items || []).forEach(item => {
+                    const qty = parseFloat(item.qty) || 0;
+                    const rate = parseFloat(item.rate) || 0;
+                    const buyPrice = parseFloat(item.buyPrice) || 0;
+                    
+                    // The True Sell Rate mathematically deducts global invoice discounts from the line item
+                    const trueSellRate = rate - (rate * discountRatio);
+                    
+                    if (trueSellRate < buyPrice && qty > 0) {
+                        const lossPerUnit = buyPrice - trueSellRate;
+                        const totalLoss = lossPerUnit * qty;
+                        totalLeakage += totalLoss;
+                        
+                        leakageItems.push({
+                            date: window.Utils.formatDateDisplay(s.date),
+                            invoiceNo: s.invoiceNo || s.orderNo || s.id.slice(-4).toUpperCase(),
+                            customer: s.customerName,
+                            itemName: item.name,
+                            qty: qty,
+                            buyPrice: buyPrice,
+                            sellPrice: trueSellRate,
+                            loss: totalLoss,
+                            docId: s.id
+                        });
+                    }
+                });
+            }
+        });
+
+        if (leakageItems.length === 0) {
+            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">verified</span>Excellent! No profit leakage detected.</div>';
+        } else {
+            // Sort by highest financial loss first
+            leakageItems.sort((a, b) => b.loss - a.loss);
+            
+            html = leakageItems.map(item => `
+                <div class="m3-card tap-target" onclick="window.openInvoiceOverview('sales', '${item.docId}')" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                        <div>
+                            <strong style="color: var(--md-on-surface); font-size: 14px; display:block;">${item.itemName}</strong>
+                            <small style="color: var(--md-text-muted);">Inv: ${item.invoiceNo} | ${item.customer}</small>
+                        </div>
+                        <div style="text-align:right;">
+                            <strong style="color: var(--md-error); font-size: 16px;">- ₹${item.loss.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dashed var(--md-outline-variant); padding-top: 8px; margin-top: 4px;">
+                        <span style="font-size: 11px; color: var(--md-text-muted);">Cost: ₹${item.buyPrice.toFixed(2)} | Sold At: ₹${item.sellPrice.toFixed(2)}</span>
+                        <span style="font-size: 11px; font-weight:bold; color: var(--md-error);">Qty: ${item.qty}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('profit-leakage-list').innerHTML = html;
+        document.getElementById('profit-leakage-total').innerHTML = `₹${totalLeakage.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        
+        // Store locally for the CSV export engine
+        if (!app.state) app.state = {};
+        app.state.leakageData = leakageItems;
+    },
+
+    exportProfitLeakageCSV: () => {
+        const data = app.state.leakageData;
+        if (!data || data.length === 0) return alert("No leakage data to export!");
+        
+        let csv = "Date,Invoice No,Customer,Item Name,Qty,Cost Price,Net Selling Price,Total Loss (INR)\n";
+        data.forEach(row => {
+            const safeCust = String(row.customer || '').replace(/"/g, '""');
+            const safeItem = String(row.itemName || '').replace(/"/g, '""');
+            csv += `"${row.date}","${row.invoiceNo}","${safeCust}","${safeItem}","${row.qty}","${row.buyPrice.toFixed(2)}","${row.sellPrice.toFixed(2)}","${row.loss.toFixed(2)}"\n`;
+        });
+        
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Profit_Leakage_Report.csv`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
     },
 
     // ==========================================
@@ -6924,10 +7433,10 @@ if (data.id && splitConfirmed) {
                     <!-- Date Filter Card -->
                     <div class="m3-card" style="margin-bottom: 16px; padding: 16px;">
                         <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch;">
-                            <div class="tap-target" onclick="app.setUniversalDates('month')" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); color: var(--md-on-surface); font-size: 13px; font-weight: 700;">This Month</div>
-                            <div class="tap-target" onclick="app.setUniversalDates('last_month')" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); color: var(--md-on-surface); font-size: 13px; font-weight: 700;">Last Month</div>
-                            <div class="tap-target" onclick="app.setUniversalDates('year')" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); color: var(--md-on-surface); font-size: 13px; font-weight: 700;">This Year</div>
-                            <div class="tap-target" onclick="app.setUniversalDates('all')" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface-variant); color: var(--md-on-surface); font-size: 13px; font-weight: 700;">All Time</div>
+                            <button type="button" class="tap-target" onclick="app.setUniversalDates('month'); window.setActiveFilterButton(this);" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 13px; font-weight: 700;">This Month</button>
+                            <button type="button" class="tap-target" onclick="app.setUniversalDates('last_month'); window.setActiveFilterButton(this);" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 13px; font-weight: 700;">Last Month</button>
+                            <button type="button" class="tap-target" onclick="app.setUniversalDates('year'); window.setActiveFilterButton(this);" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 13px; font-weight: 700; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Year</button>
+                            <button type="button" class="tap-target" onclick="app.setUniversalDates('all'); window.setActiveFilterButton(this);" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 13px; font-weight: 700;">All Time</button>
                         </div>
                         <div style="display: flex; gap: 12px;">
                             <div style="flex: 1;">
@@ -9361,3 +9870,4 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 });
+

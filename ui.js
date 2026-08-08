@@ -217,6 +217,7 @@ const UI = {
         inputElement.classList.add('numpad-focused');
         
         UI.state.activeNumpadInput = inputElement;
+        UI.state.numpadJustOpened = true; // 🚨 Track that the numpad just opened!
         document.getElementById('numpad-label').innerText = labelText || "Enter Value";
         document.getElementById('custom-numpad').classList.add('active');
         
@@ -246,6 +247,13 @@ const UI = {
         }
 
         let currentVal = String(input.value);
+
+        // 🚨 CRITICAL UX FIX: If this is the very first key pressed after opening, wipe the old number clean!
+        // (Unless they pressed Backspace, in which case we just delete one digit normally)
+        if (UI.state.numpadJustOpened && key !== 'BKSP') {
+            currentVal = ''; 
+        }
+        UI.state.numpadJustOpened = false; // Turn off the flag after the first tap
 
         if (key === 'BKSP') {
             let sliced = currentVal.slice(0, -1);
@@ -595,26 +603,6 @@ const UI = {
         }
     },
 
-    handleFabClick: () => {
-        const fab = document.querySelector('.floating-action-button');
-        const sheet = document.getElementById('sheet-fab-menu');
-        
-        // 🚨 ENTERPRISE FIX: Morph the FAB into the Bottom Sheet Menu!
-        if (document.startViewTransition && fab && sheet) {
-            fab.style.viewTransitionName = 'app-morph';
-            sheet.style.viewTransitionName = 'app-morph';
-            const t = document.startViewTransition(() => UI.openBottomSheet('sheet-fab-menu'));
-            t.finished.then(() => {
-                fab.style.viewTransitionName = '';
-                sheet.style.viewTransitionName = '';
-            }).catch(() => {
-                fab.style.viewTransitionName = '';
-                sheet.style.viewTransitionName = '';
-            });
-        } else {
-            UI.openBottomSheet('sheet-fab-menu');
-        }
-    },
 
     openActivity: (activityId) => {
         const a = document.getElementById(activityId);
@@ -796,23 +784,40 @@ const UI = {
                 const color = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
                 
                 const isGST = adj.pool === 'gst';
-                const poolBadge = adj.pool ? `<span style="background: ${isGST ? 'rgba(0, 97, 164, 0.1)' : 'rgba(245, 127, 23, 0.1)'}; color: ${isGST ? 'var(--md-primary)' : '#f57f17'}; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; margin-left: 8px; border: 1px solid ${isGST ? 'rgba(0, 97, 164, 0.3)' : 'rgba(245, 127, 23, 0.3)'};">${isGST ? 'GST Pool' : 'Non-GST Pool'}</span>` : '';
+                const poolBadge = adj.pool ? `<span style="background: ${isGST ? 'rgba(0, 97, 164, 0.08)' : 'rgba(245, 127, 23, 0.08)'}; color: ${isGST ? 'var(--md-primary)' : '#d84315'}; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; border: 1px solid ${isGST ? 'rgba(0, 97, 164, 0.2)' : 'rgba(245, 127, 23, 0.2)'}; display: inline-block;">${isGST ? 'GST POOL' : 'NON-GST POOL'}</span>` : '';
+                
+                // Add smart icons for stock in vs stock out
+                const rowIcon = adj.type === 'add' ? 'library_add' : 'remove_circle_outline';
+                const iconColor = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
+                const iconBg = adj.type === 'add' ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
 
                 return `
-                    <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                            <div style="display: flex; align-items: center; min-width: 0; flex: 1;">
-                                <strong style="font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${safeProdName}</strong>
-                                ${poolBadge}
-                            </div>
-                            <strong style="font-size: 16px; color: ${color}; flex-shrink: 0; margin-left: 8px;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
+                <div class="m3-card" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${iconColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; width: 100%; margin-top: 6px; font-size: 12px; color: var(--md-text-muted);">
-                            <span>${window.Utils.formatDateDisplay(adj.date)}</span>
-                            <span>${safeNotes}</span>
+                        <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                            <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${safeProdName}</strong>
+                            <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(adj.date)} | ${safeNotes}</small>
+                        </div>
+                        <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                            <strong style="font-size: 16px; color: ${color}; line-height: 1.2;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
                         </div>
                     </div>
-                `;
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; min-height: 36px;">
+                        <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
+                            ${poolBadge}
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+                            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) window.app.openItemLedger('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
             }, emptyHTML);
             return; 
         }
@@ -1085,12 +1090,17 @@ const UI = {
         const gstTotalEl = document.getElementById(`${prefix}-gst-total`);
         if (gstTotalEl) gstTotalEl.innerHTML = `&#8377;${totalGst.toFixed(2)}`;
         
-        const halfGst = totalGst / 2;
+        // 🚨 CRITICAL FIX: The 1-Paisa Mismatch Shield
+        // We round CGST first, and subtract it from the total for SGST. 
+        // This guarantees CGST + SGST perfectly equals totalGst!
+        const roundedCgst = Math.round((totalGst / 2) * 100) / 100;
+        const roundedSgst = totalGst - roundedCgst;
+        
         const cgstEl = document.getElementById(`${prefix}-cgst-total`);
-        if (cgstEl) cgstEl.innerHTML = `&#8377;${halfGst.toFixed(2)}`;
+        if (cgstEl) cgstEl.innerHTML = `&#8377;${roundedCgst.toFixed(2)}`;
         
         const sgstEl = document.getElementById(`${prefix}-sgst-total`);
-        if (sgstEl) sgstEl.innerHTML = `&#8377;${halfGst.toFixed(2)}`;
+        if (sgstEl) sgstEl.innerHTML = `&#8377;${roundedSgst.toFixed(2)}`;
         
         const roundOffEl = document.getElementById(`${prefix}-round-off`);
         if (roundOffEl) roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
@@ -1371,6 +1381,7 @@ const UI = {
                 if (activeFilter === 'Open') matchFilter = s.status === 'Open';
                 else if (activeFilter === 'Completed') matchFilter = s.status === 'Completed'; 
                 else if (activeFilter === 'Shipped') matchFilter = s.status === 'Shipped';
+                else if (activeFilter === 'Cancelled') matchFilter = s.status === 'Cancelled';
                 else if (activeFilter === 'To Receive') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return';
                 else if (activeFilter === 'Overdue') {
                     matchFilter = false;
@@ -1487,17 +1498,33 @@ const UI = {
                     }
                     const attentionClass = isOverdue ? 'requires-attention' : '';
                     
+                    const warningHTML = isOverdue ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">⚠️ OVERDUE: ${exactDays}D</span>` : '';
+                    
                     return `
-                    <div class="m3-card tap-target list-card ${attentionClass}" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('sales', '${s.id}', '${s.documentType}')">
-                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <div class="m3-card tap-target list-card ${attentionClass}" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="window.openInvoiceOverview('sales', '${s.id}')">
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
                             <div style="flex:1; min-width:0; overflow:hidden;">
-                                <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Credit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</small>
-                                ${isOverdue ? `<span style="display:inline-block; margin-top:6px; color:var(--md-error); font-size:10px; font-weight:900; background:rgba(186, 26, 26, 0.1); padding:2px 6px; border-radius:4px; border:1px solid rgba(186, 26, 26, 0.3);">⚠️ ACTION REQUIRED: ${exactDays} DAYS OVERDUE</span>` : ''}
+                                <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(CR)</span>' : ''}</strong>
+                                <span style="display:block; color: var(--md-text-muted); margin-top:4px; font-size: 12px; font-weight: 600;">${s.orderNo || s.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</span>
                             </div>
-                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-                                <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
+                            <div style="display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0;">
+                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'var(--md-on-surface)'}; line-height:1.2;">${isReturn ? '-' : ''}\u20B9${(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
+                                <span style="display:inline-block; margin-top:4px; font-size:11px; font-weight:700; color:${statusColor};">${statusText}</span>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; min-height: 36px;">
+                            <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
+                                ${warningHTML}
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('sales', '${s.id}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                                </div>
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                </div>
                             </div>
                         </div>
                     </div>`;
@@ -1554,6 +1581,7 @@ const UI = {
                 // ENTERPRISE FIX: The "Ghost Penny" Shield for Purchases!
                 if (activeFilter === 'To Pay') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return';
                 else if (activeFilter === 'Completed') matchFilter = p.status === 'Completed'; 
+                else if (activeFilter === 'Cancelled') matchFilter = p.status === 'Cancelled';
                 else if (activeFilter === 'GST') matchFilter = p.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = p.invoiceType === 'Non-GST';
 
@@ -1637,22 +1665,39 @@ const UI = {
                     }
 
                     // 🚨 ENTERPRISE UX: DASHBOARD SYNCED PULSING DOT
-                    const attentionClass = (p.status === 'Open') ? 'requires-attention' : '';
+                            const attentionClass = (p.status === 'Open') ? 'requires-attention' : '';
+                            
+                            // 🚨 ENTERPRISE UX: Fixed-height structural grid for perfect uniformity!
+                            const warningHTML = (p.status === 'Open') ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">⚠️ DRAFT PO</span>` : '';
+                            
+                            return `
+<div class="m3-card tap-target list-card ${attentionClass}" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="window.openInvoiceOverview('purchase', '${p.id}')">
+    
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+        <div style="flex:1; min-width:0; overflow:hidden;">
+            <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(DR)</span>' : ''}</strong>
+            <span style="display:block; color: var(--md-text-muted); margin-top:4px; font-size: 12px; font-weight: 600;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(p.date) || 'Unknown Date'}</span>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0;">
+            <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'var(--md-on-surface)'}; line-height:1.2;">${isReturn ? '-' : ''}\u20B9${(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
+            <span style="display:inline-block; margin-top:4px; font-size:11px; font-weight:700; color:${statusColor};">${statusText}</span>
+        </div>
+    </div>
 
-                    return `
-                    <div class="m3-card tap-target ${attentionClass}" style="${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="app.openForm('purchase', '${p.id}', '${p.documentType}')">
-                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-                            <div style="flex:1; min-width:0; overflow:hidden;">
-                                <div class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px;">(Debit Note)</span>' : ''}</div>
-                                <small class="color-primary" style="display:block; margin-top:4px;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(p.date) || 'Unknown Date'}</small>
-                                ${(p.status === 'Open') ? `<span style="display:inline-block; margin-top:6px; color:var(--md-error); font-size:10px; font-weight:900; background:rgba(186, 26, 26, 0.1); padding:2px 6px; border-radius:4px; border:1px solid rgba(186, 26, 26, 0.3);">⚠️ ACTION REQUIRED: DRAFT PO</span>` : ''}
-                            </div>
-                            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
-                                <small style="display:block; width:max-content; padding:3px 6px; border-radius:4px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; background:${statusBg}; color:${statusColor}; border:none;">${statusText}</small>
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'inherit'}; line-height:1;">${isReturn ? '-' : ''}\u20B9${(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
-                            </div>
-                        </div>
-                    </div>`;
+    <div style="display: flex; justify-content: space-between; align-items: center; min-height: 36px;">
+        <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
+            ${warningHTML}
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('purchases', '${p.id}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+            </div>
+            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${p.id}'; window.app.generatePDF('purchase'); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+            </div>
+        </div>
+    </div>
+</div>`;
                 }, emptyHTML);
             }
         }
@@ -1843,28 +1888,30 @@ const UI = {
 
                     const safeName = String(i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
-                    <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div class="tap-target" style="display: flex; align-items: center; gap: 12px;" onclick="app.openForm('product', '${i.id}')">
+                    <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;" onclick="app.openForm('product', '${i.id}')">
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                             <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
                             </div>
-                            <div style="flex: 1; min-width: 0; padding-right: 12px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px;">${stockLabel}</small>
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.2; font-weight: 700;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${stockLabel}</small>
                             </div>
-                            <div style="text-align: right; flex-shrink: 0;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface);">\u20B9${(i.sellPrice || 0).toFixed(2)}</strong><br>
-                                <small style="color: var(--md-text-muted);">Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}</small>
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                                <strong style="font-size: 16px; color: var(--md-on-surface); line-height: 1.2;">\u20B9${(i.sellPrice || 0).toFixed(2)}</strong>
+                                <small style="color: var(--md-text-muted); display: inline-block; margin-top: 4px; font-weight: 600;">Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}</small>
                             </div>
                         </div>
-                        
-                        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(21, 101, 192, 0.1); color: #42a5f5; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.app.openItemLedger('${i.id}', '${safeName}')">
-                                <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
-                            </div>
-                            
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(230, 81, 0, 0.1); color: #ff9800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeItemLedgerReport('${i.id}', '${safeName}')">
-                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.app.openItemLedger('${i.id}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+                                </div>
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.executeItemLedgerReport('${i.id}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                </div>
                             </div>
                         </div>
                     </div>`;
@@ -1931,57 +1978,63 @@ const UI = {
                     const isCustomer = String(l.type).toLowerCase() === 'customer';
                     const split = splitBalances[l.id] || { gst: 0, non: 0, total: 0 };
                     let bal = split.total;
-                    let balText = '';
-                    let balColor = 'var(--md-text-muted)';
-                    let subText = '';
                     
-                    // 🚨 ENTERPRISE FIX: Stacked balances & Width Limits to guarantee the Name stays horizontal!
+                    let balText = '\u20B90.00';
+                    let balColor = 'var(--md-text-muted)';
+                    let statusBadge = '';
+                    let taxInfo = '';
+
+                    // 🚨 ENTERPRISE FIX: Uniform Layout Engine
+                    // Moves tax breakdown to the left column to prevent right-side vertical expansion
                     if (bal > 0.01) { 
                         balText = `\u20B9${bal.toFixed(2)}`; 
                         balColor = 'var(--md-error)'; 
-                        let statusBadge = `<span style="background:#dc2626; color:#ffffff; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:0.5px; margin-bottom:4px; display:inline-block; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO ${isCustomer ? 'RECEIVE' : 'PAY'}</span><br>`;
-                        // FIX: Replaced " | " with "<br>" to stack the taxes and halve the width!
-                        if (split.gst > 0.01 && split.non > 0.01) subText = statusBadge + `GST: \u20B9${split.gst.toFixed(0)}<br>Non: \u20B9${split.non.toFixed(0)}`;
-                        else if (split.gst > 0.01) subText = statusBadge + `GST Due: \u20B9${split.gst.toFixed(2)}`;
-                        else if (split.non > 0.01) subText = statusBadge + `Non-GST Due: \u20B9${split.non.toFixed(2)}`;
-                        else subText = statusBadge;
+                        statusBadge = `<span style="background:#dc2626; color:#ffffff; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; letter-spacing:0.5px; margin-top:4px; display:inline-block; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO ${isCustomer ? 'RECEIVE' : 'PAY'}</span>`;
+                        
+                        // Keep tax info neatly on one line to preserve row height
+                        if (split.gst > 0.01 && split.non > 0.01) taxInfo = `GST: \u20B9${split.gst.toFixed(0)} | Non: \u20B9${split.non.toFixed(0)}`;
+                        else if (split.gst > 0.01) taxInfo = `GST: \u20B9${split.gst.toFixed(2)}`;
+                        else if (split.non > 0.01) taxInfo = `Non: \u20B9${split.non.toFixed(2)}`;
                     }
                     else if (bal < -0.01) { 
                         balText = `\u20B9${Math.abs(bal).toFixed(2)}`; 
                         balColor = 'var(--md-success)'; 
-                        subText = `<span style="background:#16a34a; color:#ffffff; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:900; letter-spacing:0.5px; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`;
+                        statusBadge = `<span style="background:#16a34a; color:#ffffff; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; letter-spacing:0.5px; margin-top:4px; display:inline-block; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`;
                     }
-                    else { balText = `\u20B90.00`; subText = '';}
                     
                     const rowIcon = isCustomer ? 'person' : 'storefront';
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
-                    const subTextHTML = subText ? `<small style="display:block; color:var(--md-error); font-weight:600; font-size:10px; margin-top:2px; line-height:1.2;">${subText}</small>` : '';
+// Transform tax warning into a badge matching the sales/purchases layout
+const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">${taxInfo}</span>` : '';
 
                     // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
                     const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
-                    <div class="m3-card" style="padding: 12px; margin-bottom: 12px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div class="tap-target" style="display: flex; align-items: center; gap: 12px;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                    <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                             <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                             </div>
-                            <div style="flex: 1; min-width: 0; padding-right: 12px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
+                                ${taxHtml ? `<div style="margin-top: 6px;">${taxHtml}</div>` : ''}
                             </div>
-                            <div style="text-align: right; flex-shrink: 0; max-width: 45%;">
-                                <strong style="font-size: 15px; color: ${balColor};">${balText}</strong>
-                                ${subTextHTML}
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                                <strong style="font-size: 16px; color: ${balColor}; line-height: 1.2;">${balText}</strong>
+                                ${statusBadge}
                             </div>
                         </div>
-                        
-                        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(21, 101, 192, 0.1); color: #42a5f5; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
-                                <span class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
-                            </div>
-                            
-                            <div class="tap-target" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(230, 81, 0, 0.1); color: #ff9800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="window.executeKhataReport('${l.id}', '${safeName}', '${l.type}')">
-                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+
+                        <div style="display: flex; justify-content: flex-end; align-items: center;">
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">menu_book</span>
+                                </div>
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.executeKhataReport('${l.id}', '${safeName}', '${l.type}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                </div>
                             </div>
                         </div>
                     </div>`;
@@ -2016,17 +2069,27 @@ const UI = {
                 UI.renderVirtualList(container, data, (t) => {
                     const displayTitle = t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.category || 'Deleted Item';
                     return `
-                    <div class="m3-card" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                    <div class="m3-card" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;">
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                            </div>
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${UI.highlightText(displayTitle, searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(t.date) || 'Unknown Date'} | Module: ${String(t._module || '').toUpperCase()}</small>
+                            </div>
                         </div>
-                        <div style="flex: 1; min-width: 0; overflow: hidden;">
-                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(displayTitle, searchTerm)}</strong>
-                            <small style="color: var(--md-text-muted); display: block;">${window.Utils.formatDateDisplay(t.date) || 'Unknown Date'} | Mod: ${t._module}</small>
-                        </div>
-                        <div style="text-align: right; flex-shrink: 0; display: flex; gap: 8px;">
-                            <button class="btn-primary-small tap-target" style="padding: 6px 12px; font-size: 12px;" onclick="app.restoreRecord('${t.id}', '${t._module}')">Restore</button>
-                            <button class="btn-primary-small tap-target" style="padding: 6px 12px; font-size: 12px; background: transparent; color: var(--md-error); border: 1px solid var(--md-error);" onclick="app.permanentlyDeleteRecord('${t.id}')">Delete</button>
+
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+                                <button class="tap-target" style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="app.restoreRecord('${t.id}', '${t._module}')">
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">restore</span> Restore
+                                </button>
+                                <button class="tap-target" style="padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(186, 26, 26, 0.3); background: rgba(186, 26, 26, 0.05); color: var(--md-error); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="app.permanentlyDeleteRecord('${t.id}')">
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span> Delete
+                                </button>
+                            </div>
                         </div>
                     </div>`;
                 }, emptyHTML);
@@ -2102,12 +2165,29 @@ const UI = {
                     }
                     
                     return `
-                    <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;" onclick="app.openForm('expense', '${e.id}')">
-                        <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                            <strong class="large-text" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.3;">${e.expenseNo ? e.expenseNo + ' - ' : ''}${e.category || 'General Expense'}</strong>
-                            <small style="display: block; margin-top: 4px;">${window.Utils.formatDateDisplay(e.date) || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''} | ${e.notes || 'No notes'}</small>
+                    <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;" onclick="app.openForm('expense', '${e.id}')">
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">account_balance_wallet</span>
+                            </div>
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${e.expenseNo ? e.expenseNo + ' - ' : ''}${e.category || 'General Expense'}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(e.date) || ''} ${displayLink ? `| <span style="color:var(--md-primary);">🔗 ${displayLink}</span>` : ''}</small>
+                                ${e.notes ? `<small style="display: block; margin-top: 4px; color: var(--md-text-muted); font-size: 12px;">${e.notes}</small>` : ''}
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                                <strong style="font-size: 16px; color: var(--md-error); line-height: 1.2;">-\u20B9${(parseFloat(e.amount) || 0).toFixed(2)}</strong>
+                            </div>
                         </div>
-                        <strong style="color:var(--md-error); flex-shrink: 0; padding-top: 2px;">\u20B9${(parseFloat(e.amount) || 0).toFixed(2)}</strong>
+
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.generateExpenseVoucherPDF('${e.id}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>`;
                 }, emptyHTML);
             }
@@ -2265,17 +2345,37 @@ const UI = {
                     
                     const thirdLine = isExpense 
                         ? '' 
-                        : `<br><small>Party: <strong style="color:var(--md-primary)">${t.ledgerName || 'N/A'}</strong> | Mode: ${t.mode || 'Cash'}</small>`;
+                        : `<small style="display: block; margin-top: 4px; color: var(--md-text-muted); font-size: 12px;">Party: <strong style="color:var(--md-primary)">${t.ledgerName || 'N/A'}</strong> | Mode: ${t.mode || 'Cash'}</small>`;
+
+                    const isMoneyIn = t.type === 'in';
+                    const icon = isMoneyIn ? 'arrow_downward' : 'arrow_upward';
+                    const rowColor = isMoneyIn ? 'var(--md-success)' : 'var(--md-error)';
+                    const iconBg = isMoneyIn ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
 
                     return `
-                    <div class="m3-card tap-target" style="display:flex; justify-content:space-between; align-items:center;" onclick="app.openReceipt('${t.id}', '${t.type}')">
-                        <div>
-                            <strong class="large-text">${t.receiptNo ? t.receiptNo + ' - ' : ''}${t.desc || 'Transaction'}</strong><br>
-                            <small>${window.Utils.formatDateDisplay(t.date) || ''} ${displayLink ? `| <span style="background:var(--md-primary-container); color:var(--md-primary); padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">🔗 ${displayLink}</span>` : ''}</small>${thirdLine}
+                    <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;" onclick="app.openReceipt('${t.id}', '${t.type}')">
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                            </div>
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${t.receiptNo ? t.receiptNo + ' - ' : ''}${t.desc || 'Transaction'}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(t.date)} ${displayLink ? `| <span style="color:var(--md-primary);">🔗 ${displayLink}</span>` : ''}</small>
+                                ${thirdLine}
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                                <strong style="font-size: 16px; color: ${rowColor}; line-height: 1.2;">${isMoneyIn ? '+' : '-'}\u20B9${(parseFloat(t.amount) || 0).toFixed(2)}</strong>
+                            </div>
                         </div>
-                        <strong style="font-size:16px; color:${t.type === 'in' ? 'var(--md-success)' : 'var(--md-error)'};">
-                            ${t.type === 'in' ? '+' : '-'}\u20B9${(parseFloat(t.amount) || 0).toFixed(2)}
-                        </strong>
+
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
+                                <div class="tap-target" onclick="event.stopPropagation(); if(window.app) window.app.generateReceiptPDF('${t.id}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>`;
                 }, emptyHTML);
             }
@@ -2394,25 +2494,41 @@ const UI = {
                             
                             let clickAction = '';
                             let tapClass = '';
+                            let pdfAction = `window.Utils.showToast('PDF not available for opening balance')`;
+
                             if (t.id !== 'open-bal') {
                                 tapClass = 'tap-target';
                                 const type = isPaymentOut ? 'out' : 'in';
                                 clickAction = `onclick="app.openReceipt('${t.id}', '${type}')"`;
+                                
+                                if (t.desc.toLowerCase().includes('expense')) {
+                                    pdfAction = `if(window.Utils) window.Utils.generateExpenseVoucherPDF('${t.id}')`;
+                                } else {
+                                    pdfAction = `if(window.app) window.app.generateReceiptPDF('${t.id}')`;
+                                }
                             }
 
                             return `
-                            <div class="m3-card ${tapClass}" ${clickAction} style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
-                                <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                                    <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                            <div class="m3-card ${tapClass}" ${clickAction} style="padding: 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
+                                <div style="display:flex; align-items:flex-start; gap: 12px;">
+                                    <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                        <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <strong class="large-text">${t.desc}</strong><br>
+                                        <small style="color: var(--md-text-muted);">${window.Utils.formatDateDisplay(t.date)} ${t.partyName ? '| ' + t.partyName : ''} ${t.ref ? '<br><span style="color:var(--md-primary); font-size:10px; font-weight:bold;">Ref: ' + t.ref + '</span>' : ''}</small>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <strong style="font-size: 14px; color: ${amtColor};">${sign}\u20B9${Math.abs(t.amount || 0).toFixed(2)}</strong><br>
+                                        <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                    </div>
                                 </div>
-                                <div style="flex: 1;">
-                                    <strong class="large-text">${t.desc}</strong><br>
-                                    <small style="color: var(--md-text-muted);">${window.Utils.formatDateDisplay(t.date)} ${t.partyName ? '| ' + t.partyName : ''} ${t.ref ? '<br><span style="color:var(--md-primary); font-size:10px; font-weight:bold;">Ref: ' + t.ref + '</span>' : ''}</small>
-                                </div>
-                                <div style="text-align:right;">
-                                    <strong style="font-size: 14px; color: ${amtColor};">${sign}\u20B9${Math.abs(t.amount || 0).toFixed(2)}</strong><br>
-                                    <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
-                                </div>
+                                ${t.id !== 'open-bal' ? `
+                                <div style="display: flex; justify-content: flex-end; align-items: center;">
+                                    <div class="tap-target" onclick="event.stopPropagation(); ${pdfAction}" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                    </div>
+                                </div>` : ''}
                             </div>`;
                         } else {
                             // 👤 PARTY LEDGER RENDER
@@ -2424,33 +2540,47 @@ const UI = {
                             
                             let clickAction = '';
                             let tapClass = '';
+                            let pdfAction = `window.Utils.showToast('PDF not available for opening balance')`;
+
                             if (t.id !== 'open-bal') {
                                 tapClass = 'tap-target';
                                 if (isPayment) {
                                     const rec = UI.state.rawData.cashbook.find(c => c.id === t.id);
                                     if (rec) clickAction = `onclick="app.openReceipt('${t.id}', '${rec.type}')"`;
+                                    
+                                    pdfAction = `if(window.app) window.app.generateReceiptPDF('${t.id}')`;
                                 } else {
                                     let doc = UI.state.rawData.sales.find(s => s.id === t.id);
                                     let formType = 'sales';
                                     if (!doc) { doc = UI.state.rawData.purchases.find(p => p.id === t.id); formType = 'purchase'; }
-                                    const docType = doc ? doc.documentType : 'invoice';
-                                    if (doc) clickAction = `onclick="app.openForm('${formType}', '${t.id}', '${docType}')"`;
+                                    if (doc) {
+                                        clickAction = `onclick="app.openForm('${formType}', '${t.id}', '${doc.documentType || 'invoice'}')"`;
+                                        pdfAction = `if(window.app){ window.app.state.currentEditId = '${t.id}'; window.app.generatePDF('${formType}'); }`;
+                                    }
                                 }
                             }
 
                             return `
-                            <div class="m3-card ${tapClass}" ${clickAction} style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
-                                <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                                    <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                            <div class="m3-card ${tapClass}" ${clickAction} style="padding: 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
+                                <div style="display:flex; align-items:flex-start; gap: 12px;">
+                                    <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                        <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <strong class="large-text">${t.desc}</strong><br>
+                                        <small style="color: var(--md-text-muted);">${window.Utils.formatDateDisplay(t.date)}</small>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <strong style="font-size: 14px; color: ${amtColor};">${t.isInvoice ? '+' : '-'}\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
+                                        <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                    </div>
                                 </div>
-                                <div style="flex: 1;">
-                                    <strong class="large-text">${t.desc}</strong><br>
-                                    <small style="color: var(--md-text-muted);">${window.Utils.formatDateDisplay(t.date)}</small>
-                                </div>
-                                <div style="text-align:right;">
-                                    <strong style="font-size: 14px; color: ${amtColor};">${t.isInvoice ? '+' : '-'}\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
-                                    <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
-                                </div>
+                                ${t.id !== 'open-bal' ? `
+                                <div style="display: flex; justify-content: flex-end; align-items: center;">
+                                    <div class="tap-target" onclick="event.stopPropagation(); ${pdfAction}" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                    </div>
+                                </div>` : ''}
                             </div>`;
                         }
                     } else {
@@ -2460,20 +2590,57 @@ const UI = {
                         const sign = isMoneyIn ? '+' : '-';
                         const color = isMoneyIn ? 'var(--md-success)' : 'var(--md-error)';
                         
-                        const title = t.party ? `${isMoneyIn ? 'Sale' : 'Purchase'} - ${t.party}` : (t.desc || 'Transaction');
+                        const icon = isMoneyIn ? 'arrow_downward' : 'arrow_upward';
+                        const iconBg = isMoneyIn ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
+                        const iconColor = isMoneyIn ? '#2e7d32' : '#ba1a1a';
                         
-                        // 🚨 FIX: Move the "qty" to the subtitle row so it stops hiding the amount!
+                        const title = t.party ? `${isMoneyIn ? 'Sale' : 'Purchase'} - ${t.party}` : (t.desc || 'Transaction');
                         const qtyText = t.qty ? ` | ${t.qty}` : '';
-                        const subtitle = t.ref ? `${window.Utils.formatDateDisplay(t.date)} | Ref: ${t.ref}${qtyText}` : `${window.Utils.formatDateDisplay(t.date)} | Mode: ${t.mode || 'Cash'}${qtyText}`;
+                        const subtitle1 = window.Utils.formatDateDisplay(t.date);
+                        const subtitle2 = t.ref ? `Ref: ${t.ref}${qtyText}` : `Mode: ${t.mode || 'Cash'}${qtyText}`;
                         
                         // 🚨 FIX: ALWAYS show the exact financial amount on the right side!
                         const safeAmount = parseFloat(t.amount) || parseFloat(t.grandTotal) || 0;
                         const rightVal = `${sign}\u20B9${safeAmount.toFixed(2)}`;
 
+                        // 🚀 DYNAMIC PDF & CLICK LOGIC (Auto-detects document type)
+                        let clickAction = '';
+                        let pdfAction = `window.Utils.showToast('PDF not available for this record')`;
+                        
+                        if (t.hasOwnProperty('isInvoice')) {
+                            let doc = UI.state.rawData.sales.find(s => s.id === t.id);
+                            let formType = 'sales';
+                            if (!doc) { doc = UI.state.rawData.purchases.find(p => p.id === t.id); formType = 'purchase'; }
+                            if (doc) {
+                                clickAction = `onclick="app.openForm('${formType}', '${t.id}', '${doc.documentType || 'invoice'}')"`;
+                                pdfAction = `if(window.app){ window.app.state.currentEditId = '${t.id}'; window.app.generatePDF('${formType}'); }`;
+                            }
+                        } else if (title.toLowerCase().includes('expense')) {
+                            clickAction = `onclick="app.openForm('expense', '${t.id}')"`;
+                            pdfAction = `if(window.Utils) window.Utils.generateExpenseVoucherPDF('${t.id}')`;
+                        } else {
+                            const rec = UI.state.rawData.cashbook.find(c => c.id === t.id);
+                            if (rec) {
+                                clickAction = `onclick="app.openReceipt('${t.id}', '${rec.type}')"`;
+                                pdfAction = `if(window.app) window.app.generateReceiptPDF('${t.id}')`;
+                            }
+                        }
+
                         return `
-                        <div class="m3-card" style="display:flex; justify-content:space-between; align-items:center;">
-                            <div><strong class="large-text">${title}</strong><br><small>${subtitle}</small></div>
-                            <strong style="font-size:16px; color:${color};">${rightVal}</strong>
+                        <div class="m3-card tap-target" ${clickAction} style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px; cursor: pointer;">
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${iconColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                    <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+                                </div>
+                                <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                    <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${title}</strong>
+                                    <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${subtitle1} | ${subtitle2}</small>
+                                </div>
+                                <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                                    <strong style="font-size: 16px; color: ${color}; line-height: 1.2;">${rightVal}</strong>
+                                </div>
+                            </div>
                         </div>`;
                     }
                 }, emptyHTML);
@@ -2730,31 +2897,12 @@ const UI = {
         const totalOperatingCosts = totalExpenses + indirectExpense + stockLoss;
         const trueNetProfit = grossMargin - totalOperatingCosts; 
 
-        // UPGRADE 1: Count-Up Animation Engine
-        const animateValue = (id, start, end, duration) => {
-            const obj = document.getElementById(id);
-            if (!obj) return;
-            let startTimestamp = null;
-            const step = (timestamp) => {
-                if (!startTimestamp) startTimestamp = timestamp;
-                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                // Ease-out formula for smoother deceleration
-                const easeOut = 1 - Math.pow(1 - progress, 3);
-                const currentVal = (easeOut * (end - start) + start);
-                // STRICT ERP LOGIC: Safely format negative currency numbers with Indian Commas!
-                const formattedNum = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.abs(currentVal));
-                obj.innerHTML = currentVal < 0 ? '-\u20B9' + formattedNum : '\u20B9' + formattedNum;
-                if (progress < 1) window.requestAnimationFrame(step);
-            };
-            window.requestAnimationFrame(step);
-        };
-
-        // Update DOM with Animation (Duration: 800ms)
-        animateValue('dash-total-sales', 0, totalSales, 800);
+        // UPGRADE 1: Enterprise Live Count-Up Animation Engine
+        window.animateCurrency('dash-total-sales', 0, totalSales, 1000);
         
         const netProfitEl = document.getElementById('dash-net-profit');
         if(netProfitEl) {
-            animateValue('dash-net-profit', 0, trueNetProfit, 800);
+            window.animateCurrency('dash-net-profit', 0, trueNetProfit, 1200); // Slightly longer duration so it finishes after sales
             netProfitEl.style.color = trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
         }
         
@@ -2924,16 +3072,25 @@ const UI = {
                     const phone = customer ? customer.phone : '';
 
                     return `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); cursor: pointer;" onclick="app.openForm('sales', '${s.id}', '${s.documentType || 'invoice'}')">
-                        <div style="flex: 1;">
-                            <strong class="large-text" style="color: var(--md-on-surface); font-size: 15px;">${s.customerName || 'Unknown Party'}</strong><br>
-                            <small class="color-primary" style="font-size: 13px;">Inv: ${s.invoiceNo || 'Draft'} | Bal: <strong style="color:var(--md-error)">\u20B9${balance.toFixed(2)}</strong></small>
-                            <div style="margin-top: 4px;"><span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">${diffDays} Days Overdue</span></div>
+                    <div class="tap-target" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); cursor: pointer; gap: 12px;" onclick="window.openInvoiceOverview('sales', '${s.id}')">
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">warning</span>
                         </div>
-                        
-                        <!-- The WhatsApp Smart Button -->
-                        <div class="icon-circle tap-target" style="width: 40px; height: 40px; background: rgba(37, 211, 102, 0.1); color: #25D366; flex-shrink: 0; box-shadow: none;" onclick="event.stopPropagation(); window.Utils.shareOverdueReminder('${phone}', '${String(s.customerName || '').replace(/'/g, "\\'")}', ${balance}, '${s.invoiceNo || ''}')">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                        <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                            <strong class="large-text" style="color: var(--md-on-surface); font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${s.customerName || 'Unknown Party'}</strong>
+                            <small class="color-primary" style="display:block; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</small>
+                        </div>
+                        <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-start; gap:4px; flex-shrink:0;">
+                            <strong style="font-size:16px; color:var(--md-error); line-height:1.2;">\u20B9${balance.toFixed(2)}</strong>
+                            <span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; display:inline-block; box-shadow:0 1px 2px rgba(186,26,26,0.1);">OVERDUE: ${diffDays}D</span>
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.Utils.shareOverdueReminder('${phone}', '${String(s.customerName || '').replace(/'/g, "\\'")}', ${balance}, '${s.invoiceNo || ''}')" style="padding: 6px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-text-muted); display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                                </div>
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="padding: 6px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-text-muted); display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
+                                </div>
+                            </div>
                         </div>
                     </div>`;
                 }).join('');
@@ -3303,11 +3460,46 @@ const UI = {
 
     // NEW: Handles the "+" icon tap inside the search bar header!
     createNewFromSearch: () => {
+        // 1. Capture what the user was searching for
+        const searchInput = document.getElementById('smart-search-input');
+        const typedText = searchInput ? searchInput.value.trim() : '';
+
         UI.closeBottomSheet('sheet-smart-search');
+        
         if (UI.state.smartSearchTarget === 'item') {
             if(window.app) window.app.openForm('product');
+            
+            // 2. Auto-fill the Product Name
+            if (typedText) {
+                setTimeout(() => {
+                    const nameBox = document.getElementById('prod-name');
+                    if (nameBox) {
+                        nameBox.value = typedText;
+                        // Tell the app's internal brain that the text changed
+                        nameBox.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }, 250); // Wait 250ms for the form to finish sliding up
+            }
+            
         } else {
             if(window.app) window.app.openForm('ledger');
+            
+            // 2. Auto-fill the Party Name and Type
+            if (typedText) {
+                setTimeout(() => {
+                    const nameBox = document.getElementById('ledger-name');
+                    if (nameBox) {
+                        nameBox.value = typedText;
+                        nameBox.dispatchEvent(new Event('input', { bubbles: true }));
+                        
+                        // 🚀 Bonus: Auto-select Customer or Supplier based on what they were searching!
+                        const typeBox = document.querySelector('select[name="type"]');
+                        if (typeBox && UI.state.smartSearchTarget) {
+                            typeBox.value = UI.state.smartSearchTarget === 'supplier' ? 'Supplier' : 'Customer';
+                        }
+                    }
+                }, 250);
+            }
         }
     },
 
@@ -3328,10 +3520,21 @@ const UI = {
             
             results.slice(0, 30).forEach(l => {
                 const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const rowIcon = isCust ? 'person' : 'storefront';
+                const rowColor = isCust ? '#0061a4' : '#ba1a1a';
+                
                 html += `
-                <div class="tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
-                    <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">${isCust?'person':'storefront'}</span></div>
-                    <div><strong style="display: block; font-size: 16px;">${UI.highlightText(l.name, query)}</strong><small style="color: var(--md-text-muted);">${l.phone || 'No Phone'}</small></div>
+                <div class="m3-card tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; cursor: pointer;">
+                    <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
+                    </div>
+                    <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                        <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${UI.highlightText(l.name, query)}</strong>
+                        <small style="color: var(--md-text-muted); display: block; margin-top: 4px; line-height: 1.3;">${l.phone || 'No Phone'}</small>
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 40px;">
+                        <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
+                    </div>
                 </div>`;
             });
             
@@ -3381,22 +3584,31 @@ const UI = {
                     const safeUom = String(i.uom || '').replace(/'/g, "\\'");
                     const safeHsn = String(i.hsn || '').replace(/'/g, "\\'");
                     const stockVal = parseFloat(i.stock) || 0;
-                    const stockStr = `<span style="color: ${stockVal<=0 ? 'var(--md-error)' : 'var(--md-success)'}; font-weight: bold;">Stock: ${stockVal}</span>`;
+                    const isLowStock = parseFloat(i.minStock) > 0 && stockVal <= parseFloat(i.minStock);
+                    const stockStr = `<span style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.1)' : (isLowStock ? 'rgba(245, 127, 23, 0.1)' : 'rgba(20, 108, 46, 0.1)')}; color: ${stockVal <= 0 ? 'var(--md-error)' : (isLowStock ? '#d84315' : 'var(--md-success)')}; border: 1px solid ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.3)' : (isLowStock ? 'rgba(245, 127, 23, 0.3)' : 'rgba(20, 108, 46, 0.3)')};">${stockVal <= 0 ? 'Out of Stock' : (isLowStock ? 'Low Stock: ' + stockVal : 'In Stock: ' + stockVal)}</span>`;
                     
                     html += `
-                    <div style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; flex-direction: column; gap: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div><strong style="display: block; font-size: 16px;">${UI.highlightText(i.name, query)}</strong><small>${stockStr}</small></div>
-                            <div style="text-align: right;"><strong style="color: var(--md-primary); font-size: 18px;">₹${price.toFixed(2)}</strong></div>
+                    <div class="m3-card" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${stockVal <= 0 ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
+                            </div>
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${UI.highlightText(i.name, query)}</strong>
+                                <div style="margin-top: 4px;">${stockStr}</div>
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0;">
+                                <strong style="color: var(--md-primary); font-size: 16px; line-height: 1.2;">₹${price.toFixed(2)}</strong>
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                            <button class="btn-primary-small tap-target" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 8px 16px;" 
+                        <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; border-top: 1px dashed var(--md-surface-variant);">
+                            <button class="btn-primary-small tap-target" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 8px 16px; border-radius: 6px; font-weight: bold;" 
                                 onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added to invoice');">
                                 Done & New
                             </button>
-                            <button class="btn-primary-small tap-target" style="padding: 8px 16px;" 
+                            <button class="btn-primary-small tap-target" style="background: var(--md-primary); color: #ffffff; padding: 8px 16px; border-radius: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,97,164,0.2);" 
                                 onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); UI.closeBottomSheet('sheet-smart-search');">
-                                Done
+                                Add to Bill
                             </button>
                         </div>
                     </div>`;
@@ -3431,6 +3643,11 @@ const UI = {
                 step2.classList.remove('hidden');
                 step2.classList.add('animate-step');
                 if (footer) footer.classList.remove('hidden');
+                
+                // 🚨 ENTERPRISE UX: Auto-scroll to the billing section!
+                setTimeout(() => {
+                    step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 150);
             }
         }
 
@@ -3453,7 +3670,7 @@ const UI = {
         UI.closeBottomSheet('sheet-smart-search');
     },
 
-    // ENTERPRISE UPGRADE: SMART PRICING MEMORY ENGINE
+    // ENTERPRISE UPGRADE: ULTRA-FAST SMART PRICING MEMORY ENGINE (WITH CLICKABLE LEDGER)
     getSmartRate: (prefix, itemId, defaultPrice) => {
         const isSales = prefix === 'sales';
         const partyInput = document.getElementById(isSales ? 'sales-customer-id' : 'purchase-supplier-id');
@@ -3463,24 +3680,59 @@ const UI = {
 
         const historyData = isSales ? UI.state.rawData.sales : UI.state.rawData.purchases;
         let lastRate = null;
-        let lastDate = 0;
+        let lastDate = ""; // String comparison is much faster than new Date()
 
-        // Scan history to find the most recent price charged to THIS specific party
-        historyData.forEach(doc => {
-            if (doc.status !== 'Open' && doc.documentType !== 'return' && (isSales ? doc.customerId === partyId : doc.supplierId === partyId)) {
-                const docTime = new Date(doc.date || 0).getTime();
-                (doc.items || []).forEach(row => {
-                    const rId = row.itemId || row.id; 
-                    if (rId === itemId && docTime >= lastDate) {
-                        lastRate = parseFloat(row.rate);
-                        lastDate = docTime;
-                    }
-                });
+        // Reverse loop to find the most recent price instantly without scanning the whole database
+        for (let i = historyData.length - 1; i >= 0; i--) {
+            const doc = historyData[i];
+            
+            if (doc.status === 'Open' || doc.documentType === 'return') continue;
+            
+            const matchParty = isSales ? doc.customerId === partyId : doc.supplierId === partyId;
+            if (!matchParty) continue;
+
+            const docDate = doc.date || "";
+            if (lastDate && docDate < lastDate) continue;
+
+            const items = doc.items || [];
+            for (let j = 0; j < items.length; j++) {
+                const row = items[j];
+                const rId = row.itemId || row.id; 
+                if (rId === itemId) {
+                    lastRate = parseFloat(row.rate);
+                    lastDate = docDate;
+                    break; // Stop looking in this invoice once we found the item
+                }
             }
-        });
+        }
 
         if (lastRate !== null && lastRate !== parseFloat(defaultPrice)) {
-            return { price: lastRate, msg: `<span style="color:var(--md-success); font-weight:800; font-size:10px; margin-left:4px;">(Last: ₹${lastRate.toFixed(2)})</span>` };
+            const itemObj = (UI.state.rawData.items || []).find(i => i.id === itemId);
+            const itemName = itemObj ? String(itemObj.name || 'Item History').replace(/'/g, "\\'") : 'Item History';
+            
+            let dateStr = lastDate;
+            if (lastDate) {
+                const parts = lastDate.split('-');
+                if (parts.length === 3) {
+                    const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
+                    dateStr = dObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                }
+            }
+
+            // Clean up any existing duplicate badges from the DOM before returning the new one
+            setTimeout(() => {
+                const badges = document.querySelectorAll('.smart-pricing-badge');
+                if (badges.length > 1) {
+                    for (let i = 0; i < badges.length - 1; i++) {
+                        badges[i].remove();
+                    }
+                }
+            }, 50);
+
+            return { 
+                price: lastRate, 
+                msg: `<div style="margin-top: 8px;"><span class="tap-target smart-pricing-badge" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${itemId}', '${itemName}');" style="color: #0061a4; font-weight: 600; font-size: 11px; background: #e3f2fd; padding: 4px 12px; border-radius: 12px; border: 1px solid #90caf9; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">history</span> Last sold: ₹${lastRate} on ${dateStr}</span></div>` 
+            };
         }
         return { price: defaultPrice, msg: '' };
     },
@@ -3490,8 +3742,34 @@ const UI = {
         const emptyState = document.getElementById(`${prefix}-empty-items`);
         if(!container) return;
         if(emptyState) emptyState.style.display = 'none';
+
+        // 🚨 ENTERPRISE UX: Smart Cart Duplicate Merger
+        // Check if this product is already physically in the invoice
+        const existingItem = container.querySelector(`.row-item-id[value="${id}"]`);
+        if (existingItem) {
+            const card = existingItem.closest('.item-entry-card');
+            if (card) {
+                const qtyInput = card.querySelector('.row-qty');
+                if (qtyInput) {
+                    let currentQty = parseFloat(qtyInput.value) || 0;
+                    qtyInput.value = currentQty + 1; // Add +1 to the quantity
+                    
+                    // Flash the row background so the user knows it updated
+                    card.style.backgroundColor = 'rgba(0, 97, 164, 0.1)';
+                    setTimeout(() => { card.style.backgroundColor = 'transparent'; }, 400);
+                    
+                    // Recalculate totals immediately
+                    prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
+                    if (window.Utils) window.Utils.showToast(`Updated quantity for ${name}`);
+                    return; // Stop here! Do not create a duplicate row.
+                }
+            }
+        }
+
+        // 🚨 ENTERPRISE UX: Auto-Collapse existing rows to save screen space!
+        const existingRows = container.querySelectorAll('.item-details-body');
+        existingRows.forEach(r => r.style.display = 'none');
         
-        // Trigger Smart Pricing Memory
         const smart = UI.getSmartRate(prefix, id, price);
         
         const itemCard = document.createElement('div');
@@ -3502,18 +3780,26 @@ const UI = {
         
         const hiddenInputs = `
             <input type="hidden" class="row-item-id" value="${id}">
-            <!-- 🚨 SOLLO FIX: Force String coercion to prevent purely numeric product names (like "100") from crashing the .replace() function! -->
             <input type="hidden" class="row-item-name" value="${String(name || '').replace(/"/g, '&quot;')}">
             <input type="hidden" class="row-uom" value="${uom || ''}">
         `;
 
         itemCard.innerHTML = `
             ${hiddenInputs}
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <!-- ACCORDION HEADER (Click to toggle) -->
+            <div class="tap-target" onclick="const b = this.nextElementSibling; b.style.display = b.style.display === 'none' ? 'block' : 'none';" style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; user-select: none;">
                 <div style="flex: 1; padding-right: 8px; min-width: 0;">
-                    <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
-                    <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
-                    <!-- 🚨 ENTERPRISE UPGRADE: NATIVE KEYBOARD -->
+                    <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
+                    <div style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">Tap to view & edit details <span class="material-symbols-outlined" style="font-size: 12px; vertical-align: middle;">edit</span></div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                    <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface);">0.00</strong>
+                </div>
+            </div>
+            
+            <!-- ACCORDION BODY (Inputs) -->
+            <div class="item-details-body" style="display: block; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--md-outline-variant);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
                         <input type="text" inputmode="decimal" class="row-qty" value="1" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
@@ -3524,27 +3810,26 @@ const UI = {
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
                         <input type="hidden" class="row-uom" value="${uom || 'Unit'}">
                     </div>
-                    ${prefix === 'sales' ? `
-                    <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
-                        <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="text" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
-                        <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
+                    
+                    <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-error); padding: 4px; border-radius: 6px; background: rgba(186, 26, 26, 0.1); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
                     </div>
-                    ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
                 </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
-                    <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                        <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
-                    </div>
-                    <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
+
+                ${prefix === 'sales' ? `
+                <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
+                    <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
+                    <input type="text" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                    <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                 </div>
+                ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
+                ${smart.msg}
             </div>
         `;
         container.appendChild(itemCard);
         
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         
-        // 🚀 PREMIUM POLISH: Smooth scroll to the newly added item so the user doesn't lose their place!
         setTimeout(() => {
             itemCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 150);
@@ -3609,6 +3894,11 @@ const UI = {
                 step2.classList.remove('hidden');
                 step2.classList.add('animate-step');
                 if (footer) footer.classList.remove('hidden');
+                
+                // 🚨 ENTERPRISE UX: Auto-scroll to the billing section!
+                setTimeout(() => {
+                    step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 150);
             }
         }
 
@@ -3690,8 +3980,29 @@ const UI = {
         if(!container) return;
         if(emptyState) emptyState.style.display = 'none';
         
+        // 🚨 ENTERPRISE UX: Auto-Collapse existing rows to save screen space!
+        const existingRows = container.querySelectorAll('.item-details-body');
+        existingRows.forEach(r => r.style.display = 'none');
+
         UI.state.selectedProducts.forEach(p => {
-            // Trigger Smart Pricing Memory
+            // 🚨 ENTERPRISE UX: Smart Cart Duplicate Merger
+            const existingItem = container.querySelector(`.row-item-id[value="${p.id}"]`);
+            if (existingItem) {
+                const card = existingItem.closest('.item-entry-card');
+                if (card) {
+                    const qtyInput = card.querySelector('.row-qty');
+                    if (qtyInput) {
+                        let currentQty = parseFloat(qtyInput.value) || 0;
+                        qtyInput.value = currentQty + 1; // Add +1 to quantity
+                        
+                        // Flash the background
+                        card.style.backgroundColor = 'rgba(0, 97, 164, 0.1)';
+                        setTimeout(() => { card.style.backgroundColor = 'transparent'; }, 400);
+                        return; // Skip adding a new duplicate row!
+                    }
+                }
+            }
+
             const smart = UI.getSmartRate(prefix, p.id, p.price);
 
             const itemCard = document.createElement('div');
@@ -3702,7 +4013,6 @@ const UI = {
             
             const hiddenInputs = `
                 <input type="hidden" class="row-item-id" value="${p.id}">
-                <!-- 🚨 SOLLO FIX: Force String coercion to prevent purely numeric product names (like "100") from crashing the .replace() function! -->
                 <input type="hidden" class="row-item-name" value="${String(p.name || '').replace(/"/g, '&quot;')}">
                 <input type="hidden" class="row-uom" value="${p.uom || ''}">
             `;
@@ -3710,44 +4020,51 @@ const UI = {
             itemCard.innerHTML = `
                 ${hiddenInputs}
                 
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
-                        ${p.name}
-                        <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:100px; color:inherit;" readonly></div>
+                <!-- ACCORDION HEADER (Click to toggle) -->
+                <div class="tap-target" onclick="const b = this.nextElementSibling; b.style.display = b.style.display === 'none' ? 'block' : 'none';" style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; user-select: none;">
+                    <div style="flex: 1; padding-right: 8px; min-width: 0;">
+                        <strong style="font-size: 15px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</strong>
+                        <div style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">Tap to view & edit details <span class="material-symbols-outlined" style="font-size: 12px; vertical-align: middle;">edit</span></div>
                     </div>
-                    <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
+                    <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                        <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface);">0.00</strong>
+                    </div>
                 </div>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                    <div>
-                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                <!-- ACCORDION BODY (Inputs) -->
+                <div class="item-details-body" style="display: block; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--md-outline-variant);">
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div style="font-size:11px; color:var(--md-text-muted);">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:100px; color:inherit;" readonly></div>
+                        <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px; border-radius: 6px; background: rgba(186, 26, 26, 0.1);" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
                     </div>
-                    <div>
-                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)${smart.msg}</small>
-                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
-                    </div>
-                    <div>
-                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="text" inputmode="decimal" class="row-gst" value="${p.gst || 0}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
-                    </div>
-                </div>
-
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
-                    <div style="display:flex; gap:8px;">
-                        ${prefix === 'sales' ? `
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                         <div>
-                            <small style="color:var(--md-text-muted); font-size:10px; display:block;">Buy Price</small>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
+                            <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)</small>
+                            <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        </div>
+                        <div>
+                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                            <input type="text" inputmode="decimal" class="row-gst" value="${p.gst || 0}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        ${prefix === 'sales' ? `
+                        <div style="display:flex; align-items:center; gap:4px;">
+                            <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
                             <input type="text" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                            <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                         </div>
                         ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
-                    </div>
-                    <div style="text-align:right;">
-                        <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
-                        <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
+                        ${smart.msg}
                     </div>
                 </div>
-                ${prefix === 'sales' ? `<small class="live-margin" style="font-size:10px; display:block; margin-top:8px; text-align:right;"></small>` : ''}
             `;
             container.appendChild(itemCard);
         });
@@ -3755,14 +4072,12 @@ const UI = {
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         UI.closeBottomSheet('sheet-products');
         
-        // 🚀 PREMIUM POLISH: Smooth scroll down so the user sees all newly added items!
         setTimeout(() => {
             if (container.lastElementChild) {
                 container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }, 200);
 
-        // ENTERPRISE FIX: Wipe the array so reopening the menu doesn't duplicate the old products!
         UI.state.selectedProducts = []; 
     },
 
@@ -4222,17 +4537,398 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🟢 ENTERPRISE FIX: Failsafe Search Timer Injector
     // Instantly patches the missing search timer so the Inventory Master search bar NEVER crashes!
     if (!window.Utils) window.Utils = {};
-    window.Utils.debounce = window.Utils.debounce || function(func, delay) {
-        let timeout;
-        return function(...args) {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), delay);
+        window.Utils.debounce = window.Utils.debounce || function(func, delay) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), delay);
+            };
         };
-    };
 
-    // ==========================================
-    // FINAL POLISH: MATERIAL RIPPLES & HAPTICS
-    // ==========================================
+        // 🚀 ENTERPRISE UPGRADE: Delegated Bottom Navigation
+        const mainBottomNav = document.getElementById('main-bottom-nav');
+        if (mainBottomNav) {
+            mainBottomNav.addEventListener('click', (e) => {
+                // Find the closest nav-item that was tapped
+                const navItem = e.target.closest('.nav-item');
+                if (!navItem) return;
+
+                // Extract our clean data attributes
+                const tabId = navItem.getAttribute('data-tab');
+                const title = navItem.getAttribute('data-title');
+                
+                // Execute the original routing logic
+                if (window.UI) window.UI.switchTab(tabId, title, navItem);
+                
+                // Special hook for the Workspace tab
+                if (tabId === 'tab-workspace' && window.UI) {
+                    window.UI.renderBankBalances();
+                }
+            });
+        }
+
+        // 🚀 ENTERPRISE UPGRADE: Delegated Workspace "Create" Grid
+        const createGrid = document.getElementById('workspace-create-grid');
+        if (createGrid) {
+            createGrid.addEventListener('click', (e) => {
+                // Find which specific square they tapped
+                const btn = e.target.closest('.create-action-btn');
+                if (!btn) return;
+                
+                // Read what this button is supposed to do from the HTML
+                const action = btn.getAttribute('data-action');
+                const formType = btn.getAttribute('data-formtype');
+                const docType = btn.getAttribute('data-doctype') || 'invoice';
+
+                // Delay exactly 200ms to allow the physical "ripple" animation to finish before opening the screen!
+                setTimeout(() => {
+                    if (action === 'form') {
+                        if (window.app) window.app.openForm(formType, null, docType);
+                    } else if (action === 'payment') {
+                        if (window.app) window.app.openNewPayment(formType);
+                    }
+                }, 200);
+            });
+        }
+
+        // 🚀 ENTERPRISE UPGRADE: Delegated Workspace "Masters" Grid
+        const masterGrid = document.getElementById('workspace-master-grid');
+        if (masterGrid) {
+            masterGrid.addEventListener('click', (e) => {
+                const btn = e.target.closest('.master-action-btn');
+                if (!btn) return;
+                
+                const action = btn.getAttribute('data-action');
+                if (action === 'master' && window.UI) {
+                    const type = btn.getAttribute('data-type');
+                    const title = btn.getAttribute('data-title');
+                    window.UI.openMasterView(type, title);
+                } else if (action === 'activity' && window.UI) {
+                    const target = btn.getAttribute('data-target');
+                    window.UI.openActivity(target);
+                }
+            });
+        }
+
+        // 🚀 ENTERPRISE UPGRADE: Delegated Reports Command Center
+        const reportsContainer = document.getElementById('reports-action-container');
+        if (reportsContainer) {
+            reportsContainer.addEventListener('click', (e) => {
+                const btn = e.target.closest('.report-btn');
+                if (!btn) return;
+
+                const action = btn.getAttribute('data-action');
+                if (!action) return;
+
+                switch (action) {
+                    case 'master':
+                        if (window.UI) window.UI.openMasterView(btn.getAttribute('data-type'), btn.getAttribute('data-title'));
+                        break;
+                    case 'smartsearch':
+                        if (window.UI) window.UI.openSmartSearch(btn.getAttribute('data-type'), btn.getAttribute('data-target'));
+                        break;
+                    case 'reorder':
+                        if (window.app) window.app.openReorderReport();
+                        break;
+                    case 'deadstock':
+                        if (window.app) window.app.openDeadStockReport();
+                        break;
+                    case 'advreport':
+                        if (window.UI) {
+                            window.UI.openActivity('activity-advanced-reports');
+                            window.UI.switchReportTab(btn.getAttribute('data-tab'));
+                        }
+                        break;
+                    case 'universal':
+                        if (window.app) window.app.openUniversalReport(btn.getAttribute('data-type'));
+                        break;
+                    case 'bankledger':
+                        if (window.app) window.app.openBankLedgerMenu();
+                        break;
+                    case 'itemprofit':
+                        if (window.app) window.app.openItemProfitReport();
+                        break;
+                    case 'profitleakage':
+                        if (window.app) window.app.openProfitLeakageReport();
+                        break;
+                    case 'activity':
+                        if (window.UI) window.UI.openActivity(btn.getAttribute('data-target'));
+                        break;
+                    case 'expensereport':
+                        if (window.app) window.app.openExpenseReport();
+                        break;
+                    case 'receivables':
+                        if (window.UI) {
+                            window.UI.openMasterView('customers', 'Customer Master');
+                            setTimeout(() => {
+                                window.UI.state.activeFilters['masters'] = 'To Receive';
+                                const el = document.getElementById('filter-master-view');
+                                if (el) el.value = 'To Receive';
+                                if (window.app) window.app.applySmartMasterFilter();
+                            }, 150);
+                        }
+                        break;
+                    case 'payables':
+                        if (window.UI) {
+                            window.UI.openMasterView('suppliers', 'Supplier Master');
+                            setTimeout(() => {
+                                window.UI.state.activeFilters['masters'] = 'To Pay';
+                                const el = document.getElementById('filter-master-view');
+                                if (el) el.value = 'To Pay';
+                                if (window.app) window.app.applySmartMasterFilter();
+                            }, 150);
+                        }
+                        break;
+                    case 'fyclose':
+                        if (window.app) window.app.closeFinancialYear();
+                        break;
+                    case 'gstreport':
+                        if (window.app) window.app.openGSTReport();
+                        break;
+                    case 'partytax':
+                        if (window.app) window.app.openPartyTaxReport();
+                        break;
+                }
+            });
+        }
+        
+        // 🚀 ENTERPRISE UPGRADE: Global Auto-Closer (No inline JS needed!)
+        document.addEventListener('click', (e) => {
+            const tapTarget = e.target.closest('.tap-target');
+            if (!tapTarget) return;
+
+            // 1. Auto-Close Activity Screens (Looks for back arrows or close icons in headers)
+            if (tapTarget.closest('.activity-header') && (tapTarget.innerText.includes('arrow_back') || tapTarget.innerText.includes('close'))) {
+                const activity = tapTarget.closest('.activity-screen');
+                if (activity && window.UI) {
+                    window.UI.closeActivity(activity.id);
+                    e.stopPropagation(); // 🛡️ Kills any leftover inline onclicks instantly so they don't double-fire!
+                }
+                return;
+            }
+
+            // 2. Auto-Close Bottom Sheets
+            if (tapTarget.closest('.sheet-header') && tapTarget.innerText.includes('close')) {
+                const sheet = tapTarget.closest('.bottom-sheet');
+                if (sheet && window.UI) {
+                    window.UI.closeBottomSheet(sheet.id);
+                    e.stopPropagation(); // 🛡️ Kills any leftover inline onclicks instantly!
+                }
+                return;
+            }
+
+            // 3. 🚀 ENTERPRISE UPGRADE: Global Delete Engine
+            // Automatically extracts the record type directly from the Button's ID!
+            if (tapTarget.id && tapTarget.id.startsWith('btn-delete-')) {
+                const recordType = tapTarget.id.replace('btn-delete-', '');
+                if (window.app && window.app.deleteRecord) {
+                    window.app.deleteRecord(recordType);
+                    e.stopPropagation();
+                }
+                return;
+            }
+
+            // 4. 🚀 ENTERPRISE UPGRADE: Global Share Engine
+            if (tapTarget.id && tapTarget.id.startsWith('btn-share-')) {
+                const recordType = tapTarget.id.replace('btn-share-', '');
+                if (window.app && window.app.state && window.app.state.currentEditId) {
+                    window.app.openSmartShare(recordType, window.app.state.currentEditId);
+                } else {
+                    if (window.Utils) window.Utils.showToast('Please save the document first!');
+                }
+                e.stopPropagation();
+                return;
+            }
+
+            // 5. 🚀 ENTERPRISE UPGRADE: Global Print/PDF Engine
+            if (tapTarget.id && (tapTarget.id.startsWith('btn-pdf-') || tapTarget.id.startsWith('btn-print-'))) {
+                const idStr = tapTarget.id;
+                if (idStr === 'btn-pdf-sales') {
+                    if (window.app) window.app.generatePDF('sales');
+                } else if (idStr === 'btn-pdf-purchase') {
+                    if (window.app) window.app.generatePDF('purchase');
+                } else if (idStr === 'btn-print-expense') {
+                    if (window.app && window.app.state.currentEditId && window.Utils) {
+                        window.Utils.generateExpenseVoucherPDF(window.app.state.currentEditId);
+                    } else {
+                        if (window.Utils) window.Utils.showToast('Please save the expense first!');
+                    }
+                } else if (idStr === 'btn-print-receipt-in' || idStr === 'btn-print-receipt-out') {
+                    if (window.app) {
+                        const recId = window.app.state.currentReceiptId;
+                        if (recId) {
+                            window.app.generateReceiptPDF(recId);
+                        } else {
+                            alert('Please save the payment first before printing!');
+                        }
+                    }
+                }
+                e.stopPropagation();
+                return;
+            }
+
+            // 6. 🚀 ENTERPRISE UPGRADE: Global Settings Engine
+            const settingBtn = tapTarget.closest('.setting-btn');
+            if (settingBtn) {
+                const action = settingBtn.getAttribute('data-action');
+                if (!action) return;
+
+                switch (action) {
+                    case 'profile':
+                        if (window.UI) window.UI.openActivity('activity-business-profile');
+                        break;
+                    case 'defaulters':
+                        if (window.UI) {
+                            window.UI.openMasterView('customers', 'Customer Master');
+                            setTimeout(() => {
+                                const el = document.getElementById('filter-master-view');
+                                if (el) el.value = 'To Receive';
+                                if (window.app) window.app.applySmartMasterFilter();
+                            }, 150);
+                        }
+                        break;
+                    case 'docformats':
+                        if (window.UI) window.UI.openBottomSheet('sheet-document-formats');
+                        break;
+                    case 'theme':
+                        if (window.UI) {
+                            window.UI.openActivity('activity-business-profile');
+                            setTimeout(() => {
+                                const details = document.querySelectorAll('details.advanced-options');
+                                if(details.length > 1) {
+                                    details[1].open = true;
+                                    details[1].scrollIntoView({behavior: 'smooth', block: 'center'});
+                                }
+                            }, 350);
+                        }
+                        break;
+                    case 'backup':
+                        if (window.Cloud) window.Cloud.backup();
+                        break;
+                    case 'restore':
+                        if (window.Cloud) window.Cloud.restore();
+                        break;
+                    case 'export':
+                        if (window.Utils) window.Utils.exportData();
+                        break;
+                    case 'import':
+                        const importInput = document.getElementById('import-file-tab');
+                        if (importInput) importInput.click();
+                        break;
+                    case 'trash':
+                        if (window.UI) window.UI.openMasterView('trash', 'Recycle Bin');
+                        break;
+                    case 'autofix':
+                        if (window.app && window.app.recalculateAllStock) window.app.recalculateAllStock();
+                        break;
+                    case 'update':
+                        if (window.Utils) window.Utils.showToast('Checking for updates... 🔄');
+                        if ('serviceWorker' in navigator) {
+                            navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => {
+                                if (r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'});
+                                r.update().then(() => {
+                                    if (r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'});
+                                });
+                            }));
+                            setTimeout(() => window.location.reload(true), 1500);
+                        } else {
+                            window.location.reload(true);
+                        }
+                        break;
+                }
+                e.stopPropagation();
+                return;
+            }
+
+        }, { capture: true }); // capture: true ensures this runs BEFORE any inline HTML scripts!
+
+        // 🚀 ENTERPRISE UPGRADE: Dashboard Card Action Delegator
+        // Centralized date math for clicking Dashboard metric cards
+        const getDashboardDateRange = () => {
+            const filter = document.getElementById('dashboard-date-filter').value;
+            const today = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+            let s = today, e = today;
+            const y = parseInt(today.split('-')[0]);
+            const m = parseInt(today.split('-')[1]) - 1;
+            
+            if(filter === 'month') { s = `${y}-${String(m+1).padStart(2,'0')}-01`; }
+            else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = new Date(ty, tm+1, 0).toISOString().split('T')[0]; }
+            else if(filter === 'year') { s = `${m<3 ? y-1 : y}-04-01`; }
+            else if(filter === 'all') { s = ''; e = ''; }
+            else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = new Date(cy, cm, 0).toISOString().split('T')[0]; } }
+            
+            return { s, e, filter };
+        };
+
+        const dashSalesCard = document.getElementById('dash-action-sales');
+        if (dashSalesCard) {
+            dashSalesCard.addEventListener('click', () => {
+                if(window.app && typeof window.app.viewFilteredSales === 'function') {
+                    window.app.viewFilteredSales('All');
+                    setTimeout(() => {
+                        const range = getDashboardDateRange();
+                        document.getElementById('sales-start-date').value = range.s;
+                        document.getElementById('sales-end-date').value = range.e;
+                        
+                        const fText = document.getElementById('return-dash-filter-text');
+                        if (fText) fText.innerText = range.filter === 'all' ? 'All Sales' : 'Filtered: Date Range';
+                        
+                        if(window.UI) window.UI.applyFilters('sales');
+                    }, 200);
+                }
+            });
+        }
+
+        const dashProfitCard = document.getElementById('dash-action-profit');
+        if (dashProfitCard) {
+            dashProfitCard.addEventListener('click', () => {
+                UI.openActivity('activity-advanced-reports'); 
+                setTimeout(() => { 
+                    const range = getDashboardDateRange();
+                    document.getElementById('report-pnl-start').value = range.s || '2000-01-01'; // P&L needs a hard start date if 'all'
+                    document.getElementById('report-pnl-end').value = range.e || new Date().toISOString().split('T')[0];
+                    UI.switchReportTab('pnl'); 
+                }, 100);
+            });
+        }
+
+        // 🚀 ENTERPRISE UPGRADE: Remaining Dashboard Quick Links
+        const dashWarehouseCard = document.getElementById('dash-action-warehouse');
+        if (dashWarehouseCard) {
+            dashWarehouseCard.addEventListener('click', () => {
+                if(window.UI) { 
+                    UI.openMasterView('products', 'Inventory Master'); 
+                    setTimeout(() => { 
+                        document.getElementById('filter-master-view').value = 'In Stock'; 
+                        window.UI.setFilter('masters', 'In Stock', null); 
+                    }, 150); 
+                }
+            });
+        }
+
+        const dashAnalyticsCard = document.getElementById('dash-action-analytics');
+        if (dashAnalyticsCard) {
+            dashAnalyticsCard.addEventListener('click', () => {
+                if (window.app) window.app.openDeepAnalytics();
+            });
+        }
+
+        const dashOverdueBtn = document.getElementById('dash-action-overdue');
+        if (dashOverdueBtn) {
+            dashOverdueBtn.addEventListener('click', () => {
+                if (window.app) window.app.viewFilteredSales('Overdue');
+            });
+        }
+
+        document.querySelectorAll('.dash-action-fulfillment').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (window.app) window.app.viewFilteredSales(btn.getAttribute('data-status'));
+            });
+        });
+
+        // ==========================================
+        // FINAL POLISH: MATERIAL RIPPLES & HAPTICS
+        // ==========================================
     document.addEventListener('pointerdown', (e) => {
         const target = e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .nav-item, .list-view li, .chip');
         if (target) {
@@ -4521,6 +5217,73 @@ document.addEventListener('click', (e) => {
 });
 
 // 2. Attach to window so index.html inline scripts don't break
+
+// ==========================================
+// ENTERPRISE UX: REPORT FILTER BUTTON HIGHLIGHTER
+// ==========================================
+window.setActiveFilterButton = function(clickedButton) {
+    if (!clickedButton) return;
+    
+    // 1. Find the container that holds all the buttons
+    const container = clickedButton.parentElement;
+    if (!container) return;
+    
+    // 2. Find all buttons inside this container and reset them to White
+    const allButtons = container.querySelectorAll('button');
+    allButtons.forEach(btn => {
+        btn.style.background = 'var(--md-surface)'; // White background
+        btn.style.color = 'var(--md-primary)';      // Blue text
+        btn.style.boxShadow = 'none';
+    });
+    
+    // 3. Highlight the clicked button to Blue
+    clickedButton.style.background = 'var(--md-primary)'; // Solid Blue background
+    clickedButton.style.color = '#ffffff';                // Pure White text
+    clickedButton.style.boxShadow = '0 2px 6px rgba(0, 97, 164, 0.2)'; // Subtle drop shadow
+};
+
+// ==========================================
+// ENTERPRISE UX: LIVE CURRENCY ROLLING ENGINE
+// ==========================================
+window.animateCurrency = function(elementId, start, end, duration) {
+    const obj = document.getElementById(elementId);
+    if (!obj) return;
+    
+    // If the number is zero or negative, just show it instantly (don't animate)
+    if (end <= 0) {
+        obj.innerText = '₹' + end.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return;
+    }
+
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        
+        // Premium Ease-Out Math: Starts counting blazing fast, then smoothly slows down as it reaches the target
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        const currentVal = (easeOutQuart * (end - start) + start);
+        
+        // Format natively with commas on the fly!
+        obj.innerText = '₹' + currentVal.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+        
+        if (progress < 1) {
+            window.requestAnimationFrame(step);
+        } else {
+            // Lock the exact final number perfectly at the end
+            obj.innerText = '₹' + end.toLocaleString('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+    };
+    window.requestAnimationFrame(step);
+};
+
+
 window.UI = UI;
 
 // 3. Boot up the Premium UX Engine automatically
@@ -4910,3 +5673,300 @@ if (window.UI && typeof window.UI.addSmartItemRow === 'function') {
         originalAddItem.apply(this, arguments);
     };
 }
+
+// ==========================================
+// INVOICE OVERVIEW ENGINE (READ-ONLY) - PREMIUM UX
+// ==========================================
+window.openInvoiceOverview = function(type, id) {
+    try {
+        // Map 'purchase' to 'purchases' so the memory engine finds the data
+        const storeKey = type === 'purchase' ? 'purchases' : type;
+        const dataList = window.UI?.state?.rawData[storeKey];
+        if(!dataList) return window.Utils.showToast("Data not found");
+        const doc = dataList.find(d => d.id === id);
+        if(!doc) return window.Utils.showToast("Document not found");
+
+        const isSales = type === 'sales';
+        const isNonGST = doc.invoiceType === 'Non-GST';
+        const partyId = isSales ? doc.customerId : doc.supplierId;
+        const partyName = doc.customerName || doc.supplierName || 'Walk-in Customer';
+
+        // 1. SMART HEADER (Invoice No & Order No)
+        let docNumberStr = '';
+        const invNo = doc.invoiceNo || '';
+        const ordPoNo = doc.orderNo || doc.poNo || '';
+
+        if (isNonGST || !invNo) {
+            docNumberStr = ordPoNo || ('DOC-' + String(doc.id).slice(-4).toUpperCase());
+        } else {
+            if (ordPoNo && invNo !== ordPoNo) {
+                docNumberStr = `${invNo} <span style="color:var(--md-text-muted); font-weight:normal;">| ${ordPoNo}</span>`;
+            } else {
+                docNumberStr = invNo;
+            }
+        }
+        const headerTitleEl = document.getElementById('overview-invoice-no');
+        headerTitleEl.innerHTML = docNumberStr;
+        headerTitleEl.style.fontSize = docNumberStr.includes('|') ? '15px' : '18px';
+
+        // 2. STATUS & BALANCES
+        let statusText = doc.status || 'Saved';
+        let sColor = '#0061a4', sBg = 'rgba(0, 97, 164, 0.1)';
+        if(statusText === 'Completed' || statusText === 'Paid') { sColor = '#146c2e'; sBg = 'rgba(20, 108, 46, 0.1)'; }
+        if(statusText === 'Overdue' || statusText === 'Cancelled') { sColor = '#ba1a1a'; sBg = 'rgba(186, 26, 26, 0.1)'; }
+
+        let totalPaid = 0;
+        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+        (window.UI?.state?.rawData?.cashbook || []).forEach(c => {
+            const legacyRef = c.invoiceRef || c.linkedInvoice;
+            if (legacyRef) {
+                const refs = String(legacyRef).split(',').map(r => r.trim());
+                if (refs.some(r => uniqueRefs.includes(r))) {
+                    totalPaid += c.allocationMap && c.allocationMap[doc.id] !== undefined ? parseFloat(c.allocationMap[doc.id]) : parseFloat(c.amount) / refs.length;
+                }
+            }
+        });
+        const grandTotal = parseFloat(doc.grandTotal || doc.amount || 0);
+        const balance = Math.max(0, grandTotal - totalPaid);
+
+        // 3. LIFECYCLE DATES & SMART BANNER
+        const fDate = (d) => d ? window.Utils.formatDateDisplay(d) : '';
+        const safeInvDate = fDate(doc.date);
+        const safeOrdDate = fDate(doc.orderDate);
+        const safeShipDate = fDate(doc.shippedDate);
+        const safeCompDate = fDate(doc.completedDate);
+        
+        // Exact Banner Logic
+        let bannerStatusText = statusText;
+        if ((statusText === 'Completed' || statusText === 'Paid') && safeCompDate) {
+            bannerStatusText = `${statusText.toUpperCase()} • ${safeCompDate}`;
+        } else if ((statusText === 'Shipped' || statusText === 'Unpaid') && safeShipDate) {
+            bannerStatusText = `${statusText.toUpperCase()} • ${safeShipDate}`;
+        }
+
+        // Exact Date Grid Logic
+        const dateItems = [];
+        dateItems.push({ label: isSales ? (isNonGST ? 'Date' : 'Inv Date') : 'Bill Date', val: safeInvDate || '-' });
+        dateItems.push({ label: isSales ? 'Ord Date' : 'PO Date', val: safeOrdDate || '-' });
+        
+        if ((statusText === 'Completed' || statusText === 'Paid') && safeShipDate) {
+            dateItems.push({ label: 'Dispatched', val: safeShipDate }); // Only Shipped Date here if completed
+        }
+
+        let dateGridHTML = '';
+        if (dateItems.length > 0) {
+            dateGridHTML = `<div style="display: flex; width: 100%; justify-content: flex-start; gap: 16px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--md-outline-variant);">`;
+            dateItems.forEach((di, idx) => {
+                const borderLeft = idx > 0 ? `border-left: 1px solid var(--md-outline-variant); padding-left: 16px;` : '';
+                dateGridHTML += `
+                <div style="${borderLeft} min-width: 0;">
+                    <small style="color:var(--md-text-muted); font-size:9.5px; text-transform:uppercase; display:block; margin-bottom:2px; font-weight:800; letter-spacing:0.5px;">${di.label}</small>
+                    <strong style="font-size:13px; color:var(--md-on-surface); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;">${di.val}</strong>
+                </div>`;
+            });
+            dateGridHTML += `</div>`;
+        }
+
+        // 4. ITEMS LIST
+        let itemsHTML = '';
+        if(doc.items && doc.items.length > 0) {
+            doc.items.forEach(item => {
+                const qty = parseFloat(item.qty) || 1;
+                let rate = parseFloat(item.rate) || parseFloat(item.price) || parseFloat(item.sellPrice) || parseFloat(item.buyPrice) || 0;
+                let lineTotal = parseFloat(item.total) || (qty * rate);
+                itemsHTML += `
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-surface-variant); padding: 12px 16px;">
+                    <div style="flex: 1; padding-right: 12px;">
+                        <strong style="display: block; font-size: 14px; color: var(--md-on-surface);">${item.name || 'Item'}</strong>
+                        <small style="color: var(--md-text-muted);">${qty} ${item.uom || 'pcs'} × ₹${rate.toFixed(2)}</small>
+                    </div>
+                    <strong style="font-size: 15px; color: var(--md-on-surface);">₹${lineTotal.toFixed(2)}</strong>
+                </div>`;
+            });
+        } else {
+            itemsHTML = `<div style="padding: 16px; color: var(--md-text-muted);">No items recorded.</div>`;
+        }
+
+        // 5. MATH & EXACT BREAKDOWN (Freight, %, GST/IGST)
+        let rawSubtotal = parseFloat(doc.subtotal || doc.amount || 0);
+        let discountVal = parseFloat(doc.discountAmt || doc.discount || 0);
+        if (doc.discountType === '%' && !doc.discountAmt) {
+            discountVal = rawSubtotal * (parseFloat(doc.discount) / 100);
+        }
+        let freightVal = parseFloat(doc.freightAmount || doc.freight || 0);
+        
+        let isIGST = false;
+        try {
+            const firmStateEl = document.getElementById('profile-state');
+            const firmState = firmStateEl ? firmStateEl.value.trim().toLowerCase() : '';
+            const party = window.UI?.state?.rawData?.ledgers?.find(l => l.id === partyId);
+            const partyState = party && party.state ? party.state.trim().toLowerCase() : '';
+            if (firmState && partyState && firmState !== partyState) isIGST = true;
+        } catch(e) {}
+
+        const totalGstAmt = parseFloat(doc.gstTotal || doc.totalGst || 0);
+        const halfGst = (totalGstAmt / 2).toFixed(2);
+        let gstBreakdownHTML = '';
+
+        if (isNonGST) {
+            gstBreakdownHTML = `<div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--md-text-muted);"><span>Taxes</span><span style="color: var(--md-on-surface); font-weight: bold;">Non-GST / Exempt</span></div>`;
+        } else {
+            let taxSplitHTML = isIGST 
+                ? `<span>IGST: <strong style="color: var(--md-on-surface);">₹${totalGstAmt.toFixed(2)}</strong></span>` 
+                : `<span>CGST: <strong style="color: var(--md-on-surface);">₹${halfGst}</strong></span><span>SGST: <strong style="color: var(--md-on-surface);">₹${halfGst}</strong></span>`;
+            gstBreakdownHTML = `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; color: var(--md-text-muted);"><span>Total GST</span><span style="color: var(--md-on-surface);">+ ₹${totalGstAmt.toFixed(2)}</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">${taxSplitHTML}</div>`;
+        }
+
+        // 6. DYNAMIC LINKED CARDS (Payments & Expenses)
+        let linksHTML = '';
+        const linkedReceipts = (window.UI?.state?.rawData?.cashbook || []).filter(c => {
+            const refs = String(c.invoiceRef || c.linkedInvoice || '').split(',').map(r => r.trim());
+            return refs.some(r => uniqueRefs.includes(r));
+        });
+        if (linkedReceipts.length > 0) {
+            linksHTML += `<div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 800; color: var(--md-primary); text-transform: uppercase;">Linked Payments & Receipts</div>`;
+            linkedReceipts.forEach(r => {
+                linksHTML += `<div class="tap-target" onclick="app.openReceipt('${r.id}', '${r.type}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-surface-variant); cursor: pointer;">
+                    <div><div style="font-weight:bold; font-size: 14px; color: var(--md-primary);">${r.receiptNo || 'Receipt'}</div><small style="color:var(--md-text-muted);">${r.date ? window.Utils.formatDateDisplay(r.date) : ''} | ${r.mode}</small></div>
+                    <strong style="font-size: 14px; color: ${r.type === 'in' ? 'var(--md-success)' : 'var(--md-error)'};">${r.type === 'in' ? '+' : '-'}₹${parseFloat(r.amount).toFixed(2)}</strong>
+                </div>`;
+            });
+            linksHTML += `</div>`;
+        }
+
+        const linkedExpenses = (window.UI?.state?.rawData?.expenses || []).filter(e => {
+            const refs = String(e.linkedInvoice || '').split(',').map(x => x.trim());
+            return refs.some(r => uniqueRefs.includes(r));
+        });
+        if (linkedExpenses.length > 0) {
+            linksHTML += `<div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 800; color: var(--md-error); text-transform: uppercase;">Linked Job Expenses</div>`;
+            linkedExpenses.forEach(e => {
+                linksHTML += `<div class="tap-target" onclick="app.openForm('expense', '${e.id}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-surface-variant); cursor: pointer;">
+                    <div><div style="font-weight:bold; font-size: 14px; color: var(--md-error);">${e.expenseNo || 'EXP'} - ${e.category}</div><small style="color:var(--md-text-muted);">${e.date ? window.Utils.formatDateDisplay(e.date) : ''}</small></div>
+                    <strong style="font-size: 14px; color: var(--md-error);">₹${parseFloat(e.amount).toFixed(2)}</strong>
+                </div>`;
+            });
+            linksHTML += `</div>`;
+        }
+
+        // 7. ASSEMBLE EDGE-TO-EDGE HTML
+        const contentEl = document.getElementById('overview-main-content');
+        contentEl.innerHTML = `
+            <!-- Full-Width Status Banner -->
+            <div style="background: ${sBg}; color: ${sColor}; text-align: center; padding: 8px 16px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--md-outline-variant);">
+                ${bannerStatusText}
+            </div>
+
+            <!-- Edge-to-Edge Hero Card -->
+            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); padding: 16px; text-align: center; margin-bottom: 8px;">
+                <h2 style="font-size: 28px; margin: 0 0 4px 0; color: var(--md-primary); letter-spacing: -0.5px;">₹${grandTotal.toFixed(2)}</h2>
+                <small style="color: var(--md-text-muted);">Balance Due: <strong style="color: var(--md-error);">₹${balance.toFixed(2)}</strong></small>
+                
+                <div style="margin-top: 12px; text-align: left;">
+                    <small style="color: var(--md-text-muted); font-size: 10px; text-transform: uppercase; display: block; margin-bottom: 4px; font-weight: 800; letter-spacing: 0.5px;">Billed To</small>
+                    <div class="tap-target" 
+                         style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; margin-left: -10px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); cursor: pointer; border: 1px solid rgba(0, 97, 164, 0.15);" 
+                         onclick="if(window.app) window.app.openPartyLedger('${partyId}', '${isSales ? 'Customer' : 'Supplier'}', '${String(partyName).replace(/'/g, "\\'").replace(/"/g, "&quot;")}')">
+                        <strong style="color: var(--md-primary); font-size: 15px;">${partyName}</strong>
+                        <span class="material-symbols-outlined" style="font-size: 16px; color: var(--md-primary);">open_in_new</span>
+                    </div>
+                    ${dateGridHTML}
+                </div>
+            </div>
+
+            <!-- Edge-to-Edge Items -->
+            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
+                <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 800; color: var(--md-primary); text-transform: uppercase;">Items (${doc.items ? doc.items.length : 0})</div>
+                ${itemsHTML}
+            </div>
+
+            <!-- Edge-to-Edge Breakdown -->
+            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 8px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--md-text-muted);"><span>Subtotal</span><span style="color: var(--md-on-surface);">₹${rawSubtotal.toFixed(2)}</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--md-success);"><span>Discount</span><span>- ₹${discountVal.toFixed(2)}</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--md-text-muted);"><span>Freight</span><span style="color: var(--md-on-surface);">+ ₹${freightVal.toFixed(2)}</span></div>
+                ${gstBreakdownHTML}
+                <div style="border-top: 1px dashed var(--md-outline-variant); margin: 12px 0;"></div>
+                <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; color: var(--md-on-surface); margin-bottom: 0;"><span>Grand Total</span><span style="color: var(--md-primary);">₹${grandTotal.toFixed(2)}</span></div>
+            </div>
+            
+            ${linksHTML}
+        `;
+
+        // Memory lock set EARLY to guarantee PDF viewer works immediately
+        if (window.app && window.app.state) {
+            window.app.state.currentEditId = doc.id;
+            window.app.state.currentDocType = doc.documentType || 'invoice';
+        }
+
+        // 8. Top Actions (Removed UI.closeActivity so tapping "Close" in the edit form returns you here!)
+        document.getElementById('overview-top-actions').innerHTML = `
+            <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface);" onclick="if(window.app) { window.app.state.currentEditId = '${doc.id}'; window.app.generatePDF('${type}'); }">visibility</span>
+            <span class="material-symbols-outlined tap-target" style="color: var(--md-on-surface);" onclick="if(window.app) window.app.openForm('${type}', '${doc.id}', '${doc.documentType || ''}')">edit</span>
+        `;
+
+        // 9. Bottom Actions (Streamlined: WhatsApp, Record Payment, More Options)
+        const payType = isSales ? 'in' : 'out';
+        const payText = isSales ? 'Record Payment In' : 'Record Payment Out';
+        const safePartyName = String(partyName).replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        
+        // 🚨 BUG FIX: Removed 'UI.closeActivity' from the payAction! 
+        // Now the Payment form opens ON TOP of the preview. When you close the payment form, the preview is still there!
+        const payAction = `if(window.app) { window.app.openNewPayment('${payType}'); setTimeout(() => { if(window.UI) UI.selectLedger('${partyId}', '${safePartyName}', 'pay-${payType}'); }, 400); }`;
+
+        // 🚨 UX UPGRADE: Professional Dock Styling (Even heights, rounded edges, removed ugly borders!)
+        document.getElementById('overview-bottom-bar').innerHTML = `
+            <!-- 1. WhatsApp (Quick Send) -->
+            <div class="tap-target" style="width: 52px; height: 52px; border-radius: 14px; background: #eefbf3; color: #25D366; display: flex; justify-content: center; align-items: center; cursor: pointer; flex-shrink: 0;" onclick="if(window.Utils) window.Utils.shareDocumentWhatsApp('${type}', '${doc.id}');">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+            </div>
+            
+            <!-- 2. Record Payment (Primary Action) -->
+            <div class="tap-target" style="flex: 1; height: 52px; border-radius: 14px; background: ${isSales ? 'var(--md-primary)' : 'var(--md-error)'}; color: #ffffff; display: flex; justify-content: center; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px ${isSales ? 'rgba(0,97,164,0.3)' : 'rgba(186,26,26,0.3)'};" onclick="${payAction}">
+                <span class="material-symbols-outlined" style="font-size: 22px;">${isSales ? 'payments' : 'outbox'}</span>
+                ${payText}
+            </div>
+
+            <!-- 3. More Actions -->
+            <div class="tap-target" style="width: 52px; height: 52px; border-radius: 14px; background: var(--md-surface-variant); color: var(--md-on-surface); display: flex; justify-content: center; align-items: center; cursor: pointer; flex-shrink: 0;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-invoice-more')">
+                <span class="material-symbols-outlined" style="font-size: 24px;">more_vert</span>
+            </div>
+        `;
+
+        // 10. More Options Sheet (Removed "Record Payment" as it is now the main button!)
+        const moreSheetContent = document.getElementById('more-actions-container');
+        if (moreSheetContent) {
+            moreSheetContent.innerHTML = `
+                <div class="m3-card tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-invoice-more'); if(window.app) window.app.cancelDocument('${type}', '${doc.id}');" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer; box-shadow: none;">
+                    <div style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                        <span class="material-symbols-outlined">block</span>
+                    </div>
+                    <div>
+                        <strong style="display:block; font-size:15px; color: var(--md-on-surface); border:none; margin:0;">Cancel Document</strong>
+                        <small style="color:var(--md-text-muted);">Mark as void / cancelled</small>
+                    </div>
+                </div>
+
+                <div class="m3-card tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-invoice-more'); UI.closeActivity('activity-invoice-overview'); } setTimeout(() => { if(window.app) app.deleteRecord('${isSales ? 'sales' : 'purchase'}'); }, 300);" style="display:flex; align-items:center; gap: 16px; margin-bottom: 0; cursor:pointer; box-shadow: none;">
+                    <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                        <span class="material-symbols-outlined">delete</span>
+                    </div>
+                    <div>
+                        <strong style="display:block; font-size:15px; color: var(--md-on-surface); border:none; margin:0;">Delete Record</strong>
+                        <small style="color:var(--md-text-muted);">Move to recycle bin</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        UI.openActivity('activity-invoice-overview');
+        
+    } catch (error) {
+        console.error("Overview Screen Error:", error);
+        if(window.app) window.app.openForm(type, id);
+    }
+};

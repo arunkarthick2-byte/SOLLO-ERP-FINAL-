@@ -2,7 +2,7 @@
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.4)
 // ==========================================
 // ENTERPRISE RULE: Every time you change your code, you MUST change this version number (e.g., to 11.8, 11.9)!
-const CACHE_NAME = 'sollo-erp-v92-offline'; 
+const CACHE_NAME = 'sollo-erp-v93-offline'; // Bumped version to v93
 
 const ASSETS_TO_CACHE = [
     './',
@@ -13,6 +13,9 @@ const ASSETS_TO_CACHE = [
     './db.js',
     './utils.js',
     './cloud.js',
+    './state.js',       // <-- ADDED
+    './components.js',  // <-- ADDED
+    './worker.js',      // <-- ADDED
     './icon-192.png',
     './icon-512.png',
     './manifest.json',
@@ -21,11 +24,11 @@ const ASSETS_TO_CACHE = [
     'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js',
-    // STRICT ERP LOGIC: Added Chart.js and HTML2PDF so the dashboard and printing work offline 
     'https://cdn.jsdelivr.net/npm/chart.js',
     'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
 ];
+
 
 self.addEventListener('install', (event) => {
     // 🚨 CRITICAL PWA FIX: Removed unconditional skipWaiting()!

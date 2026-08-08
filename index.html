@@ -55,7 +55,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=92">
+    <link rel="stylesheet" href="style.css?v=93">
     
     <link rel="manifest" href="./manifest.json"> 
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -152,6 +152,21 @@
             background: transparent !important;
             color: var(--md-text-muted) !important;
         }
+        
+                /* 🚀 ENTERPRISE UPGRADE: Clean Grid Engine */
+        .m3-card.report-btn, .m3-card.master-action-btn {
+            display: flex !important;
+            align-items: center !important;
+            gap: 16px !important;
+            padding: 16px !important;
+            margin: 0 !important;
+        }
+        /* Automatically applies the divider lines to everything except the last item! */
+        #reports-action-container > div > .m3-card.report-btn:not(:last-child),
+        #workspace-master-grid .m3-card.master-action-btn:not(:last-child) {
+            border-bottom: 1px solid var(--md-surface-variant) !important;
+        }
+
 
         /* 🚨 MOBILE KEYBOARD FIX: Hide floating buttons when typing */
         @media screen and (max-height: 600px) and (orientation: portrait) {
@@ -202,7 +217,7 @@
             <div id="tab-dashboard" class="screen-section active-screen">
                 
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-top: calc(12px + env(safe-area-inset-top, 0px));">
                     
                     <!-- 🚀 ENTERPRISE UX: SMART COMMAND CENTER GREETING -->
                     <div style="display: flex; flex-direction: column;">
@@ -252,60 +267,16 @@
                     </div>
                 </div>
                 
-                <div style="background: var(--md-surface); margin: 0 -16px 24px -16px; border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
+                <div class="m3-card" style="padding: 0; overflow: hidden; margin-bottom: 24px; border: 1px solid var(--md-outline-variant); box-shadow: 0 8px 24px rgba(0,0,0,0.04);">
                     
                     <div style="display: flex; border-bottom: 1px solid var(--md-outline-variant);">
-                        <div class="tap-target" style="flex: 1; padding: 16px; border-right: 1px solid var(--md-outline-variant);" onclick="
-                            if(window.app && typeof window.app.viewFilteredSales === 'function') {
-                                window.app.viewFilteredSales('All');
-                                setTimeout(() => {
-                                    const filter = document.getElementById('dashboard-date-filter').value;
-                                    const today = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-                                    let s = today, e = today;
-                                    const y = parseInt(today.split('-')[0]);
-                                    const m = parseInt(today.split('-')[1]) - 1;
-                                    
-                                    if(filter === 'month') { s = `${y}-${String(m+1).padStart(2,'0')}-01`; }
-                                    else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = new Date(ty, tm+1, 0).toISOString().split('T')[0]; }
-                                    else if(filter === 'year') { s = `${m<3 ? y-1 : y}-04-01`; }
-                                    else if(filter === 'all') { s = ''; e = ''; }
-                                    else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = new Date(cy, cm, 0).toISOString().split('T')[0]; } }
-                                    
-                                    document.getElementById('sales-start-date').value = s;
-                                    document.getElementById('sales-end-date').value = e;
-                                    
-                                    const fText = document.getElementById('return-dash-filter-text');
-                                    if (fText) fText.innerText = filter === 'all' ? 'All Sales' : 'Filtered: Date Range';
-                                    
-                                    if(window.UI) window.UI.applyFilters('sales');
-                                }, 200);
-                            }
-                        ">
+                        <div id="dash-action-sales" class="tap-target" style="flex: 1; padding: 16px; border-right: 1px solid var(--md-outline-variant);">
                             <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase;">Total Sales</small>
                             <div class="large-text color-primary" id="dash-total-sales" data-bind="totalSalesDisplay" style="font-size: 20px; font-weight: 700; margin-top: 4px; min-height: 24px;">
                                 <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px;"></div>
                             </div>
                         </div>
-                        <div class="tap-target" style="flex: 1; padding: 16px;" onclick="
-                            UI.openActivity('activity-advanced-reports'); 
-                            setTimeout(() => { 
-                                const filter = document.getElementById('dashboard-date-filter').value;
-                                const today = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
-                                let s = today, e = today;
-                                const y = parseInt(today.split('-')[0]);
-                                const m = parseInt(today.split('-')[1]) - 1;
-                                
-                                if(filter === 'month') { s = `${y}-${String(m+1).padStart(2,'0')}-01`; }
-                                else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = new Date(ty, tm+1, 0).toISOString().split('T')[0]; }
-                                else if(filter === 'year') { s = `${m<3 ? y-1 : y}-04-01`; }
-                                else if(filter === 'all') { s = '2000-01-01'; }
-                                else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = new Date(cy, cm, 0).toISOString().split('T')[0]; } }
-                                
-                                document.getElementById('report-pnl-start').value = s;
-                                document.getElementById('report-pnl-end').value = e;
-                                UI.switchReportTab('pnl'); 
-                            }, 100);
-                        ">
+                        <div id="dash-action-profit" class="tap-target" style="flex: 1; padding: 16px;">
                             <small style="color: var(--md-text-muted); font-weight: 600; text-transform: uppercase;">True Net Profit</small>
                             <div class="large-text" id="dash-net-profit" style="font-size: 20px; font-weight: 700; margin-top: 4px; color: var(--md-success); min-height: 24px;">
                                 <div class="skeleton-card" style="height: 20px; width: 70%; margin: 0; border-radius: 4px; animation-delay: 0.1s;"></div>
@@ -314,7 +285,7 @@
                         </div>
                     </div>
 
-                    <div class="tap-target" style="padding: 16px; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;" onclick="if(window.UI) { UI.openMasterView('products', 'Inventory Master'); setTimeout(() => { document.getElementById('filter-master-view').value = 'In Stock'; window.UI.setFilter('masters', 'In Stock', null); }, 150); }">
+                    <div id="dash-action-warehouse" class="tap-target" style="padding: 16px; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div>
                                 <strong style="display:flex; align-items:center; gap:8px; font-size: 14px; color: var(--md-primary); text-transform: uppercase;">
@@ -341,7 +312,7 @@
                         </div>
                     </div>
 
-                    <div class="tap-target" onclick="if(window.app) window.app.openDeepAnalytics()" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); display: flex; align-items: center; justify-content: space-between;">
+                    <div id="dash-action-analytics" class="tap-target" style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); display: flex; align-items: center; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <span class="material-symbols-outlined" style="color: var(--md-primary);">insights</span>
                             <strong style="color: var(--md-primary); font-size: 14px;">View Deep Analytics</strong>
@@ -366,21 +337,21 @@
                         </strong>
                     </div>
                     
-                    <div class="tap-target" onclick="app.viewFilteredSales('Open')" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div class="tap-target dash-action-fulfillment" data-status="Open" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
                         <span style="color: var(--md-on-surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 12px;"><span class="material-symbols-outlined" style="color: var(--md-error); font-size: 20px;">pending_actions</span> Open</span>
                         <span id="dash-orders-open" style="font-size: 14px; color: var(--md-on-surface); font-weight: 600;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.2s;"></div>
                         </span>
                     </div>
                     
-                    <div class="tap-target" onclick="app.viewFilteredSales('Shipped')" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div class="tap-target dash-action-fulfillment" data-status="Shipped" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
                         <span style="color: var(--md-on-surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 12px;"><span class="material-symbols-outlined" style="color: #f57f17; font-size: 20px;">flight_takeoff</span> Shipped</span>
                         <span id="dash-orders-shipped" style="font-size: 14px; color: var(--md-on-surface); font-weight: 600;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.3s;"></div>
                         </span>
                     </div>
                     
-                    <div class="tap-target" onclick="app.viewFilteredSales('Completed')" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="tap-target dash-action-fulfillment" data-status="Completed" style="padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="color: var(--md-on-surface); font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 12px;"><span class="material-symbols-outlined" style="color: var(--md-success); font-size: 20px;">task_alt</span> Completed</span>
                         <span id="dash-orders-completed" style="font-size: 14px; color: var(--md-on-surface); font-weight: 600;">
                             <div class="skeleton-card" style="height: 16px; width: 80px; margin: 0; border-radius: 4px; animation-delay: 0.4s;"></div>
@@ -392,8 +363,7 @@
                 <div id="overdue-reminders-container" class="m3-card hidden" style="border-left: 4px solid var(--md-error); margin-bottom: 16px;">
                     
                     <!-- 🚨 THE HEADER: Clickable "View All" (Filters the Documents Tab for Overdue) -->
-                    <div class="tap-target" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; cursor: pointer; padding-bottom: 12px; border-bottom: 1px dashed rgba(186, 26, 26, 0.2);" 
-                         onclick="if(window.app) window.app.viewFilteredSales('Overdue')">
+                    <div id="dash-action-overdue" class="tap-target" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; cursor: pointer; padding-bottom: 12px; border-bottom: 1px dashed rgba(186, 26, 26, 0.2);">
                         <div style="display: flex; align-items: center; gap: 8px; color: var(--md-error);">
                             <span class="material-symbols-outlined">warning</span>
                             <strong>Overdue Collections</strong>
@@ -417,173 +387,173 @@
                     </div>
                 </div>
 
-                <!-- 1. INVENTORY BOOKS -->
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">1. Inventory Books</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    
-                    <!-- NEW CLEAN WEB COMPONENT -->
-                    <sollo-nav-card 
-                        title="Stock Summary" 
-                        subtitle="Live snapshot & valuation" 
-                        icon="inventory" 
-                        icon-color="var(--md-primary)" 
-                        icon-bg="rgba(0, 97, 164, 0.1)"
-                        onclick-action="if(window.UI) window.UI.openMasterView('products', 'Inventory Master');">
-                    </sollo-nav-card>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) UI.openSmartSearch('item_ledger_report', 'item_ledger_report');">
-                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">history</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item Ledger (Movement)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological lifecycle</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                <div id="reports-action-container">
+                    <!-- 1. INVENTORY BOOKS -->
+                    <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">1. Inventory Books</strong>
+                    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                        <sollo-nav-card 
+                            title="Stock Summary" 
+                            subtitle="Live snapshot & valuation" 
+                            icon="inventory" 
+                            icon-color="var(--md-primary)" 
+                            icon-bg="rgba(0, 97, 164, 0.1)"
+                            class="report-btn" data-action="master" data-type="products" data-title="Inventory Master">
+                        </sollo-nav-card>
+                        <div class="m3-card tap-target report-btn" data-action="smartsearch" data-type="item_ledger_report" data-target="item_ledger_report">
+                            <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">history</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item Ledger (Movement)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological lifecycle</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="reorder">
+                            <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">warning</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Low Stock (Reorder)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Deficit & restock capital</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="deadstock">
+                            <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">auto_delete</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Dead Stock Scanner</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Trapped capital (>90 days)</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openReorderReport()">
-                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">warning</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Low Stock (Reorder)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Deficit & restock capital</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openDeadStockReport()">
-                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">auto_delete</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Dead Stock Scanner</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Trapped capital (>90 days)</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                </div>
 
-                <!-- 2. ACCOUNTS BOOKS -->
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">2. Accounts Books</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="UI.openActivity('activity-advanced-reports'); UI.switchReportTab('daybook');">
-                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">menu_book</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Daybook (Daily Register)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological transaction flow</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    <!-- 2. ACCOUNTS BOOKS -->
+                    <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">2. Accounts Books</strong>
+                    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                        <div class="m3-card tap-target report-btn" data-action="advreport" data-tab="daybook">
+                            <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">menu_book</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Daybook (Daily Register)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological transaction flow</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="cashbook_summary">
+                            <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance_wallet</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Cashbook Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Total Money In vs Out</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="bankledger">
+                            <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Bank / Cash Ledger</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Individual passbooks</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('cashbook_summary')">
-                        <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance_wallet</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Cashbook Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Total Money In vs Out</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openBankLedgerMenu();">
-                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Bank / Cash Ledger</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Individual passbooks</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                </div>
 
-                <!-- 3. SALES REPORTS -->
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">3. Sales Reports</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('sales_register')">
-                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt_long</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Sales Register (Bill-wise)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">List of all generated invoices</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    <!-- 3. SALES REPORTS -->
+                    <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">3. Sales Reports</strong>
+                    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="sales_register">
+                            <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt_long</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Sales Register (Bill-wise)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">List of all generated invoices</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="customer_sales">
+                            <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">groups</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Customer-wise Sales</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by sales volume</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="itemprofit">
+                            <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">trending_up</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item-wise Profitability</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by profit margin</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="profitleakage">
+                            <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">troubleshoot</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Profit Leakage Audit</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Items sold below cost</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('customer_sales')">
-                        <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">groups</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Customer-wise Sales</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by sales volume</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openItemProfitReport()">
-                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">trending_up</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item-wise Profitability</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by profit margin</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openProfitLeakageReport()">
-                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">troubleshoot</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Profit Leakage Audit</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Items sold below cost</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                </div>
 
-                <!-- 4. PURCHASE REPORTS -->
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">4. Purchase Reports</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('purchase_register')">
-                        <div class="icon-circle" style="background: rgba(216, 67, 21, 0.1); color: #d84315; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Purchase Register (Bill-wise)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Gross purchases & ITC</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    <!-- 4. PURCHASE REPORTS -->
+                    <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">4. Purchase Reports</strong>
+                    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="purchase_register">
+                            <div class="icon-circle" style="background: rgba(216, 67, 21, 0.1); color: #d84315; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Purchase Register (Bill-wise)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Gross purchases & ITC</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="supplier_purchases">
+                            <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">store</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Supplier-wise Purchases</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by spend volume</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="item_purchases">
+                            <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">shopping_cart</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item-wise Purchases</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Raw materials bought</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('supplier_purchases')">
-                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">store</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Supplier-wise Purchases</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by spend volume</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openUniversalReport('item_purchases')">
-                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">shopping_cart</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Item-wise Purchases</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Raw materials bought</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                </div>
 
-                <!-- 5. EXPENSE REPORTS -->
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">5. Expense Reports</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="UI.openActivity('activity-expense-ledger')">
-                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt_long</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Expense Register</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological list of expenses</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    <!-- 5. EXPENSE REPORTS -->
+                    <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">5. Expense Reports</strong>
+                    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                        <div class="m3-card tap-target report-btn" data-action="activity" data-target="activity-expense-ledger">
+                            <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">receipt_long</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Expense Register</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Chronological list of expenses</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="expensereport">
+                            <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">pie_chart</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Category-wise Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Where the money is going</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="job_costing">
+                            <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">assignment</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Job Costing (Linked)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Expenses tied to sales orders</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openExpenseReport()">
-                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">pie_chart</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Category-wise Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Where the money is going</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.openUniversalReport('job_costing')">
-                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">assignment</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Job Costing (Linked)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Expenses tied to sales orders</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                </div>
 
-                <!-- 6. OUTSTANDINGS -->
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">6. Outstandings (Aging & Dues)</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) { window.UI.openMasterView('customers', 'Customer Master'); setTimeout(() => { window.UI.state.activeFilters['masters'] = 'To Receive'; document.getElementById('filter-master-view').value = 'To Receive'; if(window.app) window.app.applySmartMasterFilter(); }, 150); }">
-                        <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">call_received</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Receivables (Sundry Debtors)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Pending dues & collections</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    <!-- 6. OUTSTANDINGS -->
+                    <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">6. Outstandings (Aging & Dues)</strong>
+                    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                        <div class="m3-card tap-target report-btn" data-action="receivables">
+                            <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">call_received</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Receivables (Sundry Debtors)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Pending dues & collections</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="payables">
+                            <div class="icon-circle" style="background: rgba(216, 67, 21, 0.1); color: #d84315; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">call_made</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Payables (Sundry Creditors)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Pending vendor bills</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="smartsearch" data-type="party" data-target="khata-view">
+                            <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">menu_book</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Party Ledger (Khata)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Running balance statement</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) { window.UI.openMasterView('suppliers', 'Supplier Master'); setTimeout(() => { window.UI.state.activeFilters['masters'] = 'To Pay'; document.getElementById('filter-master-view').value = 'To Pay'; if(window.app) window.app.applySmartMasterFilter(); }, 150); }">
-                        <div class="icon-circle" style="background: rgba(216, 67, 21, 0.1); color: #d84315; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">call_made</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Payables (Sundry Creditors)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Pending vendor bills</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.UI) window.UI.openSmartSearch('party', 'khata-view')">
-                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">menu_book</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Party Ledger (Khata)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Running balance statement</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                </div>
 
-                <!-- 7. FINAL ACCOUNTS -->
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">7. Final Accounts</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="UI.openActivity('activity-advanced-reports'); UI.switchReportTab('pnl');">
-                        <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">analytics</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Profit & Loss (P&L) A/c</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">The ultimate financial truth</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    <!-- 7. FINAL ACCOUNTS -->
+                    <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">7. Final Accounts</strong>
+                    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                        <div class="m3-card tap-target report-btn" data-action="advreport" data-tab="pnl">
+                            <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">analytics</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Profit & Loss (P&L) A/c</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">The ultimate financial truth</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="fyclose">
+                            <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">FY Closing Balances</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Export CA balances</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="if(window.app) window.app.closeFinancialYear()">
-                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">FY Closing Balances</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Export CA balances</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                </div>
 
-                <!-- 8. GST REPORTS -->
-                <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">8. GST Reports</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="app.openGSTReport()">
-                        <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">request_quote</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">GSTR-1 & GSTR-3B</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Sales Summary & Net Payable</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.app) window.app.openUniversalReport('gstr2_purchases')">
-                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">find_in_page</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">GSTR-2 (Purchase Summary)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Total Input Tax Credit (ITC)</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
-                    </div>
-                    <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0;" onclick="app.openPartyTaxReport()">
-                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">person_search</span></div>
-                        <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Party-wise Tax Report</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">B2B vs B2C Split by Ledger</small></div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                    <!-- 8. GST REPORTS -->
+                    <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">8. GST Reports</strong>
+                    <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
+                        <div class="m3-card tap-target report-btn" data-action="gstreport">
+                            <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">request_quote</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">GSTR-1 & GSTR-3B</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Sales Summary & Net Payable</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="gstr2_purchases">
+                            <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">find_in_page</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">GSTR-2 (Purchase Summary)</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Total Input Tax Credit (ITC)</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="partytax" style="display:flex; align-items:center; gap: 16px; padding: 16px; margin: 0;">
+                            <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">person_search</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Party-wise Tax Report</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">B2B vs B2C Split by Ledger</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                     </div>
                 </div>
 
@@ -600,16 +570,16 @@
 
                 <!-- 1. CREATE VIEW -->
                 <div id="ws-view-create">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center;">
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openForm('sales', null, 'invoice'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(0, 97, 164, 0.1);  color: #0061a4;"><span class="material-symbols-outlined">receipt_long</span></div><small>Sale Inv</small></div>
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openNewPayment('in'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">payments</span></div><small>Payment In</small></div>
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openForm('purchase', null, 'invoice'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: #fbe9e7; color: #d84315;"><span class="material-symbols-outlined">local_shipping</span></div><small>Purchase</small></div>
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openNewPayment('out'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">outbox</span></div><small>Pay Out</small></div>
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openForm('expense'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined">account_balance_wallet</span></div><small>Expense</small></div>
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openForm('sales', null, 'return'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">assignment_return</span></div><small>Credit Note</small></div>
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openForm('purchase', null, 'return'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">assignment_returned</span></div><small>Debit Note</small></div>
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openForm('product'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
-                        <div class="m3-card tap-target" onclick="setTimeout(() => app.openForm('ledger'), 200)" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
+                    <div id="workspace-create-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center;">
+                        <div class="m3-card tap-target create-action-btn" data-action="form" data-formtype="sales" data-doctype="invoice" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(0, 97, 164, 0.1);  color: #0061a4;"><span class="material-symbols-outlined">receipt_long</span></div><small>Sale Inv</small></div>
+                        <div class="m3-card tap-target create-action-btn" data-action="payment" data-formtype="in" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">payments</span></div><small>Payment In</small></div>
+                        <div class="m3-card tap-target create-action-btn" data-action="form" data-formtype="purchase" data-doctype="invoice" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: #fbe9e7; color: #d84315;"><span class="material-symbols-outlined">local_shipping</span></div><small>Purchase</small></div>
+                        <div class="m3-card tap-target create-action-btn" data-action="payment" data-formtype="out" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">outbox</span></div><small>Pay Out</small></div>
+                        <div class="m3-card tap-target create-action-btn" data-action="form" data-formtype="expense" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined">account_balance_wallet</span></div><small>Expense</small></div>
+                        <div class="m3-card tap-target create-action-btn" data-action="form" data-formtype="sales" data-doctype="return" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">assignment_return</span></div><small>Credit Note</small></div>
+                        <div class="m3-card tap-target create-action-btn" data-action="form" data-formtype="purchase" data-doctype="return" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">assignment_returned</span></div><small>Debit Note</small></div>
+                        <div class="m3-card tap-target create-action-btn" data-action="form" data-formtype="product" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
+                        <div class="m3-card tap-target create-action-btn" data-action="form" data-formtype="ledger" style="padding: 16px 8px; margin:0;"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
                     </div>
                 </div>
 
@@ -674,33 +644,33 @@
                         <strong style="color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">General Masters</strong>
                     </div>
 
-                    <div style="display: flex; flex-direction: column;">
-                        <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('products', 'Inventory Master')">
+                    <div id="workspace-master-grid" style="display: flex; flex-direction: column;">
+                        <div class="m3-card tap-target master-action-btn" data-action="master" data-type="products" data-title="Inventory Master">
                             <div class="icon-circle" style="background: var(--md-primary-container); color: var(--md-primary); width: 48px; height: 48px;"><span class="material-symbols-outlined">inventory_2</span></div>
                             <div style="flex: 1;"><strong class="large-text">Products / Inventory</strong><br><small style="color: var(--md-text-muted);">Manage your items and stock</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>
-                        <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('customers', 'Customer Master')">
+                        <div class="m3-card tap-target master-action-btn" data-action="master" data-type="customers" data-title="Customer Master">
                             <div class="icon-circle" style="background: var(--md-primary-container); color: var(--md-primary); width: 48px; height: 48px;"><span class="material-symbols-outlined">groups</span></div>
                             <div style="flex: 1;"><strong class="large-text">Customers / Receivables</strong><br><small style="color: var(--md-text-muted);">Manage buyers and dues</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>
-                        <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('suppliers', 'Supplier Master')">
+                        <div class="m3-card tap-target master-action-btn" data-action="master" data-type="suppliers" data-title="Supplier Master">
                             <div class="icon-circle" style="background: var(--md-primary-container); color: var(--md-primary); width: 48px; height: 48px;"><span class="material-symbols-outlined">local_shipping</span></div>
                             <div style="flex: 1;"><strong class="large-text">Suppliers / Payables</strong><br><small style="color: var(--md-text-muted);">Manage vendors and bills</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>
-                        <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('contacts', 'Address Book')">
+                        <div class="m3-card tap-target master-action-btn" data-action="master" data-type="contacts" data-title="Address Book">
                             <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 48px; height: 48px;"><span class="material-symbols-outlined">contact_phone</span></div>
                             <div style="flex: 1;"><strong class="large-text">Address Book</strong><br><small style="color: var(--md-text-muted);">All saved contacts</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>
-                        <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openMasterView('adjustments', 'Stock Audit Log')">
+                        <div class="m3-card tap-target master-action-btn" data-action="master" data-type="adjustments" data-title="Stock Audit Log">
                             <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 48px; height: 48px;"><span class="material-symbols-outlined">build</span></div>
                             <div style="flex: 1;"><strong class="large-text">Stock Adjustments</strong><br><small style="color: var(--md-text-muted);">Audit logs and corrections</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>
-                        <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openActivity('activity-expense-ledger')">
+                        <div class="m3-card tap-target master-action-btn" data-action="activity" data-target="activity-expense-ledger">
                             <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 48px; height: 48px;"><span class="material-symbols-outlined">receipt_long</span></div>
                             <div style="flex: 1;"><strong class="large-text">Expense Ledger</strong><br><small style="color: var(--md-text-muted);">Track your business costs</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
@@ -824,7 +794,7 @@
 
                 <!-- ZONE 1: ORGANIZATION -->
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">Organization</strong>
-                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px;" onclick="UI.openActivity('activity-business-profile')">
+                <div class="m3-card tap-target setting-btn" data-action="profile" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px;">
                     <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
                         <span class="material-symbols-outlined" style="font-size: 22px;">domain</span>
                     </div>
@@ -883,7 +853,7 @@
 
                     <!-- View Defaulters Button -->
                     <div style="padding: 0 16px 16px 16px;">
-                        <div class="tap-target" onclick="if(window.UI) { window.UI.openMasterView('customers', 'Customer Master'); setTimeout(() => { document.getElementById('filter-master-view').value = 'To Receive'; if(window.app) window.app.applySmartMasterFilter(); }, 150); }" style="background: #f8fafc; padding: 14px; text-align: center; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                        <div class="tap-target setting-btn" data-action="defaulters" style="background: #f8fafc; padding: 14px; text-align: center; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;">
                             <strong style="color: #1e3a8a; font-size: 14px;">View Defaulters</strong>
                             <span class="material-symbols-outlined" style="color: #1e3a8a; font-size: 18px;">arrow_forward</span>
                         </div>
@@ -893,26 +863,27 @@
 
                 <!-- ZONE 2: DOCUMENT STUDIO -->
                 <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 800;">Document Studio</strong>
-                <div style="display: flex; flex-direction: column; margin-bottom: 24px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border-bottom: 1px solid var(--md-surface-variant);" onclick="if(window.UI) window.UI.openBottomSheet('sheet-document-formats')">
-                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
-                            <span class="material-symbols-outlined" style="font-size: 22px;">123</span>
+                <div class="m3-card" style="display: flex; flex-direction: column; margin-bottom: 24px; padding: 0; overflow: hidden; border: 1px solid var(--md-outline-variant);">
+                    <div class="tap-target setting-btn" data-action="docformats" style="display: flex; align-items: center; gap: 16px; padding: 16px; border-bottom: 1px solid var(--md-surface-variant); cursor: pointer;">
+                        <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px; flex-shrink: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">123</span>
                         </div>
-                        <div style="flex: 1;">
-                            <strong style="font-size:15px; color: var(--md-on-surface);">Document Numbering</strong>
+                        <div style="flex: 1; min-width: 0;">
+                            <strong style="font-size:15px; color: var(--md-on-surface); display: block;">Document Numbering</strong>
                             <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Prefixes, Suffixes & Starting Numbers</small>
                         </div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant); flex-shrink: 0;">chevron_right</span>
                     </div>
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;" onclick="UI.openActivity('activity-business-profile'); setTimeout(() => { const details = document.querySelectorAll('details.advanced-options'); if(details.length > 1) { details[1].open = true; details[1].scrollIntoView({behavior: 'smooth', block: 'center'}); } }, 350);">
-                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
-                            <span class="material-symbols-outlined" style="font-size: 22px;">palette</span>
+                    
+                    <div class="tap-target setting-btn" data-action="theme" style="display: flex; align-items: center; gap: 16px; padding: 16px; cursor: pointer;">
+                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px; flex-shrink: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">palette</span>
                         </div>
-                        <div style="flex: 1;">
-                            <strong style="font-size:15px; color: var(--md-on-surface);">PDF Theme Designer</strong>
+                        <div style="flex: 1; min-width: 0;">
+                            <strong style="font-size:15px; color: var(--md-on-surface); display: block;">PDF Theme Designer</strong>
                             <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Brand Colors & Invoice Typography</small>
                         </div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant); flex-shrink: 0;">chevron_right</span>
                     </div>
                 </div>
                 
@@ -1016,26 +987,26 @@
                             <span id="cloud-status-tab" style="font-size: 11px; font-weight: 800; color: #0061a4; background: rgba(255,255,255,0.5); padding: 4px 8px; border-radius: 4px;">Checking...</span>
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn-primary-small tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 13px;" onclick="if(window.Cloud) window.Cloud.backup()">
+                            <button class="btn-primary-small tap-target setting-btn" data-action="backup" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 13px;">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span> Backup
                             </button>
-                            <button class="btn-primary-small tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 13px;" onclick="if(window.Cloud) window.Cloud.restore()">
+                            <button class="btn-primary-small tap-target setting-btn" data-action="restore" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 13px;">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">cloud_download</span> Restore
                             </button>
                         </div>
                     </div>
 
                     <div style="padding: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-bottom: none; display: flex; gap: 8px;">
-                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0; background: var(--md-surface-variant); border: none;" onclick="window.Utils.exportData()">
+                        <div class="m3-card tap-target setting-btn" data-action="export" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0; background: var(--md-surface-variant); border: none;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">save</span> <span style="font-size: 13px; font-weight: bold;">Manual Backup</span>
                         </div>
-                        <div class="m3-card tap-target" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0; background: var(--md-surface-variant); border: none;" onclick="document.getElementById('import-file-tab').click()">
+                        <div class="m3-card tap-target setting-btn" data-action="import" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; margin: 0; background: var(--md-surface-variant); border: none;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">restore_page</span> <span style="font-size: 13px; font-weight: bold;">Local Restore</span>
                         </div>
                         <input type="file" id="import-file-tab" style="display:none;" accept=".json" onchange="window.Utils.importData(event)">
                     </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0; border-bottom: none;" onclick="UI.openMasterView('trash', 'Recycle Bin')">
+                    <div class="m3-card tap-target setting-btn" data-action="trash" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0; border-bottom: none;">
                         <div class="icon-circle" style="background: rgba(186, 26, 26, 0.1); color: var(--md-error); width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
                             <span class="material-symbols-outlined" style="font-size: 22px;">delete</span>
                         </div>
@@ -1046,7 +1017,7 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0 0 8px 8px;" onclick="if(window.app && window.app.recalculateAllStock) window.app.recalculateAllStock()">
+                    <div class="m3-card tap-target setting-btn" data-action="autofix" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0 0 8px 8px;">
                         <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
                             <span class="material-symbols-outlined" style="font-size: 22px;">healing</span>
                         </div>
@@ -1058,7 +1029,7 @@
                 </div>
 
                 <!-- ZONE 5: SYSTEM UPDATES -->
-                <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);" onclick="if(window.Utils) window.Utils.showToast('Checking for updates... 🔄'); if('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); r.update().then(() => { if(r.waiting) r.waiting.postMessage({type: 'SKIP_WAITING'}); }); })); setTimeout(() => window.location.reload(true), 1500); } else { window.location.reload(true); }">
+                <div class="m3-card tap-target setting-btn" data-action="update" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);">
                     <span class="material-symbols-outlined" style="color: var(--md-success); font-size: 28px;">system_update</span>
                     <div style="flex: 1;">
                         <strong style="font-size:15px; color: var(--md-on-surface);">Run Update Manager</strong>
@@ -1101,15 +1072,20 @@
             <div style="height: 80px;"></div>
         </main>
         
-        <button id="main-fab" class="floating-action-button tap-target hidden" onclick="handleSmartFab()">
-            <span id="smart-fab-icon" class="material-symbols-outlined" style="transition: transform 0.2s ease-in-out;">add</span>
-        </button>
 
-        <nav class="bottom-nav">
-            <div id="nav-dash" class="nav-item active" onclick="UI.switchTab('tab-dashboard', 'Home', this)"><span class="material-symbols-outlined">home</span><span>Home</span></div>
-            <div id="nav-reports" class="nav-item" onclick="UI.switchTab('tab-reports', 'Reports', this)"><span class="material-symbols-outlined">analytics</span><span>Reports</span></div>
-            <div id="nav-workspace" class="nav-item" onclick="UI.switchTab('tab-workspace', 'Workspace', this); if(window.UI) window.UI.renderBankBalances();"><span class="material-symbols-outlined">workspaces</span><span>Workspace</span></div>
-            <div id="nav-menu" class="nav-item" onclick="UI.switchTab('tab-menu', 'Settings', this)"><span class="material-symbols-outlined">settings</span><span>Settings</span></div>
+        <nav class="bottom-nav" id="main-bottom-nav">
+            <div id="nav-dash" class="nav-item active" data-tab="tab-dashboard" data-title="Home">
+                <span class="material-symbols-outlined">home</span><span>Home</span>
+            </div>
+            <div id="nav-reports" class="nav-item" data-tab="tab-reports" data-title="Reports">
+                <span class="material-symbols-outlined">analytics</span><span>Reports</span>
+            </div>
+            <div id="nav-workspace" class="nav-item" data-tab="tab-workspace" data-title="Workspace">
+                <span class="material-symbols-outlined">workspaces</span><span>Workspace</span>
+            </div>
+            <div id="nav-menu" class="nav-item" data-tab="tab-menu" data-title="Settings">
+                <span class="material-symbols-outlined">settings</span><span>Settings</span>
+            </div>
         </nav>
     </div>
 
@@ -1117,7 +1093,7 @@
         <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; position: relative; padding: 12px 16px;">
             
             <!-- LEFT: Locked Back Arrow -->
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-master-view')" style="margin: 0; padding: 4px; flex-shrink: 0; z-index: 2; position: relative !important; left: auto !important;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="margin: 0; padding: 4px; flex-shrink: 0; z-index: 2; position: relative !important; left: auto !important;">arrow_back</span>
             
             <!-- CENTER: Title (Overriding the CSS Absolute Lock) -->
             <div style="flex: 1; min-width: 0; display: flex; justify-content: center; z-index: 1;">
@@ -1158,24 +1134,52 @@
             <div id="master-list-container"></div>
         </div>
     </div>
-
-    <div id="activity-sales-form" class="activity-screen hidden">
+    
+    <!-- ==========================================
+         INVOICE OVERVIEW SCREEN (READ-ONLY)
+         ========================================== -->
+    <div id="activity-invoice-overview" class="activity-screen hidden">
+        <!-- Top App Bar -->
         <div class="activity-header">
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-sales-form')" style="padding: 4px;">close</span>
-                <span id="form-title-sales" style="font-size: 18px; font-weight: 500;">New Sales Invoice</span>
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">arrow_back</span>
+                <span id="overview-invoice-no" style="font-size: 18px; font-weight: 500;">INV-0000</span>
             </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-delete-sales" class="icon-circle tap-target hidden" onclick="app.deleteRecord('sales')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
-                </div>
-                <div class="icon-circle tap-target" onclick="if(window.app && window.app.state.currentEditId) { window.app.openSmartShare('sales', window.app.state.currentEditId); } else { window.Utils.showToast('Please save the invoice first!'); }" style="width: 36px; height: 36px; background: rgba(20, 108, 46, 0.1); color: #16a34a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-                </div>
-                <div class="icon-circle tap-target" onclick="app.generatePDF('sales')" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
-                </div>
+            <div id="overview-top-actions" style="display: flex; gap: 16px; margin-left: auto; align-items: center;">
+                <!-- Dynamically filled by JS -->
             </div>
+        </div>
+
+        <!-- Scrollable Content (Edge-to-Edge) -->
+        <div class="activity-content" id="overview-main-content" style="padding: 0; padding-bottom: 100px; background: var(--md-surface-variant);">
+            <!-- Dynamically injected by JS for ultimate control -->
+        </div>
+
+        <!-- 4. BOTTOM ACTION BAR (5 ICONS WITH GLASSMORPHISM) -->
+        <div id="overview-bottom-bar" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background: color-mix(in srgb, var(--md-surface) 85%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; gap: 8px; align-items: center; z-index: 100; box-sizing: border-box;">
+            <!-- Dynamically filled by JS -->
+        </div>
+    </div> <!-- 🚨 THIS DIV SAFELY CLOSES THE INVOICE SCREEN -->
+
+    <!-- 5. "MORE" BOTTOM SHEET (SAFELY OUTSIDE THE SCREEN) -->
+    <div id="sheet-invoice-more" class="bottom-sheet">
+        <div class="sheet-header">
+            <span style="font-size: 18px; font-weight: 500;">Document Actions</span>
+            <span class="material-symbols-outlined tap-target">close</span>
+        </div>
+        <div id="more-actions-container" style="padding: 16px; overflow-y: auto; max-height: 70vh;">
+            <!-- Filled dynamically by JS -->
+        </div>
+    </div>
+
+
+    <div id="activity-sales-form" class="activity-screen hidden">
+        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
+            <div style="display: flex; justify-content: flex-start;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-sales-form')" style="padding: 8px; margin-left: -8px;">close</span>
+            </div>
+            <div id="form-title-sales" style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">New Sales Invoice</div>
+            <div><!-- Invisible Spacer to perfectly balance the Close button --></div>
         </div>
         <div class="activity-content">
             <form id="form-sales">
@@ -1193,10 +1197,13 @@
                     <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
                 </div>
 
-                <!-- 🚀 3-PART PARTY INSIGHT CARD -->
-                <div id="sales-party-insight" class="hidden" style="display: none; flex-direction: column; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px 16px; margin-top: -6px; margin-bottom: 16px; animation: fadeSlideDown 0.3s ease forwards;">
+                <!-- 🚀 3-PART PARTY INSIGHT CARD (INFINITE DRILL-DOWN) -->
+                <div id="sales-party-insight" class="hidden tap-target" onclick="if(window.app && document.getElementById('sales-customer-id').value) window.app.openPartyLedger(document.getElementById('sales-customer-id').value, 'Customer', document.getElementById('sales-customer-display').innerText)" style="display: none; flex-direction: column; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px 16px; margin-top: -6px; margin-bottom: 16px; animation: fadeSlideDown 0.3s ease forwards; cursor: pointer;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 8px;">
-                        <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">Total Balance</span>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">Total Balance</span>
+                            <span class="material-symbols-outlined" style="font-size: 14px; color: var(--md-primary);">open_in_new</span>
+                        </div>
                         <strong id="sales-party-balance-total" style="font-size: 16px; margin: 0; border: none; letter-spacing: -0.2px;">₹0.00</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1421,22 +1428,12 @@
     </div>
 
     <div id="activity-purchase-form" class="activity-screen hidden">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-purchase-form')" style="padding: 4px;">close</span>
-                <span id="form-title-purchase" style="font-size: 18px; font-weight: 500;">New Purchase Bill</span>
+        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
+            <div style="display: flex; justify-content: flex-start;">
+                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-sales-form')" style="padding: 8px; margin-left: -8px;">close</span>
             </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-delete-purchase" class="icon-circle tap-target hidden" onclick="app.deleteRecord('purchase')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
-                </div>
-                <div class="icon-circle tap-target" onclick="if(window.app && window.app.state.currentEditId) { window.app.openSmartShare('purchase', window.app.state.currentEditId); } else { window.Utils.showToast('Please save the bill first!'); }" style="width: 36px; height: 36px; background: rgba(20, 108, 46, 0.1); color: #16a34a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-                </div>
-                <div class="icon-circle tap-target" onclick="app.generatePDF('purchase')" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
-                </div>
-            </div>
+            <div id="form-title-sales" style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">New Sales Invoice</div>
+            <div><!-- Invisible Spacer to perfectly balance the Close button --></div>
         </div>
         <div class="activity-content">
             <form id="form-purchase">
@@ -1454,10 +1451,13 @@
                     <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
                 </div>
 
-                <!-- 🚀 3-PART PARTY INSIGHT CARD -->
-                <div id="purchase-party-insight" class="hidden" style="display: none; flex-direction: column; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px 16px; margin-top: -6px; margin-bottom: 16px; animation: fadeSlideDown 0.3s ease forwards;">
+                <!-- 🚀 3-PART PARTY INSIGHT CARD (INFINITE DRILL-DOWN) -->
+                <div id="purchase-party-insight" class="hidden tap-target" onclick="if(window.app && document.getElementById('purchase-supplier-id').value) window.app.openPartyLedger(document.getElementById('purchase-supplier-id').value, 'Supplier', document.getElementById('purchase-supplier-display').innerText)" style="display: none; flex-direction: column; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px 16px; margin-top: -6px; margin-bottom: 16px; animation: fadeSlideDown 0.3s ease forwards; cursor: pointer;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 8px;">
-                        <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">Total Balance</span>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">Total Balance</span>
+                            <span class="material-symbols-outlined" style="font-size: 14px; color: #d84315;">open_in_new</span>
+                        </div>
                         <strong id="purchase-party-balance-total" style="font-size: 16px; margin: 0; border: none; letter-spacing: -0.2px;">₹0.00</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1660,16 +1660,13 @@
     </div>
 
     <div id="activity-expense-form" class="activity-screen hidden">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-form')" style="padding: 4px;">close</span>
-                <span id="expense-form-title" style="font-size: 18px; font-weight: 500;">Log Expense</span>
+        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
+            <div style="display: flex; justify-content: flex-start;">
+                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">close</span>
             </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-print-expense" class="icon-circle tap-target hidden" onclick="if(window.app && window.app.state.currentEditId) window.Utils.generateExpenseVoucherPDF(window.app.state.currentEditId)" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
-                </div>
-                <div id="btn-delete-expense" class="icon-circle tap-target hidden" onclick="app.deleteRecord('expense')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+            <div id="expense-form-title" style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Log Expense</div>
+            <div style="display: flex; justify-content: flex-end;">
+                <div id="btn-delete-expense" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -1839,13 +1836,13 @@
     </div>
 
     <div id="activity-product-form" class="activity-screen hidden">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-product-form')" style="padding: 4px;">close</span>
-                <span style="font-size: 18px; font-weight: 500;">Product Details</span>
+        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
+            <div style="display: flex; justify-content: flex-start;">
+                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">close</span>
             </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-delete-product" class="icon-circle tap-target hidden" onclick="app.deleteRecord('product')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+            <div style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Product Details</div>
+            <div style="display: flex; justify-content: flex-end;">
+                <div id="btn-delete-product" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -1954,13 +1951,13 @@
     </div>
 
     <div id="activity-ledger-form" class="activity-screen hidden">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-ledger-form')" style="padding: 4px;">close</span>
-                <span style="font-size: 18px; font-weight: 500;">Party Details</span>
+        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
+            <div style="display: flex; justify-content: flex-start;">
+                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">close</span>
             </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-delete-ledger" class="icon-circle tap-target hidden" onclick="app.deleteRecord('ledger')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+            <div style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Party Details</div>
+            <div style="display: flex; justify-content: flex-end;">
+                <div id="btn-delete-ledger" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -2081,13 +2078,13 @@
     </div>
 
     <div id="activity-account-form" class="activity-screen hidden">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-account-form')" style="padding: 4px;">arrow_back</span>
-                <span id="form-title-account" style="font-size: 18px; font-weight: 500;">New Bank/Cash Account</span>
+        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
+            <div style="display: flex; justify-content: flex-start;">
+                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">arrow_back</span>
             </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <div id="btn-delete-account" class="icon-circle tap-target hidden" onclick="app.deleteRecord('account')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+            <div id="form-title-account" style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">New Bank/Cash Account</div>
+            <div style="display: flex; justify-content: flex-end;">
+                <div id="btn-delete-account" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -2142,7 +2139,7 @@
     </div>
         <div id="activity-expense-ledger" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-ledger')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Ledger</span>
         </div>
         <div class="activity-content" style="padding-top: 0px;">
@@ -2169,7 +2166,7 @@
 
     <div id="activity-business-profile" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-business-profile')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Business Settings</span>
         </div>
         <div class="activity-content">
@@ -2302,7 +2299,7 @@
             
             <!-- 🚨 ROOT FIX: Wrapped the Back Arrow and Title securely into one unified column -->
             <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-report-viewer')" style="padding: 4px; flex-shrink: 0; margin-left: -4px;">arrow_back</span>
+                <span class="material-symbols-outlined tap-target" style="padding: 4px; flex-shrink: 0; margin-left: -4px;">arrow_back</span>
                 
                 <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                     <div id="report-party-name" style="font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; color: inherit;">Party Name</div>
@@ -2312,15 +2309,13 @@
             
             <!-- Right Side Action Icons -->
             <div style="display: flex; gap: 16px; flex-shrink: 0; align-items: center; margin-right: 8px;">
-                <div id="btn-edit-ledger" class="tap-target" style="display: flex; align-items: center; justify-content: center;">
+                <!-- 1. Pencil Icon: Edit Form -->
+                <div id="btn-edit-ledger" class="tap-target" style="display: flex; align-items: center; justify-content: center; cursor: pointer;">
                     <span class="material-symbols-outlined" style="font-size: 24px; color: #ffffff;">edit</span>
                 </div>
                 
-                <div class="tap-target" style="display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('btn-share-ledger').click()">
-                    <span class="material-symbols-outlined" style="font-size: 24px; color: #ffffff;">share</span>
-                </div>
-                
-                <div id="btn-share-ledger" class="tap-target" style="display: flex; align-items: center; justify-content: center;">
+                <!-- 2. PDF Icon: Document Preview -->
+                <div class="tap-target" style="display: flex; align-items: center; justify-content: center;" onclick="if(window.Utils) window.Utils.downloadStatementPDF();">
                     <span class="material-symbols-outlined" style="font-size: 24px; color: #ffffff;">picture_as_pdf</span>
                 </div>
             </div>
@@ -2360,7 +2355,7 @@
     <div id="sheet-contra-transfer" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Transfer Money (Contra)</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-contra-transfer')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px;">
             <form id="form-contra-transfer" onsubmit="event.preventDefault(); if(window.app) window.app.saveContraTransfer();">
@@ -2418,7 +2413,7 @@
 
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Document Formats</span>
-            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-document-formats')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;">
             
@@ -2548,7 +2543,7 @@
     <div id="sheet-expenses-filter" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Sort & Filter Expenses</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-expenses-filter')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
             
@@ -2618,33 +2613,10 @@
     </div>
 
 
-    <div id="sheet-fab-menu" class="bottom-sheet">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Create New</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-fab-menu')">close</span>
-        </div>
-        <div style="padding: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; text-align: center;">
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'invoice'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(0, 97, 164, 0.1);  color: #0061a4;"><span class="material-symbols-outlined">receipt_long</span></div><small>Sale Inv</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('in'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">payments</span></div><small>Payment In</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'invoice'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #fbe9e7; color: #d84315;"><span class="material-symbols-outlined">local_shipping</span></div><small>Purchase</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openNewPayment('out'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">outbox</span></div><small>Payment Out</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('expense'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: #f3e5f5; color: #6a1b9a;"><span class="material-symbols-outlined">account_balance_wallet</span></div><small>Expense</small></div>
-            
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('sales', null, 'return'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(186, 26, 26, 0.1); color: #ba1a1a;"><span class="material-symbols-outlined">assignment_return</span></div><small>Credit Note</small></div>
-            <div class="tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('purchase', null, 'return'), 200)"><div class="icon-circle" style="margin: 0 auto 8px; background: rgba(20, 108, 46, 0.1); color: #2e7d32;"><span class="material-symbols-outlined">assignment_returned</span></div><small>Debit Note</small></div>
-            
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('product'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">inventory_2</span></div><small>Product</small></div>
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('ledger'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: var(--md-surface-variant); color: var(--md-on-surface);"><span class="material-symbols-outlined">person_add</span></div><small>Party</small></div>
-            
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => { if(window.app) window.app.openAdjustmentSheet(); }, 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #fff8e1; color: #f57f17;"><span class="material-symbols-outlined">build</span></div><small>Adj Stock</small></div>
-            <div class="tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-fab-menu'); setTimeout(() => app.openForm('account'), 200); }"><div class="icon-circle" style="margin: 0 auto 8px; background: #e0f7fa; color: #006064;"><span class="material-symbols-outlined">account_balance</span></div><small>Bank A/c</small></div>
-        </div>
-    </div>
-
     <div id="sheet-stock-adjustment" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Adjust Inventory</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-stock-adjustment')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px;">
             <form id="form-stock-adjustment">
@@ -2696,7 +2668,7 @@
     <div id="sheet-simple-master" class="bottom-sheet" style="height: 80vh;">
         <div class="sheet-header">
             <span id="simple-master-title" style="font-size: 18px; font-weight: 500;">Manage Options</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-simple-master')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px; height: calc(100% - 60px); display: flex; flex-direction: column;">
             
@@ -2719,7 +2691,7 @@
     <div id="sheet-dynamic-master-sort" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Sort & Filter</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-dynamic-master-sort')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
             
@@ -2755,7 +2727,7 @@
     <div id="sheet-cashbook-filter" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Sort & Filter Cashbook</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-cashbook-filter')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
             
@@ -2763,9 +2735,9 @@
             
             <!-- 🚀 NEW QUICK DATE FILTERS -->
             <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2); font-size: 12px; font-weight: bold;">This Month</button>
                 <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Fiscal Year</button>
             </div>
 
             <div style="background: rgba(0, 97, 164, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0, 97, 164, 0.3); margin-bottom: 24px;">
@@ -2842,7 +2814,7 @@
     <div id="sheet-sales-filter" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Sort & Filter Sales</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-sales-filter')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
             
@@ -2851,9 +2823,9 @@
             
             <!-- 🚀 NEW QUICK DATE FILTERS -->
             <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2); font-size: 12px; font-weight: bold;">This Month</button>
                 <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Fiscal Year</button>
             </div>
 
             <div style="background: rgba(0, 97, 164, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0, 97, 164, 0.3); margin-bottom: 24px;">
@@ -2903,6 +2875,16 @@
                 <div>
                     <strong style="display:block; font-size:16px;">All Invoices</strong>
                     <small style="color:var(--md-text-muted);">Show all statuses</small>
+                </div>
+            </div>
+
+            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'To Receive', null); UI.closeBottomSheet('sheet-sales-filter');">
+                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                    <span class="material-symbols-outlined">call_received</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:16px;">To Receive (Due)</strong>
+                    <small style="color:var(--md-text-muted);">Invoices with pending balance</small>
                 </div>
             </div>
 
@@ -2961,6 +2943,16 @@
                     <small style="color:var(--md-text-muted);">Fully paid & delivered</small>
                 </div>
             </div>
+            
+                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Cancelled', null); UI.closeBottomSheet('sheet-sales-filter');">
+                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                    <span class="material-symbols-outlined">block</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:16px;">Cancelled</strong>
+                    <small style="color:var(--md-text-muted);">Voided documents</small>
+                </div>
+            </div>
 
             <!-- Reset Button -->
             <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'All', null); UI.closeBottomSheet('sheet-sales-filter');">
@@ -2979,7 +2971,7 @@
     <div id="sheet-purchases-filter" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Sort & Filter Purchases</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-purchases-filter')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
             
@@ -2988,9 +2980,9 @@
             
             <!-- 🚀 NEW QUICK DATE FILTERS -->
             <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2); font-size: 12px; font-weight: bold;">This Month</button>
                 <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Fiscal Year</button>
             </div>
 
             <div style="background: rgba(245, 127, 23, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(245, 127, 23, 0.3); margin-bottom: 24px;">
@@ -3069,6 +3061,16 @@
                     <small style="color:var(--md-text-muted);">Fully received & paid</small>
                 </div>
             </div>
+            
+                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'Cancelled', null); UI.closeBottomSheet('sheet-purchases-filter');">
+                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                    <span class="material-symbols-outlined">block</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:16px;">Cancelled</strong>
+                    <small style="color:var(--md-text-muted);">Voided documents</small>
+                </div>
+            </div>
 
             <!-- Reset Button -->
             <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'All', null); UI.closeBottomSheet('sheet-purchases-filter');">
@@ -3085,14 +3087,13 @@
 
 
     <div id="activity-payment-in-form" class="activity-screen hidden">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-payment-in-form')" style="padding: 4px;">arrow_back</span>
-                <span style="font-size: 18px; font-weight: 500;">Receive Payment</span>
+        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
+            <div style="display: flex; justify-content: flex-start;">
+                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">arrow_back</span>
             </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { window.app.generateReceiptPDF(id); } else { alert('Please save the receipt first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
-                <div id="btn-delete-receipt-in" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-in')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+            <div style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Receive Payment</div>
+            <div style="display: flex; justify-content: flex-end;">
+                <div id="btn-delete-receipt-in" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -3201,14 +3202,13 @@
     </div>
 
     <div id="activity-payment-out-form" class="activity-screen hidden">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-payment-out-form')" style="padding: 4px;">arrow_back</span>
-                <span style="font-size: 18px; font-weight: 500;">Make Payment</span>
+        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
+            <div style="display: flex; justify-content: flex-start;">
+                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">arrow_back</span>
             </div>
-            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
-                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" onclick="if(window.app) { const id = window.app.state.currentReceiptId; if(id) { window.app.generateReceiptPDF(id); } else { alert('Please save the payment first before printing!'); } }" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
-                <div id="btn-delete-receipt-out" class="icon-circle tap-target hidden" onclick="app.deleteRecord('receipt-out')" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+            <div style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Make Payment</div>
+            <div style="display: flex; justify-content: flex-end;">
+                <div id="btn-delete-receipt-out" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -3320,7 +3320,7 @@
     <div id="sheet-products" class="bottom-sheet" data-no-swipe="true" style="height: 85vh; background: var(--md-background); display: flex; flex-direction: column; overflow: hidden;">
         <div class="sheet-header" style="flex-shrink: 0; background: var(--md-surface); z-index: 10;">
             <span style="font-size: 18px; font-weight: 500;">Add Products</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-products')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         
         <!-- Sticky Search Bar -->
@@ -3351,7 +3351,7 @@
             <strong style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Link to Document(s)</strong>
             <div style="display: flex; align-items: center; gap: 16px;">
                 <span class="tap-target" style="color: var(--md-primary, #0061a4); font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">DONE</span>
-                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">close</span>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;">close</span>
             </div>
         </div>
         <input type="text" id="search-linked-docs" placeholder="Search Order No or Inv No..." autocomplete="off" oninput="if(window.app) window.app.filterLinkedDocs(this.value)" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: var(--md-surface-variant, #f1f5f9); padding: 10px; border-radius: 8px; font-size: 14px; color: var(--md-on-surface, #1e293b); outline: none; margin-bottom: 12px;">
@@ -3398,15 +3398,15 @@
 </div>
         <div id="activity-expense-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-expense-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Leakage</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             
             <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="app.setReportDates('today')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
-                <button type="button" onclick="app.setReportDates('month')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
-                <button type="button" onclick="app.setReportDates('year')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
+                <button type="button" onclick="app.setReportDates('today'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
+                <button type="button" onclick="app.setReportDates('month'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Month</button>
+                <button type="button" onclick="app.setReportDates('year'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
             </div>
 
             <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
@@ -3434,7 +3434,7 @@
 
     <div id="activity-reorder-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-reorder-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Auto Reorder List</span>
             <span class="material-symbols-outlined tap-target" onclick="window.print()" style="position: absolute; right: 16px; color: var(--md-primary);">print</span>
         </div>
@@ -3453,7 +3453,7 @@
 
     <div id="activity-dead-stock-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-dead-stock-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Dead Stock Scanner</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
@@ -3478,7 +3478,7 @@
 
     <div id="activity-profit-leakage-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-profit-leakage-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Profit Leakage Audit</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
@@ -3503,7 +3503,7 @@
 
     <div id="activity-item-profit-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-item-profit-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Item Profitability</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
@@ -3535,15 +3535,15 @@
 
     <div id="activity-party-tax-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-party-tax-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Party-Wise Tax Report</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             
             <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="app.setReportDates('today')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
-                <button type="button" onclick="app.setReportDates('month')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
-                <button type="button" onclick="app.setReportDates('year')" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
+                <button type="button" onclick="app.setReportDates('today'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
+                <button type="button" onclick="app.setReportDates('month'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Month</button>
+                <button type="button" onclick="app.setReportDates('year'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
             </div>
 
             <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
@@ -3604,7 +3604,7 @@
 
     <div id="activity-gst-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-gst-report')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Monthly GST Report</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
@@ -3656,7 +3656,7 @@
 
     <div id="activity-advanced-reports" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-advanced-reports')" style="position: absolute; left: 16px;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Advanced Reports</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
@@ -3819,10 +3819,21 @@
     <div id="sheet-master-actions" class="bottom-sheet">
         <div class="sheet-header">
             <span style="font-size: 18px; font-weight: 500;">Bulk Data Options</span>
-            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-master-actions')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         <div style="padding: 16px;">
             
+            <!-- 🚀 NEW: MERGE DUPLICATES BUTTON -->
+            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-master-actions'); if(window.app) window.app.cleanupDuplicates();">
+                <div style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                    <span class="material-symbols-outlined">merge</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:16px;">Merge Duplicates</strong>
+                    <small style="color:var(--md-text-muted);">Auto-combine parties & accounts</small>
+                </div>
+            </div>
+
             <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-master-actions'); if(window.app) window.app.downloadCSVTemplate();">
                 <div style="background: rgba(0, 97, 164, 0.1);  color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
                     <span class="material-symbols-outlined">download</span>
@@ -3869,6 +3880,7 @@
         </div>
     </div>
     <div id="toast-container"></div>
+    
 
     <!-- 🚨 ENTERPRISE UPGRADE: CUSTOM CONFIRM DIALOG -->
 
@@ -3876,7 +3888,7 @@
         <div class="activity-header" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--md-primary-container); color: var(--md-on-primary-container); width: 100%; box-sizing: border-box; min-height: 60px;">
             
             <!-- LEFT: Locked Back Arrow -->
-            <span class="material-symbols-outlined tap-target" onclick="window.UI.closeActivity('activity-item-ledger')" style="padding: 4px; flex-shrink: 0;">arrow_back</span>
+            <span class="material-symbols-outlined tap-target" style="padding: 4px; flex-shrink: 0;">arrow_back</span>
             
             <!-- MIDDLE: Flex cage centers the text and restricts it to 2 lines -->
             <div style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-start;">
@@ -3886,8 +3898,35 @@
             
             <!-- RIGHT: Locked Action Icons -->
             <div style="display: flex; gap: 16px; align-items: center; flex-shrink: 0;">
-                <span class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="document.getElementById('btn-print-item-ledger').click()">share</span>
-                <span id="btn-print-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;">picture_as_pdf</span>
+                
+                <!-- SHARE ICON (Direct Native Share) -->
+                <span id="action-share-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="
+                    const id = document.getElementById('item-ledger-hidden-id').value;
+                    const name = document.getElementById('item-ledger-hidden-name').value;
+                    const partyId = document.getElementById('item-ledger-party-id').value;
+                    const partyName = document.getElementById('item-ledger-party-display').innerText;
+                    const search = document.getElementById('adv-item-search').value;
+                    const type = document.getElementById('adv-item-type').value;
+                    const date = document.getElementById('adv-item-date').value;
+                    if (id && window.executeItemLedgerReport) {
+                        window.executeItemLedgerReport(id, name, partyId, partyName, search, type, date, 'share');
+                    }
+                ">share</span>
+                
+                <!-- PDF ICON (Document Preview) -->
+                <span id="action-pdf-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="
+                    const id = document.getElementById('item-ledger-hidden-id').value;
+                    const name = document.getElementById('item-ledger-hidden-name').value;
+                    const partyId = document.getElementById('item-ledger-party-id').value;
+                    const partyName = document.getElementById('item-ledger-party-display').innerText;
+                    const search = document.getElementById('adv-item-search').value;
+                    const type = document.getElementById('adv-item-type').value;
+                    const date = document.getElementById('adv-item-date').value;
+                    if (id && window.executeItemLedgerReport) {
+                        window.executeItemLedgerReport(id, name, partyId, partyName, search, type, date, 'preview');
+                    }
+                ">picture_as_pdf</span>
+
             </div>
             
         </div>
@@ -3935,11 +3974,11 @@
     </div>
 
     <script src="components.js"></script>
-    <script src="db.js?v=92"></script>
-    <script src="utils.js?v=92"></script>
-    <script src="ui.js?v=92"></script>
-    <script src="cloud.js?v=92"></script>
-    <script src="app.js?v=92"></script>
+    <script src="db.js?v=93"></script>
+    <script src="utils.js?v=93"></script>
+    <script src="ui.js?v=93"></script>
+    <script src="cloud.js?v=93"></script>
+    <script src="app.js?v=93"></script>
     <script src="state.js"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
@@ -3970,8 +4009,8 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=92' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=92`).then(reg => {
+                // 🚨 ENTERPRISE FIX: Added '?v=93' to force the Live Server to bypass its own cache!
+                navigator.serviceWorker.register(`sw.js?v=93`).then(reg => {
                     
                     // 🚨 ENTERPRISE FIX: Safe Background PWA Update Checker
                     // Safely checks for silent background updates every 1 hour
@@ -4074,22 +4113,6 @@
             }
         };
 
-        // ==========================================
-        // ENTERPRISE UPGRADE: STATIC UNIVERSAL FAB
-        // ==========================================
-        window.handleSmartFab = () => {
-            // Always open the "Create New" menu for better user muscle memory!
-            if (window.UI) window.UI.openBottomSheet('sheet-fab-menu');
-        };
-
-        // We keep this function blank so it safely absorbs the tab-switch events without doing anything!
-        const updateFabMorph = () => {
-            const icon = document.getElementById('smart-fab-icon');
-            if (icon && icon.innerText !== 'add') {
-                icon.innerText = 'add';
-            }
-        };
-        // ==========================================
 
         document.addEventListener('DOMContentLoaded', () => {
             // Attach Morph logic to Bottom Nav and Document Toggles
@@ -4384,7 +4407,7 @@
         <!-- Header -->
         <div class="sheet-header" style="flex-shrink: 0; background: var(--md-surface); z-index: 10; padding: 16px !important; border-bottom: none;">
             <span style="font-size: 18px; font-weight: 500; color: var(--md-on-surface);">Select Bills to Settle</span>
-            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-settle-bills')">close</span>
+            <span class="material-symbols-outlined tap-target">close</span>
         </div>
         
         <!-- Filter Tabs -->
@@ -4425,10 +4448,11 @@
         }
 
         const currentFilter = document.getElementById(`pay-${type}-bill-filter`).value || 'All';
-        changeBillFilter(currentFilter, false);
+        
+        // 🚨 FIX: Await the database load before opening the menu!
+        await changeBillFilter(currentFilter, true);
 
         if (window.UI) window.UI.openBottomSheet('sheet-settle-bills');
-        renderSettleSheet();
     };
 
     window.changeBillFilter = async (filterType, reloadData = true) => {
@@ -5281,30 +5305,56 @@
         }
     });
     </script>
-    <div id="sheet-smart-search" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: auto; max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff);">
-        <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; border-radius: 12px 12px 0 0;">
+    <div id="sheet-smart-search" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: auto; max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff); overflow: hidden;">
+        
+        <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; border-radius: 12px 12px 0 0; flex-shrink: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; padding-bottom: 8px;">
-                <strong id="smart-search-title" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Search</strong>
-                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary, #0061a4); font-size: 24px;" onclick="UI.createNewFromSearch()">add</span>
+                <!-- 🚀 ADDED: Top Left Close Icon for Double Safety -->
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                    <span class="material-symbols-outlined tap-target" style="font-size: 22px; color: var(--md-on-surface-variant);" onclick="UI.closeBottomSheet('sheet-smart-search')">close</span>
+                    <strong id="smart-search-title" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b);">Search</strong>
+                </div>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary, #0061a4); font-size: 24px; padding: 4px;" onclick="UI.createNewFromSearch()">add</span>
             </div>
             
             <div style="background: var(--md-surface, #ffffff); padding: 0 16px 12px 16px;">
                 <input type="text" id="smart-search-input" placeholder="Search name or phone..." autocomplete="off" oninput="if(window.st) clearTimeout(window.st); window.st = setTimeout(() => UI.executeSmartSearch(), 250);" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: var(--md-surface-variant, #f1f5f9); padding: 10px; border-radius: 8px; font-size: 14px; color: var(--md-on-surface, #1e293b); outline: none; margin-bottom: 0;">
             </div>
 
-            <!-- 🚀 ENTERPRISE UX: SMART PARTY TABS (Hidden by default) -->
             <div id="smart-search-tabs" style="display: none; background: var(--md-surface-variant); padding: 4px; border-radius: 8px; margin: 0 16px 12px 16px;">
                 <div id="tab-btn-smart-customers" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; background: var(--md-surface); color: var(--md-primary); box-shadow: var(--elevation-1); font-size: 13px;" onclick="window.switchSmartTab('customer')">Customers</div>
                 <div id="tab-btn-smart-suppliers" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="window.switchSmartTab('supplier')">Suppliers</div>
             </div>
             <div style="height: 1px; background: var(--md-outline-variant, #e2e8f0); width: 100%;"></div>
         </div>
+                    <!-- Script to make the Customer/Supplier tabs work -->
+            <script>
+                window.switchSmartTab = function(type) {
+                    const btnC = document.getElementById('tab-btn-smart-customers');
+                    const btnS = document.getElementById('tab-btn-smart-suppliers');
+                    
+                    if (type === 'customer') {
+                        btnC.style.background = 'var(--md-surface)'; btnC.style.color = 'var(--md-primary)'; btnC.style.boxShadow = 'var(--elevation-1)';
+                        btnS.style.background = 'transparent'; btnS.style.color = 'var(--md-text-muted)'; btnS.style.boxShadow = 'none';
+                    } else {
+                        btnS.style.background = 'var(--md-surface)'; btnS.style.color = 'var(--md-primary)'; btnS.style.boxShadow = 'var(--elevation-1)';
+                        btnC.style.background = 'transparent'; btnC.style.color = 'var(--md-text-muted)'; btnC.style.boxShadow = 'none';
+                    }
+                    
+                    // Tell the app to change the search target and re-search!
+                    if (window.UI) {
+                        window.UI.state.smartSearchTarget = type;
+                        window.UI.executeSmartSearch();
+                    }
+                };
+            </script>
+
         
-        <div id="smart-search-results" style="flex: 1; overflow-y: auto; padding: 0; background: var(--md-surface, #ffffff);">
+        <div id="smart-search-results" style="flex: 1; overflow-y: auto; padding: 0; background: var(--md-surface, #ffffff); min-height: 0;">
         </div>
-        <div style="background: transparent; padding: 4px 16px 12px; text-align: right; flex-shrink: 0;">
-            <span class="tap-target" style="color: var(--md-primary, #0061a4); font-weight: 700; font-size: 14px; text-transform: uppercase; padding: 4px 0;" onclick="UI.closeBottomSheet('sheet-smart-search')">CLOSE</span>
-        </div>
+        
+    </div>
+
         
         <!-- Tab Switching Logic -->
         <script>

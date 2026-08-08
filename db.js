@@ -3,16 +3,44 @@
 // ==========================================
 const DB_NAME = 'SOLLO_ERP_DB';
 // ENTERPRISE FIX: Jumped to Version 20 to break the browser deadlock and forcefully build all missing tables!
-const DB_VERSION = 70; 
+const DB_VERSION = 72; 
 let db;
-// --- NEW: Global Database Connection Listener ---
+// --- NEW: Global Database Connection Listener & Cross-Tab Sync ---
+window.dbChannel = null;
+let crossTabSyncTimer = null;
+
+// Debounced transmitter prevents flooding when saving 100s of records (e.g., CSV imports)
+window.triggerCrossTabSync = () => {
+    if (!window.dbChannel) return;
+    clearTimeout(crossTabSyncTimer);
+    crossTabSyncTimer = setTimeout(() => {
+        window.dbChannel.postMessage('SYNC_REFRESH');
+    }, 500); 
+};
+
 try {
-    const dbChannel = new BroadcastChannel('sollo_db_channel');
-    dbChannel.onmessage = (event) => {
+    // 🚨 FIX: Safely close any ghost connections before opening a new one!
+    if (window.dbChannel) {
+        window.dbChannel.close();
+    }
+    window.dbChannel = new BroadcastChannel('sollo_db_channel');
+    window.dbChannel.onmessage = (event) => {
         if (event.data === 'FORCE_CLOSE_DB' && typeof db !== 'undefined' && db) {
             console.warn("⚠️ Closing database connection to allow another tab to upgrade!");
             db.close();
-            db = null; // 🚨 CRITICAL FIX: Destroy the zombie variable so the app knows to reconnect!
+            db = null; 
+        } else if (event.data === 'SYNC_REFRESH') {
+            console.log("🔄 Cross-Tab Sync Triggered! Updating local UI...");
+            // Wipe local RAM cache to force fresh pull from IndexedDB
+            if (window.AppCache) {
+                window.AppCache.items = null;
+                window.AppCache.ledgers = null;
+                window.AppCache.accounts = null;
+            }
+            // Silently refresh the UI without triggering redundant Google Drive backups
+            if (window.app && typeof window.app.refreshAll === 'function') {
+                window.app.refreshAll(true);
+            }
         }
     };
 } catch(e) {}
@@ -113,6 +141,18 @@ const initDB = () => {
                 let s = db.createObjectStore('trash', { keyPath: 'id' });
                 s.createIndex('firmId', 'firmId', { unique: false });
             }
+
+            // 🚀 ENTERPRISE UPGRADE: Compound Indexes for O(1) Date Filtering!
+            const storesToUpgrade = ['sales', 'purchases', 'receipts', 'expenses'];
+            storesToUpgrade.forEach(storeName => {
+                if (db.objectStoreNames.contains(storeName)) {
+                    const store = event.target.transaction.objectStore(storeName);
+                    // Build a dual-index that connects the Company ID and the Date together
+                    if (!store.indexNames.contains('firmId_date')) {
+                        store.createIndex('firmId_date', ['firmId', 'date'], { unique: false });
+                    }
+                }
+            });
         };
 
         request.onsuccess = (event) => { 
@@ -207,7 +247,10 @@ const saveRecord = (storeName, data) => {
         data._lastModified = new Date().toISOString();
         
         const request = store.put(data);
-        request.onsuccess = () => resolve(data.id || data.firmId);
+        request.onsuccess = () => {
+            if (window.triggerCrossTabSync) window.triggerCrossTabSync();
+            resolve(data.id || data.firmId);
+        };
         request.onerror = (event) => {
             // 🚨 ENTERPRISE FIX: The Quota Data-Loss Shield!
             if (event.target.error && event.target.error.name === 'QuotaExceededError') {
@@ -347,7 +390,10 @@ const deleteRecordById = async (storeName, id) => {
         await new Promise((resolveDelete, rejectDelete) => {
             const transaction = db.transaction(storeName, 'readwrite');
             const request = transaction.objectStore(storeName).delete(actualId); // <--- FIXED TYPE LOCK
-            request.onsuccess = () => resolveDelete();
+            request.onsuccess = () => {
+                if (window.triggerCrossTabSync) window.triggerCrossTabSync();
+                resolveDelete();
+            };
             request.onerror = () => rejectDelete(request.error);
         });
 
@@ -358,6 +404,30 @@ const deleteRecordById = async (storeName, id) => {
 };
 
 const getAllFirms = () => getAllRecords('firms');
+
+// 🚀 ENTERPRISE UPGRADE: High-Speed Date Range Fetcher
+const getRecordsByDateRange = (storeName, firmId, startDate, endDate) => {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readonly');
+        const store = transaction.objectStore(storeName);
+        
+        if (!store.indexNames.contains('firmId_date')) {
+            // Failsafe: If the database hasn't upgraded yet, fall back to the old method
+            return getAllRecords(storeName, 'firmId', firmId).then(records => {
+                resolve(records.filter(r => r.date >= startDate && r.date <= endDate));
+            });
+        }
+
+        // Open the hard drive ONLY to the exact dates requested
+        const index = store.index('firmId_date');
+        const keyRange = IDBKeyRange.bound([firmId, startDate], [firmId, endDate]);
+        const request = index.getAll(keyRange);
+
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+    });
+};
+window.getRecordsByDateRange = getRecordsByDateRange;
 
 // ==========================================
 // STRICT INVENTORY & INVOICE ENGINE
@@ -1007,9 +1077,6 @@ const exportDatabase = async () => {
 };
 
 const importDatabase = async (parsedData) => {
-    // ==========================================
-    // STRICT ERP LOGIC: THE FILE SHIELD
-    // ==========================================
     if (!parsedData || typeof parsedData !== 'object' || Array.isArray(parsedData)) {
         return Promise.reject(new Error("Invalid File Format. Please upload a valid .json backup."));
     }
@@ -1017,47 +1084,35 @@ const importDatabase = async (parsedData) => {
         return Promise.reject(new Error("File Rejected: This is not a valid SOLLO ERP backup file."));
     }
 
-    // 🚨 ENTERPRISE UPGRADE: RESTORE LOCAL STORAGE SETTINGS
-    // Re-applies your custom PDF colors, fonts, and invoice numbering formats instantly!
     if (parsedData.appSettings && parsedData.appSettings.length > 0) {
         const settings = parsedData.appSettings[0];
-        Object.keys(settings).forEach(key => {
-            localStorage.setItem(key, settings[key]);
-        });
-        console.log("⚙️ App Settings & Themes Restored Successfully!");
+        Object.keys(settings).forEach(key => { localStorage.setItem(key, settings[key]); });
     }
 
-    // ENTERPRISE FIX: The "New Phone" Restore Bug!
-    // The previous shield permanently blocked restoring backups onto a brand new device!
-    // We must accept the backup's Firm ID and command the app to dynamically adopt it.
     let backupFirmId = null;
     if (parsedData.firms && parsedData.firms.length > 0) {
         backupFirmId = parsedData.firms[0].id;
+    } else {
+        backupFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
     }
 
     const stores = Object.keys(parsedData);
 
     return new Promise((resolve, reject) => {
         const validStores = stores.filter(store => db.objectStoreNames.contains(store));
-        
         if (validStores.length === 0) return reject(new Error("No valid data stores found in backup."));
         
         const transaction = db.transaction(validStores, 'readwrite');
         
         transaction.oncomplete = () => {
-            // ENTERPRISE FIX: Successfully restored! Now force the app to adopt the restored company's ID!
             if (backupFirmId && window.app && window.app.state) {
                 window.app.state.firmId = backupFirmId;
             }
-            
-            // Clear the memory so the app doesn't show old ghost data
             if (window.AppCache) {
                 window.AppCache.items = null;
                 window.AppCache.ledgers = null;
                 window.AppCache.accounts = null;
             }
-            
-            // Give the database a split second to settle, then instantly reload the screen!
             if (window.app && typeof window.app.refreshAll === 'function') {
                 setTimeout(() => window.app.refreshAll(), 50);
             }
@@ -1066,26 +1121,23 @@ const importDatabase = async (parsedData) => {
         
         transaction.onerror = () => reject(transaction.error);
 
-        // ENTERPRISE FIX: The Multi-Firm Annihilation Shield!
         validStores.forEach(storeName => {
             const store = transaction.objectStore(storeName);
-            
-            // 1. Fetch ALL existing records to selectively delete
             const request = store.getAll();
+            
             request.onsuccess = () => {
                 const existingRecords = request.result || [];
-                
-                // 2. SURGICAL WIPE: Only delete records that belong to the Firm we are restoring!
                 existingRecords.forEach(record => {
-                    // If the record belongs to the backup's firm, or it's a global setting, delete it to make room.
                     if (record.firmId === backupFirmId || record.id === backupFirmId || storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
                         store.delete(record.id || record.firmId); 
                     }
                 });
 
-                // 3. Inject the restored data safely!
                 if (Array.isArray(parsedData[storeName])) {
                     parsedData[storeName].forEach(record => {
+                        if (storeName !== 'counters' && storeName !== 'units' && storeName !== 'expenseCategories') {
+                            record.firmId = backupFirmId;
+                        }
                         store.put(record);
                     });
                 }
@@ -1132,11 +1184,15 @@ async function generateGSTReport(yearMonth, firmId) {
             return; // Safely exit before adding to standard GST pools
         }
         
-        // ENTERPRISE FIX: Removed secondary discount deduction because subtotal is ALREADY stored as Net Taxable Value!
         // Double-deducting here artificially deflates GSTR-1 and causes portal rejections.
-        // ENTERPRISE FIX: Absolute Math prevents Double-Negatives on Legacy Credit Notes!
-        let taxable = Math.abs(parseFloat(s.subtotal) || 0) * mult;
+                // 🚨 CRITICAL FIX: Subtotal is Gross! We MUST deduct the discount to get the true Taxable Value!
+        let rawSubtotal = Math.abs(parseFloat(s.subtotal) || 0);
+        let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+        if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+        
+        let taxable = (rawSubtotal - discountAmt) * mult;
         let tax = Math.abs(parseFloat(s.totalGst) || 0) * mult;
+
 
         gstr1.totalTaxable += taxable;
         gstr1.totalTax += tax;
@@ -1319,7 +1375,10 @@ window.executeAtomicBatch = (puts, deletes) => {
             store.delete(d.id);
         });
         
-        transaction.oncomplete = () => resolve();
+        transaction.oncomplete = () => {
+            if (window.triggerCrossTabSync) window.triggerCrossTabSync();
+            resolve();
+        };
         transaction.onerror = () => reject(transaction.error);
     });
 };

@@ -1,17 +1,88 @@
-// worker.js - Enterprise Stock & Velocity Accountant
+// worker.js - Enterprise Stock & Velocity Accountant (Optimized V3)
 
-self.addEventListener('message', function(e) {
+const DB_NAME = 'SOLLO_ERP_DB';
+const DB_VERSION = 70;
+
+// 🚀 NATIVE DATABASE ENGINE: Worker pulls directly from the hard drive!
+const fetchFromDB = (storeName, firmId) => {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onsuccess = (e) => {
+            const db = e.target.result;
+            const tx = db.transaction(storeName, 'readonly');
+            const store = tx.objectStore(storeName);
+            
+            // Fast O(1) Index Lookup
+            const index = store.index('firmId');
+            const req = index.getAll(firmId);
+            
+            req.onsuccess = () => {
+                resolve(req.result || []);
+                db.close();
+            };
+            req.onerror = () => reject(req.error);
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+self.addEventListener('message', async function(e) {
     const data = e.data;
 
     if (data.command === 'CALCULATE_DASHBOARD_INVENTORY') {
-        const { items, purchases, sales, firmId } = data;
+        const firmId = data.firmId;
+        
+        // Let the background thread do the heavy lifting!
+        const [items, purchases, sales] = await Promise.all([
+            fetchFromDB('items', firmId),
+            fetchFromDB('purchases', firmId),
+            fetchFromDB('sales', firmId)
+        ]);
 
         let totalValuation = 0;
         let lowStockItems = [];
-
-        // 30-Day Velocity Window
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const purchaseMap = {};
+        (purchases || []).forEach(p => {
+            if (p.status !== 'Open' && p.status !== 'Cancelled') {
+                (p.items || []).forEach(row => {
+                    const id = String(row.itemId || row.id);
+                    if (!purchaseMap[id]) purchaseMap[id] = { qty: 0, val: 0 };
+                    
+                    let q = parseFloat(row.qty) || 0;
+                    let r = parseFloat(row.rate) || 0;
+                    
+                    if (p.documentType === 'return') {
+                        purchaseMap[id].qty -= q;
+                        purchaseMap[id].val -= (q * r);
+                    } else {
+                        purchaseMap[id].qty += q;
+                        purchaseMap[id].val += (q * r);
+                    }
+                });
+            }
+        });
+
+        const velocityMap = {};
+        (sales || []).forEach(s => {
+            if (s.status !== 'Open' && s.status !== 'Cancelled') {
+                let sDate = thirtyDaysAgo; 
+                if (s.date) {
+                    const parts = String(s.date).split('-');
+                    sDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(s.date);
+                }
+                
+                if (sDate >= thirtyDaysAgo) {
+                    (s.items || []).forEach(row => {
+                        const id = String(row.itemId || row.id);
+                        if (!velocityMap[id]) velocityMap[id] = 0;
+                        velocityMap[id] += (s.documentType === 'return' ? -(parseFloat(row.qty)||0) : (parseFloat(row.qty)||0));
+                    });
+                }
+            }
+        });
 
         (items || []).forEach(i => {
             const rawGst = parseFloat(i.stockGst);
@@ -20,58 +91,16 @@ self.addEventListener('message', function(e) {
             const stockNonGst = isNaN(rawNon) ? 0 : rawNon;
             const totalStock = stockGst + stockNonGst;
 
-            // 1. CAPITAL ENGINE: True Weighted Average Cost (WAC)
+            const pData = purchaseMap[String(i.id)] || { qty: 0, val: 0 };
             let trueCost = parseFloat(i.buyPrice) || 0;
-            let totalBoughtQty = 0;
-            let totalBoughtValue = 0;
-
-            (purchases || []).forEach(p => {
-                if (p.firmId === firmId && p.status !== 'Open' && p.status !== 'Cancelled') {
-                    (p.items || []).forEach(row => {
-                        if (String(row.itemId) === String(i.id)) {
-                            let q = parseFloat(row.qty) || 0;
-                            let r = parseFloat(row.rate) || 0;
-                            if (p.documentType === 'return') {
-                                totalBoughtQty -= q;
-                                totalBoughtValue -= (q * r);
-                            } else {
-                                totalBoughtQty += q;
-                                totalBoughtValue += (q * r);
-                            }
-                        }
-                    });
-                }
-            });
-
-            if (totalBoughtQty > 0) {
-                trueCost = totalBoughtValue / totalBoughtQty;
+            if (pData.qty > 0) {
+                trueCost = pData.val / pData.qty;
             }
 
             totalValuation += (totalStock * trueCost);
 
-            // 2. VELOCITY ENGINE: Calculate precise daily sales
             const minStock = parseFloat(i.minStock) || 0;
-            let soldIn30Days = 0;
-
-            (sales || []).forEach(s => {
-                if (s.firmId === firmId && s.status !== 'Open' && s.status !== 'Cancelled') {
-                    // 🚨 BUG FIX: Timezone-Safe Manual Parsing!
-                    let sDate = thirtyDaysAgo; 
-                    if (s.date) {
-                        const parts = String(s.date).split('-');
-                        sDate = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(s.date);
-                    }
-                    
-                    if (sDate >= thirtyDaysAgo) {
-                        (s.items || []).forEach(row => {
-                            if (String(row.itemId) === String(i.id)) {
-                                soldIn30Days += (s.documentType === 'return' ? -(parseFloat(row.qty)||0) : (parseFloat(row.qty)||0));
-                            }
-                        });
-                    }
-                }
-            });
-
+            const soldIn30Days = velocityMap[String(i.id)] || 0;
             const dailyVelocity = Math.max(0, soldIn30Days / 30);
             const daysRemaining = dailyVelocity > 0 ? (totalStock / dailyVelocity) : 999;
 
@@ -79,14 +108,11 @@ self.addEventListener('message', function(e) {
             let triggerReason = '';
             let urgencyScore = 999;
 
-            // Trigger 1: Hard Limit
             if (minStock > 0 && totalStock <= minStock) {
                 isCritical = true;
                 triggerReason = `${totalStock} / ${minStock}`;
                 urgencyScore = totalStock - minStock;
-            } 
-            // Trigger 2: Velocity Alert (< 7 days remaining)
-            else if (dailyVelocity > 0 && daysRemaining <= 7 && totalStock > 0) {
+            } else if (dailyVelocity > 0 && daysRemaining <= 7 && totalStock > 0) {
                 isCritical = true;
                 triggerReason = `${Math.ceil(daysRemaining)} Days Left`;
                 urgencyScore = daysRemaining;
@@ -104,7 +130,6 @@ self.addEventListener('message', function(e) {
             }
         });
 
-        // 3. Shout the final results back to the Front Desk!
         self.postMessage({
             type: 'DASHBOARD_INVENTORY_RESULT',
             totalValuation: totalValuation,
@@ -112,24 +137,31 @@ self.addEventListener('message', function(e) {
         });
     }
     
-    // --- NEW: RECEIVABLES AGING ENGINE ---
     if (data.command === 'CALCULATE_AGING') {
-        const { sales, cashbook, firmId } = data;
+        const firmId = data.firmId;
+        
+        // 🚀 Fetch directly from disk!
+        const [sales, cashbook] = await Promise.all([
+            fetchFromDB('sales', firmId),
+            fetchFromDB('receipts', firmId) // The store is called 'receipts', UI references it as cashbook
+        ]);
+
         let bucket30 = 0, bucket60 = 0, bucket90 = 0, totalDue = 0;
         const today = new Date();
         
         const dashboardReturnMap = {};
         (sales || []).forEach(d => {
-            if (d.firmId === firmId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+            if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
                 dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
             }
         });
 
         const paymentMap = {};
         (cashbook || []).forEach(r => {
-            if (r.firmId === firmId && r.invoiceRef && r.type === 'in') {
+            if (r.invoiceRef && r.type === 'in') {
                 const refs = String(r.invoiceRef).split(',').map(x => x.trim()).filter(Boolean);
                 let remainingPayment = parseFloat(r.amount) || 0;
+                
                 refs.forEach(ref => {
                     const linkedDoc = (sales || []).find(d => String(d.id) === ref || String(d.invoiceNo) === ref || String(d.orderNo) === ref || String(d.id).endsWith(ref));
                     const returned = [linkedDoc?.orderNo, linkedDoc?.invoiceNo, linkedDoc?.id, ref].filter(Boolean).reduce((sum, rx) => sum + (dashboardReturnMap[rx] || 0), 0);
@@ -148,12 +180,11 @@ self.addEventListener('message', function(e) {
         });
 
         (sales || []).forEach(sale => {
-            if (sale.firmId === firmId && sale.status !== 'Completed' && sale.status !== 'Open' && sale.status !== 'Cancelled' && sale.documentType !== 'return') {
+            if (sale.status !== 'Completed' && sale.status !== 'Open' && sale.status !== 'Cancelled' && sale.documentType !== 'return') {
+                
                 const uniqueRefs = [...new Set([sale.orderNo, sale.invoiceNo, sale.id].filter(Boolean).map(String))];
                 const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${sale.customerId}_${ref}`] || 0), 0);
-                
-                const linkedReturns = (sales || []).filter(d => d.firmId === firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && uniqueRefs.includes(d.orderNo));
-                const returnTotal = linkedReturns.reduce((sum, ret) => sum + (parseFloat(ret.grandTotal) || 0), 0);
+                const returnTotal = uniqueRefs.reduce((sum, ref) => sum + (dashboardReturnMap[ref] || 0), 0);
                 
                 const balance = (parseFloat(sale.grandTotal) || 0) - paid - returnTotal;
 
@@ -161,7 +192,6 @@ self.addEventListener('message', function(e) {
                     totalDue += balance;
                     const baseDate = sale.shippedDate ? sale.shippedDate : sale.date;
                     
-                    // Worker-safe Date Parsing
                     let invoiceDate = today;
                     if (baseDate) {
                         const parts = String(baseDate).split('-');
@@ -184,5 +214,4 @@ self.addEventListener('message', function(e) {
             totalDue, bucket30, bucket60, bucket90
         });
     }
-
 });

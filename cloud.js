@@ -38,10 +38,16 @@ window.gisLoaded = () => {
 
 const maybeEnableButtons = () => {
     if (gapiInited && gisInited) {
-        const statusEl = document.getElementById('cloud-status-tab');
-        if(statusEl) {
-            statusEl.innerText = 'Google Drive Sync Ready';
-            statusEl.style.color = 'var(--md-success)';
+        // 🚨 ENTERPRISE FIX: Trigger the exact pending sync count if the app is ready!
+        if (window.app && typeof window.app.checkPendingSyncs === 'function') {
+            window.app.checkPendingSyncs();
+        } else {
+            const statusEl = document.getElementById('cloud-status-tab');
+            if(statusEl) {
+                statusEl.innerText = 'Google Drive Sync Ready';
+                statusEl.style.color = 'var(--md-success)';
+                statusEl.style.background = 'rgba(20, 108, 46, 0.1)';
+            }
         }
     }
 };
@@ -310,6 +316,7 @@ const Cloud = {
         window.Utils.showToast("Analyzing and Merging Data...");
         const storeNames = Object.keys(cloudData);
         let puts = [];
+        let deletes = []; // <-- Added to track items that must die!
         
         // 🚨 ENTERPRISE FIX: Restore LocalStorage AppSettings safely!
         if (cloudData.appSettings && cloudData.appSettings.length > 0) {
@@ -317,10 +324,25 @@ const Cloud = {
             Object.keys(settings).forEach(key => localStorage.setItem(key, settings[key]));
             console.log("⚙️ App Settings & Themes Restored via Smart Merge!");
         }
+
+        // 🚨 CRITICAL BUG FIX: The "Zombie Data" Shield!
+        // Process the Cloud's Recycle Bin first. If an item was deleted on another device, 
+        // we must explicitly delete it from THIS device, otherwise it resurrects!
+        if (cloudData.trash && Array.isArray(cloudData.trash)) {
+            for (let t = 0; t < cloudData.trash.length; t++) {
+                const trashedRecord = cloudData.trash[t];
+                if (trashedRecord._module) {
+                    // Tell the local database to kill the active record!
+                    deletes.push({ store: trashedRecord._module, id: trashedRecord.id });
+                    // Store the tombstone locally so it stays dead
+                    puts.push({ store: 'trash', data: trashedRecord });
+                }
+            }
+        }
         
         for (let i = 0; i < storeNames.length; i++) {
             const storeName = storeNames[i];
-            if (storeName === 'appSettings') continue; // Handled safely above
+            if (storeName === 'appSettings' || storeName === 'trash') continue; // Skip trash here since we just handled it safely!
             
             const cloudRecords = cloudData[storeName];
             if (!Array.isArray(cloudRecords)) continue;
@@ -362,9 +384,9 @@ const Cloud = {
         }
         
         // Execute the atomic batch save!
-        if (puts.length > 0 && window.executeAtomicBatch) {
-            console.log(`Merging ${puts.length} newer records from the cloud...`);
-            await window.executeAtomicBatch(puts, []);
+        if ((puts.length > 0 || deletes.length > 0) && window.executeAtomicBatch) {
+            console.log(`Merging ${puts.length} updates and ${deletes.length} deletions from the cloud...`);
+            await window.executeAtomicBatch(puts, deletes); // Pass the deletes array into the engine!
         } else {
             console.log("Local database is already perfectly up to date!");
         }
@@ -392,8 +414,8 @@ const Cloud = {
                 const modDate = new Date(response.result.files[0].modifiedTime).toLocaleString();
 
                 if (window.Utils) {
-                    // 🚨 NEW WARNING: Reflects the non-destructive merge upgrade!
-                    const isConfirmed = await window.Utils.confirmModal(`Found backup: ${foundName}\nDate: ${modDate}\n\nDo you want to sync this? Your newest local edits will be safely preserved.`, "Sync Cloud Data", true);
+                    // 🚨 FIX: Restored TRUE Overwrite functionality! If a user restores, they want to undo mistakes!
+                    const isConfirmed = await window.Utils.confirmModal(`Found backup: ${foundName}\nDate: ${modDate}\n\nDo you want to RESTORE this? WARNING: This will completely replace your current app data with this backup!`, "Restore Cloud Data", true);
                     if (!isConfirmed) return;
                 }
 
@@ -406,11 +428,15 @@ const Cloud = {
                 if (fileRes.ok) {
                     let jsonData = await fileRes.json();
                     
-                    // 🚨 FIX: Trigger the new Smart Merge Engine instead of a blind database overwrite!
-                    await Cloud.smartMerge(jsonData); 
+                    // 🚨 FIX: Use the bulletproof importDatabase engine to do a TRUE restore and wipe mistakes!
+                    if (typeof window.importDatabase === 'function') {
+                        await window.importDatabase(jsonData);
+                    } else {
+                        await Cloud.smartMerge(jsonData); // Failsafe
+                    }
                     
-                    window.Utils.showToast("✅ Sync Successful! Reloading...");
-                    setTimeout(() => location.reload(), 1500);
+                    window.Utils.showToast("✅ Restore Successful! Reloading...");
+                    setTimeout(() => window.location.reload(true), 1500);
                 } else {
                     if (fileRes.status === 401) {
                         gapi.client.setToken(null);

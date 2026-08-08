@@ -4033,62 +4033,6 @@ body.dark-mode .sku-pill {
     color: #c3c7cf !important;
 }
 
-/* ------------------------------------------
-   3. "ZEBRA" HARDWARE SCANNER OVERLAY
-   ------------------------------------------ */
-/* The full-screen dark overlay that dims the app */
-.scanner-container {
-    position: fixed !important;
-    top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
-    z-index: 99999 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    pointer-events: none !important; /* Lets camera clicks pass through */
-    overflow: hidden !important;
-}
-
-/* The clear, physical targeting box in the middle */
-.scanner-viewfinder {
-    position: relative !important;
-    width: 260px !important;
-    height: 260px !important;
-    border-radius: 16px !important;
-    /* Draws the massive dark shadow around the box to dim the rest of the screen */
-    box-shadow: 0 0 0 4000px rgba(0,0,0,0.65) !important; 
-    
-    /* Pure CSS Hardware Brackets (The 4 white targeting corners) */
-    background: 
-        linear-gradient(to right, #ffffff 4px, transparent 4px) 0 0,
-        linear-gradient(to bottom, #ffffff 4px, transparent 4px) 0 0,
-        linear-gradient(to left, #ffffff 4px, transparent 4px) 100% 0,
-        linear-gradient(to bottom, #ffffff 4px, transparent 4px) 100% 0,
-        linear-gradient(to right, #ffffff 4px, transparent 4px) 0 100%,
-        linear-gradient(to top, #ffffff 4px, transparent 4px) 0 100%,
-        linear-gradient(to left, #ffffff 4px, transparent 4px) 100% 100%,
-        linear-gradient(to top, #ffffff 4px, transparent 4px) 100% 100% !important;
-    background-repeat: no-repeat !important;
-    background-size: 30px 30px !important; /* Length of the brackets */
-}
-
-/* The Glowing Red Laser Beam */
-.scanner-laser {
-    position: absolute !important;
-    top: 50% !important;
-    left: 10% !important;
-    width: 80% !important;
-    height: 2px !important;
-    background: #ff0000 !important;
-    box-shadow: 0 0 12px 3px rgba(255, 0, 0, 0.7) !important; /* Neon glow */
-    border-radius: 50px !important;
-    /* Moves the laser up and down continuously */
-    animation: zebra-scan 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
-}
-
-@keyframes zebra-scan {
-    0%, 100% { transform: translateY(-100px); }
-    50% { transform: translateY(100px); }
-}
 /* ==========================================
    ENTERPRISE UX: SUBCONSCIOUS USER EXPERIENCE
    ========================================== */
@@ -5464,8 +5408,7 @@ body:not(.dark-mode) textarea {
 }
 
 /* 2. Overrides the old "absolute center" code specifically for Sales, Purchase, Credit, and Debit forms */
-.activity-header span[id^="form-title-"],
-.activity-header #expense-form-title {
+.activity-header span[id^="form-title-"] {
     position: static !important; /* Kills the old centering that caused the crash */
     transform: none !important;
     flex: 1 1 auto !important; /* Pushes the text safely to the left */
@@ -7423,4 +7366,285 @@ body.dark-mode #activity-item-ledger .search-bar {
 body.dark-mode #ledger-summary-card {
     background: rgba(15, 23, 42, 0.9) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+/* ==========================================
+   🚀 OPTION 3: ACTIVE TAB MICRO-ANIMATIONS & BOUNCE
+   ========================================== */
+
+/* Gives the entire nav item a smooth press spring */
+.nav-item {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.nav-item:active {
+    transform: scale(0.88) !important;
+}
+
+/* The Jelly Spring Bounce when an icon becomes active */
+.nav-item.active .material-symbols-outlined {
+    animation: navIconBounce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+}
+
+@keyframes navIconBounce {
+    0% { transform: scale(0.7) translateY(2px); }
+    50% { transform: scale(1.25) translateY(-3px); }
+    100% { transform: scale(1) translateY(0); }
+}
+
+/* Soft text fade-in on the active label */
+.nav-item span:last-child {
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+}
+.nav-item.active span:last-child {
+    font-weight: 800 !important;
+    transform: translateY(-1px);
+}
+/* ==========================================
+   INVOICE OVERVIEW STYLES
+   ========================================== */
+
+/* Bill Breakdown Card Alignments */
+.bill-breakdown .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--md-text-secondary);
+}
+.bill-breakdown .discount-text {
+    color: #2e7d32; /* Green for savings */
+}
+.bill-breakdown .dashed-divider {
+    border-top: 1px dashed var(--md-outline-variant);
+    margin: 12px 0;
+}
+.bill-breakdown .grand-total {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--md-text-primary);
+    margin-bottom: 0;
+}
+
+/* Bottom Split Action Bar */
+.bottom-action-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    background: var(--md-surface);
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.05);
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 100;
+}
+.bottom-action-bar .flex-grow {
+    flex-grow: 1;
+    padding: 12px;
+    border-radius: 24px;
+    font-size: 16px;
+}
+.bottom-action-bar .icon-button {
+    background: var(--md-surface-variant);
+    color: var(--md-on-surface-variant);
+    border: none;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Bottom Sheet Action Rows */
+.sheet-action-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--md-outline-variant);
+}
+.sheet-action-row:last-child {
+    border-bottom: none;
+}
+.sheet-action-row strong {
+    font-size: 16px;
+}
+/* ==========================================
+   REMOVE DIVIDER LINES FOR CLEANER LISTS
+   ========================================== */
+#sales-history-container .m3-card,
+#purchase-history-container .m3-card,
+#cashbook-container .m3-card {
+    border-bottom: none !important;
+}
+
+/* Ensure they are also removed in Dark Mode */
+body.dark-mode #sales-history-container .m3-card,
+body.dark-mode #purchase-history-container .m3-card,
+body.dark-mode #cashbook-container .m3-card {
+    border-bottom: none !important;
+}
+/* ==========================================
+   REMOVE DIVIDER LINES FOR CLEANER LISTS (ALL VIEWS)
+   ========================================== */
+#sales-history-container .m3-card,
+#purchase-history-container .m3-card,
+#cashbook-container .m3-card,
+#expense-history-container .m3-card,
+#master-list-container .m3-card {
+    border-bottom: none !important;
+}
+
+/* Ensure they are also removed in Dark Mode */
+body.dark-mode #sales-history-container .m3-card,
+body.dark-mode #purchase-history-container .m3-card,
+body.dark-mode #cashbook-container .m3-card,
+body.dark-mode #expense-history-container .m3-card,
+body.dark-mode #master-list-container .m3-card {
+    border-bottom: none !important;
+}
+/* ==========================================
+   IDEA 1: THE "TAP FLASH" (VISUAL FEEDBACK)
+   ========================================== */
+/* 1. Instant blue flash when tapped (Overrides Zebra Stripes) */
+#sales-history-container .m3-card:active,
+#purchase-history-container .m3-card:active,
+#cashbook-container .m3-card:active,
+#expense-history-container .m3-card:active,
+#master-list-container .m3-card:active {
+    background-color: rgba(0, 97, 164, 0.08) !important;
+    transition: background-color 0s !important; /* 0 seconds = Instant feedback! */
+    transform: scale(0.98) !important; /* Slight satisfying physical compression */
+}
+
+/* 2. Dark Mode Adapter (Soft neon blue flash) */
+body.dark-mode #sales-history-container .m3-card:active,
+body.dark-mode #purchase-history-container .m3-card:active,
+body.dark-mode #cashbook-container .m3-card:active,
+body.dark-mode #expense-history-container .m3-card:active,
+body.dark-mode #master-list-container .m3-card:active {
+    background-color: rgba(143, 203, 251, 0.15) !important; 
+}
+
+/* 3. Smooth fade-out when the user lets go of the screen */
+#sales-history-container .m3-card,
+#purchase-history-container .m3-card,
+#cashbook-container .m3-card,
+#expense-history-container .m3-card,
+#master-list-container .m3-card {
+    transition: background-color 0.4s ease, transform 0.2s ease !important;
+}
+/* ==========================================
+   IDEA 3: FLOATING GLASS SEARCH BAR
+   ========================================== */
+/* 1. Apple-Style Frosted Glass and Floating Shadow */
+.search-bar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 95 !important; /* Floats above lists, but stays under top headers */
+    
+    /* The Glassmorphism Blur */
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+    
+    /* The Soft Floating Shadow */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    
+    transition: all 0.3s ease !important;
+}
+
+/* 2. Seamless Integration for Dark Mode */
+body.dark-mode .search-bar {
+    background: rgba(18, 18, 18, 0.85) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 3. Ensure the Search Input Box stays clean on top of the glass */
+.search-bar input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+/* ==========================================
+   OPTION 1: SEAMLESS INVOICE ITEM CART
+   ========================================== */
+/* 1. Kill the bulky left-color borders injected by JS */
+#sales-items-body .item-entry-card, 
+#purchase-items-body .item-entry-card {
+    border-left: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 16px 8px !important;
+    margin-bottom: 0 !important;
+}
+
+/* 2. Remove the line from the very last item for a flush finish */
+#sales-items-body .item-entry-card:last-child, 
+#purchase-items-body .item-entry-card:last-child {
+    border-bottom: none !important;
+}
+
+/* Dark mode separator adapter */
+body.dark-mode #sales-items-body .item-entry-card, 
+body.dark-mode #purchase-items-body .item-entry-card {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ==========================================
+   OPTION 3: SMOOTH FINTECH ACCORDIONS
+   ========================================== */
+/* 1. The Container Box */
+details.advanced-options {
+    background: var(--md-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease !important;
+}
+
+/* 2. The Highlight when Opened */
+details.advanced-options[open] {
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.05) !important;
+}
+body.dark-mode details.advanced-options[open] {
+    border-color: var(--md-primary-container) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 3. The Clickable Header */
+details.advanced-options summary {
+    padding: 16px !important;
+    background: var(--md-surface-variant) !important;
+    transition: background-color 0.2s ease !important;
+}
+details.advanced-options summary:active {
+    background: rgba(0, 97, 164, 0.08) !important;
+}
+body.dark-mode details.advanced-options summary:active {
+    background: rgba(143, 203, 251, 0.15) !important; 
+}
+
+/* 4. The Smooth Slide-Down Animation */
+details.advanced-options > div {
+    animation: accordionSlideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+    transform-origin: top center;
+}
+
+@keyframes accordionSlideDown {
+    0% { opacity: 0; transform: scaleY(0.95) translateY(-10px); }
+    100% { opacity: 1; transform: scaleY(1) translateY(0); }
 }

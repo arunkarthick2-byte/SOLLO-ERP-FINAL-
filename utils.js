@@ -733,9 +733,9 @@ Please process this accordingly. Thank you!`;
                     const data = JSON.parse(e.target.result);
                     if (typeof window.importDatabase === 'function') {
                         await window.importDatabase(data);
-                        // ACODE APP FIX: Removed the hard reload. 
-                        // The app will now just softly refresh the screen so Acode doesn't crash!
-                        if (window.Utils) await window.Utils.alertModal("Database imported successfully! Your data is now on the screen.", "Import Complete");
+                        if (window.Utils) await window.Utils.alertModal("Database imported successfully! The app will now restart to apply changes.", "Import Complete");
+                        // 🚨 FIX: Restore the hard reload! Soft refreshes fail to update the Web Worker for Cash Recovery & Aging!
+                        window.location.reload(true);
                     }
                 } catch (err) {
                     alert("Invalid backup file. Make sure it is a valid SOLLO JSON backup.");
@@ -855,31 +855,26 @@ Please process this accordingly. Thank you!`;
                 document.head.appendChild(s2);
             }
             
-            // 🚨 SOLLO FIX: Auto-Resume Engine (With Failsafe)
             let retries = 0;
             const checkInterval = setInterval(() => {
                 retries++;
                 if (typeof html2canvas !== 'undefined' && typeof html2pdf !== 'undefined') {
                     clearInterval(checkInterval);
-                    window.Utils.processPDFExport(elementId, filename);
-                } else if (retries > 30) { // 9-second timeout kills the infinite loop!
+                    window.Utils.processPDFExport(elementId, filename, customMsg);
+                } else if (retries > 30) { 
                     clearInterval(checkInterval);
-                    if (window.Utils && window.Utils.showToast) window.Utils.showToast("❌ Failed to load PDF Engine. Check internet connection.");
-                    else alert("Failed to load PDF Engine. Check your internet connection.");
+                    if (window.Utils) window.Utils.showToast("❌ Failed to load PDF Engine. Check internet connection.");
                 }
             }, 300);
             return;
         }
         
-        // 🚨 CRITICAL FIX: Save original dimensions OUTSIDE the try block!
         const origWidth = element.style.width;
         const origMinWidth = element.style.minWidth;
         const origMaxWidth = element.style.maxWidth;
         const origMinHeight = element.style.minHeight; 
 
         try {
-            // 🚀 ENTERPRISE UX: INSTANT LOADING SCREEN
-            // Immediately open the viewer to give the user instant visual feedback before the heavy math freezes the browser!
             document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
 
             const viewer = document.createElement('div');
@@ -897,27 +892,32 @@ Please process this accordingly. Thank you!`;
                     </div>
                 </div>
                 <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:center; touch-action: pan-x pan-y pinch-zoom;">
-                    <div style="display:flex; flex-direction:column; align-items:center; gap:12px; opacity:0.7;">
-                        <span class="material-symbols-outlined" style="font-size:40px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
-                        <div style="font-size:14px; font-weight:600; color:#475569;">Generating High-Res PDF...</div>
+                    <div style="display:flex; flex-direction:column; align-items:center; gap:12px; opacity:0.9;">
+                        <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(0, 97, 164, 0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 4px;">
+                            <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                        </div>
+                        <div style="font-size:16px; font-weight:800; color:#0f172a;">Generating High-Res PDF...</div>
+                        <div style="width: 220px; height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-top: 8px;">
+                            <div style="width: 0%; height: 100%; background: #0061a4; border-radius: 3px; animation: pdf-progress 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;"></div>
+                        </div>
                     </div>
-                    <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+                    <style>
+                        @keyframes sollo-spin { 100% { transform: rotate(360deg); } }
+                        @keyframes pdf-progress { 0% { width: 0%; } 80% { width: 90%; } 100% { width: 95%; } }
+                    </style>
                 </div>
             `;
             document.body.style.overflow = 'hidden'; 
             document.body.appendChild(viewer);
             
-            // 🚨 ENTERPRISE FIX: Reliable Close Action for the Loading Screen
             document.getElementById('btn-close-pdf-loading').onclick = () => {
                 const v = document.getElementById('in-app-pdf-viewer');
                 if (v) v.remove(); 
                 document.body.style.overflow = '';
             };
 
-            // 🚨 We MUST yield the main thread for 50ms so the browser actually PAINTS the loading screen before freezing for html2canvas!
             await new Promise(res => setTimeout(res, 50));
 
-            // STRICT ERP LOGIC: Physically lock the DOM to A4 Desktop dimensions BEFORE taking the snapshot!
             element.style.setProperty('width', '800px', 'important');
             element.style.setProperty('min-width', '800px', 'important');
             element.style.setProperty('max-width', '800px', 'important');
@@ -926,7 +926,7 @@ Please process this accordingly. Thank you!`;
             const exactHeight = element.scrollHeight;
 
             const canvas = await html2canvas(element, { 
-                scale: 2.0, // 🚀 ENTERPRISE FIX: Retina resolution for razor-sharp text, optimized for speed!
+                scale: 2.0, 
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -947,12 +947,9 @@ Please process this accordingly. Thank you!`;
                         printArea.style.height = 'max-content';
                         printArea.style.minHeight = '0px';
 
-                        // 🚨 BUG FIX: Force content-visibility to prevent blank/cut-off PDFs
                         printArea.style.contentVisibility = 'visible';
                         const allElements = printArea.querySelectorAll('*');
-                        allElements.forEach(el => {
-                            el.style.contentVisibility = 'visible';
-                        });
+                        allElements.forEach(el => { el.style.contentVisibility = 'visible'; });
 
                         clonedDoc.body.style.height = 'max-content';
                         clonedDoc.body.style.minHeight = '0px';
@@ -962,65 +959,86 @@ Please process this accordingly. Thank you!`;
                 }
             });
             
-            // 🚨 RAM FIX: Render the preview as a highly compressed JPEG, preventing the massive PNG memory crash!
             const imgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
             const imgSrc = URL.createObjectURL(imgBlob);
+
+            // 🚨 FIX: Pre-generate the PDF file NOW so the share button is completely instant!
+            const opt = {
+                margin: 0, 
+                filename: filename,
+                enableLinks: true, 
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] }, 
+                html2canvas: { scale: 2.0, useCORS: true, logging: false },
+                image: { type: 'jpeg', quality: 0.90 }, 
+                jsPDF: { unit: 'px', format: [800, exactHeight + 10], orientation: 'portrait', compress: true }
+            };
+            const pdfBlob = await window.html2pdf().set(opt).from(element).outputPdf('blob');
+            const readyPdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
             
-            // 🚀 UI UPDATE: The PDF is ready! Swap out the spinner for the actual buttons and document!
             document.getElementById('pdf-status-text').style.color = '#64748b';
             document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
             
             document.getElementById('pdf-header-actions').innerHTML = `
-                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-print-preview">print</span>
-                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-download-pdf">picture_as_pdf</span>
-                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="btn-share-preview">share</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="preview-action-print">print</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="preview-action-download">picture_as_pdf</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px;" id="preview-action-share">share</span>
                 <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a;">close</span>
             `;
 
             const previewContent = document.getElementById('pdf-preview-content');
-            previewContent.style.alignItems = 'flex-start'; // Reset alignment for the document image
+            previewContent.style.alignItems = 'flex-start'; 
             previewContent.innerHTML = `<img src="${imgSrc}" style="max-width:100%; height:auto; box-shadow:0 4px 8px rgba(0,0,0,0.2); border-radius:4px; display:block;" />`;
             
             const vp = document.querySelector('meta[name="viewport"]');
             if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover');
             
-            document.getElementById('btn-download-pdf').onclick = async () => {
-                window.Utils.showToast("Downloading True PDF...");
-                window.Utils.sharePDF(elementId, filename, '', true); 
+            // INSTANT DIRECT DOWNLOAD
+            document.getElementById('preview-action-download').onclick = () => {
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 2000);
             };
 
-            document.getElementById('btn-print-preview').onclick = () => {
+            // INSTANT PRINT
+            document.getElementById('preview-action-print').onclick = () => {
                 document.getElementById('in-app-pdf-viewer').style.display = 'none';
                 window.print();
                 setTimeout(() => { document.getElementById('in-app-pdf-viewer').style.display = 'flex'; }, 500);
             };
             
-            document.getElementById('btn-share-preview').onclick = async () => {
+            // INSTANT NATIVE SHARE
+            document.getElementById('preview-action-share').onclick = async () => {
                 try {
-                    if (window.Utils) window.Utils.showToast("Preparing True PDF...");
                     const cleanDocumentName = filename.replace('.pdf', '').replace(/_/g, ' ');
                     const finalMsg = customMsg ? customMsg : `Here is your document: ${cleanDocumentName}`;
-                    window.Utils.sharePDF(elementId, filename, finalMsg);
+                    
+                    if (navigator.canShare && navigator.canShare({ files: [readyPdfFile] })) {
+                        await navigator.share({
+                            title: cleanDocumentName,
+                            text: finalMsg,
+                            files: [readyPdfFile]
+                        });
+                    } else {
+                        if (window.Utils) window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                        document.getElementById('preview-action-download').click();
+                    }
                 } catch (err) {
                     console.log("Share cancelled or failed", err);
-                    if (window.Utils) window.Utils.alertModal("Sharing was cancelled or is unsupported on this device.", "Share Failed");
                 }
             };
             
-            // 🚨 ENTERPRISE FIX: Reliable Close Action for the Loaded Document
             document.getElementById('btn-close-pdf-loaded').onclick = () => {
                 const viewer = document.getElementById('in-app-pdf-viewer');
                 if (viewer) viewer.remove();
-                
                 document.body.style.overflow = '';
-                
                 const pa = document.getElementById('print-area');
                 if (pa) pa.innerHTML = '';
-                
-                const vp = document.querySelector('meta[name="viewport"]');
-                if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
-                
-                // Safely clear phone RAM
+                const v = document.querySelector('meta[name="viewport"]');
+                if (v) v.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
                 URL.revokeObjectURL(imgSrc);
             };
 
@@ -1028,7 +1046,6 @@ Please process this accordingly. Thank you!`;
             console.error("Preview Generation Failed", err);
             alert("Failed to generate preview.");
         } finally {
-            // Restore UI dimensions
             element.style.width = origWidth;
             element.style.minWidth = origMinWidth;
             element.style.maxWidth = origMaxWidth;
@@ -1222,10 +1239,15 @@ Please process this accordingly. Thank you!`;
                 Object.keys(taxGroups).forEach(rate => {
                     let r = parseFloat(rate), t = taxGroups[rate].taxable, tx = taxGroups[rate].tax;
                     tTaxable += t; tTax += tx;
+                    
+                    // 🚨 CRITICAL FIX: Line-Item 1-Paisa Mismatch Shield
+                    let cGstAmt = Math.round((tx / 2) * 100) / 100;
+                    let sGstAmt = tx - cGstAmt; 
+                    
                     rows += `<tr>
                         <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${r}%</td>
                         <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${t.toFixed(2)}</td>
-                        ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(tx/2).toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(tx/2).toFixed(2)}</td>`}
+                        ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${cGstAmt.toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${sGstAmt.toFixed(2)}</td>`}
                         ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tx.toFixed(2)}</td>` : ''}
                         <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tx.toFixed(2)}</td>
                     </tr>`;
@@ -1248,7 +1270,11 @@ Please process this accordingly. Thank you!`;
                             <tr style="background: #f8fafc; font-weight: 800;">
                                 <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">Total</td>
                                 <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTaxable.toFixed(2)}</td>
-                                ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(tTax/2).toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${(tTax/2).toFixed(2)}</td>`}
+                                ${(() => {
+    let tCgstAmt = Math.round((tTax / 2) * 100) / 100;
+    let tSgstAmt = tTax - tCgstAmt;
+    return isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tCgstAmt.toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tSgstAmt.toFixed(2)}</td>`;
+})()}
                                 ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTax.toFixed(2)}</td>` : ''}
                                 <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTax.toFixed(2)}</td>
                             </tr>
@@ -1295,35 +1321,60 @@ Please process this accordingly. Thank you!`;
 
         // ENTERPRISE FIX: Changed 'const' to 'let' so the Split-Payment Tracker doesn't crash the engine!
         let html = `
-        <div id="${uniquePdfId}" class="a4-document" style="width: 800px; max-width: none; position: relative; overflow: hidden; font-family: 'Inter', sans-serif;">
+        <div id="${uniquePdfId}" class="a4-document" style="width: 800px; max-width: none; position: relative; overflow: hidden; font-family: 'Inter', sans-serif; background: #ffffff;">
             <style>
-                #${uniquePdfId} table { page-break-inside: auto; }
+                /* 🚨 CA-FIRM STRICT PDF GRID SYSTEM */
+                #${uniquePdfId} table { page-break-inside: auto; border-collapse: collapse !important; width: 100% !important; border: 1.5px solid #0f172a !important; margin-bottom: 24px !important; }
                 #${uniquePdfId} tr { page-break-inside: avoid; page-break-after: auto; }
                 #${uniquePdfId} thead { display: table-header-group; }
+                #${uniquePdfId} th { border: 1px solid #0f172a !important; background-color: #f1f5f9 !important; padding: 12px 14px !important; font-weight: 900 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; letter-spacing: 0.5px; }
+                #${uniquePdfId} td { border: 1px solid #0f172a !important; padding: 10px 14px !important; font-size: 13px !important; color: #0f172a !important; vertical-align: top; font-weight: 600; }
+                
+                /* Override inline borders from the JS replace functions */
+                #${uniquePdfId} td[style] { border: 1px solid #0f172a !important; }
+                
+                /* Strict Totals Box */
+                #${uniquePdfId} .totals-box { width: 340px !important; background: #ffffff !important; border: 1.5px solid #0f172a !important; border-radius: 0 !important; padding: 0 !important; box-shadow: 4px 4px 0px rgba(0,0,0,0.05) !important; }
+                #${uniquePdfId} .totals-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px !important; border-bottom: 1px solid #cbd5e1 !important; margin: 0 !important; font-size: 13px !important; color: #0f172a !important; }
+                #${uniquePdfId} .totals-row:last-child { border-bottom: none !important; }
+                #${uniquePdfId} .totals-row span:first-child { font-weight: 700 !important; color: #475569 !important; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+                #${uniquePdfId} .totals-row span:last-child { font-weight: 800 !important; color: #0f172a !important; font-size: 14px; }
+                
+                #${uniquePdfId} .grand-total { background: #0f172a !important; border-top: 1.5px solid #0f172a !important; padding: 14px 16px !important; border-bottom: none !important; margin: 0 !important; }
+                #${uniquePdfId} .grand-total span:first-child { color: #ffffff !important; font-weight: 900 !important; font-size: 14px !important; }
+                #${uniquePdfId} .grand-total span:last-child { color: #ffffff !important; font-weight: 900 !important; font-size: 18px !important; }
+                
+                /* Strict Sections */
                 .avoid-break { page-break-inside: avoid; }
+                .address-title { font-size: 12px !important; text-transform: uppercase !important; font-weight: 900 !important; color: #0f172a !important; border-bottom: 1.5px solid #0f172a !important; padding-bottom: 6px !important; margin-bottom: 12px !important; letter-spacing: 0.5px; }
+                .address-box { border: 1.5px solid #0f172a !important; border-radius: 0 !important; padding: 16px !important; background: #ffffff !important; box-shadow: 4px 4px 0px rgba(0,0,0,0.05) !important; }
+                
+                /* Header Mini-Table Override */
+                #${uniquePdfId} table.header-table { width: 260px !important; margin: 0 !important; box-shadow: 4px 4px 0px rgba(0,0,0,0.05) !important; }
+                #${uniquePdfId} table.header-table td { padding: 8px 12px !important; border: 1px solid #0f172a !important; }
             </style>
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 2px solid #e2e8f0; padding-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 3px solid #0f172a; padding-bottom: 24px;">
                 <div>
                     ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; max-width: 200px; object-fit: contain; margin-bottom: 16px;">` : ''}
-                    <h1 style="font-size: 24px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; text-transform: uppercase;">${safeBizName}</h1>
-                    <div style="color: #475569; font-size: 13px; line-height: 1.6;">
+                    <h1 style="font-size: 26px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: -0.5px;">${safeBizName}</h1>
+                    <div style="color: #334155; font-size: 13px; line-height: 1.6; font-weight: 600;">
                         ${safeBizAddress ? safeBizAddress.replace(/\n/g, '<br>') + '<br>' : ''}
                         ${bizLocationStr ? bizLocationStr + '<br>' : ''}
                         ${safeBizPhone ? `<strong>Phone:</strong> ${safeBizPhone}` : ''} ${safeBizEmail ? ` | <strong>Email:</strong> ${safeBizEmail}` : ''}
-                        ${!isNonGST && bizGst && bizGst !== 'N/A' ? `<br><strong style="color:#0f172a;">GSTIN: ${bizGst}</strong>` : ''}
+                        ${!isNonGST && bizGst && bizGst !== 'N/A' ? `<br><strong style="color:#0f172a; background: #f1f5f9; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; display: inline-block; margin-top: 6px;">GSTIN: ${bizGst}</strong>` : ''}
                     </div>
                 </div>
                 <div style="text-align: right;">
-                    <h2 style="color: #0061a4; font-size: 28px; font-weight: 900; margin: 0 0 12px 0; letter-spacing: 1px;">${title}</h2>
-                    <table style="width: 240px; font-size: 13px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; display: inline-table; text-align: left; margin: 0; padding: 6px;">
+                    <h2 style="color: #0f172a; font-size: 28px; font-weight: 900; margin: 0 0 16px 0; letter-spacing: 2px; text-transform: uppercase;">${title}</h2>
+                    <table class="header-table" style="font-size: 13px; color: #0f172a; background: #ffffff; text-align: left; display: inline-table;">
                         <tr>
-                            <td style="padding: 6px; border: none;"><strong>Document No:</strong></td>
-                            <td style="padding: 6px; border: none; text-align: right; color: #0f172a; font-weight: 700;">${safeDocNo}</td>
+                            <td style="background: #f1f5f9; width: 40%;"><strong>Document No:</strong></td>
+                            <td style="text-align: right; font-weight: 800; font-size: 14px;">${safeDocNo}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 6px; border: none;"><strong>Date:</strong></td>
-                            <td style="padding: 6px; border: none; text-align: right; color: #0f172a; font-weight: 700;">${Utils.formatDateDisplay(doc.date)}</td>
+                            <td style="background: #f1f5f9;"><strong>Date:</strong></td>
+                            <td style="text-align: right; font-weight: 800; font-size: 14px;">${Utils.formatDateDisplay(doc.date)}</td>
                         </tr>
                     </table>
                 </div>
@@ -1374,14 +1425,15 @@ Please process this accordingly. Thank you!`;
                 </tbody>
             </table>
 
+            <!-- 🚨 ENTERPRISE FIX: Move GST Summary Table out of the left column so it spans full-width! -->
+            ${gstSummaryHtml.replace(/font-size: 10px; text-transform: uppercase; font-weight: 800; color: #475569; margin-bottom: 4px;/, 'font-size: 12px; text-transform: uppercase; font-weight: 900; color: #0f172a; border-bottom: 1.5px solid #0f172a; padding-bottom: 6px; margin-bottom: 12px; letter-spacing: 0.5px;').replace(/<table/g, '<table style="margin-bottom: 24px;"')}
+
             <div style="display: flex; gap: 32px; page-break-inside: avoid;">
                 <div style="flex: 1;">
-                    <div style="margin-bottom: 24px;">
-                        <div class="address-title">Amount in Words</div>
-                        <strong style="font-size: 13px; color: #0f172a; font-style: italic;">Rupees ${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</strong>
+                    <div style="margin-bottom: 24px; border: 1.5px solid #0f172a; padding: 12px 16px; background: #f8fafc; border-radius: 0; box-shadow: 4px 4px 0px rgba(0,0,0,0.05);">
+                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 900; color: #475569; margin-bottom: 4px; letter-spacing: 0.5px;">Total Amount in Words</div>
+                        <strong style="font-size: 14px; color: #0f172a; text-transform: uppercase;">Rupees ${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</strong>
                     </div>
-
-                    ${gstSummaryHtml.replace(/border: 1px solid #cbd5e1;/g, 'border-bottom: 1px solid #e2e8f0; padding: 6px;').replace(/<table/g, '<table style="margin-bottom: 0;"')}
                     
                     <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 24px;">
                         ${qrCodeHtml}
@@ -2258,7 +2310,8 @@ Thank you!`;
             const el = document.getElementById(elementId);
             if (!el) return;
             
-            window.Utils.showToast("⏳ Preparing PDF...");
+            // Yield the main thread so the UI registers the tap before freezing to generate the PDF!
+            await new Promise(res => setTimeout(res, 50));
 
             // ENTERPRISE FIX: Measure true desktop height BEFORE running the engine to kill blank space!
             const origW = el.style.width;
@@ -2331,6 +2384,7 @@ Thank you!`;
                 pdfBlob = await window.html2pdf().set(opt).from(el).outputPdf('blob');
             } catch (genErr) {
                 console.error("PDF Engine RAM Exhaustion Error:", genErr);
+                if (document.getElementById('pdf-share-blocker')) document.getElementById('pdf-share-blocker').remove();
                 // 🚨 ENTERPRISE FIX: Ultimate Fallback to Native Browser Print if RAM is completely exhausted!
                 alert("The document is too large to share directly on this device. Falling back to Native Print.");
                 
@@ -2344,6 +2398,9 @@ Thank you!`;
             }
 
             const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+            // Remove the visual blocker since processing is done!
+            if (document.getElementById('pdf-share-blocker')) document.getElementById('pdf-share-blocker').remove();
 
             // 🚨 SOLLO FIX: If user tapped download, skip sharing and just download!
             if (forceDownload) {
@@ -2369,6 +2426,7 @@ Thank you!`;
                 window.html2pdf().set(opt).from(el).save(); // Fallback to safe download
             }
         } catch (err) {
+            if (document.getElementById('pdf-share-blocker')) document.getElementById('pdf-share-blocker').remove();
             console.error("Critical PDF System Error:", err);
         }
     },
@@ -2538,7 +2596,7 @@ Thank you!`;
 // ==========================================
 // ENTERPRISE UPGRADE: PARTY-FILTERED ITEM LEDGER PDF
 // ==========================================
-window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyName = null, searchText = '', typeFilter = 'ALL', dateFilter = '') => {
+window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyName = null, searchText = '', typeFilter = 'ALL', dateFilter = '', actionType = 'preview') => {
     if (typeof window.html2pdf === 'undefined' && typeof html2pdf === 'undefined') {
         if (window.Utils) window.Utils.showToast("Loading PDF Engine... Please tap Print again in 2 seconds.");
         const s2 = document.createElement('script');
@@ -2795,7 +2853,12 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
             const safeItemName = itemName ? String(itemName) : 'Unknown_Item';
             const safePartyStr = partyName ? `_${String(partyName).replace(/[^a-z0-9]/gi, '')}` : '';
             const safeFilename = `Stock_Ledger_${safeItemName.replace(/[^a-z0-9]/gi, '_')}${safePartyStr}.pdf`;
-            window.Utils.processPDFExport(uniquePdfId, safeFilename);
+            
+            if (actionType === 'share') {
+                window.Utils.sharePDF(uniquePdfId, safeFilename, `Here is the Stock Ledger for ${safeItemName}`);
+            } else {
+                window.Utils.processPDFExport(uniquePdfId, safeFilename);
+            }
         }, 100);
     }
 };
