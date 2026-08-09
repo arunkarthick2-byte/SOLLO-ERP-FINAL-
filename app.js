@@ -1289,13 +1289,9 @@ const app = {
                 const today = new Date().toISOString().split('T')[0];
                 const localDate = (typeof Utils !== 'undefined' && typeof Utils.getLocalDate === 'function') ? Utils.getLocalDate() : today;
                 
-                // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY
-                const parts = localDate.split('-');
-                if (parts.length === 3) {
-                    dateEl.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
-                } else {
-                    dateEl.value = localDate;
-                }
+                // 🚨 ENTERPRISE FIX: Always use YYYY-MM-DD for native mobile compatibility!
+                dateEl.value = localDate;
+                if (dateEl._flatpickr) dateEl._flatpickr.setDate(localDate);
             }
 
             // Safely open the sheet
@@ -2670,19 +2666,20 @@ const app = {
                 await app.populateEditForm(type, id);
             } else {
                 const dateInput = document.getElementById(`${type}-date`);
+                const orderDateInput = document.getElementById(`${type}-order-date`); // 🚨 TARGET THE ORDER DATE
+                
                 if(dateInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
                     const localDate = Utils.getLocalDate();
                     
-                    // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY for the visible input
-                    const parts = localDate.split('-');
-                    if (parts.length === 3) {
-                        dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
-                    } else {
-                        dateInput.value = localDate;
-                    }
-
-                    // 2. We still feed the standard YYYY-MM-DD into Flatpickr so its internal math doesn't break!
+                    // 🚨 ENTERPRISE FIX: Always feed YYYY-MM-DD to native date inputs so mobile browsers don't blank it out!
+                    dateInput.value = localDate;
                     if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate); 
+
+                    // 🚨 SOLLO FIX: Auto-fill the Order Date so it doesn't stay blank!
+                    if (orderDateInput) {
+                        orderDateInput.value = localDate;
+                        if (orderDateInput._flatpickr) orderDateInput._flatpickr.setDate(localDate);
+                    }
                 }
                 
                 // ENTERPRISE FIX: Force status to "Open" for brand new documents
@@ -4499,13 +4496,8 @@ if (data.id && splitConfirmed) {
             const today = new Date().toISOString().split('T')[0];
             const localDate = (typeof Utils !== 'undefined' && typeof Utils.getLocalDate === 'function') ? Utils.getLocalDate() : today;
             
-            // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY for the visible input
-            const parts = localDate.split('-');
-            if (parts.length === 3) {
-                dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
-            } else {
-                dateInput.value = localDate;
-            }
+            // 🚨 ENTERPRISE FIX: Always use YYYY-MM-DD for native mobile compatibility!
+            dateInput.value = localDate;
 
             if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate);
         }
@@ -4861,13 +4853,8 @@ if (data.id && splitConfirmed) {
         if (dateEl) {
             const today = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
             
-            // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY for the visible input
-            const parts = today.split('-');
-            if (parts.length === 3) {
-                dateEl.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
-            } else {
-                dateEl.value = today;
-            }
+            // 🚨 ENTERPRISE FIX: Always use YYYY-MM-DD for native mobile compatibility!
+            dateEl.value = today;
 
             if (dateEl._flatpickr) dateEl._flatpickr.setDate(today);
         }

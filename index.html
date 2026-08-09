@@ -161,10 +161,23 @@
             padding: 16px !important;
             margin: 0 !important;
         }
-        /* Automatically applies the divider lines to everything except the last item! */
-        #reports-action-container > div > .m3-card.report-btn:not(:last-child),
-        #workspace-master-grid .m3-card.master-action-btn:not(:last-child) {
-            border-bottom: 1px solid var(--md-surface-variant) !important;
+        
+        /* 🚨 SEAMLESS UI: Remove ALL list divider lines globally */
+        #reports-action-container .m3-card.report-btn,
+        #workspace-master-grid .m3-card.master-action-btn,
+        #bank-balances-container > div,
+        #bank-balances-container .m3-card {
+            border-bottom: none !important;
+        }
+        
+        /* Safely kill inner list dividers in Menu, Dashboard, and Overdue Collections */
+        #tab-menu [style*="border-bottom: 1px solid var(--md-surface-variant)"],
+        #tab-dashboard [style*="border-bottom: 1px solid var(--md-outline-variant)"],
+        #tab-dashboard [style*="border-right: 1px solid var(--md-outline-variant)"],
+        #dash-action-overdue,
+        #list-overdue div {
+            border-bottom: none !important;
+            border-right: none !important;
         }
 
 
