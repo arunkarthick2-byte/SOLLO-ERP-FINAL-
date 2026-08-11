@@ -1721,34 +1721,10 @@ const UI = {
                 <p style="margin: 8px 0 0 0; color: var(--md-text-muted);">Try adjusting your search or filters.</p>
             </div>`;
 
-            // 🚀 ENTERPRISE UPGRADE: EXPLICIT PAYMENT TAX-SPLIT ENGINE
-            // Respects the exact invoices ticked in the Payment Form instead of blindly guessing via FIFO!
+            // 🚀 ENTERPRISE UPGRADE: TRUE LEDGER SIMULATION ENGINE
+            // Mirrors the exact, foolproof math used in the Party Ledger PDF!
             const splitBalances = {};
-            const exactPaymentMap = {};
-            const exactReturnMap = {};
-
-            // 1. Map all explicit manual payments to their selected invoices
-            UI.state.rawData.cashbook.forEach(c => {
-                // 🚨 LEGACY FIX: Catch old payments saved under 'linkedInvoice'
-                const legacyRef = c.invoiceRef || c.linkedInvoice;
-                if (c.ledgerId && legacyRef) {
-                    let amt = parseFloat(c.amount) || 0;
-                    const refs = String(legacyRef).split(',').map(r => r.trim());
-                    // Waterfall through the linked invoices
-                    let remainingAmt = amt;
-                    refs.forEach(ref => {
-                        if (remainingAmt <= 0) return;
-                        exactPaymentMap[`${c.ledgerId}_${ref}`] = (exactPaymentMap[`${c.ledgerId}_${ref}`] || 0) + (amt / refs.length);
-                    });
-                }
-            });
-
-            // 2. Map all explicitly linked returns/credit notes
-            [...UI.state.rawData.sales, ...UI.state.rawData.purchases].forEach(d => {
-                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
-                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
-                }
-            });
+            const activeFirmIdForMaster = (window.app && window.app.state) ? window.app.state.firmId : null;
 
             UI.state.rawData.ledgers.forEach(l => {
                 const isCustomer = String(l.type).toLowerCase() === 'customer';
@@ -1756,61 +1732,50 @@ const UI = {
                 const balType = (l.balanceType || '').toLowerCase();
                 let isAdv = isCustomer ? (balType.includes('pay') || balType.includes('credit')) : (balType.includes('receive') || balType.includes('debit'));
                 
-                let trueBalance = isAdv ? -ob : ob;
-                let gstDue = 0; 
-                let nonDue = !isAdv ? ob : 0; // 🚨 BUG FIX: Opening balance falls to Non-GST pool by default
+                // Legacy Opening Balance always falls to Non-GST
+                let trueBalGST = 0;
+                let trueBalNonGST = !isAdv ? ob : -ob;
 
-                // 3. Scan exact balances of invoices for this ledger
                 const relatedDocs = isCustomer ? UI.state.rawData.sales : UI.state.rawData.purchases;
-                relatedDocs.forEach(doc => {
-                    const partyMatch = isCustomer ? doc.customerId === l.id : doc.supplierId === l.id;
-                    // 🚨 BUG FIX: Block Cancelled bills from inflating Customer/Supplier Outstanding Balances!
-                    if (partyMatch && doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return') {
-                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
-                        const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[`${l.id}_${ref}`] || 0), 0);
-                        const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
-                        
-                        const docTotal = parseFloat(doc.grandTotal) || 0;
-                        const finalUnpaid = Math.max(0, docTotal - paid - returned);
-                        
-                        if (finalUnpaid > 0.01) {
-                            if (doc.invoiceType === 'Non-GST') nonDue += finalUnpaid;
-                            else gstDue += finalUnpaid;
-                        }
-                    }
-                });
 
-                // 4. Calculate total money in/out for True Balance
                 relatedDocs.forEach(d => {
-                    // 🚨 BUG FIX: Block Cancelled bills from corrupting True Floating Balances!
-                    if (d.status !== 'Open' && d.status !== 'Cancelled' && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
+                    if ((!activeFirmIdForMaster || d.firmId === activeFirmIdForMaster) && (isCustomer ? d.customerId : d.supplierId) === l.id && d.status !== 'Open' && d.status !== 'Cancelled') {
                         const amt = parseFloat(d.grandTotal) || 0;
-                        trueBalance += (d.documentType === 'return' ? -amt : amt);
-                    }
-                });
-                
-                UI.state.rawData.cashbook.forEach(c => {
-                    if (c.ledgerId === l.id) {
-                        const amt = parseFloat(c.amount) || 0;
-                        if (isCustomer) trueBalance += (c.type === 'in' ? -amt : amt);
-                        else trueBalance += (c.type === 'out' ? -amt : amt);
+                        const impact = (d.documentType === 'return' ? -amt : amt);
+                        if (d.invoiceType === 'Non-GST') trueBalNonGST += impact;
+                        else trueBalGST += impact;
                     }
                 });
 
-                // 5. Reconcile Unallocated Advances
-                const trackedDebt = gstDue + nonDue;
-                if (trueBalance < trackedDebt) {
-                    const excessCredit = trackedDebt - trueBalance;
-                    if (excessCredit >= gstDue) {
-                        let remaining = excessCredit - gstDue;
-                        gstDue = 0;
-                        nonDue = Math.max(0, nonDue - remaining);
-                    } else {
-                        gstDue -= excessCredit;
-                    }
-                }
+                UI.state.rawData.cashbook.forEach(r => {
+                    if ((!activeFirmIdForMaster || r.firmId === activeFirmIdForMaster) && r.ledgerId === l.id) {
+                        let isNonGstReceipt = r.taxPool === 'Non-GST';
+                        const legacyRef = r.invoiceRef || r.linkedInvoice;
 
-                splitBalances[l.id] = { gst: gstDue, non: nonDue, total: trueBalance };
+                        if (!r.taxPool || r.taxPool === 'All') {
+                            isNonGstReceipt = true;
+                            if (legacyRef) {
+                                const firstRef = String(legacyRef).split(',')[0].trim();
+                                const linkedDoc = relatedDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                                if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                            }
+                        }
+
+                        const amt = parseFloat(r.amount) || 0;
+                        const impact = isCustomer ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
+
+                        if (isNonGstReceipt) trueBalNonGST += impact;
+                        else trueBalGST += impact;
+                    }
+                });
+
+                const trueBalance = trueBalGST + trueBalNonGST;
+
+                splitBalances[l.id] = { 
+                    gst: Math.max(0, trueBalGST), 
+                    non: Math.max(0, trueBalNonGST), 
+                    total: trueBalance 
+                };
             });
 
             const getBal = (id, type) => splitBalances[id] ? splitBalances[id].total : 0;
@@ -2027,7 +1992,7 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                             </div>
                         </div>
 
-                        <div style="display: flex; justify-content: flex-end; align-items: center;">
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
                                 <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">menu_book</span>
@@ -3643,11 +3608,6 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                 step2.classList.remove('hidden');
                 step2.classList.add('animate-step');
                 if (footer) footer.classList.remove('hidden');
-                
-                // 🚨 ENTERPRISE UX: Auto-scroll to the billing section!
-                setTimeout(() => {
-                    step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 150);
             }
         }
 
@@ -3670,7 +3630,7 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         UI.closeBottomSheet('sheet-smart-search');
     },
 
-    // ENTERPRISE UPGRADE: ULTRA-FAST SMART PRICING MEMORY ENGINE (WITH CLICKABLE LEDGER)
+    // ENTERPRISE UPGRADE: SMART PRICING MEMORY ENGINE (WITH CLICKABLE LEDGER)
     getSmartRate: (prefix, itemId, defaultPrice) => {
         const isSales = prefix === 'sales';
         const partyInput = document.getElementById(isSales ? 'sales-customer-id' : 'purchase-supplier-id');
@@ -3680,58 +3640,31 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
 
         const historyData = isSales ? UI.state.rawData.sales : UI.state.rawData.purchases;
         let lastRate = null;
-        let lastDate = ""; // String comparison is much faster than new Date()
+        let lastDate = 0;
 
-        // Reverse loop to find the most recent price instantly without scanning the whole database
-        for (let i = historyData.length - 1; i >= 0; i--) {
-            const doc = historyData[i];
-            
-            if (doc.status === 'Open' || doc.documentType === 'return') continue;
-            
-            const matchParty = isSales ? doc.customerId === partyId : doc.supplierId === partyId;
-            if (!matchParty) continue;
-
-            const docDate = doc.date || "";
-            if (lastDate && docDate < lastDate) continue;
-
-            const items = doc.items || [];
-            for (let j = 0; j < items.length; j++) {
-                const row = items[j];
-                const rId = row.itemId || row.id; 
-                if (rId === itemId) {
-                    lastRate = parseFloat(row.rate);
-                    lastDate = docDate;
-                    break; // Stop looking in this invoice once we found the item
-                }
+        // Scan history to find the most recent price charged to THIS specific party
+        historyData.forEach(doc => {
+            if (doc.status !== 'Open' && doc.documentType !== 'return' && (isSales ? doc.customerId === partyId : doc.supplierId === partyId)) {
+                const docTime = new Date(doc.date || 0).getTime();
+                (doc.items || []).forEach(row => {
+                    const rId = row.itemId || row.id; 
+                    if (rId === itemId && docTime >= lastDate) {
+                        lastRate = parseFloat(row.rate);
+                        lastDate = docTime;
+                    }
+                });
             }
-        }
+        });
 
         if (lastRate !== null && lastRate !== parseFloat(defaultPrice)) {
             const itemObj = (UI.state.rawData.items || []).find(i => i.id === itemId);
             const itemName = itemObj ? String(itemObj.name || 'Item History').replace(/'/g, "\\'") : 'Item History';
-            
-            let dateStr = lastDate;
-            if (lastDate) {
-                const parts = lastDate.split('-');
-                if (parts.length === 3) {
-                    const dObj = new Date(parts[0], parts[1] - 1, parts[2]);
-                    dateStr = dObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-                }
-            }
-
-            // Clean up any existing duplicate badges from the DOM before returning the new one
-            setTimeout(() => {
-                const badges = document.querySelectorAll('.smart-pricing-badge');
-                if (badges.length > 1) {
-                    for (let i = 0; i < badges.length - 1; i++) {
-                        badges[i].remove();
-                    }
-                }
-            }, 50);
+            const dateObj = new Date(lastDate);
+            const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
             return { 
                 price: lastRate, 
-                msg: `<div style="margin-top: 8px;"><span class="tap-target smart-pricing-badge" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${itemId}', '${itemName}');" style="color: #0061a4; font-weight: 600; font-size: 11px; background: #e3f2fd; padding: 4px 12px; border-radius: 12px; border: 1px solid #90caf9; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">history</span> Last sold: ₹${lastRate} on ${dateStr}</span></div>` 
+                msg: `<div style="margin-top: 8px;"><span class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${itemId}', '${itemName}');" style="color: #0061a4; font-weight: 600; font-size: 11px; background: #e3f2fd; padding: 4px 12px; border-radius: 12px; border: 1px solid #90caf9; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">history</span> Last sold: ₹${lastRate} on ${dateStr}</span></div>` 
             };
         }
         return { price: defaultPrice, msg: '' };
@@ -3742,34 +3675,8 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         const emptyState = document.getElementById(`${prefix}-empty-items`);
         if(!container) return;
         if(emptyState) emptyState.style.display = 'none';
-
-        // 🚨 ENTERPRISE UX: Smart Cart Duplicate Merger
-        // Check if this product is already physically in the invoice
-        const existingItem = container.querySelector(`.row-item-id[value="${id}"]`);
-        if (existingItem) {
-            const card = existingItem.closest('.item-entry-card');
-            if (card) {
-                const qtyInput = card.querySelector('.row-qty');
-                if (qtyInput) {
-                    let currentQty = parseFloat(qtyInput.value) || 0;
-                    qtyInput.value = currentQty + 1; // Add +1 to the quantity
-                    
-                    // Flash the row background so the user knows it updated
-                    card.style.backgroundColor = 'rgba(0, 97, 164, 0.1)';
-                    setTimeout(() => { card.style.backgroundColor = 'transparent'; }, 400);
-                    
-                    // Recalculate totals immediately
-                    prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
-                    if (window.Utils) window.Utils.showToast(`Updated quantity for ${name}`);
-                    return; // Stop here! Do not create a duplicate row.
-                }
-            }
-        }
-
-        // 🚨 ENTERPRISE UX: Auto-Collapse existing rows to save screen space!
-        const existingRows = container.querySelectorAll('.item-details-body');
-        existingRows.forEach(r => r.style.display = 'none');
         
+        // Trigger Smart Pricing Memory
         const smart = UI.getSmartRate(prefix, id, price);
         
         const itemCard = document.createElement('div');
@@ -3786,20 +3693,9 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
 
         itemCard.innerHTML = `
             ${hiddenInputs}
-            <!-- ACCORDION HEADER (Click to toggle) -->
-            <div class="tap-target" onclick="const b = this.nextElementSibling; b.style.display = b.style.display === 'none' ? 'block' : 'none';" style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; user-select: none;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                 <div style="flex: 1; padding-right: 8px; min-width: 0;">
-                    <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
-                    <div style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">Tap to view & edit details <span class="material-symbols-outlined" style="font-size: 12px; vertical-align: middle;">edit</span></div>
-                </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                    <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface);">0.00</strong>
-                </div>
-            </div>
-            
-            <!-- ACCORDION BODY (Inputs) -->
-            <div class="item-details-body" style="display: block; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--md-outline-variant);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
                         <input type="text" inputmode="decimal" class="row-qty" value="1" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
@@ -3810,20 +3706,21 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
                         <input type="hidden" class="row-uom" value="${uom || 'Unit'}">
                     </div>
-                    
-                    <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-error); padding: 4px; border-radius: 6px; background: rgba(186, 26, 26, 0.1); display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                        <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
+                    ${prefix === 'sales' ? `
+                    <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
+                        <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
+                        <input type="text" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                        <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                     </div>
+                    ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
+                    ${smart.msg}
                 </div>
-
-                ${prefix === 'sales' ? `
-                <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
-                    <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                    <input type="text" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
-                    <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
+                    <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                    </div>
+                    <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
                 </div>
-                ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
-                ${smart.msg}
             </div>
         `;
         container.appendChild(itemCard);
@@ -3894,11 +3791,6 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                 step2.classList.remove('hidden');
                 step2.classList.add('animate-step');
                 if (footer) footer.classList.remove('hidden');
-                
-                // 🚨 ENTERPRISE UX: Auto-scroll to the billing section!
-                setTimeout(() => {
-                    step2.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 150);
             }
         }
 
@@ -3980,29 +3872,8 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         if(!container) return;
         if(emptyState) emptyState.style.display = 'none';
         
-        // 🚨 ENTERPRISE UX: Auto-Collapse existing rows to save screen space!
-        const existingRows = container.querySelectorAll('.item-details-body');
-        existingRows.forEach(r => r.style.display = 'none');
-
         UI.state.selectedProducts.forEach(p => {
-            // 🚨 ENTERPRISE UX: Smart Cart Duplicate Merger
-            const existingItem = container.querySelector(`.row-item-id[value="${p.id}"]`);
-            if (existingItem) {
-                const card = existingItem.closest('.item-entry-card');
-                if (card) {
-                    const qtyInput = card.querySelector('.row-qty');
-                    if (qtyInput) {
-                        let currentQty = parseFloat(qtyInput.value) || 0;
-                        qtyInput.value = currentQty + 1; // Add +1 to quantity
-                        
-                        // Flash the background
-                        card.style.backgroundColor = 'rgba(0, 97, 164, 0.1)';
-                        setTimeout(() => { card.style.backgroundColor = 'transparent'; }, 400);
-                        return; // Skip adding a new duplicate row!
-                    }
-                }
-            }
-
+            // Trigger Smart Pricing Memory
             const smart = UI.getSmartRate(prefix, p.id, p.price);
 
             const itemCard = document.createElement('div');
@@ -4020,40 +3891,30 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
             itemCard.innerHTML = `
                 ${hiddenInputs}
                 
-                <!-- ACCORDION HEADER (Click to toggle) -->
-                <div class="tap-target" onclick="const b = this.nextElementSibling; b.style.display = b.style.display === 'none' ? 'block' : 'none';" style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; user-select: none;">
-                    <div style="flex: 1; padding-right: 8px; min-width: 0;">
-                        <strong style="font-size: 15px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</strong>
-                        <div style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">Tap to view & edit details <span class="material-symbols-outlined" style="font-size: 12px; vertical-align: middle;">edit</span></div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+                    <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
+                        ${p.name}
+                        <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:100px; color:inherit;" readonly></div>
                     </div>
-                    <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                        <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface);">0.00</strong>
-                    </div>
+                    <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
                 </div>
                 
-                <!-- ACCORDION BODY (Inputs) -->
-                <div class="item-details-body" style="display: block; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--md-outline-variant);">
-                    
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <div style="font-size:11px; color:var(--md-text-muted);">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:100px; color:inherit;" readonly></div>
-                        <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px; border-radius: 6px; background: rgba(186, 26, 26, 0.1);" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                    <div>
+                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
+                        <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                        <div>
-                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                            <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
-                        </div>
-                        <div>
-                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)</small>
-                            <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
-                        </div>
-                        <div>
-                            <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                            <input type="text" inputmode="decimal" class="row-gst" value="${p.gst || 0}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
-                        </div>
+                    <div>
+                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)</small>
+                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
+                    <div>
+                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
+                        <input type="text" inputmode="decimal" class="row-gst" value="${p.gst || 0}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                    </div>
+                </div>
 
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
                     <div style="display:flex; flex-direction:column; gap:4px;">
                         ${prefix === 'sales' ? `
                         <div style="display:flex; align-items:center; gap:4px;">
@@ -4063,6 +3924,10 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                         </div>
                         ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
                         ${smart.msg}
+                    </div>
+                    <div style="text-align:right;">
+                        <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
+                        <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
                     </div>
                 </div>
             `;

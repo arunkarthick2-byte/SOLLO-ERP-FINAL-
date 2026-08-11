@@ -161,23 +161,10 @@
             padding: 16px !important;
             margin: 0 !important;
         }
-        
-        /* 🚨 SEAMLESS UI: Remove ALL list divider lines globally */
-        #reports-action-container .m3-card.report-btn,
-        #workspace-master-grid .m3-card.master-action-btn,
-        #bank-balances-container > div,
-        #bank-balances-container .m3-card {
-            border-bottom: none !important;
-        }
-        
-        /* Safely kill inner list dividers in Menu, Dashboard, and Overdue Collections */
-        #tab-menu [style*="border-bottom: 1px solid var(--md-surface-variant)"],
-        #tab-dashboard [style*="border-bottom: 1px solid var(--md-outline-variant)"],
-        #tab-dashboard [style*="border-right: 1px solid var(--md-outline-variant)"],
-        #dash-action-overdue,
-        #list-overdue div {
-            border-bottom: none !important;
-            border-right: none !important;
+        /* Automatically applies the divider lines to everything except the last item! */
+        #reports-action-container > div > .m3-card.report-btn:not(:last-child),
+        #workspace-master-grid .m3-card.master-action-btn:not(:last-child) {
+            border-bottom: 1px solid var(--md-surface-variant) !important;
         }
 
 
@@ -205,6 +192,10 @@
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" as="script">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- 🚀 ENTERPRISE UPGRADE: FAST VECTOR PDF ENGINE -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 </head>
 
 <body>
@@ -1187,12 +1178,22 @@
 
 
     <div id="activity-sales-form" class="activity-screen hidden">
-        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
-            <div style="display: flex; justify-content: flex-start;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-sales-form')" style="padding: 8px; margin-left: -8px;">close</span>
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">close</span>
+                <span id="form-title-sales" style="font-size: 18px; font-weight: 500;">New Sales Invoice</span>
             </div>
-            <div id="form-title-sales" style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">New Sales Invoice</div>
-            <div><!-- Invisible Spacer to perfectly balance the Close button --></div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-sales" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+                <div id="btn-share-sales" class="icon-circle tap-target" style="width: 36px; height: 36px; background: rgba(20, 108, 46, 0.1); color: #16a34a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                </div>
+                <div id="btn-pdf-sales" class="icon-circle tap-target" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
+                </div>
+            </div>
         </div>
         <div class="activity-content">
             <form id="form-sales">
@@ -1441,12 +1442,22 @@
     </div>
 
     <div id="activity-purchase-form" class="activity-screen hidden">
-        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
-            <div style="display: flex; justify-content: flex-start;">
-                <span class="material-symbols-outlined tap-target" onclick="UI.closeActivity('activity-sales-form')" style="padding: 8px; margin-left: -8px;">close</span>
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">close</span>
+                <span id="form-title-purchase" style="font-size: 18px; font-weight: 500;">New Purchase Bill</span>
             </div>
-            <div id="form-title-sales" style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">New Sales Invoice</div>
-            <div><!-- Invisible Spacer to perfectly balance the Close button --></div>
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-purchase" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+                </div>
+                <div id="btn-share-purchase" class="icon-circle tap-target" style="width: 36px; height: 36px; background: rgba(20, 108, 46, 0.1); color: #16a34a; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                </div>
+                <div id="btn-pdf-purchase" class="icon-circle tap-target" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
+                </div>
+            </div>
         </div>
         <div class="activity-content">
             <form id="form-purchase">
@@ -1673,13 +1684,16 @@
     </div>
 
     <div id="activity-expense-form" class="activity-screen hidden">
-        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
-            <div style="display: flex; justify-content: flex-start;">
-                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">close</span>
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">close</span>
+                <span id="expense-form-title" style="font-size: 18px; font-weight: 500;">Log Expense</span>
             </div>
-            <div id="expense-form-title" style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Log Expense</div>
-            <div style="display: flex; justify-content: flex-end;">
-                <div id="btn-delete-expense" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-print-expense" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span>
+                </div>
+                <div id="btn-delete-expense" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -1849,13 +1863,13 @@
     </div>
 
     <div id="activity-product-form" class="activity-screen hidden">
-        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
-            <div style="display: flex; justify-content: flex-start;">
-                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">close</span>
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">close</span>
+                <span style="font-size: 18px; font-weight: 500;">Product Details</span>
             </div>
-            <div style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Product Details</div>
-            <div style="display: flex; justify-content: flex-end;">
-                <div id="btn-delete-product" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-product" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -1964,13 +1978,13 @@
     </div>
 
     <div id="activity-ledger-form" class="activity-screen hidden">
-        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
-            <div style="display: flex; justify-content: flex-start;">
-                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">close</span>
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">close</span>
+                <span style="font-size: 18px; font-weight: 500;">Party Details</span>
             </div>
-            <div style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Party Details</div>
-            <div style="display: flex; justify-content: flex-end;">
-                <div id="btn-delete-ledger" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-ledger" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -2091,13 +2105,13 @@
     </div>
 
     <div id="activity-account-form" class="activity-screen hidden">
-        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
-            <div style="display: flex; justify-content: flex-start;">
-                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">arrow_back</span>
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">arrow_back</span>
+                <span id="form-title-account" style="font-size: 18px; font-weight: 500;">New Bank/Cash Account</span>
             </div>
-            <div id="form-title-account" style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">New Bank/Cash Account</div>
-            <div style="display: flex; justify-content: flex-end;">
-                <div id="btn-delete-account" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <div id="btn-delete-account" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -3100,13 +3114,14 @@
 
 
     <div id="activity-payment-in-form" class="activity-screen hidden">
-        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
-            <div style="display: flex; justify-content: flex-start;">
-                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">arrow_back</span>
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">arrow_back</span>
+                <span style="font-size: 18px; font-weight: 500;">Receive Payment</span>
             </div>
-            <div style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Receive Payment</div>
-            <div style="display: flex; justify-content: flex-end;">
-                <div id="btn-delete-receipt-in" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <span id="btn-print-receipt-in" class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
+                <div id="btn-delete-receipt-in" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>
@@ -3215,13 +3230,14 @@
     </div>
 
     <div id="activity-payment-out-form" class="activity-screen hidden">
-        <div class="activity-header" style="display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; width: 100%; box-sizing: border-box; padding: 0 12px;">
-            <div style="display: flex; justify-content: flex-start;">
-                <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;">arrow_back</span>
+        <div class="activity-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-symbols-outlined tap-target" style="padding: 4px;">arrow_back</span>
+                <span style="font-size: 18px; font-weight: 500;">Make Payment</span>
             </div>
-            <div style="text-align: center; font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Make Payment</div>
-            <div style="display: flex; justify-content: flex-end;">
-                <div id="btn-delete-receipt-out" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); margin-right: -4px;">
+            <div style="display: flex; gap: 8px; margin-left: auto; align-items: center;">
+                <span id="btn-print-receipt-out" class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
+                <div id="btn-delete-receipt-out" class="icon-circle tap-target hidden" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.1); color: var(--md-error);">
                     <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
                 </div>
             </div>

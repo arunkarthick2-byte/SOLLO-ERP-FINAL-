@@ -3384,6 +3384,7 @@ html, body {
 /* Re-enable beautiful, fast scrolling safely inside your isolated containers only */
 .main-content, .activity-content, .list-view, .bottom-sheet, #smart-search-results {
     overflow-y: auto !important;
+    overflow-x: hidden !important; /* 🚨 THE WOBBLE FIX: Permanently locks the screen from swiping left/right! */
     -webkit-overflow-scrolling: touch !important; /* Smooth momentum scrolling for iOS */
     overscroll-behavior-y: contain !important; /* Confines scroll logic inside the element */
 }
@@ -4735,7 +4736,7 @@ body, body.dark-mode, [data-theme="dark"] {
    ========================================== */
 html, body, #app-shell {
     height: 100dvh !important; /* Google's Dynamic Viewport Engine */
-    width: 100vw !important;
+    width: 100% !important; /* 🚨 THE WOBBLE FIX: 100vw causes side-to-side sliding, 100% locks it perfectly! */
 }
 
 /* ==========================================
@@ -5408,7 +5409,8 @@ body:not(.dark-mode) textarea {
 }
 
 /* 2. Overrides the old "absolute center" code specifically for Sales, Purchase, Credit, and Debit forms */
-.activity-header span[id^="form-title-"] {
+.activity-header span[id^="form-title-"],
+.activity-header #expense-form-title {
     position: static !important; /* Kills the old centering that caused the crash */
     transform: none !important;
     flex: 1 1 auto !important; /* Pushes the text safely to the left */
@@ -5953,6 +5955,75 @@ body.dark-mode .bottom-nav, body.dark-mode .activity-header, body.dark-mode .for
 body.dark-mode input:focus:not([readonly]), body.dark-mode select:focus {
     border-color: #3B82F6 !important;
     box-shadow: 0 0 0 1px #3B82F6 !important;
+}
+/* ==========================================
+   🚀 ULTIMATE ENTERPRISE PERFORMANCE MODE
+   ========================================== */
+
+/* 1. ANNIHILATE GPU LAG (Kill All Glass & Blurs) */
+* {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+.bottom-sheet, .sheet-overlay, .activity-header, .bottom-nav, .form-sticky-footer, .search-bar, .date-divider, #custom-numpad {
+    background-color: #FFFFFF !important;
+}
+body.dark-mode .bottom-sheet, body.dark-mode .sheet-overlay, body.dark-mode .activity-header, body.dark-mode .bottom-nav, body.dark-mode .form-sticky-footer, body.dark-mode .search-bar, body.dark-mode .date-divider, body.dark-mode #custom-numpad {
+    background-color: #121212 !important;
+}
+.sheet-overlay.open {
+    background-color: rgba(0, 0, 0, 0.6) !important; /* Solid dim, no blur */
+}
+
+/* 2. KILL FLICKERING & GHOSTING (Disable Cascades) */
+/* View Transitions preserved for UI.js App-Morph engine */
+
+.active-screen, .bottom-sheet, .list-view li, .m3-card, .activity-content .list-card, .activity-content .timeline-item {
+    animation: none !important; /* Kills waterfall lag */
+    transition: transform 0.1s ease-out, opacity 0.1s ease-out !important; /* Instant snap */
+}
+.floating-action-button, #main-fab {
+    animation: none !important; /* Kills breathing pulse */
+}
+
+/* 3. DESTROY THE CPU-DRAINING FOCUS ENGINE */
+/* Removes the 'dim everything else' effect that forces the phone to recalculate the whole screen */
+form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:focus, textarea:focus, select:focus)) {
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+}
+.form-group {
+    transform: none !important;
+    transition: none !important;
+}
+
+/* 4. FIX OVERLAY KEYBOARD JUMPING */
+/* Smoothly slides bottom bars away when typing so they never jump to the middle of the screen */
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .bottom-nav,
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .floating-action-button {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(120px) !important;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+}
+
+/* 5. DISABLE DOM-INJECTED RIPPLES (Fixes Touch Delay) */
+.ripple, .ripple-span, .ink-ripple {
+    display: none !important; 
+}
+
+/* Cleaned boxed-in list overrides 2 */
+
+/* 7. SOLIDIFY Z-INDEX HIERARCHY (Fixes overlapping elements) */
+.pos-numpad-overlay { z-index: 99998 !important; }
+#toast-container, #enterprise-dialog, #enterprise-confirm { z-index: 99999 !important; }
+
+/* 8. INSTANT TACTILE TAPS */
+.m3-card.tap-target:active, .list-view li:active, .btn-primary:active, .floating-action-button:active {
+    transform: scale(0.98) !important;
+    background-color: #F1F5F9 !important;
+    transition: none !important; 
 }
 /* ==========================================
    🧹 UI CLEANUP: REMOVE MESSY UNDERLINES
@@ -7407,175 +7478,52 @@ body.dark-mode #ledger-summary-card {
     font-size: 16px;
 }
 /* ==========================================
-   REMOVE DIVIDER LINES FOR CLEANER LISTS
+   🚀 ULTIMATE MASTER ERASER V4: DESTROY ALL DIVIDER LINES
    ========================================== */
-#sales-history-container .m3-card,
-#purchase-history-container .m3-card,
-#cashbook-container .m3-card {
+/* 1. Base removals */
+.list-view li, 
+.m3-card, 
+.item-entry-card,
+.history-card,
+.transaction-card {
     border-bottom: none !important;
-}
-
-/* Ensure they are also removed in Dark Mode */
-body.dark-mode #sales-history-container .m3-card,
-body.dark-mode #purchase-history-container .m3-card,
-body.dark-mode #cashbook-container .m3-card {
-    border-bottom: none !important;
-}
-/* ==========================================
-   REMOVE DIVIDER LINES FOR CLEANER LISTS (ALL VIEWS)
-   ========================================== */
-#sales-history-container .m3-card,
-#purchase-history-container .m3-card,
-#cashbook-container .m3-card,
-#expense-history-container .m3-card,
-#master-list-container .m3-card {
-    border-bottom: none !important;
-}
-
-/* Ensure they are also removed in Dark Mode */
-body.dark-mode #sales-history-container .m3-card,
-body.dark-mode #purchase-history-container .m3-card,
-body.dark-mode #cashbook-container .m3-card,
-body.dark-mode #expense-history-container .m3-card,
-body.dark-mode #master-list-container .m3-card {
-    border-bottom: none !important;
-}
-/* ==========================================
-   IDEA 1: THE "TAP FLASH" (VISUAL FEEDBACK)
-   ========================================== */
-/* 1. Instant blue flash when tapped (Overrides Zebra Stripes) */
-#sales-history-container .m3-card:active,
-#purchase-history-container .m3-card:active,
-#cashbook-container .m3-card:active,
-#expense-history-container .m3-card:active,
-#master-list-container .m3-card:active {
-    background-color: rgba(0, 97, 164, 0.08) !important;
-    transition: background-color 0s !important; /* 0 seconds = Instant feedback! */
-    transform: scale(0.98) !important; /* Slight satisfying physical compression */
-}
-
-/* 2. Dark Mode Adapter (Soft neon blue flash) */
-body.dark-mode #sales-history-container .m3-card:active,
-body.dark-mode #purchase-history-container .m3-card:active,
-body.dark-mode #cashbook-container .m3-card:active,
-body.dark-mode #expense-history-container .m3-card:active,
-body.dark-mode #master-list-container .m3-card:active {
-    background-color: rgba(143, 203, 251, 0.15) !important; 
-}
-
-/* 3. Smooth fade-out when the user lets go of the screen */
-#sales-history-container .m3-card,
-#purchase-history-container .m3-card,
-#cashbook-container .m3-card,
-#expense-history-container .m3-card,
-#master-list-container .m3-card {
-    transition: background-color 0.4s ease, transform 0.2s ease !important;
-}
-/* ==========================================
-   IDEA 3: FLOATING GLASS SEARCH BAR
-   ========================================== */
-/* 1. Apple-Style Frosted Glass and Floating Shadow */
-.search-bar {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 95 !important; /* Floats above lists, but stays under top headers */
-    
-    /* The Glassmorphism Blur */
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(16px) saturate(150%) !important;
-    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
-    
-    /* The Soft Floating Shadow */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
-    
-    transition: all 0.3s ease !important;
-}
-
-/* 2. Seamless Integration for Dark Mode */
-body.dark-mode .search-bar {
-    background: rgba(18, 18, 18, 0.85) !important;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-/* 3. Ensure the Search Input Box stays clean on top of the glass */
-.search-bar input {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-/* ==========================================
-   OPTION 1: SEAMLESS INVOICE ITEM CART
-   ========================================== */
-/* 1. Kill the bulky left-color borders injected by JS */
-#sales-items-body .item-entry-card, 
-#purchase-items-body .item-entry-card {
-    border-left: none !important;
     border-top: none !important;
+    border-left: none !important;
     border-right: none !important;
-    border-bottom: 1px solid var(--md-outline-variant) !important;
-    border-radius: 0 !important;
     box-shadow: none !important;
-    background: transparent !important;
-    padding: 16px 8px !important;
-    margin-bottom: 0 !important;
 }
 
-/* 2. Remove the line from the very last item for a flush finish */
-#sales-items-body .item-entry-card:last-child, 
-#purchase-items-body .item-entry-card:last-child {
+/* 2. Nuclear Specificity - Overpowers ALL dark mode and inline style rules */
+body #app-shell .m3-card,
+body #app-shell .list-view li,
+body.dark-mode #app-shell .m3-card,
+body.dark-mode #app-shell .list-view li,
+body #app-shell #tab-workspace .m3-card,
+body.dark-mode #app-shell #tab-workspace .m3-card,
+body #app-shell #tab-reports .m3-card,
+body.dark-mode #app-shell #tab-reports .m3-card,
+body #app-shell #tab-menu .m3-card,
+body.dark-mode #app-shell #tab-menu .m3-card,
+body #app-shell #workspace-master-grid .m3-card,
+body.dark-mode #app-shell #workspace-master-grid .m3-card,
+body #app-shell div[style*="flex-direction: column"] > .m3-card,
+body.dark-mode #app-shell div[style*="flex-direction: column"] > .m3-card,
+body #app-shell #list-overdue div,
+body.dark-mode #app-shell #list-overdue div,
+body #app-shell #bank-balances-container .m3-card,
+body.dark-mode #app-shell #bank-balances-container .m3-card,
+body #app-shell #tab-dashboard div[id*="overdue"],
+body.dark-mode #app-shell #tab-dashboard div[id*="overdue"] {
+    border: none !important;
     border-bottom: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
 }
 
-/* Dark mode separator adapter */
-body.dark-mode #sales-items-body .item-entry-card, 
-body.dark-mode #purchase-items-body .item-entry-card {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-/* ==========================================
-   OPTION 3: SMOOTH FINTECH ACCORDIONS
-   ========================================== */
-/* 1. The Container Box */
-details.advanced-options {
-    background: var(--md-surface) !important;
-    border: 1px solid var(--md-outline-variant) !important;
-    border-radius: 12px !important;
-    overflow: hidden !important;
-    transition: box-shadow 0.3s ease, border-color 0.3s ease !important;
-}
-
-/* 2. The Highlight when Opened */
-details.advanced-options[open] {
-    border-color: var(--md-primary) !important;
-    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.05) !important;
-}
-body.dark-mode details.advanced-options[open] {
-    border-color: var(--md-primary-container) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* 3. The Clickable Header */
-details.advanced-options summary {
-    padding: 16px !important;
-    background: var(--md-surface-variant) !important;
-    transition: background-color 0.2s ease !important;
-}
-details.advanced-options summary:active {
-    background: rgba(0, 97, 164, 0.08) !important;
-}
-body.dark-mode details.advanced-options summary:active {
-    background: rgba(143, 203, 251, 0.15) !important; 
-}
-
-/* 4. The Smooth Slide-Down Animation */
-details.advanced-options > div {
-    animation: accordionSlideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
-    transform-origin: top center;
-}
-
-@keyframes accordionSlideDown {
-    0% { opacity: 0; transform: scaleY(0.95) translateY(-10px); }
-    100% { opacity: 1; transform: scaleY(1) translateY(0); }
+/* 3. Removes the divider lines under the top headers and search bars */
+.activity-header, .search-bar, .bottom-nav, .form-sticky-footer {
+    border-bottom: none !important;
+    border-top: none !important;
 }

@@ -1239,8 +1239,12 @@ async function generateGSTReport(yearMonth, firmId) {
 
         // ENTERPRISE FIX: Mathematical Net Impact Shield!
         // Ensures Returns (Debit Notes) correctly reduce the ITC pool without causing CSV validation crashes.
-        // ENTERPRISE FIX: Absolute Math prevents Double-Negatives on Legacy Debit Notes!
-        let taxable = Math.abs(parseFloat(p.subtotal) || 0);
+        // 🚨 CRITICAL FIX: Deduct the discount so GSTR-2 Taxable Value matches the true bill!
+        let rawSubtotal = Math.abs(parseFloat(p.subtotal) || 0);
+        let discountAmt = p.discountType === '%' ? (rawSubtotal * ((parseFloat(p.discount) || 0) / 100)) : (parseFloat(p.discount) || 0);
+        if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+        
+        let taxable = rawSubtotal - discountAmt;
         let tax = Math.abs(parseFloat(p.totalGst) || 0);
 
         // ENTERPRISE FIX: The Fraudulent ITC Shield!

@@ -1289,9 +1289,13 @@ const app = {
                 const today = new Date().toISOString().split('T')[0];
                 const localDate = (typeof Utils !== 'undefined' && typeof Utils.getLocalDate === 'function') ? Utils.getLocalDate() : today;
                 
-                // 🚨 ENTERPRISE FIX: Always use YYYY-MM-DD for native mobile compatibility!
-                dateEl.value = localDate;
-                if (dateEl._flatpickr) dateEl._flatpickr.setDate(localDate);
+                // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY
+                const parts = localDate.split('-');
+                if (parts.length === 3) {
+                    dateEl.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+                } else {
+                    dateEl.value = localDate;
+                }
             }
 
             // Safely open the sheet
@@ -2642,17 +2646,16 @@ const app = {
                 const btnEl = document.getElementById(`btn-save-${type}`);
                 const headerEl = document.getElementById(`activity-${type}-form`).querySelector('.activity-header');
 
-                const verb = id ? 'Update' : 'Save';
                 if (docType === 'return') {
                     if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Credit Note' : 'Debit Note'}` : `New ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
-                    if (btnEl) btnEl.innerHTML = `${verb} ${type === 'sales' ? 'Credit Note' : 'Debit Note'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
+                    if (btnEl) btnEl.innerHTML = `Save ${type === 'sales' ? 'Credit Note' : 'Debit Note'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
                     if (headerEl) headerEl.style.backgroundColor = type === 'sales' ? '#fff0f2' : '#e8f5e9';
                     
                     const refGroup = document.getElementById(`${type}-return-ref-group`);
                     if (refGroup) refGroup.classList.remove('hidden');
                 } else {
                     if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}` : `New ${type === 'sales' ? 'Sales Invoice' : 'Purchase Bill'}`;
-                    if (btnEl) btnEl.innerHTML = `${verb} ${type === 'sales' ? 'Invoice' : 'Purchase'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
+                    if (btnEl) btnEl.innerHTML = `Save ${type === 'sales' ? 'Invoice' : 'Purchase'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
                     if (headerEl) headerEl.style.backgroundColor = 'var(--md-surface)';
                     
                     const refGroup = document.getElementById(`${type}-return-ref-group`);
@@ -2666,20 +2669,19 @@ const app = {
                 await app.populateEditForm(type, id);
             } else {
                 const dateInput = document.getElementById(`${type}-date`);
-                const orderDateInput = document.getElementById(`${type}-order-date`); // 🚨 TARGET THE ORDER DATE
-                
                 if(dateInput && typeof Utils !== 'undefined' && Utils.getLocalDate) {
                     const localDate = Utils.getLocalDate();
                     
-                    // 🚨 ENTERPRISE FIX: Always feed YYYY-MM-DD to native date inputs so mobile browsers don't blank it out!
-                    dateInput.value = localDate;
-                    if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate); 
-
-                    // 🚨 SOLLO FIX: Auto-fill the Order Date so it doesn't stay blank!
-                    if (orderDateInput) {
-                        orderDateInput.value = localDate;
-                        if (orderDateInput._flatpickr) orderDateInput._flatpickr.setDate(localDate);
+                    // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY for the visible input
+                    const parts = localDate.split('-');
+                    if (parts.length === 3) {
+                        dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+                    } else {
+                        dateInput.value = localDate;
                     }
+
+                    // 2. We still feed the standard YYYY-MM-DD into Flatpickr so its internal math doesn't break!
+                    if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate); 
                 }
                 
                 // ENTERPRISE FIX: Force status to "Open" for brand new documents
@@ -2733,15 +2735,6 @@ const app = {
                 
                 // Build the new search screen for BOTH new and edit modes so the checkboxes match the true state
                 if (typeof app.loadLinkedDocsList === 'function') app.loadLinkedDocsList();
-            }
-
-            // 🚨 ENTERPRISE UX: SMART "UPDATE" vs "SAVE" BUTTONS
-            const formSubmitBtn = form ? form.querySelector('button[type="submit"]') : null;
-            if (formSubmitBtn) {
-                if (type === 'expense') formSubmitBtn.innerText = id ? 'Update Expense' : 'Save Expense';
-                else if (type === 'product') formSubmitBtn.innerText = id ? 'Update Product' : 'Save Product';
-                else if (type === 'ledger') formSubmitBtn.innerText = id ? 'Update Party' : 'Save Party';
-                else if (type === 'account') formSubmitBtn.innerText = id ? 'Update Account' : 'Save Account';
             }
             
             UI.openActivity(`activity-${type}-form`);
@@ -4467,11 +4460,7 @@ if (data.id && splitConfirmed) {
 
         // 1. Reset the form completely
         const form = document.getElementById(`form-payment-${type}`);
-        if (form) {
-            form.reset();
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) submitBtn.innerText = type === 'in' ? 'Save Receipt' : 'Save Payment';
-        }
+        if (form) form.reset();
 
         // 2. Clear selected Party (Customer or Supplier) so old data doesn't leak
         const displayEl = document.getElementById(`${prefix}-${isOut ? 'supplier' : 'customer'}-display`);
@@ -4496,8 +4485,13 @@ if (data.id && splitConfirmed) {
             const today = new Date().toISOString().split('T')[0];
             const localDate = (typeof Utils !== 'undefined' && typeof Utils.getLocalDate === 'function') ? Utils.getLocalDate() : today;
             
-            // 🚨 ENTERPRISE FIX: Always use YYYY-MM-DD for native mobile compatibility!
-            dateInput.value = localDate;
+            // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY for the visible input
+            const parts = localDate.split('-');
+            if (parts.length === 3) {
+                dateInput.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            } else {
+                dateInput.value = localDate;
+            }
 
             if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate);
         }
@@ -4531,12 +4525,6 @@ if (data.id && splitConfirmed) {
         }
 
         app.state.currentReceiptId = id;
-        
-        const form = document.getElementById(`form-payment-${type}`);
-        if (form) {
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) submitBtn.innerText = type === 'in' ? 'Update Receipt' : 'Update Payment';
-        }
         
         await UI.openActivity(`activity-payment-${type}-form`);
         
@@ -4853,8 +4841,13 @@ if (data.id && splitConfirmed) {
         if (dateEl) {
             const today = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
             
-            // 🚨 ENTERPRISE FIX: Always use YYYY-MM-DD for native mobile compatibility!
-            dateEl.value = today;
+            // 1. Convert the standard YYYY-MM-DD to DD/MM/YYYY for the visible input
+            const parts = today.split('-');
+            if (parts.length === 3) {
+                dateEl.value = `${parts[2]}/${parts[1]}/${parts[0]}`; 
+            } else {
+                dateEl.value = today;
+            }
 
             if (dateEl._flatpickr) dateEl._flatpickr.setDate(today);
         }
@@ -5837,6 +5830,71 @@ if (data.id && splitConfirmed) {
             const currStatus = getStatus(bal);
             const currColor = (party.type === 'Customer' ? bal > 0.01 : bal < -0.01) ? '#dc2626' : '#16a34a';
             
+            // 🚀 ENTERPRISE UPGRADE: Calculate GST/Non-GST Split for Payment PDF
+            let splitHtml = '';
+            if (party && ((party.type === 'Customer' && bal > 0.01) || (party.type === 'Supplier' && bal < -0.01))) {
+                let trueBalGST = 0;
+                let trueBalNonGST = 0;
+                const isCustomer = party.type === 'Customer';
+                
+                let ob = parseFloat(party.openingBalance) || 0;
+                const balType = (party.balanceType || '').toLowerCase();
+                let isAdv = isCustomer ? (balType.includes('pay') || balType.includes('credit')) : (balType.includes('receive') || balType.includes('debit'));
+                
+                trueBalNonGST = !isAdv ? ob : -ob;
+
+                const storeName = isCustomer ? 'sales' : 'purchases';
+                const relatedDocs = await window.getAllRecords(storeName, 'firmId', receipt.firmId);
+                
+                relatedDocs.forEach(d => {
+                    if (d.status !== 'Open' && d.status !== 'Cancelled' && (isCustomer ? d.customerId : d.supplierId) === party.id) {
+                        const amt = parseFloat(d.grandTotal) || 0;
+                        const impact = (d.documentType === 'return' ? -amt : amt);
+                        if (d.invoiceType === 'Non-GST') trueBalNonGST += impact;
+                        else trueBalGST += impact;
+                    }
+                });
+
+                const allReceipts = await window.getAllRecords('receipts', 'firmId', receipt.firmId);
+                allReceipts.forEach(r => {
+                    if (r.ledgerId === party.id) {
+                        let isNonGstReceipt = r.taxPool === 'Non-GST';
+                        const legacyRef = r.invoiceRef || r.linkedInvoice;
+
+                        if (!r.taxPool || r.taxPool === 'All') {
+                            isNonGstReceipt = true;
+                            if (legacyRef) {
+                                const firstRef = String(legacyRef).split(',')[0].trim();
+                                const linkedDoc = relatedDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                                if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                            }
+                        }
+
+                        const amt = parseFloat(r.amount) || 0;
+                        const impact = isCustomer ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
+
+                        if (isNonGstReceipt) trueBalNonGST += impact;
+                        else trueBalGST += impact;
+                    }
+                });
+
+                trueBalGST = Math.max(0, trueBalGST);
+                trueBalNonGST = Math.max(0, trueBalNonGST);
+
+                if (trueBalGST > 0.01 || trueBalNonGST > 0.01) {
+                    splitHtml = `
+                    <tr style="background: #f8fafc;">
+                        <td colspan="2" style="padding: 0 4px 10px 4px; text-align: right;">
+                            <div style="display: inline-block; background: #e2e8f0; padding: 6px 10px; border-radius: 6px; border: 1px dashed #94a3b8;">
+                                ${trueBalGST > 0.01 ? `<span style="font-size: 10px; color: #0f172a; font-weight: 800;">GST Due: ₹${trueBalGST.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>` : ''}
+                                ${trueBalGST > 0.01 && trueBalNonGST > 0.01 ? `<span style="color: #94a3b8; margin: 0 4px;">|</span>` : ''}
+                                ${trueBalNonGST > 0.01 ? `<span style="font-size: 10px; color: #0f172a; font-weight: 800;">Non-GST Due: ₹${trueBalNonGST.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>` : ''}
+                            </div>
+                        </td>
+                    </tr>`;
+                }
+            }
+
             finalBalHtml = `
             <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-weight: 600; table-layout: fixed;">
                 <tr>
@@ -5857,6 +5915,7 @@ if (data.id && splitConfirmed) {
                         <span style="letter-spacing: -0.5px;">₹${Math.abs(bal).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span> <span style="font-size: 10px; color: #475569; font-weight: 700;">${currStatus ? `(${currStatus})` : '(Settled)'}</span>
                     </td>
                 </tr>
+                ${splitHtml}
             </table>`;
         }
 
