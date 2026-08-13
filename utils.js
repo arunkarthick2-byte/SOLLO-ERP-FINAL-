@@ -962,7 +962,6 @@ Please process this accordingly. Thank you!`;
             const imgBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
             const imgSrc = URL.createObjectURL(imgBlob);
 
-            // 🚨 FIX: Pre-generate the PDF file NOW so the share button is completely instant!
             const opt = {
                 margin: 0, 
                 filename: filename,
@@ -992,7 +991,6 @@ Please process this accordingly. Thank you!`;
             const vp = document.querySelector('meta[name="viewport"]');
             if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover');
             
-            // INSTANT DIRECT DOWNLOAD
             document.getElementById('preview-action-download').onclick = () => {
                 const url = URL.createObjectURL(pdfBlob);
                 const a = document.createElement("a");
@@ -1003,14 +1001,12 @@ Please process this accordingly. Thank you!`;
                 setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 2000);
             };
 
-            // INSTANT PRINT
             document.getElementById('preview-action-print').onclick = () => {
                 document.getElementById('in-app-pdf-viewer').style.display = 'none';
                 window.print();
                 setTimeout(() => { document.getElementById('in-app-pdf-viewer').style.display = 'flex'; }, 500);
             };
             
-            // INSTANT NATIVE SHARE
             document.getElementById('preview-action-share').onclick = async () => {
                 try {
                     const cleanDocumentName = filename.replace('.pdf', '').replace(/_/g, ' ');
@@ -1057,52 +1053,35 @@ Please process this accordingly. Thank you!`;
     // 5. PRINT & TEMPLATE ENGINE
     // ==========================================
     generateInvoicePDF: (doc, biz, party, type) => {
-        // STRICT ERP LOGIC: Prevent fatal crash on Cash Sales if the party object is undefined!
+        if (typeof pdfMake === 'undefined') {
+            window.Utils.showToast("⏳ Loading Vector Engine...");
+            return;
+        }
+
+        window.Utils.showToast("⚡ Generating Corporate Vector PDF...");
+
         const safeParty = party || {};
         const isSales = type === 'sales';
         
-        // 🚨 ENTERPRISE FIX: XSS SANITIZATION SHIELD
-        // Sanitize all textual inputs before they enter the HTML template!
-        const rawPartyName = safeParty.name ? safeParty.name : (isSales ? doc.customerName : doc.supplierName);
-        const partyName = window.Utils.sanitizeHTML(rawPartyName);
-        const partyAddress = window.Utils.sanitizeHTML(safeParty.address || safeParty.billingAddress || '');
+        const partyName = safeParty.name ? safeParty.name : (isSales ? doc.customerName : doc.supplierName);
+        const partyAddress = safeParty.address || safeParty.billingAddress || '';
+        const partyLocationStr = [safeParty.city, safeParty.state].filter(Boolean).join(', ') + (safeParty.pincode ? ' - ' + safeParty.pincode : '');
+        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
         
-        // ENTERPRISE FIX: Compile the City, State, and Pincode into a clean string for the PDF!
-        const partyLocationStr = window.Utils.sanitizeHTML([safeParty.city, safeParty.state].filter(Boolean).join(', ') + (safeParty.pincode ? ' - ' + safeParty.pincode : ''));
-        const bizLocationStr = window.Utils.sanitizeHTML([biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : ''));
+        const partyGst = safeParty.gst ? String(safeParty.gst).toUpperCase() : '';
+        const bizGst = biz && biz.gst ? String(biz.gst).toUpperCase() : '';
         
-        const partyGst = window.Utils.sanitizeHTML(safeParty.gst ? String(safeParty.gst).toUpperCase() : '');
-        const bizGst = window.Utils.sanitizeHTML(biz && biz.gst ? String(biz.gst).toUpperCase() : 'N/A');
+        const safeBizName = biz.name || 'Company Name';
+        const safeBizAddress = biz.address || '';
         
-        // Sanitize Business fields to prevent malicious injections from the Business Profile
-        const safeBizName = window.Utils.sanitizeHTML(biz.name || 'Company Name');
-        const safeBizAddress = window.Utils.sanitizeHTML(biz.address || '');
-        const safeBizPhone = window.Utils.sanitizeHTML(biz.phone || '');
-        const safeBizEmail = window.Utils.sanitizeHTML(biz.email || '');
-        const safeBizTerms = window.Utils.sanitizeHTML(biz.terms || '');
-        const safeBizBankDetails = window.Utils.sanitizeHTML(biz.bankDetails || '');
-        
-        // 🚨 LIVE DOM OVERRIDE: Check the screen instantly without requiring a save!
         let shouldPrintNotes = doc.printNotes;
         let rawNotes = doc.internalNotes || '';
         const uiCheckbox = document.getElementById(`${type}-print-notes`);
         const uiNotesBox = document.getElementById(`${type}-internal-notes`);
-        
-        // If the checkbox is currently visible on the screen, grab the live values!
         if (uiCheckbox && uiNotesBox && uiCheckbox.offsetParent !== null) {
             shouldPrintNotes = uiCheckbox.checked;
             rawNotes = uiNotesBox.value;
         }
-        
-        const safeDocNotes = window.Utils.sanitizeHTML(rawNotes);
-        const safeBizCf1Name = window.Utils.sanitizeHTML(biz.cf1Name || '');
-        const safeBizCf2Name = window.Utils.sanitizeHTML(biz.cf2Name || '');
-        const safeBizCf3Name = window.Utils.sanitizeHTML(biz.cf3Name || '');
-        
-        // Sanitize Document Custom Fields
-        const safeDocCf1Val = window.Utils.sanitizeHTML(doc.cf1Val || '');
-        const safeDocCf2Val = window.Utils.sanitizeHTML(doc.cf2Val || '');
-        const safeDocCf3Val = window.Utils.sanitizeHTML(doc.cf3Val || '');
         
         const isNonGST = doc.invoiceType === 'Non-GST';
         const isReturn = doc.documentType === 'return';
@@ -1111,6 +1090,9 @@ Please process this accordingly. Thank you!`;
         if (isNonGST && !isReturn) title = isSales ? 'BILL OF SUPPLY' : 'PURCHASE BILL';
         if (isReturn) title = isSales ? 'CREDIT NOTE' : 'DEBIT NOTE';
 
+        const safeDocNo = doc.invoiceNo || doc.orderNo || doc.poNo || 'DRAFT';
+
+        // Math Logic
         let rawSubtotal = 0;
         let totalQty = 0;
         let totalItems = 0;
@@ -1121,703 +1103,712 @@ Please process this accordingly. Thank you!`;
         });
 
         let discountAmt = doc.discountType === '%' ? (rawSubtotal * ((parseFloat(doc.discount) || 0) / 100)) : (parseFloat(doc.discount) || 0);
-        
-        // 1. Flip flat discounts to negative if the subtotal is negative (Credit Notes)
         if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
-        
-        // 2. Use absolute math to safely cap the discount to the subtotal
         if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
-        
-        // 3. Use !== 0 so Credit Notes don't default to a 0 ratio
         const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
 
-        let itemsHtml = '';
+        // Table Rows Construction
+        const itemsBody = [];
+        const tableHeaders = [{text: '#', style: 'th'}, {text: 'Item Description', style: 'th'}];
+        if (!isNonGST) tableHeaders.push({text: 'HSN', style: 'th', alignment: 'center'});
+        tableHeaders.push({text: 'Qty', style: 'th', alignment: 'center'}, {text: 'Rate', style: 'th', alignment: 'right'});
+        if (!isNonGST) tableHeaders.push({text: 'GST%', style: 'th', alignment: 'center'});
+        tableHeaders.push({text: 'Amount', style: 'th', alignment: 'right'});
+        
+        itemsBody.push(tableHeaders);
+
         (doc.items || []).forEach((item, index) => {
             const qty = parseFloat(item.qty) || 0;
             const rate = parseFloat(item.rate) || 0;
-            // STRICT ERP LOGIC: Completely kill the tax math if this is a Non-GST Bill of Supply!
             const gstPercent = isNonGST ? 0 : (parseFloat(item.gstPercent) || 0);
             
-            // STRICT ERP LOGIC: Apply proportional discount BEFORE calculating GST to match UI math!
             const baseAmount = qty * rate;
             const discountedBase = baseAmount - (baseAmount * discountRatio);
             const gstAmount = discountedBase * (gstPercent / 100);
-            
-            // ENTERPRISE FIX: Enforce strict line-level rounding so printed PDF math exactly matches UI math!
-            const roundedDiscountedBase = Math.round(discountedBase * 100) / 100;
-            const roundedGst = Math.round(gstAmount * 100) / 100;
-            const rowTotal = roundedDiscountedBase + roundedGst;
-            
-            // 🚨 ENTERPRISE FIX: Sanitize item fields to prevent line-item XSS!
-            const safeItemName = window.Utils.sanitizeHTML(item.name);
-            const safeItemDesc = window.Utils.sanitizeHTML(item.desc);
-            const safeHsn = window.Utils.sanitizeHTML(item.hsn || '-');
-            const safeUom = window.Utils.sanitizeHTML(item.uom || '');
-            
-            itemsHtml += `
-                <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
-                    <td style="text-align:center; vertical-align: top; padding-top: 10px;">${index + 1}</td>
-                    <td style="font-weight: bold; vertical-align: top; padding-top: 10px;">
-                        ${safeItemName}
-                        ${safeItemDesc ? `<div style="font-weight: 600; font-size: 10px; color: #64748b; margin-top: 4px;">${safeItemDesc}</div>` : ''}
-                    </td>
-                    ${!isNonGST ? `<td style="text-align:center; vertical-align: top; padding-top: 10px;">${safeHsn}</td>` : ''}
-                    <td style="text-align:center;">${item.qty} ${safeUom}</td>
-                    <td style="text-align:right;">${rate.toFixed(2)}</td>
-                    ${!isNonGST ? `<td style="text-align:center;">${gstPercent}%</td>` : ''}
-                    <td style="text-align:right; font-weight:bold;">${rowTotal.toFixed(2)}</td>
-                </tr>
-            `;
+            const rowTotal = (Math.round(discountedBase * 100) / 100) + (Math.round(gstAmount * 100) / 100);
+
+            const row = [
+                {text: (index + 1).toString(), style: 'td', alignment: 'center'},
+                {stack: [{text: item.name, bold: true}, item.desc ? {text: item.desc, fontSize: 8, color: '#475569', margin: [0, 2, 0, 0]} : null].filter(Boolean), style: 'td'}
+            ];
+            if (!isNonGST) row.push({text: item.hsn || '-', style: 'td', alignment: 'center'});
+            row.push({text: `${item.qty} ${item.uom || ''}`, style: 'td', alignment: 'center'});
+            row.push({text: rate.toFixed(2), style: 'td', alignment: 'right'});
+            if (!isNonGST) row.push({text: `${gstPercent}%`, style: 'td', alignment: 'center'});
+            row.push({text: rowTotal.toFixed(2), style: 'td', alignment: 'right', bold: true});
+
+            itemsBody.push(row);
         });
-        const safeDocNo = window.Utils.sanitizeHTML(doc.invoiceNo || doc.orderNo || doc.poNo || 'DRAFT');
-        // ENTERPRISE FIX: Dynamic UUID prevents the browser from grabbing a ghost PDF!
-        const uniquePdfId = 'pdf-invoice-' + Date.now();
 
-        // 🚨 ENTERPRISE UPGRADE: DYNAMIC METADATA ENGINE
-        // Rebuilds the PDF header automatically without leaving blank empty boxes!
-        const metaFields = [];
-        
-        // 🚨 CRITICAL FIX: The Ultimate "Ghost Data" Shield!
-        // Destroys "NaN", "Invalid Date", "undefined", and old corrupted data from printing on the PDF!
-        const isSafe = (val) => {
-            if (!val) return false;
-            const str = String(val).trim().toLowerCase();
-            return str !== '' && str !== 'undefined' && str !== 'null' && str !== 'nan' && !str.includes('nan') && str !== 'invalid date';
-        };
+        // Totals Footer in Table
+        const colSpanCount = isNonGST ? 2 : 3;
+        itemsBody.push([
+            {text: `Total Items: ${totalItems}`, style: 'td', alignment: 'right', colSpan: colSpanCount, bold: true, color: '#475569'},
+            ...(Array(colSpanCount - 1).fill({})),
+            {text: totalQty.toFixed(2), style: 'td', alignment: 'center', bold: true},
+            {text: '', style: 'td', colSpan: isNonGST ? 2 : 3},
+            ...(Array(isNonGST ? 1 : 2).fill({}))
+        ]);
 
-        if (isSafe(doc.orderNo)) metaFields.push(`<strong>Order Ref:</strong><br><span style="font-weight: 600; color: #0f172a;">${doc.orderNo}</span>`);
-        if (isSafe(doc.orderDate)) metaFields.push(`<strong>Order Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${window.Utils.formatDateDisplay(doc.orderDate)}</span>`);
-        
-        // STRICT LOGIC: Only allow Dispatch Date if the invoice is actually Shipped or Completed!
+        // Meta Details
+        const metaBody = [];
+        const isSafe = (val) => val && String(val).trim() !== '' && !String(val).toLowerCase().includes('nan') && !String(val).toLowerCase().includes('invalid date');
+
+        if (isSafe(doc.orderNo)) metaBody.push([{text: 'Order Ref:', style: 'metaLabel'}, {text: doc.orderNo, style: 'metaValue'}]);
+        if (isSafe(doc.orderDate)) metaBody.push([{text: 'Order Date:', style: 'metaLabel'}, {text: window.Utils.formatDateDisplay(doc.orderDate), style: 'metaValue'}]);
         if (isSafe(doc.shippedDate) && (doc.status === 'Shipped' || doc.status === 'Completed')) {
-            metaFields.push(`<strong>Dispatch Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${window.Utils.formatDateDisplay(doc.shippedDate)}</span>`);
+            metaBody.push([{text: 'Dispatch Date:', style: 'metaLabel'}, {text: window.Utils.formatDateDisplay(doc.shippedDate), style: 'metaValue'}]);
         }
-        // STRICT LOGIC: Only allow Completed Date if the invoice is actually Completed!
         if (isSafe(doc.completedDate) && doc.status === 'Completed') {
-            metaFields.push(`<strong>Completed Date:</strong><br><span style="font-weight: 600; color: #0f172a;">${window.Utils.formatDateDisplay(doc.completedDate)}</span>`);
+            metaBody.push([{text: 'Completed Date:', style: 'metaLabel'}, {text: window.Utils.formatDateDisplay(doc.completedDate), style: 'metaValue'}]);
         }
+        if (isSafe(biz.cf1Name) && isSafe(doc.cf1Val)) metaBody.push([{text: biz.cf1Name + ':', style: 'metaLabel'}, {text: doc.cf1Val, style: 'metaValue'}]);
+        if (isSafe(biz.cf2Name) && isSafe(doc.cf2Val)) metaBody.push([{text: biz.cf2Name + ':', style: 'metaLabel'}, {text: doc.cf2Val, style: 'metaValue'}]);
+        if (isSafe(biz.cf3Name) && isSafe(doc.cf3Val)) metaBody.push([{text: biz.cf3Name + ':', style: 'metaLabel'}, {text: doc.cf3Val, style: 'metaValue'}]);
 
-        let metaRowsHtml = '';
-        for (let i = 0; i < metaFields.length; i += 2) {
-            metaRowsHtml += `<tr>`;
-            metaRowsHtml += `<td style="padding: 10px 15px; border-bottom: 1px solid #475569; border-right: 1px solid #475569; color: #0f172a;">${metaFields[i]}</td>`;
-            if (metaFields[i+1]) {
-                metaRowsHtml += `<td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;">${metaFields[i+1]}</td>`;
-            } else {
-                metaRowsHtml += `<td style="padding: 10px 15px; border-bottom: 1px solid #475569; color: #0f172a;"></td>`;
-            }
-            metaRowsHtml += `</tr>`;
-        }
+        // Advanced Math Setup
+        const grandTotal = parseFloat(doc.grandTotal) || 0;
+        let linkedSum = 0;
+        if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
+        let displayTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
+        if (doc.status === 'Completed' || doc.status === 'Paid') displayTotalPaid = grandTotal;
+        const thisInvoiceDue = Math.max(0, grandTotal - displayTotalPaid);
 
-        // --- ENTERPRISE UPGRADE: CA-LEVEL GST SUMMARY TABLE ENGINE ---
-        let gstSummaryHtml = '';
-        if (!isNonGST && (parseFloat(doc.totalGst) || 0) > 0) {
-            let taxGroups = {};
-            let isIGST = biz.state && safeParty.state && (String(biz.state).trim().toLowerCase() !== String(safeParty.state).trim().toLowerCase());
+        // Calculate Previous Dues (Simplified matching original math)
+        let partyBalance = 0;
+        if (window.UI && window.UI.state && window.UI.state.rawData) {
+            let tDocs = 0, tReceipts = 0, tReturns = 0;
+            const targetDocs = isSales ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;
+            const partyKey = isSales ? 'customerId' : 'supplierId';
             
-            (doc.items || []).forEach(item => {
-                const g = parseFloat(item.gstPercent) || 0;
-                if (g > 0) {
-                    const bAmt = (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
-                    const dBase = bAmt - (bAmt * discountRatio);
-                    if (!taxGroups[g]) taxGroups[g] = { taxable: 0, tax: 0 };
-                    
-                    // 🚨 CRITICAL FIX: Round the tax AT THE LINE LEVEL before accumulating!
-                    // If you accumulate floating points (10.554 + 10.554) you get 21.108 (21.11).
-                    // But the printed rows were rounded to 10.55 + 10.55 = 21.10. 
-                    // This causes a 1-Paisa legal mismatch on the final CA Tax PDF!
-                    const roundedTax = Math.round((dBase * (g / 100)) * 100) / 100;
-                    
-                    taxGroups[g].taxable += Math.round(dBase * 100) / 100;
-                    taxGroups[g].tax += roundedTax;
+            targetDocs.forEach(s => {
+                if (s[partyKey] === safeParty.id && s.status !== 'Cancelled' && s.status !== 'Open' && s.invoiceType === doc.invoiceType) {
+                    if (s.documentType === 'return') tReturns += (parseFloat(s.grandTotal) || 0);
+                    else tDocs += (parseFloat(s.grandTotal) || 0);
                 }
             });
 
-            if (Object.keys(taxGroups).length > 0) {
-                let rows = '';
-                let tTaxable = 0, tTax = 0;
-                Object.keys(taxGroups).forEach(rate => {
-                    let r = parseFloat(rate), t = taxGroups[rate].taxable, tx = taxGroups[rate].tax;
-                    tTaxable += t; tTax += tx;
-                    
-                    // 🚨 CRITICAL FIX: Line-Item 1-Paisa Mismatch Shield
-                    let cGstAmt = Math.round((tx / 2) * 100) / 100;
-                    let sGstAmt = tx - cGstAmt; 
-                    
-                    rows += `<tr>
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">${r}%</td>
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${t.toFixed(2)}</td>
-                        ${isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${cGstAmt.toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${sGstAmt.toFixed(2)}</td>`}
-                        ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tx.toFixed(2)}</td>` : ''}
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tx.toFixed(2)}</td>
-                    </tr>`;
-                });
-                gstSummaryHtml = `
-                <div style="margin-bottom: 15px; page-break-inside: avoid;">
-                    <div style="font-size: 10px; text-transform: uppercase; font-weight: 800; color: #475569; margin-bottom: 4px;">Tax Summary (GST Breakdown)</div>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
-                        <thead>
-                            <tr style="background: #f1f5f9;">
-                                <th style="padding: 4px; border: 1px solid #cbd5e1; color: #0f172a;">Tax Rate</th>
-                                <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">Taxable Value</th>
-                                ${isIGST ? '' : `<th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">CGST Amount</th><th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">SGST Amount</th>`}
-                                ${isIGST ? `<th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">IGST Amount</th>` : ''}
-                                <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">Total Tax</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rows}
-                            <tr style="background: #f8fafc; font-weight: 800;">
-                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #0f172a;">Total</td>
-                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTaxable.toFixed(2)}</td>
-                                ${(() => {
-    let tCgstAmt = Math.round((tTax / 2) * 100) / 100;
-    let tSgstAmt = tTax - tCgstAmt;
-    return isIGST ? '' : `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tCgstAmt.toFixed(2)}</td><td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tSgstAmt.toFixed(2)}</td>`;
-})()}
-                                ${isIGST ? `<td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTax.toFixed(2)}</td>` : ''}
-                                <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: right; color: #0f172a;">₹${tTax.toFixed(2)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>`;
-            }
-        }
-
-        // ENTERPRISE UPGRADE: TRUE OFFLINE DYNAMIC UPI QR GENERATOR
-        let qrCodeHtml = '';
-        // STRICT ERP LOGIC: Only render the UPI QR Code for Non-GST Sales! GST Invoices skip the QR.
-        if (isSales && !isReturn && isNonGST && biz.upiId && (parseFloat(doc.grandTotal) || 0) > 0) {
-            const trueTotalPaid = parseFloat(doc.trueTotalPaid) || 0;
-            const remainingBalance = (parseFloat(doc.grandTotal) || 0) - trueTotalPaid;
+            (window.UI.state.rawData.cashbook || []).forEach(c => {
+                if (c.ledgerId === safeParty.id) {
+                    let isNonGstReceipt = c.taxPool === 'Non-GST';
+                    const legacyRef = c.invoiceRef || c.linkedInvoice;
+                    if (!c.taxPool || c.taxPool === 'All') {
+                        isNonGstReceipt = true;
+                        if (legacyRef) {
+                            const firstRef = String(legacyRef).split(',')[0].trim();
+                            const linkedDoc = targetDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                        }
+                    }
+                    if ((doc.invoiceType === 'Non-GST' && isNonGstReceipt) || (doc.invoiceType !== 'Non-GST' && !isNonGstReceipt)) {
+                        if (isSales) tReceipts += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                        else tReceipts += c.type === 'out' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                    }
+                }
+            });
             
-            if (remainingBalance > 0.5) {
-                try {
-                    const upiString = `upi://pay?pa=${biz.upiId}&pn=${encodeURIComponent(biz.name || 'Business')}&am=${remainingBalance.toFixed(2)}&cu=INR`;
-                    const qrCanvas = document.createElement('canvas');
-                    new QRious({
-                        element: qrCanvas,
-                        value: upiString,
-                        size: 250, // High Resolution for crisp printing
-                        level: 'M'
-                    });
-                    const qrImage = qrCanvas.toDataURL('image/png');
-                    
-                    // ENTERPRISE UPGRADE: Wrapped the QR Code in an interactive UPI Link!
-                    qrCodeHtml = `
-                    <a href="${upiString}" style="text-decoration: none; display: inline-block;">
-                        <div style="margin-bottom: 15px; display: flex; align-items: center; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: pointer;">
-                            <img src="${qrImage}" style="width: 65px; height: 65px; margin-right: 12px; border-radius: 4px;" />
-                            <div>
-                                <span style="font-size: 10px; color: #0061a4; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 2px;">Tap or Scan to Pay</span>
-                                <div style="font-size: 11px; color: #333;"><strong>UPI ID:</strong> ${biz.upiId}</div>
-                                <div style="font-size: 11px; color: #333;"><strong>Amount:</strong> ₹${remainingBalance.toFixed(2)}</div>
-                            </div>
-                        </div>
-                    </a>`;
-                } catch(e) { console.warn("QR Engine skipped:", e); }
-            }
+            let ob = parseFloat(safeParty.openingBalance) || 0;
+            let isAdv = isSales ? (String(safeParty.balanceType || 'Dr').includes('Pay') || String(safeParty.balanceType || 'Dr').includes('Cr')) : (String(safeParty.balanceType || 'Cr').includes('Receive') || String(safeParty.balanceType || 'Cr').includes('Debit'));
+            let netOb = isAdv ? -ob : ob;
+            if (doc.invoiceType !== 'Non-GST') netOb = 0; 
+
+            partyBalance = netOb + tDocs - tReturns - tReceipts;
         }
 
-        // ENTERPRISE FIX: Changed 'const' to 'let' so the Split-Payment Tracker doesn't crash the engine!
-        let html = `
-        <div id="${uniquePdfId}" class="a4-document" style="width: 800px; max-width: none; position: relative; overflow: hidden; font-family: 'Inter', sans-serif; background: #ffffff;">
-            <style>
-                /* 🚨 CA-FIRM STRICT PDF GRID SYSTEM */
-                #${uniquePdfId} table { page-break-inside: auto; border-collapse: collapse !important; width: 100% !important; border: 1.5px solid #0f172a !important; margin-bottom: 24px !important; }
-                #${uniquePdfId} tr { page-break-inside: avoid; page-break-after: auto; }
-                #${uniquePdfId} thead { display: table-header-group; }
-                #${uniquePdfId} th { border: 1px solid #0f172a !important; background-color: #f1f5f9 !important; padding: 12px 14px !important; font-weight: 900 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; letter-spacing: 0.5px; }
-                #${uniquePdfId} td { border: 1px solid #0f172a !important; padding: 10px 14px !important; font-size: 13px !important; color: #0f172a !important; vertical-align: top; font-weight: 600; }
-                
-                /* Override inline borders from the JS replace functions */
-                #${uniquePdfId} td[style] { border: 1px solid #0f172a !important; }
-                
-                /* Strict Totals Box */
-                #${uniquePdfId} .totals-box { width: 340px !important; background: #ffffff !important; border: 1.5px solid #0f172a !important; border-radius: 0 !important; padding: 0 !important; box-shadow: 4px 4px 0px rgba(0,0,0,0.05) !important; }
-                #${uniquePdfId} .totals-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px !important; border-bottom: 1px solid #cbd5e1 !important; margin: 0 !important; font-size: 13px !important; color: #0f172a !important; }
-                #${uniquePdfId} .totals-row:last-child { border-bottom: none !important; }
-                #${uniquePdfId} .totals-row span:first-child { font-weight: 700 !important; color: #475569 !important; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
-                #${uniquePdfId} .totals-row span:last-child { font-weight: 800 !important; color: #0f172a !important; font-size: 14px; }
-                
-                #${uniquePdfId} .grand-total { background: #0f172a !important; border-top: 1.5px solid #0f172a !important; padding: 14px 16px !important; border-bottom: none !important; margin: 0 !important; }
-                #${uniquePdfId} .grand-total span:first-child { color: #ffffff !important; font-weight: 900 !important; font-size: 14px !important; }
-                #${uniquePdfId} .grand-total span:last-child { color: #ffffff !important; font-weight: 900 !important; font-size: 18px !important; }
-                
-                /* Strict Sections */
-                .avoid-break { page-break-inside: avoid; }
-                .address-title { font-size: 12px !important; text-transform: uppercase !important; font-weight: 900 !important; color: #0f172a !important; border-bottom: 1.5px solid #0f172a !important; padding-bottom: 6px !important; margin-bottom: 12px !important; letter-spacing: 0.5px; }
-                .address-box { border: 1.5px solid #0f172a !important; border-radius: 0 !important; padding: 16px !important; background: #ffffff !important; box-shadow: 4px 4px 0px rgba(0,0,0,0.05) !important; }
-                
-                /* Header Mini-Table Override */
-                #${uniquePdfId} table.header-table { width: 260px !important; margin: 0 !important; box-shadow: 4px 4px 0px rgba(0,0,0,0.05) !important; }
-                #${uniquePdfId} table.header-table td { padding: 8px 12px !important; border: 1px solid #0f172a !important; }
-            </style>
+        // Final Totals Box Structure
+        const totalsStack = [
+            { columns: [{ text: 'Subtotal', style: 'totLabel' }, { text: '₹' + rawSubtotal.toFixed(2), style: 'totVal' }], margin: [0,0,0,5] }
+        ];
 
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; border-bottom: 3px solid #0f172a; padding-bottom: 24px;">
-                <div>
-                    ${biz.logo ? `<img src="${biz.logo}" style="max-height: 70px; max-width: 200px; object-fit: contain; margin-bottom: 16px;">` : ''}
-                    <h1 style="font-size: 26px; font-weight: 900; color: #0f172a; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: -0.5px;">${safeBizName}</h1>
-                    <div style="color: #334155; font-size: 13px; line-height: 1.6; font-weight: 600;">
-                        ${safeBizAddress ? safeBizAddress.replace(/\n/g, '<br>') + '<br>' : ''}
-                        ${bizLocationStr ? bizLocationStr + '<br>' : ''}
-                        ${safeBizPhone ? `<strong>Phone:</strong> ${safeBizPhone}` : ''} ${safeBizEmail ? ` | <strong>Email:</strong> ${safeBizEmail}` : ''}
-                        ${!isNonGST && bizGst && bizGst !== 'N/A' ? `<br><strong style="color:#0f172a; background: #f1f5f9; padding: 2px 6px; border: 1px solid #cbd5e1; border-radius: 4px; display: inline-block; margin-top: 6px;">GSTIN: ${bizGst}</strong>` : ''}
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <h2 style="color: #0f172a; font-size: 28px; font-weight: 900; margin: 0 0 16px 0; letter-spacing: 2px; text-transform: uppercase;">${title}</h2>
-                    <table class="header-table" style="font-size: 13px; color: #0f172a; background: #ffffff; text-align: left; display: inline-table;">
-                        <tr>
-                            <td style="background: #f1f5f9; width: 40%;"><strong>Document No:</strong></td>
-                            <td style="text-align: right; font-weight: 800; font-size: 14px;">${safeDocNo}</td>
-                        </tr>
-                        <tr>
-                            <td style="background: #f1f5f9;"><strong>Date:</strong></td>
-                            <td style="text-align: right; font-weight: 800; font-size: 14px;">${Utils.formatDateDisplay(doc.date)}</td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
+        if (discountAmt > 0) totalsStack.push({ columns: [{ text: 'Discount', style: 'totLabel', color: '#ef4444' }, { text: '- ₹' + discountAmt.toFixed(2), style: 'totVal', color: '#ef4444' }], margin: [0,0,0,5] });
+        if (!isNonGST) totalsStack.push({ columns: [{ text: 'Total GST', style: 'totLabel' }, { text: '₹' + (parseFloat(doc.totalGst) || 0).toFixed(2), style: 'totVal' }], margin: [0,0,0,5] });
+        if ((parseFloat(doc.freightAmount) || 0) > 0) totalsStack.push({ columns: [{ text: 'Freight / Extra', style: 'totLabel' }, { text: '₹' + (parseFloat(doc.freightAmount) || 0).toFixed(2), style: 'totVal' }], margin: [0,0,0,5] });
+        
+        let roundOffAmt = (parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0));
+        if (Math.abs(roundOffAmt) > 0.01) totalsStack.push({ columns: [{ text: 'Round Off', style: 'totLabel' }, { text: '₹' + roundOffAmt.toFixed(2), style: 'totVal' }], margin: [0,0,0,5] });
 
-            <div class="address-grid">
-                <div class="address-box">
-                    <div class="address-title">${isSales ? 'Billed To' : 'Billed By'}</div>
-                    <strong style="font-size: 15px; color: #0f172a; display: block; margin-bottom: 6px;">${partyName}</strong>
-                    <div style="color: #475569; font-size: 13px; line-height: 1.5;">
-                        ${partyAddress ? partyAddress.replace(/\n/g, '<br>') + '<br>' : ''}
-                        ${partyLocationStr ? partyLocationStr + '<br>' : ''}
-                        ${!isNonGST && partyGst ? `<strong style="color: #0f172a; display:block; margin-top: 8px;">GSTIN: ${partyGst}</strong>` : ''}
-                    </div>
-                </div>
-                
-                ${safeBizCf1Name && safeDocCf1Val || safeBizCf2Name && safeDocCf2Val || safeBizCf3Name && safeDocCf3Val || metaFields.length > 0 ? `
-                <div class="address-box">
-                    <div class="address-title">Document Details</div>
-                    <table style="width:100%; border:none; margin:0; font-size:12px;">
-                        ${metaRowsHtml.replace(/<td style="[^"]*"/g, '<td style="padding: 4px 0; border: none; color: #475569;"')}
-                        ${safeBizCf1Name && safeDocCf1Val ? `<tr><td style="padding: 4px 0; border: none; color: #475569;"><strong>${safeBizCf1Name}:</strong></td><td style="padding: 4px 0; border: none; color: #0f172a; text-align: right;">${safeDocCf1Val}</td></tr>` : ''}
-                        ${safeBizCf2Name && safeDocCf2Val ? `<tr><td style="padding: 4px 0; border: none; color: #475569;"><strong>${safeBizCf2Name}:</strong></td><td style="padding: 4px 0; border: none; color: #0f172a; text-align: right;">${safeDocCf2Val}</td></tr>` : ''}
-                        ${safeBizCf3Name && safeDocCf3Val ? `<tr><td style="padding: 4px 0; border: none; color: #475569;"><strong>${safeBizCf3Name}:</strong></td><td style="padding: 4px 0; border: none; color: #0f172a; text-align: right;">${safeDocCf3Val}</td></tr>` : ''}
-                    </table>
-                </div>` : '<div class="address-box" style="visibility:hidden; border:none; background:transparent;"></div>'}
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">#</th>
-                        <th style="width: ${!isNonGST ? '35%' : '45%'};">Item Description</th>
-                        ${!isNonGST ? `<th style="text-align: center; width: 10%;">HSN</th>` : ''}
-                        <th class="number-col" style="width: ${!isNonGST ? '10%' : '15%'}; text-align:center;">Qty</th>
-                        <th class="number-col" style="width: ${!isNonGST ? '15%' : '15%'};">Rate</th>
-                        ${!isNonGST ? `<th class="number-col" style="text-align: center; width: 10%;">GST</th>` : ''}
-                        <th class="number-col" style="width: ${!isNonGST ? '15%' : '20%'};">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml.replace(/<td style="[^"]*"/g, '<td style="padding: 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b; vertical-align: top;"')}
-                    <tr style="background: #f8fafc; font-weight: 800; border-top: 2px solid #cbd5e1;">
-                        <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 12px; text-align: right; text-transform: uppercase; color: #64748b; font-size: 11px;">Total Items: ${totalItems}</td>
-                        <td style="padding: 12px; text-align: center; color: #0f172a;">${totalQty.toFixed(2)}</td>
-                        <td colspan="${!isNonGST ? '3' : '2'}" style="padding: 12px;"></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <!-- 🚨 ENTERPRISE FIX: Move GST Summary Table out of the left column so it spans full-width! -->
-            ${gstSummaryHtml.replace(/font-size: 10px; text-transform: uppercase; font-weight: 800; color: #475569; margin-bottom: 4px;/, 'font-size: 12px; text-transform: uppercase; font-weight: 900; color: #0f172a; border-bottom: 1.5px solid #0f172a; padding-bottom: 6px; margin-bottom: 12px; letter-spacing: 0.5px;').replace(/<table/g, '<table style="margin-bottom: 24px;"')}
-
-            <div style="display: flex; gap: 32px; page-break-inside: avoid;">
-                <div style="flex: 1;">
-                    <div style="margin-bottom: 24px; border: 1.5px solid #0f172a; padding: 12px 16px; background: #f8fafc; border-radius: 0; box-shadow: 4px 4px 0px rgba(0,0,0,0.05);">
-                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 900; color: #475569; margin-bottom: 4px; letter-spacing: 0.5px;">Total Amount in Words</div>
-                        <strong style="font-size: 14px; color: #0f172a; text-transform: uppercase;">Rupees ${Utils.numberToWords(parseFloat(doc.grandTotal) || 0)}</strong>
-                    </div>
-                    
-                    <div style="display: flex; gap: 20px; align-items: flex-start; margin-bottom: 24px;">
-                        ${qrCodeHtml}
-                        
-                        ${safeBizBankDetails && !isNonGST ? `
-                        <div>
-                            <div class="address-title">Bank Details</div>
-                            <div style="white-space: pre-wrap; font-family: monospace; font-size: 12px; font-weight: 600; color: #0f172a; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0;">${safeBizBankDetails}</div>
-                        </div>` : ''}
-                    </div>
-
-                    ${shouldPrintNotes && safeDocNotes ? `
-                    <div class="invoice-footer">
-                        <strong style="text-transform: uppercase; color: #64748b;">Remarks / Notes:</strong><br>
-                        <div style="margin-top: 6px; white-space: pre-wrap; color: #0f172a;">${safeDocNotes}</div>
-                    </div>` : ''}
-
-                    ${safeBizTerms ? `
-                    <div class="invoice-footer" style="margin-top: 12px; border-top: none; padding-top: 0;">
-                        <strong style="text-transform: uppercase; color: #64748b;">Terms & Conditions:</strong><br>
-                        <div style="margin-top: 6px; white-space: pre-wrap; color: #0f172a;">${safeBizTerms}</div>
-                    </div>` : ''}
-                </div>
-
-                <div class="totals-container" style="flex: 0 0 320px;">
-                    <div class="totals-box">
-                        <div class="totals-row">
-                            <span style="color: #64748b;">Subtotal</span>
-                            <span style="font-weight: 600; color: #0f172a;">₹${rawSubtotal.toFixed(2)}</span>
-                        </div>
-                        ${discountAmt > 0 ? `<div class="totals-row"><span style="color: #ef4444;">Discount</span><span style="font-weight: 600; color: #ef4444;">- ₹${discountAmt.toFixed(2)}</span></div>` : ''}
-                        ${!isNonGST ? `<div class="totals-row"><span style="color: #64748b;">Total GST</span><span style="font-weight: 600; color: #0f172a;">₹${(parseFloat(doc.totalGst) || 0).toFixed(2)}</span></div>` : ''}
-                        ${(parseFloat(doc.freightAmount) || 0) > 0 ? `<div class="totals-row"><span style="color: #64748b;">Freight / Extra</span><span style="font-weight: 600; color: #0f172a;">₹${(parseFloat(doc.freightAmount) || 0).toFixed(2)}</span></div>` : ''}
-                        ${Math.abs((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))) > 0.01 ? `
-                        <div class="totals-row"><span style="color: #64748b;">Round Off</span><span style="font-weight: 600; color: #0f172a;">₹${((parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0))).toFixed(2)}</span></div>` : ''}
-                        
-                        <div class="totals-row grand-total">
-                            <span>Grand Total</span>
-                            <span>₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}</span>
-                        </div>
-                        
-                        ${(() => {
-                            let linkedSum = 0;
-                            if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
-                            let safeTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
-                            if (doc.status === 'Completed' || doc.status === 'Paid') safeTotalPaid = parseFloat(doc.grandTotal) || 0;
-                            let upfrontPaid = safeTotalPaid - linkedSum;
-                            let htmlStr = '';
-                            if (upfrontPaid > 0.01) {
-                                htmlStr += `<div class="totals-row" style="margin-top: 12px; font-size: 12px;"><span style="color: #64748b;">Advance Payment</span><span style="font-weight: 700; color: #16a34a;">- ₹${upfrontPaid.toFixed(2)}</span></div>`;
-                            }
-                            return htmlStr;
-                        })()}
-
-                        ${doc.linkedReceipts && doc.linkedReceipts.length > 0 ? doc.linkedReceipts.map(r => `
-                        <div class="totals-row" style="font-size: 12px;">
-                            <span style="color: #64748b;">${parseFloat(r.amount) < 0 ? 'Refund' : 'Payment'} (${Utils.formatDateDisplay(r.date)})</span>
-                            <span style="font-weight: 700; color: #16a34a;">${parseFloat(r.amount) < 0 ? '+' : '-'} ₹${Math.abs(parseFloat(r.amount)).toFixed(2)}</span>
-                        </div>
-                        `).join('') : ''}
-                        
-                        ${(() => {
-                            let linkedSum = 0;
-                            if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
-                            let displayTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
-                            const displayGrandTotal = parseFloat(doc.grandTotal) || 0;
-                            if (doc.status === 'Completed' || doc.status === 'Paid') displayTotalPaid = displayGrandTotal;
-                            const thisInvoiceDue = Math.max(0, displayGrandTotal - displayTotalPaid);
-                            
-                            let finalHtml = '';
-                            if (thisInvoiceDue > 0.01) {
-                                finalHtml += `<div class="totals-row" style="margin-top: 12px; border-top: 1px dashed #cbd5e1; padding-top: 12px;"><span style="font-weight: 800; color: #0f172a; text-transform: uppercase;">Balance Due</span><span style="font-weight: 900; color: #dc2626; font-size: 16px;">₹${thisInvoiceDue.toFixed(2)}</span></div>`;
-                            } else if (displayTotalPaid > 0) {
-                                finalHtml += `<div class="totals-row" style="margin-top: 12px; border-top: 1px dashed #cbd5e1; padding-top: 12px;"><span style="font-weight: 800; color: #0f172a; text-transform: uppercase;">Balance Due</span><span style="font-weight: 900; color: #16a34a; font-size: 16px;">₹0.00 (PAID)</span></div>`;
-                            }
-
-                            // 🚨 PREVIOUS OUTSTANDING LOGIC (Now supports both Sales & Purchases perfectly)
-                            let partyBalance = 0;
-                            let pendingOldInvoices = [];
-                            
-                            if (window.UI && window.UI.state && window.UI.state.rawData) {
-                                let tDocs = 0, tReceipts = 0, tReturns = 0;
-                                const targetDocs = isSales ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;
-                                const partyKey = isSales ? 'customerId' : 'supplierId';
-                                
-                                targetDocs.forEach(s => {
-                                    if (s[partyKey] === safeParty.id && s.status !== 'Cancelled' && s.status !== 'Open') {
-                                        // 🚨 ISOLATE POOL: Only calculate balance for the matching Tax Type!
-                                        if (s.invoiceType === doc.invoiceType) {
-                                            if (s.documentType === 'return') tReturns += (parseFloat(s.grandTotal) || 0);
-                                            else tDocs += (parseFloat(s.grandTotal) || 0);
-                                        }
-                                    }
-                                });
-
-                                (window.UI.state.rawData.cashbook || []).forEach(c => {
-                                    if (c.ledgerId === safeParty.id) {
-                                        let isNonGstReceipt = c.taxPool === 'Non-GST';
-                                        const legacyRef = c.invoiceRef || c.linkedInvoice;
-                                        if (!c.taxPool || c.taxPool === 'All') {
-                                            isNonGstReceipt = true;
-                                            if (legacyRef) {
-                                                const firstRef = String(legacyRef).split(',')[0].trim();
-                                                const linkedDoc = targetDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
-                                                if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
-                                            }
-                                        }
-                                        
-                                        if ((doc.invoiceType === 'Non-GST' && isNonGstReceipt) || (doc.invoiceType !== 'Non-GST' && !isNonGstReceipt)) {
-                                            if (isSales) tReceipts += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
-                                            else tReceipts += c.type === 'out' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
-                                        }
-                                    }
-                                });
-                                
-                                let ob = parseFloat(safeParty.openingBalance) || 0;
-                                let isAdv = isSales ? (String(safeParty.balanceType || 'Dr').includes('Pay') || String(safeParty.balanceType || 'Dr').includes('Cr')) : (String(safeParty.balanceType || 'Cr').includes('Receive') || String(safeParty.balanceType || 'Cr').includes('Debit'));
-                                let netOb = isAdv ? -ob : ob;
-                                
-                                // Legacy Opening Balances always fall into the Non-GST pool
-                                if (doc.invoiceType !== 'Non-GST') netOb = 0; 
-
-                                partyBalance = netOb + tDocs - tReturns - tReceipts;
-
-                                const exactPaymentMap = {};
-                                const exactReturnMap = {};
-                                (window.UI.state.rawData.cashbook || []).forEach(c => {
-                                    if (c.ledgerId === safeParty.id && c.invoiceRef) {
-                                        let amt = parseFloat(c.amount) || 0;
-                                        const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                                        refs.forEach(ref => { exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length); });
-                                    }
-                                });
-                                targetDocs.forEach(d => {
-                                    if (d.documentType === 'return' && d.status !== 'Open' && d[partyKey] === safeParty.id && d.orderNo) {
-                                        exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
-                                    }
-                                });
-
-                                targetDocs.forEach(s => {
-                                    if (s[partyKey] === safeParty.id && s.id !== doc.id && s.status !== 'Cancelled' && s.status !== 'Open' && s.documentType !== 'return' && s.invoiceType === doc.invoiceType) {
-                                        const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.poNo, s.id].filter(Boolean))];
-                                        const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
-                                        const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
-                                        const docTotal = parseFloat(s.grandTotal) || 0;
-                                        const unpaid = Math.max(0, docTotal - paid - returned);
-                                        if (unpaid > 0.01) {
-                                            pendingOldInvoices.push({ no: s.invoiceNo || s.poNo || s.orderNo || s.id.slice(-6).toUpperCase(), date: s.date, unpaid: unpaid });
-                                        }
-                                    }
-                                });
-                            }
-
-                            if (partyBalance > 0.01) {
-                                const previousDues = partyBalance - thisInvoiceDue;
-                                if (previousDues > 0.01) {
-                                    finalHtml += `<div style="margin-top: 16px; border-top: 2px solid #e2e8f0; padding-top: 12px;">
-                                        <div style="font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 8px;">Previous Outstanding</div>`;
-                                    
-                                    if (pendingOldInvoices.length > 0) {
-                                        pendingOldInvoices.sort((a, b) => new Date(a.date) - new Date(b.date));
-                                        const displayInvoices = pendingOldInvoices.slice(0, 5);
-                                        displayInvoices.forEach(oldInv => {
-                                            finalHtml += `<div class="totals-row" style="font-size: 11px; margin-bottom: 4px;"><span style="color: #475569;">Inv: ${oldInv.no} <span style="font-size:9px;">(${window.Utils.formatDateDisplay(oldInv.date)})</span></span><span style="font-weight: 700; color: #0f172a;">₹${oldInv.unpaid.toFixed(2)}</span></div>`;
-                                        });
-                                        if (pendingOldInvoices.length > 5) {
-                                            const hiddenSum = pendingOldInvoices.slice(5).reduce((sum, inv) => sum + inv.unpaid, 0);
-                                            finalHtml += `<div class="totals-row" style="font-size: 11px; margin-bottom: 4px;"><span style="color: #64748b; font-style: italic;">...and ${pendingOldInvoices.length - 5} older invoices</span><span style="font-weight: 700; color: #0f172a;">₹${hiddenSum.toFixed(2)}</span></div>`;
-                                        }
-                                    } else {
-                                        finalHtml += `<div class="totals-row" style="font-size: 11px;"><span style="color: #475569;">Opening Balance / Dues</span><span style="font-weight: 700; color: #0f172a;">₹${previousDues.toFixed(2)}</span></div>`;
-                                    }
-
-                                    finalHtml += `<div class="totals-row" style="margin-top: 8px; font-size: 12px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px;"><span style="font-weight: 800; color: #0f172a;">Total Previous Dues</span><span style="font-weight: 900; color: #dc2626;">₹${previousDues.toFixed(2)}</span></div>`;
-                                    
-                                    finalHtml += `<div class="totals-row" style="margin-top: 8px; background: #fee2e2; padding: 10px; border-radius: 6px; border: 1px solid #fca5a5;"><span style="font-weight: 900; color: #991b1b; text-transform: uppercase;">Total Net Payable</span><span style="font-weight: 900; color: #991b1b; font-size: 15px;">₹${partyBalance.toFixed(2)}</span></div></div>`;
+        // Build the Vector JSON Definition
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [30, 30, 30, 30],
+            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+            styles: {
+                h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
+                title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
+                sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
+                subBold: { fontSize: 9, bold: true, color: '#0f172a' },
+                sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
+                th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
+                td: { fontSize: 9, margin: [2, 4] },
+                metaLabel: { fontSize: 9, color: '#475569', margin: [0, 2] },
+                metaValue: { fontSize: 9, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 2] },
+                totLabel: { fontSize: 9, color: '#475569', bold: true },
+                totVal: { fontSize: 10, bold: true, alignment: 'right' }
+            },
+            content: [
+                // Header Region
+                {
+                    columns: [
+                        {
+                            width: '60%',
+                            stack: [
+                                biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                { text: safeBizName, style: 'h1' },
+                                { text: safeBizAddress + '\n' + bizLocationStr, style: 'sub' },
+                                { text: 'Ph: ' + biz.phone + (biz.email ? ' | Email: ' + biz.email : ''), style: 'sub' },
+                                bizGst && bizGst !== 'N/A' ? { text: 'GSTIN: ' + bizGst, style: 'subBold', margin: [0, 5, 0, 0] } : null
+                            ].filter(Boolean)
+                        },
+                        {
+                            width: '40%',
+                            stack: [
+                                { text: title, style: 'title' },
+                                {
+                                    table: {
+                                        widths: ['*', 'auto'],
+                                        body: [
+                                            [{text: 'Document No:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: safeDocNo, alignment: 'right', bold: true, fontSize: 10}],
+                                            [{text: 'Date:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: window.Utils.formatDateDisplay(doc.date), alignment: 'right', bold: true, fontSize: 10}]
+                                        ]
+                                    },
+                                    layout: 'lightHorizontalLines'
                                 }
-                            }
-                            return finalHtml;
-                        })()}
+                            ]
+                        }
+                    ],
+                    margin: [0, 0, 0, 20]
+                },
+                
+                // Address Grid
+                {
+                    columns: [
+                        {
+                            width: '50%',
+                            stack: [
+                                { text: isSales ? 'BILLED TO' : 'BILLED BY', style: 'sectionTitle' },
+                                { text: partyName, bold: true, fontSize: 11, margin: [0, 0, 0, 4] },
+                                { text: partyAddress + (partyAddress ? '\n' : '') + partyLocationStr, style: 'sub' },
+                                partyGst ? { text: 'GSTIN: ' + partyGst, style: 'subBold', margin: [0, 4, 0, 0] } : null
+                            ],
+                            margin: [0, 0, 10, 20]
+                        },
+                        {
+                            width: '50%',
+                            stack: metaBody.length > 0 ? [
+                                { text: 'DOCUMENT DETAILS', style: 'sectionTitle' },
+                                {
+                                    table: { widths: ['*', 'auto'], body: metaBody },
+                                    layout: 'noBorders'
+                                }
+                            ] : [],
+                            margin: [10, 0, 0, 20]
+                        }
+                    ]
+                },
 
-                        <div id="signature-anchor" class="avoid-break" style="margin-top: 40px; text-align: center; page-break-inside: avoid;">
-                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 60px; max-width: 160px; margin-bottom: 8px; object-fit: contain; display: inline-block;">` : `<div style="height: 60px;"></div>`}
-                            <div style="border-top: 2px solid #cbd5e1; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
-                            <div style="font-size: 10px; color: #475569; margin-top: 4px;">For ${biz.name || 'Company Name'}</div>
-                        </div>
-                    </div>
+                // Items Table
+                {
+                    table: { headerRows: 1, widths: !isNonGST ? ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto'] : ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#0f172a', vLineColor: () => '#0f172a' },
+                    margin: [0, 0, 0, 20]
+                },
+
+                // Totals & Footer Block
+                {
+                    columns: [
+                        {
+                            width: '55%',
+                            stack: [
+                                { text: 'Total Amount in Words', style: 'sectionTitle' },
+                                { text: 'Rupees ' + window.Utils.numberToWords(grandTotal), bold: true, margin: [0, 0, 0, 15] },
+                                
+                                (isSales && !isReturn && isNonGST && biz.upiId && thisInvoiceDue > 0.5) ? {
+                                    margin: [0, 0, 0, 15],
+                                    stack: [
+                                        { text: 'Scan to Pay', style: 'sectionTitle' },
+                                        { qr: `upi://pay?pa=${biz.upiId}&pn=${encodeURIComponent(biz.name || 'Business')}&am=${thisInvoiceDue.toFixed(2)}&cu=INR`, fit: 75 },
+                                        { text: `UPI ID: ${biz.upiId}`, style: 'subBold', margin: [0, 4, 0, 0] }
+                                    ]
+                                } : null,
+
+                                biz.bankDetails && !isNonGST ? {
+                                    margin: [0, 0, 0, 15],
+                                    stack: [
+                                        { text: 'Bank Details', style: 'sectionTitle' },
+                                        { text: biz.bankDetails, style: 'sub' }
+                                    ]
+                                } : null,
+
+                                shouldPrintNotes && rawNotes ? {
+                                    margin: [0, 0, 0, 15],
+                                    stack: [
+                                        { text: 'Remarks / Notes:', style: 'sectionTitle' },
+                                        { text: rawNotes, style: 'sub' }
+                                    ]
+                                } : null,
+
+                                biz.terms ? {
+                                    stack: [
+                                        { text: 'Terms & Conditions:', style: 'sectionTitle' },
+                                        { text: biz.terms, style: 'sub' }
+                                    ]
+                                } : null
+                            ].filter(Boolean),
+                            margin: [0, 0, 15, 0]
+                        },
+                        {
+                            width: '45%',
+                            stack: [
+                                {
+                                    table: { widths: ['*', 'auto'], body: totalsStack },
+                                    layout: 'lightHorizontalLines',
+                                    margin: [0, 0, 0, 0]
+                                },
+                                {
+                                    table: {
+                                        widths: ['*', 'auto'],
+                                        body: [
+                                            [{ text: 'GRAND TOTAL', bold: true, fillColor: '#0f172a', color: '#ffffff', margin: [4, 8] }, { text: '₹' + grandTotal.toFixed(2), bold: true, fillColor: '#0f172a', color: '#ffffff', alignment: 'right', fontSize: 12, margin: [4, 8] }]
+                                        ]
+                                    },
+                                    layout: 'noBorders',
+                                    margin: [0, 0, 0, 10]
+                                },
+                                thisInvoiceDue > 0.01 ? {
+                                    table: { widths: ['*', 'auto'], body: [[{ text: 'BALANCE DUE', bold: true, color: '#0f172a' }, { text: '₹' + thisInvoiceDue.toFixed(2), bold: true, color: '#dc2626', alignment: 'right' }]] }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 5]
+                                } : {
+                                    table: { widths: ['*', 'auto'], body: [[{ text: 'BALANCE DUE', bold: true, color: '#0f172a' }, { text: '₹0.00 (PAID)', bold: true, color: '#16a34a', alignment: 'right' }]] }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 5]
+                                },
+                                partyBalance > 0.01 && (partyBalance - thisInvoiceDue > 0.01) ? {
+                                    table: {
+                                        widths: ['*', 'auto'],
+                                        body: [
+                                            [{ text: 'Previous Dues', fontSize: 9, color: '#475569' }, { text: '₹' + (partyBalance - thisInvoiceDue).toFixed(2), fontSize: 9, bold: true, alignment: 'right' }],
+                                            [{ text: 'NET PAYABLE', bold: true, color: '#991b1b', fillColor: '#fee2e2' }, { text: '₹' + partyBalance.toFixed(2), bold: true, color: '#991b1b', fillColor: '#fee2e2', alignment: 'right' }]
+                                        ]
+                                    },
+                                    layout: 'lightHorizontalLines',
+                                    margin: [0, 10, 0, 0]
+                                } : null
+                            ].filter(Boolean)
+                        }
+                    ]
+                },
+
+                // Signature Area
+                {
+                    columns: [
+                        { width: '*', text: '' }, // Spacer
+                        {
+                            width: '200',
+                            stack: [
+                                biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
+                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] },
+                                { text: 'For ' + safeBizName, style: 'sub', alignment: 'center' }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        };
+
+        doc.hideGlobalAdvanceBadge = true;
+
+        // 🚨 ENTERPRISE UPGRADE: LIVE VISUAL PREVIEW UI
+        const viewer = document.createElement('div');
+        viewer.id = 'in-app-pdf-viewer';
+        viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+        viewer.innerHTML = `
+            <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div>
+                    <div style="font-weight:bold; font-size:18px;">Document Preview</div>
+                    <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+                </div>
+                <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
+                    <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
                 </div>
             </div>
-        </div>
+            <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
+                <div style="text-align:center; margin-top:50px;">
+                    <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                    <div style="margin-top:8px; font-weight:600; color:#475569;">Loading Preview...</div>
+                </div>
+                <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+            </div>
         `;
-        
-        // --- ENTERPRISE UPGRADE: SPLIT PAYMENT / INSTALLMENT TRACKER ---
-        let linkedSumBottom = 0;
-        if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSumBottom += (parseFloat(r.amount) || 0));
-        
-        let totalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSumBottom);
-        // THE FIX: Sync the tracker with the UI FIFO logic AND Explicit Links!
-        if (doc.status === 'Paid' || doc.status === 'Completed') totalPaid = parseFloat(doc.grandTotal) || 0; 
+        document.body.appendChild(viewer);
 
-        if (totalPaid > 0) {
-            const safeGrandTotal = parseFloat(doc.grandTotal) || 0;
-            const balanceDue = Math.max(0, safeGrandTotal - totalPaid);
-            const paidPercent = safeGrandTotal > 0 ? Math.min(100, (totalPaid / safeGrandTotal) * 100) : 0;
+        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+
+        const safeFilenameDocNo = String(safeDocNo).replace(/[^a-zA-Z0-9_.-]/g, '-');
+        const filename = `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`;
+        const shareText = `Dear ${partyName},\n\nPlease find attached the ${title} (${safeDocNo}) dated ${window.Utils.formatDateDisplay(doc.date)} for the amount of ₹${window.Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}.\n\nThank you!`;
+
+        const pdfDocGenerator = pdfMake.createPdf(docDefinition);
+        
+        pdfDocGenerator.getBlob(async (blob) => {
+            const file = new File([blob], filename, { type: 'application/pdf' });
+
+            const btnDown = document.getElementById('preview-action-download');
+            const btnShare = document.getElementById('preview-action-share');
+            const btnPrint = document.getElementById('preview-action-print');
+
+            btnDown.onclick = () => {
+    pdfDocGenerator.download(filename);
+    if (window.Utils) window.Utils.showToast("✅ Download Started!");
+    // The screen will now stay open until you manually click the X!
+};
+
+            btnShare.onclick = async () => {
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            title: filename,
+                            text: shareText,
+                            files: [file]
+                        });
+                    } catch (err) { console.log("Share cancelled."); }
+                } else {
+                    window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                    pdfDocGenerator.download(filename);
+                }
+            };
             
-            const progressHtml = `
-            <div class="avoid-break" style="margin-top: 16px; margin-bottom: 16px; border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; background: #f8fafc; page-break-inside: avoid;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h4 style="margin: 0; color: #334155; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Installment / Payment Status</h4>
-                    <span style="font-size: 14px; font-weight: bold; color: #0f172a;">Invoice Total: ${safeGrandTotal.toFixed(2)}</span>
-                </div>
-                <div style="width: 100%; background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 10px;">
-                    <div style="width: ${paidPercent}%; height: 100%; background: #16a34a;"></div>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold;">
-                    <span style="color: #16a34a;">Total Paid: ${totalPaid.toFixed(2)}</span>
-                    <span style="color: #dc2626;">Balance Due: ${balanceDue.toFixed(2)}</span>
-                </div>
-            </div>`;
+            btnPrint.onclick = () => {
+                viewer.style.display = 'none';
+                window.print();
+                setTimeout(() => { viewer.style.display = 'flex'; }, 500);
+            };
 
-            // ENTERPRISE FIX: Updated the anchor target so the tracker safely locks into the new Premium layout!
-            const anchorIndex = html.lastIndexOf('<div id="signature-anchor"');
-            if (anchorIndex !== -1) {
-                html = html.substring(0, anchorIndex) + progressHtml + html.substring(anchorIndex);
-            } else {
-                html += progressHtml; 
+            // 🚨 ENTERPRISE UPGRADE: PDF.js PREVIEW RENDERING ENGINE
+            try {
+                if (typeof window.pdfjsLib === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                        script.onload = () => {
+                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                            resolve();
+                        };
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                // Convert Blob to ArrayBuffer
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(blob);
+                });
+
+                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const previewContent = document.getElementById('pdf-preview-content');
+                previewContent.innerHTML = ''; 
+                previewContent.style.flexDirection = 'column'; 
+                previewContent.style.alignItems = 'center';
+                previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Prevents top from cutting off
+
+                for (let pageNum = 1; pageNum <= 1; pageNum++) { // 🚨 NEW: Forces only page 1 to load for Invoices
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    canvas.style.borderRadius = '4px';
+                    canvas.style.marginBottom = '16px'; 
+                    canvas.style.flexShrink = '0';
+
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    previewContent.appendChild(canvas);
+                }
+
+                document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
+                document.getElementById('pdf-status-text').style.color = '#64748b';
+                
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+
+            } catch (err) {
+                console.error("Preview Render Error:", err);
+                document.getElementById('pdf-preview-content').innerHTML = `
+                    <div style="text-align:center; margin-top:50px;">
+                        <span class="material-symbols-outlined" style="font-size:40px; color:#16a34a;">picture_as_pdf</span>
+                        <h3 style="color:#0f172a; margin-top:8px;">PDF Generated</h3>
+                        <p style="color:#475569; font-size:14px;">Preview unavailable on this device, but the document is ready!</p>
+                    </div>
+                `;
+                document.getElementById('pdf-status-text').innerText = "Ready";
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
             }
-        }
-        // --- END SPLIT PAYMENT ENGINE ---
-
-        // --- ENTERPRISE UPGRADE: DYNAMIC PDF THEME BUILDER ---
-        let themedHtml = html;
-        const brandColor = localStorage.getItem('sollo_brand_color') || '#000000';
-        const pdfFont = localStorage.getItem('sollo_pdf_font') || 'inter';
-
-        // 🚨 SOLLO FIX: Corrected the regex to target 'Inter' so the user's Font Settings actually apply!
-        if (pdfFont === 'serif') {
-            themedHtml = themedHtml.replace(/font-family: 'Inter', sans-serif;/g, "font-family: 'Times New Roman', Times, serif;");
-        } else if (pdfFont === 'mono') {
-            themedHtml = themedHtml.replace(/font-family: 'Inter', sans-serif;/g, "font-family: 'Courier New', Courier, monospace;");
-        }
-
-        // 2. Inject Custom Brand Color
-        if (brandColor !== '#000000' && brandColor !== '#e5e5e5') {
-            themedHtml = themedHtml.replace(/background-color: #e5e5e5;/g, `background-color: ${brandColor}; color: #ffffff; border: 1px solid ${brandColor};`);
-            themedHtml = themedHtml.replace(/background: #e5e5e5;/g, `background: ${brandColor}; color: #ffffff; border: 1px solid ${brandColor};`);
-            themedHtml = themedHtml.replace(/color: #000;/g, `color: #1a1c1e;`); 
-        }
-
-        const printArea = document.getElementById('print-area');
-        if (printArea) {
-            printArea.innerHTML = themedHtml; 
-            setTimeout(() => {
-                const safeFilenameDocNo = String(safeDocNo).replace(/[^a-zA-Z0-9_.-]/g, '-');
-                const shareText = `Dear ${partyName},
-
-Please find attached the ${title} (${safeDocNo}) dated ${Utils.formatDateDisplay(doc.date)} for the amount of ₹${Utils.formatCurrency(parseFloat(doc.grandTotal) || 0)}.
-
-Thank you!`;
-                Utils.processPDFExport(uniquePdfId, `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`, shareText);
-            }, 100);
-        }
+        });
     },
 
     printReceivablesReport: async (reportData, grandTotal) => {
-        window.Utils.showToast("Generating Premium Report... ⏳");
-        const uniquePdfId = 'pdf-receivables-' + Date.now();
-        const safeDocNo = Utils.getLocalDate();
+        if (typeof pdfMake === 'undefined') {
+            if (window.Utils) window.Utils.showToast("⏳ Loading Vector Engine...");
+            return;
+        }
+
+        window.Utils.showToast("⚡ Generating Premium Receivables Report...");
+        const safeDocNo = window.Utils.getLocalDate();
         
-        // 1. Fetch Business Profile for the Letterhead
         const firmId = typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1';
         const biz = await window.getRecordById('businessProfile', firmId) || {};
         const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
 
-        let rowsHtml = '';
+        const itemsBody = [
+            [
+                { text: 'Customer / Party Name', style: 'th' },
+                { text: 'Contact No.', style: 'th', alignment: 'center' },
+                { text: 'Outstanding (₹)', style: 'th', alignment: 'right' }
+            ]
+        ];
+
         reportData.forEach((row, index) => {
-            let overdueTag = '';
+            let overdueText = '';
             try {
                 if (window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.sales) {
-                    // 🚨 ENTERPRISE FIX: Ignore Drafts, Cancelled, and Credit Notes on the PDF to match the UI!
                     const partySales = window.UI.state.rawData.sales.filter(s => s.customerId === row.id && s.status !== 'Completed' && s.status !== 'Paid' && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return');
                     if (partySales.length > 0) {
                         partySales.sort((a,b) => new Date(a.shippedDate || a.date) - new Date(b.shippedDate || b.date));
                         const oldestDate = new Date(partySales[0].shippedDate || partySales[0].date);
                         const daysOverdue = Math.floor(Math.abs(new Date() - oldestDate) / (1000 * 60 * 60 * 24));
                         
-                        if (daysOverdue > 60) overdueTag = `<span style="background:#fff0f2; color:#ba1a1a; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #ffdad6; margin-left:8px; display:inline-block; vertical-align:middle; font-weight:800;">${daysOverdue} Days Overdue</span>`;
-                        else if (daysOverdue > 30) overdueTag = `<span style="background:#fff7ed; color:#c2410c; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #fb923c; margin-left:8px; display:inline-block; vertical-align:middle; font-weight:800;">${daysOverdue} Days Overdue</span>`;
-                        else if (daysOverdue > 0) overdueTag = `<span style="background:#f8fafc; color:#475569; padding:2px 6px; border-radius:4px; font-size:10px; border:1px solid #cbd5e1; margin-left:8px; display:inline-block; vertical-align:middle; font-weight:800;">${daysOverdue} Days</span>`;
+                        if (daysOverdue > 0) {
+                            overdueText = ` (${daysOverdue} Days Overdue)`;
+                        }
                     }
                 }
-            } catch(e) { console.warn("Aging calculation skipped for", row.name); }
+            } catch(e) {}
 
-            // 🚀 ENTERPRISE UPGRADE: Zebra Striping
             const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-            rowsHtml += `
-                <tr style="background-color: ${rowBg};">
-                    <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; font-weight: 800; color: #0f172a;">${row.name} ${overdueTag}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; border-right: 1px solid #94a3b8; color: #475569; font-weight: 600;">${row.phone || '-'}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: right; color: #dc2626; font-weight: 900; font-size: 13px;">₹${parseFloat(row.balance || 0).toFixed(2)}</td>
-                </tr>
-            `;
+            
+            itemsBody.push([
+                { text: row.name + overdueText, style: 'td', bold: true, fillColor: rowBg },
+                { text: row.phone || '-', style: 'td', alignment: 'center', fillColor: rowBg },
+                { text: '₹' + parseFloat(row.balance || 0).toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#dc2626', fillColor: rowBg }
+            ]);
         });
 
-        // 🚀 ENTERPRISE UPGRADE: Official Letterhead HTML Injection
-        const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
-                
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
-
-                <style>
-                    #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
-                    #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
-                    #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 10px !important; font-weight: 800 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; text-align: left; }
-                    #${uniquePdfId} td { border-top: none !important; border-left: none !important; font-size: 11px !important; vertical-align: middle !important; }
-                    #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
-                    #${uniquePdfId} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
-                    #${uniquePdfId} thead { display: table-header-group; }
-                </style>
-
-                <div style="border: 2px solid #475569; padding: 2px;">
-                <div style="border: 1px solid #475569;">
-                    
-                    <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">MARKET RECEIVABLES</h2>
-                        <div style="font-size: 12px; font-weight: 700; color: #475569;">DATE: ${Utils.formatDateDisplay(safeDocNo)}</div>
-                    </div>
-
-                    <div style="display: flex; border-bottom: 1px solid #475569;">
-                        <div style="width: 50%; padding: 20px; border-right: 1px solid #475569;">
-                            ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
-                            <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase; color: #0f172a;">${biz.name || 'Company Name'}</h1>
-                            <div style="font-size: 12px; color: #334155; line-height: 1.5;">
-                                ${biz.address || ''}<br>
-                                ${bizLocationStr ? bizLocationStr + '<br>' : ''}
-                                Ph: ${biz.phone || ''}
-                            </div>
-                        </div>
-                        <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #fff0f2; text-align: right;">
-                            <strong style="font-size: 11px; text-transform: uppercase; color: #ba1a1a; margin-bottom: 4px;">Total Market Due</strong>
-                            <span style="font-size: 28px; font-weight: 900; color: #991b1b; display: block; margin-bottom: 4px;">₹${parseFloat(grandTotal || 0).toFixed(2)}</span>
-                            <span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid #fca5a5;">Outstanding Receivables</span>
-                        </div>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 55%;">Customer / Party Name</th>
-                                <th style="width: 25%;">Contact No.</th>
-                                <th style="width: 20%; text-align: right;">Outstanding (₹)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="3" style="padding:20px; text-align:center;">No pending receivables found.</td></tr>'}
-                            <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569; border-bottom: 4px double #475569;">
-                                <td colspan="2" style="padding:15px 15px; text-align:right; text-transform:uppercase; font-size:13px; color:#0f172a;">Total Market Dues</td>
-                                <td style="padding:15px 10px; text-align:right; color:#dc2626; font-size:16px;">₹${parseFloat(grandTotal || 0).toFixed(2)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    
-                    <div class="avoid-break" style="padding: 20px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid;">
-                        <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">*** End of Report ***</div>
-                        <div style="width: 200px; text-align: center;">
-                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 75px; margin-bottom: 5px; object-fit: contain; position: relative; z-index: 10; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
-                        </div>
-                    </div>
-                </div> </div> </div>
-        `;
-
-        const printArea = document.getElementById('print-area');
-        if (printArea) {
-            printArea.innerHTML = html;
-            setTimeout(() => {
-                Utils.processPDFExport(uniquePdfId, `Receivables_${safeDocNo}.pdf`);
-            }, 100);
+        if (reportData.length === 0) {
+            itemsBody.push([{ text: 'No pending receivables found.', style: 'td', colSpan: 3, alignment: 'center' }, {}, {}]);
+        } else {
+            itemsBody.push([
+                { text: 'TOTAL MARKET DUES', style: 'td', colSpan: 2, alignment: 'right', bold: true, color: '#0f172a' },
+                {},
+                { text: '₹' + parseFloat(grandTotal || 0).toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#dc2626', fontSize: 14 }
+            ]);
         }
+
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [30, 30, 30, 30],
+            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+            styles: {
+                h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
+                title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
+                sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
+                subBold: { fontSize: 9, bold: true, color: '#0f172a' },
+                th: { fillColor: '#f1f5f9', bold: true, fontSize: 10, color: '#0f172a', margin: [2, 4] },
+                td: { fontSize: 10, margin: [2, 4] }
+            },
+            content: [
+                {
+                    columns: [
+                        {
+                            width: '60%',
+                            stack: [
+                                biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                { text: biz.name || 'Company Name', style: 'h1' },
+                                { text: (biz.address || '') + '\n' + bizLocationStr, style: 'sub' },
+                                { text: 'Ph: ' + (biz.phone || ''), style: 'sub' }
+                            ].filter(Boolean)
+                        },
+                        {
+                            width: '40%',
+                            stack: [
+                                { text: 'MARKET RECEIVABLES', style: 'title' },
+                                { text: 'DATE: ' + window.Utils.formatDateDisplay(safeDocNo), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
+                                { text: 'Total Outstanding', alignment: 'right', fontSize: 10, color: '#dc2626', margin: [0, 10, 0, 2] },
+                                { text: '₹' + parseFloat(grandTotal || 0).toFixed(2), alignment: 'right', fontSize: 22, bold: true, color: '#991b1b' }
+                            ].filter(Boolean)
+                        }
+                    ],
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    table: { headerRows: 1, widths: ['*', 'auto', 'auto'], body: itemsBody },
+                    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    columns: [
+                        { text: '*** End of Report ***', fontSize: 9, color: '#94a3b8', bold: true, alignment: 'left', width: '*' },
+                        {
+                            width: 200,
+                            stack: [
+                                biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
+                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] }
+                            ]
+                        }
+                    ],
+                    unbreakable: true 
+                }
+            ]
+        };
+
+        const viewer = document.createElement('div');
+        viewer.id = 'in-app-pdf-viewer';
+        viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+        viewer.innerHTML = `
+            <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div>
+                    <div style="font-weight:bold; font-size:18px;">Report Preview</div>
+                    <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+                </div>
+                <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
+                    <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
+                </div>
+            </div>
+            <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
+                <div style="text-align:center; margin-top:50px;">
+                    <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                    <div style="margin-top:8px; font-weight:600; color:#475569;">Loading Preview...</div>
+                </div>
+                <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+            </div>
+        `;
+        document.body.appendChild(viewer);
+
+        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+
+        const safeFilename = `Receivables_Report_${safeDocNo}.pdf`;
+        const shareText = "Here is the Market Receivables Report.";
+
+        let pdfDocGenerator;
+        try {
+            pdfDocGenerator = pdfMake.createPdf(docDefinition);
+        } catch (e) {
+            window.Utils.showToast("❌ Error generating PDF structure.");
+            viewer.remove();
+            return;
+        }
+
+        pdfDocGenerator.getBlob(async (blob) => {
+            document.getElementById('pdf-status-text').innerText = "Generating Preview..."; 
+            document.getElementById('pdf-status-text').style.color = '#0061a4';
+
+            const file = new File([blob], safeFilename, { type: 'application/pdf' });
+
+            const btnDown = document.getElementById('preview-action-download');
+            const btnShare = document.getElementById('preview-action-share');
+            const btnPrint = document.getElementById('preview-action-print');
+
+            btnDown.onclick = () => {
+                pdfDocGenerator.download(safeFilename);
+                if (window.Utils) window.Utils.showToast("✅ Download Started!");
+            };
+
+            btnShare.onclick = async () => {
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ title: safeFilename, text: shareText, files: [file] });
+                    } catch (err) {}
+                } else {
+                    window.Utils.showToast("⚠️ Native Share blocked. Downloading instead...");
+                    pdfDocGenerator.download(safeFilename);
+                }
+            };
+            
+            btnPrint.onclick = () => { pdfDocGenerator.print(); };
+
+            try {
+                if (typeof window.pdfjsLib === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                        script.onload = () => {
+                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                            resolve();
+                        };
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(blob);
+                });
+
+                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const previewContent = document.getElementById('pdf-preview-content');
+                previewContent.innerHTML = ''; 
+                previewContent.style.flexDirection = 'column'; 
+                previewContent.style.alignItems = 'center';
+                previewContent.style.justifyContent = 'flex-start';
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    canvas.style.borderRadius = '4px';
+                    canvas.style.marginBottom = '16px'; 
+                    canvas.style.flexShrink = '0';
+
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    previewContent.appendChild(canvas);
+                }
+
+                document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
+                document.getElementById('pdf-status-text').style.color = '#64748b';
+                
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+
+            } catch (err) {
+                document.getElementById('pdf-preview-content').innerHTML = "<div style='text-align:center; margin-top:50px;'><h3 style='color:#0f172a;'>PDF Generated</h3><p>Preview unavailable on this device.</p></div>";
+                document.getElementById('pdf-status-text').innerText = "Ready";
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+            }
+        });
     },
 
     downloadStatementPDF: async () => {
+        if (typeof pdfMake === 'undefined') {
+            if (window.Utils) window.Utils.showToast("⏳ Loading Vector Engine...");
+            return;
+        }
+
         const nameEl = document.getElementById('report-party-name');
-        const balEl = document.getElementById('report-party-balance');
         if (!nameEl) return alert("Report data not found.");
 
         const partyName = nameEl.innerText.trim();
@@ -1845,23 +1836,28 @@ Thank you!`;
         
         if (!party) return alert("Could not identify details for: " + partyName);
 
+        if (window.Utils) window.Utils.showToast("⚡ Generating Vector Statement PDF...");
+
         const biz = (party.firmId) ? await window.getRecordById('businessProfile', party.firmId) || {} : {};
         const timeline = window.UI.state.rawData.timeline || [];
         
         let finalBal = 0;
-        if (timeline.length > 0) {
-            finalBal = timeline[timeline.length - 1].runningBalance || 0;
-        }
+        if (timeline.length > 0) finalBal = timeline[timeline.length - 1].runningBalance || 0;
 
-        let openingBal = 0;
-        const openEntry = timeline.find(t => t.id === 'open-bal');
-        if (openEntry) openingBal = openEntry.impact || openEntry.amount || 0;
-        
-        let tableRows = '';
+        const itemsBody = [
+            [
+                { text: 'Date', style: 'th', alignment: 'center' },
+                { text: 'Particulars / Voucher Type', style: 'th' },
+                { text: 'Debit (Dr)', style: 'th', alignment: 'right' },
+                { text: 'Credit (Cr)', style: 'th', alignment: 'right' },
+                { text: 'Balance', style: 'th', alignment: 'right' }
+            ]
+        ];
+
         let totalDebit = 0;
         let totalCredit = 0;
         
-        timeline.forEach((t, index) => {
+        timeline.forEach((t) => {
             let debit = '';
             let credit = '';
             
@@ -1884,69 +1880,56 @@ Thank you!`;
                 }
             }
 
-            const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-            
-            // 🚨 EXACT SCREENSHOT MATCH: Combines the Voucher Type and Number cleanly!
-            let particulars = t.id === 'open-bal' ? 'Opening Balance' : `${t.type || t.desc} ${t.ref ? '/ ' + t.ref : ''}`;
-            if (t.partyName && t.partyName !== 'Unknown') particulars += ` <span style="color:#64748b; font-size: 10px;">(${t.partyName})</span>`;
+            if (debit) totalDebit += parseFloat(debit);
+            if (credit) totalCredit += parseFloat(credit);
 
-            // 🚨 ENTERPRISE UI: Inject GST / Non-GST Micro-Badges into the Particulars!
-            if (t.isInvoice) {
+            let particularsStack = [];
+            let mainDesc = t.id === 'open-bal' ? 'Opening Balance' : `${t.type || t.desc} ${t.ref ? '/ ' + t.ref : ''}`;
+            if (t.partyName && t.partyName !== 'Unknown') mainDesc += ` (${t.partyName})`;
+            particularsStack.push({ text: mainDesc, bold: true });
+
+            if (t.isInvoice && window.UI && window.UI.state && window.UI.state.rawData) {
                 let inv = null;
-                if (party.type === 'Customer' && window.UI.state.rawData.sales) {
-                    inv = window.UI.state.rawData.sales.find(s => s.id === t.id);
-                } else if (party.type === 'Supplier' && window.UI.state.rawData.purchases) {
-                    inv = window.UI.state.rawData.purchases.find(p => p.id === t.id);
-                }
+                if (party.type === 'Customer' && window.UI.state.rawData.sales) inv = window.UI.state.rawData.sales.find(s => s.id === t.id);
+                else if (party.type === 'Supplier' && window.UI.state.rawData.purchases) inv = window.UI.state.rawData.purchases.find(p => p.id === t.id);
 
                 if (inv) {
                     const gstAmt = parseFloat(inv.totalGst) || 0;
                     const baseAmt = (parseFloat(inv.grandTotal) || 0) - gstAmt;
-                    
                     if (gstAmt > 0) {
-                        particulars += `<div style="margin-top: 5px;"><span style="font-size: 9px; color: #0369a1; background: #e0f2fe; padding: 2px 6px; border-radius: 4px; border: 1px solid #bae6fd; font-weight: 700; display: inline-block;">Base: ₹${baseAmt.toFixed(2)} | GST: ₹${gstAmt.toFixed(2)}</span></div>`;
+                        particularsStack.push({ text: `Base: ₹${baseAmt.toFixed(2)} | GST: ₹${gstAmt.toFixed(2)}`, fontSize: 8, color: '#0369a1', margin: [0, 2, 0, 0] });
                     } else if (inv.invoiceType === 'Non-GST') {
-                        particulars += `<div style="margin-top: 5px;"><span style="font-size: 9px; color: #b45309; background: #fef3c7; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a; font-weight: 700; display: inline-block;">Non-GST Bill</span></div>`;
+                        particularsStack.push({ text: `Non-GST Bill`, fontSize: 8, color: '#b45309', margin: [0, 2, 0, 0] });
                     }
                 }
             }
 
-            tableRows += `
-                <tr style="background-color: ${rowBg};">
-                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#0f172a; white-space:nowrap; font-weight:600;">${Utils.formatDateDisplay(t.date)}</td>
-                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; font-weight: 700; color:#0f172a; line-height: 1.4;">
-                        ${particulars}
-                    </td>
-                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:right; color:#0f172a; font-weight:600;">${debit ? debit : ''}</td>
-                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:right; color:#0f172a; font-weight:600;">${credit ? credit : ''}</td>
-                    <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; font-weight:800; color:#0f172a;">
-                        ${Math.abs(t.runningBalance || 0).toFixed(2)} ${Math.abs(t.runningBalance || 0) < 0.01 ? '' : ((t.runningBalance || 0) > 0 ? 'Dr' : 'Cr')}
-                    </td>
-                </tr>
-            `;
-            
-            if (debit) totalDebit += parseFloat(debit);
-            if (credit) totalCredit += parseFloat(credit);
+            itemsBody.push([
+                { text: window.Utils.formatDateDisplay(t.date), style: 'td', alignment: 'center' },
+                { stack: particularsStack, style: 'td' },
+                { text: debit ? debit : '', style: 'td', alignment: 'right' },
+                { text: credit ? credit : '', style: 'td', alignment: 'right' },
+                { text: `${Math.abs(t.runningBalance || 0).toFixed(2)} ${Math.abs(t.runningBalance || 0) < 0.01 ? '' : ((t.runningBalance || 0) > 0 ? 'Dr' : 'Cr')}`, style: 'td', alignment: 'right', bold: true }
+            ]);
         });
 
         if (timeline.length > 0) {
-            tableRows += `
-                <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a;">
-                    <td colspan="2" style="padding:12px 15px; text-align:right; text-transform:uppercase; font-size:12px; color:#0f172a;">Total</td>
-                    <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:right; color:#0f172a; font-size:13px;">${totalDebit.toFixed(2)}</td>
-                    <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:right; color:#0f172a; font-size:13px;">${totalCredit.toFixed(2)}</td>
-                    <td style="padding:12px 10px;"></td>
-                </tr>
-            `;
+            itemsBody.push([
+                { text: 'TOTAL', style: 'td', colSpan: 2, alignment: 'right', bold: true, color: '#0f172a' },
+                {},
+                { text: totalDebit.toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#0f172a' },
+                { text: totalCredit.toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#0f172a' },
+                { text: '', style: 'td' }
+            ]);
+        } else {
+            itemsBody.push([{ text: 'No transactions found.', style: 'td', colSpan: 5, alignment: 'center' }, {}, {}, {}, {}]);
         }
 
-        const safeDocNo = Utils.getLocalDate();
-        
+        const safeDocNo = window.Utils.getLocalDate();
         let balSuffix = 'Available';
-        let splitHtml = ''; 
+        let splitStack = [];
 
         if (!isAccount) {
-            // 🚨 NEW LOGIC: Catch perfect zero balances first!
             if (Math.abs(finalBal) < 0.01) {
                 balSuffix = 'Settled (Nil)';
             } else if (party.type === 'Customer') {
@@ -1955,61 +1938,55 @@ Thank you!`;
                 balSuffix = finalBal < 0 ? 'Cr (To Pay)' : 'Dr (Advance)';
             }
 
-            // 🚀 ENTERPRISE UPGRADE: EXPLICIT PAYMENT TAX-SPLIT ENGINE FOR PDF
-            // Professional Standard: Perfectly matches the Master Tab by reading exact payment checkboxes!
             if ((party.type === 'Customer' && finalBal > 0.01) || (party.type === 'Supplier' && finalBal < -0.01)) {
                 let debitsGst = 0;
                 let debitsNon = 0;
-
                 const exactPaymentMap = {};
                 const exactReturnMap = {};
 
-                // 1. Map all explicit manual payments to their selected invoices
-                window.UI.state.rawData.cashbook.forEach(c => {
-                    if (c.ledgerId === party.id && c.invoiceRef) {
-                        let amt = parseFloat(c.amount) || 0;
-                        const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                        let remainingAmt = amt;
-                        refs.forEach(ref => {
-                            if (remainingAmt <= 0) return;
-                            exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length);
-                        });
-                    }
-                });
-
-                const relatedDocs = party.type === 'Customer' ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases;
-
-                // 2. Map Returns and Credit Notes
-                relatedDocs.forEach(d => {
-                    if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo && (party.type === 'Customer' ? d.customerId === party.id : d.supplierId === party.id)) {
-                        exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
-                    }
-                });
-
-                // 3. Scan exact invoice balances based on explicit payment links
-                relatedDocs.forEach(doc => {
-                    const partyMatch = party.type === 'Customer' ? doc.customerId === party.id : doc.supplierId === party.id;
-                    if (partyMatch && doc.status !== 'Open' && doc.documentType !== 'return') {
-                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
-                        const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
-                        const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
-                        
-                        const docTotal = parseFloat(doc.grandTotal) || 0;
-                        const finalUnpaid = Math.max(0, docTotal - paid - returned);
-                        
-                        if (finalUnpaid > 0.01) {
-                            if (doc.invoiceType === 'Non-GST') debitsNon += finalUnpaid;
-                            else debitsGst += finalUnpaid;
+                if (window.UI && window.UI.state && window.UI.state.rawData) {
+                    (window.UI.state.rawData.cashbook || []).forEach(c => {
+                        if (c.ledgerId === party.id && c.invoiceRef) {
+                            let amt = parseFloat(c.amount) || 0;
+                            const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                            let remainingAmt = amt;
+                            refs.forEach(ref => {
+                                if (remainingAmt <= 0) return;
+                                exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length);
+                            });
                         }
-                    }
-                });
+                    });
 
-                // 4. Reconcile with the exact PDF closing balance to prevent mathematical drift!
+                    const relatedDocs = party.type === 'Customer' ? (window.UI.state.rawData.sales || []) : (window.UI.state.rawData.purchases || []);
+
+                    relatedDocs.forEach(d => {
+                        if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo && (party.type === 'Customer' ? d.customerId === party.id : d.supplierId === party.id)) {
+                            exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                        }
+                    });
+
+                    relatedDocs.forEach(doc => {
+                        const partyMatch = party.type === 'Customer' ? doc.customerId === party.id : doc.supplierId === party.id;
+                        if (partyMatch && doc.status !== 'Open' && doc.documentType !== 'return') {
+                            const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                            const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
+                            const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
+                            
+                            const docTotal = parseFloat(doc.grandTotal) || 0;
+                            const finalUnpaid = Math.max(0, docTotal - paid - returned);
+                            
+                            if (finalUnpaid > 0.01) {
+                                if (doc.invoiceType === 'Non-GST') debitsNon += finalUnpaid;
+                                else debitsGst += finalUnpaid;
+                            }
+                        }
+                    });
+                }
+
                 const exactTargetBalance = Math.abs(finalBal);
                 const trackedDebt = debitsGst + debitsNon;
 
                 if (exactTargetBalance < trackedDebt) {
-                    // Unlinked advance payments exist. Deduct from GST dues first.
                     const excessCredit = trackedDebt - exactTargetBalance;
                     if (excessCredit >= debitsGst) {
                         let remaining = excessCredit - debitsGst;
@@ -2019,7 +1996,6 @@ Thank you!`;
                         debitsGst -= excessCredit;
                     }
                 } else if (exactTargetBalance > trackedDebt) {
-                    // Unallocated ghost debt exists (like unlinked Opening Balances).
                     const missingDebt = exactTargetBalance - trackedDebt;
                     let hasGst = party.gst && String(party.gst).trim().length > 4;
                     if (!hasGst) debitsNon += missingDebt;
@@ -2027,106 +2003,625 @@ Thank you!`;
                 }
 
                 if (debitsGst > 0.01 || debitsNon > 0.01) {
-                    splitHtml = `<div style="margin-top: 12px; background: #e2e8f0; padding: 8px; border-radius: 6px; border: 1px dashed #94a3b8; display: inline-block; text-align: right;">`;
-                    if (debitsGst > 0.01) splitHtml += `<div style="font-size: 11px; color: #0f172a; font-weight: 800; margin-bottom: 2px;">GST Due: ₹${window.Utils.formatCurrency(debitsGst)}</div>`;
-                    if (debitsNon > 0.01) splitHtml += `<div style="font-size: 11px; color: #0f172a; font-weight: 800;">Non-GST Due: ₹${window.Utils.formatCurrency(debitsNon)}</div>`;
-                    splitHtml += `</div>`;
+                    if (debitsGst > 0.01) splitStack.push({ text: `GST Due: ₹${window.Utils.formatCurrency(debitsGst)}`, fontSize: 9, bold: true, color: '#0f172a' });
+                    if (debitsNon > 0.01) splitStack.push({ text: `Non-GST Due: ₹${window.Utils.formatCurrency(debitsNon)}`, fontSize: 9, bold: true, color: '#0f172a', margin: [0, 2, 0, 0] });
                 }
             }
         }
-        
+
         const statementBizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
         const statementPartyLocationStr = [party.city, party.state].filter(Boolean).join(', ') + (party.pincode ? ' - ' + party.pincode : '');
-        const uniquePdfId = 'pdf-statement-' + Date.now();
 
-        // 🚀 ENTERPRISE UPGRADE: Official Letterhead HTML Injection
-        const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
-                
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%);" /></div>` : ''}
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [30, 30, 30, 30],
+            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+            styles: {
+                h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
+                title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
+                sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
+                subBold: { fontSize: 9, bold: true, color: '#0f172a' },
+                sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
+                th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
+                td: { fontSize: 9, margin: [2, 4] }
+            },
+            content: [
+                {
+                    columns: [
+                        {
+                            width: '50%',
+                            stack: [
+                                biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                { text: biz.name || 'Company Name', style: 'h1' },
+                                { text: (biz.address || '') + '\n' + statementBizLocationStr, style: 'sub' },
+                                { text: 'Ph: ' + (biz.phone || ''), style: 'sub' }
+                            ].filter(Boolean)
+                        },
+                        {
+                            width: '50%',
+                            stack: [
+                                { text: isAccount ? 'ACCOUNT STATEMENT' : 'LEDGER STATEMENT', style: 'title' },
+                                { text: 'DATE: ' + window.Utils.formatDateDisplay(safeDocNo), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
+                                { text: 'Closing Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 2] },
+                                { text: '₹' + Math.abs(finalBal).toFixed(2), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
+                                { text: balSuffix, alignment: 'right', fontSize: 10, bold: true, color: Math.abs(finalBal) < 0.01 ? '#64748b' : (finalBal > 0 ? '#16a34a' : '#ef4444'), margin: [0, 2, 0, 5] },
+                                splitStack.length > 0 ? { stack: splitStack, alignment: 'right', margin: [0, 5, 0, 0] } : null
+                            ].filter(Boolean)
+                        }
+                    ],
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    stack: [
+                        { text: isAccount ? 'ACCOUNT DETAILS' : 'PARTY DETAILS', style: 'sectionTitle' },
+                        { text: party.name, bold: true, fontSize: 12 },
+                        { text: (party.address || '') + '\n' + statementPartyLocationStr, style: 'sub', margin: [0, 2, 0, 0] },
+                        party.phone ? { text: 'Ph: ' + party.phone, style: 'sub' } : null,
+                        party.gst ? { text: 'GSTIN: ' + String(party.gst).toUpperCase(), style: 'subBold', margin: [0, 2, 0, 0] } : null
+                    ].filter(Boolean),
+                    margin: [0, 0, 0, 15]
+                },
+                {
+                    table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    columns: [
+                        { text: '*** End of Statement ***', fontSize: 9, color: '#94a3b8', bold: true, alignment: 'left', width: '*' },
+                        {
+                            width: 200,
+                            stack: [
+                                biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
+                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] }
+                            ]
+                        }
+                    ],
+                    unbreakable: true 
+                }
+            ]
+        };
 
-                <style>
-                    #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
-                    #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
-                    #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 10px !important; font-weight: 800 !important; font-size: 11px !important; text-transform: uppercase !important; color: #0f172a !important; }
-                    #${uniquePdfId} td { border-top: none !important; border-left: none !important; font-size: 11px !important; vertical-align: middle !important; }
-                    #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
-                    #${uniquePdfId} tr { page-break-inside: avoid !important; break-inside: avoid !important; }
-                    #${uniquePdfId} thead { display: table-header-group; }
-                </style>
-
-                <div style="border: 2px solid #475569; padding: 2px;">
-                <div style="border: 1px solid #475569;">
-                    
-                    <div style="background: #f8fafc; border-bottom: 1px solid #475569; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0; font-size: 24px; color: #0f172a; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">${isAccount ? 'ACCOUNT STATEMENT' : 'LEDGER STATEMENT'}</h2>
-                        <div style="font-size: 12px; font-weight: 700; color: #475569;">
-                            DATE: ${Utils.getLocalDate()}
-                        </div>
-                    </div>
-
-                    <div style="display: flex; border-bottom: 1px solid #475569;">
-                        <div style="width: 50%; padding: 20px; border-right: 1px solid #475569;">
-                            ${biz.logo ? `<img src="${biz.logo}" style="max-height: 60px; max-width: 180px; object-fit: contain; margin-bottom: 12px;">` : ''}
-                            <h1 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 800; text-transform: uppercase; color: #0f172a;">${biz.name || 'Company Name'}</h1>
-                            <div style="font-size: 12px; color: #334155; line-height: 1.5;">
-                                ${biz.address || ''}<br>
-                                ${statementBizLocationStr ? statementBizLocationStr + '<br>' : ''}
-                                Ph: ${biz.phone || ''}
-                            </div>
-                        </div>
-                        <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #f8fafc; text-align: right;">
-                            <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Closing Balance</strong>
-                            <span style="font-size: 24px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">₹${Math.abs(finalBal).toFixed(2)}</span>
-                            <span style="font-size: 14px; font-weight: 700; color: ${Math.abs(finalBal) < 0.01 ? '#64748b' : (finalBal > 0 ? '#16a34a' : '#ef4444')};">${balSuffix}</span>
-                            ${splitHtml}
-                        </div>
-                    </div>
-
-                    <div style="padding: 15px 20px; border-bottom: 1px solid #475569;">
-                        <strong style="text-transform: uppercase; font-size: 11px; background: #e2e8f0; padding: 4px 8px; border-radius: 4px; color: #0f172a; display: inline-block; margin-bottom: 8px;">${isAccount ? 'ACCOUNT DETAILS' : 'PARTY DETAILS'}</strong>
-                        <div style="font-size: 16px; font-weight: 800; text-transform: uppercase; color: #0f172a;">${party.name}</div>
-                        <div style="font-size: 12px; color: #334155; margin-top: 4px; line-height: 1.5;">
-                            ${party.address || ''} ${party.address ? '<br>' : ''}
-                            ${statementPartyLocationStr || ''} ${statementPartyLocationStr ? '<br>' : ''}
-                            ${party.phone ? `Ph: ${party.phone}<br>` : ''}
-                            ${party.gst ? `<strong style="color:#0f172a;">GSTIN: ${String(party.gst).toUpperCase()}</strong>` : ''}
-                        </div>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 12%;">Date</th>
-                                <th style="width: 43%; text-align: left;">Particulars / Voucher Type</th>
-                                <th style="width: 15%; text-align: right;">Debit (Dr)</th>
-                                <th style="width: 15%; text-align: right;">Credit (Cr)</th>
-                                <th style="width: 15%; text-align: right;">Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows.length > 0 ? tableRows : '<tr><td colspan="5" style="padding:20px; text-align:center;">No transactions found.</td></tr>'}
-                        </tbody>
-                    </table>
-                    
-                    <div class="avoid-break" style="padding: 20px; display: flex; justify-content: space-between; align-items: flex-end; page-break-inside: avoid;">
-                        <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">*** End of Statement ***</div>
-                        <div style="width: 200px; text-align: center;">
-                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 75px; margin-bottom: 5px; object-fit: contain; position: relative; z-index: 10; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
-                        </div>
-                    </div>
-                </div> </div> </div>
+        const viewer = document.createElement('div');
+        viewer.id = 'in-app-pdf-viewer';
+        viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+        viewer.innerHTML = `
+            <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div>
+                    <div style="font-weight:bold; font-size:18px;">Statement Preview</div>
+                    <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+                </div>
+                <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
+                    <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
+                </div>
+            </div>
+            <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
+                <div style="text-align:center; margin-top:50px;">
+                    <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                    <div style="margin-top:8px; font-weight:600; color:#475569;">Loading Preview...</div>
+                </div>
+                <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+            </div>
         `;
+        document.body.appendChild(viewer);
 
-        const printArea = document.getElementById('print-area');
-        if (printArea) {
-            printArea.innerHTML = html;
-            const docTitle = isAccount ? 'Account_Statement' : 'Ledger_Statement';
-            setTimeout(() => {
-                Utils.processPDFExport(uniquePdfId, `${docTitle}_${safeDocNo}.pdf`);
-            }, 100);
+        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+
+        const docTitle = isAccount ? 'Account_Statement' : 'Ledger_Statement';
+        const cleanPartyName = partyName.replace(/[^a-zA-Z0-9]/g, '_');
+        const safeFilename = `${docTitle}_${cleanPartyName}_${safeDocNo}.pdf`;
+        const shareText = `Dear ${partyName},\n\nPlease find attached your ledger statement.\n\nThank you!`;
+
+        let pdfDocGenerator;
+        try {
+            pdfDocGenerator = pdfMake.createPdf(docDefinition);
+        } catch (e) {
+            window.Utils.showToast("❌ Error generating PDF structure.");
+            viewer.remove();
+            return;
         }
+
+        pdfDocGenerator.getBlob(async (blob) => {
+            document.getElementById('pdf-status-text').innerText = "Generating Preview..."; 
+            document.getElementById('pdf-status-text').style.color = '#0061a4';
+
+            const file = new File([blob], safeFilename, { type: 'application/pdf' });
+
+            const btnDown = document.getElementById('preview-action-download');
+            const btnShare = document.getElementById('preview-action-share');
+            const btnPrint = document.getElementById('preview-action-print');
+
+            btnDown.onclick = () => {
+                pdfDocGenerator.download(safeFilename);
+                if (window.Utils) window.Utils.showToast("✅ Download Started!");
+            };
+
+            btnShare.onclick = async () => {
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ title: safeFilename, text: shareText, files: [file] });
+                    } catch (err) { console.log("Share cancelled."); }
+                } else {
+                    window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                    pdfDocGenerator.download(safeFilename);
+                }
+            };
+            
+            btnPrint.onclick = () => {
+                pdfDocGenerator.print();
+            };
+
+            try {
+                if (typeof window.pdfjsLib === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                        script.onload = () => {
+                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                            resolve();
+                        };
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(blob);
+                });
+
+                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const previewContent = document.getElementById('pdf-preview-content');
+                previewContent.innerHTML = ''; 
+                previewContent.style.flexDirection = 'column'; 
+                previewContent.style.alignItems = 'center';
+                previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    canvas.style.borderRadius = '4px';
+                    canvas.style.marginBottom = '16px'; 
+                    canvas.style.flexShrink = '0';
+
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    previewContent.appendChild(canvas);
+                }
+
+                document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
+                document.getElementById('pdf-status-text').style.color = '#64748b';
+                
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+
+            } catch (err) {
+                document.getElementById('pdf-preview-content').innerHTML = `
+                    <div style="text-align:center; margin-top:50px;">
+                        <span class="material-symbols-outlined" style="font-size:40px; color:#16a34a;">picture_as_pdf</span>
+                        <h3 style="color:#0f172a; margin-top:8px;">PDF Generated</h3>
+                        <p style="color:#475569; font-size:14px;">Preview unavailable on this device, but the document is ready!</p>
+                    </div>
+                `;
+                document.getElementById('pdf-status-text').innerText = "Ready";
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+            }
+        });
+    },
+
+    // ==========================================
+    // ENTERPRISE UPGRADE: PARTY-FILTERED ITEM LEDGER PDF
+    // ==========================================
+    executeItemLedgerReport: async (itemId, itemName, partyId = null, partyName = null, searchText = '', typeFilter = 'ALL', dateFilter = '', actionType = 'preview') => {
+        if (typeof pdfMake === 'undefined') {
+            if (window.Utils) window.Utils.showToast("⏳ Loading Vector Engine...");
+            return;
+        }
+
+        if (window.Utils) window.Utils.showToast("⚡ Generating Premium Stock Ledger...");
+        
+        const activeFirmId = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
+        const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
+        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+
+        const product = await window.getRecordById('items', itemId);
+        const openingStock = (product && !partyId) ? (parseFloat(product.openingStock) || 0) : 0;
+
+        let timeline = [];
+        
+        const sales = await window.getAllRecords('sales');
+        sales.forEach(s => {
+            if(s.status !== 'Open' && s.status !== 'Cancelled' && s.firmId === activeFirmId && (!partyId || s.customerId === partyId)) {
+                (s.items || []).forEach(row => {
+                    if(row.itemId === itemId) {
+                        const isReturn = s.documentType === 'return';
+                        const qty = parseFloat(row.qty) || 0;
+                        timeline.push({ id: s.id, date: s.date, type: isReturn ? 'Sales Return' : 'Sale', desc: s.customerName || 'Unknown Party', ref: s.invoiceNo || s.orderNo || s.id.slice(-4).toUpperCase(), inQty: isReturn ? qty : 0, outQty: isReturn ? 0 : qty });
+                    }
+                });
+            }
+        });
+
+        const purchases = await window.getAllRecords('purchases');
+        purchases.forEach(p => {
+            if(p.status !== 'Open' && p.status !== 'Cancelled' && p.firmId === activeFirmId && (!partyId || p.supplierId === partyId)) {
+                (p.items || []).forEach(row => {
+                    if(row.itemId === itemId) {
+                        const isReturn = p.documentType === 'return';
+                        const qty = parseFloat(row.qty) || 0;
+                        timeline.push({ id: p.id, date: p.date, type: isReturn ? 'Purchase Return' : 'Purchase', desc: p.supplierName || 'Unknown Party', ref: p.invoiceNo || p.poNo || p.id.slice(-4).toUpperCase(), inQty: isReturn ? 0 : qty, outQty: isReturn ? qty : 0 });
+                    }
+                });
+            }
+        });
+
+        if (!partyId) {
+            const adjustments = await window.getAllRecords('adjustments');
+            adjustments.forEach(a => {
+                if(a.itemId === itemId && a.firmId === activeFirmId) {
+                    const qty = parseFloat(a.qty) || 0;
+                    timeline.push({ id: a.id, date: a.date, type: 'Adjustment', desc: 'Manual Correction', ref: a.notes || 'Audit', inQty: a.type === 'add' ? qty : 0, outQty: a.type === 'reduce' ? qty : 0 });
+                }
+            });
+            
+            const expenses = await window.getAllRecords('expenses');
+            expenses.forEach(e => {
+                if(e.firmId === activeFirmId) {
+                    (e.items || []).forEach(row => {
+                        if(row.itemId === itemId) {
+                            const qty = parseFloat(row.qty) || 0;
+                            timeline.push({ id: e.id, date: e.date, type: 'Expense', desc: 'Internal Expense', ref: e.expenseNo || 'EXP', inQty: 0, outQty: qty });
+                        }
+                    });
+                }
+            });
+        }
+
+        timeline.sort((a, b) => {
+            const dateA = new Date(a.date || 0).getTime();
+            const dateB = new Date(b.date || 0).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+            const timeA = parseInt(String(a.id || '').split('-').pop()) || 0;
+            const timeB = parseInt(String(b.id || '').split('-').pop()) || 0;
+            return timeA - timeB;
+        });
+
+        let runningStock = openingStock;
+        timeline.forEach(t => {
+            runningStock += t.inQty;
+            runningStock -= t.outQty;
+            t.trueRunningBalance = runningStock; 
+        });
+
+        const trueFinalStock = runningStock;
+
+        timeline = timeline.filter(t => {
+            if (searchText && !String(t.ref || '').toLowerCase().includes(searchText) && !String(t.type || '').toLowerCase().includes(searchText)) return false;
+            const impact = (t.inQty || 0) - (t.outQty || 0);
+            if (typeFilter === 'IN' && impact <= 0) return false;
+            if (typeFilter === 'OUT' && impact >= 0) return false;
+            if (typeFilter === 'Expense' && t.type !== 'Expense') return false;
+            if (dateFilter && t.date !== dateFilter) return false;
+            return true;
+        });
+
+        let totalIn = 0;
+        let totalOut = 0;
+        
+        const itemsBody = [
+            [
+                { text: 'Date', style: 'th', alignment: 'center' },
+                { text: 'Type', style: 'th' },
+                { text: 'Particulars & Ref', style: 'th' },
+                { text: 'Stock IN', style: 'th', alignment: 'center' },
+                { text: 'Stock OUT', style: 'th', alignment: 'center' },
+                { text: 'Running Bal', style: 'th', alignment: 'right' }
+            ]
+        ];
+
+        if (!partyId && !dateFilter) {
+            itemsBody.push([
+                { text: 'Opening', style: 'td', color: '#475569', alignment: 'center' },
+                { text: 'Opening Stock', style: 'td', bold: true },
+                { text: 'Initial Inventory Balance', style: 'td' },
+                { text: openingStock > 0 ? openingStock.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
+                { text: openingStock < 0 ? Math.abs(openingStock).toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
+                { text: openingStock.toFixed(2), style: 'td', alignment: 'right', bold: true }
+            ]);
+        }
+
+        timeline.forEach(t => {
+            totalIn += t.inQty;
+            totalOut += t.outQty;
+            
+            itemsBody.push([
+                { text: window.Utils.formatDateDisplay(t.date), style: 'td', alignment: 'center', color: '#475569' },
+                { text: t.type, style: 'td', bold: true },
+                { stack: [{ text: t.desc }, { text: 'Ref: ' + t.ref, fontSize: 8, color: '#64748b', margin: [0, 2, 0, 0] }], style: 'td' },
+                { text: t.inQty > 0 ? t.inQty.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
+                { text: t.outQty > 0 ? t.outQty.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
+                { text: t.trueRunningBalance.toFixed(2), style: 'td', alignment: 'right', bold: true }
+            ]);
+        });
+
+        const finalDisplayBalance = trueFinalStock;
+
+        itemsBody.push([
+            { text: 'Total Volume Summary', style: 'td', colSpan: 3, alignment: 'right', bold: true, color: '#0f172a' },
+            {}, {},
+            { text: totalIn.toFixed(2), style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
+            { text: totalOut.toFixed(2), style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
+            { text: finalDisplayBalance.toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#0f172a' }
+        ]);
+
+        const reportSubtitle = partyId ? `Filtered By Party: ${partyName}` : (dateFilter ? `Filtered By Date: ${dateFilter}` : 'Global Stock Movement');
+
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [30, 30, 30, 30],
+            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+            styles: {
+                h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
+                title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
+                sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
+                subBold: { fontSize: 9, bold: true, color: '#0f172a' },
+                sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
+                th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
+                td: { fontSize: 9, margin: [2, 4] }
+            },
+            content: [
+                {
+                    columns: [
+                        {
+                            width: '60%',
+                            stack: [
+                                biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                { text: biz.name || 'Company Name', style: 'h1' },
+                                { text: 'Official Stock Ledger & Inventory Audit', style: 'sub' }
+                            ].filter(Boolean)
+                        },
+                        {
+                            width: '40%',
+                            stack: [
+                                { text: 'STOCK LEDGER', style: 'title' },
+                                { text: 'DATE: ' + window.Utils.formatDateDisplay(window.Utils.getLocalDate()), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] }
+                            ]
+                        }
+                    ],
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    columns: [
+                        {
+                            width: '60%',
+                            stack: [
+                                { text: 'Product / Item Name', style: 'subBold', color: '#64748b' },
+                                { text: itemName || 'Unknown Item', bold: true, fontSize: 14 }
+                            ]
+                        },
+                        {
+                            width: '40%',
+                            stack: [
+                                { text: 'Filter Scope', style: 'subBold', color: '#64748b', alignment: 'right' },
+                                { text: reportSubtitle, bold: true, fontSize: 11, alignment: 'right' }
+                            ]
+                        }
+                    ],
+                    margin: [0, 0, 0, 15]
+                },
+                {
+                    table: { headerRows: 1, widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    columns: [
+                        {
+                            width: '50%',
+                            stack: [
+                                { text: 'LEDGER SUMMARY', style: 'sectionTitle' },
+                                { text: `Total Stock IN:  + ${totalIn.toFixed(2)}`, color: '#16a34a', bold: true, margin: [0, 2, 0, 0] },
+                                { text: `Total Stock OUT: - ${totalOut.toFixed(2)}`, color: '#dc2626', bold: true, margin: [0, 2, 0, 0] }
+                            ]
+                        },
+                        {
+                            width: '50%',
+                            stack: [
+                                { text: 'Closing Stock Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 0, 0, 2] },
+                                { text: finalDisplayBalance.toFixed(2), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
+                                { text: finalDisplayBalance > 0 ? 'Net Surplus (IN)' : (finalDisplayBalance < 0 ? 'Net Deficit (OUT)' : 'Zero Balance'), alignment: 'right', fontSize: 10, bold: true, color: finalDisplayBalance > 0 ? '#16a34a' : (finalDisplayBalance < 0 ? '#dc2626' : '#475569') }
+                            ]
+                        }
+                    ],
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    columns: [
+                        { text: '*** End of Ledger ***', fontSize: 9, color: '#94a3b8', bold: true, alignment: 'left', width: '*' },
+                        {
+                            width: 200,
+                            stack: [
+                                biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
+                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] }
+                            ]
+                        }
+                    ],
+                    unbreakable: true 
+                }
+            ]
+        };
+
+        const viewer = document.createElement('div');
+        viewer.id = 'in-app-pdf-viewer';
+        viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+        viewer.innerHTML = `
+            <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div>
+                    <div style="font-weight:bold; font-size:18px;">Document Preview</div>
+                    <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+                </div>
+                <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
+                    <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
+                </div>
+            </div>
+            <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
+                <div style="text-align:center; margin-top:50px;">
+                    <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                    <div style="margin-top:8px; font-weight:600; color:#475569;">Loading Preview...</div>
+                </div>
+                <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+            </div>
+        `;
+        document.body.appendChild(viewer);
+
+        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+
+        const safeItemName = itemName ? String(itemName).replace(/[^a-zA-Z0-9]/g, '_') : 'Unknown_Item';
+        const safePartyStr = partyName ? `_${String(partyName).replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+        const safeFilename = `Stock_Ledger_${safeItemName}${safePartyStr}.pdf`;
+        const shareText = `Please find attached the Stock Ledger for ${itemName}.`;
+
+        let pdfDocGenerator;
+        try {
+            pdfDocGenerator = pdfMake.createPdf(docDefinition);
+        } catch (e) {
+            window.Utils.showToast("❌ Error generating PDF structure.");
+            viewer.remove();
+            return;
+        }
+
+        if (actionType === 'share') {
+            pdfDocGenerator.getBlob(async (blob) => {
+                const file = new File([blob], safeFilename, { type: 'application/pdf' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ title: safeFilename, text: shareText, files: [file] });
+                    } catch (err) { console.log("Share cancelled."); }
+                } else {
+                    window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                    pdfDocGenerator.download(safeFilename);
+                }
+                viewer.remove();
+            });
+            return;
+        }
+
+        pdfDocGenerator.getBlob(async (blob) => {
+            document.getElementById('pdf-status-text').innerText = "Generating Preview..."; 
+            document.getElementById('pdf-status-text').style.color = '#0061a4';
+
+            const file = new File([blob], safeFilename, { type: 'application/pdf' });
+
+            const btnDown = document.getElementById('preview-action-download');
+            const btnShare = document.getElementById('preview-action-share');
+            const btnPrint = document.getElementById('preview-action-print');
+
+            btnDown.onclick = () => {
+                pdfDocGenerator.download(safeFilename);
+                if (window.Utils) window.Utils.showToast("✅ Download Started!");
+            };
+
+            btnShare.onclick = async () => {
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ title: safeFilename, text: shareText, files: [file] });
+                    } catch (err) { console.log("Share cancelled."); }
+                } else {
+                    window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                    pdfDocGenerator.download(safeFilename);
+                }
+            };
+            
+            btnPrint.onclick = () => {
+                pdfDocGenerator.print();
+            };
+
+            try {
+                if (typeof window.pdfjsLib === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                        script.onload = () => {
+                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                            resolve();
+                        };
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(blob);
+                });
+
+                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const previewContent = document.getElementById('pdf-preview-content');
+                previewContent.innerHTML = ''; 
+                previewContent.style.flexDirection = 'column'; 
+                previewContent.style.alignItems = 'center';
+                previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    canvas.style.borderRadius = '4px';
+                    canvas.style.marginBottom = '16px'; 
+                    canvas.style.flexShrink = '0';
+
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    previewContent.appendChild(canvas);
+                }
+
+                document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
+                document.getElementById('pdf-status-text').style.color = '#64748b';
+                
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+
+            } catch (err) {
+                document.getElementById('pdf-preview-content').innerHTML = `
+                    <div style="text-align:center; margin-top:50px;">
+                        <span class="material-symbols-outlined" style="font-size:40px; color:#16a34a;">picture_as_pdf</span>
+                        <h3 style="color:#0f172a; margin-top:8px;">PDF Generated</h3>
+                        <p style="color:#475569; font-size:14px;">Preview unavailable on this device, but the document is ready!</p>
+                    </div>
+                `;
+                document.getElementById('pdf-status-text').innerText = "Ready";
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+            }
+        });
     },
 
     // --- ENTERPRISE UPGRADE: TRUE EXCEL (.XLSX) EXPORTER ---
@@ -2435,18 +2930,15 @@ Thank you!`;
     // ENTERPRISE UPGRADE: EXPENSE VOUCHER PDF
     // ==========================================
     generateExpenseVoucherPDF: async (expenseId) => {
-        if (typeof window.html2pdf === 'undefined' && typeof html2canvas === 'undefined') {
-            if (window.Utils) window.Utils.showToast("Loading PDF Engine... Please wait 2 seconds.");
-            const s2 = document.createElement('script');
-            s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-            document.head.appendChild(s2);
+        if (typeof pdfMake === 'undefined') {
+            window.Utils.showToast("⏳ Loading Vector Engine...");
             return;
         }
 
-        if (window.Utils) window.Utils.showToast("Generating Expense Voucher...");
-        
         const expense = await window.getRecordById('expenses', expenseId);
         if (!expense) return window.Utils.showToast("Error: Expense record not found!");
+
+        window.Utils.showToast("⚡ Generating High-Speed Vector PDF...");
 
         const activeFirmId = expense.firmId || (window.app && window.app.state ? window.app.state.firmId : 'firm1');
         const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
@@ -2454,175 +2946,334 @@ Thank you!`;
         const payAccount = accounts.find(a => a.id === expense.accountId) || { name: 'Cash Drawer' };
         
         const safeDate = window.Utils.formatDateDisplay(expense.date);
-        const uniquePdfId = 'pdf-expense-' + Date.now();
-        
-        let itemsHtml = '';
-        let totalAmt = 0;
-        
-        // Ensure items array exists to prevent crashes if it's a simple expense
-        const itemsToProcess = (expense.items && expense.items.length > 0) ? expense.items : [{ name: expense.category || 'General Expense', qty: 1, rate: expense.amount, uom: 'Units' }];
+        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
 
+        const itemsToProcess = (expense.items && expense.items.length > 0) 
+            ? expense.items 
+            : [{ name: expense.category || 'General Expense', qty: 1, rate: expense.amount, uom: 'Units' }];
+
+        const itemsBody = [
+            [
+                {text: '#', style: 'th', alignment: 'center'},
+                {text: 'Description of Expense', style: 'th'},
+                {text: 'Qty', style: 'th', alignment: 'center'},
+                {text: 'Rate (₹)', style: 'th', alignment: 'right'},
+                {text: 'Total (₹)', style: 'th', alignment: 'right'}
+            ]
+        ];
+
+        let totalAmt = 0;
         itemsToProcess.forEach((item, index) => {
             const qty = parseFloat(item.qty) || 1;
             const rate = parseFloat(item.rate) || 0;
             const total = qty * rate;
             totalAmt += total;
-            
-            itemsHtml += `
-                <tr>
-                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#475569; font-weight:600;">${index + 1}</td>
-                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#0f172a; font-weight:700;">${item.name || 'Expense Item'}</td>
-                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#475569;">${qty} ${item.uom || ''}</td>
-                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:right; color:#475569;">${rate.toFixed(2)}</td>
-                    <td style="padding:12px; border-bottom:1px solid #cbd5e1; text-align:right; font-weight:800; color:#0f172a;">${total.toFixed(2)}</td>
-                </tr>
-            `;
+
+            itemsBody.push([
+                {text: String(index + 1), style: 'td', alignment: 'center'},
+                {text: String(item.name || 'Expense Item'), style: 'td', bold: true},
+                {text: String(`${qty} ${item.uom || ''}`), style: 'td', alignment: 'center'},
+                {text: String(rate.toFixed(2)), style: 'td', alignment: 'right'},
+                {text: String(total.toFixed(2)), style: 'td', alignment: 'right', bold: true}
+            ]);
         });
 
         const finalTotalAmt = totalAmt > 0 ? totalAmt : (parseFloat(expense.amount) || 0);
         const amountInWords = window.Utils.numberToWords(finalTotalAmt);
 
-        const html = `
-            <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; overflow: hidden; min-height: auto !important;">
-                
-                ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%); mix-blend-mode: multiply;" /></div>` : ''}
+        // 🚨 STRICT SHIELD: Forces everything into a string so the database can't crash the engine
+        const safeExpenseNo = String(expense.expenseNo || 'EXP-AUTO');
+        const safePartyName = String(expense.partyName || expense.vendorName || expense.category || 'General');
+        const safePayMode = String(payAccount.name + (expense.refNo ? ` (${expense.refNo})` : ''));
 
-                <style>
-                    #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
-                    #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
-                    #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 12px !important; font-weight: 800 !important; font-size: 12px !important; text-transform: uppercase !important; color: #0f172a !important; text-align: left; }
-                    #${uniquePdfId} td { font-size: 13px !important; vertical-align: middle !important; }
-                    #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
-                </style>
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [30, 30, 30, 30],
+            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+            styles: {
+                h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
+                title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
+                sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
+                subBold: { fontSize: 9, bold: true, color: '#0f172a' },
+                sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
+                th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
+                td: { fontSize: 9, margin: [2, 4] }
+            },
+            content: [
+                // Header
+                {
+                    columns: [
+                        {
+                            width: '60%',
+                            stack: [
+                                biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                { text: String(biz.name || 'Company Name'), style: 'h1' },
+                                { text: String((biz.address ? biz.address + '\n' : '') + bizLocationStr), style: 'sub' },
+                                { text: String('Ph: ' + (biz.phone || '') + (biz.email ? ' | Email: ' + biz.email : '')), style: 'sub' }
+                            ].filter(Boolean)
+                        },
+                        {
+                            width: '40%',
+                            stack: [
+                                { text: 'PAYMENT VOUCHER', style: 'title' },
+                                { text: 'INTERNAL EXPENSE RECORD', alignment: 'right', fontSize: 9, bold: true, color: '#64748b', margin: [0, -5, 0, 10] },
+                                {
+                                    table: {
+                                        widths: ['*', 'auto'],
+                                        body: [
+                                            [{text: 'Voucher No:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: safeExpenseNo, alignment: 'right', bold: true, fontSize: 10}],
+                                            [{text: 'Date:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: String(safeDate), alignment: 'right', bold: true, fontSize: 10}],
+                                            [{text: 'Paid To / Party:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: safePartyName, alignment: 'right', bold: true, fontSize: 10}],
+                                            [{text: 'Payment Mode:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: safePayMode, alignment: 'right', bold: true, fontSize: 10}]
+                                        ]
+                                    },
+                                    layout: 'lightHorizontalLines'
+                                }
+                            ]
+                        }
+                    ],
+                    margin: [0, 0, 0, 20]
+                },
 
-                <div style="border: 2px solid #475569; padding: 2px;">
-                <div style="border: 1px solid #475569;">
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #475569;">
-                        <div style="width: 65%; padding: 20px; border-right: 1px solid #475569;">
-                            <h1 style="margin: 0 0 4px 0; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${biz.name || 'Company Name'}</h1>
-                            <div style="font-size: 12px; color: #475569;">Internal Expense & Payment Record</div>
-                        </div>
-                        <div style="width: 35%; padding: 20px; background: #f8fafc; text-align: center;">
-                            <h2 style="margin: 0; font-size: 22px; color: #0f172a; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">PAYMENT VOUCHER</h2>
-                        </div>
-                    </div>
+                // Items Table
+                {
+                    table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#0f172a', vLineColor: () => '#0f172a' },
+                    margin: [0, 0, 0, 20]
+                },
 
-                    <div style="display: flex; padding: 20px; background: #ffffff; border-bottom: 1px solid #475569;">
-                        <div style="flex: 1;">
-                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Voucher No</div>
-                            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${expense.expenseNo || 'EXP-AUTO'}</div>
-                        </div>
-                        <div style="flex: 1;">
-                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Date</div>
-                            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${safeDate}</div>
-                        </div>
-                        <div style="flex: 1.5;">
-                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Paid To / Party</div>
-                            <div style="font-size: 16px; font-weight: 800; color: #0f172a;">${expense.partyName || expense.vendorName || expense.category || 'General'}</div>
-                        </div>
-                        <div style="flex: 1; text-align: right;">
-                            <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Payment Mode</div>
-                            <div style="font-size: 14px; font-weight: 800; background: #e2e8f0; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 4px;">${payAccount.name}</div>
-                            ${expense.refNo ? `<div style="font-size: 11px; color: #475569; font-weight: 700;">Ref: ${expense.refNo}</div>` : ''}
-                        </div>
-                    </div>
+                // Total Amount & Words Block
+                {
+                    columns: [
+                        {
+                            width: '65%',
+                            stack: [
+                                { text: 'AMOUNT IN WORDS', style: 'sectionTitle' },
+                                { text: String('Rupees ' + amountInWords), bold: true, margin: [0, 0, 0, 15] },
+                                ...(expense.notes ? [
+                                    { text: 'REMARKS / NOTES:', style: 'sectionTitle' },
+                                    { text: String(expense.notes), style: 'sub' }
+                                ] : [])
+                            ],
+                            margin: [0, 0, 15, 0]
+                        },
+                        {
+                            width: '35%',
+                            stack: [
+                                {
+                                    table: {
+                                        widths: ['*', 'auto'],
+                                        body: [
+                                            [{ text: 'TOTAL PAID', bold: true, fillColor: '#0f172a', color: '#ffffff', margin: [4, 8] }, { text: String('₹' + finalTotalAmt.toFixed(2)), bold: true, fillColor: '#0f172a', color: '#ffffff', alignment: 'right', fontSize: 12, margin: [4, 8] }]
+                                        ]
+                                    },
+                                    layout: 'noBorders'
+                                }
+                            ]
+                        }
+                    ]
+                },
 
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 8%; text-align: center;">#</th>
-                                <th style="width: 47%;">Description of Expense</th>
-                                <th style="text-align: center; width: 15%;">Qty</th>
-                                <th style="text-align: right; width: 15%;">Rate (₹)</th>
-                                <th style="text-align: right; width: 15%;">Total (₹)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${itemsHtml}
-                        </tbody>
-                    </table>
-                    
-                    <div style="display: flex; border-top: 2px solid #475569; border-bottom: 1px solid #475569;">
-                        <div style="width: 70%; padding: 16px 20px; border-right: 1px solid #475569; background: #f8fafc; display: flex; align-items: center;">
-                            <div>
-                                <div style="font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Amount in Words</div>
-                                <div style="font-size: 13px; font-weight: 700; color: #0f172a;">${amountInWords}</div>
-                            </div>
-                        </div>
-                        <div style="width: 30%; padding: 16px 20px; text-align: right; display: flex; flex-direction: column; justify-content: center;">
-                            <div style="font-size: 11px; color: #64748b; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Total Paid</div>
-                            <div style="font-size: 24px; font-weight: 900; color: #0f172a;">₹${finalTotalAmt.toFixed(2)}</div>
-                        </div>
-                    </div>
+                // Signatures
+                {
+                    columns: [
+                        {
+                            width: 200, // 🚨 CRITICAL MATH FIX: Changed from string '200' to number 200
+                            stack: [
+                                { text: '\n\n\n', margin: [0, 20, 0, 5] },
+                                { text: "Receiver's Signature", style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] },
+                                { text: '(Sign to confirm cash received)', style: 'sub', alignment: 'center', fontSize: 8 }
+                            ]
+                        },
+                        { width: '*', text: '' }, // Spacer
+                        {
+                            width: 200, // 🚨 CRITICAL MATH FIX: Changed from string '200' to number 200
+                            stack: [
+                                biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
+                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] },
+                                { text: String('For ' + (biz.name || 'Company Name')), style: 'sub', alignment: 'center' }
+                            ]
+                        }
+                    ],
+                    margin: [0, 30, 0, 0]
+                }
+            ]
+        };
 
-                    <div style="padding: 20px; font-size: 13px; color: #334155; line-height: 1.5; border-bottom: 1px solid #475569; background: #f8fafc;">
-                        <strong>Remarks / Notes:</strong><br>
-                        ${expense.notes ? String(expense.notes).replace(/\\n/g, '<br>') : 'No additional remarks.'}
-                    </div>
-
-                    <div style="display: flex; padding: 40px 20px 20px 20px; justify-content: space-between; align-items: flex-end;">
-                        <div style="width: 250px; text-align: center;">
-                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #475569;">Receiver's Signature</div>
-                            <div style="font-size: 10px; color: #94a3b8; margin-top: 4px;">(Sign to confirm cash received)</div>
-                        </div>
-                        
-                        <div style="width: 250px; text-align: center;">
-                            ${biz.signature ? `<img src="${biz.signature}" style="max-height: 75px; margin-bottom: 5px; object-fit: contain; position: relative; z-index: 10; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                            <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized By</div>
-                        </div>
-                    </div>
-
-                </div></div>
+        // --- PREVIEW UI RENDERING ---
+        const viewer = document.createElement('div');
+        viewer.id = 'in-app-pdf-viewer';
+        viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+        viewer.innerHTML = `
+            <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div>
+                    <div style="font-weight:bold; font-size:18px;">Document Preview</div>
+                    <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+                </div>
+                <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
+                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
+                    <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
+                </div>
+            </div>
+            <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
+                <div style="text-align:center; margin-top:50px;">
+                    <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                    <div style="margin-top:8px; font-weight:600; color:#475569;">Loading Preview...</div>
+                </div>
+                <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
             </div>
         `;
+        document.body.appendChild(viewer);
 
-        const printArea = document.getElementById('print-area');
-        if (printArea) {
-            printArea.innerHTML = html;
-            setTimeout(() => {
-                const safeFilename = `Voucher_${expense.expenseNo || 'EXP'}.pdf`;
-                const shareText = `Dear ${expense.partyName || expense.vendorName || expense.category || 'Sir/Madam'},
+        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
 
-Please find attached the Payment Voucher (${expense.expenseNo || 'EXP'}) dated ${safeDate} for the amount of ₹${finalTotalAmt.toFixed(2)}.
+        const safeFilename = `Voucher_${safeExpenseNo.replace(/[^a-zA-Z0-9_.-]/g, '-')}.pdf`;
+        const shareText = `Dear ${safePartyName},\n\nPlease find attached the Payment Voucher (${safeExpenseNo}) dated ${safeDate} for the amount of ₹${finalTotalAmt.toFixed(2)}.\n\nThank you!`;
 
-Thank you!`;
-                window.Utils.processPDFExport(uniquePdfId, safeFilename, shareText);
-            }, 100);
+        let pdfDocGenerator;
+        try {
+            pdfDocGenerator = pdfMake.createPdf(docDefinition);
+        } catch (e) {
+            console.error("pdfMake crashed during createPdf:", e);
+            window.Utils.showToast("❌ Error generating PDF structure.");
+            viewer.remove();
+            return;
         }
-    }
+        
+        pdfDocGenerator.getBlob(async (blob) => {
+            document.getElementById('pdf-status-text').innerText = "Generating Preview..."; 
+            document.getElementById('pdf-status-text').style.color = '#0061a4';
+
+            const file = new File([blob], safeFilename, { type: 'application/pdf' });
+
+            const btnDown = document.getElementById('preview-action-download');
+            const btnShare = document.getElementById('preview-action-share');
+            const btnPrint = document.getElementById('preview-action-print');
+
+            btnDown.onclick = () => {
+                pdfDocGenerator.download(safeFilename);
+                if (window.Utils) window.Utils.showToast("✅ Download Started!");
+            };
+
+            btnShare.onclick = async () => {
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            title: safeFilename,
+                            text: shareText,
+                            files: [file]
+                        });
+                    } catch (err) { console.log("Share cancelled."); }
+                } else {
+                    window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                    pdfDocGenerator.download(safeFilename);
+                }
+            };
+            
+            btnPrint.onclick = () => {
+                viewer.style.display = 'none';
+                window.print();
+                setTimeout(() => { viewer.style.display = 'flex'; }, 500);
+            };
+
+            // PDF.js Preview Rendering
+            try {
+                if (typeof window.pdfjsLib === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                        script.onload = () => {
+                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                            resolve();
+                        };
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(blob);
+                });
+
+                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const previewContent = document.getElementById('pdf-preview-content');
+                previewContent.innerHTML = ''; 
+                previewContent.style.flexDirection = 'column'; 
+                previewContent.style.alignItems = 'center';
+                previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    canvas.style.borderRadius = '4px';
+                    canvas.style.marginBottom = '16px'; 
+                    canvas.style.flexShrink = '0';
+
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    previewContent.appendChild(canvas);
+                }
+
+                document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
+                document.getElementById('pdf-status-text').style.color = '#64748b';
+                
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+
+            } catch (err) {
+                console.error("Preview Render Error:", err);
+                document.getElementById('pdf-preview-content').innerHTML = `
+                    <div style="text-align:center; margin-top:50px;">
+                        <span class="material-symbols-outlined" style="font-size:40px; color:#16a34a;">picture_as_pdf</span>
+                        <h3 style="color:#0f172a; margin-top:8px;">PDF Generated</h3>
+                        <p style="color:#475569; font-size:14px;">Preview unavailable on this device, but the document is ready!</p>
+                    </div>
+                `;
+                document.getElementById('pdf-status-text').innerText = "Ready";
+                btnDown.style.display = 'inline-block';
+                btnShare.style.display = 'inline-block';
+                btnPrint.style.display = 'inline-block';
+            }
+        });
+    },
 }; // <--- THIS CLOSES THE UTILS OBJECT
 
 // ==========================================
 // ENTERPRISE UPGRADE: PARTY-FILTERED ITEM LEDGER PDF
 // ==========================================
 window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyName = null, searchText = '', typeFilter = 'ALL', dateFilter = '', actionType = 'preview') => {
-    if (typeof window.html2pdf === 'undefined' && typeof html2pdf === 'undefined') {
-        if (window.Utils) window.Utils.showToast("Loading PDF Engine... Please tap Print again in 2 seconds.");
-        const s2 = document.createElement('script');
-        s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-        document.head.appendChild(s2);
+    if (typeof pdfMake === 'undefined') {
+        if (window.Utils) window.Utils.showToast("⏳ Loading Vector Engine...");
         return;
     }
 
-    if (window.Utils) window.Utils.showToast("Generating Premium Stock Ledger...");
+    if (window.Utils) window.Utils.showToast("⚡ Generating Premium Stock Ledger...");
     
-    // 1. Fetch Business Profile for the Letterhead
     const activeFirmId = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
     const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
     const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
 
     const product = await window.getRecordById('items', itemId);
-    
-    // 🚨 ENTERPRISE FIX: If checking a specific party's ledger, the Global Opening Stock is strictly 0!
     const openingStock = (product && !partyId) ? (parseFloat(product.openingStock) || 0) : 0;
 
     let timeline = [];
     
-    // 2. Safely Filter Sales
     const sales = await window.getAllRecords('sales');
     sales.forEach(s => {
-        if(s.status !== 'Open' && s.firmId === activeFirmId && (!partyId || s.customerId === partyId)) {
+        if(s.status !== 'Open' && s.status !== 'Cancelled' && s.firmId === activeFirmId && (!partyId || s.customerId === partyId)) {
             (s.items || []).forEach(row => {
                 if(row.itemId === itemId) {
                     const isReturn = s.documentType === 'return';
@@ -2633,10 +3284,9 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
         }
     });
 
-    // 3. Safely Filter Purchases
     const purchases = await window.getAllRecords('purchases');
     purchases.forEach(p => {
-        if(p.status !== 'Open' && p.firmId === activeFirmId && (!partyId || p.supplierId === partyId)) {
+        if(p.status !== 'Open' && p.status !== 'Cancelled' && p.firmId === activeFirmId && (!partyId || p.supplierId === partyId)) {
             (p.items || []).forEach(row => {
                 if(row.itemId === itemId) {
                     const isReturn = p.documentType === 'return';
@@ -2647,7 +3297,6 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
         }
     });
 
-    // 4. Manual Adjustments & Expenses are only shown if we are NOT filtering by a specific party
     if (!partyId) {
         const adjustments = await window.getAllRecords('adjustments');
         adjustments.forEach(a => {
@@ -2670,7 +3319,6 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
         });
     }
 
-    // 1. SORT CHRONOLOGICALLY FIRST!
     timeline.sort((a, b) => {
         const dateA = new Date(a.date || 0).getTime();
         const dateB = new Date(b.date || 0).getTime();
@@ -2680,187 +3328,722 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
         return timeA - timeB;
     });
 
-    // 2. CALCULATE TRUE RUNNING MATH ON FULL TIMELINE!
     let runningStock = openingStock;
     timeline.forEach(t => {
         runningStock += t.inQty;
         runningStock -= t.outQty;
-        t.trueRunningBalance = runningStock; // Save the permanent, mathematically correct balance
+        t.trueRunningBalance = runningStock; 
     });
 
-    // 🚨 CRITICAL FIX: Save the true final mathematical stock safely in memory!
     const trueFinalStock = runningStock;
 
-    // 3. NOW APPLY FILTERS!
     timeline = timeline.filter(t => {
         if (searchText && !String(t.ref || '').toLowerCase().includes(searchText) && !String(t.type || '').toLowerCase().includes(searchText)) return false;
-        
         const impact = (t.inQty || 0) - (t.outQty || 0);
         if (typeFilter === 'IN' && impact <= 0) return false;
         if (typeFilter === 'OUT' && impact >= 0) return false;
         if (typeFilter === 'Expense' && t.type !== 'Expense') return false;
         if (dateFilter && t.date !== dateFilter) return false;
-
         return true;
     });
 
     let totalIn = 0;
     let totalOut = 0;
-    let rowsHtml = '';
     
-    // Hide Global Opening Stock if filtering by Party or Date
+    const itemsBody = [
+        [
+            { text: 'Date', style: 'th', alignment: 'center' },
+            { text: 'Type', style: 'th' },
+            { text: 'Particulars & Ref', style: 'th' },
+            { text: 'Stock IN', style: 'th', alignment: 'center' },
+            { text: 'Stock OUT', style: 'th', alignment: 'center' },
+            { text: 'Running Bal', style: 'th', alignment: 'right' }
+        ]
+    ];
+
     if (!partyId && !dateFilter) {
-        // 🚨 ENTERPRISE FIX: Perfectly aligned 6-column Opening Stock row for the PDF!
-        rowsHtml += `
-            <tr style="background:#f1f5f9; font-weight:800;">
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#475569;">Opening</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#1e293b; font-weight:600;">Opening Stock</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#1e293b; line-height:1.4;">Initial Inventory Balance</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#16a34a; font-weight:800;">${openingStock > 0 ? openingStock.toFixed(2) : ''}</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#dc2626; font-weight:800;">${openingStock < 0 ? Math.abs(openingStock).toFixed(2) : ''}</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; color:#0f172a; font-weight:900;">${openingStock.toFixed(2)}</td>
-            </tr>
-        `;
+        itemsBody.push([
+            { text: 'Opening', style: 'td', color: '#475569', alignment: 'center' },
+            { text: 'Opening Stock', style: 'td', bold: true },
+            { text: 'Initial Inventory Balance', style: 'td' },
+            { text: openingStock > 0 ? openingStock.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
+            { text: openingStock < 0 ? Math.abs(openingStock).toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
+            { text: openingStock.toFixed(2), style: 'td', alignment: 'right', bold: true }
+        ]);
     }
 
-    timeline.forEach((t, index) => {
+    timeline.forEach(t => {
         totalIn += t.inQty;
         totalOut += t.outQty;
         
-        // 🚀 ENTERPRISE UPGRADE: Zebra Striping
-        const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
-        
-        rowsHtml += `
-            <tr style="background-color: ${rowBg};">
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#475569;">${t.date}</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#1e293b; font-weight:600;">${t.type}</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; color:#1e293b; line-height:1.4;">${t.desc}<br><small style="color:#64748b; font-weight:700;">Ref: ${t.ref}</small></td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#16a34a; font-weight:800;">${t.inQty > 0 ? t.inQty.toFixed(2) : ''}</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; border-right:1px solid #94a3b8; text-align:center; color:#dc2626; font-weight:800;">${t.outQty > 0 ? t.outQty.toFixed(2) : ''}</td>
-                <td style="padding:10px; border-bottom:1px solid #cbd5e1; text-align:right; font-weight:900; color:#0f172a;">${t.trueRunningBalance.toFixed(2)}</td>
-            </tr>
-        `;
+        itemsBody.push([
+            { text: window.Utils.formatDateDisplay(t.date), style: 'td', alignment: 'center', color: '#475569' },
+            { text: t.type, style: 'td', bold: true },
+            { stack: [{ text: t.desc }, { text: 'Ref: ' + t.ref, fontSize: 8, color: '#64748b', margin: [0, 2, 0, 0] }], style: 'td' },
+            { text: t.inQty > 0 ? t.inQty.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
+            { text: t.outQty > 0 ? t.outQty.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
+            { text: t.trueRunningBalance.toFixed(2), style: 'td', alignment: 'right', bold: true }
+        ]);
     });
 
-    // 🚨 CRITICAL FIX: The Closing Balance must ALWAYS be the true final stock, regardless of filters!
     const finalDisplayBalance = trueFinalStock;
 
-    // 🚀 ENTERPRISE UPGRADE: Tally Double-Line Totals
-    rowsHtml += `
-        <tr style="background:#f1f5f9; font-weight:900; border-top: 2px solid #475569; border-bottom: 4px double #475569;">
-            <td style="padding:12px 10px; text-align:right; text-transform:uppercase; color:#0f172a;" colspan="3">Total Volume Summary</td>
-            <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:center; color:#16a34a; font-size:13px;">${totalIn.toFixed(2)}</td>
-            <td style="padding:12px 10px; border-right:1px solid #94a3b8; text-align:center; color:#dc2626; font-size:13px;">${totalOut.toFixed(2)}</td>
-            <td style="padding:12px 10px; text-align:right; color:#0f172a; font-size:13px;">${finalDisplayBalance.toFixed(2)}</td>
-        </tr>
-    `;
-    
-    const uniquePdfId = 'pdf-item-ledger-' + Date.now();
-    const safeDocNo = Utils.getLocalDate();
-    
-    // Dynamic Legal Title based on Filter
+    itemsBody.push([
+        { text: 'Total Volume Summary', style: 'td', colSpan: 3, alignment: 'right', bold: true, color: '#0f172a' },
+        {}, {},
+        { text: totalIn.toFixed(2), style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
+        { text: totalOut.toFixed(2), style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
+        { text: finalDisplayBalance.toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#0f172a' }
+    ]);
+
     const reportSubtitle = partyId ? `Filtered By Party: ${partyName}` : (dateFilter ? `Filtered By Date: ${dateFilter}` : 'Global Stock Movement');
 
-    // 🚀 ENTERPRISE UPGRADE: Official Letterhead HTML Injection
-    const html = `
-    <div id="${uniquePdfId}" class="a4-document" style="font-family: 'Inter', sans-serif; color: #0f172a; background: #ffffff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box; position: relative; min-height: auto !important;">
-        
-        ${biz.logo ? `<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.04; z-index: 0; width: 60%; display: flex; justify-content: center; pointer-events: none;"><img src="${biz.logo}" style="width: 100%; object-fit: contain; filter: grayscale(100%); mix-blend-mode: multiply;" /></div>` : ''}
-
-        <style>
-            #${uniquePdfId} * { position: relative; z-index: 1; margin: 0; padding: 0; box-sizing: border-box; }
-            #${uniquePdfId} table { width: 100%; border-collapse: collapse; border-top: none; }
-            #${uniquePdfId} th { background-color: #f1f5f9 !important; border-bottom: 1px solid #475569 !important; border-right: 1px solid #94a3b8 !important; padding: 12px !important; font-weight: 800 !important; font-size: 12px !important; text-transform: uppercase !important; color: #0f172a !important; text-align: left; }
-            #${uniquePdfId} td { font-size: 12px !important; vertical-align: middle !important; }
-            #${uniquePdfId} td:last-child, #${uniquePdfId} th:last-child { border-right: none !important; }
-        </style>
-
-        <div style="border: 2px solid #475569; padding: 2px;">
-        <div style="border: 1px solid #475569;">
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #475569;">
-                <div style="width: 65%; padding: 20px; border-right: 1px solid #475569;">
-                    <h1 style="margin: 0 0 4px 0; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">${biz.name || 'Company Name'}</h1>
-                    <div style="font-size: 12px; color: #475569;">Official Stock Ledger & Inventory Audit</div>
-                </div>
-                <div style="width: 35%; padding: 20px; background: #f8fafc; text-align: center;">
-                    <h2 style="margin: 0; font-size: 20px; color: #0f172a; text-transform: uppercase; font-weight: 900; letter-spacing: 1px;">STOCK LEDGER</h2>
-                </div>
-            </div>
-
-            <div style="display: flex; padding: 20px; background: #ffffff; border-bottom: 1px solid #475569;">
-                <div style="flex: 1.5; border-right: 1px dashed #cbd5e1;">
-                    <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Product / Item Name</div>
-                    <div style="font-size: 18px; font-weight: 900; color: #0f172a;">${itemName || 'Unknown Item'}</div>
-                </div>
-                <div style="flex: 1; padding-left: 20px;">
-                    <div style="font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Filter Scope</div>
-                    <div style="font-size: 14px; font-weight: 800; color: #0f172a;">${reportSubtitle}</div>
-                </div>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 12%;">Date</th>
-                        <th style="width: 15%;">Type</th>
-                        <th style="width: 33%;">Particulars & Ref</th>
-                        <th style="text-align: center; width: 12%;">Stock IN</th>
-                        <th style="text-align: center; width: 12%;">Stock OUT</th>
-                        <th style="text-align: right; width: 16%;">Running Bal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rowsHtml}
-                </tbody>
-            </table>
-            
-            <div style="display: flex; border-top: 2px solid #475569; border-bottom: 1px solid #475569;">
-                <div style="width: 50%; padding: 20px; border-right: 1px solid #475569; background: #ffffff;">
-                    <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px; display:block;">Ledger Summary</strong>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                        <span style="font-size: 13px; color: #475569; font-weight: 600;">Total Stock IN</span>
-                        <strong style="font-size: 13px; color: #16a34a;">+ ${totalIn.toFixed(2)}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="font-size: 13px; color: #475569; font-weight: 600;">Total Stock OUT</span>
-                        <strong style="font-size: 13px; color: #dc2626;">- ${totalOut.toFixed(2)}</strong>
-                    </div>
-                </div>
-                <div style="width: 50%; padding: 20px; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; background: #f8fafc; text-align: right;">
-                    <strong style="font-size: 11px; text-transform: uppercase; color: #64748b; margin-bottom: 4px;">Closing Stock Balance</strong>
-                    <span style="font-size: 28px; font-weight: 900; color: #0f172a; display: block; margin-bottom: 4px;">${finalDisplayBalance.toFixed(2)}</span>
-                    <span style="background: ${finalDisplayBalance > 0 ? '#e8f5e9' : (finalDisplayBalance < 0 ? '#fff0f2' : '#f1f5f9')}; color: ${finalDisplayBalance > 0 ? '#146c2e' : (finalDisplayBalance < 0 ? '#ba1a1a' : '#475569')}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${finalDisplayBalance > 0 ? '#bbf7d0' : (finalDisplayBalance < 0 ? '#fecaca' : '#cbd5e1')};">${finalDisplayBalance > 0 ? 'Net Surplus (IN)' : (finalDisplayBalance < 0 ? 'Net Deficit (OUT)' : 'Zero Balance')}</span>
-                </div>
-            </div>
-
-            <div style="display: flex; padding: 30px 20px 20px 20px; justify-content: space-between; align-items: flex-end; background: #ffffff;">
-                <div style="font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase;">*** End of Ledger ***</div>
-                <div style="width: 200px; text-align: center;">
-                    ${biz.signature ? `<img src="${biz.signature}" style="max-height: 75px; margin-bottom: 5px; object-fit: contain; position: relative; z-index: 10; mix-blend-mode: multiply;" />` : '<div style="height: 60px; margin-bottom: 5px;"></div>'}
-                    <div style="border-top: 1px solid #475569; padding-top: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0f172a;">Authorized Signatory</div>
-                </div>
-            </div>
-
-        </div></div>
-    </div>
-    `;
-
-    const printArea = document.getElementById('print-area');
-    if (printArea) {
-        printArea.innerHTML = html;
-        setTimeout(() => {
-            const safeItemName = itemName ? String(itemName) : 'Unknown_Item';
-            const safePartyStr = partyName ? `_${String(partyName).replace(/[^a-z0-9]/gi, '')}` : '';
-            const safeFilename = `Stock_Ledger_${safeItemName.replace(/[^a-z0-9]/gi, '_')}${safePartyStr}.pdf`;
-            
-            if (actionType === 'share') {
-                window.Utils.sharePDF(uniquePdfId, safeFilename, `Here is the Stock Ledger for ${safeItemName}`);
-            } else {
-                window.Utils.processPDFExport(uniquePdfId, safeFilename);
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [30, 30, 30, 30],
+        defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+        styles: {
+            h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
+            title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
+            sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
+            subBold: { fontSize: 9, bold: true, color: '#0f172a' },
+            sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
+            th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
+            td: { fontSize: 9, margin: [2, 4] }
+        },
+        content: [
+            {
+                columns: [
+                    {
+                        width: '60%',
+                        stack: [
+                            biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                            { text: biz.name || 'Company Name', style: 'h1' },
+                            { text: 'Official Stock Ledger & Inventory Audit', style: 'sub' }
+                        ].filter(Boolean)
+                    },
+                    {
+                        width: '40%',
+                        stack: [
+                            { text: 'STOCK LEDGER', style: 'title' },
+                            { text: 'DATE: ' + window.Utils.formatDateDisplay(window.Utils.getLocalDate()), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] }
+                        ]
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    {
+                        width: '60%',
+                        stack: [
+                            { text: 'Product / Item Name', style: 'subBold', color: '#64748b' },
+                            { text: itemName || 'Unknown Item', bold: true, fontSize: 14 }
+                        ]
+                    },
+                    {
+                        width: '40%',
+                        stack: [
+                            { text: 'Filter Scope', style: 'subBold', color: '#64748b', alignment: 'right' },
+                            { text: reportSubtitle, bold: true, fontSize: 11, alignment: 'right' }
+                        ]
+                    }
+                ],
+                margin: [0, 0, 0, 15]
+            },
+            {
+                table: { headerRows: 1, widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    {
+                        width: '50%',
+                        stack: [
+                            { text: 'LEDGER SUMMARY', style: 'sectionTitle' },
+                            { text: `Total Stock IN:  + ${totalIn.toFixed(2)}`, color: '#16a34a', bold: true, margin: [0, 2, 0, 0] },
+                            { text: `Total Stock OUT: - ${totalOut.toFixed(2)}`, color: '#dc2626', bold: true, margin: [0, 2, 0, 0] }
+                        ]
+                    },
+                    {
+                        width: '50%',
+                        stack: [
+                            { text: 'Closing Stock Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 0, 0, 2] },
+                            { text: finalDisplayBalance.toFixed(2), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
+                            { text: finalDisplayBalance > 0 ? 'Net Surplus (IN)' : (finalDisplayBalance < 0 ? 'Net Deficit (OUT)' : 'Zero Balance'), alignment: 'right', fontSize: 10, bold: true, color: finalDisplayBalance > 0 ? '#16a34a' : (finalDisplayBalance < 0 ? '#dc2626' : '#475569') }
+                        ]
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    { text: '*** End of Ledger ***', fontSize: 9, color: '#94a3b8', bold: true, alignment: 'left', width: '*' },
+                    {
+                        width: 200,
+                        stack: [
+                            biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
+                            { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] }
+                        ]
+                    }
+                ],
+                unbreakable: true 
             }
-        }, 100);
+        ]
+    };
+
+    const viewer = document.createElement('div');
+    viewer.id = 'in-app-pdf-viewer';
+    viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+    viewer.innerHTML = `
+        <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div>
+                <div style="font-weight:bold; font-size:18px;">Document Preview</div>
+                <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+            </div>
+            <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
+                <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
+            </div>
+        </div>
+        <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
+            <div style="text-align:center; margin-top:50px;">
+                <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                <div style="margin-top:8px; font-weight:600; color:#475569;">Loading Preview...</div>
+            </div>
+            <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+        </div>
+    `;
+    document.body.appendChild(viewer);
+
+    document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+
+    const safeItemName = itemName ? String(itemName).replace(/[^a-zA-Z0-9]/g, '_') : 'Unknown_Item';
+    const safePartyStr = partyName ? `_${String(partyName).replace(/[^a-zA-Z0-9]/g, '_')}` : '';
+    const safeFilename = `Stock_Ledger_${safeItemName}${safePartyStr}.pdf`;
+    const shareText = `Please find attached the Stock Ledger for ${itemName}.`;
+
+    let pdfDocGenerator;
+    try {
+        pdfDocGenerator = pdfMake.createPdf(docDefinition);
+    } catch (e) {
+        window.Utils.showToast("❌ Error generating PDF structure.");
+        viewer.remove();
+        return;
     }
+
+    if (actionType === 'share') {
+        pdfDocGenerator.getBlob(async (blob) => {
+            const file = new File([blob], safeFilename, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ title: safeFilename, text: shareText, files: [file] });
+                } catch (err) { console.log("Share cancelled."); }
+            } else {
+                window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                pdfDocGenerator.download(safeFilename);
+            }
+            viewer.remove();
+        });
+        return;
+    }
+
+    pdfDocGenerator.getBlob(async (blob) => {
+        document.getElementById('pdf-status-text').innerText = "Generating Preview..."; 
+        document.getElementById('pdf-status-text').style.color = '#0061a4';
+
+        const file = new File([blob], safeFilename, { type: 'application/pdf' });
+
+        const btnDown = document.getElementById('preview-action-download');
+        const btnShare = document.getElementById('preview-action-share');
+        const btnPrint = document.getElementById('preview-action-print');
+
+        btnDown.onclick = () => {
+            pdfDocGenerator.download(safeFilename);
+            if (window.Utils) window.Utils.showToast("✅ Download Started!");
+        };
+
+        btnShare.onclick = async () => {
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ title: safeFilename, text: shareText, files: [file] });
+                } catch (err) { console.log("Share cancelled."); }
+            } else {
+                window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                pdfDocGenerator.download(safeFilename);
+            }
+        };
+        
+        btnPrint.onclick = () => {
+            pdfDocGenerator.print();
+        };
+
+        try {
+            if (typeof window.pdfjsLib === 'undefined') {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                    script.onload = () => {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                        resolve();
+                    };
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            const arrayBuffer = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(blob);
+            });
+
+            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const previewContent = document.getElementById('pdf-preview-content');
+            previewContent.innerHTML = ''; 
+            previewContent.style.flexDirection = 'column'; 
+            previewContent.style.alignItems = 'center';
+            previewContent.style.justifyContent = 'flex-start'; // 🚨 FIX: Shows the first page correctly!
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                canvas.style.maxWidth = '100%';
+                canvas.style.height = 'auto';
+                canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                canvas.style.borderRadius = '4px';
+                canvas.style.marginBottom = '16px'; 
+                canvas.style.flexShrink = '0';
+
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                previewContent.appendChild(canvas);
+            }
+
+            document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
+            document.getElementById('pdf-status-text').style.color = '#64748b';
+            
+            btnDown.style.display = 'inline-block';
+            btnShare.style.display = 'inline-block';
+            btnPrint.style.display = 'inline-block';
+
+        } catch (err) {
+            document.getElementById('pdf-preview-content').innerHTML = `
+                <div style="text-align:center; margin-top:50px;">
+                    <span class="material-symbols-outlined" style="font-size:40px; color:#16a34a;">picture_as_pdf</span>
+                    <h3 style="color:#0f172a; margin-top:8px;">PDF Generated</h3>
+                    <p style="color:#475569; font-size:14px;">Preview unavailable on this device, but the document is ready!</p>
+                </div>
+            `;
+            document.getElementById('pdf-status-text').innerText = "Ready";
+            btnDown.style.display = 'inline-block';
+            btnShare.style.display = 'inline-block';
+            btnPrint.style.display = 'inline-block';
+        }
+    });
+};
+
+// ==========================================
+// ENTERPRISE UPGRADE: MASTER TAB KHATA PDF ENGINE
+// ==========================================
+window.executeKhataReport = async (partyId, partyName, partyType) => {
+    if (typeof pdfMake === 'undefined') {
+        if (window.Utils) window.Utils.showToast("⏳ Loading Vector Engine...");
+        return;
+    }
+
+    if (window.Utils) window.Utils.showToast("⚡ Generating Master Statement PDF...");
+
+    const party = await window.getRecordById('ledgers', partyId);
+    if (!party) return alert("Party not found in database.");
+
+    const firmId = typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1';
+    const biz = await window.getRecordById('businessProfile', firmId) || {};
+    
+    // Fetch the mathematically perfect timeline direct from the database engine!
+    const statement = await window.getKhataStatement(partyId, partyType);
+    const timeline = statement.timeline || [];
+    const finalBal = statement.finalBalance || 0;
+
+    const itemsBody = [
+        [
+            { text: 'Date', style: 'th', alignment: 'center' },
+            { text: 'Particulars / Voucher Type', style: 'th' },
+            { text: 'Debit (Dr)', style: 'th', alignment: 'right' },
+            { text: 'Credit (Cr)', style: 'th', alignment: 'right' },
+            { text: 'Balance', style: 'th', alignment: 'right' }
+        ]
+    ];
+
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    timeline.forEach((t) => {
+        let debit = '';
+        let credit = '';
+        
+        if (party.type === 'Customer') {
+            if (t.id === 'open-bal') {
+                if (t.impact > 0) debit = parseFloat(t.amount || 0).toFixed(2);
+                else credit = parseFloat(t.amount || 0).toFixed(2);
+            } else if (t.isInvoice) debit = parseFloat(t.amount || 0).toFixed(2);
+            else credit = parseFloat(t.amount || 0).toFixed(2);
+        } else {
+            if (t.id === 'open-bal') {
+                if (t.impact < 0) credit = parseFloat(t.amount || 0).toFixed(2);
+                else debit = parseFloat(t.amount || 0).toFixed(2);
+            } else if (t.isInvoice) credit = parseFloat(t.amount || 0).toFixed(2);
+            else debit = parseFloat(t.amount || 0).toFixed(2);
+        }
+
+        if (debit) totalDebit += parseFloat(debit);
+        if (credit) totalCredit += parseFloat(credit);
+
+        let particularsStack = [];
+        let mainDesc = t.id === 'open-bal' ? 'Opening Balance' : `${t.type || t.desc} ${t.ref ? '/ ' + t.ref : ''}`;
+        if (t.partyName && t.partyName !== 'Unknown') mainDesc += ` (${t.partyName})`;
+        particularsStack.push({ text: mainDesc, bold: true });
+
+        // Safely check for rawData and sales/purchases arrays
+        if (t.isInvoice && window.UI && window.UI.state && window.UI.state.rawData) {
+            let inv = null;
+            if (party.type === 'Customer' && window.UI.state.rawData.sales) inv = window.UI.state.rawData.sales.find(s => s.id === t.id);
+            else if (party.type === 'Supplier' && window.UI.state.rawData.purchases) inv = window.UI.state.rawData.purchases.find(p => p.id === t.id);
+
+            if (inv) {
+                const gstAmt = parseFloat(inv.totalGst) || 0;
+                const baseAmt = (parseFloat(inv.grandTotal) || 0) - gstAmt;
+                if (gstAmt > 0) {
+                    particularsStack.push({ text: `Base: ₹${baseAmt.toFixed(2)} | GST: ₹${gstAmt.toFixed(2)}`, fontSize: 8, color: '#0369a1', margin: [0, 2, 0, 0] });
+                } else if (inv.invoiceType === 'Non-GST') {
+                    particularsStack.push({ text: `Non-GST Bill`, fontSize: 8, color: '#b45309', margin: [0, 2, 0, 0] });
+                }
+            }
+        }
+
+        itemsBody.push([
+            { text: window.Utils.formatDateDisplay(t.date), style: 'td', alignment: 'center' },
+            { stack: particularsStack, style: 'td' },
+            { text: debit ? debit : '', style: 'td', alignment: 'right' },
+            { text: credit ? credit : '', style: 'td', alignment: 'right' },
+            { text: `${Math.abs(t.runningBalance || 0).toFixed(2)} ${Math.abs(t.runningBalance || 0) < 0.01 ? '' : ((t.runningBalance || 0) > 0 ? 'Dr' : 'Cr')}`, style: 'td', alignment: 'right', bold: true }
+        ]);
+    });
+
+    if (timeline.length > 0) {
+        itemsBody.push([
+            { text: 'TOTAL', style: 'td', colSpan: 2, alignment: 'right', bold: true, color: '#0f172a' },
+            {},
+            { text: totalDebit.toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#0f172a' },
+            { text: totalCredit.toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#0f172a' },
+            { text: '', style: 'td' }
+        ]);
+    } else {
+        itemsBody.push([{ text: 'No transactions found.', style: 'td', colSpan: 5, alignment: 'center' }, {}, {}, {}, {}]);
+    }
+
+    const safeDocNo = window.Utils.getLocalDate();
+    let balSuffix = 'Available';
+    let splitStack = [];
+
+    if (Math.abs(finalBal) < 0.01) {
+        balSuffix = 'Settled (Nil)';
+    } else if (party.type === 'Customer') {
+        balSuffix = finalBal > 0 ? 'Dr (Due)' : 'Cr (Advance)';
+    } else {
+        balSuffix = finalBal < 0 ? 'Cr (To Pay)' : 'Dr (Advance)';
+    }
+
+    if ((party.type === 'Customer' && finalBal > 0.01) || (party.type === 'Supplier' && finalBal < -0.01)) {
+        let debitsGst = 0;
+        let debitsNon = 0;
+        const exactPaymentMap = {};
+        const exactReturnMap = {};
+
+        if (window.UI && window.UI.state && window.UI.state.rawData) {
+            (window.UI.state.rawData.cashbook || []).forEach(c => {
+                if (c.ledgerId === party.id && c.invoiceRef) {
+                    let amt = parseFloat(c.amount) || 0;
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
+                    let remainingAmt = amt;
+                    refs.forEach(ref => {
+                        if (remainingAmt <= 0) return;
+                        exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length);
+                    });
+                }
+            });
+
+            const relatedDocs = party.type === 'Customer' ? (window.UI.state.rawData.sales || []) : (window.UI.state.rawData.purchases || []);
+
+            relatedDocs.forEach(d => {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo && (party.type === 'Customer' ? d.customerId === party.id : d.supplierId === party.id)) {
+                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                }
+            });
+
+            relatedDocs.forEach(doc => {
+                const partyMatch = party.type === 'Customer' ? doc.customerId === party.id : doc.supplierId === party.id;
+                if (partyMatch && doc.status !== 'Open' && doc.documentType !== 'return') {
+                    const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
+                    const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
+                    const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
+                    
+                    const docTotal = parseFloat(doc.grandTotal) || 0;
+                    const finalUnpaid = Math.max(0, docTotal - paid - returned);
+                    
+                    if (finalUnpaid > 0.01) {
+                        if (doc.invoiceType === 'Non-GST') debitsNon += finalUnpaid;
+                        else debitsGst += finalUnpaid;
+                    }
+                }
+            });
+        }
+
+        const exactTargetBalance = Math.abs(finalBal);
+        const trackedDebt = debitsGst + debitsNon;
+
+        if (exactTargetBalance < trackedDebt) {
+            const excessCredit = trackedDebt - exactTargetBalance;
+            if (excessCredit >= debitsGst) {
+                let remaining = excessCredit - debitsGst;
+                debitsGst = 0;
+                debitsNon = Math.max(0, debitsNon - remaining);
+            } else {
+                debitsGst -= excessCredit;
+            }
+        } else if (exactTargetBalance > trackedDebt) {
+            const missingDebt = exactTargetBalance - trackedDebt;
+            let hasGst = party.gst && String(party.gst).trim().length > 4;
+            if (!hasGst) debitsNon += missingDebt;
+            else debitsGst += missingDebt;
+        }
+
+        if (debitsGst > 0.01 || debitsNon > 0.01) {
+            if (debitsGst > 0.01) splitStack.push({ text: `GST Due: ₹${window.Utils.formatCurrency(debitsGst)}`, fontSize: 9, bold: true, color: '#0f172a' });
+            if (debitsNon > 0.01) splitStack.push({ text: `Non-GST Due: ₹${window.Utils.formatCurrency(debitsNon)}`, fontSize: 9, bold: true, color: '#0f172a', margin: [0, 2, 0, 0] });
+        }
+    }
+
+    const statementBizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+    const statementPartyLocationStr = [party.city, party.state].filter(Boolean).join(', ') + (party.pincode ? ' - ' + party.pincode : '');
+
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [30, 30, 30, 30],
+        defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+        styles: {
+            h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
+            title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
+            sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
+            subBold: { fontSize: 9, bold: true, color: '#0f172a' },
+            sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
+            th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
+            td: { fontSize: 9, margin: [2, 4] }
+        },
+        content: [
+            {
+                columns: [
+                    {
+                        width: '50%',
+                        stack: [
+                            biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                            { text: biz.name || 'Company Name', style: 'h1' },
+                            { text: (biz.address || '') + '\n' + statementBizLocationStr, style: 'sub' },
+                            { text: 'Ph: ' + (biz.phone || ''), style: 'sub' }
+                        ].filter(Boolean)
+                    },
+                    {
+                        width: '50%',
+                        stack: [
+                            { text: 'LEDGER STATEMENT', style: 'title' },
+                            { text: 'DATE: ' + window.Utils.formatDateDisplay(safeDocNo), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
+                            { text: 'Closing Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 2] },
+                            { text: '₹' + Math.abs(finalBal).toFixed(2), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
+                            { text: balSuffix, alignment: 'right', fontSize: 10, bold: true, color: Math.abs(finalBal) < 0.01 ? '#64748b' : (finalBal > 0 ? '#16a34a' : '#ef4444'), margin: [0, 2, 0, 5] },
+                            splitStack.length > 0 ? { stack: splitStack, alignment: 'right', margin: [0, 5, 0, 0] } : null
+                        ].filter(Boolean)
+                    }
+                ],
+                margin: [0, 0, 0, 20]
+            },
+            {
+                stack: [
+                    { text: 'PARTY DETAILS', style: 'sectionTitle' },
+                    { text: party.name, bold: true, fontSize: 12 },
+                    { text: (party.address || '') + '\n' + statementPartyLocationStr, style: 'sub', margin: [0, 2, 0, 0] },
+                    party.phone ? { text: 'Ph: ' + party.phone, style: 'sub' } : null,
+                    party.gst ? { text: 'GSTIN: ' + String(party.gst).toUpperCase(), style: 'subBold', margin: [0, 2, 0, 0] } : null
+                ].filter(Boolean),
+                margin: [0, 0, 0, 15]
+            },
+            {
+                table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
+                margin: [0, 0, 0, 20]
+            },
+            {
+                columns: [
+                    { text: '*** End of Statement ***', fontSize: 9, color: '#94a3b8', bold: true, alignment: 'left', width: '*' },
+                    {
+                        width: 200,
+                        stack: [
+                            biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
+                            { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] }
+                        ]
+                    }
+                ],
+                unbreakable: true 
+            }
+        ]
+    };
+
+    const viewer = document.createElement('div');
+    viewer.id = 'in-app-pdf-viewer';
+    viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+    viewer.innerHTML = `
+        <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div>
+                <div style="font-weight:bold; font-size:18px;">Statement Preview</div>
+                <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+            </div>
+            <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
+                <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
+            </div>
+        </div>
+        <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
+            <div style="text-align:center; margin-top:50px;">
+                <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
+                <div style="margin-top:8px; font-weight:600; color:#475569;">Loading Preview...</div>
+            </div>
+            <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+        </div>
+    `;
+    document.body.appendChild(viewer);
+
+    document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+
+    const cleanPartyName = partyName.replace(/[^a-zA-Z0-9]/g, '_');
+    const safeFilename = `Ledger_Statement_${cleanPartyName}_${safeDocNo}.pdf`;
+    const shareText = `Dear ${partyName},\n\nPlease find attached your ledger statement.\n\nThank you!`;
+
+    let pdfDocGenerator;
+    try {
+        pdfDocGenerator = pdfMake.createPdf(docDefinition);
+    } catch (e) {
+        window.Utils.showToast("❌ Error generating PDF structure.");
+        viewer.remove();
+        return;
+    }
+
+    pdfDocGenerator.getBlob(async (blob) => {
+        document.getElementById('pdf-status-text').innerText = "Generating Preview..."; 
+        document.getElementById('pdf-status-text').style.color = '#0061a4';
+
+        const file = new File([blob], safeFilename, { type: 'application/pdf' });
+
+        const btnDown = document.getElementById('preview-action-download');
+        const btnShare = document.getElementById('preview-action-share');
+        const btnPrint = document.getElementById('preview-action-print');
+
+        btnDown.onclick = () => {
+            pdfDocGenerator.download(safeFilename);
+            if (window.Utils) window.Utils.showToast("✅ Download Started!");
+        };
+
+        btnShare.onclick = async () => {
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ title: safeFilename, text: shareText, files: [file] });
+                } catch (err) { console.log("Share cancelled."); }
+            } else {
+                window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                pdfDocGenerator.download(safeFilename);
+            }
+        };
+        
+        btnPrint.onclick = () => {
+            pdfDocGenerator.print();
+        };
+
+        try {
+            if (typeof window.pdfjsLib === 'undefined') {
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                    script.onload = () => {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                        resolve();
+                    };
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+
+            const arrayBuffer = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(blob);
+            });
+
+            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const previewContent = document.getElementById('pdf-preview-content');
+            previewContent.innerHTML = ''; 
+            previewContent.style.flexDirection = 'column'; 
+            previewContent.style.alignItems = 'center';
+            previewContent.style.justifyContent = 'flex-start'; // 🚨 FIX: Shows the first page correctly!
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                canvas.style.maxWidth = '100%';
+                canvas.style.height = 'auto';
+                canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                canvas.style.borderRadius = '4px';
+                canvas.style.marginBottom = '16px'; 
+                canvas.style.flexShrink = '0';
+
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                previewContent.appendChild(canvas);
+            }
+
+            document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
+            document.getElementById('pdf-status-text').style.color = '#64748b';
+            
+            btnDown.style.display = 'inline-block';
+            btnShare.style.display = 'inline-block';
+            btnPrint.style.display = 'inline-block';
+
+        } catch (err) {
+            document.getElementById('pdf-preview-content').innerHTML = `
+                <div style="text-align:center; margin-top:50px;">
+                    <span class="material-symbols-outlined" style="font-size:40px; color:#16a34a;">picture_as_pdf</span>
+                    <h3 style="color:#0f172a; margin-top:8px;">PDF Generated</h3>
+                    <p style="color:#475569; font-size:14px;">Preview unavailable on this device, but the document is ready!</p>
+                </div>
+            `;
+            document.getElementById('pdf-status-text').innerText = "Ready";
+            btnDown.style.display = 'inline-block';
+            btnShare.style.display = 'inline-block';
+            btnPrint.style.display = 'inline-block';
+        }
+    });
 };
 
 // ==========================================

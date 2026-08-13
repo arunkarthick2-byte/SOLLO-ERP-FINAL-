@@ -5351,7 +5351,7 @@ body.dark-mode .item-entry-card span[onclick*="remove"]:active {
 }
 
 /* Forces the top-header delete button into a perfect, centered touch-target */
-.activity-header div[id*="delete"] {
+.activity-header div[id*="delete"]:not(.hidden) {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -5408,19 +5408,20 @@ body:not(.dark-mode) textarea {
     gap: 12px !important; 
 }
 
-/* 2. Overrides the old "absolute center" code specifically for Sales, Purchase, Credit, and Debit forms */
-.activity-header span[id^="form-title-"],
-.activity-header #expense-form-title {
-    position: static !important; /* Kills the old centering that caused the crash */
-    transform: none !important;
-    flex: 1 1 auto !important; /* Pushes the text safely to the left */
-    text-align: left !important;
-    
-    /* If the phone screen is very small, this safely cuts off the text with "..." instead of crashing into the icon */
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important; 
-}
+    /* 2. Overrides the old "absolute center" code specifically for Sales, Purchase, Credit, and Debit forms */
+    .activity-header span[id^="form-title-"],
+    .activity-header #expense-form-title {
+        position: absolute !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        flex: none !important; 
+        text-align: center !important;
+        
+        /* If the phone screen is very small, this safely cuts off the text with "..." instead of crashing into the icon */
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important; 
+    }
 
 /* 3. Protects the Delete Icon container so it never gets squished by the text */
 .activity-header > div:last-child {
@@ -6943,8 +6944,8 @@ html body #app-shell .activity-screen .activity-header > div:last-child {
 }
 
 /* FORCE ALL ICONS TO BE PERFECT, ALIGNED SQUARES */
-html body #app-shell .activity-screen .activity-header .icon-circle,
-html body #app-shell .activity-screen .activity-header div[id*="delete"] {
+html body #app-shell .activity-screen .activity-header .icon-circle:not(.hidden),
+html body #app-shell .activity-screen .activity-header div[id*="delete"]:not(.hidden) {
     width: 36px !important;
     height: 36px !important;
     min-width: 36px !important;
@@ -7028,8 +7029,18 @@ html body #app-shell .activity-screen .activity-header #item-ledger-title {
     margin: 0 !important;
     padding: 0 !important;
     line-height: 1.2 !important;
-    position: static !important;
-    transform: none !important;
+    
+    /* 🚨 SOLLO FIX: Absolute Center Lock! */
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+    max-width: 55% !important; /* Protects from overlapping with left/right icons */
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    pointer-events: none !important;
 }
 
 /* 4. DARK MODE ADAPTER */
@@ -7526,4 +7537,168 @@ body.dark-mode #app-shell #tab-dashboard div[id*="overdue"] {
 .activity-header, .search-bar, .bottom-nav, .form-sticky-footer {
     border-bottom: none !important;
     border-top: none !important;
+}
+/* ==========================================
+   🚨 BULLETPROOF FIX: HIDE ICONS & CENTER TITLES
+   ========================================== */
+
+/* 1. FORCE HIDDEN ICONS TO COMPLETELY DISAPPEAR */
+/* This mathematically overpowers the old CSS that was forcing them to show */
+html body #app-shell .activity-screen .activity-header .icon-circle.hidden,
+html body #app-shell .activity-screen .activity-header div.hidden,
+html body #app-shell .activity-screen .activity-header span.hidden {
+    display: none !important;
+}
+
+/* 2. FORCE TITLES TO BE PERFECTLY CENTERED */
+/* Breaks them free from the left side and locks them in the middle */
+html body #app-shell .activity-screen .activity-header span[id^="form-title-"],
+html body #app-shell .activity-screen .activity-header #expense-form-title {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+    max-width: 60% !important; 
+    text-align: center !important;
+    display: block !important;
+    margin: 0 !important;
+}
+/* ==========================================
+   IDEA 1: THE "TAP FLASH" (VISUAL FEEDBACK)
+   ========================================== */
+/* 1. Instant blue flash when tapped (Overrides Zebra Stripes) */
+#sales-history-container .m3-card:active,
+#purchase-history-container .m3-card:active,
+#cashbook-container .m3-card:active,
+#expense-history-container .m3-card:active,
+#master-list-container .m3-card:active {
+    background-color: rgba(0, 97, 164, 0.08) !important;
+    transition: background-color 0s !important; /* 0 seconds = Instant feedback! */
+    transform: scale(0.98) !important; /* Slight satisfying physical compression */
+}
+
+/* 2. Dark Mode Adapter (Soft neon blue flash) */
+body.dark-mode #sales-history-container .m3-card:active,
+body.dark-mode #purchase-history-container .m3-card:active,
+body.dark-mode #cashbook-container .m3-card:active,
+body.dark-mode #expense-history-container .m3-card:active,
+body.dark-mode #master-list-container .m3-card:active {
+    background-color: rgba(143, 203, 251, 0.15) !important; 
+}
+
+/* 3. Smooth fade-out when the user lets go of the screen */
+#sales-history-container .m3-card,
+#purchase-history-container .m3-card,
+#cashbook-container .m3-card,
+#expense-history-container .m3-card,
+#master-list-container .m3-card {
+    transition: background-color 0.4s ease, transform 0.2s ease !important;
+}
+/* ==========================================
+   IDEA 3: FLOATING GLASS SEARCH BAR
+   ========================================== */
+/* 1. Apple-Style Frosted Glass and Floating Shadow */
+.search-bar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 95 !important; /* Floats above lists, but stays under top headers */
+    
+    /* The Glassmorphism Blur */
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+    
+    /* The Soft Floating Shadow */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    
+    transition: all 0.3s ease !important;
+}
+
+/* 2. Seamless Integration for Dark Mode */
+body.dark-mode .search-bar {
+    background: rgba(18, 18, 18, 0.85) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 3. Ensure the Search Input Box stays clean on top of the glass */
+.search-bar input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+/* ==========================================
+   OPTION 1: SEAMLESS INVOICE ITEM CART
+   ========================================== */
+/* 1. Kill the bulky left-color borders injected by JS */
+#sales-items-body .item-entry-card, 
+#purchase-items-body .item-entry-card {
+    border-left: none !important;
+    border-top: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 16px 8px !important;
+    margin-bottom: 0 !important;
+}
+
+/* 2. Remove the line from the very last item for a flush finish */
+#sales-items-body .item-entry-card:last-child, 
+#purchase-items-body .item-entry-card:last-child {
+    border-bottom: none !important;
+}
+
+/* Dark mode separator adapter */
+body.dark-mode #sales-items-body .item-entry-card, 
+body.dark-mode #purchase-items-body .item-entry-card {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ==========================================
+   OPTION 3: SMOOTH FINTECH ACCORDIONS
+   ========================================== */
+/* 1. The Container Box */
+details.advanced-options {
+    background: var(--md-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease !important;
+}
+
+/* 2. The Highlight when Opened */
+details.advanced-options[open] {
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.05) !important;
+}
+body.dark-mode details.advanced-options[open] {
+    border-color: var(--md-primary-container) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 3. The Clickable Header */
+details.advanced-options summary {
+    padding: 16px !important;
+    background: var(--md-surface-variant) !important;
+    transition: background-color 0.2s ease !important;
+}
+details.advanced-options summary:active {
+    background: rgba(0, 97, 164, 0.08) !important;
+}
+body.dark-mode details.advanced-options summary:active {
+    background: rgba(143, 203, 251, 0.15) !important; 
+}
+
+/* 4. The Smooth Slide-Down Animation */
+details.advanced-options > div {
+    animation: accordionSlideDown 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+    transform-origin: top center;
+}
+
+@keyframes accordionSlideDown {
+    0% { opacity: 0; transform: scaleY(0.95) translateY(-10px); }
+    100% { opacity: 1; transform: scaleY(1) translateY(0); }
 }

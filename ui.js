@@ -725,8 +725,13 @@ const UI = {
 
         const btn = document.getElementById(btnId);
         if (btn) {
-            if (show) btn.classList.remove('hidden');
-            else btn.classList.add('hidden');
+            if (show) {
+                btn.classList.remove('hidden');
+                btn.style.setProperty('display', 'flex', 'important');
+            } else {
+                btn.classList.add('hidden');
+                btn.style.setProperty('display', 'none', 'important');
+            }
         }
     },
 
@@ -1996,9 +2001,6 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
                                 <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">menu_book</span>
-                                </div>
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.executeKhataReport('${l.id}', '${safeName}', '${l.type}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                 </div>
                             </div>
                         </div>

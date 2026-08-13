@@ -4,7 +4,7 @@
 window.AppState = new Proxy({
     // These are our starting values
     totalSalesDisplay: '₹0.00',
-    businessName: 'My Awesome Business',
+    businessName: 'SOLLO ENTERPRISES',
     profileName: '',
     profilePhone: '',
     profileEmail: '',
