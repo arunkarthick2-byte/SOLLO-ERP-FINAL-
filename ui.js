@@ -4951,10 +4951,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (Math.abs(diffX) < swipeThreshold) return;
 
             const tabs = [
-                { id: 'tab-dashboard', title: 'Dashboard', navId: 'nav-dash' },
-                { id: 'tab-masters', title: 'Master Data', navId: 'nav-masters' },
-                { id: 'tab-documents', title: 'Documents', navId: 'nav-docs' },
-                { id: 'tab-cashbook', title: 'Cashbook', navId: 'nav-cashbook' },
+                { id: 'tab-dashboard', title: 'Home', navId: 'nav-dash' },
+                { id: 'tab-reports', title: 'Reports', navId: 'nav-reports' },
+                { id: 'tab-workspace', title: 'Workspace', navId: 'nav-workspace' },
                 { id: 'tab-menu', title: 'Settings', navId: 'nav-menu' }
             ];
 
@@ -4974,7 +4973,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, { passive: true });
     }
-
+    
     // UPGRADE: Auto-Hiding FAB & Bottom Nav on Scroll
     let lastScrollY = 0;
     let isScrolling = false;
