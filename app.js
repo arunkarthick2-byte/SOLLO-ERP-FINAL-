@@ -9199,38 +9199,6 @@ document.addEventListener('input', (e) => {
     }
 });
 // ==========================================
-// ENTERPRISE UPGRADE: BANK-GRADE PRIVACY SHIELD
-// ==========================================
-// Blurs the screen when the app is minimized to the background to protect financial data!
-(function() {
-    const shield = document.createElement('div');
-    shield.id = 'privacy-shield';
-    // Deep blur with the brand's primary container color
-    shield.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(244, 246, 250, 0.85); backdrop-filter:blur(15px); -webkit-backdrop-filter:blur(15px); z-index:9999999; display:flex; justify-content:center; align-items:center; flex-direction:column; opacity:0; pointer-events:none; transition:opacity 0.2s ease;';
-    
-    shield.innerHTML = `
-        <span class="material-symbols-outlined" style="font-size: 56px; color: #0061a4; margin-bottom: 16px;">lock</span>
-        <strong style="font-size: 22px; color: #001d36; letter-spacing: 1px;">SOLLO ERP</strong>
-        <p style="color: #535f70; margin-top: 8px; font-weight: 500;">Securely Locked</p>
-    `;
-    
-    // Attach the shield to the very top of the app
-    document.body.appendChild(shield);
-
-    // Watch the phone's native hardware visibility state
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            // App is swiped to the background (Recent Apps) -> INSTANT LOCK
-            shield.style.transition = 'none'; 
-            shield.style.opacity = '1';
-        } else {
-            // User opened the app again -> SMOOTH FADE OUT
-            shield.style.transition = 'opacity 0.3s ease';
-            setTimeout(() => shield.style.opacity = '0', 100); 
-        }
-    });
-})();
-// ==========================================
 // ENTERPRISE UPGRADE: 3D TOUCH EMULATOR (LONG PRESS)
 // ==========================================
 // Simulates an iOS long-press context menu for rapid document management!
@@ -9542,38 +9510,6 @@ setInterval(() => {
 // ==========================================
 // Halts all CPU-intensive mathematical loops when the app is minimized, saving massive amounts of battery!
 // ==========================================
-// 🚨 ENTERPRISE SECURITY: HIBERNATION & PRIVACY BLUR
-// ==========================================
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-        window.isHibernating = true;
-        // 🚨 PRIVACY SHIELD: Blur the screen instantly so financial data is hidden in the OS App-Switcher!
-        document.body.style.filter = 'blur(12px) grayscale(100%)';
-        document.body.style.transition = 'filter 0.1s ease';
-        document.body.style.pointerEvents = 'none';
-    } else {
-        window.isHibernating = false;
-        // Restore clarity the moment they re-enter the app
-        document.body.style.filter = 'none';
-        document.body.style.pointerEvents = 'auto';
-    }
-});
-
-// Update the native setInterval functions to respect the Hibernation Lock safely!
-const originalSetInterval = window.setInterval;
-window.setInterval = function(callback, delay, ...args) {
-    return originalSetInterval((...intervalArgs) => {
-        if (!window.isHibernating) {
-            // 🚨 ENTERPRISE FIX: Protect against legacy string-based intervals!
-            if (typeof callback === 'function') {
-                callback(...intervalArgs);
-            } else if (typeof callback === 'string') {
-                eval(callback);
-            }
-        }
-    }, delay, ...args);
-};
-// ==========================================
 // 🚨 ENTERPRISE SECURITY: LIVE NETWORK RADAR
 // ==========================================
 window.addEventListener('offline', () => {
@@ -9614,59 +9550,6 @@ window.addEventListener('beforeunload', (e) => {
         return e.returnValue;
     }
 });
-// ==========================================
-// 🚨 ENTERPRISE SECURITY: INACTIVITY PRIVACY LOCK
-// ==========================================
-let inactivityTimer;
-const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 Minutes of no touching
-
-const triggerPrivacyLock = () => {
-    // Prevent double-locking
-    if (document.getElementById('privacy-lock-screen')) return;
-    
-    const lock = document.createElement('div');
-    lock.id = 'privacy-lock-screen';
-    // Creates a gorgeous frosted-glass Apple-style blur over the whole app
-    lock.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.85); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.3s ease;';
-    
-    // Dark mode support for the lock screen
-    if (document.body.classList.contains('dark-mode')) {
-        lock.style.background = 'rgba(26,26,30,0.85)';
-        lock.style.color = '#ffffff';
-    }
-
-    lock.innerHTML = `
-        <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-primary, #0061a4); margin-bottom: 16px;">lock</span>
-        <h2 style="margin:0; font-family: 'Inter', sans-serif; font-weight: 900; letter-spacing: 0.5px;">App Locked</h2>
-        <p style="color: var(--md-text-muted, #475569); margin-top:8px; font-family: 'Inter', sans-serif; font-size: 14px;">Hidden for your financial privacy.</p>
-        <button id="btn-unlock-app" style="margin-top:32px; background: var(--md-primary, #0061a4); color:#fff; border:none; padding:14px 36px; border-radius:24px; font-size:16px; font-weight:bold; box-shadow:0 8px 16px rgba(0,0,0,0.15); cursor:pointer;">Unlock Application</button>
-    `;
-    
-    document.body.appendChild(lock);
-    if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50); // Small haptic bump
-    
-    // Unlock button logic
-    document.getElementById('btn-unlock-app').onclick = function() {
-        lock.style.opacity = '0';
-        setTimeout(() => { lock.remove(); resetInactivityTimer(); }, 300);
-    };
-};
-
-const resetInactivityTimer = () => {
-    clearTimeout(inactivityTimer);
-    // Only restart the countdown if the app isn't currently locked
-    if (!document.getElementById('privacy-lock-screen')) {
-        inactivityTimer = setTimeout(triggerPrivacyLock, IDLE_TIMEOUT);
-    }
-};
-
-// Listen for physical screen interactions to keep the app awake
-['touchstart', 'click', 'scroll', 'keypress'].forEach(evt => {
-    document.addEventListener(evt, resetInactivityTimer, { passive: true });
-});
-resetInactivityTimer(); // Start the engine on boot
-
-
 // ==========================================
 // 🚨 ENTERPRISE UX: ANDROID "DOUBLE-TAP" EXIT SHIELD
 // ==========================================
@@ -10002,20 +9885,6 @@ document.addEventListener('focusout', (e) => {
         if (!isEmailOrGST && e.target.value) {
             e.target.value = e.target.value.replace(/\b\w/g, char => char.toUpperCase());
         }
-    }
-});
-
-// ==========================================
-// 🚨 ENTERPRISE SECURITY: BANKING PRIVACY SHIELD
-// ==========================================
-// Instantly blurs the screen when the app is sent to the background to protect financial data!
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        document.body.style.filter = 'blur(15px)';
-        document.body.style.transition = 'filter 0.1s ease-out';
-    } else {
-        document.body.style.filter = 'none';
-        document.body.style.transition = 'filter 0.3s ease-in';
     }
 });
 
