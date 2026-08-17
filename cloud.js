@@ -101,27 +101,40 @@ const Cloud = {
                 // FIX: Call the globally mapped export function directly
                 const data = await window.exportDatabase(); 
 
-                // ENTERPRISE FIX: Dynamically stream ALL database tables safely without missing any schemas!
-                const blobParts = ['{'];
-                const keys = Object.keys(data);
-                
-                for (let i = 0; i < keys.length; i++) {
-                    const key = keys[i];
-                    blobParts.push(`"${key}":[`);
-                    const arr = data[key] || [];
-                    for (let j = 0; j < arr.length; j++) {
-                        blobParts.push(JSON.stringify(arr[j]));
-                        if (j < arr.length - 1) blobParts.push(',');
-                        
-                        // NEW: Let the CPU breathe every 500 rows so memory doesn't explode!
-                        if (j % 500 === 0) await new Promise(res => setTimeout(res, 0));
-                    }
-                    blobParts.push(']');
-                    if (i < keys.length - 1) blobParts.push(',');
-                }
-                blobParts.push('}');
+                // 🚀 ENTERPRISE UPGRADE: Web Worker JSON Stringification
+                // Offloads the massive string-building process to a background thread so the UI never stutters!
+                const file = await new Promise((resolveWorker, rejectWorker) => {
+                    const workerCode = `
+                        self.onmessage = function(e) {
+                            try {
+                                const result = JSON.stringify(e.data);
+                                self.postMessage({ success: true, payload: result });
+                            } catch (err) {
+                                self.postMessage({ success: false, error: err.message });
+                            }
+                        };
+                    `;
+                    const blobUrl = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' }));
+                    const worker = new Worker(blobUrl);
 
-                const file = new Blob(blobParts, { type: 'application/json' });
+                    worker.onmessage = function(e) {
+                        if (e.data.success) {
+                            resolveWorker(new Blob([e.data.payload], { type: 'application/json' }));
+                        } else {
+                            rejectWorker(new Error("Worker stringification failed"));
+                        }
+                        worker.terminate();
+                        URL.revokeObjectURL(blobUrl);
+                    };
+
+                    worker.onerror = function(err) {
+                        rejectWorker(err);
+                        worker.terminate();
+                        URL.revokeObjectURL(blobUrl);
+                    };
+
+                    worker.postMessage(data); // Send the heavy data to the background core!
+                });
                 
                 // ENTERPRISE FIX: Auto-Backup must also isolate by Firm ID to stop cross-company overwrites!
                 const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
@@ -209,27 +222,40 @@ const Cloud = {
                 // FIX: Call the globally mapped export function directly
                 const data = await window.exportDatabase(); 
 
-                // ENTERPRISE FIX: Dynamically stream ALL database tables safely without missing any schemas!
-                const blobParts = ['{'];
-                const keys = Object.keys(data);
-                
-                for (let i = 0; i < keys.length; i++) {
-                    const key = keys[i];
-                    blobParts.push(`"${key}":[`);
-                    const arr = data[key] || [];
-                    for (let j = 0; j < arr.length; j++) {
-                        blobParts.push(JSON.stringify(arr[j]));
-                        if (j < arr.length - 1) blobParts.push(',');
-                        
-                        // NEW: Let the CPU breathe every 500 rows so memory doesn't explode!
-                        if (j % 500 === 0) await new Promise(res => setTimeout(res, 0));
-                    }
-                    blobParts.push(']');
-                    if (i < keys.length - 1) blobParts.push(',');
-                }
-                blobParts.push('}');
+                // 🚀 ENTERPRISE UPGRADE: Web Worker JSON Stringification
+                // Offloads the massive string-building process to a background thread so the UI never stutters!
+                const file = await new Promise((resolveWorker, rejectWorker) => {
+                    const workerCode = `
+                        self.onmessage = function(e) {
+                            try {
+                                const result = JSON.stringify(e.data);
+                                self.postMessage({ success: true, payload: result });
+                            } catch (err) {
+                                self.postMessage({ success: false, error: err.message });
+                            }
+                        };
+                    `;
+                    const blobUrl = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' }));
+                    const worker = new Worker(blobUrl);
 
-                const file = new Blob(blobParts, { type: 'application/json' });
+                    worker.onmessage = function(e) {
+                        if (e.data.success) {
+                            resolveWorker(new Blob([e.data.payload], { type: 'application/json' }));
+                        } else {
+                            rejectWorker(new Error("Worker stringification failed"));
+                        }
+                        worker.terminate();
+                        URL.revokeObjectURL(blobUrl);
+                    };
+
+                    worker.onerror = function(err) {
+                        rejectWorker(err);
+                        worker.terminate();
+                        URL.revokeObjectURL(blobUrl);
+                    };
+
+                    worker.postMessage(data); // Send the heavy data to the background core!
+                });
                 
                 // ENTERPRISE FIX: Isolate cloud backups by Firm ID to prevent cross-company overwrites!
                 const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';

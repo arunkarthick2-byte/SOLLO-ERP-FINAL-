@@ -3,6 +3,24 @@
 // ==========================================
 
 const UI = {
+    
+        // ==========================================
+    // ENTERPRISE UPGRADE: NATIVE TRANSITION ENGINE
+    // ==========================================
+    awaitAnim: (element, fallbackMs = 350) => {
+        return new Promise(resolve => {
+            if (!element) return resolve();
+            let fired = false;
+            const handler = () => {
+                if (fired) return;
+                fired = true;
+                element.removeEventListener('transitionend', handler);
+                resolve();
+            };
+            element.addEventListener('transitionend', handler);
+            setTimeout(handler, fallbackMs); // Safety fallback for older browsers
+        });
+    },
 
     // --- PREMIUM UX: NATIVE HAPTICS & SCROLL NAV ---
     triggerHaptic: (type = 'light') => {
@@ -17,11 +35,12 @@ const UI = {
         // ENTERPRISE UPGRADE: Native Cursor Freedom!
         // Auto-select has been disabled so you can easily tap and edit specific digits on mobile dialpads!
 
-        // 🚨 ENTERPRISE FIX: THE "CONTAINER TRANSFORM" CSS INJECTOR
+        // 🚨 ENTERPRISE FIX: THE "CONTAINER TRANSFORM" & RENDER OPTIMIZATION CSS INJECTOR
         if (!document.getElementById('container-transform-css')) {
             const css = document.createElement('style');
             css.id = 'container-transform-css';
             css.innerHTML = `
+                /* Existing Morph Animations */
                 ::view-transition-old(app-morph),
                 ::view-transition-new(app-morph) {
                     animation-duration: 0.35s;
@@ -29,6 +48,20 @@ const UI = {
                 }
                 ::view-transition-old(app-morph) { object-fit: contain; }
                 ::view-transition-new(app-morph) { object-fit: contain; }
+
+                /* 🚀 NEW: GPU & Rendering Layout Optimizations */
+                /* 1. Force GPU Hardware Acceleration (JS Virtualizer handles off-screen DOM now!) */
+                .m3-card, .list-card, .virtual-item {
+                    backface-visibility: hidden !important;
+                    -webkit-backface-visibility: hidden !important;
+                    transform: translateZ(0) !important; 
+                }
+                
+                /* 2. Stop bouncy pull-to-refresh glitches on scrollable menus */
+                .main-content, .bottom-sheet, .activity-content, .list-view {
+                    overscroll-behavior-y: contain !important;
+                    -webkit-overflow-scrolling: touch !important;
+                }
             `;
             document.head.appendChild(css);
         }
@@ -99,7 +132,7 @@ const UI = {
             const target = e.target;
             if (!target) return;
 
-            // 1. Dirty Form Tracker (Ignores search bars to prevent false alarms)
+            // 1. Dirty Form Tracker
             if (target.closest('form') && !target.closest('.search-bar')) window.isFormDirty = true;
 
             // 2. Auto-Expanding Notes & Textareas
@@ -109,20 +142,38 @@ const UI = {
                 return;
             }
 
-            // 3. Selective Text Fields and Inputs
             if (target.tagName === 'INPUT') {
                 const id = (target.id || '').toLowerCase();
                 
-                // 🚨 BUG FIX: Ensure the Search Bar is completely ignored by the auto-uppercase engine!
+                // 3. Smart Uppercase Engine for Tax IDs
                 if (!id.includes('search') && (id.includes('gst') || id.includes('ifsc') || id.includes('pan')) && target.type === 'text') {
                     const start = target.selectionStart;
                     target.value = target.value.toUpperCase();
                     if (start !== null) target.setSelectionRange(start, start);
                 }
-                
-                if (target.type === 'number' && String(target.value).includes('-')) {
-                    if (!id.includes('adjust') && !id.includes('discount') && !id.includes('return')) {
-                        target.value = Math.abs(parseFloat(target.value) || 0);
+
+                // 4. GLOBAL DECIMAL SANITIZER (Replaces messy inline oninput code!)
+                // If the input is meant for money/decimals, strip letters, negative signs, and duplicate decimals instantly!
+                if (target.getAttribute('inputmode') === 'decimal' || target.classList.contains('row-qty') || target.classList.contains('row-rate')) {
+                    const start = target.selectionStart;
+                    const oldVal = target.value;
+                    const newVal = target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                    
+                    // Only update the DOM if the value actually required sanitization (saves CPU)
+                    if (oldVal !== newVal) {
+                        target.value = newVal;
+                        // Restore cursor to prevent jumping to the end of the line
+                        if (start !== null) target.setSelectionRange(start - 1, start - 1);
+                    }
+
+                    // 5. GLOBAL AUTO-CALCULATOR
+                    // Automatically trigger the correct math engine based on where the user is typing!
+                    if (target.closest('#form-sales') && window.UI && typeof window.UI.calcSalesTotals === 'function') {
+                        window.UI.calcSalesTotals();
+                    } else if (target.closest('#form-purchase') && window.UI && typeof window.UI.calcPurchaseTotals === 'function') {
+                        window.UI.calcPurchaseTotals();
+                    } else if (target.id === 'split-cash' || target.id === 'split-bank') {
+                        if (typeof window.calcSplit === 'function') window.calcSplit();
                     }
                 }
             }
@@ -352,72 +403,70 @@ const UI = {
         container.innerHTML = htmlContent;
     },
 
-    // --- NATIVE SCROLLING (NO VIRTUALIZATION BUGS) ---
+    // --- NATIVE SCROLLING (ENTERPRISE INFINITE SCROLL) ---
     renderVirtualList: (container, dataArray, renderRowFn, emptyStateHTML) => {
         if (!container) return;
         
-        // 🚨 ENTERPRISE FIX: The "Double-Render" Race Condition Shield!
-        // Cancels any pending GPU frames if multiple filters fire at the exact same millisecond!
+        // Stop any leftover animation frames
         if (container.renderToken) cancelAnimationFrame(container.renderToken);
 
         if (!dataArray || dataArray.length === 0) {
             container.innerHTML = emptyStateHTML;
+            if (container._scrollHandler && container._scrollParent) {
+                container._scrollParent.removeEventListener('scroll', container._scrollHandler);
+            }
             return;
         }
         
-        // ENTERPRISE FIX: True DOM Pagination with Scroll Preservation!
+        // 🚨 1. PROGRESSIVE BATCH RENDERER (Infinite Scroll)
+        // Completely eliminates the "cut off at the bottom" scrollbar bug!
+        const CHUNK_SIZE = 25; 
         let currentIndex = 0;
-        const chunkSize = 300; 
         
-        const renderNextChunk = () => {
-            const chunk = dataArray.slice(currentIndex, currentIndex + chunkSize);
-            const chunkHTML = chunk.map(item => renderRowFn(item)).join('');
-            
-            // Safely inject new DOM nodes without destroying existing elements or losing scroll position
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = chunkHTML;
-            
-            // 🚨 ENTERPRISE UPGRADE: THE GPU REFLOW SHIELD!
-            const fragment = document.createDocumentFragment();
-            while(tempDiv.firstChild) fragment.appendChild(tempDiv.firstChild);
-            
-            container.renderToken = requestAnimationFrame(() => {
-                // Wipe the container exactly at paint-time to prevent overlapping ghost lists!
-                if (currentIndex === 0) container.innerHTML = '';
-                
-                container.appendChild(fragment);
-                
-                currentIndex += chunkSize;
-                
-                // CRITICAL FIX: Scope the search exclusively to the current container so it doesn't break other screens!
-                const sentinelId = 'scroll-sentinel-' + (container.id || 'virtual');
-                const oldSentinel = container.querySelector('#' + sentinelId);
-                if (oldSentinel) oldSentinel.remove();
-                
-                if (currentIndex < dataArray.length) {
-                    // 🚨 SOLLO NATIVE THEME: Infinite Scroll Sentinel (Replaces the Load More button)
-                    const sentinel = document.createElement('div');
-                    sentinel.id = sentinelId;
-                    sentinel.style.cssText = 'height: 60px; width: 100%; display: flex; justify-content: center; align-items: center; color: var(--md-primary); font-size: 13px; font-weight: bold;';
-                    
-                    // Sleek native loading spinner
-                    sentinel.innerHTML = `<svg style="width: 24px; height: 24px; animation: spin 1s linear infinite; margin-right: 8px; color: var(--md-primary);" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" stroke-opacity="0.25"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Loading...`;
-                    
-                    container.appendChild(sentinel);
+        // Draw the first batch immediately
+        const initialChunk = dataArray.slice(0, CHUNK_SIZE);
+        container.innerHTML = initialChunk.map(item => renderRowFn(item)).join('');
+        currentIndex = CHUNK_SIZE;
 
-                    // Use Intersection Observer to auto-load when the user scrolls near the bottom!
-                    const observer = new IntersectionObserver((entries) => {
-                        if (entries[0].isIntersecting) {
-                            observer.disconnect(); // Stop observing this specific sentinel
-                            renderNextChunk(); // Automatically load the next chunk!
-                        }
-                    }, { rootMargin: '4000px' }); 
+        const scrollParent = container.closest('.main-content, .activity-content, .bottom-sheet, [style*="overflow-y: auto"]') || window;
+        container._scrollParent = scrollParent; 
 
-                    observer.observe(sentinel);
-                }
-            });
+        // 🚨 2. THROTTLED SCROLL OBSERVER
+        if (container._scrollHandler) {
+            scrollParent.removeEventListener('scroll', container._scrollHandler);
+        }
+        
+        let isFetching = false;
+        
+        container._scrollHandler = () => {
+            if (currentIndex >= dataArray.length || isFetching) return;
+            
+            const scrollTop = (scrollParent === window) ? window.scrollY : scrollParent.scrollTop;
+            const viewportHeight = (scrollParent === window) ? window.innerHeight : scrollParent.clientHeight;
+            const scrollHeight = (scrollParent === window) ? document.documentElement.scrollHeight : scrollParent.scrollHeight;
+
+            // If user scrolls within 600px of the bottom, instantly append the next batch
+            if (scrollTop + viewportHeight >= scrollHeight - 600) {
+                isFetching = true;
+                // Use requestAnimationFrame so we don't freeze the scrolling thread
+                requestAnimationFrame(() => {
+                    const nextChunk = dataArray.slice(currentIndex, currentIndex + CHUNK_SIZE);
+                    
+                    // High-performance DOM insertion
+                    const fragment = document.createElement('div');
+                    fragment.innerHTML = nextChunk.map(item => renderRowFn(item)).join('');
+                    
+                    while (fragment.firstChild) {
+                        container.appendChild(fragment.firstChild);
+                    }
+                    
+                    currentIndex += CHUNK_SIZE;
+                    isFetching = false;
+                });
+            }
         };
-        renderNextChunk();
+        
+        scrollParent.addEventListener('scroll', container._scrollHandler, { passive: true });
     },
     // --- END OF NEW CODE ---
     
@@ -425,42 +474,40 @@ const UI = {
     // LIVE BANK BALANCE CALCULATOR
     // ==========================================
     renderBankBalances: () => {
-        // ENTERPRISE FIX: Actually apply the Firm ID filter so bank balances don't mathematically merge across companies!
         const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
         const accounts = (UI.state.rawData.accounts || []).filter(a => !activeFirmId || a.firmId === activeFirmId);
         const receipts = (UI.state.rawData.cashbook || []).filter(r => !activeFirmId || r.firmId === activeFirmId);
-        const expenses = (UI.state.rawData.expenses || []).filter(e => !activeFirmId || e.firmId === activeFirmId);
         const container = document.getElementById('bank-balances-container');
         if (!container) return;
 
-        // Use a shallow copy so we don't accidentally mutate the master state
         const displayAccounts = [...accounts];
         if (!displayAccounts.find(a => a.id === 'cash')) {
             displayAccounts.unshift({ id: 'cash', name: 'Cash Drawer', openingBalance: 0 });
         }
 
+        // 🚀 O(N) PERFORMANCE UPGRADE: Pre-calculate all receipt impacts in a single pass!
+        // This stops the app from freezing on massive databases by eliminating nested loops.
+        const balanceMap = {};
+        receipts.forEach(r => {
+            const targetId = r.accountId || 'cash';
+            if (!balanceMap[targetId]) balanceMap[targetId] = 0;
+            
+            const amt = parseFloat(r.amount) || 0;
+            if (r.type === 'in') balanceMap[targetId] += amt;
+            else if (r.type === 'out') balanceMap[targetId] -= amt;
+        });
+
         let html = '';
         displayAccounts.forEach(acc => {
-            let balance = parseFloat(acc.openingBalance) || 0;
-            receipts.forEach(r => {
-                // Included a fallback logic in case older receipts don't have an explicit accountId
-                if (r.accountId === acc.id || (acc.id === 'cash' && !r.accountId)) {
-                    // ENTERPRISE FIX: Safe Math prevents 'NaN' from permanently corrupting the Bank Balance!
-                    if (r.type === 'in') balance += (parseFloat(r.amount) || 0);
-                    else if (r.type === 'out') balance -= (parseFloat(r.amount) || 0);
-                }
-            });
-            
-            // STRICT ERP LOGIC: Removed double-deduction bug! The cashbook 'receipts' array already contains the auto-generated expense entries.
+            // Instantly grab the pre-calculated total instead of looping through all receipts again
+            let balance = (parseFloat(acc.openingBalance) || 0) + (balanceMap[acc.id] || 0);
             
             const color = balance >= 0 ? 'var(--md-success)' : 'var(--md-error)';
-            
-            // NEW: Clicking a bank balance card now opens its complete pin-to-pin passbook statement!
             const clickAction = `app.openAccountLedger('${acc.id}')`;
-
-            // UPGRADE: Vertical premium card layout for accounts
             const icon = acc.id === 'cash' ? 'payments' : 'account_balance';
-            const safeAccName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(acc.name) : acc.name;
+            
+            // Ensures malicious names don't break the UI layout
+            const safeAccName = (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(acc.name) : acc.name;
             
             html += `
                 <div class="m3-card tap-target" onclick="${clickAction}" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;">
@@ -637,16 +684,33 @@ const UI = {
             const card = UI.state.lastClickedCard;
             UI.state.lastOpenedCard = card; // Save for the closing reverse-morph!
             
+            // 1. Give the tag ONLY to the card for the "Before" snapshot
             card.style.viewTransitionName = 'app-morph';
-            a.style.viewTransitionName = 'app-morph';
+            a.style.viewTransitionName = ''; 
             
             const transition = document.startViewTransition(() => {
-                card.style.viewTransitionName = ''; // Release the tag so the new screen can take it
-                applyOpen();
+                // 2. Pass the baton: Take tag from the card, give ONLY to the screen
+                card.style.viewTransitionName = ''; 
+                a.style.viewTransitionName = 'app-morph'; 
+                
+                // 3. Instantly snap the screen open for the "After" snapshot
+                let highestZ = 4000;
+                document.querySelectorAll('.activity-screen.open').forEach(el => {
+                    const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+                    if (!isNaN(z) && z > highestZ) highestZ = z;
+                });
+                a.style.zIndex = highestZ + 10;
+                a.classList.remove('hidden'); 
+                a.style.display = 'flex'; 
+                a.classList.add('open'); // Force open instantly for the camera snapshot
+                
+                if (activityId === 'activity-sales-form') UI.state.activeActivity = 'sales';
+                else if (activityId === 'activity-purchase-form') UI.state.activeActivity = 'purchase';
             });
             
             transition.finished.then(() => {
                 a.style.viewTransitionName = '';
+                if (window.evaluateSmartZoom) window.evaluateSmartZoom();
             }).catch(() => {
                 card.style.viewTransitionName = '';
                 a.style.viewTransitionName = '';
@@ -674,15 +738,17 @@ const UI = {
         const a = document.getElementById(activityId);
         if(!a) { window.softwareBackLock = false; return; }
 
-        const applyClose = () => {
+        const applyClose = async () => {
             a.classList.remove('open'); 
-            setTimeout(() => { 
-                a.classList.add('hidden');
-                a.style.display = '';
-                a.style.zIndex = ''; 
-                window.softwareBackLock = false;
-                if (window.evaluateSmartZoom) window.evaluateSmartZoom();
-            }, 300); 
+            
+            // Wait for the exact native CSS transition to finish!
+            await UI.awaitAnim(a, 350);
+            
+            a.classList.add('hidden');
+            a.style.display = '';
+            a.style.zIndex = ''; 
+            window.softwareBackLock = false;
+            if (window.evaluateSmartZoom) window.evaluateSmartZoom();
             
             if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = null;
@@ -692,21 +758,52 @@ const UI = {
         // 🚨 ENTERPRISE FIX: The Reverse Container Transform
         if (document.startViewTransition && UI.state.lastOpenedCard) {
             const card = UI.state.lastOpenedCard;
-            card.style.viewTransitionName = 'app-morph';
+            
+            // Capture the current scroll position of the list BEFORE the animation starts
+            const scrollContainer = document.querySelector('.main-content');
+            const currentScroll = scrollContainer ? scrollContainer.scrollTop : 0;
+            
+            // 1. Give the tag ONLY to the screen for the "Before" snapshot
             a.style.viewTransitionName = 'app-morph';
+            if (card.isConnected) card.style.viewTransitionName = ''; 
             
             const transition = document.startViewTransition(() => {
-                a.style.viewTransitionName = ''; // Release the tag
-                applyClose();
+                // 2. Pass the baton: Take tag from the screen, give ONLY to the card
+                a.style.viewTransitionName = ''; 
+                if (card.isConnected) card.style.viewTransitionName = 'app-morph'; 
+                
+                // 3. THE TIME FREEZE: Temporarily kill old CSS sliding animations!
+                const oldTransition = a.style.transition;
+                a.style.transition = 'none';
+                
+                // Instantly hide the screen for the "After" snapshot
+                a.classList.remove('open');
+                a.classList.add('hidden');
+                a.style.display = '';
+                a.style.zIndex = ''; 
+                window.softwareBackLock = false;
+                
+                // Force the browser to repaint instantly for the perfect snapshot
+                void a.offsetWidth;
+                a.style.transition = oldTransition;
+                
+                // Restore the exact scroll position so the list doesn't jump!
+                if (scrollContainer) scrollContainer.scrollTop = currentScroll;
+                
+                if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
+                    UI.state.activeActivity = null;
+                }
             });
             
             transition.finished.then(() => {
-                card.style.viewTransitionName = '';
+                if (card.isConnected) card.style.viewTransitionName = '';
                 UI.state.lastOpenedCard = null;
+                if (window.evaluateSmartZoom) window.evaluateSmartZoom();
             }).catch(() => {
-                card.style.viewTransitionName = '';
+                if (card.isConnected) card.style.viewTransitionName = '';
                 a.style.viewTransitionName = '';
                 UI.state.lastOpenedCard = null;
+                window.softwareBackLock = false;
             });
         } else {
             applyClose();
@@ -1117,21 +1214,73 @@ const UI = {
         if (stickyTotal) stickyTotal.innerHTML = `&#8377;${roundedTotal.toFixed(2)}`;
         
         if (window.UI && window.UI.updateLiveInsight) window.UI.updateLiveInsight(prefix);
+                UI.updateInstallmentTracker(prefix);
+
     },
+    
+        // ==========================================
+    // ENTERPRISE UPGRADE: EXPLICIT TRACKER ENGINE
+    // ==========================================
+    updateInstallmentTracker: (prefix) => {
+        const historyList = document.getElementById(`${prefix}-payment-history-list`);
+        const tracker = document.getElementById(`${prefix}-installment-tracker`);
+        const grandTotalEl = document.getElementById(`${prefix}-grand-total`);
+        const card = document.getElementById(`${prefix}-payment-history-card`);
+        
+        if (!card || card.classList.contains('hidden') || !historyList) {
+            if (tracker) tracker.style.display = 'none';
+            return;
+        }
+
+        let totalPaid = 0;
+        
+        Array.from(historyList.children).forEach(row => {
+            const match = row.innerText.match(/(?:\+|-)?\s*(?:₹|Rs\.?)\s*([\d,.]+)/i);
+            if (match) {
+                const amt = parseFloat(match[1].replace(/,/g, ''));
+                if (row.innerText.includes('-₹')) totalPaid -= amt;
+                else totalPaid += amt;
+            }
+        });
+        
+        const grandTotal = parseFloat(grandTotalEl.innerText.replace(/[^\d.-]/g, '')) || 0;
+        const balanceDue = Math.max(0, grandTotal - totalPaid);
+        const percent = grandTotal > 0 ? Math.min(100, (totalPaid / grandTotal) * 100) : 0;
+        
+        document.getElementById(`${prefix}-tracker-paid`).innerText = '₹' + totalPaid.toFixed(2);
+        document.getElementById(`${prefix}-tracker-due`).innerText = '₹' + balanceDue.toFixed(2);
+        document.getElementById(`${prefix}-tracker-bar`).style.width = percent + '%';
+        
+        if (tracker) tracker.style.display = 'block';
+    },
+
 
     // ==========================================
     // 4. UNIVERSAL SEARCH & DYNAMIC FILTERS
     // ==========================================
     highlightText: (text, term) => {
-        if (!term || !text) return text;
+        if (!text) return '';
+        
+        // 🚀 SECURITY UPGRADE: Safely encode HTML entities to prevent XSS attacks!
+        // This guarantees that script tags in the database cannot be executed by the browser.
+        const encodedText = String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+        if (!term) return encodedText;
+        
         try {
-            // ENTERPRISE FIX: Safe Regex Escaping! Prevents older Mobile WebViews from crashing and clearing the screen!
             const safeTerm = String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(`(${safeTerm})`, 'gi');
-            return String(text).replace(regex, '<span style="background: rgba(0,97,164,0.15); color: var(--md-primary); border-radius: 3px; font-weight: bold; padding: 0 2px;">$1</span>');
+            // The search term also needs to be encoded so it correctly matches the sanitized text!
+            const encodedSafeTerm = safeTerm.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const regex = new RegExp(`(${encodedSafeTerm})`, 'gi');
+            
+            return encodedText.replace(regex, '<span style="background: rgba(0,97,164,0.15); color: var(--md-primary); border-radius: 3px; font-weight: bold; padding: 0 2px;">$1</span>');
         } catch (err) {
-            // Failsafe: If the phone's text-engine panics, safely abort the highlight and just return the normal text!
-            return text; 
+            return encodedText; 
         }
     },
 
@@ -1306,8 +1455,8 @@ const UI = {
                 const primaryPool = isNon ? `${partyId}_Non` : `${partyId}_GST`;
                 const secondaryPool = isNon ? `${partyId}_GST` : `${partyId}_Non`;
 
-                // 🚨 BUG FIX: Legacy Spillover Engine! If the primary pool is empty, grab money from the other pool!
-                const availableMoney = (floatingPools[primaryPool] || 0) + (floatingPools[secondaryPool] || 0);
+                // 🚨 STRICT ERP LOGIC: Strict Tax Pool Isolation! GST Advances CANNOT pay Non-GST bills!
+                const availableMoney = floatingPools[primaryPool] || 0;
 
                 if (availableMoney > 0.01) {
                     const prefix = tab === 'sales' ? 'sales_' : 'purchases_';
@@ -1323,14 +1472,8 @@ const UI = {
                         const mapKey = `${partyId}_${doc.id}`;
                         paymentMap[mapKey] = (paymentMap[mapKey] || 0) + allocation;
                         
-                        // Deduct from primary first, then secondary
-                        if ((floatingPools[primaryPool] || 0) >= allocation) {
-                            floatingPools[primaryPool] -= allocation;
-                        } else {
-                            const remainder = allocation - (floatingPools[primaryPool] || 0);
-                            floatingPools[primaryPool] = 0;
-                            floatingPools[secondaryPool] = (floatingPools[secondaryPool] || 0) - remainder;
-                        }
+                        // Deduct ONLY from the primary matching tax pool
+                        floatingPools[primaryPool] -= allocation;
                     }
                 }
             });
@@ -1515,7 +1658,7 @@ const UI = {
                             </div>
                             <div style="display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0;">
                                 <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'var(--md-on-surface)'}; line-height:1.2;">${isReturn ? '-' : ''}\u20B9${(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
-                                <span style="display:inline-block; margin-top:4px; font-size:11px; font-weight:700; color:${statusColor};">${statusText}</span>
+                                <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; display: inline-block;">${statusText}</span>
                             </div>
                         </div>
 
@@ -1685,7 +1828,7 @@ const UI = {
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0;">
             <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'var(--md-on-surface)'}; line-height:1.2;">${isReturn ? '-' : ''}\u20B9${(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
-            <span style="display:inline-block; margin-top:4px; font-size:11px; font-weight:700; color:${statusColor};">${statusText}</span>
+            <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; display: inline-block;">${statusText}</span>
         </div>
     </div>
 
@@ -1777,8 +1920,8 @@ const UI = {
                 const trueBalance = trueBalGST + trueBalNonGST;
 
                 splitBalances[l.id] = { 
-                    gst: Math.max(0, trueBalGST), 
-                    non: Math.max(0, trueBalNonGST), 
+                    gst: trueBalGST, 
+                    non: trueBalNonGST, 
                     total: trueBalance 
                 };
             });
@@ -1864,23 +2007,33 @@ const UI = {
                             <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
                             </div>
-                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                            <div style="flex: 1; min-width: 0; padding-right: 8px; display: flex; flex-direction: column; min-height: 48px;">
                                 <strong style="font-size: 15px; color: var(--md-on-surface); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.2; font-weight: 700;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
                                 <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${stockLabel}</small>
                             </div>
-                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; min-height: 48px;">
                                 <strong style="font-size: 16px; color: var(--md-on-surface); line-height: 1.2;">\u20B9${(i.sellPrice || 0).toFixed(2)}</strong>
                                 <small style="color: var(--md-text-muted); display: inline-block; margin-top: 4px; font-weight: 600;">Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}</small>
                             </div>
                         </div>
 
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
+                        <!-- 🚀 NEW: Dashed Separator Line & Action Icon Grid -->
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px; border-top: 1px dashed var(--md-outline-variant); padding-top: 12px;">
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.app.openItemLedger('${i.id}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+                                
+                                <!-- QUICK NATIVE SHARE -->
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openItemLedger('${i.id}', '${safeName}'); setTimeout(() => { if(navigator.share) { navigator.share({title: '${safeName} Stock Ledger', text: 'Please find the stock ledger attached.'}).catch(console.error); } else if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                                 </div>
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.executeItemLedgerReport('${i.id}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                
+                                <!-- QUICK VECTOR PDF -->
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openItemLedger('${i.id}', '${safeName}'); setTimeout(() => { if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                </div>
+                                
+                                <!-- ITEM LEDGER (HISTORY) MENU -->
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) window.app.openItemLedger('${i.id}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
                                 </div>
                             </div>
                         </div>
@@ -1970,12 +2123,20 @@ const UI = {
                         balText = `\u20B9${Math.abs(bal).toFixed(2)}`; 
                         balColor = 'var(--md-success)'; 
                         statusBadge = `<span style="background:#16a34a; color:#ffffff; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; letter-spacing:0.5px; margin-top:4px; display:inline-block; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`;
+                        
+                        // 🚨 NEW: Explicitly label which pool the advance belongs to!
+                        if (split.gst < -0.01 && split.non < -0.01) taxInfo = `GST Adv: \u20B9${Math.abs(split.gst).toFixed(0)} | Non Adv: \u20B9${Math.abs(split.non).toFixed(0)}`;
+                        else if (split.gst < -0.01) taxInfo = `GST Advance: \u20B9${Math.abs(split.gst).toFixed(2)}`;
+                        else if (split.non < -0.01) taxInfo = `Non-GST Advance: \u20B9${Math.abs(split.non).toFixed(2)}`;
                     }
                     
                     const rowIcon = isCustomer ? 'person' : 'storefront';
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
-// Transform tax warning into a badge matching the sales/purchases layout
-const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">${taxInfo}</span>` : '';
+                    
+                    // 🚨 DYNAMIC COLOR: Green for Advances, Red for Debts
+                    const tColor = bal < -0.01 ? 'var(--md-success)' : 'var(--md-error)';
+                    const tBg = bal < -0.01 ? 'rgba(20, 108, 46, 0.08)' : 'rgba(186, 26, 26, 0.08)';
+                    const taxHtml = taxInfo ? `<span style="color:${tColor}; font-size:10px; font-weight:800; background:${tBg}; padding:4px 8px; border-radius:4px; display:inline-block;">${taxInfo}</span>` : '';
 
                     // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
                     const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -1986,20 +2147,35 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                             <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                             </div>
-                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                            <div style="flex: 1; min-width: 0; padding-right: 8px; display: flex; flex-direction: column; min-height: 48px;">
                                 <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
                                 <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
-                                ${taxHtml ? `<div style="margin-top: 6px;">${taxHtml}</div>` : ''}
+                                <!-- 🚨 ROOT FIX: Invisible structural lock for Tax Badges -->
+                                <div style="min-height: 20px; margin-top: 4px; display: flex; align-items: center;">${taxHtml ? taxHtml : ''}</div>
                             </div>
-                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; min-height: 48px;">
                                 <strong style="font-size: 16px; color: ${balColor}; line-height: 1.2;">${balText}</strong>
-                                ${statusBadge}
+                                <!-- 🚨 ROOT FIX: Invisible structural lock for Status Badges -->
+                                <div style="min-height: 20px; display: flex; align-items: flex-start; margin-top: 4px;">${statusBadge ? statusBadge : ''}</div>
                             </div>
                         </div>
 
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
+                        <!-- 🚀 NEW: Dashed Separator Line & Action Icon Grid -->
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px; border-top: 1px dashed var(--md-outline-variant); padding-top: 12px;">
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                
+                                <!-- QUICK NATIVE SHARE (WITH STEALTH CLOSE) -->
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(navigator.share) { navigator.share({title: '${safeName} Ledger', text: 'Please find the ledger statement attached.'}).catch(console.error); } else if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-party-ledger'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
+                                </div>
+                                
+                                <!-- QUICK VECTOR PDF (WITH STEALTH CLOSE) -->
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-party-ledger'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                </div>
+                                
+                                <!-- KHATA BOOK MENU -->
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">menu_book</span>
                                 </div>
                             </div>
@@ -2747,8 +2923,8 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
             const primaryPool = isNon ? `${doc.customerId}_Non` : `${doc.customerId}_GST`;
             const secondaryPool = isNon ? `${doc.customerId}_GST` : `${doc.customerId}_Non`;
 
-            // 🚨 BUG FIX: Legacy Spillover Engine for Dashboard!
-            const availableMoney = (floatingPools[primaryPool] || 0) + (floatingPools[secondaryPool] || 0);
+            // 🚨 STRICT ERP LOGIC: Strict Tax Pool Isolation for Dashboard!
+            const availableMoney = floatingPools[primaryPool] || 0;
 
             if (availableMoney > 0.01) {
                 const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
@@ -2762,13 +2938,8 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                     const mapKey = `${doc.customerId}_${doc.id}`;
                     paymentMap[mapKey] = (paymentMap[mapKey] || 0) + allocation;
                     
-                    if ((floatingPools[primaryPool] || 0) >= allocation) {
-                        floatingPools[primaryPool] -= allocation;
-                    } else {
-                        const remainder = allocation - (floatingPools[primaryPool] || 0);
-                        floatingPools[primaryPool] = 0;
-                        floatingPools[secondaryPool] = (floatingPools[secondaryPool] || 0) - remainder;
-                    }
+                    // Deduct ONLY from the primary matching tax pool
+                    floatingPools[primaryPool] -= allocation;
                 }
             }
         });
@@ -3364,10 +3535,9 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
 
         if (remainingSheets.length === 0 && overlay) {
             overlay.classList.remove('open');
-            UI.resetStatusBarColor(); // Only reset the status bar if ALL sheets are gone
-            setTimeout(() => { overlay.style.zIndex = ''; }, 300); // Reset Z-index to default CSS
+            UI.resetStatusBarColor(); 
+            UI.awaitAnim(overlay, 350).then(() => { overlay.style.zIndex = ''; });
         } else if (remainingSheets.length > 0 && overlay) {
-            // Drop the dark overlay back down to sit behind the remaining open sheet
             let highestZ = 5100;
             remainingSheets.forEach(el => {
                 const z = parseInt(window.getComputedStyle(el).zIndex, 10);
@@ -3376,16 +3546,16 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
             overlay.style.zIndex = highestZ - 5;
         }
 
-        setTimeout(() => { 
+        // Wait for the exact native CSS transition to finish before hiding!
+        UI.awaitAnim(sheet, 350).then(() => {
             if (sheet) {
                 sheet.classList.add('hidden');
-                sheet.style.zIndex = ''; // Reset sheet z-index
+                sheet.style.zIndex = ''; 
             }
-            // STRICT ERP LOGIC: Re-check the DOM dynamically to prevent vanishing overlays on rapid switching, and ignore the haptic menu!
             const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
             if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden');
             window.softwareBackLock = false;
-        }, 300);
+        });
 
         // ENTERPRISE FIX: Only clear the Receipt ID if we are actually closing the Cashbook form!
         if ((sheetId === 'sheet-payment-in' || sheetId === 'sheet-payment-out') && typeof app !== 'undefined' && app.state) {
@@ -3874,6 +4044,8 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         if(!container) return;
         if(emptyState) emptyState.style.display = 'none';
         
+        const fragment = document.createDocumentFragment(); // 🚨 PERFORMANCE FIX: Invisible DOM Container
+        
         UI.state.selectedProducts.forEach(p => {
             // Trigger Smart Pricing Memory
             const smart = UI.getSmartRate(prefix, p.id, p.price);
@@ -3933,9 +4105,10 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                     </div>
                 </div>
             `;
-            container.appendChild(itemCard);
+            fragment.appendChild(itemCard); // Add to invisible container
         });
 
+        container.appendChild(fragment); // 🚨 PERFORMANCE FIX: Render to screen ONLY ONCE!
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         UI.closeBottomSheet('sheet-products');
         
@@ -3965,24 +4138,36 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         // STRICT ERP LOGIC: O(1) Memory Hash Map instead of N+1 Database Queries!
         // This prevents the app from freezing for 10+ seconds when exporting thousands of customers.
         const balanceCache = {};
-        customerLedgers.forEach(l => {
+        
+        // 🚀 ENTERPRISE UPGRADE: Asynchronous Yielding Engine (Prevents UI Freezing)
+        for (let i = 0; i < customerLedgers.length; i++) {
+            let l = customerLedgers[i];
             let ob = parseFloat(l.openingBalance) || 0;
             const balType = (l.balanceType || '').toLowerCase();
             balanceCache[l.id] = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-        });
+            if (i % 50 === 0) await new Promise(res => setTimeout(res, 0)); // Yield to UI
+        }
 
-        UI.state.rawData.sales.forEach(s => { 
+        const sales = UI.state.rawData.sales || [];
+        for (let i = 0; i < sales.length; i++) {
+            let s = sales[i];
             if ((!activeFirmId || s.firmId === activeFirmId) && s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
                 balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
             }
-        });
-        UI.state.rawData.cashbook.forEach(c => { 
+            if (i % 50 === 0) await new Promise(res => setTimeout(res, 0)); // Yield to UI
+        }
+        
+        const cashbook = UI.state.rawData.cashbook || [];
+        for (let i = 0; i < cashbook.length; i++) {
+            let c = cashbook[i];
             if ((!activeFirmId || c.firmId === activeFirmId) && c.ledgerId && balanceCache[c.ledgerId] !== undefined) {
                 balanceCache[c.ledgerId] += (c.type === 'in' ? -parseFloat(c.amount || 0) : parseFloat(c.amount || 0));
             }
-        });
+            if (i % 50 === 0) await new Promise(res => setTimeout(res, 0)); // Yield to UI
+        }
 
-        customerLedgers.forEach(ledger => {
+        for (let i = 0; i < customerLedgers.length; i++) {
+            let ledger = customerLedgers[i];
             const bal = balanceCache[ledger.id] || 0;
             if (bal > 0.01) {
                 reportData.push({
@@ -3992,7 +4177,8 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
                 });
                 grandTotal += bal;
             }
-        });
+            if (i % 50 === 0) await new Promise(res => setTimeout(res, 0)); // Yield to UI
+        }
         
         if (reportData.length === 0) return alert("No pending receivables found.");
         window.Utils.printReceivablesReport(reportData, grandTotal);
@@ -4005,7 +4191,6 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         document.getElementById('view-daybook').classList.add('hidden');
         document.getElementById('view-pnl').classList.add('hidden');
         
-        // Reset both tabs to transparent background and grey text
         document.getElementById('btn-tab-daybook').style.background = 'transparent';
         document.getElementById('btn-tab-daybook').style.boxShadow = 'none';
         document.getElementById('btn-tab-daybook').style.color = 'var(--md-text-muted)';
@@ -4038,17 +4223,16 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         const container = document.getElementById('daybook-container');
         let html = '';
 
-        // Combine all relevant activity into one chronological stream
         const dailyActivity = [];
         
-        UI.state.rawData.sales.filter(s => s.date === targetDate && s.status !== 'Open').forEach(s => {
+        UI.state.rawData.sales.filter(s => s.date === targetDate && s.status !== 'Open' && s.status !== 'Cancelled').forEach(s => {
             const isRet = s.documentType === 'return';
             const isNonGST = s.invoiceType === 'Non-GST';
             const docLabel = isRet ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
             dailyActivity.push({ time: s.id, type: docLabel, desc: s.customerName, amount: s.grandTotal, icon: isRet ? 'assignment_return' : 'receipt_long', color: isRet ? 'var(--md-error)' : 'var(--md-success)', sign: isRet ? '-' : '+' });
         });
         
-        UI.state.rawData.purchases.filter(p => p.date === targetDate && p.status !== 'Open').forEach(p => {
+        UI.state.rawData.purchases.filter(p => p.date === targetDate && p.status !== 'Open' && p.status !== 'Cancelled').forEach(p => {
             const isRet = p.documentType === 'return';
             const isNonGST = p.invoiceType === 'Non-GST';
             const docLabel = isRet ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
@@ -4069,18 +4253,16 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
             return;
         }
 
-        // FIX: Extract the actual timestamp chunk from the end of the ID string to sort chronologically!
         dailyActivity.sort((a, b) => {
             const timeA = parseInt(a.time.split('-').pop()) || 0;
             const timeB = parseInt(b.time.split('-').pop()) || 0;
             return timeB - timeA;
         });
 
-        // UPGRADE: Added Export CSV Button dynamically
         html += `
             <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
-                <button class="btn-primary-small tap-target" onclick="UI.exportDaybookCSV()" style="display:flex; align-items:center; gap:4px; background: rgba(20, 108, 46, 0.1); color: var(--md-success); border: 1px solid rgba(20, 108, 46, 0.3);">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">download</span> Export CSV
+                <button class="btn-primary-small tap-target" onclick="UI.exportDaybookPDF()" style="display:flex; align-items:center; gap:6px; background: var(--md-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,97,164,0.2);">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span> Generate PDF
                 </button>
             </div>
         `;
@@ -4103,7 +4285,7 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         if (!startEl.value || !endEl.value) {
             const d = new Date();
             endEl.value = typeof Utils !== 'undefined' ? Utils.getLocalDate() : d.toISOString().split('T')[0];
-            d.setDate(1); // Set to first of month
+            d.setDate(1); 
             startEl.value = d.toISOString().split('T')[0];
         }
 
@@ -4121,9 +4303,7 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
         let indirectIncome = 0;
         let stockLoss = 0;
 
-        // 1. CALCULATE SALES & COGS (Split by Tax Type)
         (window.UI.state.rawData.sales || []).forEach(s => {
-            // 🚨 ENTERPRISE FIX: Block Cancelled invoices from illegally inflating the P&L!
             if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= startDate && s.date <= endDate && s.status !== 'Open' && s.status !== 'Cancelled') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
                 const netSales = (parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0);
@@ -4141,14 +4321,12 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
             }
         });
 
-        // 2. CALCULATE EXPENSES
         (window.UI.state.rawData.expenses || []).forEach(e => {
             if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= startDate && e.date <= endDate) {
                 totalExpenses += parseFloat(e.amount) || 0;
             }
         });
 
-        // 3. INDIRECT INCOME & EXPENSES (The Cashbook Blackhole)
         let indirectExpense = 0;
         (window.UI.state.rawData.cashbook || []).forEach(c => {
             if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= startDate && c.date <= endDate && !c.invoiceRef && !c.linkedInvoice) {
@@ -4163,7 +4341,6 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
             }
         });
 
-        // 4. STOCK LOSS & GAIN
         let stockGain = 0;
         if (UI.state.rawData.adjustments) {
             UI.state.rawData.adjustments.forEach(adj => {
@@ -4176,21 +4353,15 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
             });
         }
 
-        // 5. CALCULATE EXACT MARGINS
         const gstGrossProfit = gstSales - gstPurchases;
         const nonGstGrossProfit = nonGstSales - nonGstPurchases;
-        
-        // Add indirect income and inventory gains to Gross Profit
         const totalGrossProfit = gstGrossProfit + nonGstGrossProfit + indirectIncome + stockGain;
-        
-        // Deduct formal expenses, un-categorized bank deductions, and lost stock!
         const trueNetProfit = totalGrossProfit - (totalExpenses + indirectExpense + stockLoss);
 
-        // 6. RENDER THE PREMIUM SPLIT UI
         container.innerHTML = `
             <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
-                <button class="btn-primary-small tap-target" onclick="UI.exportPnLCSV()" style="display:flex; align-items:center; gap:4px; background: rgba(20, 108, 46, 0.1); color: var(--md-success); border: 1px solid rgba(20, 108, 46, 0.3);">
-                    <span class="material-symbols-outlined" style="font-size: 16px;">download</span> Export CSV
+                <button class="btn-primary-small tap-target" onclick="UI.exportPnLPDF()" style="display:flex; align-items:center; gap:6px; background: var(--md-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,97,164,0.2);">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span> Generate PDF
                 </button>
             </div>
 
@@ -4238,147 +4409,365 @@ const taxHtml = taxInfo ? `<span style="color:var(--md-error); font-size:10px; f
     },
 
     // ==========================================
-    // UPGRADE: EXPORT ENGINES (CSV)
+    // EXPORT ENGINES (PDF & CSV)
     // ==========================================
+    
+    exportDaybookPDF: async () => {
+        try {
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            
+            const dateInput = document.getElementById('report-daybook-date').value;
+            const dailyActivity = [];
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+            const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
+            
+            UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open' && s.status !== 'Cancelled').forEach(s => {
+                const isRet = s.documentType === 'return';
+                const docLabel = isRet ? 'Credit Note' : (s.invoiceType === 'Non-GST' ? 'Bill of Supply' : 'Sales Invoice');
+                dailyActivity.push({ type: docLabel, desc: s.customerName, amount: s.grandTotal, sign: isRet ? '-' : '+' });
+            });
+            
+            UI.state.rawData.purchases.filter(p => (!activeFirmId || p.firmId === activeFirmId) && p.date === dateInput && p.status !== 'Open' && p.status !== 'Cancelled').forEach(p => {
+                const isRet = p.documentType === 'return';
+                const docLabel = isRet ? 'Debit Note' : (p.invoiceType === 'Non-GST' ? 'Bill of Supply' : 'Purchase Bill');
+                dailyActivity.push({ type: docLabel, desc: p.supplierName, amount: p.grandTotal, sign: isRet ? '+' : '-' });
+            });
+            
+            UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === dateInput && !c.isAutoGenerated).forEach(c => {
+                const isIn = c.type === 'in';
+                dailyActivity.push({ type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: parseFloat(c.amount), sign: isIn ? '+' : '-' });
+            });
+            
+            UI.state.rawData.expenses.filter(e => (!activeFirmId || e.firmId === activeFirmId) && e.date === dateInput).forEach(e => {
+                dailyActivity.push({ type: 'Expense', desc: e.category, amount: parseFloat(e.amount), sign: '-' });
+            });
+
+            if (dailyActivity.length === 0) {
+                return window.Utils.showToast("No data to export for this date.");
+            }
+
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' 
+                ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+
+            const tableBody = [
+                [{text: 'TYPE', style: 'th'}, {text: 'DESCRIPTION', style: 'th'}, {text: 'AMOUNT (₹)', style: 'th', alignment: 'right'}]
+            ];
+
+            let totalIn = 0, totalOut = 0;
+
+            dailyActivity.forEach((t, index) => {
+                const amt = parseFloat(t.amount) || 0;
+                if (t.sign === '+') totalIn += amt; else totalOut += amt;
+                const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                const color = t.sign === '+' ? '#16a34a' : '#dc2626';
+
+                tableBody.push([
+                    {text: t.type, margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: t.desc || '', margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
+                    {text: `${t.sign} ${amt.toFixed(2)}`, alignment: 'right', color: color, bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                ]);
+            });
+
+            tableBody.push([
+                {text: 'TOTAL MONEY IN', colSpan: 2, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#16a34a'},
+                {}, {text: '+' + totalIn.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#16a34a'}
+            ]);
+            tableBody.push([
+                {text: 'TOTAL MONEY OUT', colSpan: 2, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+                {}, {text: '-' + totalOut.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+            ]);
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 20, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1, textTransform: 'uppercase' },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
+                            { width: 220, stack: [ { text: 'DAYBOOK REGISTER', style: 'subHeader' }, { text: 'Date: ' + window.Utils.formatDateDisplay(dateInput), alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
+                        ], margin: [0, 0, 0, 32]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['auto', '*', 'auto'], body: tableBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 2 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 2 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                        }
+                    }
+                ]
+            };
+
+            window.Utils.processVectorPDF(docDefinition, `Daybook_${dateInput}.pdf`, `Here is the Daybook statement for ${window.Utils.formatDateDisplay(dateInput)}.`);
+        } catch (error) {
+            console.error("Daybook PDF Error:", error);
+            if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed");
+        }
+    },
+
+    exportPnLPDF: async () => {
+        try {
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            
+            const start = document.getElementById('report-pnl-start').value;
+            const end = document.getElementById('report-pnl-end').value;
+            
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+            const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
+            
+            let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
+            let indirectIncome = 0, indirectExpense = 0, stockLoss = 0, stockGain = 0;
+
+            UI.state.rawData.sales.forEach(s => {
+                if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open' && s.status !== 'Cancelled') {
+                    const modifier = s.documentType === 'return' ? -1 : 1;
+                    totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
+                    (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
+                }
+            });
+            
+            UI.state.rawData.expenses.forEach(e => {
+                if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= start && e.date <= end) totalExpenses += parseFloat(e.amount) || 0;
+            });
+            
+            UI.state.rawData.cashbook.forEach(c => {
+                if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= start && c.date <= end && !c.invoiceRef && !c.linkedInvoice) {
+                    const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
+                                                 UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                                                 UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
+                    const ledgerName = (c.ledgerName || '').toLowerCase();
+                    if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                        if (c.type === 'in') indirectIncome += parseFloat(c.amount) || 0;
+                        else if (c.type === 'out') indirectExpense += parseFloat(c.amount) || 0;
+                    }
+                }
+            });
+            
+            if (UI.state.rawData.adjustments) {
+                UI.state.rawData.adjustments.forEach(adj => {
+                    if (adj.date >= start && adj.date <= end) {
+                        const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
+                        const value = (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                        if (adj.type === 'reduce') stockLoss += value;
+                        else if (adj.type === 'add') stockGain += value;
+                    }
+                });
+            }
+
+            const grossProfit = (totalRevenue + indirectIncome + stockGain) - totalCOGS;
+            const totalOperatingCosts = totalExpenses + indirectExpense + stockLoss;
+            const netProfit = grossProfit - totalOperatingCosts;
+
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' 
+                ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+
+            const tableBody = [
+                [{text: 'PARTICULARS', style: 'th'}, {text: 'AMOUNT (₹)', style: 'th', alignment: 'right'}],
+                [{text: 'Total Net Revenue', margin: [0, 4, 0, 4]}, {text: totalRevenue.toFixed(2), alignment: 'right', margin: [0, 4, 0, 4]}]
+            ];
+            
+            if (indirectIncome > 0) tableBody.push([{text: 'Indirect Income', margin: [0, 4, 0, 4]}, {text: indirectIncome.toFixed(2), alignment: 'right', margin: [0, 4, 0, 4]}]);
+            if (stockGain > 0) tableBody.push([{text: 'Stock Gain (Found/Added)', margin: [0, 4, 0, 4]}, {text: stockGain.toFixed(2), alignment: 'right', margin: [0, 4, 0, 4]}]);
+            tableBody.push([{text: 'Cost of Goods Sold (COGS)', color: '#dc2626', margin: [0, 4, 0, 4]}, {text: '-' + totalCOGS.toFixed(2), alignment: 'right', color: '#dc2626', margin: [0, 4, 0, 4]}]);
+            
+            tableBody.push([{text: 'GROSS PROFIT', bold: true, fillColor: '#f1f5f9', margin: [0, 6, 0, 6]}, {text: grossProfit.toFixed(2), bold: true, alignment: 'right', fillColor: '#f1f5f9', margin: [0, 6, 0, 6]}]);
+            
+            tableBody.push([{text: 'Operating Expenses', color: '#dc2626', margin: [0, 4, 0, 4]}, {text: '-' + totalExpenses.toFixed(2), alignment: 'right', color: '#dc2626', margin: [0, 4, 0, 4]}]);
+            if (indirectExpense > 0) tableBody.push([{text: 'Indirect Expenses', color: '#dc2626', margin: [0, 4, 0, 4]}, {text: '-' + indirectExpense.toFixed(2), alignment: 'right', color: '#dc2626', margin: [0, 4, 0, 4]}]);
+            if (stockLoss > 0) tableBody.push([{text: 'Stock Loss (Damaged/Removed)', color: '#dc2626', margin: [0, 4, 0, 4]}, {text: '-' + stockLoss.toFixed(2), alignment: 'right', color: '#dc2626', margin: [0, 4, 0, 4]}]);
+            
+            tableBody.push([{text: 'TRUE NET PROFIT', bold: true, fontSize: 14, color: netProfit >= 0 ? '#16a34a' : '#dc2626', margin: [0, 8, 0, 8]}, {text: '₹' + netProfit.toFixed(2), bold: true, fontSize: 14, alignment: 'right', color: netProfit >= 0 ? '#16a34a' : '#dc2626', margin: [0, 8, 0, 8]}]);
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 20, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1, textTransform: 'uppercase' },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            {
+                                width: '*',
+                                stack: [
+                                    (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null,
+                                    { text: biz.name || 'Company Name', style: 'header' },
+                                    { text: 'Financial Period: ' + window.Utils.formatDateDisplay(start) + ' to ' + window.Utils.formatDateDisplay(end), margin: [0, 4, 0, 0], color: '#475569', fontSize: 10 }
+                                ].filter(Boolean)
+                            },
+                            {
+                                width: 220,
+                                stack: [
+                                    { text: 'PROFIT & LOSS A/C', style: 'subHeader' },
+                                    { text: 'STATEMENT', alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] }
+                                ]
+                            }
+                        ], margin: [0, 0, 0, 32]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['*', 'auto'], body: tableBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                        }, margin: [0, 0, 0, 32]
+                    }
+                ]
+            };
+
+            window.Utils.processVectorPDF(docDefinition, `PnL_Statement_${start}_to_${end}.pdf`, `Here is the Profit & Loss Statement for ${window.Utils.formatDateDisplay(start)} to ${window.Utils.formatDateDisplay(end)}`);
+        } catch (error) {
+            console.error("PnL PDF Error:", error);
+            if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed");
+        }
+    },
+
     exportDaybookCSV: () => {
-        const dateInput = document.getElementById('report-daybook-date').value;
-        const dailyActivity = [];
-        
-        // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
-        
-        // 🚨 BUG FIX: Block Cancelled Sales from Daybook CSV
-        UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open' && s.status !== 'Cancelled').forEach(s => {
-            const isRet = s.documentType === 'return';
-            const isNonGST = s.invoiceType === 'Non-GST';
-            const docLabel = isRet ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
-            dailyActivity.push({ time: s.id, type: docLabel, desc: s.customerName, amount: s.grandTotal, sign: isRet ? '-' : '+' });
-        });
-        // 🚨 BUG FIX: Block Cancelled Purchases from Daybook CSV
-        UI.state.rawData.purchases.filter(p => (!activeFirmId || p.firmId === activeFirmId) && p.date === dateInput && p.status !== 'Open' && p.status !== 'Cancelled').forEach(p => {
-            const isRet = p.documentType === 'return';
-            const isNonGST = p.invoiceType === 'Non-GST';
-            const docLabel = isRet ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
-            dailyActivity.push({ time: p.id, type: docLabel, desc: p.supplierName, amount: p.grandTotal, sign: isRet ? '+' : '-' });
-        });
-        UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === dateInput && !c.isAutoGenerated).forEach(c => {
-            const isIn = c.type === 'in';
-            dailyActivity.push({ time: c.id, type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: parseFloat(c.amount), sign: isIn ? '+' : '-' });
-        });
-        UI.state.rawData.expenses.filter(e => (!activeFirmId || e.firmId === activeFirmId) && e.date === dateInput).forEach(e => {
-            dailyActivity.push({ time: e.id, type: 'Expense', desc: e.category, amount: parseFloat(e.amount), sign: '-' });
-        });
+        try {
+            const dateInput = document.getElementById('report-daybook-date').value;
+            const dailyActivity = [];
+            
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+            
+            UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === dateInput && s.status !== 'Open' && s.status !== 'Cancelled').forEach(s => {
+                const isRet = s.documentType === 'return';
+                const isNonGST = s.invoiceType === 'Non-GST';
+                const docLabel = isRet ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
+                dailyActivity.push({ time: s.id, type: docLabel, desc: s.customerName, amount: s.grandTotal, sign: isRet ? '-' : '+' });
+            });
+            UI.state.rawData.purchases.filter(p => (!activeFirmId || p.firmId === activeFirmId) && p.date === dateInput && p.status !== 'Open' && p.status !== 'Cancelled').forEach(p => {
+                const isRet = p.documentType === 'return';
+                const isNonGST = p.invoiceType === 'Non-GST';
+                const docLabel = isRet ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
+                dailyActivity.push({ time: p.id, type: docLabel, desc: p.supplierName, amount: p.grandTotal, sign: isRet ? '+' : '-' });
+            });
+            UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === dateInput && !c.isAutoGenerated).forEach(c => {
+                const isIn = c.type === 'in';
+                dailyActivity.push({ time: c.id, type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: parseFloat(c.amount), sign: isIn ? '+' : '-' });
+            });
+            UI.state.rawData.expenses.filter(e => (!activeFirmId || e.firmId === activeFirmId) && e.date === dateInput).forEach(e => {
+                dailyActivity.push({ time: e.id, type: 'Expense', desc: e.category, amount: parseFloat(e.amount), sign: '-' });
+            });
 
-        if (dailyActivity.length === 0) return alert("No data to export for this date.");
+            if (dailyActivity.length === 0) return window.Utils.alertModal("No data to export for this date.");
 
-        // FIX: Extract the actual timestamp chunk from the end of the ID string to sort chronologically!
-        dailyActivity.sort((a, b) => {
-            const timeA = parseInt(a.time.split('-').pop()) || 0;
-            const timeB = parseInt(b.time.split('-').pop()) || 0;
-            return timeB - timeA;
-        });
+            dailyActivity.sort((a, b) => {
+                const timeA = parseInt(a.time.split('-').pop()) || 0;
+                const timeB = parseInt(b.time.split('-').pop()) || 0;
+                return timeB - timeA;
+            });
 
-        let csv = "Type,Description,Amount (INR)\n";
-        dailyActivity.forEach(t => {
-            // STRICT ERP LOGIC: Strip hidden newlines to prevent CSV row-break spreadsheet corruption!
-            const safeDesc = String(t.desc || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' '); 
-            csv += `"${t.type}","${safeDesc}","${t.sign}${(t.amount || 0).toFixed(2)}"\n`;
-        });
+            let csv = "Type,Description,Amount (INR)\n";
+            dailyActivity.forEach(t => {
+                const safeDesc = String(t.desc || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' '); 
+                csv += `"${t.type}","${safeDesc}","${t.sign}${(t.amount || 0).toFixed(2)}"\n`;
+            });
 
-        // ENTERPRISE FIX: Inject the UTF-8 BOM (\ufeff) so Microsoft Excel doesn't scramble the Rupee (₹) symbol!
-        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Daybook_${dateInput}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        // FIX: Give the mobile browser 1 second to grab the file before destroying it!
-        setTimeout(() => {
-            URL.revokeObjectURL(url);
-        }, 1000); 
+            const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Daybook_${dateInput}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => { URL.revokeObjectURL(url); }, 1000); 
+            if (window.Utils) window.Utils.showToast("✅ Daybook Exported!");
+        } catch (e) {
+            if (window.Utils) window.Utils.alertModal(e.message, "CSV Error");
+        }
     },
 
     exportPnLCSV: () => {
-        const start = document.getElementById('report-pnl-start').value;
-        const end = document.getElementById('report-pnl-end').value;
-        
-        // --- ENTERPRISE FIX: STRICT CSV DATA ISOLATION ---
-        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
-        
-        let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
-        let indirectIncome = 0, indirectExpense = 0, stockLoss = 0, stockGain = 0;
+        try {
+            const start = document.getElementById('report-pnl-start').value;
+            const end = document.getElementById('report-pnl-end').value;
+            
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+            
+            let totalRevenue = 0, totalCOGS = 0, totalExpenses = 0;
+            let indirectIncome = 0, indirectExpense = 0, stockLoss = 0, stockGain = 0;
 
-        UI.state.rawData.sales.forEach(s => {
-            // 🚨 BUG FIX: Block Cancelled Sales from inflating PnL CSV Exports!
-            if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open' && s.status !== 'Cancelled') {
-                const modifier = s.documentType === 'return' ? -1 : 1;
-                totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
-                (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
-            }
-        });
-        
-        UI.state.rawData.expenses.forEach(e => {
-            if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= start && e.date <= end) totalExpenses += parseFloat(e.amount) || 0;
-        });
-        
-        // STRICT ERP LOGIC: Synchronize CSV Export with On-Screen PnL
-        UI.state.rawData.cashbook.forEach(c => {
-            if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= start && c.date <= end && !c.invoiceRef && !c.linkedInvoice) {
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
-                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
-                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
-                const ledgerName = (c.ledgerName || '').toLowerCase();
-                if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
-                    if (c.type === 'in') indirectIncome += parseFloat(c.amount) || 0;
-                    else if (c.type === 'out') indirectExpense += parseFloat(c.amount) || 0;
-                }
-            }
-        });
-        
-        if (UI.state.rawData.adjustments) {
-            UI.state.rawData.adjustments.forEach(adj => {
-                if (adj.date >= start && adj.date <= end) {
-                    const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
-                    const value = (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
-                    if (adj.type === 'reduce') stockLoss += value;
-                    else if (adj.type === 'add') stockGain += value;
+            UI.state.rawData.sales.forEach(s => {
+                if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open' && s.status !== 'Cancelled') {
+                    const modifier = s.documentType === 'return' ? -1 : 1;
+                    totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
+                    (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
                 }
             });
-        }
+            
+            UI.state.rawData.expenses.forEach(e => {
+                if ((!activeFirmId || e.firmId === activeFirmId) && e.date >= start && e.date <= end) totalExpenses += parseFloat(e.amount) || 0;
+            });
+            
+            UI.state.rawData.cashbook.forEach(c => {
+                if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= start && c.date <= end && !c.invoiceRef && !c.linkedInvoice) {
+                    const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) || 
+                                                 UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) || 
+                                                 UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
+                    const ledgerName = (c.ledgerName || '').toLowerCase();
+                    if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
+                        if (c.type === 'in') indirectIncome += parseFloat(c.amount) || 0;
+                        else if (c.type === 'out') indirectExpense += parseFloat(c.amount) || 0;
+                    }
+                }
+            });
+            
+            if (UI.state.rawData.adjustments) {
+                UI.state.rawData.adjustments.forEach(adj => {
+                    if (adj.date >= start && adj.date <= end) {
+                        const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
+                        const value = (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
+                        if (adj.type === 'reduce') stockLoss += value;
+                        else if (adj.type === 'add') stockGain += value;
+                    }
+                });
+            }
 
-        const grossProfit = (totalRevenue + indirectIncome + stockGain) - totalCOGS;
-        const totalOperatingCosts = totalExpenses + indirectExpense + stockLoss;
-        const netProfit = grossProfit - totalOperatingCosts;
+            const grossProfit = (totalRevenue + indirectIncome + stockGain) - totalCOGS;
+            const totalOperatingCosts = totalExpenses + indirectExpense + stockLoss;
+            const netProfit = grossProfit - totalOperatingCosts;
 
-        let csv = `Profit & Loss Statement (${start} to ${end})\n\n`;
-        csv += `Account,Amount (INR)\n`;
-        csv += `"Total Net Revenue","${totalRevenue.toFixed(2)}"\n`;
-        if (indirectIncome > 0) csv += `"Indirect Income","${indirectIncome.toFixed(2)}"\n`;
-        if (stockGain > 0) csv += `"Stock Gain (Found/Added)","${stockGain.toFixed(2)}"\n`;
-        csv += `"Cost of Goods Sold (COGS)","-${totalCOGS.toFixed(2)}"\n`;
-        csv += `"Gross Profit","${grossProfit.toFixed(2)}"\n`;
-        csv += `"Operating Expenses","-${totalExpenses.toFixed(2)}"\n`;
-        if (indirectExpense > 0) csv += `"Indirect Expenses","-${indirectExpense.toFixed(2)}"\n`;
-        if (stockLoss > 0) csv += `"Stock Loss (Damaged/Removed)","-${stockLoss.toFixed(2)}"\n`;
-        csv += `"Net ${netProfit >= 0 ? 'Profit' : 'Loss'}","${netProfit.toFixed(2)}"\n`;
+            let csv = `Profit & Loss Statement (${start} to ${end})\n\n`;
+            csv += `Account,Amount (INR)\n`;
+            csv += `"Total Net Revenue","${totalRevenue.toFixed(2)}"\n`;
+            if (indirectIncome > 0) csv += `"Indirect Income","${indirectIncome.toFixed(2)}"\n`;
+            if (stockGain > 0) csv += `"Stock Gain (Found/Added)","${stockGain.toFixed(2)}"\n`;
+            csv += `"Cost of Goods Sold (COGS)","-${totalCOGS.toFixed(2)}"\n`;
+            csv += `"Gross Profit","${grossProfit.toFixed(2)}"\n`;
+            csv += `"Operating Expenses","-${totalExpenses.toFixed(2)}"\n`;
+            if (indirectExpense > 0) csv += `"Indirect Expenses","-${indirectExpense.toFixed(2)}"\n`;
+            if (stockLoss > 0) csv += `"Stock Loss (Damaged/Removed)","-${stockLoss.toFixed(2)}"\n`;
+            csv += `"Net ${netProfit >= 0 ? 'Profit' : 'Loss'}","${netProfit.toFixed(2)}"\n`;
 
-        // ENTERPRISE FIX: Inject the UTF-8 BOM (\ufeff) so Microsoft Excel doesn't scramble the Rupee (₹) symbol!
-        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `PnL_${start}_to_${end}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        
-        // STRICT ERP LOGIC: Give Android 1 second to intercept the PnL file before destroying memory!
-        setTimeout(() => {
+            const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `PnL_${start}_to_${end}.csv`;
+            document.body.appendChild(a);
+            a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 1000);
+            setTimeout(() => { URL.revokeObjectURL(url); }, 1000);
+            if (window.Utils) window.Utils.showToast("✅ P&L Exported!");
+        } catch (e) {
+            if (window.Utils) window.Utils.alertModal(e.message, "CSV Error");
+        }
     },
+
 
     // ==========================================
     // ENTERPRISE UPGRADE: SKELETONS & DENSITY
@@ -4826,26 +5215,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // UPGRADE 3: Smart Visual Viewport Keyboard Engine
+    // UPGRADE 3: Smart Visual Viewport Keyboard Engine (Holy Grail Fix)
     if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', () => {
+            const appShell = document.getElementById('app-shell');
+            if (!appShell) return;
+
+            // Force the entire app container to exactly match the visible screen space.
+            // This prevents iOS Safari from pushing the header off the top of the screen!
+            appShell.style.height = `${window.visualViewport.height}px`;
+
+            // Gently ensure the active text box stays on screen without violent jerking
+            if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                setTimeout(() => {
+                    document.activeElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 50);
+            }
+            
+            // Reset bottom paddings just in case the old CSS logic is still attached
             const activeSheet = document.querySelector('.bottom-sheet.open');
             const activeScreen = document.querySelector('.activity-screen.open .activity-content');
-            
-            // Calculate how much the keyboard squeezed the screen
-            const keyboardHeight = window.innerHeight - window.visualViewport.height;
-            
-            if (keyboardHeight > 100) {
-                // Keyboard is open! Safely stretch the padding to lift the content above the keyboard
-                if (activeSheet) activeSheet.style.paddingBottom = `${keyboardHeight}px`;
-                if (activeScreen) activeScreen.style.paddingBottom = `${keyboardHeight + 40}px`;
-                
-                // 🚨 SOLLO FIX: Removed the violent 'scrollIntoView' engine. 
-                // The native mobile browser handles scrolling perfectly. Forcing it with JS causes severe screen jerks!
-            } else {
-                // Keyboard is closed! Snap the padding back to normal instantly
-                if (activeSheet) activeSheet.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
-                if (activeScreen) activeScreen.style.paddingBottom = 'calc(40px + env(safe-area-inset-bottom, 0px))';
+            if (activeSheet) activeSheet.style.paddingBottom = 'env(safe-area-inset-bottom, 0px)';
+            if (activeScreen) activeScreen.style.paddingBottom = 'calc(40px + env(safe-area-inset-bottom, 0px))';
+        });
+
+        // Ensure the screen stays locked to the top so the app header doesn't get scrolled away
+        window.visualViewport.addEventListener('scroll', () => {
+            if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                window.scrollTo(0, 0);
             }
         });
     }
@@ -4973,7 +5370,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, { passive: true });
     }
-    
+
     // UPGRADE: Auto-Hiding FAB & Bottom Nav on Scroll
     let lastScrollY = 0;
     let isScrolling = false;
@@ -5435,20 +5832,30 @@ scrollContainers.forEach(container => {
     }, { passive: true }); // passive: true ensures the scroll stays locked at 120fps!
 });
 
-        // ==========================================
-        // 🚨 ENTERPRISE FIX: BACKGROUND RESUME SHIELD
-        // ==========================================
-        // Forces Android to re-paint the pure white status bar when waking up the app from the background!
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                if (window.UI) {
-                    window.UI.resetStatusBarColor();
-                    // 🚨 PERFORMANCE FIX: Force the Dashboard and Chart to re-draw when waking up!
-                    // Mobile browsers often delete Canvas Memory (the chart) to save RAM when asleep.
-                    window.UI.renderDashboard(); 
-                }
-            }
-        });
+// ==========================================
+// 🚨 ENTERPRISE FIX: BACKGROUND RESUME & INSTANT APP LOCK
+// ==========================================
+document.addEventListener('visibilitychange', () => {
+    
+    const lockScreen = document.getElementById('app-lock-screen') || document.getElementById('privacy-lock-screen');
+
+    if (document.visibilityState === 'hidden') {
+        // INSTANT LOCK: Display the screen with the blur already applied by the new CSS
+        if (lockScreen) {
+            lockScreen.style.transition = 'none'; 
+            lockScreen.style.opacity = '1';
+            lockScreen.style.display = 'flex';
+            lockScreen.classList.remove('hidden-lock'); 
+        }
+    } 
+    else if (document.visibilityState === 'visible') {
+        // WAKE UP: Refresh the dashboard and colors
+        if (window.UI) {
+            window.UI.resetStatusBarColor();
+            window.UI.renderDashboard(); 
+        }
+    }
+});
 
 // ==========================================
 // 🚨 EXTREME PERFORMANCE: 120FPS PASSIVE SCROLL ENGINE
@@ -5576,11 +5983,6 @@ window.openInvoiceOverview = function(type, id) {
         headerTitleEl.style.fontSize = docNumberStr.includes('|') ? '15px' : '18px';
 
         // 2. STATUS & BALANCES
-        let statusText = doc.status || 'Saved';
-        let sColor = '#0061a4', sBg = 'rgba(0, 97, 164, 0.1)';
-        if(statusText === 'Completed' || statusText === 'Paid') { sColor = '#146c2e'; sBg = 'rgba(20, 108, 46, 0.1)'; }
-        if(statusText === 'Overdue' || statusText === 'Cancelled') { sColor = '#ba1a1a'; sBg = 'rgba(186, 26, 26, 0.1)'; }
-
         let totalPaid = 0;
         const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
         (window.UI?.state?.rawData?.cashbook || []).forEach(c => {
@@ -5594,6 +5996,15 @@ window.openInvoiceOverview = function(type, id) {
         });
         const grandTotal = parseFloat(doc.grandTotal || doc.amount || 0);
         const balance = Math.max(0, grandTotal - totalPaid);
+
+        let statusText = doc.status || 'Saved';
+        let sColor = '#0061a4', sBg = 'rgba(0, 97, 164, 0.1)';
+        
+        if(statusText === 'Completed' || statusText === 'Paid' || balance <= 0.01) { sColor = '#146c2e'; sBg = 'rgba(20, 108, 46, 0.1)'; statusText = 'Paid'; }
+        else if(statusText === 'Overdue' || statusText === 'Cancelled') { sColor = '#ba1a1a'; sBg = 'rgba(186, 26, 26, 0.1)'; }
+        else if(statusText === 'Open') { sColor = '#73777f'; sBg = 'rgba(115, 119, 127, 0.1)'; statusText = isSales ? 'Draft Estimate' : 'Draft PO'; }
+        else if(balance < -0.01) { sColor = '#0284c7'; sBg = 'rgba(2, 132, 199, 0.1)'; statusText = 'Advance Paid'; }
+        else if(balance > 0.01 && totalPaid > 0) { sColor = '#ea580c'; sBg = 'rgba(234, 88, 12, 0.1)'; statusText = 'Partially Paid'; }
 
         // 3. LIFECYCLE DATES & SMART BANNER
         const fDate = (d) => d ? window.Utils.formatDateDisplay(d) : '';
@@ -5776,8 +6187,15 @@ window.openInvoiceOverview = function(type, id) {
         `;
 
         // 9. Bottom Actions (Streamlined: WhatsApp, Record Payment, More Options)
-        const payType = isSales ? 'in' : 'out';
-        const payText = isSales ? 'Record Payment In' : 'Record Payment Out';
+        let payType = isSales ? 'in' : 'out';
+        let payText = isSales ? 'Record Payment In' : 'Record Payment Out';
+        
+        // 🚨 CRITICAL FIX: If it is a Return (Credit/Debit Note), the payment direction is REVERSED!
+        if (doc.documentType === 'return') {
+            payType = isSales ? 'out' : 'in';
+            payText = isSales ? 'Issue Refund (Out)' : 'Receive Refund (In)';
+        }
+        
         const safePartyName = String(partyName).replace(/'/g, "\\'").replace(/"/g, "&quot;");
         
         // 🚨 BUG FIX: Removed 'UI.closeActivity' from the payAction! 
@@ -5792,8 +6210,8 @@ window.openInvoiceOverview = function(type, id) {
             </div>
             
             <!-- 2. Record Payment (Primary Action) -->
-            <div class="tap-target" style="flex: 1; height: 52px; border-radius: 14px; background: ${isSales ? 'var(--md-primary)' : 'var(--md-error)'}; color: #ffffff; display: flex; justify-content: center; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px ${isSales ? 'rgba(0,97,164,0.3)' : 'rgba(186,26,26,0.3)'};" onclick="${payAction}">
-                <span class="material-symbols-outlined" style="font-size: 22px;">${isSales ? 'payments' : 'outbox'}</span>
+            <div class="tap-target" style="flex: 1; height: 52px; border-radius: 14px; background: ${payType === 'in' ? 'var(--md-primary)' : 'var(--md-error)'}; color: #ffffff; display: flex; justify-content: center; align-items: center; gap: 8px; font-weight: 800; font-size: 15px; cursor: pointer; box-shadow: 0 4px 14px ${payType === 'in' ? 'rgba(0,97,164,0.3)' : 'rgba(186,26,26,0.3)'};" onclick="${payAction}">
+                <span class="material-symbols-outlined" style="font-size: 22px;">${payType === 'in' ? 'payments' : 'outbox'}</span>
                 ${payText}
             </div>
 

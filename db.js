@@ -594,12 +594,9 @@ const saveInvoiceTransaction = async (storeName, data) => {
     const oldDataItems = existingRecord ? (storeName === 'adjustments' ? [String(existingRecord.itemId)] : (existingRecord.items || []).map(row => String(row.itemId || row.id))) : [];
     const allItemIds = [...new Set([...newDataItems, ...oldDataItems].filter(Boolean))];
     
-    // ENTERPRISE FIX: Direct O(1) DB lookup. Stops full table scan RAM crashes!
-    const itemsSnapshot = [];
-    for (const id of allItemIds) {
-        const item = await getRecordById('items', id);
-        if (item) itemsSnapshot.push(item);
-    }
+    // 🚀 ENTERPRISE UPGRADE: Parallel N+1 Query Resolution
+    // Instead of waiting for each item one by one, fetch all 50 items simultaneously!
+    const itemsSnapshot = (await Promise.all(allItemIds.map(id => getRecordById('items', id)))).filter(Boolean);
     // ENTERPRISE FIX: Create a snapshot array to protect receipts in case of a system crash!
     let deletedReceiptsSnapshot = [];
 
@@ -1287,41 +1284,48 @@ const executeColdStorageArchive = async () => {
             let archivedCount = 0;
             const tx = db.transaction(['sales', 'purchases'], 'readwrite');
             
+            // 🚀 ENTERPRISE UPGRADE: IndexedDB Cursor Engine
+            // Streams records one-by-one instead of dumping 50,000 invoices into RAM at once!
+            let activeRequests = 2; // Track both sales and purchases stores
+            
             ['sales', 'purchases'].forEach(storeName => {
                 const store = tx.objectStore(storeName);
-                const req = store.getAll();
-                req.onsuccess = () => {
-                    req.result.forEach(doc => {
-                            // If invoice is Older than 1 year, is Completed/Paid, and hasn't been archived yet...
-                            if (doc.date < cutoffDate && doc.status === 'Completed' && doc.items && doc.items.length > 0) {
+                const request = store.openCursor();
+                
+                request.onsuccess = (e) => {
+                    const cursor = e.target.result;
+                    if (cursor) {
+                        const doc = cursor.value;
+                        
+                        if (doc.date < cutoffDate && doc.status === 'Completed' && doc.items && doc.items.length > 0) {
+                            if (!doc.notes || !doc.notes.includes('[SYSTEM: Items archived')) {
                                 
-                                // 🚨 ENTERPRISE FIX: Stop String Multiplication Bloat!
-                                if (doc.notes && doc.notes.includes('[SYSTEM: Items archived')) return;
+                                doc.items = doc.items.map(i => ({
+                                    id: i.id || '',
+                                    itemId: i.itemId || i.id || '',
+                                    qty: parseFloat(i.qty) || 0,
+                                    rate: parseFloat(i.rate) || 0,
+                                    buyPrice: parseFloat(i.buyPrice) || 0,
+                                    gstPercent: parseFloat(i.gstPercent) || 0
+                                }));
                                 
-                                // 🚨 ENTERPRISE FIX: The Cold Storage Data Corruption Shield!
-                                // Completely erasing the items array permanently destroys the "Auto-Fix Stock" algorithm.
-                            // Instead, we strip all the heavy strings (Names, Images) but KEEP the mathematical skeleton!
-                            doc.items = doc.items.map(i => ({
-                                id: i.id || '',
-                                itemId: i.itemId || i.id || '',
-                                qty: parseFloat(i.qty) || 0,
-                                rate: parseFloat(i.rate) || 0,
-                                buyPrice: parseFloat(i.buyPrice) || 0,
-                                gstPercent: parseFloat(i.gstPercent) || 0
-                            }));
-                            
-                            doc.notes = (doc.notes || '') + '\n[SYSTEM: Items archived to Cold Storage to save space.]';
-                            store.put(doc);
-                            archivedCount++;
+                                doc.notes = (doc.notes || '') + '\n[SYSTEM: Items archived to Cold Storage to save space.]';
+                                cursor.update(doc); // Update exactly where the cursor is pointing
+                                archivedCount++;
+                            }
                         }
-                    });
+                        cursor.continue(); // Move to the next record
+                    } else {
+                        activeRequests--;
+                        // If both cursors have finished scanning all records, resolve the promise manually
+                        if (activeRequests === 0) {
+                            console.log(`📦 Cold Storage Archive Complete: ${archivedCount} old invoices compressed.`);
+                            resolve(archivedCount);
+                        }
+                    }
                 };
             });
-
-            tx.oncomplete = () => {
-                console.log(`📦 Cold Storage Archive Complete: ${archivedCount} old invoices compressed.`);
-                resolve(archivedCount);
-            };
+            
             tx.onerror = () => reject(tx.error);
         } catch (e) {
             reject(e);

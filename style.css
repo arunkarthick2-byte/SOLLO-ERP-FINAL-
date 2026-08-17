@@ -253,9 +253,12 @@ body:has(.activity-screen.open) #app-shell {
     position: relative;
     background-color: var(--md-background);
     
+    /* 🚀 NEW: Layout Quarantine for Maximum Speed */
+    contain: content;
+    
     /* Hardware Acceleration and Native Android Scroll Momentum */
     overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch; /* RESTORED: Vital for smooth iOS momentum scrolling */
+    -webkit-overflow-scrolling: touch; 
 }
 
 /* Hide the ghost title text to prevent layout shifts */
@@ -764,7 +767,11 @@ body.dark-mode .activity-header {
     overflow-y: auto; 
     padding: 16px; 
     padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); 
-    -webkit-overflow-scrolling: touch; /* ADDED for smooth scrolling */
+    
+    /* 🚀 NEW: Layout Quarantine for Fast Form Typing */
+    contain: content;
+    
+    -webkit-overflow-scrolling: touch; 
 }
 
 /* Bottom Sheets (Slide Up) */
@@ -7539,6 +7546,23 @@ body.dark-mode #app-shell #tab-dashboard div[id*="overdue"] {
     border-top: none !important;
 }
 /* ==========================================
+   🚨 APP LOCK SCREEN (INSTANT BLUR FIX)
+   ========================================== */
+#app-lock-screen {
+    /* Apply both the background AND the blur instantly! */
+    background: rgba(255, 255, 255, 0.85) !important; 
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    
+    transform: translateZ(0);
+    z-index: 9999999 !important; 
+}
+
+/* Ensure Dark Mode looks just as clean */
+body.dark-mode #app-lock-screen {
+    background: rgba(18, 18, 18, 0.85) !important;
+}
+/* ==========================================
    🚨 BULLETPROOF FIX: HIDE ICONS & CENTER TITLES
    ========================================== */
 
@@ -7701,4 +7725,460 @@ details.advanced-options > div {
 @keyframes accordionSlideDown {
     0% { opacity: 0; transform: scaleY(0.95) translateY(-10px); }
     100% { opacity: 1; transform: scaleY(1) translateY(0); }
+}
+/* ==========================================
+   🚀 FINAL RENDER OPTIMIZATION (LAYOUT QUARANTINE)
+   ========================================== */
+/* 1. Isolate Bottom Sheets so opening them doesn't lag the background screen */
+.bottom-sheet {
+    contain: content !important;
+}
+
+/* 2. Isolate every single list item and card to stop lag when searching or scrolling */
+.list-view li, .m3-card, .virtual-item {
+    contain: content !important;
+}
+/* ==========================================
+   🚀 GPU-ACCELERATED NATIVE TAP FEEDBACK
+   ========================================== */
+/* 1. Pre-warn the graphics card that these elements will be tapped */
+.tap-target, .btn-primary, .btn-primary-small, .list-view li, .m3-card, .floating-action-button {
+    will-change: transform !important;
+    /* Force 3D hardware acceleration even when resting */
+    transform: translateZ(0) !important; 
+}
+
+/* 2. Instant physical compression (Squish effect) on press */
+.tap-target:active, .btn-primary:active, .btn-primary-small:active, .list-view li:active, .floating-action-button:active {
+    /* Locks the Z-axis so text doesn't blur while shrinking */
+    transform: scale(0.96) translateZ(0) !important;
+    /* Lightning fast 0.05s response time */
+    transition: transform 0.05s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 3. Smooth "Apple-style" spring-back when the finger is released */
+.tap-target, .btn-primary, .btn-primary-small, .list-view li, .floating-action-button {
+    /* Uses a mathematical spring curve to bounce back perfectly */
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease !important;
+}
+/* ==========================================
+   🚀 HD TYPOGRAPHY & NATIVE TEXT RENDERING
+   ========================================== */
+/* 1. Force the graphics engine to render text with maximum crispness */
+html, body, input, button, select, textarea, p, span, strong, div, h1, h2, h3, h4, h5, h6, table, th, td {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    /* Prevent mobile browsers from secretly zooming or inflating text sizes */
+    -webkit-text-size-adjust: 100% !important;
+}
+
+/* 2. Wall Street Number Alignment (Tabular Nums) */
+/* Forces all numbers to be exactly the same width so financial columns line up perfectly */
+body, input, .amount, .rate, .qty, .total, .balance, .large-text, th, td {
+    font-variant-numeric: tabular-nums lining-nums !important;
+    font-feature-settings: "tnum" 1 !important;
+}
+/* ==========================================
+   🚀 FLAWLESS MOBILE INPUTS & KEYBOARD ENGINE
+   ========================================== */
+/* 1. Prevent iOS Safari Auto-Zooming & Keyboard Overlap */
+input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
+    /* 🚨 Crucial: Stops iPhones from violently zooming the screen when tapping! */
+    font-size: 16px !important; 
+    
+    /* Changes the blinking text cursor to match your brand's primary blue */
+    caret-color: var(--md-primary, #0061a4) !important; 
+    
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease !important;
+    outline: none !important; /* Kills ugly default browser rings */
+    
+    /* Tells the phone to scroll this box exactly 90px above the keyboard when typing */
+    scroll-margin-bottom: 90px !important; 
+}
+
+/* 2. The Premium "FinTech" Focus Glow */
+input:focus:not([readonly]), select:focus:not([readonly]), textarea:focus:not([readonly]) {
+    border-color: var(--md-primary, #0061a4) !important;
+    box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15) !important; /* Soft blue halo */
+    background-color: #ffffff !important; 
+}
+
+/* Dark Mode Focus Glow */
+body.dark-mode input:focus:not([readonly]), body.dark-mode select:focus:not([readonly]), body.dark-mode textarea:focus:not([readonly]) {
+    border-color: #7CB1FF !important;
+    box-shadow: 0 0 0 3px rgba(124, 177, 255, 0.2) !important;
+    background-color: #121212 !important;
+}
+
+/* 3. Chrome Autofill Color Destroyer */
+/* Stops Google Chrome from injecting ugly yellow/blue backgrounds when auto-filling forms */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+    -webkit-text-fill-color: var(--md-on-surface, #0f172a) !important;
+    transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Dark Mode Autofill Fix */
+body.dark-mode input:-webkit-autofill,
+body.dark-mode textarea:-webkit-autofill,
+body.dark-mode select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px #1e293b inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+/* ==========================================
+   🚀 TRUE AMOLED DARK MODE & EYE-CARE ENGINE
+   ========================================== */
+/* 1. Deep OLED Backgrounds & Halation Reduction */
+body.dark-mode {
+    --md-background: #000000 !important; /* True black for OLED battery saving */
+    --md-surface: #121212 !important; /* Elevated dark grey for cards */
+    --md-surface-variant: #1E293B !important; /* Deep slate for inputs and search bars */
+    
+    /* 🚨 Eye-Care Text: Never use pure #FFFFFF on pure #000000, it causes astigmatism glow */
+    --md-on-surface: #E2E8F0 !important; /* Soft frosted white for reading */
+    --md-on-surface-variant: #CBD5E1 !important; 
+    --md-text-muted: #94A3B8 !important; /* Professional slate for subtitles */
+    
+    --md-outline-variant: #27272A !important; /* Extremely subtle card borders */
+    
+    /* Neon Accents that pop without glaring */
+    --md-primary: #60A5FA !important; /* Soft neon blue */
+    --md-error: #F87171 !important; /* Soft neon red */
+    --md-success: #4ADE80 !important; /* Soft neon green */
+}
+
+/* 2. Force Cards, Lists, and Menus to obey the new eye-care colors */
+body.dark-mode .m3-card, 
+body.dark-mode .list-view li, 
+body.dark-mode .bottom-sheet,
+body.dark-mode .activity-header,
+body.dark-mode .bottom-nav {
+    background-color: var(--md-surface) !important;
+    border-color: var(--md-outline-variant) !important;
+    color: var(--md-on-surface) !important;
+}
+
+/* 3. Soften the Input Boxes so they blend seamlessly */
+body.dark-mode input[type="text"], 
+body.dark-mode input[type="number"], 
+body.dark-mode input[type="tel"], 
+body.dark-mode input[type="date"], 
+body.dark-mode select, 
+body.dark-mode textarea {
+    background-color: var(--md-surface-variant) !important;
+    color: var(--md-on-surface) !important;
+    border: 1px solid #334155 !important; /* Soft slate ring */
+}
+
+/* 4. Fix any glaring white text on headings */
+body.dark-mode strong, 
+body.dark-mode h1, body.dark-mode h2, body.dark-mode h3, 
+body.dark-mode .large-text {
+    color: #F8FAFC !important; /* Crisp but soft white */
+}
+
+/* 5. Force icons to adopt the new neon primary color */
+body.dark-mode .nav-item.active .material-symbols-outlined,
+body.dark-mode .icon-circle[style*="rgba(0, 97, 164"] .material-symbols-outlined {
+    color: var(--md-primary) !important;
+}
+/* ==========================================
+   🚀 EXTRACTED HTML INLINE STYLES (CLEANUP)
+   ========================================== */
+
+/* 🔥 THE KEYBOARD OVERLAP FIX: Forces the phone to scroll higher so the field underneath is always visible and tappable! */
+input, select, textarea {
+    scroll-margin-bottom: 90px !important; 
+}
+
+/* Prevents invisible focus layers from blocking your taps */
+input:focus, select:focus, textarea:focus {
+    z-index: 1 !important;
+    transform: none !important;
+}
+
+.search-bar input {
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+.search-bar input:focus {
+    outline: none !important;
+}
+
+/* Force Flatpickr Date text to be visible */
+.flatpickr-input[readonly], 
+.flatpickr-input[type="text"], 
+.flatpickr-alt-input {
+    background-color: var(--md-surface) !important;
+    color: var(--md-on-surface) !important;
+}
+
+/* 🟢 ENTERPRISE SHIELD: Protect remaining forms (Sales, Purchase, Profile) from layout bugs */
+.form-group input, .form-group select, .form-group textarea {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+}
+
+.form-group label {
+    display: block !important;
+    position: relative !important;
+    transform: none !important; /* Prevents Material UI floating label hijacking */
+    margin-bottom: 6px !important;
+}
+
+/* 🚨 ENTERPRISE PWA FIX: Kills the accidental "Swipe down to refresh" browser bug! */
+body, html {
+    overscroll-behavior-y: none; 
+}
+
+/* 🚨 SOLLO FIX: RESTORE STICKY FOOTER & UN-STICK DYNAMIC BANNER */
+/* 1. Repair the screen layout so the Header & Save Button lock back into place! */
+body .activity-screen.open,
+body .activity-screen.active {
+    display: flex !important;
+    overflow: hidden !important;
+}
+
+body .activity-content {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex: 1 !important;
+}
+
+/* 🚨 SOLLO FIX: PERMANENTLY HIDE LIVE INSIGHT BANNERS (STEALTH MODE) */
+/* Hides them visually without breaking the app's background math calculations! */
+#sales-risk-banner, 
+#purchase-risk-banner,
+#risk-banner,
+[id*="risk-banner"] {
+    position: absolute !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+}
+
+/* 🚨 SOLLO FIX: Master Shield to force Overdue Alerts to hide when toggled off */
+body.hide-overdue-alerts #overdue-reminders-container {
+    display: none !important;
+}
+
+/* Subdue the Delete 'X' so it isn't distracting */
+.item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"],
+.item-entry-card span[onclick*="remove"] {
+    background: transparent !important;
+    color: var(--md-text-muted) !important;
+}
+
+/* 🚀 ENTERPRISE UPGRADE: Clean Grid Engine */
+.m3-card.report-btn, .m3-card.master-action-btn {
+    display: flex !important;
+    align-items: center !important;
+    gap: 16px !important;
+    padding: 16px !important;
+    margin: 0 !important;
+}
+/* Automatically applies the divider lines to everything except the last item! */
+#reports-action-container > div > .m3-card.report-btn:not(:last-child),
+#workspace-master-grid .m3-card.master-action-btn:not(:last-child) {
+    border-bottom: 1px solid var(--md-surface-variant) !important;
+}
+
+/* 🚨 MOBILE KEYBOARD FIX: Hide floating buttons when typing */
+@media screen and (max-height: 600px) and (orientation: portrait) {
+    .thumb-action-bar, 
+    .form-sticky-footer {
+        display: none !important;
+    }
+}
+
+/* 🚀 PROGRESSIVE DISCLOSURE ANIMATION */
+.animate-step {
+    animation: fadeSlideDown 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+/* ==========================================
+   🚀 EXTRACTED HTML INLINE STYLES (PART 2)
+   ========================================== */
+
+/* ------------------------------------------
+   1. iOS TOGGLE SWITCHES
+   ------------------------------------------ */
+#tab-menu .m3-card:focus-within {
+    transform: none !important;
+    box-shadow: none !important;
+    border-color: var(--md-surface-variant) !important;
+}
+body.dark-mode #tab-menu .m3-card:focus-within {
+    border-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.ios-toggle-wrapper.tap-target:active {
+    transform: none !important;
+}
+
+.ios-toggle-wrapper { position: relative; display: inline-block; width: 44px; height: 24px; margin: 0; flex-shrink: 0; }
+
+.ios-toggle-wrapper input { 
+    position: absolute !important; 
+    opacity: 0 !important;
+    visibility: hidden !important; 
+    pointer-events: none !important; 
+}
+
+.ios-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--md-outline-variant); transition: 0.3s ease; border-radius: 24px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); }
+.ios-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 2px; bottom: 2px; background-color: #ffffff; transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.ios-toggle-wrapper input:checked + .ios-slider { background-color: var(--md-primary); }
+.ios-toggle-wrapper input:checked + .ios-slider:before { transform: translateX(20px); }
+
+body.dark-mode .ios-slider { background-color: #334155; }
+body.dark-mode .ios-slider:before { background-color: #f8fafc; }
+body.dark-mode .ios-toggle-wrapper input:checked + .ios-slider { background-color: var(--md-primary); }
+
+/* ------------------------------------------
+   2. PREMIUM FORM ROWS (e.g. Expense Form)
+   ------------------------------------------ */
+.premium-form-section {
+    background: var(--md-surface, #ffffff);
+    border-top: 1px solid var(--md-outline-variant, #e2e8f0);
+    border-bottom: 1px solid var(--md-outline-variant, #e2e8f0);
+    margin-bottom: 24px;
+}
+.premium-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--md-outline-variant, #f1f5f9);
+    min-height: 54px;
+    box-sizing: border-box;
+    transition: background-color 0.2s ease;
+}
+.premium-row:focus-within {
+    background-color: rgba(0, 97, 164, 0.02);
+}
+.premium-row:last-child {
+    border-bottom: none;
+}
+.premium-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+    flex-shrink: 0;
+    width: 120px;
+}
+.premium-input-container {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+.premium-input {
+    width: 100%;
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    text-align: right;
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--md-on-surface, #0f172a);
+    font-weight: 600;
+    padding: 0;
+    margin: 0;
+}
+.premium-input::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+}
+.premium-select {
+    appearance: none;
+    -webkit-appearance: none;
+    direction: rtl; 
+    padding-right: 24px; 
+}
+.premium-select-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+.premium-select-wrapper::after {
+    content: 'expand_more';
+    font-family: 'Material Symbols Outlined';
+    position: absolute;
+    right: -4px;
+    font-size: 20px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+.required-star {
+    color: var(--md-error, #ef4444);
+    margin-left: 2px;
+}
+
+/* ------------------------------------------
+   3. DOCUMENT FORMATS (Segmented Controls)
+   ------------------------------------------ */
+.doc-format-card { padding: 16px; margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+.doc-format-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.doc-format-input-group { display: flex; align-items: center; background: var(--md-surface-variant); border-radius: 8px; border: 1px solid var(--md-outline-variant); overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02); }
+
+.doc-format-text { flex: 1; min-width: 0; width: 100%; background: transparent; border: none; font-size: 15px !important; font-weight: 800 !important; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace !important; color: var(--md-on-surface) !important; padding: 14px 8px !important; outline: none !important; border-radius: 0 !important; box-shadow: none !important; }
+.doc-format-divider { width: 1px; height: 32px; background: var(--md-outline-variant); opacity: 0.8; border-radius: 1px; flex-shrink: 0; }
+.doc-format-number { flex: 1; min-width: 0; width: 100%; text-align: center; border: none; font-size: 15px !important; font-weight: 900 !important; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace !important; padding: 14px 4px !important; outline: none !important; border-radius: 0 !important; box-shadow: inset 0 2px 4px rgba(0,0,0,0.04) !important; }
+/* ==========================================
+   🚀 HTML CLEANUP: REUSABLE UTILITY CLASSES
+   ========================================== */
+/* Replaces the bulky inline flexbox styles on form groups */
+.input-group-col {
+    margin-bottom: 12px !important; 
+    display: flex !important; 
+    flex-direction: column !important; 
+    gap: 6px !important;
+}
+
+/* Replaces the massive inline style string on Profile inputs */
+.premium-input-box {
+    box-sizing: border-box !important; 
+    width: 100% !important; 
+    padding: 12px !important; 
+    border: 1px solid var(--md-outline-variant) !important; 
+    border-radius: 8px !important; 
+    outline: none !important; 
+    background: var(--md-surface) !important; 
+    color: var(--md-on-surface) !important;
+    font-family: inherit;
+    transition: all 0.2s ease !important;
+}
+
+/* Replaces the massive inline style string on Sales/Purchase inputs */
+.compact-input-box {
+    box-sizing: border-box !important; 
+    width: 100% !important; 
+    padding: 10px !important; 
+    border: 1px solid var(--md-outline-variant) !important; 
+    border-radius: 6px !important; 
+    font-size: 14px !important; 
+    background: var(--md-surface) !important; 
+    outline: none !important;
+    color: var(--md-on-surface) !important;
+    font-family: inherit;
+    transition: all 0.2s ease !important;
 }

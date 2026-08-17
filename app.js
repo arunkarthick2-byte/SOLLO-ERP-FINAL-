@@ -59,14 +59,20 @@ if (window.Worker) {
                     
                     lsBtn.onclick = () => {
                         if (window.UI) {
-                            window.UI.state.currentMasterType = 'products'; 
-                            window.UI.openBottomSheet('sheet-products');
+                            // Correctly opens the full-screen Inventory Master List
+                            window.UI.openMasterView('products', 'Inventory Master');
+                            
                             setTimeout(() => {
                                 window.UI.state.activeFilters = window.UI.state.activeFilters || {};
                                 window.UI.state.activeFilters['masters'] = 'Low Stock';
+                                
+                                // Updates the dropdown UI visually to match the data
+                                const filterDropdown = document.getElementById('filter-master-view');
+                                if (filterDropdown) filterDropdown.value = 'Low Stock';
+
                                 if (window.Utils) window.Utils.showToast("Filtered: Critical Restock ⚠️");
                                 if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('masters');
-                            }, 150);
+                            }, 200);
                         }
                     };
                 } else {
@@ -2283,6 +2289,8 @@ const app = {
 
         const tbody = document.getElementById(`${type}-items-body`);
         tbody.innerHTML = ''; 
+        
+        const fragment = document.createDocumentFragment(); // 🚨 PERFORMANCE FIX
 
         originalDoc.items.forEach(item => {
             const previouslyReturned = returnedQtyMap[item.itemId] || 0;
@@ -2321,10 +2329,11 @@ const app = {
                         </div>
                     </div>
                 `;
-                tbody.appendChild(tr);
+                fragment.appendChild(tr);
             }
         });
         
+        tbody.appendChild(fragment); // 🚨 PERFORMANCE FIX
         const orderNoEl = document.getElementById(`${type}-order-no`);
         // SMART LINK PATCH: Safely fallback through all possible document numbers so the Return is permanently hard-linked!
         if (orderNoEl) orderNoEl.value = originalDocNo; 
@@ -2854,6 +2863,9 @@ const app = {
                 const previousReturns = allDocs.filter(d => d.documentType === 'return' && d.orderNo === record.orderNo && d.id !== record.id);
                 previousReturns.forEach(ret => ret.items.forEach(i => returnedQtyMap[i.itemId] = (returnedQtyMap[i.itemId] || 0) + parseFloat(i.qty)));
             }
+            
+            const fragment = document.createDocumentFragment(); // 🚨 PERFORMANCE FIX
+            
             (record.items || []).forEach(item => {
                 let maxHtml = 'min="0.01" step="any"';
                 let maxLabel = '';
@@ -2906,8 +2918,11 @@ const app = {
                         </div>
                     </div>
                 `;
-                tbody.appendChild(tr);
+                fragment.appendChild(tr);
             });
+            
+            tbody.appendChild(fragment); // 🚨 PERFORMANCE FIX
+            
             if (record.documentType === 'return') {
                 const refEl = document.getElementById(`${type}-original-ref`);
                 if (refEl) {
@@ -4070,7 +4085,7 @@ if (data.id && splitConfirmed) {
                     if (pool === 'gst') {
                         item.stockGst = safeMoney(stockGst + impact);
                     } else {
-                        item.stockNonGst = safeMoney(stockNonNongst || stockNonGst + impact); // Fallback safe handling
+                        item.stockNonGst = safeMoney(stockNonGst + impact); // Fixed the typo to update stock accurately
                     }
                     item.stock = safeMoney((parseFloat(item.stockGst) || 0) + (parseFloat(item.stockNonGst) || 0));
                     
@@ -6187,11 +6202,73 @@ if (data.id && splitConfirmed) {
             netPayableEl.style.color = report.gstr3b.netPayable > 0 ? '#ba1a1a' : '#146c2e';
         }
 
-        // Bind the Export CSV Button
+        // Bind the Export PDF Button
         const exportBtn = document.getElementById('btn-export-gst');
         if (exportBtn) {
-            exportBtn.onclick = () => { window.Utils.exportGSTCSV(report); };
+            exportBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span> Generate PDF';
+            exportBtn.style.background = 'var(--md-primary)';
+            exportBtn.style.color = '#ffffff';
+            exportBtn.style.border = 'none';
+            exportBtn.style.boxShadow = '0 2px 4px rgba(0,97,164,0.2)';
+            exportBtn.onclick = () => { if (window.app) window.app.exportGSTPDF(report); };
         }
+    },
+
+    exportGSTPDF: async (reportData) => {
+        try {
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+            const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+
+            const summaryBody = [
+                [{text: 'GSTR-3B SUMMARY', colSpan: 3, style: 'th', alignment: 'left'}, {}, {}],
+                [{text: 'Description', bold: true, color: '#475569'}, {text: 'Taxable Value (₹)', alignment: 'right', bold: true, color: '#475569'}, {text: 'Tax Amount (₹)', alignment: 'right', bold: true, color: '#475569'}],
+                [{text: 'Total Sales (Output Tax)'}, {text: reportData.gstr1.totalTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr1.totalTax.toFixed(2), alignment: 'right'}],
+                [{text: 'Total Purchases (Input Tax / ITC)'}, {text: reportData.gstr2.totalTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr2.totalTax.toFixed(2), alignment: 'right'}],
+                [{text: 'NET GST PAYABLE TO GOVT', bold: true, color: '#0f172a'}, {text: ''}, {text: reportData.gstr3b.netPayable.toFixed(2), alignment: 'right', bold: true, color: reportData.gstr3b.netPayable > 0 ? '#dc2626' : '#16a34a'}]
+            ];
+
+            const gstr1Body = [
+                [{text: 'GSTR-1 (SALES) BREAKDOWN', colSpan: 3, style: 'th', alignment: 'left', fillColor: '#f57f17'}, {}, {}],
+                [{text: 'Category', bold: true, color: '#475569'}, {text: 'Taxable Value (₹)', alignment: 'right', bold: true, color: '#475569'}, {text: 'Tax Amount (₹)', alignment: 'right', bold: true, color: '#475569'}],
+                [{text: 'B2B Sales (Registered)'}, {text: reportData.gstr1.b2bTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr1.b2bTax.toFixed(2), alignment: 'right'}],
+                [{text: 'B2C Sales (Unregistered)'}, {text: reportData.gstr1.b2cTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr1.b2cTax.toFixed(2), alignment: 'right'}],
+                [{text: 'Nil Rated / Exempt / Non-GST Sales'}, {text: (reportData.gstr1.nilRatedTaxable || 0).toFixed(2), alignment: 'right'}, {text: '0.00', alignment: 'right'}]
+            ];
+
+            const gstr2Body = [
+                [{text: 'GSTR-2 (PURCHASES) BREAKDOWN', colSpan: 3, style: 'th', alignment: 'left', fillColor: '#6a1b9a'}, {}, {}],
+                [{text: 'Category', bold: true, color: '#475569'}, {text: 'Taxable Value (₹)', alignment: 'right', bold: true, color: '#475569'}, {text: 'Tax Amount (₹)', alignment: 'right', bold: true, color: '#475569'}],
+                [{text: 'Total GST Purchases (ITC)'}, {text: reportData.gstr2.totalTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr2.totalTax.toFixed(2), alignment: 'right'}],
+                [{text: 'Nil Rated / Exempt / Non-GST Purchases'}, {text: (reportData.gstr2.nilRatedTaxable || 0).toFixed(2), alignment: 'right'}, {text: '0.00', alignment: 'right'}]
+            ];
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 11, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 20, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1, textTransform: 'uppercase' },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
+                            { width: 220, stack: [ { text: 'MONTHLY GST REPORT', style: 'subHeader' }, { text: 'Month: ' + reportData.month, alignment: 'right', fontSize: 12, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
+                        ], margin: [0, 0, 0, 32]
+                    },
+                    { table: { headerRows: 1, widths: ['*', 'auto', 'auto'], body: summaryBody }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] },
+                    { table: { headerRows: 1, widths: ['*', 'auto', 'auto'], body: gstr1Body }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] },
+                    { table: { headerRows: 1, widths: ['*', 'auto', 'auto'], body: gstr2Body }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] }
+                ]
+            };
+
+            window.Utils.processVectorPDF(docDefinition, `GST_Report_${reportData.month}.pdf`, `Here is the Monthly GST Report for ${reportData.month}.`);
+        } catch (error) { console.error("PDF Error:", error); if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed"); }
     },
 
     // ==========================================
@@ -6701,24 +6778,69 @@ if (data.id && splitConfirmed) {
         app.state.deadStockData = deadItems;
     },
 
-    exportDeadStockCSV: () => {
-        const data = app.state.deadStockData;
-        if (!data || data.length === 0) return alert("No dead stock data to export!");
-        
-        let csv = "Item Name,Stock Quantity,Unit,Buy Price (INR),Trapped Capital (INR),Last Sold\n";
-        data.forEach(row => {
-            const safeItem = String(row.name || '').replace(/"/g, '""');
-            csv += `"${safeItem}","${row.stock}","${row.uom}","${row.buyPrice.toFixed(2)}","${row.trappedValue.toFixed(2)}","${row.lastSoldText}"\n`;
-        });
-        
-        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Dead_Stock_Report.csv`;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+    exportDeadStockPDF: async () => {
+        try {
+            const data = app.state.deadStockData;
+            if (!data || data.length === 0) return alert("No dead stock data to export.");
+            
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            const activeFirmId = app.state.firmId;
+            const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+
+            let totalTrapped = 0;
+            const tableBody = [
+                [{text: 'ITEM NAME', style: 'th'}, {text: 'QTY IN STOCK', style: 'th', alignment: 'center'}, {text: 'BUY PRICE', style: 'th', alignment: 'right'}, {text: 'LAST SOLD', style: 'th', alignment: 'center'}, {text: 'TRAPPED CAPITAL', style: 'th', alignment: 'right'}]
+            ];
+
+            data.forEach((row, index) => {
+                totalTrapped += row.trappedValue;
+                const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                tableBody.push([
+                    {text: row.name, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
+                    {text: row.stock + ' ' + row.uom, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '₹' + row.buyPrice.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: row.lastSoldText, alignment: 'center', color: '#dc2626', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '₹' + row.trappedValue.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                ]);
+            });
+
+            tableBody.push([
+                {text: 'TOTAL TRAPPED CAPITAL', colSpan: 4, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+                {}, {}, {}, {text: '₹' + totalTrapped.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+            ]);
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 20, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1, textTransform: 'uppercase' },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
+                            { width: 220, stack: [ { text: 'DEAD STOCK AUDIT', style: 'subHeader' }, { text: 'Date Generated: ' + window.Utils.getLocalDate(), alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
+                        ], margin: [0, 0, 0, 32]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                        }
+                    }
+                ]
+            };
+
+            window.Utils.processVectorPDF(docDefinition, `Dead_Stock_Report.pdf`, `Here is the Dead Stock Audit Report.`);
+        } catch (error) { console.error("PDF Error:", error); if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed"); }
     },
 
     // ==========================================
@@ -6814,25 +6936,69 @@ if (data.id && splitConfirmed) {
         app.state.leakageData = leakageItems;
     },
 
-    exportProfitLeakageCSV: () => {
-        const data = app.state.leakageData;
-        if (!data || data.length === 0) return alert("No leakage data to export!");
-        
-        let csv = "Date,Invoice No,Customer,Item Name,Qty,Cost Price,Net Selling Price,Total Loss (INR)\n";
-        data.forEach(row => {
-            const safeCust = String(row.customer || '').replace(/"/g, '""');
-            const safeItem = String(row.itemName || '').replace(/"/g, '""');
-            csv += `"${row.date}","${row.invoiceNo}","${safeCust}","${safeItem}","${row.qty}","${row.buyPrice.toFixed(2)}","${row.sellPrice.toFixed(2)}","${row.loss.toFixed(2)}"\n`;
-        });
-        
-        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Profit_Leakage_Report.csv`;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 1000);
+    exportProfitLeakagePDF: async () => {
+        try {
+            const data = app.state.leakageData;
+            if (!data || data.length === 0) return alert("No leakage data to export.");
+            
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            const activeFirmId = app.state.firmId;
+            const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+
+            let totalLoss = 0;
+            const tableBody = [
+                [{text: 'INVOICE & DATE', style: 'th'}, {text: 'CUSTOMER', style: 'th'}, {text: 'ITEM', style: 'th'}, {text: 'COST / SELL', style: 'th', alignment: 'center'}, {text: 'TOTAL LOSS', style: 'th', alignment: 'right'}]
+            ];
+
+            data.forEach((row, index) => {
+                totalLoss += row.loss;
+                const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                tableBody.push([
+                    {stack: [{text: row.invoiceNo, bold: true, color: '#0f172a'}, {text: row.date, fontSize: 8, color: '#64748b'}], margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: row.customer, margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: row.itemName + ` (x${row.qty})`, margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {stack: [{text: 'Buy: ₹' + row.buyPrice.toFixed(2), color: '#64748b'}, {text: 'Sell: ₹' + row.sellPrice.toFixed(2), color: '#0f172a', bold: true}], alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '- ₹' + row.loss.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                ]);
+            });
+
+            tableBody.push([
+                {text: 'TOTAL REVENUE LOST', colSpan: 4, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+                {}, {}, {}, {text: '- ₹' + totalLoss.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+            ]);
+
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 20, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1, textTransform: 'uppercase' },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
+                            { width: 220, stack: [ { text: 'PROFIT LEAKAGE', style: 'subHeader' }, { text: 'Date Generated: ' + window.Utils.getLocalDate(), alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
+                        ], margin: [0, 0, 0, 32]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['auto', '*', '*', 'auto', 'auto'], body: tableBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                        }
+                    }
+                ]
+            };
+
+            window.Utils.processVectorPDF(docDefinition, `Profit_Leakage_Report.pdf`, `Here is the Profit Leakage Report.`);
+        } catch (error) { console.error("PDF Error:", error); if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed"); }
     },
 
     // ==========================================
@@ -9550,6 +9716,51 @@ window.addEventListener('beforeunload', (e) => {
         return e.returnValue;
     }
 });
+// ==========================================
+// 🚨 ENTERPRISE SECURITY: INACTIVITY PRIVACY LOCK (FIXED)
+// ==========================================
+let inactivityTimer;
+const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 Minutes of no touching
+
+const triggerPrivacyLock = () => {
+    const lockScreen = document.getElementById('privacy-lock-screen');
+    // If the app is currently unlocked, lock it!
+    if (lockScreen && lockScreen.classList.contains('hidden-lock')) {
+        lockScreen.style.transition = 'none'; 
+        lockScreen.style.opacity = '1';
+        lockScreen.style.display = 'flex';
+        lockScreen.classList.remove('hidden-lock');
+        if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50); // Small haptic bump
+    }
+};
+
+const resetInactivityTimer = () => {
+    clearTimeout(inactivityTimer);
+    const lockScreen = document.getElementById('privacy-lock-screen');
+    // Only restart the 5-minute countdown if the app isn't currently locked
+    if (lockScreen && lockScreen.classList.contains('hidden-lock')) {
+        inactivityTimer = setTimeout(triggerPrivacyLock, IDLE_TIMEOUT);
+    }
+};
+
+// Make sure the Unlock button actually works!
+document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'btn-unlock-app') {
+        const lockScreen = document.getElementById('privacy-lock-screen');
+        if (lockScreen) {
+            lockScreen.classList.add('hidden-lock'); // Hide the lock screen
+            resetInactivityTimer(); // Restart the 5-minute timer
+        }
+    }
+});
+
+// Listen for physical screen interactions to keep the app awake
+['touchstart', 'click', 'scroll', 'keypress'].forEach(evt => {
+    document.addEventListener(evt, resetInactivityTimer, { passive: true });
+});
+
+resetInactivityTimer(); // Start the engine on boot
+
 // ==========================================
 // 🚨 ENTERPRISE UX: ANDROID "DOUBLE-TAP" EXIT SHIELD
 // ==========================================

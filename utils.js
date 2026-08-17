@@ -842,31 +842,28 @@ Please process this accordingly. Thank you!`;
 
         if (typeof html2canvas === 'undefined' || typeof html2pdf === 'undefined') {
             window.Utils.showToast("⏳ Downloading PDF Engine... Just a moment.");
-            if (!document.getElementById('script-h2c')) {
-                const s1 = document.createElement('script');
-                s1.id = 'script-h2c';
-                s1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-                document.head.appendChild(s1);
-            }
-            if (!document.getElementById('script-h2p')) {
-                const s2 = document.createElement('script');
-                s2.id = 'script-h2p';
-                s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-                document.head.appendChild(s2);
-            }
             
-            let retries = 0;
-            const checkInterval = setInterval(() => {
-                retries++;
-                if (typeof html2canvas !== 'undefined' && typeof html2pdf !== 'undefined') {
-                    clearInterval(checkInterval);
-                    window.Utils.processPDFExport(elementId, filename, customMsg);
-                } else if (retries > 30) { 
-                    clearInterval(checkInterval);
-                    if (window.Utils) window.Utils.showToast("❌ Failed to load PDF Engine. Check internet connection.");
-                }
-            }, 300);
-            return;
+            const loadScript = (id, src) => new Promise((resolve, reject) => {
+                if (document.getElementById(id)) return resolve();
+                const script = document.createElement('script');
+                script.id = id;
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = () => reject(new Error(`Failed to load ${src}`));
+                document.head.appendChild(script);
+            });
+
+            try {
+                await Promise.all([
+                    loadScript('script-h2c', 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'),
+                    loadScript('script-h2p', 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js')
+                ]);
+                return window.Utils.processPDFExport(elementId, filename, customMsg);
+            } catch (error) {
+                console.error(error);
+                if (window.Utils) window.Utils.showToast("❌ Failed to load PDF Engine. Check internet connection.");
+                return;
+            }
         }
         
         const origWidth = element.style.width;
@@ -2665,37 +2662,40 @@ Please process this accordingly. Thank you!`;
             const activeFirmId = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
             // ENTERPRISE FIX: Added window. prefix and || [] shield to prevent Excel Engine crashes!
             const ledgers = (await window.getAllRecords('ledgers', 'firmId', activeFirmId).catch(() => [])) || [];
-            reportData.rawSales.forEach(s => {
-                if (s.invoiceType === 'Non-GST') return;
-                
-                // 🚨 ENTERPRISE FIX: Use the historical snapshot from the invoice first!
-                let gstin = s.customerGst || s.gstin || '';
-                if (!gstin) {
-                    let cust = ledgers.find(l => String(l.id) === String(s.customerId));
-                    gstin = cust && cust.gst ? cust.gst : '';
-                }
-                
-                // CRITICAL TAX FIX: Match db.js! A valid GSTIN must be exactly 15 characters to enter the B2B Sheet!
-                if (gstin && gstin.trim().length === 15) {
-                    // ENTERPRISE FIX: The Blank B2B Taxable Value Exploit!
-                    // 's.subtotal' is often undefined in the database, causing the Excel file to export ₹0.00!
-                    // ENTERPRISE FIX: Prioritize strict invoice rounding, but fallback to manual math for legacy DB records!
-                    let exactTaxable = parseFloat(s.subtotal);
-                    if (isNaN(exactTaxable) || exactTaxable === 0) {
-                        let rawSubtotal = 0;
-                        (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
-                        let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
-                        if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-                        exactTaxable = rawSubtotal - discountAmt;
+            // 🚀 ENTERPRISE UPGRADE: Asynchronous Yield Engine
+            for (let i = 0; i < reportData.rawSales.length; i++) {
+                let s = reportData.rawSales[i];
+                if (s.invoiceType !== 'Non-GST') {
+                    
+                    // 🚨 ENTERPRISE FIX: Use the historical snapshot from the invoice first!
+                    let gstin = s.customerGst || s.gstin || '';
+                    if (!gstin) {
+                        let cust = ledgers.find(l => String(l.id) === String(s.customerId));
+                        gstin = cust && cust.gst ? cust.gst : '';
                     }
                     
-                    // 🚨 ENTERPRISE FIX: The Double-Negative Shield ensures Returns stay negative in the CA Export!
-                    let taxable = Math.abs(exactTaxable) * (s.documentType === 'return' ? -1 : 1);
-                    let tax = Math.abs(parseFloat(s.totalGst) || 0) * (s.documentType === 'return' ? -1 : 1);
-                    let total = Math.abs(parseFloat(s.grandTotal) || 0) * (s.documentType === 'return' ? -1 : 1);
-                    b2bData.push([s.date, s.invoiceNo, s.customerName || '', String(gstin).toUpperCase(), taxable, tax, total]);
+                    // CRITICAL TAX FIX: Match db.js! A valid GSTIN must be exactly 15 characters to enter the B2B Sheet!
+                    if (gstin && gstin.trim().length === 15) {
+                        // ENTERPRISE FIX: The Blank B2B Taxable Value Exploit!
+                        let exactTaxable = parseFloat(s.subtotal);
+                        if (isNaN(exactTaxable) || exactTaxable === 0) {
+                            let rawSubtotal = 0;
+                            (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
+                            let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                            if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                            exactTaxable = rawSubtotal - discountAmt;
+                        }
+                        
+                        // 🚨 ENTERPRISE FIX: The Double-Negative Shield
+                        let taxable = Math.abs(exactTaxable) * (s.documentType === 'return' ? -1 : 1);
+                        let tax = Math.abs(parseFloat(s.totalGst) || 0) * (s.documentType === 'return' ? -1 : 1);
+                        let total = Math.abs(parseFloat(s.grandTotal) || 0) * (s.documentType === 'return' ? -1 : 1);
+                        b2bData.push([s.date, s.invoiceNo, s.customerName || '', String(gstin).toUpperCase(), taxable, tax, total]);
+                    }
                 }
-            });
+                // Yield to main thread every 50 records so the loading spinner doesn't freeze!
+                if (i % 50 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+            }
             const wsB2B = XLSX.utils.aoa_to_sheet(b2bData);
             XLSX.utils.book_append_sheet(wb, wsB2B, "B2B Sales");
 
@@ -2774,32 +2774,29 @@ Please process this accordingly. Thank you!`;
         try {
             if (typeof html2pdf === 'undefined' || typeof html2canvas === 'undefined') {
                 window.Utils.showToast("⏳ Downloading Share Engine... Just a moment.");
-                if (!document.getElementById('script-h2c')) {
-                    const s1 = document.createElement('script');
-                    s1.id = 'script-h2c';
-                    s1.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-                    document.head.appendChild(s1);
-                }
-                if (!document.getElementById('script-h2p')) {
-                    const s2 = document.createElement('script');
-                    s2.id = 'script-h2p';
-                    s2.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-                    document.head.appendChild(s2);
-                }
                 
-                // 🚨 SOLLO FIX: Auto-Resume Engine (With Failsafe)
-                let retries = 0;
-                const checkInterval = setInterval(() => {
-                    retries++;
-                    if (typeof html2canvas !== 'undefined' && typeof html2pdf !== 'undefined') {
-                        clearInterval(checkInterval);
-                        window.Utils.sharePDF(elementId, filename, shareText, forceDownload);
-                    } else if (retries > 30) { // 9-second timeout kills the infinite loop!
-                        clearInterval(checkInterval);
-                        if (window.Utils && window.Utils.showToast) window.Utils.showToast("❌ Failed to load Share Engine. Check internet connection.");
-                    }
-                }, 300);
-                return;
+                const loadScript = (id, src) => new Promise((resolve, reject) => {
+                    if (document.getElementById(id)) return resolve();
+                    const script = document.createElement('script');
+                    script.id = id;
+                    script.src = src;
+                    script.onload = resolve;
+                    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+                    document.head.appendChild(script);
+                });
+
+                try {
+                    await Promise.all([
+                        loadScript('script-h2c', 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'),
+                        loadScript('script-h2p', 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js')
+                    ]);
+                    // Re-run the function safely now that scripts are definitively loaded
+                    return window.Utils.sharePDF(elementId, filename, shareText, forceDownload);
+                } catch (error) {
+                    console.error(error);
+                    if (window.Utils && window.Utils.showToast) window.Utils.showToast("❌ Failed to load Share Engine. Check internet connection.");
+                    return;
+                }
             }
 
             const el = document.getElementById(elementId);
@@ -3249,6 +3246,135 @@ Please process this accordingly. Thank you!`;
             }
         });
     },
+
+    // ==========================================
+    // 5. VECTOR PRINT & TEMPLATE ENGINE
+    // ==========================================
+    processVectorPDF: async (docDefinition, filename, customMsg) => {
+        if (typeof pdfMake === 'undefined' || typeof pdfjsLib === 'undefined') {
+            window.Utils.showToast("⏳ Loading Preview Engine... Just a moment.");
+            
+            if (!document.getElementById('script-pdfmake')) {
+                const s1 = document.createElement('script');
+                s1.id = 'script-pdfmake';
+                s1.src = "https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js";
+                document.head.appendChild(s1);
+                
+                const s2 = document.createElement('script');
+                s2.src = "https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.min.js";
+                document.head.appendChild(s2);
+            }
+
+            if (!document.getElementById('script-pdfjs')) {
+                const s3 = document.createElement('script');
+                s3.id = 'script-pdfjs';
+                s3.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+                document.head.appendChild(s3);
+            }
+
+            setTimeout(() => window.Utils.processVectorPDF(docDefinition, filename, customMsg), 1000);
+            return;
+        }
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        try {
+            document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
+
+            const viewer = document.createElement('div');
+            viewer.id = 'in-app-pdf-viewer';
+            viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
+            
+            viewer.innerHTML = `
+                <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div>
+                        <div style="font-weight:bold; font-size:18px;">Document Preview</div>
+                        <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;">Vector PDF Generated Instantly!</div>
+                    </div>
+                    <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
+                        <span class="material-symbols-outlined tap-target" style="font-size:24px; color:#0f172a;" id="preview-action-print">print</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:24px; color:#0f172a;" id="preview-action-download">download</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:24px; color:#0061a4;" id="preview-action-share">share</span>
+                        <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; margin-left: 8px;">close</span>
+                    </div>
+                </div>
+                <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:24px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center;">
+                    <div class="loader-spinner" style="border-top-color: #0061a4; margin-top: 40px; width: 40px; height: 40px; border-radius: 50%; border: 4px solid rgba(0,0,0,0.1); animation: sollo-spin 1s linear infinite;"></div>
+                    <p style="color: #64748b; margin-top: 16px; font-weight: bold;">Rendering high-res preview...</p>
+                    <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+                </div>
+            `;
+            document.body.style.overflow = 'hidden'; 
+            document.body.appendChild(viewer);
+            
+            const pdfGenerator = pdfMake.createPdf(docDefinition);
+            pdfGenerator.getBlob(async (pdfBlob) => {
+                const readyPdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(pdfBlob);
+
+                try {
+                    const loadingTask = pdfjsLib.getDocument(blobUrl);
+                    const pdfDoc = await loadingTask.promise;
+                    const page = await pdfDoc.getPage(1); 
+                    
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    canvas.style.cssText = 'max-width: 100%; height: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border-radius: 4px;';
+                    
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    
+                    const previewContainer = document.getElementById('pdf-preview-content');
+                    if (previewContainer) {
+                        previewContainer.innerHTML = ''; 
+                        previewContainer.appendChild(canvas); 
+                    }
+                } catch (renderErr) {
+                    console.warn("PDF.js preview render failed, showing fallback UI.", renderErr);
+                }
+
+                document.getElementById('preview-action-download').onclick = () => {
+                    const a = document.createElement("a");
+                    a.href = blobUrl; a.download = filename;
+                    document.body.appendChild(a); a.click();
+                    setTimeout(() => { document.body.removeChild(a); }, 2000);
+                };
+
+                document.getElementById('preview-action-print').onclick = () => {
+                    pdfGenerator.print();
+                };
+                
+                document.getElementById('preview-action-share').onclick = async () => {
+                    try {
+                        const cleanDocumentName = filename.replace('.pdf', '').replace(/_/g, ' ');
+                        const finalMsg = customMsg ? customMsg : `Here is your document: ${cleanDocumentName}`;
+                        
+                        if (navigator.canShare && navigator.canShare({ files: [readyPdfFile] })) {
+                            await navigator.share({ title: cleanDocumentName, text: finalMsg, files: [readyPdfFile] });
+                        } else {
+                            if (window.Utils) window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
+                            document.getElementById('preview-action-download').click();
+                        }
+                    } catch (err) { console.log("Share cancelled", err); }
+                };
+
+                document.getElementById('btn-close-pdf-loaded').onclick = () => {
+                    const v = document.getElementById('in-app-pdf-viewer');
+                    if (v) v.remove(); 
+                    document.body.style.overflow = '';
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+                };
+            });
+
+        } catch (err) {
+            console.error("Vector Generation Failed", err);
+            alert("Failed to generate PDF.");
+        }
+    }
+
 }; // <--- THIS CLOSES THE UTILS OBJECT
 
 // ==========================================
