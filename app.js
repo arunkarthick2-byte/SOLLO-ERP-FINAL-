@@ -1,9 +1,10 @@
 // 🚀 ENTERPRISE MATH SHIELD: Zero-Drift Currency Parser
-// Converts floats to integer paise internally to eliminate floating-point rounding bugs
+// Converts floats to exact exponential rounding to eliminate Javascript floating-point bugs
 const safeMoney = (amount) => {
     const num = parseFloat(amount);
     if (isNaN(num)) return 0;
-    return Math.round(num * 100) / 100;
+    // 🚨 BUG FIX: Upgraded to Exponential Math to match our new Utils.roundFinancial engine
+    return Number(Math.round(num + 'e2') + 'e-2');
 };
 
 // --- BACKGROUND WORKER ENGINE ---
@@ -3474,9 +3475,12 @@ const app = {
                     }
 
                     // ENTERPRISE FIX: The "Negative Invoice" Embezzlement Shield!
-                    // Prevent malicious users from typing a flat discount larger than the subtotal to create a negative invoice and steal money!
-                    const checkSubtotal = parseFloat(document.getElementById(`${type}-subtotal`).innerText.replace(/[^\d.-]/g, '')) || 0;
+                    // Prevent malicious users from typing a flat discount larger than the subtotal to create an illegal negative invoice!
+                    // 🚨 BUG FIX: Use Math.abs() on the subtotal so Credit Notes (which have negative subtotals) don't trigger a false error!
+                    const rawSubtotalString = document.getElementById(`${type}-subtotal`).innerText.replace(/[^\d.-]/g, '');
+                    const checkSubtotal = Math.abs(parseFloat(rawSubtotalString) || 0);
                     const checkDiscount = Math.abs(parseFloat((document.getElementById(`${type}-discount`) || {}).value) || 0);
+                    
                     if (discTypeEl && discTypeEl.value === '\u20B9' && checkDiscount > checkSubtotal) {
                         alert("Error: Flat discount cannot be greater than the subtotal! This creates an illegal negative invoice.");
                         throw new Error("Discount exceeds subtotal.");
@@ -5890,7 +5894,7 @@ if (data.id && splitConfirmed) {
         const amountInWords = window.Utils && window.Utils.numberToWords ? window.Utils.numberToWords(receiptAmt) : "Rupees " + receiptAmt.toFixed(2);
 
         const docDefinition = {
-            pageSize: 'A4',
+            pageSize: { width: 595.28, height: 'auto' }, // 🚨 FIX: Forces continuous Single-Page PDF!
             pageMargins: [30, 30, 30, 30],
             defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
             styles: {
@@ -5911,7 +5915,7 @@ if (data.id && splitConfirmed) {
                         {
                             width: '60%',
                             stack: [
-                                biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
                                 { text: biz.name || 'Company Name', style: 'h1' },
                                 { text: (biz.address ? biz.address + '\n' : '') + bizLocationStr, style: 'sub' },
                                 { text: 'Ph: ' + (biz.phone || '') + (biz.email ? ' | Email: ' + biz.email : ''), style: 'sub' }
@@ -6095,9 +6099,14 @@ if (data.id && splitConfirmed) {
             };
             
             btnPrint.onclick = () => {
-                viewer.style.display = 'none';
-                window.print();
-                setTimeout(() => { viewer.style.display = 'flex'; }, 500);
+                // 🚨 FIX: Opens the actual PDF in a native viewer so the printer doesn't capture the app background!
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = blobUrl;
+                a.target = "_blank";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             };
 
             // PDF.js Preview Rendering Engine
@@ -10137,3 +10146,404 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// ==========================================
+// 🚨 ENTERPRISE CA-GRADE BALANCE SHEET PDF
+// ==========================================
+window.exportBalanceSheetPDF = function() {
+    if (!window.UI || !window.UI.state || !window.UI.state.rawData) {
+        if(window.Utils) window.Utils.showToast("Data not ready.");
+        return;
+    }
+
+    const asOfDate = document.getElementById('report-bs-date').value;
+    const profile = window.UI.state.rawData.profile || {};
+    const businessName = profile.name || 'My Business';
+    
+    if(window.Utils) window.Utils.showToast("Generating Balance Sheet PDF...");
+
+    // We scrape the live DOM data to ensure the PDF perfectly matches what the user is looking at
+    const scrapeVal = (label) => {
+        const spans = Array.from(document.querySelectorAll('#bs-container span'));
+        const target = spans.find(s => s.innerText === label);
+        return target ? target.nextElementSibling.innerText : '₹0.00';
+    };
+
+    const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        defaultStyle: { font: 'Roboto', fontSize: 10, color: '#333333' },
+        styles: {
+            header: { fontSize: 20, bold: true, color: '#6a1b9a', alignment: 'center', margin: [0, 0, 0, 4] },
+            subHeader: { fontSize: 12, alignment: 'center', color: '#666666', margin: [0, 0, 0, 20] },
+            tableHeader: { bold: true, fontSize: 11, color: '#ffffff', fillColor: '#6a1b9a', alignment: 'center', margin: [0, 6, 0, 6] },
+            groupTitle: { bold: true, fontSize: 11, color: '#000000', margin: [0, 4, 0, 4], fillColor: '#f1f5f9' },
+            itemRow: { margin: [10, 4, 0, 4] },
+            amtRow: { alignment: 'right', margin: [0, 4, 0, 4], bold: true },
+            totalBlock: { bold: true, fontSize: 12, fillColor: '#f3e8f8', color: '#6a1b9a', margin: [0, 6, 0, 6] },
+            totalAmt: { bold: true, fontSize: 12, alignment: 'right', fillColor: '#f3e8f8', color: '#6a1b9a', margin: [0, 6, 0, 6] }
+        },
+        content: [
+            { text: businessName, style: 'header' },
+            { text: `BALANCE SHEET AS OF ${window.Utils.formatDateDisplay(asOfDate).toUpperCase()}`, style: 'subHeader' },
+            
+            {
+                table: {
+                    headerRows: 1,
+                    widths: ['50%', '50%'],
+                    body: [
+                        // HEADERS
+                        [
+                            { text: 'LIABILITIES', style: 'tableHeader' }, 
+                            { text: 'ASSETS', style: 'tableHeader' }
+                        ],
+                        // BODY
+                        [
+                            // --- LIABILITIES COLUMN ---
+                            {
+                                layout: 'noBorders',
+                                table: {
+                                    widths: ['*', 'auto'],
+                                    body: [
+                                        [{ text: 'Capital Account', style: 'groupTitle', colSpan: 2 }, {}],
+                                        [{ text: 'Retained Earnings / P&L', style: 'itemRow' }, { text: scrapeVal('Retained Earnings / P&L'), style: 'amtRow' }],
+                                        
+                                        [{ text: 'Current Liabilities', style: 'groupTitle', colSpan: 2, margin: [0, 10, 0, 4] }, {}],
+                                        [{ text: 'Sundry Creditors', style: 'itemRow' }, { text: scrapeVal('Sundry Creditors'), style: 'amtRow' }],
+                                        [{ text: 'Advance from Customers', style: 'itemRow' }, { text: scrapeVal('Advance from Customers'), style: 'amtRow' }]
+                                    ]
+                                }
+                            },
+                            // --- ASSETS COLUMN ---
+                            {
+                                layout: 'noBorders',
+                                table: {
+                                    widths: ['*', 'auto'],
+                                    body: [
+                                        [{ text: 'Current Assets', style: 'groupTitle', colSpan: 2 }, {}],
+                                        [{ text: 'Closing Stock', style: 'itemRow' }, { text: scrapeVal('Closing Stock'), style: 'amtRow' }],
+                                        [{ text: 'Sundry Debtors', style: 'itemRow' }, { text: scrapeVal('Sundry Debtors'), style: 'amtRow' }],
+                                        [{ text: 'Advance to Suppliers', style: 'itemRow' }, { text: scrapeVal('Advance to Suppliers'), style: 'amtRow' }],
+                                        
+                                        [{ text: 'Bank & Cash Accounts', style: 'groupTitle', colSpan: 2, margin: [0, 10, 0, 4] }, {}],
+                                        [{ text: 'Bank Accounts', style: 'itemRow' }, { text: scrapeVal('Bank Accounts'), style: 'amtRow' }],
+                                        [{ text: 'Cash-in-Hand', style: 'itemRow' }, { text: scrapeVal('Cash-in-Hand'), style: 'amtRow' }]
+                                    ]
+                                }
+                            }
+                        ],
+                        // TOTALS ROW
+                        [
+                            {
+                                layout: 'noBorders',
+                                table: { widths: ['*', 'auto'], body: [ [ { text: 'TOTAL LIABILITIES', style: 'totalBlock' }, { text: document.querySelectorAll('.m3-card strong:nth-last-child(1)')[0]?.innerText || '₹0.00', style: 'totalAmt' } ] ] }
+                            },
+                            {
+                                layout: 'noBorders',
+                                table: { widths: ['*', 'auto'], body: [ [ { text: 'TOTAL ASSETS', style: 'totalBlock' }, { text: document.querySelectorAll('.m3-card strong:nth-last-child(1)')[1]?.innerText || '₹0.00', style: 'totalAmt' } ] ] }
+                            }
+                        ]
+                    ]
+                },
+                layout: {
+                    hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
+                    vLineWidth: function (i, node) { return (i === 0 || i === node.table.widths.length) ? 0 : 1; },
+                    hLineColor: function () { return '#cbd5e1'; },
+                    vLineColor: function () { return '#cbd5e1'; }
+                }
+            },
+            { text: '\n\nGenerated by SOLLO ERP', alignment: 'center', fontSize: 8, color: '#94a3b8' }
+        ]
+    };
+
+    // Make sure fonts are loaded before generating
+    if (!pdfMake.fonts) {
+        pdfMake.fonts = {
+            Roboto: {
+                normal: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf',
+                bold: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf',
+                italics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Italic.ttf',
+                bolditalics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-MediumItalic.ttf'
+            }
+        };
+    }
+
+    try {
+        pdfMake.createPdf(docDefinition).download(`Balance_Sheet_${asOfDate}.pdf`);
+    } catch (err) {
+        console.error(err);
+        if(window.Utils) window.Utils.showToast("Error generating PDF.");
+    }
+};
+
+// ==========================================
+// 🚨 DIRECT PDF PREVIEW ENGINE (BALANCE SHEET)
+// ==========================================
+window.openBalanceSheetPreview = function() {
+    try {
+        const endEl = document.getElementById('report-bs-end');
+        if (!endEl) return;
+        const asOfDate = endEl.value;
+        
+        if (!window.UI || !window.UI.state || !window.UI.state.rawData) {
+            if (window.Utils) window.Utils.showToast("Database not ready.");
+            return;
+        }
+
+        const activeFirmId = window.app && window.app.state ? window.app.state.firmId : null;
+
+        // --- 1. CALCULATE ALL BALANCES ---
+        let cashInHand = 0, bankAccounts = 0;
+        (window.UI.state.rawData.accounts || []).forEach(a => {
+            if (activeFirmId && a.firmId !== activeFirmId) return;
+            const ob = parseFloat(a.openingBalance) || 0;
+            if (a.type === 'Cash') cashInHand += ob; else bankAccounts += ob;
+        });
+        (window.UI.state.rawData.cashbook || []).forEach(c => {
+            if ((!activeFirmId || c.firmId === activeFirmId) && c.date <= asOfDate) {
+                const amt = c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                const acc = (window.UI.state.rawData.accounts || []).find(a => a.id === c.accountId);
+                if (acc && acc.type === 'Cash') cashInHand += amt; else bankAccounts += amt;
+            }
+        });
+
+        let closingStockValue = 0;
+        (window.UI.state.rawData.items || []).forEach(i => {
+            if (!activeFirmId || i.firmId === activeFirmId) {
+                const stock = parseFloat(i.stock) || 0;
+                if (stock > 0) closingStockValue += (stock * (parseFloat(i.buyPrice) || 0));
+            }
+        });
+
+        let outputTax = 0, inputTax = 0;
+        (window.UI.state.rawData.sales || []).forEach(s => { 
+            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
+                outputTax += (parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0);
+            }
+        });
+        (window.UI.state.rawData.purchases || []).forEach(p => { 
+            if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date <= asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
+                inputTax += (parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0);
+            }
+        });
+
+        let netTaxLiability = 0, netTaxReceivable = 0;
+        if (outputTax > inputTax) netTaxLiability = outputTax - inputTax; 
+        else netTaxReceivable = inputTax - outputTax;
+
+        let sundryDebtors = 0, sundryCreditors = 0, customerAdvances = 0, supplierAdvances = 0;
+        (window.UI.state.rawData.ledgers || []).filter(l => (!activeFirmId || l.firmId === activeFirmId)).forEach(l => {
+            const isCustomer = String(l.type).toLowerCase() === 'customer';
+            let partyBal = (parseFloat(l.openingBalance) || 0) * ((isCustomer ? (l.balanceType || '').toLowerCase().includes('pay') : (l.balanceType || '').toLowerCase().includes('receive')) ? -1 : 1);
+            
+            const targetDocs = isCustomer ? (window.UI.state.rawData.sales || []) : (window.UI.state.rawData.purchases || []);
+            targetDocs.forEach(d => { 
+                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
+                    partyBal += (d.documentType === 'return' ? -(parseFloat(d.grandTotal)||0) : (parseFloat(d.grandTotal)||0)); 
+                }
+            });
+            
+            (window.UI.state.rawData.cashbook || []).forEach(c => { 
+                if (c.ledgerId === l.id && c.date <= asOfDate) {
+                    partyBal += isCustomer ? (c.type === 'in' ? -(parseFloat(c.amount)||0) : (parseFloat(c.amount)||0)) : (c.type === 'in' ? (parseFloat(c.amount)||0) : -(parseFloat(c.amount)||0)); 
+                }
+            });
+            
+            if (partyBal > 0.01) { 
+                if(isCustomer) sundryDebtors += partyBal; else sundryCreditors += partyBal; 
+            } 
+            else if (partyBal < -0.01) { 
+                if(isCustomer) customerAdvances += Math.abs(partyBal); else supplierAdvances += Math.abs(partyBal); 
+            }
+        });
+
+        const currentAssets = closingStockValue + sundryDebtors + cashInHand + bankAccounts + supplierAdvances + netTaxReceivable;
+        const currentLiabilities = sundryCreditors + customerAdvances + netTaxLiability;
+        const retainedEarnings = currentAssets - currentLiabilities;
+
+        const fmt = (num) => (num || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        const profile = window.UI.state.rawData.profile || {};
+        const businessName = profile.name || 'SOLLO ENTERPRISES';
+        const displayDate = typeof window.Utils !== 'undefined' ? window.Utils.formatDateDisplay(asOfDate) : asOfDate;
+
+        // --- 2. BUILD THE PDF DEFINITION (For the Download Button) ---
+        window.app.currentBSDocDefinition = {
+            pageSize: 'A4',
+            pageMargins: [40, 40, 40, 40],
+            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#333333' },
+            styles: {
+                companyName: { fontSize: 18, bold: true, color: '#1e293b', margin: [0, 16, 0, 4] },
+                dateText: { fontSize: 9, color: '#64748b', margin: [0, 0, 0, 24] },
+                docTitleMain: { fontSize: 14, bold: true, color: '#0061a4', alignment: 'right', margin: [0, 16, 0, 2] },
+                docTitleSub: { fontSize: 9, color: '#64748b', alignment: 'right', textTransform: 'uppercase', letterSpacing: 1 },
+                tableHeader: { bold: true, fontSize: 10, color: '#ffffff', fillColor: '#0061a4', margin: [8, 8, 8, 8] },
+                tableHeaderRight: { bold: true, fontSize: 10, color: '#ffffff', fillColor: '#0061a4', alignment: 'right', margin: [8, 8, 8, 8] },
+                groupTitle: { bold: true, fontSize: 10, color: '#0f172a', margin: [8, 8, 8, 8], fillColor: '#f8fafc' },
+                itemRow: { fontSize: 10, color: '#334155', margin: [16, 6, 8, 6] },
+                amtRow: { fontSize: 10, color: '#334155', alignment: 'right', margin: [8, 6, 8, 6] },
+                totalText: { bold: true, fontSize: 11, color: '#0061a4', margin: [8, 10, 8, 10] },
+                totalAmt: { bold: true, fontSize: 11, alignment: 'right', color: '#0061a4', margin: [8, 10, 8, 10] }
+            },
+            content: [
+                { columns: [ { width: '*', stack: [ { text: businessName, style: 'companyName' }, { text: `As of: ${displayDate}`, style: 'dateText' } ] }, { width: 'auto', stack: [ { text: 'BALANCE SHEET', style: 'docTitleMain' }, { text: 'STATEMENT', style: 'docTitleSub' } ] } ] },
+                {
+                    table: {
+                        headerRows: 1, widths: ['*', 'auto'],
+                        body: [
+                            [ { text: 'PARTICULARS (LIABILITIES)', style: 'tableHeader' }, { text: 'AMOUNT (₹)', style: 'tableHeaderRight' } ],
+                            [ { text: 'CAPITAL ACCOUNT', style: 'groupTitle', colSpan: 2 }, {} ],
+                            [ { text: 'Retained Earnings & P&L', style: 'itemRow' }, { text: fmt(retainedEarnings), style: 'amtRow' } ],
+                            [ { text: 'CURRENT LIABILITIES', style: 'groupTitle', colSpan: 2 }, {} ],
+                            [ { text: 'Sundry Creditors', style: 'itemRow' }, { text: fmt(sundryCreditors), style: 'amtRow' } ],
+                            [ { text: 'Customer Advances', style: 'itemRow' }, { text: fmt(customerAdvances), style: 'amtRow' } ],
+                            [ { text: 'Duties & Taxes Payable', style: 'itemRow' }, { text: fmt(netTaxLiability), style: 'amtRow' } ],
+                            [ { text: 'TOTAL LIABILITIES', style: 'totalText' }, { text: fmt(currentLiabilities + retainedEarnings), style: 'totalAmt' } ],
+                            [ { text: 'PARTICULARS (ASSETS)', style: 'tableHeader', margin: [8, 16, 8, 8] }, { text: 'AMOUNT (₹)', style: 'tableHeaderRight', margin: [8, 16, 8, 8] } ],
+                            [ { text: 'CURRENT ASSETS', style: 'groupTitle', colSpan: 2 }, {} ],
+                            [ { text: 'Closing Stock', style: 'itemRow' }, { text: fmt(closingStockValue), style: 'amtRow' } ],
+                            [ { text: 'Sundry Debtors', style: 'itemRow' }, { text: fmt(sundryDebtors), style: 'amtRow' } ],
+                            [ { text: 'Supplier Advances', style: 'itemRow' }, { text: fmt(supplierAdvances), style: 'amtRow' } ],
+                            [ { text: 'Tax Receivable (ITC)', style: 'itemRow' }, { text: fmt(netTaxReceivable), style: 'amtRow' } ],
+                            [ { text: 'BANK & CASH ACCOUNTS', style: 'groupTitle', colSpan: 2 }, {} ],
+                            [ { text: 'Bank Accounts', style: 'itemRow' }, { text: fmt(bankAccounts), style: 'amtRow' } ],
+                            [ { text: 'Cash-in-Hand', style: 'itemRow' }, { text: fmt(cashInHand), style: 'amtRow' } ],
+                            [ { text: 'TOTAL ASSETS', style: 'totalText' }, { text: fmt(currentAssets), style: 'totalAmt' } ]
+                        ]
+                    },
+                    layout: { hLineWidth: function (i, node) { if (i === 0 || i === 1 || i === 8 || i === 9 || i === node.table.body.length - 1 || i === node.table.body.length) return 2; return 1; }, vLineWidth: function () { return 0; }, hLineColor: function (i, node) { if (i === 0 || i === 1 || i === 8 || i === 9 || i === node.table.body.length - 1 || i === node.table.body.length) return '#0061a4'; return '#e2e8f0'; } }
+                }
+            ]
+        };
+
+        // --- 3. RENDER THE HTML "PAPER" PREVIEW ON SCREEN ---
+        const mainContent = document.getElementById('overview-main-content');
+        if (mainContent) {
+            
+            // Reusable Table Styles
+            const thStyle = `padding: 8px 12px; background: #0061a4; color: #ffffff; font-size: 11px; font-weight: bold; text-align: left;`;
+            const thStyleRight = `padding: 8px 12px; background: #0061a4; color: #ffffff; font-size: 11px; font-weight: bold; text-align: right;`;
+            const groupStyle = `padding: 8px 12px; background: #f8fafc; color: #0f172a; font-size: 11px; font-weight: bold; border-bottom: 1px solid #e2e8f0;`;
+            const tdStyle = `padding: 8px 12px; color: #334155; font-size: 11px; border-bottom: 1px dashed #e2e8f0;`;
+            const tdStyleRight = `padding: 8px 12px; color: #334155; font-size: 11px; border-bottom: 1px dashed #e2e8f0; text-align: right;`;
+            const totalStyle = `padding: 10px 12px; color: #0061a4; font-size: 12px; font-weight: bold; border-bottom: 2px solid #0061a4; border-top: 2px solid #0061a4;`;
+            const totalStyleRight = `padding: 10px 12px; color: #0061a4; font-size: 12px; font-weight: bold; border-bottom: 2px solid #0061a4; border-top: 2px solid #0061a4; text-align: right;`;
+
+            mainContent.innerHTML = `
+                <div style="background: #e2e8f0; padding: 16px; min-height: 80vh;">
+                    <!-- THE A4 PAPER -->
+                    <div style="background: #ffffff; margin: 0 auto; max-width: 800px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 4px; font-family: sans-serif;">
+                        
+                        <!-- Header -->
+                        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #0061a4; padding-bottom: 16px; margin-bottom: 16px;">
+                            <div>
+                                <h2 style="margin: 0; color: #1e293b; font-size: 18px; font-weight: 800;">${businessName}</h2>
+                                <div style="font-size: 11px; color: #64748b; margin-top: 4px;">As of: ${displayDate}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <h3 style="margin: 0; color: #0061a4; font-size: 14px; font-weight: 800;">BALANCE SHEET</h3>
+                                <div style="font-size: 10px; color: #64748b; letter-spacing: 1px; margin-top: 2px;">STATEMENT</div>
+                            </div>
+                        </div>
+
+                        <!-- Liabilities Table -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+                            <tr><td style="${thStyle}">PARTICULARS (LIABILITIES)</td><td style="${thStyleRight}">AMOUNT (₹)</td></tr>
+                            <tr><td colspan="2" style="${groupStyle}">CAPITAL ACCOUNT</td></tr>
+                            <tr><td style="${tdStyle}">Retained Earnings & P&L</td><td style="${tdStyleRight}">${fmt(retainedEarnings)}</td></tr>
+                            
+                            <tr><td colspan="2" style="${groupStyle}">CURRENT LIABILITIES</td></tr>
+                            <tr><td style="${tdStyle}">Sundry Creditors</td><td style="${tdStyleRight}">${fmt(sundryCreditors)}</td></tr>
+                            <tr><td style="${tdStyle}">Customer Advances</td><td style="${tdStyleRight}">${fmt(customerAdvances)}</td></tr>
+                            <tr><td style="${tdStyle}">Duties & Taxes Payable</td><td style="${tdStyleRight}">${fmt(netTaxLiability)}</td></tr>
+                            
+                            <tr><td style="${totalStyle}">TOTAL LIABILITIES</td><td style="${totalStyleRight}">${fmt(currentLiabilities + retainedEarnings)}</td></tr>
+                        </table>
+
+                        <!-- Assets Table -->
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="${thStyle}">PARTICULARS (ASSETS)</td><td style="${thStyleRight}">AMOUNT (₹)</td></tr>
+                            <tr><td colspan="2" style="${groupStyle}">CURRENT ASSETS</td></tr>
+                            <tr><td style="${tdStyle}">Closing Stock</td><td style="${tdStyleRight}">${fmt(closingStockValue)}</td></tr>
+                            <tr><td style="${tdStyle}">Sundry Debtors</td><td style="${tdStyleRight}">${fmt(sundryDebtors)}</td></tr>
+                            <tr><td style="${tdStyle}">Supplier Advances</td><td style="${tdStyleRight}">${fmt(supplierAdvances)}</td></tr>
+                            <tr><td style="${tdStyle}">Tax Receivable (ITC)</td><td style="${tdStyleRight}">${fmt(netTaxReceivable)}</td></tr>
+                            
+                            <tr><td colspan="2" style="${groupStyle}">BANK & CASH ACCOUNTS</td></tr>
+                            <tr><td style="${tdStyle}">Bank Accounts</td><td style="${tdStyleRight}">${fmt(bankAccounts)}</td></tr>
+                            <tr><td style="${tdStyle}">Cash-in-Hand</td><td style="${tdStyleRight}">${fmt(cashInHand)}</td></tr>
+                            
+                            <tr><td style="${totalStyle}">TOTAL ASSETS</td><td style="${totalStyleRight}">${fmt(currentAssets)}</td></tr>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            // Setup the navigation & action buttons
+            const titleEl = document.getElementById('overview-invoice-no');
+            if (titleEl) titleEl.innerText = "Document Preview";
+            
+            const actionsEl = document.getElementById('overview-top-actions');
+            if (actionsEl) actionsEl.innerHTML = ``;
+            
+            const bottomBar = document.getElementById('overview-bottom-bar');
+            if (bottomBar) {
+                bottomBar.innerHTML = `
+                    <button class="btn-primary" onclick="
+                        if(!pdfMake.fonts) { pdfMake.fonts = { Roboto: { normal: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf', bold: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf' } }; }
+                        if(window.Utils) window.Utils.showToast('Downloading PDF...');
+                        pdfMake.createPdf(window.app.currentBSDocDefinition).download('Balance_Sheet_${asOfDate}.pdf');
+                    " style="flex: 1; height: 54px; border-radius: 27px; background: #0061a4; font-size: 16px; font-weight: bold; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span class="material-symbols-outlined">download</span> Download PDF
+                    </button>
+                `;
+            }
+            
+            if (window.UI) window.UI.openActivity('activity-invoice-overview');
+        }
+
+    } catch (error) {
+        console.error(error);
+        if (window.Utils) window.Utils.showToast("Error generating preview.");
+    }
+};
+
+// ==========================================
+// 🚨 BALANCE SHEET DRILL-DOWN ENGINE
+// ==========================================
+window.app = window.app || {};
+window.app.showBSBreakdown = function(type, title, color) {
+    const data = (window.UI.state.bsBreakdown || {})[type] || [];
+    document.getElementById('bs-breakdown-title').innerText = title;
+    
+    const listEl = document.getElementById('bs-breakdown-list');
+    const totalEl = document.getElementById('bs-breakdown-total');
+
+    // Sort from highest amount to lowest
+    data.sort((a,b) => b.amount - a.amount);
+
+    let html = '';
+    let total = 0;
+    
+    if(data.length === 0) {
+        html = '<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No records found for this date.</div>';
+    } else {
+        data.forEach(item => {
+            total += item.amount;
+            html += `
+                <div class="m3-card" style="padding: 12px 16px; margin: 0; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid ${color}; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                    <div style="flex: 1; min-width: 0; padding-right: 12px;">
+                        <strong style="display: block; font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
+                        <small style="color: var(--md-text-muted);">${item.desc}</small>
+                    </div>
+                    <strong style="font-size: 15px; color: ${color};">₹${item.amount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                </div>
+            `;
+        });
+    }
+
+    listEl.innerHTML = html;
+    totalEl.innerText = '₹' + total.toLocaleString('en-IN', {minimumFractionDigits: 2});
+    totalEl.style.color = color;
+
+    if(window.UI) window.UI.openBottomSheet('sheet-bs-breakdown');
+};

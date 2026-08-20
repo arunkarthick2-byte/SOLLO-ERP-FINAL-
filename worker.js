@@ -1,30 +1,7 @@
 // worker.js - Enterprise Stock & Velocity Accountant (Optimized V3)
 
 const DB_NAME = 'SOLLO_ERP_DB';
-const DB_VERSION = 70;
-
-// 🚀 NATIVE DATABASE ENGINE: Worker pulls directly from the hard drive!
-const fetchFromDB = (storeName, firmId) => {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onsuccess = (e) => {
-            const db = e.target.result;
-            const tx = db.transaction(storeName, 'readonly');
-            const store = tx.objectStore(storeName);
-            
-            // Fast O(1) Index Lookup
-            const index = store.index('firmId');
-            const req = index.getAll(firmId);
-            
-            req.onsuccess = () => {
-                resolve(req.result || []);
-                db.close();
-            };
-            req.onerror = () => reject(req.error);
-        };
-        request.onerror = () => reject(request.error);
-    });
-};
+const DB_VERSION = 70; // Make sure this perfectly matches the version in db.js!
 
 self.addEventListener('message', async function(e) {
     const data = e.data;
@@ -32,12 +9,29 @@ self.addEventListener('message', async function(e) {
     if (data.command === 'CALCULATE_DASHBOARD_INVENTORY') {
         const firmId = data.firmId;
         
-        // Let the background thread do the heavy lifting!
-        const [items, purchases, sales] = await Promise.all([
-            fetchFromDB('items', firmId),
-            fetchFromDB('purchases', firmId),
-            fetchFromDB('sales', firmId)
-        ]);
+        try {
+            // 🚨 ENTERPRISE FIX: Open ONE connection and fetch all 3 stores simultaneously to prevent Deadlocks!
+            const db = await new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onsuccess = e => resolve(e.target.result);
+                request.onerror = e => reject(request.error);
+            });
+
+            const tx = db.transaction(['items', 'purchases', 'sales'], 'readonly');
+            
+            const fetchStore = (storeName) => new Promise((resolve, reject) => {
+                const req = tx.objectStore(storeName).index('firmId').getAll(firmId);
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+
+            const [items, purchases, sales] = await Promise.all([
+                fetchStore('items'),
+                fetchStore('purchases'),
+                fetchStore('sales')
+            ]);
+            
+            db.close();
 
         let totalValuation = 0;
         let lowStockItems = [];

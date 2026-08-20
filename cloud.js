@@ -200,6 +200,14 @@ const Cloud = {
                         if (resp.error !== undefined) {
                             gapi.client.setToken(null);
                             if (window.Utils) window.Utils.showToast("⚠️ Cloud Sync Paused. Please manually Backup to reconnect.");
+                            
+                            // 🚨 iOS FIX: Turn the Cloud Status pill Red so the user visually sees the background sync stopped!
+                            const statusEl = document.getElementById('cloud-status-tab');
+                            if(statusEl) {
+                                statusEl.innerText = 'Sync Paused (Tap Backup)';
+                                statusEl.style.color = 'var(--md-error)';
+                                statusEl.style.background = 'rgba(186, 26, 26, 0.1)';
+                            }
                         } else {
                             console.log("✅ Token renewed silently! Resuming background backup...");
                             window.Cloud.autoBackup(); // Instantly retry the backup with the new token!

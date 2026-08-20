@@ -35,37 +35,6 @@ const UI = {
         // ENTERPRISE UPGRADE: Native Cursor Freedom!
         // Auto-select has been disabled so you can easily tap and edit specific digits on mobile dialpads!
 
-        // 🚨 ENTERPRISE FIX: THE "CONTAINER TRANSFORM" & RENDER OPTIMIZATION CSS INJECTOR
-        if (!document.getElementById('container-transform-css')) {
-            const css = document.createElement('style');
-            css.id = 'container-transform-css';
-            css.innerHTML = `
-                /* Existing Morph Animations */
-                ::view-transition-old(app-morph),
-                ::view-transition-new(app-morph) {
-                    animation-duration: 0.35s;
-                    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-                }
-                ::view-transition-old(app-morph) { object-fit: contain; }
-                ::view-transition-new(app-morph) { object-fit: contain; }
-
-                /* 🚀 NEW: GPU & Rendering Layout Optimizations */
-                /* 1. Force GPU Hardware Acceleration (JS Virtualizer handles off-screen DOM now!) */
-                .m3-card, .list-card, .virtual-item {
-                    backface-visibility: hidden !important;
-                    -webkit-backface-visibility: hidden !important;
-                    transform: translateZ(0) !important; 
-                }
-                
-                /* 2. Stop bouncy pull-to-refresh glitches on scrollable menus */
-                .main-content, .bottom-sheet, .activity-content, .list-view {
-                    overscroll-behavior-y: contain !important;
-                    -webkit-overflow-scrolling: touch !important;
-                }
-            `;
-            document.head.appendChild(css);
-        }
-
         // 🚨 ENTERPRISE FIX: Save the clicked card for the Container Transform Morph!
         // (Predictive Database Fetch has been removed here to permanently kill UI stuttering!)
         document.addEventListener('pointerdown', (e) => {
@@ -91,10 +60,6 @@ const UI = {
                 if (window.Utils && typeof window.Utils.getLocalDate === 'function') {
                     e.target.setAttribute('max', window.Utils.getLocalDate());
                 }
-            }
-            else if (e.target.id.includes('phone') || e.target.name.includes('phone')) {
-                e.target.setAttribute('type', 'tel');
-                e.target.setAttribute('inputmode', 'tel');
             }
             
             // 🚨 ENTERPRISE FIX: The Dynamic Dictionary Shield! 
@@ -125,7 +90,6 @@ const UI = {
                 }, 50);
             }
         });
-
 
         // 🚨 ENTERPRISE FIX 5 & 6 CONSOLIDATED: High-Performance Form Event Engine
         document.addEventListener('input', (e) => {
@@ -290,7 +254,10 @@ const UI = {
         const input = UI.state.activeNumpadInput;
         if (!input) return;
         
-        if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+        // 🚀 TACTILE MECHANICAL HAPTIC THUD
+        if (window.UI && window.UI.triggerHaptic) {
+            window.UI.triggerHaptic(key === 'DONE' ? 'medium' : 'light');
+        }
 
         if (key === 'DONE') {
             UI.closeNumpad();
@@ -541,25 +508,19 @@ const UI = {
     // 1. SPLASH SCREEN & INSTANT NAVIGATION
     // ==========================================
     showSuccess: () => {
-        // 🚨 BUG FIX: Only clear the unsaved changes warning AFTER a successful save!
         window.isFormDirty = false;
         
-        // --- ENTERPRISE UPGRADE: BUTTON MORPHING ---
-        // Find the loading button and smoothly transition it to the green checkmark!
         document.querySelectorAll('.btn-loading').forEach(btn => {
             btn.classList.remove('btn-loading');
             btn.classList.add('btn-success');
-            // Hold the green checkmark for a moment before expanding back to normal
             setTimeout(() => {
                 btn.classList.remove('btn-success');
-                // 🚨 FIX: Restore the "Save" text and unlock the button width so it is ready for the next entry!
                 if (btn.hasAttribute('data-original-text')) {
                     btn.innerHTML = btn.getAttribute('data-original-text');
                     btn.style.width = '';
                 }
             }, 1200);
         });
-        // -------------------------------------------
 
         const el = document.getElementById('success-animation');
         if(el) {
@@ -569,6 +530,25 @@ const UI = {
                 const newSvg = svg.cloneNode(true);
                 svg.parentNode.replaceChild(newSvg, svg);
             }
+
+            // 🚀 PAYMENT CONFETTI ENGINE
+            for(let i=0; i<30; i++) {
+                const conf = document.createElement('div');
+                conf.className = 'confetti-particle';
+                conf.style.left = '50%';
+                conf.style.top = '50%';
+                const angle = Math.random() * Math.PI * 2;
+                const velocity = 50 + Math.random() * 150;
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity;
+                conf.style.setProperty('--tx', `${tx}px`);
+                conf.style.setProperty('--ty', `${ty}px`);
+                const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6'];
+                conf.style.background = colors[Math.floor(Math.random() * colors.length)];
+                el.appendChild(conf);
+                setTimeout(() => conf.remove(), 1000);
+            }
+
             if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]); 
             setTimeout(() => el.classList.add('hidden'), 1500); 
         }
@@ -914,7 +894,7 @@ const UI = {
                             ${poolBadge}
                         </div>
                         <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) window.app.openItemLedger('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
                             </div>
                         </div>
@@ -1187,10 +1167,18 @@ const UI = {
 
         // 5. Inject Results into the UI
         const subtotalEl = document.getElementById(`${prefix}-subtotal`);
-        if (subtotalEl) subtotalEl.innerHTML = `&#8377;${rawSubtotal.toFixed(2)}`;
+        if (subtotalEl) {
+            const currSub = parseFloat(subtotalEl.innerText.replace(/[^\d.-]/g, '')) || 0;
+            if (window.animateCurrency) window.animateCurrency(`${prefix}-subtotal`, currSub, rawSubtotal, 300);
+            else subtotalEl.innerHTML = `&#8377;${rawSubtotal.toFixed(2)}`;
+        }
         
         const gstTotalEl = document.getElementById(`${prefix}-gst-total`);
-        if (gstTotalEl) gstTotalEl.innerHTML = `&#8377;${totalGst.toFixed(2)}`;
+        if (gstTotalEl) {
+            const currGst = parseFloat(gstTotalEl.innerText.replace(/[^\d.-]/g, '')) || 0;
+            if (window.animateCurrency) window.animateCurrency(`${prefix}-gst-total`, currGst, totalGst, 300);
+            else gstTotalEl.innerHTML = `&#8377;${totalGst.toFixed(2)}`;
+        }
         
         // 🚨 CRITICAL FIX: The 1-Paisa Mismatch Shield
         // We round CGST first, and subtract it from the total for SGST. 
@@ -1208,10 +1196,18 @@ const UI = {
         if (roundOffEl) roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
         
         const grandTotalEl = document.getElementById(`${prefix}-grand-total`);
-        if (grandTotalEl) grandTotalEl.innerHTML = `&#8377;${roundedTotal.toFixed(2)}`;
+        if (grandTotalEl) {
+            const currentVal = parseFloat(grandTotalEl.innerText.replace(/[^\d.-]/g, '')) || 0;
+            if (window.animateCurrency) window.animateCurrency(`${prefix}-grand-total`, currentVal, roundedTotal, 300);
+            else grandTotalEl.innerHTML = `&#8377;${roundedTotal.toFixed(2)}`;
+        }
         
         const stickyTotal = document.getElementById(`${prefix}-sticky-total`);
-        if (stickyTotal) stickyTotal.innerHTML = `&#8377;${roundedTotal.toFixed(2)}`;
+        if (stickyTotal) {
+            const currentStickyVal = parseFloat(stickyTotal.innerText.replace(/[^\d.-]/g, '')) || 0;
+            if (window.animateCurrency) window.animateCurrency(`${prefix}-sticky-total`, currentStickyVal, roundedTotal, 300);
+            else stickyTotal.innerHTML = `&#8377;${roundedTotal.toFixed(2)}`;
+        }
         
         if (window.UI && window.UI.updateLiveInsight) window.UI.updateLiveInsight(prefix);
                 UI.updateInstallmentTracker(prefix);
@@ -1512,9 +1508,10 @@ const UI = {
                 // 🚨 ENTERPRISE FIX: Apply Dashboard Date Filter if Active!
                 if (!isDateInRange(s.date)) return false;
 
-                // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, Order, and Database ID) are fully searchable!
-                // 🚨 PERFORMANCE FIX: Bypass heavy string math if the user isn't actually searching!
-                const matchSearch = !searchTerm || (s.customerName || '').toLowerCase().includes(searchTerm) || (s.invoiceNo || s.orderNo || s.id || '').toLowerCase().includes(searchTerm);
+                // 🚀 O(1) ULTRA-FAST INDEXER: Pre-built Search Strings completely eliminate layout thrashing!
+                if (s._searchIndex === undefined) s._searchIndex = `${s.customerName || ''} ${s.invoiceNo || ''} ${s.orderNo || ''} ${s.id || ''}`.toLowerCase();
+                const searchWords = searchTerm.trim().split(/\s+/);
+                const matchSearch = !searchTerm || searchWords.every(word => s._searchIndex.includes(word) || (window.fuzzyMatch && window.fuzzyMatch(word, s._searchIndex)));
                 let matchFilter = true;
                 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -1713,9 +1710,10 @@ const UI = {
                 // 🚨 ENTERPRISE FIX: Apply Dashboard Date Filter if Active!
                 if (!isDateInRange(p.date)) return false;
 
-                // STRICT ERP LOGIC: Ensure all 3 document references (Invoice, PO, and Internal Order) are fully searchable!
-                // 🚨 PERFORMANCE FIX: Bypass heavy string math if the user isn't actually searching!
-                const matchSearch = !searchTerm || (p.supplierName || '').toLowerCase().includes(searchTerm) || (p.invoiceNo || p.poNo || p.orderNo || '').toLowerCase().includes(searchTerm);
+                // 🚀 O(1) ULTRA-FAST INDEXER: Pre-built Search Strings completely eliminate layout thrashing!
+                if (p._searchIndex === undefined) p._searchIndex = `${p.supplierName || ''} ${p.invoiceNo || ''} ${p.poNo || ''} ${p.orderNo || ''}`.toLowerCase();
+                const searchWords = searchTerm.trim().split(/\s+/);
+                const matchSearch = !searchTerm || searchWords.every(word => p._searchIndex.includes(word) || (window.fuzzyMatch && window.fuzzyMatch(word, p._searchIndex)));
                 let matchFilter = true;
 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -1930,8 +1928,11 @@ const UI = {
 
             if (activeTab === 'products') {
                 data = UI.state.rawData.items.filter(i => {
-                    // ENTERPRISE UI: Fuzzy Search applied to Master Product List
-                    const matchSearch = window.fuzzyMatch(searchTerm, i.name) || window.fuzzyMatch(searchTerm, i.sku);
+                    // 🚀 O(1) ULTRA-FAST INDEXER: Native cached strings bypass CPU-heavy fuzzy math!
+                    if (i._searchIndex === undefined) i._searchIndex = `${i.name || ''} ${i.sku || ''}`.toLowerCase();
+                    const searchWords = searchTerm.trim().split(/\s+/);
+                    // 🚀 HYBRID ENGINE: Fast exact match first, fallback to typo-tolerant fuzzy match!
+                    const matchSearch = !searchTerm || searchWords.every(word => i._searchIndex.includes(word) || (window.fuzzyMatch && window.fuzzyMatch(word, i._searchIndex)));
                     let matchFilter = true;
                     
                     // Bulletproof Math
@@ -2017,22 +2018,22 @@ const UI = {
                             </div>
                         </div>
 
-                        <!-- 🚀 NEW: Dashed Separator Line & Action Icon Grid -->
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px; border-top: 1px dashed var(--md-outline-variant); padding-top: 12px;">
+                        <!-- 🚀 NEW: Action Icon Grid -->
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px; padding-top: 8px;">
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
                                 
                                 <!-- QUICK NATIVE SHARE -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openItemLedger('${i.id}', '${safeName}'); setTimeout(() => { if(navigator.share) { navigator.share({title: '${safeName} Stock Ledger', text: 'Please find the stock ledger attached.'}).catch(console.error); } else if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) { window.triggerItemLedgerFromForm('${i.id}', '${safeName}'); setTimeout(() => { if(navigator.share) { navigator.share({title: '${safeName} Stock Ledger', text: 'Please find the stock ledger attached.'}).catch(console.error); } else if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
                                 </div>
                                 
                                 <!-- QUICK VECTOR PDF -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openItemLedger('${i.id}', '${safeName}'); setTimeout(() => { if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) { window.triggerItemLedgerFromForm('${i.id}', '${safeName}'); setTimeout(() => { if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                 </div>
                                 
                                 <!-- ITEM LEDGER (HISTORY) MENU -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) window.app.openItemLedger('${i.id}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${i.id}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
                                 </div>
                             </div>
@@ -2045,8 +2046,10 @@ const UI = {
 
                 data = UI.state.rawData.ledgers.filter(l => {
                     const safeType = String(l.type).toLowerCase();
-                    // ENTERPRISE UI: Fuzzy Search applied to Master Party List
-                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && (window.fuzzyMatch(searchTerm, l.name) || window.fuzzyMatch(searchTerm, l.phone));
+                    // 🚀 O(1) ULTRA-FAST INDEXER: Memory-cached search strings!
+                    if (l._searchIndex === undefined) l._searchIndex = `${l.name || ''} ${l.phone || ''}`.toLowerCase();
+                    const searchWords = searchTerm.trim().split(/\s+/);
+                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && (!searchTerm || searchWords.every(word => l._searchIndex.includes(word) || (window.fuzzyMatch && window.fuzzyMatch(word, l._searchIndex))));
                     let matchFilter = true;
                     const bal = getBal(l.id, l.type);
 
@@ -2160,8 +2163,8 @@ const UI = {
                             </div>
                         </div>
 
-                        <!-- 🚀 NEW: Dashed Separator Line & Action Icon Grid -->
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px; border-top: 1px dashed var(--md-outline-variant); padding-top: 12px;">
+                        <!-- 🚀 NEW: Action Icon Grid -->
+                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px; padding-top: 8px;">
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
                                 
                                 <!-- QUICK NATIVE SHARE (WITH STEALTH CLOSE) -->
@@ -3675,7 +3678,11 @@ const UI = {
                 </div>`;
             });
             
-            if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No matches found.</div>`;
+            if (results.length === 0) html = `
+    <div style="padding: 40px 20px; text-align: center;">
+        <div style="color: var(--md-text-muted); margin-bottom: 16px; font-size: 14px;">No matches found.</div>
+        <button class="btn-primary tap-target" onclick="UI.createNewFromSearch()" style="height: 44px; min-height: 44px; padding: 0 24px; border-radius: 22px; margin: 0 auto; display: inline-flex; box-shadow: 0 4px 12px rgba(0,97,164,0.2);"><span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">add</span> Create New Party</button>
+    </div>`;
             
         } else if (targetType === 'item') {
             const isSales = prefix === 'sales';
@@ -3752,7 +3759,11 @@ const UI = {
                 }
             });
             
-            if (results.length === 0) html = `<div style="padding: 24px; text-align: center; color: var(--md-text-muted);">No products found.</div>`;
+            if (results.length === 0) html = `
+    <div style="padding: 40px 20px; text-align: center;">
+        <div style="color: var(--md-text-muted); margin-bottom: 16px; font-size: 14px;">No products found.</div>
+        <button class="btn-primary tap-target" onclick="UI.createNewFromSearch()" style="height: 44px; min-height: 44px; padding: 0 24px; border-radius: 22px; margin: 0 auto; display: inline-flex; box-shadow: 0 4px 12px rgba(0,97,164,0.2);"><span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">add</span> Add New Product</button>
+    </div>`;
         }
 
         resultsContainer.innerHTML = html;
@@ -3850,6 +3861,23 @@ const UI = {
         
         // Trigger Smart Pricing Memory
         const smart = UI.getSmartRate(prefix, id, price);
+
+        // 🚀 DATABASE LOOKUP: Find Alternate UOM Multiplier
+        const dbItem = (window.UI.state.rawData.items || []).find(i => i.id === id);
+        const altUom = dbItem && dbItem.altUom ? dbItem.altUom : '';
+        const conv = dbItem && dbItem.conversionFactor ? parseFloat(dbItem.conversionFactor) || 1 : 1;
+
+        let conversionHtml = '';
+        if (altUom && conv > 1) {
+            conversionHtml = `
+            <div style="display:flex; align-items:center; gap:6px; margin-top:12px; background: rgba(0,97,164,0.05); padding: 6px 10px; border-radius: 6px; border: 1px dashed rgba(0,97,164,0.3); width: max-content;">
+                <span style="font-size:11px; color:var(--md-primary); font-weight:800;">Quick Convert:</span>
+                <input type="number" inputmode="decimal" class="row-alt-qty" placeholder="0" style="width:50px; padding:4px; font-size:14px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px; text-align: center; font-weight:bold; color:var(--md-on-surface); outline:none;">
+                <span style="font-size:11px; color:var(--md-text-muted); font-weight:800;">${altUom}s</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:16px; color:#ffffff; cursor:pointer; background: var(--md-primary); border-radius: 4px; padding: 4px; box-shadow:0 2px 4px rgba(0,97,164,0.2);" title="Convert to Base Units" onclick="const p=this.parentElement; const altQty=parseFloat(p.querySelector('.row-alt-qty').value)||0; const baseQtyEl=this.closest('.item-entry-card').querySelector('.row-qty'); baseQtyEl.value=(altQty * ${conv}); baseQtyEl.dispatchEvent(new Event('input', {bubbles:true})); p.querySelector('.row-alt-qty').value=''; window.Utils.showToast('Converted ${altUom} to ${uom}!');">arrow_forward</span>
+            </div>
+            `;
+        }
         
         const itemCard = document.createElement('div');
         itemCard.className = 'item-entry-card';
@@ -3886,6 +3914,7 @@ const UI = {
                     </div>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
                     ${smart.msg}
+                    ${conversionHtml}
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
                     <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
@@ -4190,28 +4219,28 @@ const UI = {
     switchReportTab: (tab) => {
         document.getElementById('view-daybook').classList.add('hidden');
         document.getElementById('view-pnl').classList.add('hidden');
+        document.getElementById('view-bs').classList.add('hidden');
         
-        document.getElementById('btn-tab-daybook').style.background = 'transparent';
-        document.getElementById('btn-tab-daybook').style.boxShadow = 'none';
-        document.getElementById('btn-tab-daybook').style.color = 'var(--md-text-muted)';
-        
-        document.getElementById('btn-tab-pnl').style.background = 'transparent';
-        document.getElementById('btn-tab-pnl').style.boxShadow = 'none';
-        document.getElementById('btn-tab-pnl').style.color = 'var(--md-text-muted)';
+        ['daybook', 'pnl', 'bs'].forEach(t => {
+            const btn = document.getElementById(`btn-tab-${t}`);
+            if (btn) {
+                if (t === tab) {
+                    btn.style.background = 'var(--md-surface)';
+                    btn.style.boxShadow = 'var(--elevation-1)';
+                    btn.style.color = 'var(--md-primary)';
+                } else {
+                    btn.style.background = 'transparent';
+                    btn.style.boxShadow = 'none';
+                    btn.style.color = 'var(--md-text-muted)';
+                }
+            }
+        });
 
-        if (tab === 'daybook') {
-            document.getElementById('view-daybook').classList.remove('hidden');
-            document.getElementById('btn-tab-daybook').style.background = 'var(--md-surface)';
-            document.getElementById('btn-tab-daybook').style.color = 'var(--md-primary)';
-            document.getElementById('btn-tab-daybook').style.boxShadow = 'var(--elevation-1)';
-            UI.renderDayBook();
-        } else {
-            document.getElementById('view-pnl').classList.remove('hidden');
-            document.getElementById('btn-tab-pnl').style.background = 'var(--md-surface)';
-            document.getElementById('btn-tab-pnl').style.color = 'var(--md-primary)';
-            document.getElementById('btn-tab-pnl').style.boxShadow = 'var(--elevation-1)';
-            UI.renderPnL();
-        }
+        document.getElementById(`view-${tab}`).classList.remove('hidden');
+
+        if (tab === 'daybook') UI.renderDayBook();
+        else if (tab === 'pnl') UI.renderPnL();
+        else if (tab === 'bs') UI.renderBalanceSheet();
     },
 
     renderDayBook: () => {
@@ -4407,11 +4436,165 @@ const UI = {
             </div>
         `;
     },
+    
+    renderBalanceSheet: () => {
+        const startEl = document.getElementById('report-bs-start');
+        const endEl = document.getElementById('report-bs-end');
+        
+        const today = typeof Utils !== 'undefined' ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+        if (!endEl.value) endEl.value = today;
+        if (!startEl.value) {
+            const d = new Date(endEl.value);
+            startEl.value = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+        }
+        
+        const asOfDate = endEl.value;
+        const container = document.getElementById('bs-container');
+
+        if (!window.UI.state.rawData) return;
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
+
+        window.UI.state.bsBreakdown = { stock: [], debtors: [], creditors: [], custAdv: [], suppAdv: [], bank: [], cash: [] };
+
+        let cashInHand = 0, bankAccounts = 0;
+        (UI.state.rawData.accounts || []).forEach(a => {
+            if (activeFirmId && a.firmId !== activeFirmId) return;
+            let bal = parseFloat(a.openingBalance) || 0;
+            (UI.state.rawData.cashbook || []).forEach(c => {
+                if (c.accountId === a.id && c.date <= asOfDate && (!activeFirmId || c.firmId === activeFirmId)) {
+                    bal += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                }
+            });
+            if (bal !== 0) {
+                if (a.type === 'Cash') { cashInHand += bal; window.UI.state.bsBreakdown.cash.push({ name: a.name || 'Cash', desc: 'Cash Drawer', amount: bal }); } 
+                else { bankAccounts += bal; window.UI.state.bsBreakdown.bank.push({ name: a.name, desc: a.accountNumber || 'Bank/Wallet', amount: bal }); }
+            }
+        });
+
+        let closingStockValue = 0;
+        (UI.state.rawData.items || []).forEach(i => {
+            if (!activeFirmId || i.firmId === activeFirmId) {
+                const stock = parseFloat(i.stock) || 0;
+                const buy = parseFloat(i.buyPrice) || 0;
+                if (stock > 0) {
+                    const val = stock * buy;
+                    closingStockValue += val;
+                    window.UI.state.bsBreakdown.stock.push({ name: i.name, desc: `${stock} ${i.uom || 'units'} @ ₹${buy}`, amount: val });
+                }
+            }
+        });
+
+        let outputTax = 0; let inputTax = 0;
+        (UI.state.rawData.sales || []).forEach(s => {
+            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) outputTax += (parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0);
+        });
+        (UI.state.rawData.purchases || []).forEach(p => {
+            if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date <= asOfDate && (!activeFirmId || p.firmId === activeFirmId)) inputTax += (parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0);
+        });
+
+        let netTaxLiability = 0; let netTaxReceivable = 0;
+        if (outputTax > inputTax) netTaxLiability = outputTax - inputTax;
+        else netTaxReceivable = inputTax - outputTax;
+
+        let sundryDebtors = 0, sundryCreditors = 0, customerAdvances = 0, supplierAdvances = 0;
+        const ledgers = UI.state.rawData.ledgers.filter(l => (!activeFirmId || l.firmId === activeFirmId));
+        
+        ledgers.forEach(l => {
+            const isCustomer = String(l.type).toLowerCase() === 'customer';
+            let partyBal = (parseFloat(l.openingBalance) || 0) * ((isCustomer ? (l.balanceType || '').toLowerCase().includes('pay') : (l.balanceType || '').toLowerCase().includes('receive')) ? -1 : 1);
+            
+            const targetDocs = isCustomer ? UI.state.rawData.sales : UI.state.rawData.purchases;
+            targetDocs.forEach(d => {
+                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
+                    partyBal += (d.documentType === 'return' ? -(parseFloat(d.grandTotal)||0) : (parseFloat(d.grandTotal)||0));
+                }
+            });
+
+            (UI.state.rawData.cashbook || []).forEach(c => {
+                if (c.ledgerId === l.id && c.date <= asOfDate) {
+                    partyBal += isCustomer ? (c.type === 'in' ? -(parseFloat(c.amount)||0) : (parseFloat(c.amount)||0)) : (c.type === 'in' ? (parseFloat(c.amount)||0) : -(parseFloat(c.amount)||0));
+                }
+            });
+
+            if (partyBal > 0.01) {
+                if(isCustomer) { sundryDebtors += partyBal; window.UI.state.bsBreakdown.debtors.push({ name: l.name, desc: l.phone || 'Customer', amount: partyBal }); }
+                else { sundryCreditors += partyBal; window.UI.state.bsBreakdown.creditors.push({ name: l.name, desc: l.phone || 'Supplier', amount: partyBal }); }
+            } else if (partyBal < -0.01) {
+                if(isCustomer) { customerAdvances += Math.abs(partyBal); window.UI.state.bsBreakdown.custAdv.push({ name: l.name, desc: l.phone || 'Customer', amount: Math.abs(partyBal) }); }
+                else { supplierAdvances += Math.abs(partyBal); window.UI.state.bsBreakdown.suppAdv.push({ name: l.name, desc: l.phone || 'Supplier', amount: Math.abs(partyBal) }); }
+            }
+        });
+
+        const currentAssets = closingStockValue + sundryDebtors + cashInHand + bankAccounts + supplierAdvances + netTaxReceivable;
+        const currentLiabilities = sundryCreditors + customerAdvances + netTaxLiability;
+        const retainedEarnings = currentAssets - currentLiabilities;
+
+        const fmt = (num) => '₹' + (num || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+        const thStyle = `padding: 10px 12px; background: var(--md-primary); font-size: 11px; font-weight: 800; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;`;
+        const groupStyle = `padding: 10px 12px; font-size: 13px; font-weight: 800; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant); background: #fdfdfd;`;
+        
+        const getRow = (label, amt, type, color) => `
+            <div class="tap-target" onclick="if(window.app) window.app.showBSBreakdown('${type}', '${label}', '${color}')" style="padding: 10px 12px 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--md-text-muted); border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;">
+                <span>${label}</span>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <strong style="color:var(--md-on-surface); font-size: 13px;">${fmt(amt)}</strong>
+                    <span class="material-symbols-outlined" style="font-size: 16px; color: var(--md-primary);">chevron_right</span>
+                </div>
+            </div>
+        `;
+        const getStaticRow = (label, amt) => `
+            <div style="padding: 10px 12px 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--md-text-muted); border-bottom: 1px dashed var(--md-outline-variant);">
+                <span>${label}</span><strong style="color:var(--md-on-surface); font-size: 13px;">${fmt(amt)}</strong>
+            </div>
+        `;
+
+        container.innerHTML = `
+            <div class="m3-card" style="padding: 0; background: var(--md-surface); border: 1px solid var(--md-outline-variant); overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 30px;">
+                <div style="display: flex; width: 100%;">
+                    <!-- LIABILITIES -->
+                    <div style="flex: 1; border-right: 1px solid var(--md-outline-variant); display: flex; flex-direction: column;">
+                        <div style="${thStyle}">Liabilities</div>
+                        <div style="${groupStyle}">Capital A/c</div>
+                        ${getStaticRow('Retained Earnings', retainedEarnings)}
+                        
+                        <div style="${groupStyle}">Current Liab.</div>
+                        ${getRow('Sundry Creditors', sundryCreditors, 'creditors', '#ba1a1a')}
+                        ${getRow('Customer Adv', customerAdvances, 'custAdv', '#ba1a1a')}
+                        ${getStaticRow('Duties & Taxes', netTaxLiability)}
+                        
+                        <div style="margin-top: auto; padding: 12px; background: rgba(0, 97, 164, 0.05); display: flex; flex-direction: column; gap: 4px; border-top: 2px solid var(--md-primary);">
+                            <strong style="color: var(--md-primary); font-size: 10px; text-transform: uppercase;">Total</strong>
+                            <strong style="color: var(--md-primary); font-size: 14px;">${fmt(currentLiabilities + retainedEarnings)}</strong>
+                        </div>
+                    </div>
+                    <!-- ASSETS -->
+                    <div style="flex: 1; display: flex; flex-direction: column;">
+                        <div style="${thStyle}">Assets</div>
+                        <div style="${groupStyle}">Current Assets</div>
+                        ${getRow('Closing Stock', closingStockValue, 'stock', '#146c2e')}
+                        ${getRow('Sundry Debtors', sundryDebtors, 'debtors', '#146c2e')}
+                        ${getRow('Supplier Adv', supplierAdvances, 'suppAdv', '#146c2e')}
+                        ${getStaticRow('Tax Receivable', netTaxReceivable)}
+                        
+                        <div style="${groupStyle}">Bank & Cash</div>
+                        ${getRow('Bank Accounts', bankAccounts, 'bank', '#0061a4')}
+                        ${getRow('Cash-in-Hand', cashInHand, 'cash', '#0061a4')}
+
+                        <div style="margin-top: auto; padding: 12px; background: rgba(0, 97, 164, 0.05); display: flex; flex-direction: column; gap: 4px; border-top: 2px solid var(--md-primary);">
+                            <strong style="color: var(--md-primary); font-size: 10px; text-transform: uppercase;">Total</strong>
+                            <strong style="color: var(--md-primary); font-size: 14px;">${fmt(currentAssets)}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
 
     // ==========================================
     // EXPORT ENGINES (PDF & CSV)
     // ==========================================
-    
+
     exportDaybookPDF: async () => {
         try {
             if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
@@ -4793,6 +4976,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🟢 ENTERPRISE FIX: Failsafe Search Timer Injector
     // Instantly patches the missing search timer so the Inventory Master search bar NEVER crashes!
     if (!window.Utils) window.Utils = {};
+
+    // 🚀 AUTO-INJECT MISSING INVOICE MENU
+    if (!document.getElementById('sheet-invoice-more-options')) {
+        const optionsMenu = document.createElement('div');
+        optionsMenu.id = 'sheet-invoice-more-options';
+        optionsMenu.className = 'bottom-sheet';
+        optionsMenu.innerHTML = `
+            <div class="sheet-header">
+                <span style="font-size: 18px; font-weight: 500;">Document Options</span>
+                <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options')">close</span>
+            </div>
+            <div style="padding: 16px;">
+                <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.cancelDocument(isSales ? 'sales' : 'purchase', window.app.state.currentEditId); }, 300);">
+                    <div style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                        <span class="material-symbols-outlined">block</span>
+                    </div>
+                    <div>
+                        <strong style="display:block; font-size:16px;">Cancel Document</strong>
+                        <small style="color:var(--md-text-muted);">Mark as void & reverse stock</small>
+                    </div>
+                </div>
+
+                <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.deleteRecord(isSales ? 'sales' : 'purchase'); }, 300);">
+                    <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                        <span class="material-symbols-outlined">delete_forever</span>
+                    </div>
+                    <div>
+                        <strong style="display:block; font-size:16px;">Delete Permanently</strong>
+                        <small style="color:var(--md-text-muted);">Move to recycle bin</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(optionsMenu);
+    }
         window.Utils.debounce = window.Utils.debounce || function(func, delay) {
             let timeout;
             return function(...args) {
@@ -5250,6 +5468,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // UPGRADE 4: Enter-to-Next Data Entry Engine
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'submit') {
+            // 🚨 ENTERPRISE FIX: Exclude Search Bars! If a user hits Enter while searching, drop the keyboard so they can see the results!
+            if (e.target.id.includes('search') || e.target.closest('.search-bar')) {
+                e.target.blur(); 
+                return;
+            }
+
             // Find all focusable inputs inside the current active screen/modal
             const activeContainer = e.target.closest('.activity-screen.open') || e.target.closest('.bottom-sheet.open') || document;
             // 🚨 BUG FIX: Added :not([readonly]) so the keyboard doesn't get trapped in locked fields!
@@ -5837,22 +6061,32 @@ scrollContainers.forEach(container => {
 // ==========================================
 document.addEventListener('visibilitychange', () => {
     
-    const lockScreen = document.getElementById('app-lock-screen') || document.getElementById('privacy-lock-screen');
+    const lockScreen = document.getElementById('app-lock-screen');
 
     if (document.visibilityState === 'hidden') {
-        // INSTANT LOCK: Display the screen with the blur already applied by the new CSS
+        // 🚨 CRITICAL KEYBOARD FIX: Force any active input to lose focus so the OS drops the keyboard!
+        if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            document.activeElement.blur();
+        }
+        // Also shut down our custom POS Numpad just in case
+        if (window.UI && window.UI.closeNumpad) window.UI.closeNumpad();
+
+        // INSTANT LOCK: Display the screen with the blur already applied by the CSS
         if (lockScreen) {
             lockScreen.style.transition = 'none'; 
             lockScreen.style.opacity = '1';
             lockScreen.style.display = 'flex';
-            lockScreen.classList.remove('hidden-lock'); 
         }
     } 
     else if (document.visibilityState === 'visible') {
-        // WAKE UP: Refresh the dashboard and colors
+        // WAKE UP: Refresh the dashboard in the background, but leave the lock screen active!
         if (window.UI) {
             window.UI.resetStatusBarColor();
             window.UI.renderDashboard(); 
+        }
+        // Ensure smooth fade transitions are ready for when the user clicks the unlock button
+        if (lockScreen) {
+            lockScreen.style.transition = 'opacity 0.3s ease';
         }
     }
 });
@@ -6253,4 +6487,210 @@ window.openInvoiceOverview = function(type, id) {
         console.error("Overview Screen Error:", error);
         if(window.app) window.app.openForm(type, id);
     }
+};
+
+// ==========================================
+// 🚀 ENTERPRISE UX: TACTILE DRAG & DROP ENGINE
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    let draggedEl = null;
+    let placeholder = null;
+    let startY = 0;
+    let initialY = 0;
+    let container = null;
+    let isDragging = false;
+    let scrollTimer = null;
+
+    const onDragStart = (e) => {
+        // Find if the user touched an invoice item
+        const target = e.target.closest('.item-entry-card');
+        if (!target) return;
+
+        // 🚨 PRECISION SHIELD: Only trigger drag if they touch the left edge (the drag handle)!
+        // This ensures they can still tap inputs and buttons normally on the right side.
+        const rect = target.getBoundingClientRect();
+        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        if (clientX - rect.left > 40) return; 
+
+        e.preventDefault(); // Stop normal background scrolling
+        isDragging = true;
+        draggedEl = target;
+        container = draggedEl.parentElement;
+
+        startY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        initialY = rect.top;
+
+        // Create a ghost placeholder to keep the form's height stable
+        placeholder = document.createElement('div');
+        placeholder.className = 'item-entry-card drag-placeholder';
+        placeholder.style.height = `${rect.height}px`;
+        placeholder.style.marginBottom = window.getComputedStyle(draggedEl).marginBottom;
+        container.insertBefore(placeholder, draggedEl);
+
+        // Make the dragged element levitate
+        draggedEl.style.position = 'fixed';
+        draggedEl.style.width = `${rect.width}px`;
+        draggedEl.style.top = `${rect.top}px`;
+        draggedEl.style.left = `${rect.left}px`;
+        draggedEl.classList.add('is-dragging');
+
+        // Heavy thud when picking up the card
+        if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('heavy');
+    };
+
+    const onDragMove = (e) => {
+        if (!isDragging || !draggedEl) return;
+        e.preventDefault();
+
+        const currentY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        const deltaY = currentY - startY;
+        draggedEl.style.top = `${initialY + deltaY}px`;
+
+        // Detect which card we are hovering over
+        const cards = [...container.querySelectorAll('.item-entry-card:not(.is-dragging):not(.drag-placeholder)')];
+        const hoveringCard = cards.find(card => {
+            const cardRect = card.getBoundingClientRect();
+            return currentY > cardRect.top && currentY < cardRect.bottom;
+        });
+
+        if (hoveringCard) {
+            const box = hoveringCard.getBoundingClientRect();
+            const midPoint = box.top + box.height / 2;
+            
+            // Animate the other items sliding out of the way
+            if (currentY < midPoint) {
+                container.insertBefore(placeholder, hoveringCard);
+            } else {
+                container.insertBefore(placeholder, hoveringCard.nextSibling);
+            }
+            // Light click as items shuffle around
+            if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+        }
+
+        // Auto-scroll the page if dragging near the top/bottom edges
+        const scrollContainer = container.closest('.activity-content');
+        if (scrollContainer) {
+            const scrollRect = scrollContainer.getBoundingClientRect();
+            clearInterval(scrollTimer);
+            if (currentY < scrollRect.top + 60) {
+                scrollTimer = setInterval(() => scrollContainer.scrollTop -= 15, 20);
+            } else if (currentY > scrollRect.bottom - 60) {
+                scrollTimer = setInterval(() => scrollContainer.scrollTop += 15, 20);
+            }
+        }
+    };
+
+    const onDragEnd = (e) => {
+        if (!isDragging || !draggedEl) return;
+        clearInterval(scrollTimer);
+        isDragging = false;
+
+        // Snap the card into its new position
+        container.insertBefore(draggedEl, placeholder);
+        
+        // Clean up physics variables
+        placeholder.remove();
+        draggedEl.style.position = '';
+        draggedEl.style.width = '';
+        draggedEl.style.top = '';
+        draggedEl.style.left = '';
+        draggedEl.classList.remove('is-dragging');
+        
+        draggedEl = null;
+        placeholder = null;
+
+        // Satisfying snap when releasing the card
+        if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('medium');
+    };
+
+    // Bind all events securely to the document
+    document.addEventListener('mousedown', onDragStart, { passive: false });
+    document.addEventListener('touchstart', onDragStart, { passive: false });
+    
+    document.addEventListener('mousemove', onDragMove, { passive: false });
+    document.addEventListener('touchmove', onDragMove, { passive: false });
+    
+    document.addEventListener('mouseup', onDragEnd);
+    document.addEventListener('touchend', onDragEnd);
+    document.addEventListener('touchcancel', onDragEnd);
+});
+// ==========================================
+// 🚨 ULTIMATE MENU HEALER (GHOST MENU FIX)
+// ==========================================
+
+// 1. Bottom Sheet Healer (Fixes Options Menu & Share Menu)
+const originalOpenSheet = window.UI.openBottomSheet;
+window.UI.openBottomSheet = function(sheetId) {
+    let sheet = document.getElementById(sheetId);
+    
+    if (!sheet) {
+        sheet = document.createElement('div');
+        sheet.id = sheetId;
+        sheet.className = 'bottom-sheet hidden';
+        
+        if (sheetId.includes('invoice') || sheetId.includes('option') || sheetId.includes('more')) {
+            sheet.innerHTML = `
+                <div class="sheet-header">
+                    <span style="font-size: 18px; font-weight: 500;">Document Options</span>
+                    <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('${sheetId}')">close</span>
+                </div>
+                <div style="padding: 16px;">
+                    <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('${sheetId}'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.cancelDocument(isSales ? 'sales' : 'purchase', window.app.state.currentEditId); }, 300);">
+                        <div style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">block</span></div>
+                        <div><strong style="display:block; font-size:16px;">Cancel Document</strong><small style="color:var(--md-text-muted);">Mark as void & reverse stock</small></div>
+                    </div>
+                    <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('${sheetId}'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.deleteRecord(isSales ? 'sales' : 'purchase'); }, 300);">
+                        <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">delete_forever</span></div>
+                        <div><strong style="display:block; font-size:16px;">Delete Permanently</strong><small style="color:var(--md-text-muted);">Move to recycle bin</small></div>
+                    </div>
+                </div>
+            `;
+        } else if (sheetId === 'sheet-smart-share') {
+            sheet.innerHTML = `
+                <div class="sheet-header">
+                    <span style="font-size: 18px; font-weight: 500;">Share Document</span>
+                    <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('${sheetId}')">close</span>
+                </div>
+                <div style="padding: 16px;">
+                    <textarea id="smart-share-msg" rows="6" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-family: inherit; font-size: 14px; margin-bottom: 16px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn-primary tap-target" onclick="if(window.app) window.app.executeSmartShare('whatsapp')" style="flex: 1; background: #25D366; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37,211,102,0.3);"><span class="material-symbols-outlined">chat</span> WhatsApp</button>
+                        <button class="btn-primary tap-target" onclick="if(window.app) window.app.executeSmartShare('pdf_only')" style="flex: 1; background: var(--md-primary); color: white; display: flex; align-items: center; justify-content: center; gap: 8px;"><span class="material-symbols-outlined">picture_as_pdf</span> PDF Only</button>
+                    </div>
+                </div>
+            `;
+        }
+        document.body.appendChild(sheet);
+    }
+    originalOpenSheet.apply(this, arguments);
+};
+
+// 2. Activity Screen Healer (Fixes Deep Analytics)
+const originalOpenActivity = window.UI.openActivity;
+window.UI.openActivity = function(activityId) {
+    let act = document.getElementById(activityId);
+    
+    if (!act && activityId === 'activity-deep-analytics') {
+        act = document.createElement('div');
+        act.id = activityId;
+        act.className = 'activity-screen hidden';
+        act.innerHTML = `
+            <div class="activity-header" style="justify-content: center; position: relative;">
+                <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
+                <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Deep Analytics</span>
+            </div>
+            <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
+                <h3 style="margin-top:0; color: var(--md-primary); font-size: 14px; text-transform: uppercase;">Top Products</h3>
+                <div id="analytics-top-products" class="m3-card" style="margin-bottom: 24px; padding: 16px;"></div>
+
+                <h3 style="margin-top:0; color: var(--md-primary); font-size: 14px; text-transform: uppercase;">Top Customers</h3>
+                <div id="analytics-top-customers" class="m3-card" style="margin-bottom: 24px; padding: 16px;"></div>
+
+                <h3 style="margin-top:0; color: var(--md-error); font-size: 14px; text-transform: uppercase;">Top Expenses</h3>
+                <div id="analytics-top-expenses" class="m3-card" style="margin-bottom: 24px; padding: 16px;"></div>
+            </div>
+        `;
+        document.body.appendChild(act);
+    }
+    originalOpenActivity.apply(this, arguments);
 };

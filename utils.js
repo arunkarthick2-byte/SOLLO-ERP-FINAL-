@@ -201,8 +201,14 @@ const Utils = {
         // Credit Notes and Refunds use negative totals. Math.floor(-500) breaks the regex and prints blank words!
         // 🚨 CRITICAL FIX: safeNumber() prevents "1,50,000" from evaluating as "1" and printing "One Rupee Only"!
         const safeNum = Math.abs(Utils.safeNumber(num));
-        const rupees = Math.floor(safeNum);
-        const paise = Math.round((safeNum - rupees) * 100);
+        let rupees = Math.floor(safeNum);
+        let paise = Math.round((safeNum - rupees) * 100);
+
+        // 🚨 ENTERPRISE FIX: The 99-Paisa Rollover Bug
+        if (paise === 100) {
+            rupees += 1;
+            paise = 0;
+        }
 
         let result = rupees === 0 ? 'Zero Rupees' : convertGroup(rupees.toString()) + ' Rupees';
         
@@ -429,8 +435,8 @@ const Utils = {
     // --- ENTERPRISE UPGRADE: BULLETPROOF MATH PARSER ---
     safeNumber: (val) => {
         let parsed = parseFloat(String(val || 0).replace(/[^0-9.-]+/g, '')) || 0;
-        // Force precision to 4 decimal places for internal math, standardizing all numbers
-        return Math.round(parsed * 10000) / 10000;
+        // Force precision to 4 decimal places using exponential math to prevent Javascript floating point drift
+        return Number(Math.round(parsed + 'e4') + 'e-4');
     },
 
     // --- ENTERPRISE UPGRADE: STRICT GSTIN VALIDATOR ---
@@ -446,7 +452,8 @@ const Utils = {
     roundFinancial: (num) => {
         const n = Utils.safeNumber(num);
         const isNeg = n < 0;
-        let absRound = Math.round((Math.abs(n) + Number.EPSILON) * 100) / 100;
+        // Exponential rounding solves the 1-paisa javascript math glitch permanently
+        let absRound = Number(Math.round(Math.abs(n) + 'e2') + 'e-2');
         return isNeg ? -absRound : absRound;
     },
 
@@ -966,7 +973,8 @@ Please process this accordingly. Thank you!`;
                 pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', '.avoid-break'] }, 
                 html2canvas: { scale: 2.0, useCORS: true, logging: false },
                 image: { type: 'jpeg', quality: 0.90 }, 
-                jsPDF: { unit: 'px', format: [800, exactHeight + 10], orientation: 'portrait', compress: true }
+                // 🚨 FIX: Force continuous single-page format dynamically based on actual content height
+                jsPDF: { unit: 'px', format: [800, Math.max(1131, exactHeight + 20)], orientation: 'portrait', compress: true }
             };
             const pdfBlob = await window.html2pdf().set(opt).from(element).outputPdf('blob');
             const readyPdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
@@ -999,9 +1007,18 @@ Please process this accordingly. Thank you!`;
             };
 
             document.getElementById('preview-action-print').onclick = () => {
-                document.getElementById('in-app-pdf-viewer').style.display = 'none';
-                window.print();
-                setTimeout(() => { document.getElementById('in-app-pdf-viewer').style.display = 'flex'; }, 500);
+                // 🚨 FIX: Force the print dialog to use the generated Blob instead of printing the screen background!
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = URL.createObjectURL(pdfBlob);
+                document.body.appendChild(iframe);
+                
+                iframe.onload = function() {
+                    setTimeout(() => {
+                        iframe.contentWindow.print();
+                        setTimeout(() => { document.body.removeChild(iframe); }, 2000);
+                    }, 200);
+                };
             };
             
             document.getElementById('preview-action-share').onclick = async () => {
@@ -1226,7 +1243,7 @@ Please process this accordingly. Thank you!`;
 
         // Build the Vector JSON Definition
         const docDefinition = {
-            pageSize: 'A4',
+            pageSize: { width: 595.28, height: 'auto' }, // 🚨 FIX: Forces continuous Single-Page PDF!
             pageMargins: [30, 30, 30, 30],
             defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
             styles: {
@@ -1249,7 +1266,7 @@ Please process this accordingly. Thank you!`;
                         {
                             width: '60%',
                             stack: [
-                                biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
                                 { text: safeBizName, style: 'h1' },
                                 { text: safeBizAddress + '\n' + bizLocationStr, style: 'sub' },
                                 { text: 'Ph: ' + biz.phone + (biz.email ? ' | Email: ' + biz.email : ''), style: 'sub' },
@@ -1475,9 +1492,14 @@ Please process this accordingly. Thank you!`;
             };
             
             btnPrint.onclick = () => {
-                viewer.style.display = 'none';
-                window.print();
-                setTimeout(() => { viewer.style.display = 'flex'; }, 500);
+                // 🚨 FIX: Opens the actual PDF in a native viewer so the printer doesn't capture the app background!
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = blobUrl;
+                a.target = "_blank";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             };
 
             // 🚨 ENTERPRISE UPGRADE: PDF.js PREVIEW RENDERING ENGINE
@@ -1612,7 +1634,10 @@ Please process this accordingly. Thank you!`;
 
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [30, 30, 30, 30],
+            pageMargins: [30, 30, 30, 40], // Increased bottom margin
+            footer: function(currentPage, pageCount) { 
+                return { text: `Page ${currentPage} of ${pageCount}`, alignment: 'center', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 0] }; 
+            },
             defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
             styles: {
                 h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
@@ -2011,7 +2036,10 @@ Please process this accordingly. Thank you!`;
 
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [30, 30, 30, 30],
+            pageMargins: [30, 30, 30, 40], // Increased bottom margin
+            footer: function(currentPage, pageCount) { 
+                return { text: `Page ${currentPage} of ${pageCount}`, alignment: 'center', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 0] }; 
+            },
             defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
             styles: {
                 h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
@@ -2370,7 +2398,10 @@ Please process this accordingly. Thank you!`;
 
         const docDefinition = {
             pageSize: 'A4',
-            pageMargins: [30, 30, 30, 30],
+            pageMargins: [30, 30, 30, 40], // Increased bottom margin
+            footer: function(currentPage, pageCount) { 
+                return { text: `Page ${currentPage} of ${pageCount}`, alignment: 'center', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 0] }; 
+            },
             defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
             styles: {
                 h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
@@ -2984,7 +3015,7 @@ Please process this accordingly. Thank you!`;
         const safePayMode = String(payAccount.name + (expense.refNo ? ` (${expense.refNo})` : ''));
 
         const docDefinition = {
-            pageSize: 'A4',
+            pageSize: { width: 595.28, height: 'auto' }, // 🚨 FIX: Forces continuous Single-Page PDF!
             pageMargins: [30, 30, 30, 30],
             defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
             styles: {
@@ -3003,7 +3034,7 @@ Please process this accordingly. Thank you!`;
                         {
                             width: '60%',
                             stack: [
-                                biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
                                 { text: String(biz.name || 'Company Name'), style: 'h1' },
                                 { text: String((biz.address ? biz.address + '\n' : '') + bizLocationStr), style: 'sub' },
                                 { text: String('Ph: ' + (biz.phone || '') + (biz.email ? ' | Email: ' + biz.email : '')), style: 'sub' }
@@ -3170,9 +3201,14 @@ Please process this accordingly. Thank you!`;
             };
             
             btnPrint.onclick = () => {
-                viewer.style.display = 'none';
-                window.print();
-                setTimeout(() => { viewer.style.display = 'flex'; }, 500);
+                // 🚨 FIX: Opens the actual PDF in a native viewer so the printer doesn't capture the app background!
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = blobUrl;
+                a.target = "_blank";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             };
 
             // PDF.js Preview Rendering
@@ -4171,6 +4207,40 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         }
     });
 };
+
+// ==========================================
+// 🚨 ENTERPRISE UPGRADE: UNIVERSAL PINCH-TO-ZOOM ENGINE
+// ==========================================
+// Mobile browsers strictly block CSS touch-zoom if the HTML Viewport is locked.
+// This AI-powered observer watches the DOM. Whenever ANY PDF viewer opens, it instantly 
+// unlocks the hardware viewport, allowing flawless pinch-to-zoom. When closed, it locks it back!
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleZoom = (enable) => {
+        const vp = document.querySelector('meta[name="viewport"]');
+        if (vp) {
+            if (enable) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover');
+            else vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+        }
+    };
+
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes) {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.id === 'in-app-pdf-viewer') toggleZoom(true);
+                });
+            }
+            if (mutation.removedNodes) {
+                mutation.removedNodes.forEach((node) => {
+                    if (node.id === 'in-app-pdf-viewer') toggleZoom(false);
+                });
+            }
+        });
+    });
+    
+    if (document.body) observer.observe(document.body, { childList: true });
+});
+
 
 // ==========================================
 // NEW CODE: GLOBAL MAP

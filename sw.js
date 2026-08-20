@@ -13,11 +13,11 @@ const ASSETS_TO_CACHE = [
     './db.js',
     './utils.js',
     './cloud.js',
-    './state.js',       // <-- ADDED
-    './components.js',  // <-- ADDED
-    './worker.js',      // <-- ADDED
-    './icon-192.png',
-    './icon-512.png',
+    './state.js',
+    './components.js',
+    './worker.js',
+    './icon192.png',
+    './icon512.png',
     './manifest.json',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',

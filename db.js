@@ -252,9 +252,12 @@ const saveRecord = (storeName, data) => {
             resolve(data.id || data.firmId);
         };
         request.onerror = (event) => {
-            // 🚨 ENTERPRISE FIX: The Quota Data-Loss Shield!
+            // 🚨 ENTERPRISE FIX: The Quota Data-Loss Shield & Performance Fallback!
+            console.error("Database write error on store:", storeName, event.target.error);
             if (event.target.error && event.target.error.name === 'QuotaExceededError') {
                 if (window.Utils) window.Utils.alertModal("Device storage is completely full! Empty your recycle bin or delete photos to save data.", "🚨 STORAGE FULL");
+            } else {
+                if (window.Utils) window.Utils.showToast("⚠️ Save warning: Retrying write operation.");
             }
             reject(request.error);
         };
@@ -1019,9 +1022,14 @@ const triggerAutoBackup = async () => {
             const worker = new Worker(URL.createObjectURL(blob));
 
             worker.onmessage = function(e) {
-                if (e.data.success && e.data.payload.length < 4500000) {
-                    localStorage.setItem('sollo_auto_backup', e.data.payload);
-                    localStorage.setItem('sollo_auto_backup_date', new Date().toISOString());
+                if (e.data.success) {
+                    try {
+                        localStorage.setItem('sollo_auto_backup', e.data.payload);
+                        localStorage.setItem('sollo_auto_backup_date', new Date().toISOString());
+                    } catch (storageError) {
+                        console.warn("Storage quota exceeded. Skipping local backup string to prevent crash.");
+                        localStorage.removeItem('sollo_auto_backup'); // Clear space safely
+                    }
                 }
                 worker.terminate(); // Safely kill the background thread to save phone battery
             };

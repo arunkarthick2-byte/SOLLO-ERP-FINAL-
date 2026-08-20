@@ -228,8 +228,8 @@ body:has(.activity-screen.open) #app-shell {
     transform: scale(0.93) translateY(12px);
     border-radius: 20px;
     overflow: hidden;
-    /* Adds a cinematic dimming effect to the background app so the new screen pops */
-    filter: brightness(0.65); 
+    /* 🚀 SPOTLIGHT DEPTH SCALING: Blurs, darkens, and desaturates the background app */
+    filter: brightness(0.65) grayscale(30%) blur(3px); 
 }
 
 .app-header {
@@ -370,6 +370,14 @@ body.dark-mode .swipe-card {
     animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+::view-transition-old(app-morph),
+::view-transition-new(app-morph) {
+    animation-duration: 0.35s;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+::view-transition-old(app-morph) { object-fit: contain; }
+::view-transition-new(app-morph) { object-fit: contain; }
+
 .nav-item span:last-child {
     font-size: 11px;
     font-weight: 500;
@@ -394,43 +402,6 @@ body.dark-mode .swipe-card {
     color: var(--md-primary); 
     padding: 4px 20px; 
     /* The spring curve above makes this width expansion physically 'bounce' */
-}
-
-/* 🚨 SOLLO NATIVE THEME: True Circular Floating Action Button */
-.floating-action-button {
-    position: fixed;
-    bottom: calc(84px + env(safe-area-inset-bottom, 0px)); 
-    right: 20px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%; /* Perfect Circle */
-    background: var(--md-primary); /* Deep Indigo Background */
-    color: var(--md-on-primary); /* Pure White Icon */
-    border: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3); /* Stronger Native Android Shadow */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, background 0.2s ease;
-}
-
-/* UPGRADE: Auto-hide FAB class */
-.floating-action-button.fab-hidden {
-    transform: translateY(150px) scale(0.8);
-}
-
-.floating-action-button:active {
-    /* 3D Magnetic Tilt Effect */
-    transform: scale(0.92) rotate(-3deg) translateY(4px);
-    background: var(--md-primary);
-    color: var(--md-on-primary);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s ease;
-}
-
-.floating-action-button .material-symbols-outlined {
-    font-size: 28px; 
 }
 
 /* ==========================================
@@ -787,11 +758,11 @@ body.dark-mode .activity-header {
     max-height: 85vh; 
     padding-bottom: env(safe-area-inset-bottom, 0px); 
     
-    /* 🚀 ENTERPRISE UPGRADE: GPU HARDWARE ACCELERATION */
-    transform: translateY(100%) translateZ(0); 
+    /* 🚀 ENTERPRISE UPGRADE: GPU HARDWARE ACCELERATION (True 3D) */
+    transform: translate3d(0, 100%, 0); 
     will-change: transform;
     backface-visibility: hidden;
-    perspective: 1000px;
+    -webkit-backface-visibility: hidden;
     
     transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease; 
 }
@@ -818,7 +789,7 @@ body.dark-mode .bottom-sheet::before {
 
 .bottom-sheet.open { 
     /* Maintains GPU 3D lock while open */
-    transform: translateY(0) translateZ(0); 
+    transform: translate3d(0, 0, 0); 
     box-shadow: 0 -4px 24px rgba(0,0,0,0.4); 
 }
 
@@ -1007,9 +978,15 @@ body.dark-mode .skeleton {
         break-inside: avoid !important;
     }
 
+    /* 🚨 FIX: Force the browser print dialog to shrink the content to fit a single physical page! */
+    body {
+        zoom: 0.70; /* Scales the document down so it never spills over onto page 2 */
+    }
+
     /* Kill default browser margins that push content onto page 2 */
     @page {
-        margin: 0.5cm; 
+        margin: 0; /* Removed margin entirely to maximize printable area */
+        size: auto; /* Let the printer determine the best fit */
     }
 }
 /* ========================================== */
@@ -1338,8 +1315,16 @@ input[type="checkbox"]:checked {
     background-color: var(--md-primary);
     border-color: var(--md-primary);
 }
+/* 🚀 JELLY PHYSICS CHECKBOX */
+@keyframes jelly-pop {
+    0% { transform: scale(0.5); }
+    40% { transform: scale(1.3); }
+    70% { transform: scale(0.85); }
+    100% { transform: scale(1); }
+}
 input[type="checkbox"]:checked::before {
     transform: scale(1);
+    animation: jelly-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 /* ==========================================
    ELITE UI UPGRADES (WATERFALL & FROSTED GLASS)
@@ -2074,10 +2059,10 @@ header, .header, .top-bar {
 /* Apply this to the individual rows/cards inside your Master Lists */
 /* 🚨 ENTERPRISE UPGRADE: Expanded to include .list-view li for infinite 60fps scrolling! */
 .virtual-item, .list-card, #master-list-container .m3-card, .list-view li {
-    /* 🚀 OFF-SCREEN RENDERING SHIELD (Peak Performance) */
-    /* Tells the phone's CPU to completely ignore elements until you scroll to them */
-    content-visibility: auto;
-    contain-intrinsic-size: auto 72px; /* Mathematically adjusted to 72px to perfectly match your new compact list height! */
+    /* 🚀 GPU SHIELD (JS Virtualizer handles DOM visibility now!) */
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 /* ==========================================
    ENTERPRISE UPGRADE: DESKTOP SIMULATOR
@@ -2658,10 +2643,35 @@ body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
     visibility: visible;
 }
 
+/* ==========================================
+   🚀 STAGGERED BLOOM CASCADES
+   ========================================== */
+@keyframes bloom-up {
+    0% { opacity: 0; transform: translateY(15px) scale(0.96); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Apply the organic bloom physics to cards and buttons inside an open sheet */
+.bottom-sheet.open .m3-card,
+.bottom-sheet.open .search-container,
+.bottom-sheet.open .sheet-action-row,
+.bottom-sheet.open > div > button {
+    animation: bloom-up 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+/* Stagger the entrance dynamically based on their position in the list */
+.bottom-sheet.open .m3-card:nth-child(1), .bottom-sheet.open > div > button:nth-child(1) { animation-delay: 0.05s; }
+.bottom-sheet.open .m3-card:nth-child(2), .bottom-sheet.open > div > button:nth-child(2) { animation-delay: 0.10s; }
+.bottom-sheet.open .m3-card:nth-child(3), .bottom-sheet.open > div > button:nth-child(3) { animation-delay: 0.15s; }
+.bottom-sheet.open .m3-card:nth-child(4), .bottom-sheet.open > div > button:nth-child(4) { animation-delay: 0.20s; }
+.bottom-sheet.open .m3-card:nth-child(5), .bottom-sheet.open > div > button:nth-child(5) { animation-delay: 0.25s; }
+.bottom-sheet.open .m3-card:nth-child(6), .bottom-sheet.open > div > button:nth-child(6) { animation-delay: 0.30s; }
+.bottom-sheet.open .m3-card:nth-child(n+7), .bottom-sheet.open > div > button:nth-child(n+7) { animation-delay: 0.35s; }
+
 .bottom-sheet:not(.open) {
     /* Pushes the hidden sheet completely below the mobile safe-area bezel */
     /* 🚀 Maintains GPU lock while hidden */
-    transform: translateY(calc(100% + 60px)) translateZ(0) !important;
+    transform: translate3d(0, calc(100% + 60px), 0) !important;
     visibility: hidden;
 }
 
@@ -2990,25 +3000,12 @@ select {
     margin-bottom: 0 !important; 
     padding: 16px !important; /* Native comfortable touch target */
     border-radius: 0 !important; /* Square corners */
-    border: none !important; /* Remove all borders */
-    border-bottom: 1px solid var(--md-surface-variant) !important; /* Only bottom separator line */
+    border: none !important; /* Remove all borders completely */
     box-shadow: none !important; 
     background: transparent !important;
 }
 
-/* Dark Mode support for the separator lines */
-body.dark-mode .history-card, 
-body.dark-mode .transaction-card,
-body.dark-mode .activity-list > div,
-body.dark-mode #sales-history-container .m3-card,
-body.dark-mode #purchase-history-container .m3-card,
-body.dark-mode #cashbook-container .m3-card,
-body.dark-mode #expense-history-container .m3-card,
-body.dark-mode #master-list-container .m3-card,
-body.dark-mode #timeline-list .m3-card,
-body.dark-mode #item-ledger-list .m3-card {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; 
-}
+/* Removed Dark Mode separator lines completely to ensure a pure flush list */
 
 /* Removes the extra line at the very bottom of the list */
 .history-card:last-child, 
@@ -3305,21 +3302,6 @@ body.dark-mode #tab-dashboard .m3-card:first-of-type {
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch; /* Enables smooth, momentum scrolling on mobile */
     padding-bottom: 30px; /* Adds a little extra breathing room at the bottom */
-}
-/* ==========================================
-   ENTERPRISE FIX: PROFESSIONAL STATIC FAB
-   ========================================== */
-#main-fab {
-    animation: none !important; /* Kills the continuous breathing/pulsing effect */
-    transform: none !important; /* Stops any background scaling */
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important; /* Clean, static enterprise shadow */
-    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
-}
-
-/* Crisp, responsive feedback only when actively pressed */
-#main-fab:active {
-    transform: scale(0.96) !important; /* Professional click indent */
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
 }
 /* ==========================================
    ENTERPRISE UX: NATIVE SPEED & FOCUS TRACKING
@@ -3823,14 +3805,40 @@ body.compact-mode input, body.compact-mode select {
 .numpad-title { font-weight: 700; color: var(--md-primary); font-size: 14px; text-transform: uppercase; }
 /* Zero gaps to force the grid together natively */
 .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; background: var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); }
+/* 🚀 MECHANICAL 3D POS KEYS */
 .numpad-btn {
-    background-color: var(--md-surface) !important; border: none; border-radius: 0; padding: 20px 0;
-    font-size: 24px; font-weight: 500; text-align: center; color: var(--md-on-surface); cursor: pointer; box-shadow: none;
-    border-right: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);
-    transition: background-color 0.1s ease;
+    background: linear-gradient(180deg, var(--md-surface) 0%, var(--md-surface-variant) 100%) !important;
+    border: none;
+    border-radius: 0;
+    padding: 20px 0;
+    font-size: 24px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--md-on-surface);
+    cursor: pointer;
+    /* 3D Layered Shadow to make the key look physically raised off the glass */
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 4px 6px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-right: 1px solid var(--md-outline-variant);
+    border-bottom: 1px solid var(--md-outline-variant);
+    transition: transform 0.08s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.08s ease, background 0.08s ease !important;
 }
-.numpad-btn:active { background-color: var(--md-surface-variant) !important; transform: none; /* Removed bouncy shrinking */ }
-.numpad-btn.action-done { background-color: var(--md-primary) !important; color: var(--md-on-primary); font-weight: 700; border-right: none; }
+body.dark-mode .numpad-btn {
+    background: linear-gradient(180deg, #1e1e22 0%, #121212) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 6px rgba(0, 0, 0, 0.4);
+}
+.numpad-btn:active {
+    /* Physical Sinking Motion: Key drops down and shadow collapses */
+    transform: translateY(3px) scale(0.98) !important;
+    background: var(--md-surface-variant) !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15), 0 0 1px rgba(0, 0, 0, 0.2) !important;
+}
+.numpad-btn.action-done {
+    background: linear-gradient(180deg, var(--md-primary) 0%, color-mix(in srgb, var(--md-primary) 80%, black)) !important;
+    color: var(--md-on-primary);
+    font-weight: 700;
+    border-right: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 4px 10px rgba(0, 97, 164, 0.3);
+}
 /* ==========================================
    ENTERPRISE FIX: DYNAMIC INVOICE INPUTS
    ========================================== */
@@ -3917,7 +3925,6 @@ body.dark-mode .bottom-nav, [data-theme="dark"] .bottom-nav {
 .main-content, .activity-content, .list-view, .scrollable-content {
     overflow-y: scroll !important; /* Native momentum lock */
     -webkit-overflow-scrolling: touch !important; 
-    overscroll-behavior-y: contain !important; 
     transform: translateZ(0) !important; /* Force GPU rendering */
     will-change: scroll-position !important; 
     scrollbar-width: none !important; 
@@ -3935,30 +3942,6 @@ body.dark-mode .bottom-nav, [data-theme="dark"] .bottom-nav {
 .list-view li > div:first-child small, .m3-card small {
     font-size: clamp(10px, 2.5vw, 12px) !important;
     letter-spacing: 0.01em !important;
-}
-/* ==========================================
-   ENTERPRISE FIX: TRUE RIGHT-SIDE FAB
-   ========================================== */
-.floating-action-button, #main-fab {
-    position: fixed !important; 
-    
-    /* 1. Kills any accidental centering from other CSS rules */
-    left: auto !important; 
-    margin: 0 !important; 
-    
-    /* 2. Locks it exactly 16px from the physical right edge of the phone screen */
-    right: 16px !important; 
-    
-    /* 3. Hovers it perfectly just above your floating bottom navigation */
-    bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; 
-    
-    /* 4. Forces it to always stay on top of lists and cards */
-    z-index: 9999 !important; 
-}
-
-/* Ensure it still slides down and hides properly when you scroll */
-.floating-action-button.fab-hidden, #main-fab.fab-hidden {
-    transform: translateY(180px) scale(0.8) !important;
 }
 /* ==========================================
    ENTERPRISE INVENTORY PACK (Sortly/Odoo UI)
@@ -4180,19 +4163,15 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
     transform: none !important;
 }
 
-/* ------------------------------------------
-   2. GPU SKELETON LOADERS (0% CPU Usage)
-   ------------------------------------------ */
-/* Wipe out all old CPU-heavy 'background-position' animations globally */
+/* 🚀 FLUID "GLASS" WAVE SKELETONS */
 .skeleton, .skeleton-card, .skeleton-loader {
-    animation: none !important;
+    animation: none !important; /* Kills old background pulsing */
     background: var(--md-surface-variant) !important;
     position: relative !important;
     overflow: hidden !important;
-    transform: translateZ(0) !important; /* Locks element to the graphics card */
+    transform: translateZ(0) !important; /* Locks element to the GPU */
 }
 
-/* Inject the shimmering light beam via a hardware-accelerated transform */
 .skeleton::after, .skeleton-card::after, .skeleton-loader::after {
     content: "";
     position: absolute;
@@ -4200,21 +4179,23 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
     left: -100%;
     width: 50%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-    /* translateX is processed 100% by the GPU, saving massive battery! */
-    animation: gpu-shimmer 1.2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    /* A sharp, intense light beam with a frosted drop-off */
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.1), transparent);
+    /* Skew the light beam and animate it seamlessly */
+    animation: glass-wave 1.5s infinite cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* Dark Mode adjustment for the GPU shimmer */
 body.dark-mode .skeleton, body.dark-mode .skeleton-card, body.dark-mode .skeleton-loader {
     background: #1a1a1e !important;
 }
+
 body.dark-mode .skeleton::after, body.dark-mode .skeleton-card::after, body.dark-mode .skeleton-loader::after {
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02), transparent);
 }
 
-@keyframes gpu-shimmer {
-    100% { transform: translateX(400%); }
+@keyframes glass-wave {
+    0% { transform: skewX(-20deg) translateX(-150%); }
+    100% { transform: skewX(-20deg) translateX(350%); }
 }
 
 /* ------------------------------------------
@@ -4823,12 +4804,11 @@ select:-webkit-autofill:focus {
     padding: 16px !important;
 }
 /* ==========================================
-   🚨 ANDROID UPGRADE 6: OFF-SCREEN CPU OPTIMIZER
+/* 🚨 ANDROID UPGRADE 6: OFF-SCREEN CPU OPTIMIZER
    ========================================== */
-/* Turns off the rendering engine for cards scrolled off-screen, preventing screen-tearing on the pristine white background! */
+/* JS Virtualizer handles DOM off-loading now. This just forces GPU rendering! */
 .list-view li, .m3-card {
-    content-visibility: auto !important;
-    contain-intrinsic-size: 80px !important; /* Educated hardware guess on card height */
+    transform: translate3d(0, 0, 0) !important;
     backface-visibility: hidden !important;
     -webkit-backface-visibility: hidden !important;
 }
@@ -7512,6 +7492,12 @@ body.dark-mode #ledger-summary-card {
 }
 
 /* 2. Nuclear Specificity - Overpowers ALL dark mode and inline style rules */
+body .m3-card,
+body .list-view li,
+body.dark-mode .m3-card,
+body.dark-mode .list-view li,
+body .activity-screen .m3-card,
+body.dark-mode .activity-screen .m3-card,
 body #app-shell .m3-card,
 body #app-shell .list-view li,
 body.dark-mode #app-shell .m3-card,
@@ -8181,4 +8167,119 @@ body.dark-mode .ios-toggle-wrapper input:checked + .ios-slider { background-colo
     color: var(--md-on-surface) !important;
     font-family: inherit;
     transition: all 0.2s ease !important;
+}
+/* ==========================================
+   🚀 BOTTOM SHEETS (FULL WIDTH + 4 CURVY CORNERS)
+   ========================================== */
+.bottom-sheet { 
+    border-radius: 24px !important; 
+}
+/* ==========================================
+   🚀 PAYMENT CONFETTI ENGINE
+   ========================================== */
+.confetti-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    z-index: 999999;
+    pointer-events: none;
+    animation: confetti-explode 1s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+@keyframes confetti-explode {
+    0% { transform: translate(-50%, -50%) scale(0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(1.5) rotate(720deg); opacity: 0; }
+}
+/* ==========================================
+   🚀 ENTERPRISE UX: AMBIENT AURORA GLOW
+   ========================================== */
+@keyframes aurora-breathe {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+#app-shell {
+    /* Create a massive, soft 4-color gradient */
+    background: linear-gradient(-45deg, 
+        var(--md-background), 
+        var(--md-surface-variant), 
+        rgba(0, 97, 164, 0.03), 
+        var(--md-background)
+    ) !important;
+    background-size: 400% 400% !important;
+    
+    /* Animate it shifting slowly over 15 seconds */
+    animation: aurora-breathe 15s ease infinite !important;
+}
+
+body.dark-mode #app-shell {
+    /* A deep, moody bioluminescent glow for dark mode */
+    background: linear-gradient(-45deg, 
+        #09090B, 
+        #121212, 
+        rgba(124, 177, 255, 0.03), 
+        #09090B
+    ) !important;
+    background-size: 400% 400% !important;
+    animation: aurora-breathe 18s ease infinite !important;
+}
+/* ==========================================
+   🚀 ENTERPRISE UX: RUBBER BAND PHYSICS
+   ========================================== */
+.main-content, .activity-content, .list-view, .bottom-sheet, #smart-search-results {
+    /* Unlocks the scroll boundary so iOS and Android can apply their native "Stretch and Bounce" physics when you hit the top or bottom of a list! */
+    overscroll-behavior-y: auto !important; 
+    overscroll-behavior-x: none !important; /* Keep horizontal locked to prevent side-wobble */
+}
+/* ==========================================
+   🚀 ENTERPRISE UX: TACTILE DRAG & DROP
+   ========================================== */
+.item-entry-card {
+    position: relative !important;
+    padding-left: 36px !important; /* Make room for the drag handle */
+    touch-action: pan-y; /* Allows normal vertical scrolling */
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, opacity 0.2s ease !important;
+}
+
+/* Magically inject the Drag Icon without editing HTML */
+.item-entry-card::before {
+    content: 'drag_indicator';
+    font-family: 'Material Symbols Outlined';
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--md-outline);
+    font-size: 24px;
+    cursor: grab;
+    padding: 8px;
+}
+body.dark-mode .item-entry-card::before {
+    color: #475569;
+}
+
+/* The "Levitating" State when dragged */
+.item-entry-card.is-dragging {
+    z-index: 99999 !important;
+    transform: scale(1.02) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 97, 164, 0.1) !important;
+    opacity: 0.95 !important;
+    background: var(--md-surface) !important;
+    border-color: var(--md-primary) !important;
+    transition: none !important; /* Disables transition so it perfectly follows the thumb */
+}
+body.dark-mode .item-entry-card.is-dragging {
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+    background: #1e1e22 !important;
+}
+
+/* The Ghost Placeholder left behind */
+.item-entry-card.drag-placeholder {
+    opacity: 0 !important; 
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    height: 0 !important;
+    transition: height 0.2s ease !important;
 }

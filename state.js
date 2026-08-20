@@ -21,8 +21,12 @@ window.AppState = new Proxy({
         
         // Loop through them and inject the new value automatically
         elements.forEach(el => {
+            // 🚨 BUG FIX: Checkboxes use .checked, not .value!
+            if (el.type === 'checkbox') {
+                if (el.checked !== !!value) el.checked = !!value;
+            }
             // If it's a typing box, update the .value
-            if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+            else if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
                 if (el.value !== String(value)) el.value = value;
             } 
             // If it's just normal text on the screen, update the .innerText
