@@ -2313,7 +2313,7 @@ const app = {
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
                                 <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" readonly style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
-                                <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
+                                <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
                                 <input type="hidden" class="row-item-id" value="${item.itemId}">
@@ -2895,7 +2895,7 @@ const app = {
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
                                 <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); outline: none;'}">
-                                <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${item.gstPercent || 0}% GST</span>
+                                <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
                                 <input type="hidden" class="row-item-id" value="${item.itemId}">

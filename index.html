@@ -849,7 +849,7 @@
                     <div style="padding: 16px; background: rgba(0, 97, 164, 0.05); border: 1px solid rgba(0, 97, 164, 0.2); border-radius: 8px 8px 0 0; border-bottom: none;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                             <strong style="font-size: 15px; color: #0061a4; display: flex; align-items: center; gap: 8px;"><span class="material-symbols-outlined" style="font-size: 18px;">cloud</span> Google Drive Sync</strong>
-                            <span id="cloud-status-tab" style="font-size: 11px; font-weight: 800; color: #0061a4; background: rgba(255,255,255,0.5); padding: 4px 8px; border-radius: 4px;">Checking...</span>
+                            <span id="cloud-status-tab" style="display: inline-block; font-size: 11px; font-weight: 800; color: #0061a4; background: rgba(255,255,255,0.5); padding: 4px 8px; border-radius: 4px; line-height: 1.2;">Checking...</span>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn-primary-small tap-target setting-btn" data-action="backup" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px; font-size: 13px;">
@@ -1055,14 +1055,17 @@
         </div>
     </div>
 
-    <!-- 6. SMART SEARCH MENU (RESTORED) -->
-    <div id="sheet-smart-search" class="bottom-sheet" style="height: 85vh;">
-        <div class="sheet-header" style="display: flex; justify-content: space-between; align-items: center;">
-            <span class="material-symbols-outlined tap-target" style="padding: 8px; margin-left: -8px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-smart-search')">close</span>
-            <span id="smart-search-title" style="font-size: 18px; font-weight: 600; color: var(--md-on-surface);">Search</span>
-            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); font-size: 28px; padding: 8px; margin-right: -8px; font-weight: bold;" onpointerdown="event.preventDefault(); event.stopPropagation(); if(window.UI) window.UI.createNewFromSearch();">add</span>
-        </div>
-        <div style="padding: 16px; display: flex; flex-direction: column; height: calc(100% - 60px);">
+    <!-- 6. SMART SEARCH MENU (RESTORED TO FLOATING MODAL) -->
+    <div id="sheet-smart-search" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff); overflow: hidden;">
+        <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 12px 16px 0 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <strong id="smart-search-title" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Search</strong>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); font-size: 28px; font-weight: bold;" onpointerdown="event.preventDefault(); event.stopPropagation(); if(window.UI) window.UI.createNewFromSearch();">add</span>
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-smart-search')">close</span>
+                </div>
+            </div>
+            
             <div class="search-container" style="position: relative; margin-bottom: 12px; flex-shrink: 0; box-shadow: none !important; border: 1px solid var(--md-outline-variant) !important; border-radius: 8px !important;">
                 <span class="material-symbols-outlined" style="position: absolute; left: 12px; top: 12px; color: var(--md-outline);">search</span>
                 <input type="text" id="smart-search-input" placeholder="Type to search..." autocomplete="off" oninput="if(window.UI) window.UI.executeSmartSearch()" style="width: 100%; padding: 12px 12px 12px 40px; border: none; font-size: 16px; background: transparent; outline: none;">
@@ -1072,8 +1075,10 @@
                 <div id="smart-tab-customer" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; background: var(--md-surface); color: var(--md-primary); box-shadow: var(--elevation-1); font-size: 13px;" onclick="window.switchSmartTab('customer')">Customers</div>
                 <div id="smart-tab-supplier" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="window.switchSmartTab('supplier')">Suppliers</div>
             </div>
-            
-            <div id="smart-search-results" style="flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; margin: 0 -16px; padding: 0 16px;"></div>
+        </div>
+        
+        <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface, #ffffff); position: relative;">
+            <ul class="list-view" id="smart-search-results" style="margin: 0; padding: 0; padding-bottom: 16px; border: none; max-height: none !important; overflow: visible !important;"></ul>
         </div>
         <script>
             window.switchSmartTab = function(tab) {
@@ -3145,7 +3150,7 @@
             <strong style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Link to Document(s)</strong>
             <div style="display: flex; align-items: center; gap: 16px;">
                 <span class="tap-target" style="color: var(--md-primary, #0061a4); font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">DONE</span>
-                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;">close</span>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">close</span>
             </div>
         </div>
         <input type="text" id="search-linked-docs" placeholder="Search Order No or Inv No..." autocomplete="off" oninput="if(window.app) window.app.filterLinkedDocs(this.value)" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: var(--md-surface-variant, #f1f5f9); padding: 10px; border-radius: 8px; font-size: 14px; color: var(--md-on-surface, #1e293b); outline: none; margin-bottom: 12px;">

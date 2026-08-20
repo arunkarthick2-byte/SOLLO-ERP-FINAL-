@@ -3573,9 +3573,6 @@ const UI = {
     },
 
     // ==========================================
-    // ENTERPRISE UPGRADE: SMART SEARCH ENGINE
-    // ==========================================
-    // ==========================================
     // ENTERPRISE UPGRADE: DEDICATED SMART SEARCH
     // ==========================================
     openSmartSearch: (targetType, formPrefix) => {
@@ -3719,20 +3716,22 @@ const UI = {
                     const ng = isNaN(rawNon) ? 0 : rawNon;
                     
                     html += `
-                    <div class="tap-target" onclick="document.getElementById('adj-product-id').value='${i.id}'; document.getElementById('adj-product-display').innerText='${safeName} (GST: ${g} | Non: ${ng})'; document.getElementById('adj-product-display').style.color='var(--md-on-surface)'; UI.closeBottomSheet('sheet-smart-search');" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span></div>
-                        <div><strong style="display: block; font-size: 16px;">${UI.highlightText(i.name, query)}</strong><small style="color: var(--md-text-muted);">GST: ${g} | Non-GST: ${ng}</small></div>
-                    </div>`;
+                    <li class="tap-target" onclick="document.getElementById('adj-product-id').value='${i.id}'; document.getElementById('adj-product-display').innerText='${safeName} (GST: ${g} | Non: ${ng})'; document.getElementById('adj-product-display').style.color='var(--md-on-surface)'; UI.closeBottomSheet('sheet-smart-search');">
+                        <div style="display:flex; align-items:center; gap: 12px; width: 100%;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span></div>
+                            <div style="flex: 1; min-width: 0;"><strong style="font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(i.name, query)}</strong><small style="color: var(--md-text-muted);">GST: ${g} | Non-GST: ${ng}</small></div>
+                        </div>
+                    </li>`;
                 } else {
                     const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
                     const safeUom = String(i.uom || '').replace(/'/g, "\\'");
                     const safeHsn = String(i.hsn || '').replace(/'/g, "\\'");
                     const stockVal = parseFloat(i.stock) || 0;
                     const isLowStock = parseFloat(i.minStock) > 0 && stockVal <= parseFloat(i.minStock);
-                    const stockStr = `<span style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.1)' : (isLowStock ? 'rgba(245, 127, 23, 0.1)' : 'rgba(20, 108, 46, 0.1)')}; color: ${stockVal <= 0 ? 'var(--md-error)' : (isLowStock ? '#d84315' : 'var(--md-success)')}; border: 1px solid ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.3)' : (isLowStock ? 'rgba(245, 127, 23, 0.3)' : 'rgba(20, 108, 46, 0.3)')};">${stockVal <= 0 ? 'Out of Stock' : (isLowStock ? 'Low Stock: ' + stockVal : 'In Stock: ' + stockVal)}</span>`;
+                    const stockStr = `<span style="display: inline-block; padding: 4px 8px; margin-top: 2px; margin-bottom: 2px; line-height: 1.2; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.1)' : (isLowStock ? 'rgba(245, 127, 23, 0.1)' : 'rgba(20, 108, 46, 0.1)')}; color: ${stockVal <= 0 ? 'var(--md-error)' : (isLowStock ? '#d84315' : 'var(--md-success)')}; border: 1px solid ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.3)' : (isLowStock ? 'rgba(245, 127, 23, 0.3)' : 'rgba(20, 108, 46, 0.3)')};">${stockVal <= 0 ? 'Out of Stock' : (isLowStock ? 'Low Stock: ' + stockVal : 'In Stock: ' + stockVal)}</span>`;
                     
                     html += `
-                    <div class="m3-card" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px;">
+                    <li style="flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 16px;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                             <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${stockVal <= 0 ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
@@ -3755,7 +3754,7 @@ const UI = {
                                 Add to Bill
                             </button>
                         </div>
-                    </div>`;
+                    </li>`;
                 }
             });
             
@@ -3901,7 +3900,7 @@ const UI = {
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
                         <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
-                        <span style="font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap;">${gst || 0}% GST</span>
+                        <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
                         <input type="hidden" class="row-uom" value="${uom || 'Unit'}">
