@@ -1209,8 +1209,7 @@ const UI = {
             else stickyTotal.innerHTML = `&#8377;${roundedTotal.toFixed(2)}`;
         }
         
-        if (window.UI && window.UI.updateLiveInsight) window.UI.updateLiveInsight(prefix);
-                UI.updateInstallmentTracker(prefix);
+        UI.updateInstallmentTracker(prefix);
 
     },
     
@@ -3954,10 +3953,6 @@ const UI = {
         // ENTERPRISE FIX: Removed manual history pop! index.html handles this automatically.
     },
         
-    // UPGRADE: iOS-Style Haptic Context Menu (Disabled)
-    showContextMenu: (clickAction) => {
-        return; 
-    },
     renderLedgerList: (containerId, ledgers, prefix) => {
         const container = document.getElementById(containerId);
         if(!container) return;
@@ -5294,6 +5289,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'autofix':
                         if (window.app && window.app.recalculateAllStock) window.app.recalculateAllStock();
                         break;
+                    case 'archive':
+                        if (window.executeColdStorageArchive) {
+                            window.Utils.confirmModal("Compress all invoices older than 1 year? This saves space and cannot be undone.", "Archive Data", true).then(confirmed => {
+                                if (confirmed) {
+                                    window.Utils.showToast("Archiving old data... ⏳");
+                                    window.executeColdStorageArchive().then(count => {
+                                        window.Utils.alertModal(`Success! Compressed ${count} old invoices.`, "Archive Complete");
+                                    });
+                                }
+                            });
+                        }
+                        break;
                     case 'update':
                         if (window.Utils) window.Utils.showToast('Checking for updates... 🔄');
                         if ('serviceWorker' in navigator) {
@@ -6183,6 +6190,46 @@ if (window.UI && typeof window.UI.addSmartItemRow === 'function') {
 // ==========================================
 // INVOICE OVERVIEW ENGINE (READ-ONLY) - PREMIUM UX
 // ==========================================
+
+// 🚀 1-CLICK WORKFLOW PROGRESSION ENGINE
+window.quickUpdateStatus = async function(storeName, docId, newStatus) {
+    if (!window.getRecordById || !window.saveRecord) return;
+    
+    if (window.UI) window.UI.triggerHaptic('medium');
+    if (window.Utils) window.Utils.showToast("Updating status... ⏳");
+
+    // Fetch the live document directly from the database
+    const doc = await window.getRecordById(storeName, docId);
+    if (!doc) return;
+
+    const todayStr = window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+    
+    doc.status = newStatus;
+    if (newStatus === 'Shipped') {
+        doc.shippedDate = todayStr;
+    } else if (newStatus === 'Completed') {
+        doc.completedDate = todayStr;
+    }
+
+    // Save using the secure transaction engine so stock updates safely!
+    if (typeof window.saveInvoiceTransaction === 'function') {
+        await window.saveInvoiceTransaction(storeName, doc);
+    } else {
+        await window.saveRecord(storeName, doc);
+    }
+
+    // Wipe cache and trigger background refresh
+    if (window.AppCache) window.AppCache[storeName] = null;
+    if (window.app && typeof window.app.refreshAll === 'function') window.app.refreshAll(true);
+    
+    if (window.Utils) window.Utils.showToast(`✅ Marked as ${newStatus}`);
+    
+    // Refresh the current screen to show the new date and banner instantly!
+    setTimeout(() => {
+        if (window.openInvoiceOverview) window.openInvoiceOverview(storeName === 'sales' ? 'sales' : 'purchase', docId);
+    }, 150);
+};
+
 window.openInvoiceOverview = function(type, id) {
     try {
         // Map 'purchase' to 'purchases' so the memory engine finds the data
@@ -6217,6 +6264,7 @@ window.openInvoiceOverview = function(type, id) {
 
         // 2. STATUS & BALANCES
         let totalPaid = 0;
+        let lastPaymentDate = null; // 🚨 ENTERPRISE FIX: Track the exact date of final payment
         const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
         (window.UI?.state?.rawData?.cashbook || []).forEach(c => {
             const legacyRef = c.invoiceRef || c.linkedInvoice;
@@ -6224,6 +6272,13 @@ window.openInvoiceOverview = function(type, id) {
                 const refs = String(legacyRef).split(',').map(r => r.trim());
                 if (refs.some(r => uniqueRefs.includes(r))) {
                     totalPaid += c.allocationMap && c.allocationMap[doc.id] !== undefined ? parseFloat(c.allocationMap[doc.id]) : parseFloat(c.amount) / refs.length;
+                    
+                    // Log the date of the most recent payment
+                    if (c.date) {
+                        if (!lastPaymentDate || new Date(c.date) > new Date(lastPaymentDate)) {
+                            lastPaymentDate = c.date;
+                        }
+                    }
                 }
             }
         });
@@ -6245,29 +6300,42 @@ window.openInvoiceOverview = function(type, id) {
         const safeOrdDate = fDate(doc.orderDate);
         const safeShipDate = fDate(doc.shippedDate);
         const safeCompDate = fDate(doc.completedDate);
+        const safePaidDate = fDate(lastPaymentDate); // Format the true payment date
         
         // Exact Banner Logic
         let bannerStatusText = statusText;
-        if ((statusText === 'Completed' || statusText === 'Paid') && safeCompDate) {
-            bannerStatusText = `${statusText.toUpperCase()} • ${safeCompDate}`;
+        if (statusText === 'Paid' && safePaidDate) {
+            bannerStatusText = `PAID • ${safePaidDate}`;
+        } else if (safeCompDate && doc.status === 'Completed') {
+            bannerStatusText = `COMPLETED • ${safeCompDate}`;
         } else if ((statusText === 'Shipped' || statusText === 'Unpaid') && safeShipDate) {
             bannerStatusText = `${statusText.toUpperCase()} • ${safeShipDate}`;
         }
 
-        // Exact Date Grid Logic
+        // Exact Date Grid Logic (Smart De-duplication)
         const dateItems = [];
+        
+        // 1. Always show Invoice Date
         dateItems.push({ label: isSales ? (isNonGST ? 'Date' : 'Inv Date') : 'Bill Date', val: safeInvDate || '-' });
+        
+        // 2. Always show Order / PO Date
         dateItems.push({ label: isSales ? 'Ord Date' : 'PO Date', val: safeOrdDate || '-' });
         
-        if ((statusText === 'Completed' || statusText === 'Paid') && safeShipDate) {
-            dateItems.push({ label: 'Dispatched', val: safeShipDate }); // Only Shipped Date here if completed
+        // 3. Show Shipped Date ONLY if the invoice is Completed or Paid. 
+        // (If it is only 'Shipped', the dispatch date is already in the main banner!)
+        if (safeShipDate && (statusText === 'Paid' || doc.status === 'Completed')) {
+            dateItems.push({ label: 'Dispatched', val: safeShipDate }); 
         }
-
+        
+        // 4. NEVER show Completed or Paid Date in this grid, because they are always displayed in the top Banner!
+        
         let dateGridHTML = '';
         if (dateItems.length > 0) {
-            dateGridHTML = `<div style="display: flex; width: 100%; justify-content: flex-start; gap: 16px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--md-outline-variant);">`;
+            // 🚨 FIX: Added flex-wrap and row-gap so 4 items don't squish on small phones!
+            dateGridHTML = `<div style="display: flex; flex-wrap: wrap; width: 100%; justify-content: flex-start; gap: 16px; row-gap: 12px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--md-outline-variant);">`;
             dateItems.forEach((di, idx) => {
-                const borderLeft = idx > 0 ? `border-left: 1px solid var(--md-outline-variant); padding-left: 16px;` : '';
+                // Remove the left border if it wraps to a new line (idx > 2 is a safe bet for mobile)
+                const borderLeft = (idx > 0 && idx !== 3) ? `border-left: 1px solid var(--md-outline-variant); padding-left: 16px;` : '';
                 dateGridHTML += `
                 <div style="${borderLeft} min-width: 0;">
                     <small style="color:var(--md-text-muted); font-size:9.5px; text-transform:uppercase; display:block; margin-bottom:2px; font-weight:800; letter-spacing:0.5px;">${di.label}</small>
@@ -6363,6 +6431,58 @@ window.openInvoiceOverview = function(type, id) {
             linksHTML += `</div>`;
         }
 
+        // 6.5. NOTES & TERMS MODULE
+        let notesHTML = '';
+        const safeNotes = doc.internalNotes ? String(doc.internalNotes).replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+        const safeTerms = doc.terms ? String(doc.terms).replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+
+        if (safeNotes || safeTerms) {
+            notesHTML = `<div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 8px; padding: 16px;">`;
+            if (safeNotes) {
+                notesHTML += `
+                <div style="margin-bottom: ${safeTerms ? '16px' : '0'};">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">notes</span> Remarks & Notes</span>
+                    <p style="margin: 6px 0 0 0; font-size: 13px; color: var(--md-on-surface); line-height: 1.4; white-space: pre-wrap;">${safeNotes}</p>
+                </div>`;
+            }
+            if (safeTerms) {
+                notesHTML += `
+                <div>
+                    <span style="font-size: 11px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">gavel</span> Terms & Conditions</span>
+                    <p style="margin: 6px 0 0 0; font-size: 12px; color: var(--md-text-muted); line-height: 1.4; white-space: pre-wrap;">${safeTerms}</p>
+                </div>`;
+            }
+            notesHTML += `</div>`;
+        }
+
+        // 6.6. PROGRESS BAR MATH
+        const percentPaid = grandTotal > 0 ? Math.min(100, (totalPaid / grandTotal) * 100) : (balance <= 0.01 && statusText === 'Paid' ? 100 : 0);
+
+        // 6.7. QUICK ACTION BUTTONS (1-Click Workflow)
+        let quickActionHTML = '';
+        if (doc.status === 'Open') {
+            quickActionHTML = `
+            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; margin-bottom: 8px; display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 12px; border-radius: 8px; font-weight: 900; background: var(--md-primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,97,164,0.2);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Unpaid')">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">task_alt</span> Finalize Document
+                </button>
+            </div>`;
+        } else if (doc.status === 'Unpaid' && !safeShipDate && doc.status !== 'Completed' && doc.status !== 'Cancelled') {
+            quickActionHTML = `
+            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; margin-bottom: 8px; display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 12px; border-radius: 8px; font-weight: 900; background: #f57f17; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(245,127,23,0.2);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Shipped')">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">local_shipping</span> Mark as Dispatched
+                </button>
+            </div>`;
+        } else if ((doc.status === 'Unpaid' || doc.status === 'Shipped') && safeShipDate && !safeCompDate && doc.status !== 'Completed' && doc.status !== 'Cancelled') {
+            quickActionHTML = `
+            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; margin-bottom: 8px; display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 12px; border-radius: 8px; font-weight: 900; background: #16a34a; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(22,163,74,0.2);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Completed')">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">done_all</span> Mark as Completed
+                </button>
+            </div>`;
+        }
+
         // 7. ASSEMBLE EDGE-TO-EDGE HTML
         const contentEl = document.getElementById('overview-main-content');
         contentEl.innerHTML = `
@@ -6376,7 +6496,15 @@ window.openInvoiceOverview = function(type, id) {
                 <h2 style="font-size: 28px; margin: 0 0 4px 0; color: var(--md-primary); letter-spacing: -0.5px;">₹${grandTotal.toFixed(2)}</h2>
                 <small style="color: var(--md-text-muted);">Balance Due: <strong style="color: var(--md-error);">₹${balance.toFixed(2)}</strong></small>
                 
-                <div style="margin-top: 12px; text-align: left;">
+                <!-- Visual Progress Bar -->
+                ${grandTotal > 0 ? `
+                <div style="width: 100%; max-width: 250px; margin: 12px auto 0; background: var(--md-surface-variant); border-radius: 4px; height: 6px; overflow: hidden;">
+                    <div style="width: ${percentPaid}%; height: 100%; background: var(--md-success); transition: width 0.5s ease;"></div>
+                </div>
+                <div style="font-size: 10px; color: var(--md-success); margin-top: 4px; font-weight: 800;">${percentPaid.toFixed(0)}% PAID</div>
+                ` : ''}
+
+                <div style="margin-top: 16px; text-align: left;">
                     <small style="color: var(--md-text-muted); font-size: 10px; text-transform: uppercase; display: block; margin-bottom: 4px; font-weight: 800; letter-spacing: 0.5px;">Billed To</small>
                     <div class="tap-target" 
                          style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; margin-left: -10px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); cursor: pointer; border: 1px solid rgba(0, 97, 164, 0.15);" 
@@ -6388,11 +6516,16 @@ window.openInvoiceOverview = function(type, id) {
                 </div>
             </div>
 
+            ${quickActionHTML}
+
             <!-- Edge-to-Edge Items -->
             <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
                 <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 800; color: var(--md-primary); text-transform: uppercase;">Items (${doc.items ? doc.items.length : 0})</div>
                 ${itemsHTML}
             </div>
+
+            <!-- Edge-to-Edge Notes -->
+            ${notesHTML}
 
             <!-- Edge-to-Edge Breakdown -->
             <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 8px; padding: 16px;">

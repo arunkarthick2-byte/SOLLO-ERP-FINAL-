@@ -680,8 +680,11 @@ const saveInvoiceTransaction = async (storeName, data) => {
             }
         }
 
-        await applyStockImpact(storeName, data);
+        // 🚨 CRITICAL FIX: The Half-Saved Invoice Trap!
+        // Save the invoice FIRST! If the device is out of storage, it will instantly reject 
+        // the save BEFORE touching the inventory, keeping your stock perfectly safe!
         await saveRecord(storeName, data);
+        await applyStockImpact(storeName, data);
         
         if (typeof triggerAutoBackup === 'function') triggerAutoBackup();
 

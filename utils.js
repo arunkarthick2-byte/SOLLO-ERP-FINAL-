@@ -452,8 +452,9 @@ const Utils = {
     roundFinancial: (num) => {
         const n = Utils.safeNumber(num);
         const isNeg = n < 0;
-        // Exponential rounding solves the 1-paisa javascript math glitch permanently
-        let absRound = Number(Math.round(Math.abs(n) + 'e2') + 'e-2');
+        // 🚨 CRITICAL FIX: Adding Number.EPSILON completely destroys the 1-paisa floating-point drift!
+        // This guarantees that numbers like 1.005 will mathematically snap to 1.01 every single time.
+        let absRound = Math.round((Math.abs(n) + Number.EPSILON) * 100) / 100;
         return isNeg ? -absRound : absRound;
     },
 
@@ -1072,7 +1073,7 @@ Please process this accordingly. Thank you!`;
             return;
         }
 
-        window.Utils.showToast("⚡ Generating Corporate Vector PDF...");
+        window.Utils.showToast("⚡ Generating Accounting Layout...");
 
         const safeParty = party || {};
         const isSales = type === 'sales';
@@ -1080,14 +1081,15 @@ Please process this accordingly. Thank you!`;
         const partyName = safeParty.name ? safeParty.name : (isSales ? doc.customerName : doc.supplierName);
         const partyAddress = safeParty.address || safeParty.billingAddress || '';
         const partyLocationStr = [safeParty.city, safeParty.state].filter(Boolean).join(', ') + (safeParty.pincode ? ' - ' + safeParty.pincode : '');
-        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
         
         const partyGst = safeParty.gst ? String(safeParty.gst).toUpperCase() : '';
         const bizGst = biz && biz.gst ? String(biz.gst).toUpperCase() : '';
         
         const safeBizName = biz.name || 'Company Name';
         const safeBizAddress = biz.address || '';
+        const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
         
+        // Handle Notes Mapping (Tick ✓ Check)
         let shouldPrintNotes = doc.printNotes;
         let rawNotes = doc.internalNotes || '';
         const uiCheckbox = document.getElementById(`${type}-print-notes`);
@@ -1100,13 +1102,43 @@ Please process this accordingly. Thank you!`;
         const isNonGST = doc.invoiceType === 'Non-GST';
         const isReturn = doc.documentType === 'return';
         
+        let isIGST = false;
+        const bizState = String(biz.state || '').trim().toLowerCase();
+        const partyState = String(safeParty.state || '').trim().toLowerCase();
+        if (bizState && partyState && bizState !== partyState) isIGST = true;
+
         let title = isSales ? 'TAX INVOICE' : 'PURCHASE BILL';
         if (isNonGST && !isReturn) title = isSales ? 'BILL OF SUPPLY' : 'PURCHASE BILL';
         if (isReturn) title = isSales ? 'CREDIT NOTE' : 'DEBIT NOTE';
 
         const safeDocNo = doc.invoiceNo || doc.orderNo || doc.poNo || 'DRAFT';
 
-        // Math Logic
+        // 🚨 ENTERPRISE FIX: Move Debt Tracking UP so we can calculate the true "Paid Date" for the PDF Header!
+        const grandTotal = parseFloat(doc.grandTotal) || 0;
+        let linkedSum = 0;
+        let lastPaymentDate = null;
+        if (doc.linkedReceipts) {
+            doc.linkedReceipts.forEach(r => {
+                linkedSum += (parseFloat(r.amount) || 0);
+                if (r.date && (!lastPaymentDate || new Date(r.date) > new Date(lastPaymentDate))) {
+                    lastPaymentDate = r.date;
+                }
+            });
+        }
+        let displayTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
+        if (doc.status === 'Completed' || doc.status === 'Paid') displayTotalPaid = grandTotal;
+        const thisInvoiceDue = Math.max(0, grandTotal - displayTotalPaid);
+
+        // Smart Dynamic Dates for the PDF Grid
+        let titleDate2 = 'Completed Date';
+        let valDate2 = window.Utils.formatDateDisplay(doc.completedDate) || '-';
+
+        if (thisInvoiceDue <= 0.01 && lastPaymentDate) {
+            titleDate2 = 'Paid On';
+            valDate2 = window.Utils.formatDateDisplay(lastPaymentDate);
+        }
+
+        // 🚨 Base Math Logic
         let rawSubtotal = 0;
         let totalQty = 0;
         let totalItems = 0;
@@ -1121,15 +1153,82 @@ Please process this accordingly. Thank you!`;
         if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
         const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
 
-        // Table Rows Construction
+        // 🚨 TALLY: Top Meta Grid Layout (Customized to your exact fields)
+        const tallyHeaderGrid = [
+            [
+                // Column 1: Company Details
+                {
+                    rowSpan: 3,
+                    stack: [
+                        biz.logo ? { image: biz.logo, fit: [120, 50], margin: [0,0,0,4] } : null,
+                        { text: safeBizName, bold: true, fontSize: 11, margin: [0,0,0,2] },
+                        { text: safeBizAddress, fontSize: 9 },
+                        { text: bizLocationStr, fontSize: 9 },
+                        { text: 'E-Mail: ' + (biz.email || 'N/A'), fontSize: 9, margin: [0,2,0,0] },
+                        { text: 'Contact: ' + (biz.phone || 'N/A'), fontSize: 9 },
+                        bizGst ? { text: 'GSTIN/UIN  : ' + bizGst, bold: true, fontSize: 9, margin: [0,4,0,0] } : null,
+                        biz.state ? { text: 'State Name : ' + biz.state, fontSize: 9 } : null
+                    ].filter(Boolean),
+                    padding: [4, 4]
+                },
+                // Column 2 & 3: Invoice Info
+                { stack: [{ text: 'Invoice No.', fontSize: 7, color: '#475569' }, { text: safeDocNo, bold: true, fontSize: 9 }] },
+                { stack: [{ text: 'Dated', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.date) || '-', bold: true, fontSize: 9 }] }
+            ],
+            [
+                '', // Spanned
+                { stack: [{ text: 'Order Ref / PO No.', fontSize: 7, color: '#475569' }, { text: doc.orderNo || '-', bold: true, fontSize: 9 }] },
+                { stack: [{ text: 'Order Date', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.orderDate) || '-', bold: true, fontSize: 9 }] }
+            ],
+            [
+                '', // Spanned
+                { stack: [{ text: 'Reference / Remarks', fontSize: 7, color: '#475569' }, { text: (shouldPrintNotes && rawNotes) ? rawNotes : '-', bold: true, fontSize: 9 }], colSpan: 2 },
+                ''
+            ],
+            [
+                // Column 1: Buyer Details
+                {
+                    rowSpan: 2,
+                    stack: [
+                        { text: isSales ? 'Buyer (Bill to)' : 'Supplier (Bill from)', fontSize: 8, color: '#475569', margin: [0,0,0,2] },
+                        { text: partyName, bold: true, fontSize: 10 },
+                        { text: partyAddress, fontSize: 9 },
+                        { text: partyLocationStr, fontSize: 9 },
+                        partyGst ? { text: 'GSTIN/UIN  : ' + partyGst, bold: true, fontSize: 9, margin: [0,4,0,0] } : null,
+                        safeParty.state ? { text: 'State Name : ' + safeParty.state, fontSize: 9 } : null
+                    ].filter(Boolean),
+                    padding: [4, 4]
+                },
+                { stack: [{ text: 'Mode/Terms of Payment', fontSize: 7, color: '#475569' }, { text: biz.terms ? 'As per terms' : 'Immediate', bold: true, fontSize: 9 }] },
+                { stack: [{ text: 'Destination', fontSize: 7, color: '#475569' }, { text: safeParty.city || '-', bold: true, fontSize: 9 }] }
+            ],
+            [
+                '', // Spanned
+                { stack: [{ text: 'Dispatch Date', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.shippedDate) || '-', bold: true, fontSize: 9 }], padding: [4, 4] },
+                { stack: [{ text: titleDate2, fontSize: 7, color: '#475569' }, { text: valDate2, bold: true, fontSize: 9 }], padding: [4, 4] }
+            ]
+        ];
+
+        // 🚨 TALLY: Authentic Item Grid Setup
+        const hsnMap = {};
         const itemsBody = [];
-        const tableHeaders = [{text: '#', style: 'th'}, {text: 'Item Description', style: 'th'}];
-        if (!isNonGST) tableHeaders.push({text: 'HSN', style: 'th', alignment: 'center'});
-        tableHeaders.push({text: 'Qty', style: 'th', alignment: 'center'}, {text: 'Rate', style: 'th', alignment: 'right'});
-        if (!isNonGST) tableHeaders.push({text: 'GST%', style: 'th', alignment: 'center'});
-        tableHeaders.push({text: 'Amount', style: 'th', alignment: 'right'});
         
-        itemsBody.push(tableHeaders);
+        const thStyle = { bold: true, fontSize: 9, alignment: 'center', margin: [2, 4] };
+        
+        itemsBody.push([
+            {text: 'Sl\nNo.', style: 'th'}, 
+            {text: 'Description of Goods', style: 'th', alignment: 'center'},
+            {text: 'HSN/SAC', style: 'th'},
+            {text: 'Quantity', style: 'th'}, 
+            {text: 'Rate', style: 'th'},
+            {text: 'per', style: 'th'},
+            {text: 'Amount', style: 'th'}
+        ]);
+
+        let totalTaxableValue = 0;
+        let totalCgstAmount = 0;
+        let totalSgstAmount = 0;
+        let totalIgstAmount = 0;
 
         (doc.items || []).forEach((item, index) => {
             const qty = parseFloat(item.qty) || 0;
@@ -1137,58 +1236,92 @@ Please process this accordingly. Thank you!`;
             const gstPercent = isNonGST ? 0 : (parseFloat(item.gstPercent) || 0);
             
             const baseAmount = qty * rate;
-            const discountedBase = baseAmount - (baseAmount * discountRatio);
+            const discountedBase = baseAmount - (baseAmount * discountRatio); 
             const gstAmount = discountedBase * (gstPercent / 100);
-            const rowTotal = (Math.round(discountedBase * 100) / 100) + (Math.round(gstAmount * 100) / 100);
+            
+            totalTaxableValue += discountedBase;
 
-            const row = [
-                {text: (index + 1).toString(), style: 'td', alignment: 'center'},
-                {stack: [{text: item.name, bold: true}, item.desc ? {text: item.desc, fontSize: 8, color: '#475569', margin: [0, 2, 0, 0]} : null].filter(Boolean), style: 'td'}
-            ];
-            if (!isNonGST) row.push({text: item.hsn || '-', style: 'td', alignment: 'center'});
-            row.push({text: `${item.qty} ${item.uom || ''}`, style: 'td', alignment: 'center'});
-            row.push({text: rate.toFixed(2), style: 'td', alignment: 'right'});
-            if (!isNonGST) row.push({text: `${gstPercent}%`, style: 'td', alignment: 'center'});
-            row.push({text: rowTotal.toFixed(2), style: 'td', alignment: 'right', bold: true});
+            let cgstAmt = 0, sgstAmt = 0, igstAmt = 0;
+            if (isIGST) {
+                igstAmt = gstAmount;
+                totalIgstAmount += igstAmt;
+            } else {
+                cgstAmt = gstAmount / 2;
+                sgstAmt = gstAmount / 2;
+                totalCgstAmount += cgstAmt;
+                totalSgstAmount += sgstAmt;
+            }
 
-            itemsBody.push(row);
+            if (!isNonGST) {
+                const hsnCode = item.hsn || '';
+                const hsnKey = `${hsnCode}_${gstPercent}`;
+                if (!hsnMap[hsnKey]) {
+                    hsnMap[hsnKey] = { hsn: hsnCode, taxRate: gstPercent, taxable: 0, cgst: 0, sgst: 0, igst: 0, totalTax: 0 };
+                }
+                hsnMap[hsnKey].taxable += discountedBase;
+                hsnMap[hsnKey].cgst += cgstAmt;
+                hsnMap[hsnKey].sgst += sgstAmt;
+                hsnMap[hsnKey].igst += igstAmt;
+                hsnMap[hsnKey].totalTax += gstAmount;
+            }
+
+            const tdStyle = { margin: [2, 4], fontSize: 9 };
+
+            itemsBody.push([
+                {text: (index + 1).toString(), alignment: 'center', ...tdStyle},
+                {stack: [{text: item.name, bold: true}, item.desc ? {text: item.desc, fontSize: 8, color: '#475569'} : null].filter(Boolean), ...tdStyle},
+                {text: item.hsn || '', alignment: 'center', ...tdStyle},
+                {text: `${qty.toLocaleString('en-IN')} ${item.uom || ''}`, alignment: 'right', bold: true, ...tdStyle},
+                {text: rate.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', ...tdStyle},
+                {text: item.uom || 'Nos', alignment: 'center', ...tdStyle},
+                {text: discountedBase.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle}
+            ]);
         });
 
-        // Totals Footer in Table
-        const colSpanCount = isNonGST ? 2 : 3;
-        itemsBody.push([
-            {text: `Total Items: ${totalItems}`, style: 'td', alignment: 'right', colSpan: colSpanCount, bold: true, color: '#475569'},
-            ...(Array(colSpanCount - 1).fill({})),
-            {text: totalQty.toFixed(2), style: 'td', alignment: 'center', bold: true},
-            {text: '', style: 'td', colSpan: isNonGST ? 2 : 3},
-            ...(Array(isNonGST ? 1 : 2).fill({}))
+        // 🚨 TALLY: Add Inline Tax Rows directly below the items
+        const tdStyle = { margin: [2, 4], fontSize: 9 };
+        let freightVal = parseFloat(doc.freightAmount || doc.freight || 0);
+
+        if (discountAmt > 0) {
+            itemsBody.push([ '', {text: 'Less: Discount', alignment: 'right', italics: true, ...tdStyle}, '', '', '', '', {text: '-' + discountAmt.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', ...tdStyle} ]);
+        }
+        
+        if (!isNonGST) {
+            if (isIGST && totalIgstAmount > 0) {
+                itemsBody.push([ '', {text: 'Output IGST', alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalIgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+            } else {
+                if (totalCgstAmount > 0) itemsBody.push([ '', {text: 'Output CGST', alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalCgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+                if (totalSgstAmount > 0) itemsBody.push([ '', {text: 'Output SGST', alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalSgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+            }
+        }
+
+        if (freightVal > 0) {
+            itemsBody.push([ '', {text: 'Add: Freight & Forwarding Charges', alignment: 'right', ...tdStyle}, '', '', '', '', {text: freightVal.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', ...tdStyle} ]);
+        }
+        
+        let exactTotalBeforeRound = totalTaxableValue + totalCgstAmount + totalSgstAmount + totalIgstAmount + freightVal;
+        let roundOffAmt = (parseFloat(doc.grandTotal) || 0) - exactTotalBeforeRound;
+
+        if (Math.abs(roundOffAmt) > 0.01) {
+            itemsBody.push([ '', {text: 'Round Off', alignment: 'right', ...tdStyle}, '', '', '', '', {text: roundOffAmt.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', ...tdStyle} ]);
+        }
+
+        // 🚨 TALLY FIX: Smart A4 Page Stretch
+        // Calculates the exact empty space needed based on the number of item & tax rows!
+        let usedRows = (doc.items || []).length;
+        if (discountAmt > 0) usedRows++;
+        if (!isNonGST && isIGST && totalIgstAmount > 0) usedRows++;
+        else if (!isNonGST && (totalCgstAmount > 0 || totalSgstAmount > 0)) usedRows += 2;
+        if (freightVal > 0) usedRows++;
+        if (Math.abs(roundOffAmt) > 0.01) usedRows++;
+
+        let dynamicSpacer = Math.max(5, 80 - (usedRows * 15));
+
+        itemsBody.push([ 
+            {text: '\n', margin: [0, dynamicSpacer]}, '', '', '', '', '', '' 
         ]);
 
-        // Meta Details
-        const metaBody = [];
-        const isSafe = (val) => val && String(val).trim() !== '' && !String(val).toLowerCase().includes('nan') && !String(val).toLowerCase().includes('invalid date');
-
-        if (isSafe(doc.orderNo)) metaBody.push([{text: 'Order Ref:', style: 'metaLabel'}, {text: doc.orderNo, style: 'metaValue'}]);
-        if (isSafe(doc.orderDate)) metaBody.push([{text: 'Order Date:', style: 'metaLabel'}, {text: window.Utils.formatDateDisplay(doc.orderDate), style: 'metaValue'}]);
-        if (isSafe(doc.shippedDate) && (doc.status === 'Shipped' || doc.status === 'Completed')) {
-            metaBody.push([{text: 'Dispatch Date:', style: 'metaLabel'}, {text: window.Utils.formatDateDisplay(doc.shippedDate), style: 'metaValue'}]);
-        }
-        if (isSafe(doc.completedDate) && doc.status === 'Completed') {
-            metaBody.push([{text: 'Completed Date:', style: 'metaLabel'}, {text: window.Utils.formatDateDisplay(doc.completedDate), style: 'metaValue'}]);
-        }
-        if (isSafe(biz.cf1Name) && isSafe(doc.cf1Val)) metaBody.push([{text: biz.cf1Name + ':', style: 'metaLabel'}, {text: doc.cf1Val, style: 'metaValue'}]);
-        if (isSafe(biz.cf2Name) && isSafe(doc.cf2Val)) metaBody.push([{text: biz.cf2Name + ':', style: 'metaLabel'}, {text: doc.cf2Val, style: 'metaValue'}]);
-        if (isSafe(biz.cf3Name) && isSafe(doc.cf3Val)) metaBody.push([{text: biz.cf3Name + ':', style: 'metaLabel'}, {text: doc.cf3Val, style: 'metaValue'}]);
-
-        // Advanced Math Setup
-        const grandTotal = parseFloat(doc.grandTotal) || 0;
-        let linkedSum = 0;
-        if (doc.linkedReceipts) doc.linkedReceipts.forEach(r => linkedSum += (parseFloat(r.amount) || 0));
-        let displayTotalPaid = Math.max(parseFloat(doc.trueTotalPaid) || 0, linkedSum);
-        if (doc.status === 'Completed' || doc.status === 'Paid') displayTotalPaid = grandTotal;
-        const thisInvoiceDue = Math.max(0, grandTotal - displayTotalPaid);
-
-        // Calculate Previous Dues (Simplified matching original math)
+        // Debt tracking was moved to the top of the function to support dynamic dates!
         let partyBalance = 0;
         if (window.UI && window.UI.state && window.UI.state.rawData) {
             let tDocs = 0, tReceipts = 0, tReturns = 0;
@@ -1229,220 +1362,241 @@ Please process this accordingly. Thank you!`;
             partyBalance = netOb + tDocs - tReturns - tReceipts;
         }
 
-        // Final Totals Box Structure
-        const totalsStack = [
-            { columns: [{ text: 'Subtotal', style: 'totLabel' }, { text: '₹' + rawSubtotal.toFixed(2), style: 'totVal' }], margin: [0,0,0,5] }
-        ];
+        // Tally: Grand Total Row
+        itemsBody.push([
+            {text: 'Total', colSpan: 3, alignment: 'right', bold: true, margin: [4, 4]}, '', '',
+            {text: totalQty.toLocaleString('en-IN'), alignment: 'right', bold: true, margin: [2, 4]}, 
+            '', '', 
+            {text: '₹' + grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, margin: [4, 4]}
+        ]);
 
-        if (discountAmt > 0) totalsStack.push({ columns: [{ text: 'Discount', style: 'totLabel', color: '#ef4444' }, { text: '- ₹' + discountAmt.toFixed(2), style: 'totVal', color: '#ef4444' }], margin: [0,0,0,5] });
-        if (!isNonGST) totalsStack.push({ columns: [{ text: 'Total GST', style: 'totLabel' }, { text: '₹' + (parseFloat(doc.totalGst) || 0).toFixed(2), style: 'totVal' }], margin: [0,0,0,5] });
-        if ((parseFloat(doc.freightAmount) || 0) > 0) totalsStack.push({ columns: [{ text: 'Freight / Extra', style: 'totLabel' }, { text: '₹' + (parseFloat(doc.freightAmount) || 0).toFixed(2), style: 'totVal' }], margin: [0,0,0,5] });
+        // 🚨 TALLY: HSN/SAC Summary Grid
+        const hsnBody = [];
+        if (!isNonGST && Object.keys(hsnMap).length > 0) {
+            let hsnHeaders = [
+                {text: 'HSN/SAC', style: 'th', bold: true, fontSize: 8, alignment: 'center', margin: [2,4]},
+                {text: 'Taxable\nValue', style: 'th', alignment: 'right', bold: true, fontSize: 8, margin: [2,4]}
+            ];
+            if (isIGST) {
+                hsnHeaders.push({text: 'Integrated Tax', colSpan: 2, style: 'th', alignment: 'center', bold: true, fontSize: 8, margin: [2,4]}, '');
+            } else {
+                hsnHeaders.push({text: 'Central Tax', colSpan: 2, style: 'th', alignment: 'center', bold: true, fontSize: 8, margin: [2,4]}, '');
+                hsnHeaders.push({text: 'State Tax', colSpan: 2, style: 'th', alignment: 'center', bold: true, fontSize: 8, margin: [2,4]}, '');
+            }
+            hsnHeaders.push({text: 'Total\nTax Amount', style: 'th', alignment: 'right', bold: true, fontSize: 8, margin: [2,4]});
+            hsnBody.push(hsnHeaders);
+
+            // Sub-Headers for Tax Rates
+            let hsnSubHeaders = ['', ''];
+            if (isIGST) {
+                hsnSubHeaders.push({text: 'Rate', alignment: 'center', bold: true, fontSize: 8}, {text: 'Amount', alignment: 'right', bold: true, fontSize: 8});
+            } else {
+                hsnSubHeaders.push({text: 'Rate', alignment: 'center', bold: true, fontSize: 8}, {text: 'Amount', alignment: 'right', bold: true, fontSize: 8});
+                hsnSubHeaders.push({text: 'Rate', alignment: 'center', bold: true, fontSize: 8}, {text: 'Amount', alignment: 'right', bold: true, fontSize: 8});
+            }
+            hsnSubHeaders.push('');
+            hsnBody.push(hsnSubHeaders);
+
+            let sumTaxable = 0, sumCgst = 0, sumSgst = 0, sumIgst = 0, sumTotalTax = 0;
+
+            Object.values(hsnMap).forEach(h => {
+                sumTaxable += h.taxable; sumCgst += h.cgst; sumSgst += h.sgst; sumIgst += h.igst; sumTotalTax += h.totalTax;
+                let hsnRow = [
+                    {text: h.hsn, margin: [2, 4], fontSize: 8, alignment: 'center'},
+                    {text: h.taxable.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', margin: [2, 4], fontSize: 8}
+                ];
+                if (isIGST) {
+                    hsnRow.push({text: `${h.taxRate}%`, alignment: 'center', margin: [2, 4], fontSize: 8});
+                    hsnRow.push({text: h.igst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', margin: [2, 4], fontSize: 8});
+                } else {
+                    hsnRow.push({text: `${h.taxRate/2}%`, alignment: 'center', margin: [2, 4], fontSize: 8});
+                    hsnRow.push({text: h.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', margin: [2, 4], fontSize: 8});
+                    hsnRow.push({text: `${h.taxRate/2}%`, alignment: 'center', margin: [2, 4], fontSize: 8});
+                    hsnRow.push({text: h.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', margin: [2, 4], fontSize: 8});
+                }
+                hsnRow.push({text: h.totalTax.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', margin: [2, 4], fontSize: 8});
+                hsnBody.push(hsnRow);
+            });
+
+            // HSN Totals
+            let hsnTotalRow = [
+                {text: 'Total', alignment: 'right', bold: true, fontSize: 8, margin: [2,4]},
+                {text: sumTaxable.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, fontSize: 8, margin: [2,4]}
+            ];
+            if (isIGST) {
+                hsnTotalRow.push('');
+                hsnTotalRow.push({text: sumIgst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, fontSize: 8, margin: [2,4]});
+            } else {
+                hsnTotalRow.push('');
+                hsnTotalRow.push({text: sumCgst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, fontSize: 8, margin: [2,4]});
+                hsnTotalRow.push('');
+                hsnTotalRow.push({text: sumSgst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, fontSize: 8, margin: [2,4]});
+            }
+            hsnTotalRow.push({text: sumTotalTax.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, fontSize: 8, margin: [2,4]});
+            hsnBody.push(hsnTotalRow);
+        }
+
+        // 🚨 ULTIMATE DETAILED ACCOUNTING FOOTER (Payments & Dues)
+        const detailedTotalsTable = [];
         
-        let roundOffAmt = (parseFloat(doc.grandTotal) || 0) - ((rawSubtotal - discountAmt) + (parseFloat(doc.totalGst) || 0) + (parseFloat(doc.freightAmount) || 0));
-        if (Math.abs(roundOffAmt) > 0.01) totalsStack.push({ columns: [{ text: 'Round Off', style: 'totLabel' }, { text: '₹' + roundOffAmt.toFixed(2), style: 'totVal' }], margin: [0,0,0,5] });
+        // Only show breakdown if partial payments exist
+        if (displayTotalPaid > 0.01) {
+            detailedTotalsTable.push([{ text: 'Current Invoice Total', fontSize: 9, margin: [0, 2] }, { text: '₹' + grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), fontSize: 9, bold: true, alignment: 'right', margin: [0, 2] }]);
+            detailedTotalsTable.push([{ text: 'Less: Paid / Advanced', fontSize: 9, color: '#16a34a', margin: [0, 2] }, { text: '- ₹' + displayTotalPaid.toLocaleString('en-IN', {minimumFractionDigits: 2}), fontSize: 9, bold: true, color: '#16a34a', alignment: 'right', margin: [0, 2] }]);
+            detailedTotalsTable.push([{ text: 'Balance on this Invoice', fontSize: 9, bold: true, margin: [0, 4] }, { text: '₹' + thisInvoiceDue.toLocaleString('en-IN', {minimumFractionDigits: 2}), fontSize: 9, bold: true, alignment: 'right', margin: [0, 4] }]);
+        } else {
+            detailedTotalsTable.push([{ text: 'Balance on this Invoice', fontSize: 9, bold: true, margin: [0, 4] }, { text: '₹' + grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), fontSize: 9, bold: true, alignment: 'right', margin: [0, 4] }]);
+        }
 
-        // Build the Vector JSON Definition
+        // Add Previous Dues and Net Payable
+        if (partyBalance > 0.01 && (partyBalance - thisInvoiceDue > 0.01)) {
+            detailedTotalsTable.push([{ text: 'Previous Dues (Other Bills)', fontSize: 9, color: '#475569', margin: [0, 4] }, { text: '₹' + (partyBalance - thisInvoiceDue).toLocaleString('en-IN', {minimumFractionDigits: 2}), fontSize: 9, alignment: 'right', margin: [0, 4] }]);
+            detailedTotalsTable.push([{ text: 'TOTAL NET PAYABLE', bold: true, fontSize: 11, margin: [0, 6], fillColor: '#fee2e2', color: '#991b1b' }, { text: '₹' + partyBalance.toLocaleString('en-IN', {minimumFractionDigits: 2}), bold: true, fontSize: 11, alignment: 'right', fillColor: '#fee2e2', color: '#991b1b', margin: [0, 6] }]);
+        }
+
+        // Tally Base Configuration (Full A4 Size, Pure Monochome styling)
         const docDefinition = {
-            pageSize: { width: 595.28, height: 'auto' }, // 🚨 FIX: Forces continuous Single-Page PDF!
-            pageMargins: [30, 30, 30, 30],
-            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
-            styles: {
-                h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
-                title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
-                sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
-                subBold: { fontSize: 9, bold: true, color: '#0f172a' },
-                sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
-                th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
-                td: { fontSize: 9, margin: [2, 4] },
-                metaLabel: { fontSize: 9, color: '#475569', margin: [0, 2] },
-                metaValue: { fontSize: 9, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 2] },
-                totLabel: { fontSize: 9, color: '#475569', bold: true },
-                totVal: { fontSize: 10, bold: true, alignment: 'right' }
-            },
+            pageSize: 'A4', 
+            pageMargins: [20, 20, 20, 20], // 🚨 FIX: Tightened margins to maximize the printable area!
+            defaultStyle: { font: 'Roboto', fontSize: 9, color: '#000000' }, 
             content: [
-                // Header Region
+                // 1. Tally Header Title (Original for Recipient)
+                { text: isSales ? (window.solloCurrentCopyType || 'ORIGINAL FOR RECIPIENT') : '', alignment: 'right', fontSize: 7, bold: true, color: '#475569', margin: [0, -10, 0, 5] },
+                { text: title, alignment: 'center', fontSize: 14, bold: true, margin: [0, 0, 0, 5] },
+                
+                // 2. The Main Bordered Box (Contains Header Grid, Items Grid, and Footers)
                 {
-                    columns: [
-                        {
-                            width: '60%',
-                            stack: [
-                                (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
-                                { text: safeBizName, style: 'h1' },
-                                { text: safeBizAddress + '\n' + bizLocationStr, style: 'sub' },
-                                { text: 'Ph: ' + biz.phone + (biz.email ? ' | Email: ' + biz.email : ''), style: 'sub' },
-                                bizGst && bizGst !== 'N/A' ? { text: 'GSTIN: ' + bizGst, style: 'subBold', margin: [0, 5, 0, 0] } : null
-                            ].filter(Boolean)
-                        },
-                        {
-                            width: '40%',
-                            stack: [
-                                { text: title, style: 'title' },
-                                {
-                                    table: {
-                                        widths: ['*', 'auto'],
-                                        body: [
-                                            [{text: 'Document No:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: safeDocNo, alignment: 'right', bold: true, fontSize: 10}],
-                                            [{text: 'Date:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: window.Utils.formatDateDisplay(doc.date), alignment: 'right', bold: true, fontSize: 10}]
-                                        ]
+                    table: {
+                        widths: ['*'],
+                        body: [
+                            // ROW 1: Header Meta Data Grid
+                            [{
+                                table: {
+                                    widths: ['50%', '25%', '25%'],
+                                    body: tallyHeaderGrid
+                                },
+                                layout: {
+                                    hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => '#000000', vLineColor: () => '#000000'
+                                },
+                                margin: [0, 0, 0, 0]
+                            }],
+
+                            // ROW 2: The Main Items Table
+                            [{
+                                table: {
+                                    headerRows: 1,
+                                    widths: ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                                    body: itemsBody
+                                },
+                                layout: { 
+                                    // TALLY MAGIC: Vertical lines only for items! No horizontal lines between rows.
+                                    hLineWidth: (i, node) => (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 0.5 : 0,
+                                    vLineWidth: () => 0.5,
+                                    hLineColor: () => '#000000',
+                                    vLineColor: () => '#000000'
+                                },
+                                margin: [0, 0, 0, 0]
+                            }],
+
+                            // ROW 3: Amount in Words
+                            [{
+                                text: [
+                                    { text: 'Amount Chargeable (in words)\n', italics: true, fontSize: 8, color: '#475569' },
+                                    { text: 'INR ' + window.Utils.numberToWords(grandTotal), bold: true, fontSize: 10 }
+                                ],
+                                margin: [4, 6]
+                            }],
+
+                            // ROW 4: HSN Summary (Only if GST applies)
+                            ...(hsnBody.length > 0 ? [
+                                [{
+                                    table: { headerRows: 2, widths: isIGST ? ['auto', '*', 'auto', 'auto', 'auto'] : ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto'], body: hsnBody },
+                                    layout: { hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => '#000000', vLineColor: () => '#000000' },
+                                    margin: [0, 0]
+                                }]
+                            ] : []),
+
+                            // ROW 5: Detailed Payment Breakdown & Footer
+                            [{
+                                columns: [
+                                    {
+                                        width: '50%',
+                                        stack: [
+                                            // 🚨 ENTERPRISE FIX: Smart Payment Routing!
+                                            // 1. Show Bank Details for regular GST Sales Invoices
+                                            (isSales && !isNonGST && biz.bankDetails) ? { text: "Company's Bank Details", italics: true, fontSize: 8, color: '#475569', margin: [0, 4, 0, 2] } : null,
+                                            (isSales && !isNonGST && biz.bankDetails) ? { text: biz.bankDetails, fontSize: 9, bold: true, margin: [0, 0, 0, 10] } : null,
+                                            
+                                            // 2. Show UPI QR Code for Bill of Supply if there is a pending balance!
+                                            (isSales && isNonGST && biz.upiId && thisInvoiceDue > 0.5 && doc.status !== 'Cancelled') ? {
+                                                columns: [
+                                                    { qr: `upi://pay?pa=${biz.upiId}&pn=${encodeURIComponent(safeBizName)}&am=${thisInvoiceDue.toFixed(2)}&cu=INR`, fit: 55, margin: [0, 4, 10, 10] },
+                                                    { stack: [{ text: 'Scan to Pay', italics: true, fontSize: 8, color: '#475569', margin: [0, 0, 0, 2] }, { text: biz.upiId, fontSize: 9, bold: true }], margin: [0, 12, 0, 0] }
+                                                ]
+                                            } : null,
+                                            
+                                            // Optional Notes mapped back to default layout if user prefers
+                                            (!shouldPrintNotes && doc.internalNotes) ? { text: 'Remarks: ' + doc.internalNotes, fontSize: 8, margin: [0,0,0,10] } : null,
+                                            biz.terms ? { text: 'Terms & Conditions:\n' + biz.terms, fontSize: 8, margin: [0,0,0,10] } : null,
+                                            
+                                            { text: 'Declaration', italics: true, fontSize: 8, color: '#475569', margin: [0, 0, 0, 2] },
+                                            { text: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.', fontSize: 8 }
+                                        ].filter(Boolean),
+                                        margin: [4, 6]
                                     },
-                                    layout: 'lightHorizontalLines'
-                                }
-                            ]
-                        }
-                    ],
-                    margin: [0, 0, 0, 20]
+                                    {
+                                        width: '50%',
+                                        stack: [
+                                            // The Extensive Accounting Details Table
+                                            {
+                                                table: { widths: ['*', 'auto'], body: detailedTotalsTable },
+                                                layout: { defaultBorder: false, hLineWidth: (i, node) => i === node.table.body.length - 1 && partyBalance > 0.01 ? 0.5 : 0, hLineColor: () => '#000000' },
+                                                margin: [0, 4, 4, 15]
+                                            },
+                                            { text: `for ${safeBizName}`, bold: true, fontSize: 10, alignment: 'right', margin: [0, 4, 4, 30] },
+                                            biz.signature ? { image: biz.signature, fit: [120, 40], alignment: 'right', margin: [0, 0, 4, 5] } : { text: '\n\n', margin: [0, 0, 0, 5] },
+                                            { text: 'Authorised Signatory', fontSize: 9, alignment: 'right', margin: [0, 0, 4, 4] }
+                                        ]
+                                    }
+                                ],
+                                margin: [0, 0]
+                            }]
+                        ]
+                    },
+                    layout: { 
+                        hLineWidth: () => 0.5, vLineWidth: () => 0.5, hLineColor: () => '#000000', vLineColor: () => '#000000' 
+                    }
                 },
                 
-                // Address Grid
-                {
-                    columns: [
-                        {
-                            width: '50%',
-                            stack: [
-                                { text: isSales ? 'BILLED TO' : 'BILLED BY', style: 'sectionTitle' },
-                                { text: partyName, bold: true, fontSize: 11, margin: [0, 0, 0, 4] },
-                                { text: partyAddress + (partyAddress ? '\n' : '') + partyLocationStr, style: 'sub' },
-                                partyGst ? { text: 'GSTIN: ' + partyGst, style: 'subBold', margin: [0, 4, 0, 0] } : null
-                            ],
-                            margin: [0, 0, 10, 20]
-                        },
-                        {
-                            width: '50%',
-                            stack: metaBody.length > 0 ? [
-                                { text: 'DOCUMENT DETAILS', style: 'sectionTitle' },
-                                {
-                                    table: { widths: ['*', 'auto'], body: metaBody },
-                                    layout: 'noBorders'
-                                }
-                            ] : [],
-                            margin: [10, 0, 0, 20]
-                        }
-                    ]
-                },
-
-                // Items Table
-                {
-                    table: { headerRows: 1, widths: !isNonGST ? ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto'] : ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
-                    layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#0f172a', vLineColor: () => '#0f172a' },
-                    margin: [0, 0, 0, 20]
-                },
-
-                // Totals & Footer Block
-                {
-                    columns: [
-                        {
-                            width: '55%',
-                            stack: [
-                                { text: 'Total Amount in Words', style: 'sectionTitle' },
-                                { text: 'Rupees ' + window.Utils.numberToWords(grandTotal), bold: true, margin: [0, 0, 0, 15] },
-                                
-                                (isSales && !isReturn && isNonGST && biz.upiId && thisInvoiceDue > 0.5) ? {
-                                    margin: [0, 0, 0, 15],
-                                    stack: [
-                                        { text: 'Scan to Pay', style: 'sectionTitle' },
-                                        { qr: `upi://pay?pa=${biz.upiId}&pn=${encodeURIComponent(biz.name || 'Business')}&am=${thisInvoiceDue.toFixed(2)}&cu=INR`, fit: 75 },
-                                        { text: `UPI ID: ${biz.upiId}`, style: 'subBold', margin: [0, 4, 0, 0] }
-                                    ]
-                                } : null,
-
-                                biz.bankDetails && !isNonGST ? {
-                                    margin: [0, 0, 0, 15],
-                                    stack: [
-                                        { text: 'Bank Details', style: 'sectionTitle' },
-                                        { text: biz.bankDetails, style: 'sub' }
-                                    ]
-                                } : null,
-
-                                shouldPrintNotes && rawNotes ? {
-                                    margin: [0, 0, 0, 15],
-                                    stack: [
-                                        { text: 'Remarks / Notes:', style: 'sectionTitle' },
-                                        { text: rawNotes, style: 'sub' }
-                                    ]
-                                } : null,
-
-                                biz.terms ? {
-                                    stack: [
-                                        { text: 'Terms & Conditions:', style: 'sectionTitle' },
-                                        { text: biz.terms, style: 'sub' }
-                                    ]
-                                } : null
-                            ].filter(Boolean),
-                            margin: [0, 0, 15, 0]
-                        },
-                        {
-                            width: '45%',
-                            stack: [
-                                {
-                                    table: { widths: ['*', 'auto'], body: totalsStack },
-                                    layout: 'lightHorizontalLines',
-                                    margin: [0, 0, 0, 0]
-                                },
-                                {
-                                    table: {
-                                        widths: ['*', 'auto'],
-                                        body: [
-                                            [{ text: 'GRAND TOTAL', bold: true, fillColor: '#0f172a', color: '#ffffff', margin: [4, 8] }, { text: '₹' + grandTotal.toFixed(2), bold: true, fillColor: '#0f172a', color: '#ffffff', alignment: 'right', fontSize: 12, margin: [4, 8] }]
-                                        ]
-                                    },
-                                    layout: 'noBorders',
-                                    margin: [0, 0, 0, 10]
-                                },
-                                thisInvoiceDue > 0.01 ? {
-                                    table: { widths: ['*', 'auto'], body: [[{ text: 'BALANCE DUE', bold: true, color: '#0f172a' }, { text: '₹' + thisInvoiceDue.toFixed(2), bold: true, color: '#dc2626', alignment: 'right' }]] }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 5]
-                                } : {
-                                    table: { widths: ['*', 'auto'], body: [[{ text: 'BALANCE DUE', bold: true, color: '#0f172a' }, { text: '₹0.00 (PAID)', bold: true, color: '#16a34a', alignment: 'right' }]] }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 5]
-                                },
-                                partyBalance > 0.01 && (partyBalance - thisInvoiceDue > 0.01) ? {
-                                    table: {
-                                        widths: ['*', 'auto'],
-                                        body: [
-                                            [{ text: 'Previous Dues', fontSize: 9, color: '#475569' }, { text: '₹' + (partyBalance - thisInvoiceDue).toFixed(2), fontSize: 9, bold: true, alignment: 'right' }],
-                                            [{ text: 'NET PAYABLE', bold: true, color: '#991b1b', fillColor: '#fee2e2' }, { text: '₹' + partyBalance.toFixed(2), bold: true, color: '#991b1b', fillColor: '#fee2e2', alignment: 'right' }]
-                                        ]
-                                    },
-                                    layout: 'lightHorizontalLines',
-                                    margin: [0, 10, 0, 0]
-                                } : null
-                            ].filter(Boolean)
-                        }
-                    ]
-                },
-
-                // Signature Area
-                {
-                    columns: [
-                        { width: '*', text: '' }, // Spacer
-                        {
-                            width: '200',
-                            stack: [
-                                biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
-                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] },
-                                { text: 'For ' + safeBizName, style: 'sub', alignment: 'center' }
-                            ]
-                        }
-                    ]
-                }
+                { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 5, 0, 0], color: '#475569' },
+                { text: 'This is a Computer Generated Document', alignment: 'center', fontSize: 8, margin: [0, 2, 0, 0], color: '#475569' }
             ]
         };
 
         doc.hideGlobalAdvanceBadge = true;
 
-        // 🚨 ENTERPRISE UPGRADE: LIVE VISUAL PREVIEW UI
+        // 🚨 PREVIEW UI RENDERING
         const viewer = document.createElement('div');
         viewer.id = 'in-app-pdf-viewer';
         viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
         viewer.innerHTML = `
-            <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="background:#ffffff; color:#0f172a; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <div>
-                    <div style="font-weight:bold; font-size:18px;">Document Preview</div>
-                    <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
+                    <div style="font-weight:bold; font-size:16px;">Document Preview</div>
+                    <div style="font-size:11px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Native Tally Format...</div>
                 </div>
-                <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
-                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
-                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
-                    <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
-                    <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    ${isSales ? `<select id="pdf-copy-selector" style="padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px; font-weight: bold; color: #0f172a; outline: none; cursor: pointer;">
+                        <option value="ORIGINAL FOR RECIPIENT">Original</option>
+                        <option value="DUPLICATE FOR TRANSPORTER">Duplicate</option>
+                        <option value="TRIPLICATE FOR SUPPLIER">Triplicate</option>
+                    </select>` : ''}
+                    <div id="pdf-header-actions" style="display: flex; gap: 12px; align-items: center; color:#475569;">
+                        <span class="material-symbols-outlined tap-target" style="font-size:22px; display:none;" id="preview-action-print">print</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:22px; display:none;" id="preview-action-download">download</span>
+                        <span class="material-symbols-outlined tap-target" style="font-size:22px; display:none;" id="preview-action-share">share</span>
+                        <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:26px; color:#ba1a1a; cursor:pointer;">close</span>
+                    </div>
                 </div>
             </div>
             <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
@@ -1454,6 +1608,19 @@ Please process this accordingly. Thank you!`;
             </div>
         `;
         document.body.appendChild(viewer);
+
+        // 🚨 Attach event listener for the Triplicate dropdown
+        setTimeout(() => {
+            const copySelector = document.getElementById('pdf-copy-selector');
+            if (copySelector) {
+                copySelector.value = window.solloCurrentCopyType || 'ORIGINAL FOR RECIPIENT';
+                copySelector.addEventListener('change', (e) => {
+                    window.solloCurrentCopyType = e.target.value;
+                    viewer.remove(); // Destroy old preview
+                    window.Utils.generateInvoicePDF(doc, biz, party, type); // Regenerate with new tag!
+                });
+            }
+        }, 100);
 
         document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
 
@@ -1471,10 +1638,9 @@ Please process this accordingly. Thank you!`;
             const btnPrint = document.getElementById('preview-action-print');
 
             btnDown.onclick = () => {
-    pdfDocGenerator.download(filename);
-    if (window.Utils) window.Utils.showToast("✅ Download Started!");
-    // The screen will now stay open until you manually click the X!
-};
+                pdfDocGenerator.download(filename);
+                if (window.Utils) window.Utils.showToast("✅ Download Started!");
+            };
 
             btnShare.onclick = async () => {
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1492,7 +1658,6 @@ Please process this accordingly. Thank you!`;
             };
             
             btnPrint.onclick = () => {
-                // 🚨 FIX: Opens the actual PDF in a native viewer so the printer doesn't capture the app background!
                 const blobUrl = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = blobUrl;
@@ -1502,7 +1667,6 @@ Please process this accordingly. Thank you!`;
                 document.body.removeChild(a);
             };
 
-            // 🚨 ENTERPRISE UPGRADE: PDF.js PREVIEW RENDERING ENGINE
             try {
                 if (typeof window.pdfjsLib === 'undefined') {
                     await new Promise((resolve, reject) => {
@@ -1517,7 +1681,6 @@ Please process this accordingly. Thank you!`;
                     });
                 }
 
-                // Convert Blob to ArrayBuffer
                 const arrayBuffer = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
@@ -1530,9 +1693,10 @@ Please process this accordingly. Thank you!`;
                 previewContent.innerHTML = ''; 
                 previewContent.style.flexDirection = 'column'; 
                 previewContent.style.alignItems = 'center';
-                previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Prevents top from cutting off
+                previewContent.style.justifyContent = 'flex-start';
 
-                for (let pageNum = 1; pageNum <= 1; pageNum++) { // 🚨 NEW: Forces only page 1 to load for Invoices
+                for (let pageNum = 1; pageNum <= 1; pageNum++) { 
+                    if (!document.getElementById('in-app-pdf-viewer')) break; 
                     const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
@@ -1789,7 +1953,7 @@ Please process this accordingly. Thank you!`;
                 previewContent.style.justifyContent = 'flex-start';
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                    const page = await pdf.getPage(pageNum);
+                    if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -2208,7 +2372,7 @@ Please process this accordingly. Thank you!`;
                 previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
-                    const page = await pdf.getPage(pageNum);
+                    if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -2611,7 +2775,7 @@ Please process this accordingly. Thank you!`;
                 previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
-                    const page = await pdf.getPage(pageNum);
+                    if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -3241,7 +3405,7 @@ Please process this accordingly. Thank you!`;
                 previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
-                    const page = await pdf.getPage(pageNum);
+                    if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -3772,7 +3936,7 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
             previewContent.style.justifyContent = 'flex-start'; // 🚨 FIX: Shows the first page correctly!
 
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                const page = await pdf.getPage(pageNum);
+                if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                 const viewport = page.getViewport({ scale: 1.5 });
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
@@ -4167,7 +4331,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             previewContent.style.justifyContent = 'flex-start'; // 🚨 FIX: Shows the first page correctly!
 
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                const page = await pdf.getPage(pageNum);
+                if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                 const viewport = page.getViewport({ scale: 1.5 });
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');

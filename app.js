@@ -8,97 +8,7 @@ const safeMoney = (amount) => {
 };
 
 // --- BACKGROUND WORKER ENGINE ---
-if (window.Worker) {
-    window.DataWorker = new Worker('worker.js?v=94');
-    
-    window.DataWorker.addEventListener('message', function(e) {
-        const response = e.data;
-        
-        if (response && response.type === 'DASHBOARD_INVENTORY_RESULT') {
-            // 1. Update the Total Capital UI
-            const valEl = document.getElementById('dash-inventory-value');
-            if (valEl) {
-                valEl.innerText = '₹' + response.totalValuation.toLocaleString('en-IN', {
-                    minimumFractionDigits: 2, 
-                    maximumFractionDigits: 2
-                });
-            }
-
-            // 2. Draw the Restock Required Mini-Table
-            const lsText = document.getElementById('dash-low-stock-text');
-            const lsIcon = document.getElementById('dash-low-stock-icon');
-            const lsBtn = document.getElementById('dash-low-stock-btn');
-
-            if (lsText && lsIcon && lsBtn) {
-                const oldTable = document.getElementById('dash-mini-table');
-                if (oldTable) oldTable.remove();
-
-                if (response.lowStockItems.length > 0) {
-                    lsBtn.style.display = '';
-                    response.lowStockItems.sort((a, b) => a.score - b.score);
-                    const topItems = response.lowStockItems.slice(0, 3);
-                    
-                    let tableRows = topItems.map(item => `
-                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 6px 0; border-bottom: 1px dashed rgba(186, 26, 26, 0.2);">
-                            <span style="color: #410002; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; font-weight: 600;">${item.name}</span>
-                            <span style="color: var(--md-error); font-weight: 800; background: #ffe4e6; padding: 2px 6px; border-radius: 4px;">${item.reason}</span>
-                        </div>
-                    `).join('');
-                    
-                    let extraCount = response.lowStockItems.length - 3;
-                    let extraText = extraCount > 0 ? `<div style="text-align: center; font-size: 10px; color: var(--md-error); margin-top: 8px; font-weight: 800; text-transform: uppercase;">+${extraCount} MORE ITEMS CRITICAL</div>` : '';
-
-                    lsText.innerHTML = `<span style="font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">RESTOCK REQUIRED</span>`;
-                    lsText.style.color = 'var(--md-error)';
-                    lsIcon.innerText = 'warning';
-                    lsIcon.style.color = 'var(--md-error)';
-                    lsBtn.style.borderLeft = '4px solid var(--md-error)';
-                    lsBtn.style.background = 'rgba(186, 26, 26, 0.05)';
-                    
-                    const tableHTML = `<div id="dash-mini-table" style="width: 100%; margin-top: 12px; background: rgba(255,255,255,0.8); border-radius: 6px; padding: 4px 12px; border: 1px solid rgba(186,26,26,0.2); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">${tableRows}${extraText}</div>`;
-                    lsBtn.insertAdjacentHTML('beforeend', tableHTML);
-                    
-                    lsBtn.onclick = () => {
-                        if (window.UI) {
-                            // Correctly opens the full-screen Inventory Master List
-                            window.UI.openMasterView('products', 'Inventory Master');
-                            
-                            setTimeout(() => {
-                                window.UI.state.activeFilters = window.UI.state.activeFilters || {};
-                                window.UI.state.activeFilters['masters'] = 'Low Stock';
-                                
-                                // Updates the dropdown UI visually to match the data
-                                const filterDropdown = document.getElementById('filter-master-view');
-                                if (filterDropdown) filterDropdown.value = 'Low Stock';
-
-                                if (window.Utils) window.Utils.showToast("Filtered: Critical Restock ⚠️");
-                                if (typeof window.UI.applyFilters === 'function') window.UI.applyFilters('masters');
-                            }, 200);
-                        }
-                    };
-                } else {
-                    lsBtn.style.display = 'none';
-                }
-            }
-        } 
-        else if (response && response.type === 'AGING_RESULT') {
-            // Update the Receivables Aging UI
-            const totalEl = document.getElementById('aging-total-due');
-            if (totalEl) {
-                const formatMoney = (amt) => '₹' + amt.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                
-                totalEl.innerText = formatMoney(response.totalDue);
-                document.getElementById('aging-30-amt').innerText = formatMoney(response.bucket30);
-                document.getElementById('aging-60-amt').innerText = formatMoney(response.bucket60);
-                document.getElementById('aging-90-amt').innerText = formatMoney(response.bucket90);
-                
-                document.getElementById('aging-30-bar').style.width = response.totalDue > 0 ? `${(response.bucket30/response.totalDue)*100}%` : '0%';
-                document.getElementById('aging-60-bar').style.width = response.totalDue > 0 ? `${(response.bucket60/response.totalDue)*100}%` : '0%';
-                document.getElementById('aging-90-bar').style.width = response.totalDue > 0 ? `${(response.bucket90/response.totalDue)*100}%` : '0%';
-            }
-        }
-    });
-}
+// Removed to prevent battery drain. Dashboard metrics are now calculated instantly on the main thread!
 
 
 // ==========================================
@@ -176,10 +86,6 @@ document.addEventListener('reset', (e) => {
             }
         });
         
-        // Also force the Live Insight Engine to instantly clear the banner!
-        const oldBanner = document.getElementById('risk-banner');
-        if (oldBanner) oldBanner.remove();
-        
     }, 10); // 10ms delay ensures it happens right after the browser finishes its native reset
 });
 
@@ -216,7 +122,7 @@ window.addEventListener('beforeunload', (event) => {
 
 
 // --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT BANNER ---
-const updateNetworkStatus = () => {
+const updateNetworkStatus = async () => {
     let banner = document.getElementById('offline-banner');
     // Dynamically inject the banner into the HTML if it doesn't exist yet
     if (!banner) {
@@ -226,10 +132,23 @@ const updateNetworkStatus = () => {
         document.body.appendChild(banner);
     }
     
-    if (!navigator.onLine) {
+    // 🚨 CRITICAL FIX: The "Fake Online" Tracker
+    // Browsers lie. navigator.onLine only means you are connected to a router, NOT the internet!
+    let hasTrueInternet = false;
+    if (navigator.onLine) {
+        try {
+            // Ping a tiny, un-cacheable Google pixel to verify actual world-wide-web connectivity
+            await fetch('https://www.google.com/favicon.ico?' + Math.random(), { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+            hasTrueInternet = true;
+        } catch (err) {
+            hasTrueInternet = false;
+        }
+    }
+
+    if (!hasTrueInternet) {
         // Drop down the red warning banner
         banner.className = 'offline-banner show'; // Removes the green 'online' class
-        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_off</span> You are offline. Working locally.';
+        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_off</span> ' + (navigator.onLine ? 'No internet connection. Working locally.' : 'You are offline. Working locally.');
         
         // 🚨 ENTERPRISE FIX: Trigger the Offline Queue Counter!
         if (window.app && typeof window.app.checkPendingSyncs === 'function') {
@@ -539,10 +458,6 @@ const app = {
             document.querySelectorAll('.bottom-nav .nav-item').forEach(item => {
                 item.addEventListener('click', () => { if(banner) banner.style.display = 'none'; });
             });
-
-            // Clean up the old ugly pill if it got stuck
-            const oldPill = document.getElementById('floating-back-dash');
-            if (oldPill) oldPill.remove();
 
             setTimeout(() => {
                 if (window.UI) {
@@ -1100,13 +1015,13 @@ const app = {
                 }
             });
             
-            // 4. Save corrected numbers concurrently to hard drive (Zero Main-Thread Blocking)
-            await Promise.all(allItems.map(async (i) => {
+            // 4. Save corrected numbers sequentially to hard drive (Prevents Mobile RAM Crashes!)
+            for (let i of allItems) {
                 i.stockGst = safeMoney(i.stockGst);
                 i.stockNonGst = safeMoney(i.stockNonGst);
                 i.stock = safeMoney(i.stockGst + i.stockNonGst);
                 await window.saveRecord('items', i);
-            }));
+            }
             
             // Force RAM wipe and Dashboard Refresh
             if (window.AppCache) window.AppCache.items = null;
@@ -3493,28 +3408,16 @@ const app = {
                     const targetLedger = await getRecordById('ledgers', partyId);
                     const partyGst = targetLedger ? targetLedger.gst : '';
 
-                    // 🚨 ENTERPRISE FIX: Strict Status Engine
+                    // Allow the user to manually control their own workflow dates!
                     let currentStatus = document.getElementById(`${type}-order-status`).value;
                     let safeShippedDate = document.getElementById(`${type}-shipped-date`).value;
                     let safeCompletedDate = document.getElementById(`${type}-completed-date`).value;
 
-                    // 🚨 SOLLO FIX: THE FAKE COMPLETION SHIELD
-                    // Prevent users from manually marking an invoice as "Completed" if it hasn't been paid!
-                    if (currentStatus === 'Completed' && (app.state.currentEditId || type === 'purchase')) {
-                        // Force it back to Unpaid. The Auto-FIFO engine will upgrade it to Completed 
-                        // automatically ONLY if the Cashbook receipts match the Grand Total!
-                        currentStatus = 'Unpaid';
-                    }
-
+                    // Only clear dates if it is a Draft (Open)
                     if (currentStatus === 'Open') {
-                        // Drafts have no dispatch or completion dates
                         safeShippedDate = '';
                         safeCompletedDate = '';
-                    } else if (currentStatus === 'Unpaid' || currentStatus === 'Shipped') {
-                        // Unpaid bills and Shipped items CAN have a dispatch date, but NOT a completed date
-                        safeCompletedDate = '';
                     }
-                    // If 'Completed', it safely keeps both dates!
 
                     const data = {
                         id: app.state.currentEditId || Utils.generateId(),
@@ -3665,9 +3568,8 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
     data.splitData = splitConfirmed;
     data.paymentMethod = 'Split';
     
-    // We assign 'Unpaid' so the central FIFO waterfall engine correctly calculates the remaining debt and dynamically marks it 'Completed' if fully paid!
+    // We assign 'Unpaid' so the central FIFO waterfall engine tracks the remaining debt, but we PRESERVE the user's manual completed date!
     data.status = 'Unpaid'; 
-    data.completedDate = ''; // 🚨 FIX 2: Erase the completed date so the PDF doesn't print it!
     data.notes = (data.notes || '') + `\n[Split Tender: ₹${splitConfirmed.cash} Cash, ₹${splitConfirmed.bank} Bank. Pending: ₹${splitConfirmed.credit}]`;
 }
 
@@ -4093,11 +3995,17 @@ if (data.id && splitConfirmed) {
                     }
                     item.stock = safeMoney((parseFloat(item.stockGst) || 0) + (parseFloat(item.stockNonGst) || 0));
                     
-                    // Execute parallel writes for absolute speed
-                    await Promise.all([
-                        saveRecord('adjustments', adjData),
-                        saveRecord('items', item)
-                    ]);
+                    // 🚨 CRITICAL FIX: The Atomic Vault!
+                    // Bundles both saves into an unbreakable transaction. If one fails, 
+                    // both fail, ensuring your inventory never gets out of sync!
+                    if (window.executeAtomicBatch) {
+                        await window.executeAtomicBatch([
+                            { store: 'adjustments', data: adjData },
+                            { store: 'items', data: item }
+                        ], []);
+                    } else {
+                        await Promise.all([saveRecord('adjustments', adjData), saveRecord('items', item)]);
+                    }
                     
                     // STRICT ERP LOGIC: Wipe the RAM Cache so the UI instantly shows the new stock!
                     if (window.AppCache) window.AppCache.items = null;

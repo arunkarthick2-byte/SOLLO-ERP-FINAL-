@@ -882,13 +882,23 @@
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                     </div>
 
-                    <div class="m3-card tap-target setting-btn" data-action="autofix" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0 0 8px 8px;">
+                    <div class="m3-card tap-target setting-btn" data-action="autofix" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0;">
                         <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
                             <span class="material-symbols-outlined" style="font-size: 22px;">healing</span>
                         </div>
                         <div style="flex: 1;">
                             <strong style="font-size:15px; color: var(--md-on-surface);">Auto-Fix Stock & Capital</strong>
                             <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Recalculate warehouse from scratch</small>
+                        </div>
+                    </div>
+
+                    <div class="m3-card tap-target setting-btn" data-action="archive" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0; border: 1px solid var(--md-outline-variant); border-radius: 0 0 8px 8px; border-top: none;">
+                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 44px; height: 44px; flex-shrink: 0; box-shadow: none;">
+                            <span class="material-symbols-outlined" style="font-size: 22px;">archive</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <strong style="font-size:15px; color: var(--md-on-surface);">Cold Storage Archive</strong>
+                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Compress old invoices to save space</small>
                         </div>
                     </div>
                 </div>
@@ -3864,14 +3874,25 @@
 
         window.applyAppUpdate = async () => {
             // 🚨 ENTERPRISE FIX: The Silent Data Wipe Shield!
-            // Prevent users from accidentally wiping an unsaved invoice if they click "Reload" on the update banner.
             if (window.isFormDirty) {
                 const isConfirmed = await window.Utils.confirmModal("You have unsaved changes. Reloading now will lose your current work. Continue?", "Warning", true);
                 if (!isConfirmed) return;
             }
-            if (newWorker) newWorker.postMessage({ type: 'SKIP_WAITING' });
-            // Safely wait half a second, then reload exactly once.
-            setTimeout(() => { window.location.reload(true); }, 500); 
+            
+            // 🚨 CRITICAL FIX: The Race Condition Shield
+            // Wait for the background worker to officially take over before reloading the page!
+            if (newWorker) {
+                let isRefreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!isRefreshing) {
+                        isRefreshing = true;
+                        window.location.reload(true);
+                    }
+                });
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+            } else {
+                window.location.reload(true);
+            }
         };
 
         // ==========================================
