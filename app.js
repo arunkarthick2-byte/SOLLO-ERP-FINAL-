@@ -1230,68 +1230,99 @@ const app = {
     openMasterSort: () => {
         if (!window.UI || !window.UI.state) return;
         const type = window.UI.state.currentMasterType;
-        const filterSelect = document.getElementById('filter-master-view');
-        const sortSelect = document.getElementById('sort-master-view');
+        
+        const filterContainer = document.getElementById('dynamic-filter-container');
+        const sortContainer = document.getElementById('dynamic-sort-container');
 
-        if (!filterSelect || !sortSelect) return;
+        if (!filterContainer || !sortContainer) return;
 
         // 🚨 ENTERPRISE FIX: Read the true active state directly from the RAM Engine!
         const currentFilter = (window.UI.state.activeFilters && window.UI.state.activeFilters['masters']) ? window.UI.state.activeFilters['masters'] : 'All';
         const currentSort = (window.UI.state.activeSorts && window.UI.state.activeSorts['masters']) ? window.UI.state.activeSorts['masters'] : 'name-asc';
 
-        let filterHTML = '<option value="All">All Records</option>';
-        let sortHTML = '<option value="name-asc">A to Z (Ascending)</option><option value="name-desc">Z to A (Descending)</option>';
+        const buildRow = (inputId, val, text, modalId, isSelected) => {
+            return `<div class="sub-radio-row ${isSelected ? 'selected' : ''}" onclick="window.pickSubOption('${inputId}', '${val}', '${text}', '${modalId}', this)">
+                        <span class="sub-radio-text">${text}</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>`;
+        };
+
+        let filterOptions = [{ val: 'All', text: 'All Records' }];
+        let sortOptions = [
+            { val: 'name-asc', text: 'A to Z (Ascending)' },
+            { val: 'name-desc', text: 'Z to A (Descending)' }
+        ];
 
         if (type === 'products') {
-            filterHTML += `
-                <option value="In Stock">Stock Available</option>
-                <option value="Low Stock">Low Stock Alert</option>
-                <option value="Out of Stock">Out of Stock</option>
-                <option value="GST Stock">Has GST Stock</option>
-                <option value="Non-GST Stock">Has Non-GST Stock</option>
-            `;
-            sortHTML += `
-                <option value="stock-asc">Lowest Stock First</option>
-                <option value="stock-desc">Highest Stock First</option>
-            `;
+            filterOptions.push(
+                { val: 'In Stock', text: 'Stock Available' },
+                { val: 'Low Stock', text: 'Low Stock Alert' },
+                { val: 'Out of Stock', text: 'Out of Stock' },
+                { val: 'GST Stock', text: 'Has GST Stock' },
+                { val: 'Non-GST Stock', text: 'Has Non-GST Stock' }
+            );
+            sortOptions.push(
+                { val: 'stock-asc', text: 'Lowest Stock First' },
+                { val: 'stock-desc', text: 'Highest Stock First' }
+            );
         } else if (type === 'customers') {
-            filterHTML += `
-                <option value="To Receive">Pending Dues (To Receive)</option>
-                <option value="Advance">Advance Received</option>
-                <option value="Settled">Settled / Zero Balance</option>
-            `;
-            sortHTML += `
-                <option value="bal-desc">Highest Balance First</option>
-                <option value="bal-asc">Lowest Balance First</option>
-            `;
+            filterOptions.push(
+                { val: 'To Receive', text: 'Pending Dues (To Receive)' },
+                { val: 'Advance', text: 'Advance Received' },
+                { val: 'Settled', text: 'Settled / Zero Balance' }
+            );
+            sortOptions.push(
+                { val: 'bal-desc', text: 'Highest Balance First' },
+                { val: 'bal-asc', text: 'Lowest Balance First' }
+            );
         } else if (type === 'suppliers') {
-            filterHTML += `
-                <option value="To Pay">Pending Bills (To Pay)</option>
-                <option value="Advance">Advance Paid</option>
-                <option value="Settled">Settled / Zero Balance</option>
-            `;
-            sortHTML += `
-                <option value="bal-desc">Highest Balance First</option>
-                <option value="bal-asc">Lowest Balance First</option>
-            `;
+            filterOptions.push(
+                { val: 'To Pay', text: 'Pending Bills (To Pay)' },
+                { val: 'Advance', text: 'Advance Paid' },
+                { val: 'Settled', text: 'Settled / Zero Balance' }
+            );
+            sortOptions.push(
+                { val: 'bal-desc', text: 'Highest Balance First' },
+                { val: 'bal-asc', text: 'Lowest Balance First' }
+            );
+        } else if (type === 'contacts') {
+            filterOptions.push(
+                { val: 'Customers Only', text: 'Customers Only' },
+                { val: 'Suppliers Only', text: 'Suppliers Only' }
+            );
+        } else if (type === 'adjustments') {
+            filterOptions.push(
+                { val: 'Additions', text: 'Additions (+)' },
+                { val: 'Deductions', text: 'Deductions (-)' }
+            );
+            sortOptions.push(
+                { val: 'date-desc', text: 'Newest First' },
+                { val: 'date-asc', text: 'Oldest First' }
+            );
         }
 
-        filterSelect.innerHTML = filterHTML;
-        sortSelect.innerHTML = sortHTML;
-        
-        // 🚨 ENTERPRISE FIX: Restore the user's previous selection!
-        if (currentFilter) filterSelect.value = currentFilter;
-        if (currentSort) sortSelect.value = currentSort;
+        // Generate HTML for the popups
+        filterContainer.innerHTML = filterOptions.map(o => buildRow('master-filter', o.val, o.text, 'popup-masters-filter', o.val === currentFilter)).join('');
+        sortContainer.innerHTML = sortOptions.map(o => buildRow('master-sort', o.val, o.text, 'popup-masters-sort', o.val === currentSort)).join('');
 
-        window.UI.openBottomSheet('sheet-master-sort');
+        // 🚨 UPDATE DISPLAY TEXTS
+        const currentFilterText = filterOptions.find(o => o.val === currentFilter)?.text || 'All Records';
+        const currentSortText = sortOptions.find(o => o.val === currentSort)?.text || 'A to Z (Ascending)';
+        
+        document.getElementById('temp-master-filter').value = currentFilter;
+        const dispFilt = document.getElementById('display-master-filter');
+        if(dispFilt) dispFilt.innerText = currentFilterText;
+        
+        document.getElementById('temp-master-sort').value = currentSort;
+        const dispSort = document.getElementById('display-master-sort');
+        if(dispSort) dispSort.innerText = currentSortText;
+
+        window.UI.openBottomSheet('sheet-dynamic-master-sort');
     },
 
     applySmartMasterFilter: () => {
-        // The old, clunky DOM filter has been deleted!
-        // We now rely 100% on the lightning-fast native data filter inside ui.js!
         if (window.UI && typeof window.UI.applyFilters === 'function') {
-            
-            // 🚨 ENTERPRISE FIX: Capture the dropdown values and inject them into the state BEFORE filtering!
+            // 🚨 ENTERPRISE FIX: Capture the true values from the hidden inputs
             const filterSelect = document.getElementById('filter-master-view');
             const sortSelect = document.getElementById('sort-master-view');
             
@@ -2405,23 +2436,11 @@ const app = {
         // 5. EXTRACT ADVANCE POOLS SEPARATELY
         let advGST = Math.max(0, pendingDebtGST - trueBalGST);
         let advNonGST = Math.max(0, pendingDebtNonGST - trueBalNonGST);
+        let totalAdvance = advGST + advNonGST;
 
         const options = [];
         for (const item of pendingInvoices) {
-            let finalBal = item.balance;
-            const isNonGST = item.doc.invoiceType === 'Non-GST';
-            
-            // 🚨 ISOLATED ADVANCE AUTOPAY:
-            // GST money only pays GST invoices. Non-GST money only pays Non-GST invoices!
-            if (isNonGST && advNonGST > 0 && finalBal > 0.01) {
-                const applied = Math.min(advNonGST, finalBal);
-                finalBal -= applied;
-                advNonGST -= applied;
-            } else if (!isNonGST && advGST > 0 && finalBal > 0.01) {
-                const applied = Math.min(advGST, finalBal);
-                finalBal -= applied;
-                advGST -= applied;
-            }
+            let finalBal = item.balance; // 🚨 WE KEEP THE FULL BALANCE NOW!
             
             if (finalBal > 0.01) {
                 const doc = item.doc;
@@ -2436,6 +2455,12 @@ const app = {
             selectEl.innerHTML = '<option value="">No pending invoices (On Account)</option>';
         } else {
             selectEl.innerHTML = '<option value="">On Account / Advance</option>' + options.join('');
+        }
+
+        // 🚨 VISUAL WARNING ENGINE: Tell the user an advance exists!
+        const displayBox = document.getElementById(`pay-${isMoneyIn ? 'in' : 'out'}-bills-display`);
+        if (displayBox && totalAdvance > 0.01) {
+            displayBox.innerHTML = `<span style="color:#ba1a1a; font-weight:900;">⚠️ ₹${totalAdvance.toFixed(2)} Advance Available (Edit in Cashbook)</span>`;
         }
     },
 
@@ -2505,6 +2530,15 @@ const app = {
             }
             if (pdfBtn) {
                 pdfBtn.style.setProperty('display', id ? 'flex' : 'none', 'important');
+            }
+
+            // 🚨 LOGIC FIX: Hide the Khata/Ledger history buttons for brand new records!
+            if (type === 'ledger') {
+                const khataCard = document.getElementById('ledger-khata-card');
+                if (khataCard) khataCard.style.setProperty('display', id ? 'block' : 'none', 'important');
+            } else if (type === 'product') {
+                const stockCard = document.getElementById('product-ledger-card');
+                if (stockCard) stockCard.style.setProperty('display', id ? 'block' : 'none', 'important');
             }
 
             if (type === 'sales' || type === 'purchase') {
@@ -3494,7 +3528,7 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
 
         // Dynamically construct the gorgeous Split-Tender Bottom Sheet
         const modalHTML = `
-        <div id="split-tender-modal" class="bottom-sheet" style="z-index: 99999; display: flex; flex-direction: column; background: var(--md-surface); border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2);">
+        <div id="split-tender-modal" data-total="${total}" class="bottom-sheet" style="z-index: 99999; display: flex; flex-direction: column; background: var(--md-surface); border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2);">
             <div style="padding: 20px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center;">
                 <h3 style="margin: 0; color: var(--md-primary); font-weight: 800;">Split Payment</h3>
                 <h3 style="margin: 0; color: var(--md-on-surface); font-weight: 900;">Total: ₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</h3>
@@ -3526,13 +3560,22 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         
         document.body.insertAdjacentHTML('beforeend', modalHTML);
 
-        // The Live Math Engine
+        // The Secure Live Math Engine (DOM-Bound)
         window.calcSplit = () => {
+            const modal = document.getElementById('split-tender-modal');
+            if (!modal) return;
+            
+            const currentTotal = parseFloat(modal.getAttribute('data-total')) || 0;
             const c = parseFloat(document.getElementById('split-cash').value) || 0;
             const b = parseFloat(document.getElementById('split-bank').value) || 0;
-            let credit = total - (c + b);
+            
+            let credit = currentTotal - (c + b);
             if (credit < 0) credit = 0;
-            document.getElementById('split-credit').innerText = `₹${credit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            
+            const creditDisplay = document.getElementById('split-credit');
+            if (creditDisplay) {
+                creditDisplay.innerText = `₹${credit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            }
         };
 
         setTimeout(() => document.getElementById('split-tender-modal').classList.add('open'), 10);
@@ -4588,6 +4631,8 @@ if (data.id && splitConfirmed) {
     // AUTO-COMPLETE ADVANCE PAYMENT ENGINE
     // ==========================================
     autoCompleteInvoices: async (partyId, type, triggerDate = null) => {
+        return; // <-- ADD THIS LINE HERE
+
         const isSales = (type === 'sales');
         const storeName = isSales ? 'sales' : 'purchases';
         const partyKey = isSales ? 'customerId' : 'supplierId';
@@ -5496,7 +5541,7 @@ if (data.id && splitConfirmed) {
         
         let advanceAppliedToThisInvoice = 0;
         
-        if (explicitCoverage < grandTotal - 0.01) {
+        if (false) { // <-- ADDED 'false' HERE TO DISABLE AUTO-PRINTING ON PDF
             const party = await getRecordById('ledgers', partyId);
             let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
             const balType = party ? String(party.balanceType || '').toLowerCase() : '';

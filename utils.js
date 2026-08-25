@@ -1153,42 +1153,76 @@ Please process this accordingly. Thank you!`;
         if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
         const discountRatio = rawSubtotal !== 0 ? (discountAmt / rawSubtotal) : 0;
 
-        // 🚨 TALLY: Top Meta Grid Layout (Customized to your exact fields)
+        // 🚨 TALLY: Top Meta Grid Layout (Professional Stacked Layout - UNIFORM HEIGHT FIX)
         const tallyHeaderGrid = [
             [
-                // Column 1: Company Details
+                // Outer Left - Company Details
                 {
-                    rowSpan: 3,
                     stack: [
-                        biz.logo ? { image: biz.logo, fit: [120, 50], margin: [0,0,0,4] } : null,
-                        { text: safeBizName, bold: true, fontSize: 11, margin: [0,0,0,2] },
-                        { text: safeBizAddress, fontSize: 9 },
-                        { text: bizLocationStr, fontSize: 9 },
-                        { text: 'E-Mail: ' + (biz.email || 'N/A'), fontSize: 9, margin: [0,2,0,0] },
-                        { text: 'Contact: ' + (biz.phone || 'N/A'), fontSize: 9 },
-                        bizGst ? { text: 'GSTIN/UIN  : ' + bizGst, bold: true, fontSize: 9, margin: [0,4,0,0] } : null,
-                        biz.state ? { text: 'State Name : ' + biz.state, fontSize: 9 } : null
-                    ].filter(Boolean),
+                        {
+                            columns: [
+                                {
+                                    width: '*',
+                                    stack: [
+                                        { text: safeBizName, bold: true, fontSize: 11, margin: [0,0,0,2] },
+                                        { text: safeBizAddress, fontSize: 9 },
+                                        { text: bizLocationStr, fontSize: 9 },
+                                        { text: 'E-Mail: ' + (biz.email || 'N/A'), fontSize: 9, margin: [0,2,0,0] },
+                                        { text: 'Contact: ' + (biz.phone || 'N/A'), fontSize: 9 },
+                                        bizGst ? { text: 'GSTIN/UIN  : ' + bizGst, bold: true, fontSize: 9, margin: [0,4,0,0] } : null,
+                                        biz.state ? { text: 'State Name : ' + biz.state, fontSize: 9 } : null
+                                    ].filter(Boolean)
+                                },
+                                biz.logo ? { width: 55, image: biz.logo, fit: [55, 55], alignment: 'right' } : { width: 0, text: '' }
+                            ]
+                        }
+                    ],
                     padding: [4, 4]
                 },
-                // Column 2 & 3: Invoice Info
-                { stack: [{ text: 'Invoice No.', fontSize: 7, color: '#475569' }, { text: safeDocNo, bold: true, fontSize: 9 }] },
-                { stack: [{ text: 'Dated', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.date) || '-', bold: true, fontSize: 9 }] }
-            ],
-            [
-                '', // Spanned
-                { stack: [{ text: 'Order Ref / PO No.', fontSize: 7, color: '#475569' }, { text: doc.orderNo || '-', bold: true, fontSize: 9 }] },
-                { stack: [{ text: 'Order Date', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.orderDate) || '-', bold: true, fontSize: 9 }] }
-            ],
-            [
-                '', // Spanned
-                { stack: [{ text: 'Reference / Remarks', fontSize: 7, color: '#475569' }, { text: (shouldPrintNotes && rawNotes) ? rawNotes : '-', bold: true, fontSize: 9 }], colSpan: 2 },
-                ''
-            ],
-            [
-                // Column 1: Buyer Details
+                // Outer Right - Nested Table for Uniform Invoice Info (Fixes Stretching)
                 {
-                    rowSpan: 2,
+                    colSpan: 2,
+                    padding: [0, 0], // Remove padding for seamless nested table borders
+                    table: {
+                        widths: ['50%', '50%'],
+                        body: [
+                            [
+                                { stack: [{ text: 'Invoice No.', fontSize: 7, color: '#475569' }, { text: safeDocNo, bold: true, fontSize: 9 }], padding: [4, 4] },
+                                { stack: [{ text: 'Dated', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.date) || '-', bold: true, fontSize: 9 }], padding: [4, 4] }
+                            ],
+                            [
+                                { stack: [{ text: 'Order Ref / PO No.', fontSize: 7, color: '#475569' }, { text: doc.orderNo || '-', bold: true, fontSize: 9 }], padding: [4, 4] },
+                                { stack: [{ text: 'Order Date', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.orderDate) || '-', bold: true, fontSize: 9 }], padding: [4, 4] }
+                            ],
+                            [
+                                { stack: [{ text: 'Dispatch Date', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.shippedDate) || '-', bold: true, fontSize: 9 }], padding: [4, 4] },
+                                { stack: [{ text: titleDate2, fontSize: 7, color: '#475569' }, { text: valDate2, bold: true, fontSize: 9 }], padding: [4, 4] }
+                            ],
+                            [
+                                {
+                                    colSpan: 2,
+                                    stack: [
+                                        { text: 'Reference / Remarks', fontSize: 7, color: '#475569' },
+                                        { text: (shouldPrintNotes && rawNotes) ? rawNotes : '-', bold: true, fontSize: 8 }
+                                    ],
+                                    padding: [4, 4]
+                                },
+                                ''
+                            ]
+                        ]
+                    },
+                    layout: {
+                        hLineWidth: (i, node) => (i === 0 || i === node.table.body.length) ? 0 : 0.5,
+                        vLineWidth: (i, node) => (i === 0 || i === node.table.widths.length) ? 0 : 0.5,
+                        hLineColor: () => '#000000',
+                        vLineColor: () => '#000000'
+                    }
+                },
+                '' // Empty cell to satisfy colSpan: 2 of outer table
+            ],
+            [
+                // Outer Left - Buyer Details
+                {
                     stack: [
                         { text: isSales ? 'Buyer (Bill to)' : 'Supplier (Bill from)', fontSize: 8, color: '#475569', margin: [0,0,0,2] },
                         { text: partyName, bold: true, fontSize: 10 },
@@ -1199,13 +1233,27 @@ Please process this accordingly. Thank you!`;
                     ].filter(Boolean),
                     padding: [4, 4]
                 },
-                { stack: [{ text: 'Mode/Terms of Payment', fontSize: 7, color: '#475569' }, { text: biz.terms ? 'As per terms' : 'Immediate', bold: true, fontSize: 9 }] },
-                { stack: [{ text: 'Destination', fontSize: 7, color: '#475569' }, { text: safeParty.city || '-', bold: true, fontSize: 9 }] }
-            ],
-            [
-                '', // Spanned
-                { stack: [{ text: 'Dispatch Date', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.shippedDate) || '-', bold: true, fontSize: 9 }], padding: [4, 4] },
-                { stack: [{ text: titleDate2, fontSize: 7, color: '#475569' }, { text: valDate2, bold: true, fontSize: 9 }], padding: [4, 4] }
+                // Outer Right - Bank Details (UPGRADED WITH SHADING)
+                {
+                    colSpan: 2,
+                    fillColor: '#f1f5f9', // <--- Adds the premium light-gray shading
+                    stack: [
+                        (!isNonGST && isSales && biz.bankDetails) ? { text: "Company's Bank Details", fontSize: 7, color: '#475569', margin: [0,0,0,2] } : null,
+                        (!isNonGST && isSales && biz.bankDetails) ? { text: biz.bankDetails, bold: true, fontSize: 9 } : null,
+
+                        (isNonGST && isSales && biz.upiId && thisInvoiceDue > 0.5 && doc.status !== 'Cancelled') ? {
+                            columns: [
+                                { qr: `upi://pay?pa=${biz.upiId}&pn=${encodeURIComponent(safeBizName)}&am=${thisInvoiceDue.toFixed(2)}&cu=INR`, fit: 45, margin: [0, 0, 8, 0] },
+                                { stack: [{ text: 'Scan to Pay', italics: true, fontSize: 8, color: '#475569' }, { text: biz.upiId, fontSize: 9, bold: true }] }
+                            ]
+                        } : null,
+
+                        (!isSales || (!biz.bankDetails && !isNonGST) || (isNonGST && (!biz.upiId || thisInvoiceDue <= 0.5))) ? { text: 'Payment Terms / Details', fontSize: 7, color: '#475569', margin: [0,0,0,2] } : null,
+                        (!isSales || (!biz.bankDetails && !isNonGST) || (isNonGST && (!biz.upiId || thisInvoiceDue <= 0.5))) ? { text: biz.terms ? 'As per terms' : 'Immediate', bold: true, fontSize: 9 } : null
+                    ].filter(Boolean),
+                    padding: [4, 4]
+                },
+                '' // Empty cell for colSpan
             ]
         ];
 
@@ -1213,16 +1261,17 @@ Please process this accordingly. Thank you!`;
         const hsnMap = {};
         const itemsBody = [];
         
-        const thStyle = { bold: true, fontSize: 9, alignment: 'center', margin: [2, 4] };
+        // UPGRADE: Premium Slate Gray Table Headers
+        const thStyle = { bold: true, fontSize: 9, alignment: 'center', margin: [2, 4], fillColor: '#334155', color: '#ffffff' };
         
         itemsBody.push([
-            {text: 'Sl\nNo.', style: 'th'}, 
-            {text: 'Description of Goods', style: 'th', alignment: 'center'},
-            {text: 'HSN/SAC', style: 'th'},
-            {text: 'Quantity', style: 'th'}, 
-            {text: 'Rate', style: 'th'},
-            {text: 'per', style: 'th'},
-            {text: 'Amount', style: 'th'}
+            {text: 'Sl\nNo.', ...thStyle}, 
+            {text: 'Description of Goods', ...thStyle},
+            {text: 'HSN/SAC', ...thStyle},
+            {text: 'Quantity', ...thStyle}, 
+            {text: 'Rate', ...thStyle},
+            {text: 'per', ...thStyle},
+            {text: 'Amount', ...thStyle}
         ]);
 
         let totalTaxableValue = 0;
@@ -1306,8 +1355,7 @@ Please process this accordingly. Thank you!`;
             itemsBody.push([ '', {text: 'Round Off', alignment: 'right', ...tdStyle}, '', '', '', '', {text: roundOffAmt.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', ...tdStyle} ]);
         }
 
-        // 🚨 TALLY FIX: Smart A4 Page Stretch
-        // Calculates the exact empty space needed based on the number of item & tax rows!
+        // 🚨 TALLY FIX: Smart A4 Page Stretch (UPGRADED FOR UNIFORM FULL-PAGE LAYOUT)
         let usedRows = (doc.items || []).length;
         if (discountAmt > 0) usedRows++;
         if (!isNonGST && isIGST && totalIgstAmount > 0) usedRows++;
@@ -1315,10 +1363,18 @@ Please process this accordingly. Thank you!`;
         if (freightVal > 0) usedRows++;
         if (Math.abs(roundOffAmt) > 0.01) usedRows++;
 
-        let dynamicSpacer = Math.max(5, 80 - (usedRows * 15));
+        let termsLines = biz.terms ? String(biz.terms).split('\n').length : 0;
+        
+        // INCREASED BASE SPACER: Pushes the footer all the way down to create a strict, uniform A4 size.
+        // It dynamically subtracts height based on how many items/taxes you have so it never spills over to page 2.
+        let dynamicSpacer = 300 - (usedRows * 18);
+        if (!isNonGST) dynamicSpacer -= 65; // Make room for HSN Table
+        dynamicSpacer -= (termsLines * 10); 
+        
+        dynamicSpacer = Math.max(20, dynamicSpacer); // Failsafe: NEVER let it go negative
 
         itemsBody.push([ 
-            {text: '\n', margin: [0, dynamicSpacer]}, '', '', '', '', '', '' 
+            {text: '\n', margin: [0, dynamicSpacer, 0, 0]}, '', '', '', '', '', '' 
         ]);
 
         // Debt tracking was moved to the top of the function to support dynamic dates!
@@ -1362,39 +1418,45 @@ Please process this accordingly. Thank you!`;
             partyBalance = netOb + tDocs - tReturns - tReceipts;
         }
 
-        // Tally: Grand Total Row
+        // UPGRADE: Highlighted Grand Total Row
         itemsBody.push([
-            {text: 'Total', colSpan: 3, alignment: 'right', bold: true, margin: [4, 4]}, '', '',
-            {text: totalQty.toLocaleString('en-IN'), alignment: 'right', bold: true, margin: [2, 4]}, 
-            '', '', 
-            {text: '₹' + grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, margin: [4, 4]}
+            {text: 'Total', colSpan: 3, alignment: 'right', bold: true, margin: [4, 4], fillColor: '#e2e8f0'}, '', '',
+            {text: totalQty.toLocaleString('en-IN'), alignment: 'right', bold: true, margin: [2, 4], fillColor: '#e2e8f0'}, 
+            {text: '', fillColor: '#e2e8f0'}, {text: '', fillColor: '#e2e8f0'}, 
+            {text: '₹' + grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, margin: [4, 4], fillColor: '#e2e8f0'}
         ]);
 
         // 🚨 TALLY: HSN/SAC Summary Grid
         const hsnBody = [];
         if (!isNonGST && Object.keys(hsnMap).length > 0) {
+            // UPGRADE: Slate Gray HSN Headers for Consistency
+            const hsnTh = { style: 'th', bold: true, fontSize: 8, margin: [2,4], fillColor: '#334155', color: '#ffffff' };
+            const hsnSub = { bold: true, fontSize: 8, fillColor: '#334155', color: '#ffffff' };
+            
             let hsnHeaders = [
-                {text: 'HSN/SAC', style: 'th', bold: true, fontSize: 8, alignment: 'center', margin: [2,4]},
-                {text: 'Taxable\nValue', style: 'th', alignment: 'right', bold: true, fontSize: 8, margin: [2,4]}
+                {text: 'HSN/SAC', alignment: 'center', ...hsnTh},
+                {text: 'Taxable\nValue', alignment: 'right', ...hsnTh}
             ];
             if (isIGST) {
-                hsnHeaders.push({text: 'Integrated Tax', colSpan: 2, style: 'th', alignment: 'center', bold: true, fontSize: 8, margin: [2,4]}, '');
+                hsnHeaders.push({text: 'Integrated Tax', colSpan: 2, alignment: 'center', ...hsnTh}, '');
             } else {
-                hsnHeaders.push({text: 'Central Tax', colSpan: 2, style: 'th', alignment: 'center', bold: true, fontSize: 8, margin: [2,4]}, '');
-                hsnHeaders.push({text: 'State Tax', colSpan: 2, style: 'th', alignment: 'center', bold: true, fontSize: 8, margin: [2,4]}, '');
+                hsnHeaders.push({text: 'Central Tax', colSpan: 2, alignment: 'center', ...hsnTh}, '');
+                hsnHeaders.push({text: 'State Tax', colSpan: 2, alignment: 'center', ...hsnTh}, '');
             }
-            hsnHeaders.push({text: 'Total\nTax Amount', style: 'th', alignment: 'right', bold: true, fontSize: 8, margin: [2,4]});
+            hsnHeaders.push({text: 'Total\nTax Amount', alignment: 'right', ...hsnTh});
             hsnBody.push(hsnHeaders);
 
             // Sub-Headers for Tax Rates
-            let hsnSubHeaders = ['', ''];
+            let hsnSubHeaders = [
+                {text: '', fillColor: '#334155'}, {text: '', fillColor: '#334155'}
+            ];
             if (isIGST) {
-                hsnSubHeaders.push({text: 'Rate', alignment: 'center', bold: true, fontSize: 8}, {text: 'Amount', alignment: 'right', bold: true, fontSize: 8});
+                hsnSubHeaders.push({text: 'Rate', alignment: 'center', ...hsnSub}, {text: 'Amount', alignment: 'right', ...hsnSub});
             } else {
-                hsnSubHeaders.push({text: 'Rate', alignment: 'center', bold: true, fontSize: 8}, {text: 'Amount', alignment: 'right', bold: true, fontSize: 8});
-                hsnSubHeaders.push({text: 'Rate', alignment: 'center', bold: true, fontSize: 8}, {text: 'Amount', alignment: 'right', bold: true, fontSize: 8});
+                hsnSubHeaders.push({text: 'Rate', alignment: 'center', ...hsnSub}, {text: 'Amount', alignment: 'right', ...hsnSub});
+                hsnSubHeaders.push({text: 'Rate', alignment: 'center', ...hsnSub}, {text: 'Amount', alignment: 'right', ...hsnSub});
             }
-            hsnSubHeaders.push('');
+            hsnSubHeaders.push({text: '', fillColor: '#334155'});
             hsnBody.push(hsnSubHeaders);
 
             let sumTaxable = 0, sumCgst = 0, sumSgst = 0, sumIgst = 0, sumTotalTax = 0;
@@ -1457,12 +1519,14 @@ Please process this accordingly. Thank you!`;
         // Tally Base Configuration (Full A4 Size, Pure Monochome styling)
         const docDefinition = {
             pageSize: 'A4', 
-            pageMargins: [20, 20, 20, 20], // 🚨 FIX: Tightened margins to maximize the printable area!
+            pageMargins: [15, 12, 15, 12], // 🚨 FIX: Maximum stretch to fit GST + Terms on one page!
             defaultStyle: { font: 'Roboto', fontSize: 9, color: '#000000' }, 
             content: [
                 // 1. Tally Header Title (Original for Recipient)
                 { text: isSales ? (window.solloCurrentCopyType || 'ORIGINAL FOR RECIPIENT') : '', alignment: 'right', fontSize: 7, bold: true, color: '#475569', margin: [0, -10, 0, 5] },
-                { text: title, alignment: 'center', fontSize: 14, bold: true, margin: [0, 0, 0, 5] },
+                                // UPGRADE: Premium Document Title
+                { text: title, alignment: 'center', fontSize: 16, bold: true, color: '#334155', characterSpacing: 2, margin: [0, 0, 0, 5] },
+
                 
                 // 2. The Main Bordered Box (Contains Header Grid, Items Grid, and Footers)
                 {
@@ -1498,11 +1562,12 @@ Please process this accordingly. Thank you!`;
                                 margin: [0, 0, 0, 0]
                             }],
 
-                            // ROW 3: Amount in Words
+                            // ROW 3: Amount in Words (UPGRADED CALLOUT BOX)
                             [{
+                                fillColor: '#f8fafc',
                                 text: [
                                     { text: 'Amount Chargeable (in words)\n', italics: true, fontSize: 8, color: '#475569' },
-                                    { text: 'INR ' + window.Utils.numberToWords(grandTotal), bold: true, fontSize: 10 }
+                                    { text: 'INR ' + window.Utils.numberToWords(grandTotal), bold: true, fontSize: 11, color: '#0f172a' }
                                 ],
                                 margin: [4, 6]
                             }],
@@ -1522,22 +1587,8 @@ Please process this accordingly. Thank you!`;
                                     {
                                         width: '50%',
                                         stack: [
-                                            // 🚨 ENTERPRISE FIX: Smart Payment Routing!
-                                            // 1. Show Bank Details for regular GST Sales Invoices
-                                            (isSales && !isNonGST && biz.bankDetails) ? { text: "Company's Bank Details", italics: true, fontSize: 8, color: '#475569', margin: [0, 4, 0, 2] } : null,
-                                            (isSales && !isNonGST && biz.bankDetails) ? { text: biz.bankDetails, fontSize: 9, bold: true, margin: [0, 0, 0, 10] } : null,
-                                            
-                                            // 2. Show UPI QR Code for Bill of Supply if there is a pending balance!
-                                            (isSales && isNonGST && biz.upiId && thisInvoiceDue > 0.5 && doc.status !== 'Cancelled') ? {
-                                                columns: [
-                                                    { qr: `upi://pay?pa=${biz.upiId}&pn=${encodeURIComponent(safeBizName)}&am=${thisInvoiceDue.toFixed(2)}&cu=INR`, fit: 55, margin: [0, 4, 10, 10] },
-                                                    { stack: [{ text: 'Scan to Pay', italics: true, fontSize: 8, color: '#475569', margin: [0, 0, 0, 2] }, { text: biz.upiId, fontSize: 9, bold: true }], margin: [0, 12, 0, 0] }
-                                                ]
-                                            } : null,
-                                            
-                                            // Optional Notes mapped back to default layout if user prefers
-                                            (!shouldPrintNotes && doc.internalNotes) ? { text: 'Remarks: ' + doc.internalNotes, fontSize: 8, margin: [0,0,0,10] } : null,
-                                            biz.terms ? { text: 'Terms & Conditions:\n' + biz.terms, fontSize: 8, margin: [0,0,0,10] } : null,
+                                            // Bank Details & Remarks have been moved to the Top Header grid!
+                                            biz.terms ? { text: 'Terms & Conditions:\n' + biz.terms, fontSize: 8, margin: [0,0,0,6] } : null,
                                             
                                             { text: 'Declaration', italics: true, fontSize: 8, color: '#475569', margin: [0, 0, 0, 2] },
                                             { text: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.', fontSize: 8 }
@@ -1551,9 +1602,9 @@ Please process this accordingly. Thank you!`;
                                             {
                                                 table: { widths: ['*', 'auto'], body: detailedTotalsTable },
                                                 layout: { defaultBorder: false, hLineWidth: (i, node) => i === node.table.body.length - 1 && partyBalance > 0.01 ? 0.5 : 0, hLineColor: () => '#000000' },
-                                                margin: [0, 4, 4, 15]
+                                                margin: [0, 4, 4, 5]
                                             },
-                                            { text: `for ${safeBizName}`, bold: true, fontSize: 10, alignment: 'right', margin: [0, 4, 4, 30] },
+                                            { text: `for ${safeBizName}`, bold: true, fontSize: 10, alignment: 'right', margin: [0, 4, 4, 5] },
                                             biz.signature ? { image: biz.signature, fit: [120, 40], alignment: 'right', margin: [0, 0, 4, 5] } : { text: '\n\n', margin: [0, 0, 0, 5] },
                                             { text: 'Authorised Signatory', fontSize: 9, alignment: 'right', margin: [0, 0, 4, 4] }
                                         ]
@@ -1569,6 +1620,9 @@ Please process this accordingly. Thank you!`;
                 },
                 
                 { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 5, 0, 0], color: '#475569' },
+                // UPGRADE: Professional Customer Service Sign-off
+                { text: 'Thank you for your business!', alignment: 'center', italics: true, bold: true, fontSize: 11, margin: [0, 10, 0, 4], color: '#0f172a' },
+                { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 0, 0, 0], color: '#475569' },
                 { text: 'This is a Computer Generated Document', alignment: 'center', fontSize: 8, margin: [0, 2, 0, 0], color: '#475569' }
             ]
         };

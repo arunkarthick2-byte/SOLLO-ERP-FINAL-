@@ -678,7 +678,7 @@ body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea
     transform: translateX(100%); 
     opacity: 0; 
     /* 🚨 ENTERPRISE FIX: Freezes the DOM element to save GPU RAM */
-    visibility: hidden; 
+    visibility: hidden;
     pointer-events: none;
     /* transition visibility alongside transform to prevent flickering */
     transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease, visibility 0s 0.35s; 
@@ -1555,17 +1555,15 @@ body.dark-mode .bottom-nav {
     box-shadow: 0 -4px 12px rgba(0,0,0,0.3) !important;
 }
 
-/* 3. Invisible Auto-Selection (Cursor Only!) */
-/* Hides the clunky highlight block when phones auto-select pre-filled numbers */
+/* 3. Visible Premium Auto-Selection */
+/* Allows you to actually see when your phone highlights text! */
 ::selection {
-    background: transparent !important;
+    background: rgba(0, 97, 164, 0.25) !important; /* Soft primary blue highlight */
     color: inherit !important;
-    text-shadow: none !important;
 }
 ::-moz-selection {
-    background: transparent !important;
+    background: rgba(0, 97, 164, 0.25) !important;
     color: inherit !important;
-    text-shadow: none !important;
 }
 
 /* 4. Fix for Mobile Safari Notch/Bottom Bar Gap */
@@ -1588,11 +1586,12 @@ body.dark-mode .theme-toggle-knob {
 /* ==========================================
    BUG FIX: BOTTOM SHEETS OVER ACTIVITIES
    ========================================== */
+/* 🚨 FIXED: Removed !important locks so ui_6.js can dynamically stack multiple sheets! */
 .sheet-overlay {
-    z-index: 5000 !important;
+    z-index: 5000;
 }
 .bottom-sheet {
-    z-index: 5100 !important;
+    z-index: 5100;
 }
 /* ==========================================
    ENTERPRISE UPGRADE: HIGH-PERFORMANCE KEYBOARD SHIELD
@@ -8282,4 +8281,24 @@ body.dark-mode .item-entry-card.is-dragging {
     border: none !important;
     height: 0 !important;
     transition: height 0.2s ease !important;
+}
+/* ==========================================
+   🚨 BUG FIX: VISIBILITY FLASH SHIELD
+   ========================================== */
+/* Forces sheets and screens to stay visible until their sliding animation completely finishes! */
+.bottom-sheet {
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out, box-shadow 0.2s ease-out, visibility 0s 0.2s !important;
+}
+
+.bottom-sheet.open {
+    /* When opening, visibility kicks in instantly at 0s so it can slide up! */
+    transition: transform 0.2s ease-out, opacity 0.2s ease-out, box-shadow 0.2s ease-out, visibility 0s !important;
+}
+
+.activity-screen {
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease-out, visibility 0s 0.25s !important;
+}
+
+.activity-screen.open {
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease-out, visibility 0s !important;
 }

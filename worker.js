@@ -1,7 +1,7 @@
 // worker.js - Enterprise Stock & Velocity Accountant (Optimized V3)
 
 const DB_NAME = 'SOLLO_ERP_DB';
-const DB_VERSION = 70; // Make sure this perfectly matches the version in db.js!
+const DB_VERSION = 72; // Make sure this perfectly matches the version in db.js!
 
 self.addEventListener('message', async function(e) {
     const data = e.data;

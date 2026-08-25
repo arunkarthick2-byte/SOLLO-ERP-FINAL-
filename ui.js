@@ -117,17 +117,21 @@ const UI = {
                 }
 
                 // 4. GLOBAL DECIMAL SANITIZER (Replaces messy inline oninput code!)
-                // If the input is meant for money/decimals, strip letters, negative signs, and duplicate decimals instantly!
                 if (target.getAttribute('inputmode') === 'decimal' || target.classList.contains('row-qty') || target.classList.contains('row-rate')) {
-                    const start = target.selectionStart;
-                    const oldVal = target.value;
-                    const newVal = target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
                     
-                    // Only update the DOM if the value actually required sanitization (saves CPU)
-                    if (oldVal !== newVal) {
-                        target.value = newVal;
-                        // Restore cursor to prevent jumping to the end of the line
-                        if (start !== null) target.setSelectionRange(start - 1, start - 1);
+                    // 🚨 GBOARD SHIELD: Do not aggressively sanitize during backspace operations!
+                    // This prevents the JS from rewriting the input while the keyboard is trying to delete, ending the "whole word delete" bug.
+                    if (e.inputType !== 'deleteContentBackward' && e.inputType !== 'deleteWordBackward') {
+                        const start = target.selectionStart;
+                        const oldVal = target.value;
+                        const newVal = target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
+                        
+                        // Only update the DOM if the value actually required sanitization (saves CPU)
+                        if (oldVal !== newVal) {
+                            target.value = newVal;
+                            // Restore cursor to prevent jumping to the end of the line
+                            if (start !== null) target.setSelectionRange(start - 1, start - 1);
+                        }
                     }
 
                     // 5. GLOBAL AUTO-CALCULATOR
@@ -1254,29 +1258,9 @@ const UI = {
     // 4. UNIVERSAL SEARCH & DYNAMIC FILTERS
     // ==========================================
     highlightText: (text, term) => {
+        // 🚨 HIGHLIGHT FIX: Simply returns the plain sanitized text globally!
         if (!text) return '';
-        
-        // 🚀 SECURITY UPGRADE: Safely encode HTML entities to prevent XSS attacks!
-        // This guarantees that script tags in the database cannot be executed by the browser.
-        const encodedText = String(text)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-
-        if (!term) return encodedText;
-        
-        try {
-            const safeTerm = String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            // The search term also needs to be encoded so it correctly matches the sanitized text!
-            const encodedSafeTerm = safeTerm.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            const regex = new RegExp(`(${encodedSafeTerm})`, 'gi');
-            
-            return encodedText.replace(regex, '<span style="background: rgba(0,97,164,0.15); color: var(--md-primary); border-radius: 3px; font-weight: bold; padding: 0 2px;">$1</span>');
-        } catch (err) {
-            return encodedText; 
-        }
+        return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     },
 
     setFilter: (tab, filterValue, chipElement) => {
@@ -3399,63 +3383,6 @@ const UI = {
         if (sheetId === 'sheet-payment-out') { UI.toggleDeleteButton('receipt-out', false); UI.setStatusBarColor('#ba1a1a'); }
         if (sheetId === 'sheet-stock-adjustment') { UI.setStatusBarColor('#f57f17'); }
 
-        if (sheetId === 'sheet-master-sort') {
-            const filterSelect = document.getElementById('filter-master-view');
-            const sortSelect = document.getElementById('sort-master-view');
-
-            if (filterSelect) {
-                const tab = UI.state.activeMasterTab;
-                
-                // 🚨 ENTERPRISE FIX: Read the true active state directly from the RAM Engine!
-                const savedFilter = (UI.state.activeFilters && UI.state.activeFilters['masters']) ? UI.state.activeFilters['masters'] : 'All';
-                const savedSort = (UI.state.activeSorts && UI.state.activeSorts['masters']) ? UI.state.activeSorts['masters'] : 'name-asc';
-
-                // NEW: Unified Filtering & Sorting for all Ledger types!
-                if (tab === 'customers' || tab === 'suppliers' || tab === 'contacts') {
-                    let extraContactsFilters = tab === 'contacts' ? `<option value="Customers Only">Customers Only</option><option value="Suppliers Only">Suppliers Only</option>` : '';
-                    filterSelect.innerHTML = `
-                        <option value="All">All Parties</option>
-                        <option value="To Receive">To Receive (Due)</option>
-                        <option value="To Pay">To Pay (Due)</option>
-                        <option value="Advance">Advance (Paid / Received)</option>
-                        <option value="GST">GST (Registered)</option>
-                        <option value="Non-GST">Non-GST (Unregistered)</option>
-                        ${extraContactsFilters}
-                    `;
-                    if(sortSelect) sortSelect.innerHTML = `
-                        <option value="name-asc">A to Z</option>
-                        <option value="bal-desc">Balance: High to Low</option>
-                        <option value="bal-asc">Balance: Low to High</option>
-                    `;
-                } else if (tab === 'pay-in' || tab === 'pay-out') {
-                    filterSelect.innerHTML = `<option value="All">All Modes</option><option value="Cash">Cash Only</option><option value="Bank">Bank / Online Only</option>`;
-                    if(sortSelect) sortSelect.innerHTML = `<option value="date-desc">Newest First</option><option value="date-asc">Oldest First</option>`;
-                } else if (tab === 'trash') {
-                    filterSelect.innerHTML = `<option value="All">All Trashed Items</option>`;
-                    if(sortSelect) sortSelect.innerHTML = `<option value="date-desc">Recently Deleted</option>`;
-                } else {
-                    // 🚨 ENTERPRISE UPGRADE: Unlocked all advanced Inventory Master Filters & Sorts!
-                    filterSelect.innerHTML = `
-                        <option value="All">All Products</option>
-                        <option value="In Stock">Stock Available</option>
-                        <option value="Out of Stock">Out of Stock</option>
-                        <option value="Low Stock">Low Stock</option>
-                        <option value="GST Stock">GST Stock</option>
-                        <option value="Non-GST Stock">Non-GST Stock</option>
-                    `;
-                    if(sortSelect) sortSelect.innerHTML = `
-                        <option value="name-asc">A to Z</option>
-                        <option value="stock-asc">Stock: Low to High</option>
-                        <option value="stock-desc">Stock: High to Low</option>
-                    `;
-                }
-
-                // --- FIX: RESTORE PREVIOUS SELECTIONS ---
-                // Re-apply the user's choices to the newly drawn menu
-                if (savedFilter) filterSelect.value = savedFilter;
-                if (savedSort && sortSelect) sortSelect.value = savedSort;
-            }
-        }
 
         if (sheetId === 'sheet-customers') {
             const searchBox = document.getElementById('search-customers');
@@ -3665,7 +3592,7 @@ const UI = {
                         <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                     </div>
                     <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                        <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${UI.highlightText(l.name, query)}</strong>
+                        <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${l.name}</strong>
                         <small style="color: var(--md-text-muted); display: block; margin-top: 4px; line-height: 1.3;">${l.phone || 'No Phone'}</small>
                     </div>
                     <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 40px;">
@@ -3730,30 +3657,68 @@ const UI = {
                     const stockStr = `<span style="display: inline-block; padding: 4px 8px; margin-top: 2px; margin-bottom: 2px; line-height: 1.2; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.1)' : (isLowStock ? 'rgba(245, 127, 23, 0.1)' : 'rgba(20, 108, 46, 0.1)')}; color: ${stockVal <= 0 ? 'var(--md-error)' : (isLowStock ? '#d84315' : 'var(--md-success)')}; border: 1px solid ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.3)' : (isLowStock ? 'rgba(245, 127, 23, 0.3)' : 'rgba(20, 108, 46, 0.3)')};">${stockVal <= 0 ? 'Out of Stock' : (isLowStock ? 'Low Stock: ' + stockVal : 'In Stock: ' + stockVal)}</span>`;
                     
                     html += `
-                    <li style="flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 16px;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${stockVal <= 0 ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
+                    <!-- 🚨 THE SHADOW FIX: Changed from <li> to <div> so global list CSS & Ripple scripts completely ignore it! -->
+                    <div style="display: block !important; padding: 0 !important; margin-bottom: 8px !important; border: 1px solid var(--md-outline-variant) !important; border-radius: 12px !important; background: #ffffff !important; overflow: hidden !important; -webkit-tap-highlight-color: transparent !important;">
+                        
+                        <!-- The Article is now the ONLY tap-target! -->
+                        <article class="tap-target" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: flex-start !important; gap: 12px !important; padding: 14px 16px !important; width: 100% !important; box-sizing: border-box !important; cursor: pointer !important; -webkit-tap-highlight-color: transparent !important;"
+                            onclick="const body = this.nextElementSibling; const isExpanded = body.style.display === 'flex'; document.querySelectorAll('#smart-search-results section').forEach(el => el.style.display = 'none'); if(!isExpanded) { body.style.display = 'flex'; setTimeout(() => this.parentElement.scrollIntoView({behavior:'smooth', block:'center'}), 150); }">
+                            
+                            <span class="icon-circle" style="width: 40px !important; height: 40px !important; min-width: 40px !important; background: var(--md-surface-variant) !important; color: ${stockVal <= 0 ? 'var(--md-error)' : 'var(--md-primary)'} !important; border-radius: 50% !important; display: flex !important; justify-content: center !important; align-items: center !important; flex-shrink: 0 !important; margin: 0 !important; padding: 0 !important;">
+                                <span class="material-symbols-outlined" style="font-size: 20px !important; margin: 0 !important; padding: 0 !important;">inventory_2</span>
+                            </span>
+                            <span style="flex: 1 1 auto !important; min-width: 0 !important; text-align: left !important; display: block !important; margin: 0 !important; padding: 0 !important;">
+                                <strong style="font-size: 15px !important; color: var(--md-on-surface) !important; display: block !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.2 !important; margin: 0 0 4px 0 !important;">${i.name}</strong>
+                                <span style="display: block !important;">${stockStr}</span>
+                            </span>
+                            <span style="text-align: right !important; flex-shrink: 0 !important; display: block !important; margin: 0 !important; padding: 0 !important;">
+                                <strong style="color: var(--md-primary) !important; font-size: 16px !important; line-height: 1.2 !important; display: block !important;">₹${price.toFixed(2)}</strong>
+                            </span>
+                        </article>
+
+                        <!-- 🚨 ACCORDION BODY WITH LIVE MATH & CLEAN MANUAL INPUTS -->
+                        <section style="display: none; flex-direction: column !important; padding: 0 16px 16px 16px !important; cursor: default !important; width: 100% !important; box-sizing: border-box !important;" onclick="event.stopPropagation();">
+                            <span style="display: block !important; border-top: 1px dashed var(--md-outline-variant) !important; width: 100% !important; margin-bottom: 16px !important; padding-top: 16px !important;"></span>
+                            
+                            <article style="display: flex !important; flex-direction: row !important; gap: 12px !important; margin-bottom: 12px !important; width: 100% !important;">
+                                
+                                <!-- ✨ CLEAN QTY INPUT -->
+                                <span style="flex: 1 1 50% !important; display: flex !important; flex-direction: column !important; min-width: 0 !important;">
+                                    <label style="font-size: 10px !important; color: var(--md-text-muted) !important; font-weight: 800 !important; text-transform: uppercase !important; margin-bottom: 6px !important; display: block !important;">Quantity</label>
+                                    <input type="text" inputmode="decimal" class="quick-qty" value="1" 
+                                        onclick="event.stopPropagation();" 
+                                        oninput="const sec=this.closest('section'); const q=parseFloat(sec.querySelector('.quick-qty').value)||0; const r=parseFloat(sec.querySelector('.quick-rate').value)||0; sec.querySelector('.live-preview-total').innerText = '₹' + (q*r).toFixed(2);"
+                                        style="width: 100% !important; height: 44px !important; min-height: 44px !important; border: 1px solid var(--md-outline-variant) !important; background: #ffffff !important; border-radius: 8px !important; text-align: center !important; font-size: 16px !important; font-weight: 800 !important; color: var(--md-on-surface) !important; padding: 4px !important; outline: none !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; box-sizing: border-box !important; margin: 0 !important;">
+                                </span>
+
+                                <!-- ✨ CLEAN RATE INPUT -->
+                                <span style="flex: 1 1 50% !important; display: flex !important; flex-direction: column !important; min-width: 0 !important;">
+                                    <label style="font-size: 10px !important; color: var(--md-text-muted) !important; font-weight: 800 !important; text-transform: uppercase !important; margin-bottom: 6px !important; display: block !important;">Rate (₹)</label>
+                                    <input type="text" inputmode="decimal" class="quick-rate" value="${price.toFixed(2)}" 
+                                        onclick="event.stopPropagation();" 
+                                        oninput="const sec=this.closest('section'); const q=parseFloat(sec.querySelector('.quick-qty').value)||0; const r=parseFloat(sec.querySelector('.quick-rate').value)||0; sec.querySelector('.live-preview-total').innerText = '₹' + (q*r).toFixed(2);"
+                                        style="width: 100% !important; height: 44px !important; min-height: 44px !important; border: 1px solid var(--md-outline-variant) !important; background: #ffffff !important; border-radius: 8px !important; text-align: center !important; font-size: 16px !important; font-weight: 800 !important; color: var(--md-on-surface) !important; padding: 4px !important; outline: none !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; box-sizing: border-box !important; margin: 0 !important;">
+                                </span>
+                            </article>
+
+                            <!-- ✨ UX UPGRADE: Live Subtotal Preview -->
+                            <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 12px; width: 100%;">
+                                <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 600; margin-right: 6px;">Total:</span>
+                                <strong class="live-preview-total" style="font-size: 16px; color: var(--md-primary); font-weight: 800;">₹${price.toFixed(2)}</strong>
                             </div>
-                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${UI.highlightText(i.name, query)}</strong>
-                                <div style="margin-top: 4px;">${stockStr}</div>
-                            </div>
-                            <div style="text-align: right; flex-shrink: 0;">
-                                <strong style="color: var(--md-primary); font-size: 16px; line-height: 1.2;">₹${price.toFixed(2)}</strong>
-                            </div>
-                        </div>
-                        <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; border-top: 1px dashed var(--md-surface-variant);">
-                            <button class="btn-primary-small tap-target" style="background: var(--md-surface-variant); color: var(--md-on-surface); padding: 8px 16px; border-radius: 6px; font-weight: bold;" 
-                                onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added to invoice');">
-                                Done & New
-                            </button>
-                            <button class="btn-primary-small tap-target" style="background: var(--md-primary); color: #ffffff; padding: 8px 16px; border-radius: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,97,164,0.2);" 
-                                onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}); UI.closeBottomSheet('sheet-smart-search');">
-                                Add to Bill
-                            </button>
-                        </div>
-                    </li>`;
+
+                            <article style="display: flex !important; flex-direction: row !important; gap: 8px !important; width: 100% !important;">
+                                <button class="tap-target" style="flex: 1 1 50% !important; background: var(--md-surface-variant) !important; color: var(--md-on-surface) !important; border: none !important; padding: 14px !important; border-radius: 8px !important; font-size: 14px !important; font-weight: bold !important; cursor: pointer !important; margin: 0 !important;" 
+                                    onclick="event.stopPropagation(); const sec = this.closest('section'); const q = parseFloat(sec.querySelector('.quick-qty').value) || 1; const r = parseFloat(sec.querySelector('.quick-rate').value) || ${price}; UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', r, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}, q, true); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added & Ready for Next');">
+                                    Done & New
+                                </button>
+                                <button class="tap-target" style="flex: 1 1 50% !important; background: var(--md-primary) !important; color: #ffffff !important; border: none !important; padding: 14px !important; border-radius: 8px !important; font-size: 14px !important; font-weight: bold !important; box-shadow: 0 4px 12px rgba(0,97,164,0.3) !important; cursor: pointer !important; margin: 0 !important;" 
+                                    onclick="event.stopPropagation(); const sec = this.closest('section'); const q = parseFloat(sec.querySelector('.quick-qty').value) || 1; const r = parseFloat(sec.querySelector('.quick-rate').value) || ${price}; UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', r, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}, q, true); UI.closeBottomSheet('sheet-smart-search');">
+                                    Add to Bill
+                                </button>
+                            </article>
+                        </section>
+                    </div>`;
                 }
             });
             
@@ -3851,7 +3816,8 @@ const UI = {
         return { price: defaultPrice, msg: '' };
     },
 
-    addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice) => {
+    // 🚨 ENTERPRISE UPGRADE: Inline Qty & Rate Support
+    addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice, customQty = 1, forceRate = false) => {
         const container = document.getElementById(`${prefix}-items-body`);
         const emptyState = document.getElementById(`${prefix}-empty-items`);
         if(!container) return;
@@ -3859,6 +3825,10 @@ const UI = {
         
         // Trigger Smart Pricing Memory
         const smart = UI.getSmartRate(prefix, id, price);
+        
+        // 🚨 Use the manually typed rate if provided, otherwise fallback to history memory
+        const finalRate = forceRate ? price : smart.price;
+        const msgHtml = (forceRate && price !== smart.price) ? '' : smart.msg;
 
         // 🚀 DATABASE LOOKUP: Find Alternate UOM Multiplier
         const dbItem = (window.UI.state.rawData.items || []).find(i => i.id === id);
@@ -3895,10 +3865,10 @@ const UI = {
                 <div style="flex: 1; padding-right: 8px; min-width: 0;">
                     <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
                     <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" inputmode="decimal" class="row-qty" value="1" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="text" inputmode="decimal" class="row-qty" value="${customQty}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
                         <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
+                        <input type="text" inputmode="decimal" class="row-rate" value="${finalRate}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
                         <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${gst || 0}% GST</span>
                         <input type="hidden" class="row-gst" value="${gst || 0}">
                         <input type="hidden" class="row-hsn" value="${hsn || ''}">
@@ -3907,11 +3877,11 @@ const UI = {
                     ${prefix === 'sales' ? `
                     <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                         <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="text" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                        <input type="text" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
                         <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                     </div>
                     ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
-                    ${smart.msg}
+                    ${msgHtml}
                     ${conversionHtml}
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
@@ -4099,15 +4069,15 @@ const UI = {
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)</small>
-                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                     <div>
                         <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="text" inputmode="decimal" class="row-gst" value="${p.gst || 0}" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
+                        <input type="text" inputmode="decimal" class="row-gst" value="${p.gst || 0}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
                     </div>
                 </div>
 
@@ -4116,7 +4086,7 @@ const UI = {
                         ${prefix === 'sales' ? `
                         <div style="display:flex; align-items:center; gap:4px;">
                             <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                            <input type="text" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\\..*?)\\..*/g, '$1'); UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                            <input type="text" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
                             <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                         </div>
                         ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
@@ -5857,11 +5827,27 @@ window.addEventListener('popstate', (e) => {
         }
     }
 
-    // If we saved the app from closing, inject another shield for the next click!
-    if (trapped) {
-        window.history.pushState({ internalRoute: true }, '');
-    }
-});
+        // If we saved the app from closing a menu, inject another shield for the next click!
+        if (trapped) {
+            window.history.pushState({ internalRoute: true }, '');
+        } else {
+            // 🚨 ENTERPRISE UX: "Press Back Again to Exit"
+            // Nothing was open. The user is trying to close the app from the Home Screen!
+            if (!window.exitAppPrompted) {
+                window.exitAppPrompted = true;
+                if (window.Utils) window.Utils.showToast("Press back again to exit");
+                
+                // Push a temporary state to block the exit this ONE time
+                window.history.pushState({ internalRoute: true }, '');
+                
+                // Reset the trap after 2 seconds
+                setTimeout(() => { window.exitAppPrompted = false; }, 2000);
+            } else {
+                // They pressed back twice within 2 seconds. 
+                // We do NOT push a state, allowing the browser to natively close the PWA!
+            }
+        }
+    });
 // ==========================================
 // 🚨 ENTERPRISE UX: SMART CURRENCY FORMATTER
 // ==========================================
@@ -5889,9 +5875,7 @@ document.addEventListener('focusout', (e) => {
     }
 });
 
-// 🚨 ENTERPRISE UX: CLEAN CURRENCY FORMATTER ON TAP
-// Strips commas cleanly and lets the native mobile browser place the cursor naturally!
-
+// 🚨 ENTERPRISE UX: NATIVE CURSOR ENGINE
 // Centralized checker to easily grab ALL numeric fields in the entire app!
 const isNumericField = (el) => {
     if (el.tagName !== 'INPUT') return false;
@@ -5910,29 +5894,19 @@ const isNumericField = (el) => {
 
 document.addEventListener('focusin', (e) => {
     if (isNumericField(e.target)) {
-        const rawVal = String(e.target.value).replace(/,/g, '');
+        if (e.target.getAttribute('inputmode') !== 'decimal') {
+            e.target.setAttribute('inputmode', 'decimal'); 
+        }
         
-        if (e.target.type !== 'text') e.target.type = 'text'; 
-        if (e.target.getAttribute('inputmode') !== 'decimal') e.target.setAttribute('inputmode', 'decimal'); 
-        
-        // DISABLED: This rewrites the value on tap, forcing the cursor to the end of the line!
-        // if (e.target.value !== rawVal) {
-        //     e.target.value = rawVal;
-        // }
-        
-        // 🚨 ULTIMATE FIX: Cascading Timers
-        const clearHighlight = () => {
+        // 🚨 HIGHLIGHT CANCELLER: If the phone tries to select the whole number, instantly collapse it to a blinking cursor!
+        setTimeout(() => {
             try {
-                if (e.target.selectionStart === 0 && e.target.selectionEnd === e.target.value.length && e.target.value.length > 0) {
-                    const len = e.target.value.length;
-                    // e.target.setSelectionRange(len, len);  <-- DISABLED TO FIX CURSOR JUMPING
+                if (e.target.selectionStart === 0 && e.target.selectionEnd === e.target.value.length) {
+                    const dropCursor = e.target.selectionEnd;
+                    e.target.setSelectionRange(dropCursor, dropCursor);
                 }
             } catch(err) {}
-        };
-
-        clearHighlight();
-        setTimeout(clearHighlight, 50);
-        setTimeout(clearHighlight, 150);
+        }, 10);
     }
 });
 

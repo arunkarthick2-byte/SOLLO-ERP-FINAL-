@@ -1732,7 +1732,7 @@
                     </div>
                 </div>
 
-                <div style="padding: 0 16px;">
+                <div id="product-ledger-card" style="padding: 0 16px;">
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 1px solid #90caf9; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,97,164,0.1);" onclick="window.triggerItemLedgerFromForm()">
                         <span class="material-symbols-outlined" style="color: #0277bd; font-size: 28px;">inventory_2</span>
                         <div style="flex: 1;">
@@ -1859,7 +1859,7 @@
                     </div>
                 </div>
 
-                <div style="padding: 0 16px;">
+                <div id="ledger-khata-card" style="padding: 0 16px;">
                     <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 1px solid #ffe082; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 127, 23, 0.1);" onclick="window.triggerKhataFromForm()">
                         <span class="material-symbols-outlined" style="color: #f57f17; font-size: 28px;">menu_book</span>
                         <div style="flex: 1;">
@@ -2328,77 +2328,173 @@
     </div>
 
 
-    <!-- 🚀 ENTERPRISE UPGRADE: UNIFIED SORT & FILTER MENU FOR EXPENSES -->
-    <div id="sheet-expenses-filter" class="bottom-sheet">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Sort & Filter Expenses</span>
-            <span class="material-symbols-outlined tap-target">close</span>
+    <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR EXPENSES -->
+    <div id="sheet-expenses-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+        
+        <style>
+            /* Modal Centering */
+            #sheet-expenses-filter.centered-modal {
+                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
+                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
+                border-radius: 12px !important; 
+                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
+                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
+                position: fixed !important;
+            }
+            #sheet-expenses-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
+            #sheet-expenses-filter.centered-modal::before { display: none !important; }
+
+            /* Dark Mode Safeties */
+            body.dark-mode #sheet-expenses-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
+        </style>
+
+        <!-- Header -->
+        <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
+            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Expenses By</span>
         </div>
-        <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
+
+        <div style="padding: 0 24px 24px 24px; flex: 1; overflow-y: auto; overflow-x: hidden;">
             
-            <!-- Date Filter Section -->
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
-            
-            <!-- 🚀 NEW QUICK DATE FILTERS -->
-            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'expenses-start-date', 'expenses-end-date', 'expenses', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'expenses-start-date', 'expenses-end-date', 'expenses', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'expenses-start-date', 'expenses-end-date', 'expenses', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            <!-- Dates -->
+            <div style="display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 8px;">
+                <span class="erp-section-label" style="margin:0;">Timeframe</span>
+                <span class="tap-target" onclick="window.clearExpensesDates()" style="font-size: 11px; color: var(--md-error); font-weight: 800; cursor: pointer; padding: 2px 6px; background: rgba(186,26,26,0.1); border-radius: 4px;">Clear Dates</span>
+            </div>
+            <div class="erp-segmented-track">
+                <div class="erp-segment-btn active" data-group="expenses-quick-date" data-val="month" onclick="window.setQuickExpensesDate('month', this)">This Month</div>
+                <div class="erp-segment-btn" data-group="expenses-quick-date" data-val="last_month" onclick="window.setQuickExpensesDate('last_month', this)">Last Month</div>
+                <div class="erp-segment-btn" data-group="expenses-quick-date" data-val="fy" onclick="window.setQuickExpensesDate('fy', this)">Fiscal Year</div>
+                <div class="erp-segment-btn" data-group="expenses-quick-date" data-val="all" onclick="window.setQuickExpensesDate('all', this)">All Time</div>
+            </div>
+            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                <div style="flex: 1;"><label class="erp-section-label">Start Date</label><input type="date" id="expenses-start-date" class="erp-date-input" onchange="window.clearExpensesQuickBtn()"></div>
+                <div style="flex: 1;"><label class="erp-section-label">End Date</label><input type="date" id="expenses-end-date" class="erp-date-input" onchange="window.clearExpensesQuickBtn()"></div>
             </div>
 
-            <div style="background: rgba(186, 26, 26, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(186, 26, 26, 0.3); margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('expenses-start-date').value=''; document.getElementById('expenses-end-date').value=''; UI.applyFilters('expenses');">close</span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">Start Date</small>
-                        <input type="date" id="expenses-start-date" onchange="UI.applyFilters('expenses')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
-                    </div>
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">End Date</small>
-                        <input type="date" id="expenses-end-date" onchange="UI.applyFilters('expenses')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sorting Section (Re-designed into a clean grid) -->
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Sort By</strong>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-expenses').value='date-desc'; UI.applyFilters('expenses'); UI.closeBottomSheet('sheet-expenses-filter');">
-                    <span class="material-symbols-outlined" style="color: #0061a4; margin-bottom: 4px;">schedule</span>
-                    <strong style="display:block; font-size:13px;">Newest First</strong>
-                </div>
-
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-expenses').value='date-asc'; UI.applyFilters('expenses'); UI.closeBottomSheet('sheet-expenses-filter');">
-                    <span class="material-symbols-outlined" style="color: #f57f17; margin-bottom: 4px;">history</span>
-                    <strong style="display:block; font-size:13px;">Oldest First</strong>
-                </div>
-
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-expenses').value='amt-desc'; UI.applyFilters('expenses'); UI.closeBottomSheet('sheet-expenses-filter');">
-                    <span class="material-symbols-outlined" style="color: #ba1a1a; margin-bottom: 4px;">payments</span>
-                    <strong style="display:block; font-size:13px;">Highest Amt</strong>
-                </div>
+            <!-- SORT TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Sort Order</label>
+                <input type="hidden" id="temp-expenses-sort" value="date-desc">
                 
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-expenses').value='amt-asc'; UI.applyFilters('expenses'); UI.closeBottomSheet('sheet-expenses-filter');">
-                    <span class="material-symbols-outlined" style="color: #146c2e; margin-bottom: 4px;">south_east</span>
-                    <strong style="display:block; font-size:13px;">Lowest Amt</strong>
-                </div>
-            </div>
-
-            <!-- Reset Button -->
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('expenses', 'All', null); UI.closeBottomSheet('sheet-expenses-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">restart_alt</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Reset All Filters</strong>
-                    <small style="color:var(--md-text-muted);">Show all expenses</small>
-                </div>
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-expenses-sort').style.display='flex'">
+                    <span id="display-expenses-sort">Newest First</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
             </div>
             
+            <div style="height: 40px;"></div>
         </div>
+        
+        <!-- Flat Footer -->
+        <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
+            <button class="dialog-text-btn tap-target" style="margin-right: auto; color: var(--md-error);" onclick="window.resetExpensesFilters(); window.applyExpensesFilters();">RESET</button>
+            <button class="dialog-text-btn tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-expenses-filter')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" onclick="window.applyExpensesFilters()">DONE</button>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 🚀 THE SEPARATE POPUP SCREEN: SORT MENU        -->
+        <!-- ============================================== -->
+        <div id="popup-expenses-sort" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Sort Order</div>
+                
+                <div style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <!-- 🚨 ADDED DATA-VAL ATTRIBUTES FOR BULLETPROOF JAVASCRIPT TARGETING -->
+                    <div class="sub-radio-row selected" data-val="date-desc" onclick="window.pickSubOption('expenses-sort', 'date-desc', 'Newest First', 'popup-expenses-sort', this)">
+                        <span class="sub-radio-text">Newest First</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" data-val="date-asc" onclick="window.pickSubOption('expenses-sort', 'date-asc', 'Oldest First', 'popup-expenses-sort', this)">
+                        <span class="sub-radio-text">Oldest First</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" data-val="amt-desc" onclick="window.pickSubOption('expenses-sort', 'amt-desc', 'Highest Amount', 'popup-expenses-sort', this)">
+                        <span class="sub-radio-text">Highest Amount</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" data-val="amt-asc" onclick="window.pickSubOption('expenses-sort', 'amt-asc', 'Lowest Amount', 'popup-expenses-sort', this)">
+                        <span class="sub-radio-text">Lowest Amount</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-expenses-sort').style.display='none'">CANCEL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🚨 FIXED, ERROR-FREE JAVASCRIPT ENGINE -->
+        <script>
+            window.setQuickExpensesDate = function(type, element) {
+                document.querySelectorAll('[data-group="expenses-quick-date"]').forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+                if (type !== 'all') { 
+                    if (window.setQuickDates) window.setQuickDates(type, 'expenses-start-date', 'expenses-end-date', 'expenses', null); 
+                } else { 
+                    window.clearExpensesDates(false); 
+                }
+            };
+
+            window.clearExpensesDates = function(clearBtn = true) { 
+                document.getElementById('expenses-start-date').value = ''; 
+                document.getElementById('expenses-end-date').value = ''; 
+                if(clearBtn) window.clearExpensesQuickBtn(); 
+            };
+
+            window.clearExpensesQuickBtn = function() { 
+                document.querySelectorAll('[data-group="expenses-quick-date"]').forEach(el => el.classList.remove('active')); 
+            };
+            
+            window.resetExpensesFilters = function() { 
+                const sortOpt = document.querySelector('#popup-expenses-sort .sub-radio-row[data-val="date-desc"]');
+                if (sortOpt) sortOpt.click();
+                
+                const dateOpt = document.querySelector('[data-group="expenses-quick-date"][data-val="month"]');
+                if (dateOpt) dateOpt.click();
+
+                // Clear the category filter from the global UI state as well
+                if (window.UI && window.UI.state && window.UI.state.activeFilters) {
+                    window.UI.state.activeFilters['expenses'] = 'All';
+                }
+            };
+
+            window.applyExpensesFilters = function() { 
+                const sortEl = document.getElementById('sort-expenses');
+                const tempSortEl = document.getElementById('temp-expenses-sort');
+                if (sortEl && tempSortEl) sortEl.value = tempSortEl.value; 
+                
+                if (window.UI) { 
+                    window.UI.applyFilters('expenses'); 
+                    window.UI.closeBottomSheet('sheet-expenses-filter'); 
+                } 
+            };
+
+            document.getElementById('sheet-expenses-filter').addEventListener('transitionend', function(e) { 
+                if (e.target !== this) return; 
+                if (this.classList.contains('open')) { 
+                    const popupSort = document.getElementById('popup-expenses-sort');
+                    if (popupSort) popupSort.style.display = 'none';
+
+                    const sortEl = document.getElementById('sort-expenses');
+                    const tempSortEl = document.getElementById('temp-expenses-sort');
+                    const displaySortEl = document.getElementById('display-expenses-sort');
+                    
+                    if (sortEl && tempSortEl && displaySortEl) { 
+                        let targetSort = sortEl.value || 'date-desc';
+                        let opt = document.querySelector('#popup-expenses-sort .sub-radio-row[data-val="' + targetSort + '"]');
+                        if(opt) {
+                            document.querySelectorAll('#popup-expenses-sort .sub-radio-row').forEach(el => el.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            tempSortEl.value = targetSort;
+                            displaySortEl.innerText = opt.querySelector('.sub-radio-text').innerText;
+                        }
+                    } 
+                } 
+            });
+        </script>
     </div>
 
 
@@ -2492,404 +2588,897 @@
             </div>
         </div>
     </div>
+    
+    
 
+    <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR MASTERS -->
+    <div id="sheet-dynamic-master-sort" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+        
+        <style>
+            /* 1. Main Modal Centering */
+            #sheet-dynamic-master-sort.centered-modal {
+                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
+                /* 🔥 TALLER & NARROWER (Approx 9:16 Portrait Ratio) */
+                width: 86% !important; max-width: 340px !important; min-height: 520px !important;
+                height: auto !important; max-height: 90vh !important;
+                border-radius: 16px !important; 
+                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
+                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
+                position: fixed !important;
+            }
+            #sheet-dynamic-master-sort.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
+            #sheet-dynamic-master-sort.centered-modal::before { display: none !important; }
 
-    <!-- 🚀 ENTERPRISE UPGRADE: DYNAMIC UNIFIED MASTER SORT & FILTER -->
-    <div id="sheet-dynamic-master-sort" class="bottom-sheet">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Sort & Filter</span>
-            <span class="material-symbols-outlined tap-target">close</span>
-        </div>
-        <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
+            /* 2. Flat Form Elements */
+            #sheet-dynamic-master-sort .erp-section-label { font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; }
             
+            /* 3. Dropdown Trigger Buttons (Flat Design) */
+            #sheet-dynamic-master-sort .dropdown-btn {
+                width: 100%; display: flex; justify-content: space-between; align-items: center;
+                padding: 12px 16px; font-size: 15px; font-weight: 700; color: var(--md-on-surface);
+                background: var(--md-surface); border: 1px solid var(--md-outline-variant);
+                border-radius: 8px; cursor: pointer; outline: none; transition: border-color 0.2s ease;
+                -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+            }
+            #sheet-dynamic-master-sort .dropdown-btn:active { background: var(--md-surface-variant); }
+
+            /* 4. 🚀 SUB-MODALS (Matching 9:16 Portrait Ratio) */
+            #sheet-dynamic-master-sort .sub-modal-overlay {
+                display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); z-index: 1000; border-radius: 16px;
+                align-items: center; justify-content: center; backdrop-filter: blur(2px);
+            }
+            #sheet-dynamic-master-sort .sub-modal-card {
+                background: var(--md-surface); 
+                /* 🔥 SHRUNK WIDTH, ENLARGED HEIGHT */
+                width: 88%; max-width: 350px; min-height: 540px; 
+                max-height: 95%; 
+                border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.4); 
+                display: flex; flex-direction: column; overflow: hidden;
+                animation: popIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            }
+
+            /* 5. 🚀 COMPACT RICH LIST ROWS (Tuned for 5 items to fit perfectly) */
+            #sheet-dynamic-master-sort .rich-filter-row {
+                display: flex; align-items: center; gap: 14px;
+                padding: 10px 16px; cursor: pointer; transition: background 0.2s;
+                border-bottom: 1px solid var(--md-surface-variant);
+            }
+            #sheet-dynamic-master-sort .rich-filter-row:last-child { border-bottom: none; }
+            #sheet-dynamic-master-sort .rich-filter-row.selected { background: rgba(0, 97, 164, 0.05); }
+            #sheet-dynamic-master-sort .rich-filter-row:active { background: var(--md-surface-variant); }
+            
+            #sheet-dynamic-master-sort .rich-filter-text strong { display: block; font-size: 15px; color: var(--md-on-surface); font-weight: 700; margin-bottom: 2px; }
+            #sheet-dynamic-master-sort .rich-filter-text small { display: block; font-size: 11.5px; color: var(--md-text-muted); }
+
+            /* Flat Text Buttons */
+            #sheet-dynamic-master-sort .dialog-text-btn { background: transparent; border: none; color: var(--md-primary); font-weight: 700; font-size: 14px; text-transform: uppercase; padding: 10px 16px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+            #sheet-dynamic-master-sort .dialog-text-btn:active { background: rgba(0, 97, 164, 0.1); }
+
+            /* Dark Mode Safeties */
+            body.dark-mode #sheet-dynamic-master-sort.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
+            body.dark-mode #sheet-dynamic-master-sort .dropdown-btn, body.dark-mode #sheet-dynamic-master-sort .sub-modal-card { background: #1e293b; border-color: #334155; color: #f8fafc; }
+            body.dark-mode #sheet-dynamic-master-sort .rich-filter-row { border-bottom-color: #334155; }
+            body.dark-mode #sheet-dynamic-master-sort .dialog-text-btn { color: #60a5fa; }
+        </style>
+
+        <!-- Header -->
+        <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
+            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Records By</span>
+        </div>
+
+        <div style="padding: 0 24px 24px 24px; flex: 1; overflow-y: auto; overflow-x: hidden;">
+            
+            <div style="height: 16px;"></div>
+
+            <!-- REAL STATE HIDDEN INPUTS (Used by UI.js applyFilters) -->
             <input type="hidden" id="filter-master-view" value="All">
             <input type="hidden" id="sort-master-view" value="name-asc">
 
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Sort By</strong>
-            <div id="dynamic-sort-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                <!-- Auto-generated by JS -->
+            <!-- STATUS TRIGGER -->
+            <div style="margin-bottom: 36px;">
+                <label class="erp-section-label">Record Status / Type</label>
+                <input type="hidden" id="temp-master-filter" value="All">
+                
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-masters-filter').style.display='flex'">
+                    <span id="display-master-filter">All Records</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
             </div>
 
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Status</strong>
-
-            <div id="dynamic-filter-container">
-                <!-- Auto-generated by JS -->
+            <!-- SORT TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Sort Order</label>
+                <input type="hidden" id="temp-master-sort" value="name-asc">
+                
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-masters-sort').style.display='flex'">
+                    <span id="display-master-sort">A to Z (Ascending)</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
             </div>
-
-            <!-- Reset Button -->
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="document.getElementById('filter-master-view').value='All'; if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); UI.closeBottomSheet('sheet-dynamic-master-sort');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">restart_alt</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Reset All Filters</strong>
-                    <small style="color:var(--md-text-muted);">Show all records</small>
-                </div>
-            </div>
-
+            
+            <div style="height: 20px;"></div> 
         </div>
+        
+        <!-- Flat Footer -->
+        <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
+            <!-- Reset Button inside Footer for easy access -->
+            <button class="dialog-text-btn tap-target" style="margin-right: auto; color: var(--md-error);" onclick="
+                document.getElementById('filter-master-view').value = 'All';
+                document.getElementById('sort-master-view').value = 'name-asc';
+                if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); 
+                if(window.UI) UI.closeBottomSheet('sheet-dynamic-master-sort');
+            ">RESET</button>
+            
+            <button class="dialog-text-btn tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-dynamic-master-sort')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" onclick="
+                document.getElementById('filter-master-view').value = document.getElementById('temp-master-filter').value;
+                document.getElementById('sort-master-view').value = document.getElementById('temp-master-sort').value;
+                if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); 
+                if(window.UI) UI.closeBottomSheet('sheet-dynamic-master-sort');
+            ">DONE</button>
+        </div>
+
+        <!-- 🚀 1. THE SEPARATE POPUP SCREEN: FILTER MENU -->
+        <div id="popup-masters-filter" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Filter Options</div>
+                
+                <div id="dynamic-filter-container" style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <!-- Auto-generated by JS -->
+                </div>
+
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-masters-filter').style.display='none'">CANCEL</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🚀 2. THE SEPARATE POPUP SCREEN: SORT MENU -->
+        <div id="popup-masters-sort" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Sort Order</div>
+                
+                <div id="dynamic-sort-container" style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <!-- Auto-generated by JS -->
+                </div>
+
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-masters-sort').style.display='none'">CANCEL</button>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            document.getElementById('sheet-dynamic-master-sort').addEventListener('transitionend', function(e) { 
+                if (e.target !== this) return;
+                if (this.classList.contains('open')) { 
+                    document.getElementById('popup-masters-filter').style.display = 'none';
+                    document.getElementById('popup-masters-sort').style.display = 'none';
+                } 
+            });
+        </script>
     </div>
 
 
-    <div id="sheet-cashbook-filter" class="bottom-sheet">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Sort & Filter Cashbook</span>
-            <span class="material-symbols-outlined tap-target">close</span>
+    <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR CASHBOOK -->
+    <div id="sheet-cashbook-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+        
+        <style>
+            /* Modal Centering */
+            #sheet-cashbook-filter.centered-modal {
+                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
+                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
+                border-radius: 12px !important; 
+                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
+                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
+                position: fixed !important;
+            }
+            #sheet-cashbook-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
+            #sheet-cashbook-filter.centered-modal::before { display: none !important; }
+
+            /* Dark Mode Safeties */
+            body.dark-mode #sheet-cashbook-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
+        </style>
+
+        <!-- Header -->
+        <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
+            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Cashbook By</span>
         </div>
-        <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
+
+        <div style="padding: 0 24px 24px 24px; flex: 1; overflow-y: auto; overflow-x: hidden;">
             
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
-            
-            <!-- 🚀 NEW QUICK DATE FILTERS -->
-            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2); font-size: 12px; font-weight: bold;">This Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'cashbook-start-date', 'cashbook-end-date', 'cashbook', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            <!-- Dates -->
+            <div style="display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 8px;">
+                <span class="erp-section-label" style="margin:0;">Timeframe</span>
+                <span class="tap-target" onclick="window.clearCashbookDates()" style="font-size: 11px; color: var(--md-error); font-weight: 800; cursor: pointer; padding: 2px 6px; background: rgba(186,26,26,0.1); border-radius: 4px;">Clear Dates</span>
+            </div>
+            <div class="erp-segmented-track">
+                <div class="erp-segment-btn active" data-group="cashbook-quick-date" onclick="window.setQuickCashbookDate('month', this)">This Month</div>
+                <div class="erp-segment-btn" data-group="cashbook-quick-date" onclick="window.setQuickCashbookDate('last_month', this)">Last Month</div>
+                <div class="erp-segment-btn" data-group="cashbook-quick-date" onclick="window.setQuickCashbookDate('fy', this)">Fiscal Year</div>
+                <div class="erp-segment-btn" data-group="cashbook-quick-date" onclick="window.setQuickCashbookDate('all', this)">All Time</div>
+            </div>
+            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                <div style="flex: 1;"><label class="erp-section-label">Start Date</label><input type="date" id="cashbook-start-date" class="erp-date-input" onchange="window.clearCashbookQuickBtn()"></div>
+                <div style="flex: 1;"><label class="erp-section-label">End Date</label><input type="date" id="cashbook-end-date" class="erp-date-input" onchange="window.clearCashbookQuickBtn()"></div>
             </div>
 
-            <div style="background: rgba(0, 97, 164, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0, 97, 164, 0.3); margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('cashbook-start-date').value=''; document.getElementById('cashbook-end-date').value=''; UI.applyFilters('cashbook');">close</span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">Start Date</small>
-                        <input type="date" id="cashbook-start-date" onchange="UI.applyFilters('cashbook')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
+            <!-- TRANSACTION TYPE TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Transaction Type</label>
+                <input type="hidden" id="temp-cashbook-filter" value="All">
+                
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-cashbook-status').style.display='flex'">
+                    <span id="display-cashbook-filter">All Transactions</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
+            </div>
+
+            <!-- SORT TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Sort Order</label>
+                <input type="hidden" id="temp-cashbook-sort" value="date-desc">
+                
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-cashbook-sort').style.display='flex'">
+                    <span id="display-cashbook-sort">Newest First</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
+            </div>
+            
+            <div style="height: 40px;"></div> <!-- Breathing room -->
+        </div>
+        
+        <!-- Flat Footer -->
+        <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
+            <button class="dialog-text-btn tap-target" onclick="window.resetCashbookFilters(); if(window.UI) UI.closeBottomSheet('sheet-cashbook-filter')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" onclick="window.applyCashbookFilters()">DONE</button>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 🚀 1. THE SEPARATE POPUP SCREEN: TYPE MENU     -->
+        <!-- ============================================== -->
+        <div id="popup-cashbook-status" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Transaction Type</div>
+                
+                <div style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <div class="sub-radio-row selected" onclick="window.pickSubOption('cashbook-filter', 'All', 'All Transactions', 'popup-cashbook-status', this)">
+                        <span class="sub-radio-text">All Transactions</span>
+                        <div class="sub-radio-circle"></div>
                     </div>
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">End Date</small>
-                        <input type="date" id="cashbook-end-date" onchange="UI.applyFilters('cashbook')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
+                    <div class="sub-radio-row" onclick="window.pickSubOption('cashbook-filter', 'In', 'Money In (Receipts)', 'popup-cashbook-status', this)">
+                        <span class="sub-radio-text">Money In (Receipts)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('cashbook-filter', 'Out', 'Money Out (Payments)', 'popup-cashbook-status', this)">
+                        <span class="sub-radio-text">Money Out (Payments)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('cashbook-filter', 'Expense', 'Expenses', 'popup-cashbook-status', this)">
+                        <span class="sub-radio-text">Expenses</span>
+                        <div class="sub-radio-circle"></div>
                     </div>
                 </div>
-            </div>
 
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Sort By</strong>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-cashbook').value='date-desc'; UI.applyFilters('cashbook'); UI.closeBottomSheet('sheet-cashbook-filter');">
-                    <span class="material-symbols-outlined" style="color: #0061a4; margin-bottom: 4px;">schedule</span>
-                    <strong style="display:block; font-size:13px;">Newest First</strong>
-                </div>
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-cashbook').value='date-asc'; UI.applyFilters('cashbook'); UI.closeBottomSheet('sheet-cashbook-filter');">
-                    <span class="material-symbols-outlined" style="color: #f57f17; margin-bottom: 4px;">history</span>
-                    <strong style="display:block; font-size:13px;">Oldest First</strong>
-                </div>
-            </div>
-
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Status</strong>
-            
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('cashbook', 'In', null); UI.closeBottomSheet('sheet-cashbook-filter');">
-                <div style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">arrow_downward</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Money In</strong>
-                    <small style="color:var(--md-text-muted);">Receipts & Income</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('cashbook', 'Out', null); UI.closeBottomSheet('sheet-cashbook-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">arrow_upward</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Money Out</strong>
-                    <small style="color:var(--md-text-muted);">Payments made</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('cashbook', 'Expense', null); UI.closeBottomSheet('sheet-cashbook-filter');">
-                <div style="background: #fff8e1; color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">account_balance_wallet</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Expenses</strong>
-                    <small style="color:var(--md-text-muted);">Auto-logged expenses</small>
-                </div>
-            </div>
-
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('cashbook', 'All', null); UI.closeBottomSheet('sheet-cashbook-filter');">
-                <div style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">restart_alt</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Reset All Filters</strong>
-                    <small style="color:var(--md-text-muted);">Show everything</small>
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-cashbook-status').style.display='none'">CANCEL</button>
                 </div>
             </div>
         </div>
+
+        <!-- ============================================== -->
+        <!-- 🚀 2. THE SEPARATE POPUP SCREEN: SORT MENU     -->
+        <!-- ============================================== -->
+        <div id="popup-cashbook-sort" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Sort Order</div>
+                
+                <div style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <div class="sub-radio-row selected" onclick="window.pickSubOption('cashbook-sort', 'date-desc', 'Newest First', 'popup-cashbook-sort', this)">
+                        <span class="sub-radio-text">Newest First</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('cashbook-sort', 'date-asc', 'Oldest First', 'popup-cashbook-sort', this)">
+                        <span class="sub-radio-text">Oldest First</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-cashbook-sort').style.display='none'">CANCEL</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Date logic for Cashbook
+            window.setQuickCashbookDate = function(type, element) {
+                document.querySelectorAll('[data-group="cashbook-quick-date"]').forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+                if (type !== 'all') { if (window.setQuickDates) window.setQuickDates(type, 'cashbook-start-date', 'cashbook-end-date', 'cashbook', null); } 
+                else { window.clearCashbookDates(false); }
+            };
+            window.clearCashbookDates = function(clearBtn = true) { document.getElementById('cashbook-start-date').value = ''; document.getElementById('cashbook-end-date').value = ''; if(clearBtn) window.clearCashbookQuickBtn(); };
+            window.clearCashbookQuickBtn = function() { document.querySelectorAll('[data-group="cashbook-quick-date"]').forEach(el => el.classList.remove('active')); }
+            
+            // Sync Engine for Cashbook
+            window.resetCashbookFilters = function() { 
+                document.querySelector('#popup-cashbook-status .sub-radio-row[onclick*="\'All\'"]').click();
+                document.querySelector('#popup-cashbook-sort .sub-radio-row[onclick*="\'date-desc\'"]').click();
+                document.querySelector('[data-group="cashbook-quick-date"][onclick*="month"]').click();
+            };
+
+            window.applyCashbookFilters = function() { 
+                document.getElementById('sort-cashbook').value = document.getElementById('temp-cashbook-sort').value; 
+                if (window.UI) { 
+                    window.UI.state.activeFilters['cashbook'] = document.getElementById('temp-cashbook-filter').value; 
+                    window.UI.applyFilters('cashbook'); 
+                    window.UI.closeBottomSheet('sheet-cashbook-filter'); 
+                } 
+            };
+
+            document.getElementById('sheet-cashbook-filter').addEventListener('transitionend', function(e) { 
+                if (e.target !== this) return; // Prevent bubbling crashes
+                if (this.classList.contains('open')) { 
+                    document.getElementById('popup-cashbook-status').style.display = 'none';
+                    document.getElementById('popup-cashbook-sort').style.display = 'none';
+
+                    // Sync Status
+                    if (window.UI && window.UI.state.activeFilters['cashbook']) { 
+                        let targetVal = window.UI.state.activeFilters['cashbook'];
+                        let opt = document.querySelector(`#popup-cashbook-status .sub-radio-row[onclick*="'${targetVal}'"]`);
+                        if(opt) {
+                            document.querySelectorAll('#popup-cashbook-status .sub-radio-row').forEach(el => el.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            document.getElementById('temp-cashbook-filter').value = targetVal;
+                            document.getElementById('display-cashbook-filter').innerText = opt.querySelector('.sub-radio-text').innerText;
+                        }
+                    } 
+                    // Sync Sort
+                    if (document.getElementById('sort-cashbook')) { 
+                        let targetSort = document.getElementById('sort-cashbook').value || 'date-desc';
+                        let opt = document.querySelector(`#popup-cashbook-sort .sub-radio-row[onclick*="'${targetSort}'"]`);
+                        if(opt) {
+                            document.querySelectorAll('#popup-cashbook-sort .sub-radio-row').forEach(el => el.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            document.getElementById('temp-cashbook-sort').value = targetSort;
+                            document.getElementById('display-cashbook-sort').innerText = opt.querySelector('.sub-radio-text').innerText;
+                        }
+                    } 
+                } 
+            });
+        </script>
     </div>
 
-    <!-- 🚀 ENTERPRISE UPGRADE: UNIFIED SORT & FILTER MENU FOR SALES -->
-    <div id="sheet-sales-filter" class="bottom-sheet">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Sort & Filter Sales</span>
-            <span class="material-symbols-outlined tap-target">close</span>
+    <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOGS -->
+    <div id="sheet-sales-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+        
+        <style>
+            /* 1. Main Modal Centering */
+            #sheet-sales-filter.centered-modal {
+                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
+                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
+                border-radius: 12px !important; 
+                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
+                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
+                position: fixed !important;
+            }
+            #sheet-sales-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
+            #sheet-sales-filter.centered-modal::before { display: none !important; }
+
+            /* 2. Flat Form Elements */
+            .erp-section-label { font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; }
+            .erp-date-input { width: 100%; border: 1px solid var(--md-outline-variant); background: var(--md-surface); padding: 12px; font-size: 14px; font-weight: 600; color: var(--md-on-surface); outline: none; border-radius: 8px; box-sizing: border-box; }
+            .erp-date-input:focus { border-color: var(--md-primary); }
+            
+            /* Segmented Timeframe Buttons */
+            .erp-segmented-track { display: flex; border-radius: 8px; border: 1px solid var(--md-outline-variant); margin-bottom: 16px; overflow: hidden; }
+            .erp-segment-btn { flex: 1; text-align: center; padding: 10px 4px; font-size: 12px; font-weight: 700; color: var(--md-text-muted); cursor: pointer; border-right: 1px solid var(--md-outline-variant); background: var(--md-surface); }
+            .erp-segment-btn:last-child { border-right: none; }
+            .erp-segment-btn.active { color: var(--md-primary); background: rgba(0, 97, 164, 0.08); }
+
+            /* 3. Dropdown Trigger Buttons (Flat Design) */
+            .dropdown-btn {
+                width: 100%; display: flex; justify-content: space-between; align-items: center;
+                padding: 12px 16px; font-size: 15px; font-weight: 700; color: var(--md-on-surface);
+                background: var(--md-surface); border: 1px solid var(--md-outline-variant);
+                border-radius: 8px; cursor: pointer; outline: none; transition: border-color 0.2s ease;
+                -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+            }
+            .dropdown-btn:active { background: var(--md-surface-variant); }
+
+            /* 4. 🚀 THE "SEPARATE SCREEN" SUB-MODALS */
+            .sub-modal-overlay {
+                display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); z-index: 1000; border-radius: 12px;
+                align-items: center; justify-content: center; backdrop-filter: blur(2px);
+            }
+            .sub-modal-card {
+                background: var(--md-surface); width: 85%; max-height: 85%; border-radius: 4px;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden;
+                animation: popIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            }
+            @keyframes popIn {
+                from { opacity: 0; transform: scale(0.9); }
+                to { opacity: 1; transform: scale(1); }
+            }
+
+            /* Custom Radio Rows (App Blue) */
+            .sub-radio-row {
+                display: flex; align-items: center; justify-content: space-between;
+                padding: 16px 24px; cursor: pointer; transition: background 0.2s;
+                border-bottom: 1px solid var(--md-surface-variant);
+            }
+            .sub-radio-row:active { background: rgba(0, 97, 164, 0.08); }
+            .sub-radio-text { font-size: 16px; color: var(--md-on-surface); }
+            
+            /* Magic Blue Radio Circle */
+            .sub-radio-circle {
+                width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--md-outline);
+                position: relative; transition: all 0.2s ease;
+            }
+            .sub-radio-row.selected .sub-radio-circle { border-color: var(--md-primary); }
+            .sub-radio-row.selected .sub-radio-circle::after {
+                content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                width: 10px; height: 10px; border-radius: 50%; background: var(--md-primary);
+            }
+
+            /* Flat Text Buttons */
+            .dialog-text-btn { background: transparent; border: none; color: var(--md-primary); font-weight: 700; font-size: 14px; text-transform: uppercase; padding: 10px 16px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+            .dialog-text-btn:active { background: rgba(0, 97, 164, 0.1); }
+
+            /* Dark Mode Safeties */
+            body.dark-mode #sheet-sales-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
+            body.dark-mode .dropdown-btn, body.dark-mode .erp-date-input, body.dark-mode .sub-modal-card { background: #1e293b; border-color: #334155; color: #f8fafc; }
+            body.dark-mode .sub-radio-text { color: #f8fafc; }
+            body.dark-mode .sub-radio-row { border-bottom-color: #334155; }
+            body.dark-mode .erp-segment-btn { border-color: #334155; background: #1e293b; }
+            body.dark-mode .dialog-text-btn { color: #60a5fa; }
+        </style>
+
+        <!-- Header -->
+        <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
+            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Ledgers By</span>
         </div>
-        <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
+
+        <div style="padding: 0 24px 24px 24px; flex: 1; overflow-y: auto; overflow-x: hidden;">
             
-            <!-- Date Filter Section -->
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
-            
-            <!-- 🚀 NEW QUICK DATE FILTERS -->
-            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2); font-size: 12px; font-weight: bold;">This Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'sales-start-date', 'sales-end-date', 'sales', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            <!-- Dates -->
+            <div style="display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 8px;">
+                <span class="erp-section-label" style="margin:0;">Timeframe</span>
+                <span class="tap-target" onclick="window.clearSalesDates()" style="font-size: 11px; color: var(--md-error); font-weight: 800; cursor: pointer; padding: 2px 6px; background: rgba(186,26,26,0.1); border-radius: 4px;">Clear Dates</span>
+            </div>
+            <div class="erp-segmented-track">
+                <div class="erp-segment-btn active" data-group="sales-quick-date" onclick="window.setQuickSalesDate('month', this)">This Month</div>
+                <div class="erp-segment-btn" data-group="sales-quick-date" onclick="window.setQuickSalesDate('last_month', this)">Last Month</div>
+                <div class="erp-segment-btn" data-group="sales-quick-date" onclick="window.setQuickSalesDate('fy', this)">Fiscal Year</div>
+                <div class="erp-segment-btn" data-group="sales-quick-date" onclick="window.setQuickSalesDate('all', this)">All Time</div>
+            </div>
+            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                <div style="flex: 1;"><label class="erp-section-label">Start Date</label><input type="date" id="sales-start-date" class="erp-date-input" onchange="window.clearSalesQuickBtn()"></div>
+                <div style="flex: 1;"><label class="erp-section-label">End Date</label><input type="date" id="sales-end-date" class="erp-date-input" onchange="window.clearSalesQuickBtn()"></div>
             </div>
 
-            <div style="background: rgba(0, 97, 164, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0, 97, 164, 0.3); margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('sales-start-date').value=''; document.getElementById('sales-end-date').value=''; UI.applyFilters('sales');">close</span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">Start Date</small>
-                        <input type="date" id="sales-start-date" onchange="UI.applyFilters('sales')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
+            <!-- STATUS TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Document Status</label>
+                <input type="hidden" id="temp-sales-filter" value="All">
+                
+                <!-- Native Button Opens the Separate Popup -->
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-sales-status').style.display='flex'">
+                    <span id="display-sales-filter">All Invoices</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
+            </div>
+
+            <!-- SORT TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Sort Order</label>
+                <input type="hidden" id="temp-sales-sort" value="date-desc">
+                
+                <!-- Native Button Opens the Separate Popup -->
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-sales-sort').style.display='flex'">
+                    <span id="display-sales-sort">Invoice No (Z - A)</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
+            </div>
+            
+            <div style="height: 40px;"></div> <!-- Breathing room -->
+        </div>
+        
+        <!-- Flat Footer -->
+        <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
+            <button class="dialog-text-btn tap-target" onclick="window.resetSalesFilters(); if(window.UI) UI.closeBottomSheet('sheet-sales-filter')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" onclick="window.applySalesFilters()">DONE</button>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 🚀 1. THE SEPARATE POPUP SCREEN: STATUS MENU   -->
+        <!-- ============================================== -->
+        <div id="popup-sales-status" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()"> <!-- Prevents clicking inside card from closing it -->
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Document Status</div>
+                
+                <div style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <div class="sub-radio-row selected" onclick="window.pickSubOption('sales-filter', 'All', 'All Invoices', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">All Invoices</span>
+                        <div class="sub-radio-circle"></div>
                     </div>
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">End Date</small>
-                        <input type="date" id="sales-end-date" onchange="UI.applyFilters('sales')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'To Receive', 'To Receive (Pending Dues)', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">To Receive (Pending Dues)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'Overdue', 'Overdue', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">Overdue</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'Open', 'Open (Draft Estimate)', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">Open (Draft Estimate)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'GST', 'B2B (GST)', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">B2B (GST)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'Non-GST', 'Bill of Supply (Non-GST)', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">Bill of Supply (Non-GST)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'Completed', 'Completed / Paid', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">Completed / Paid</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'Cancelled', 'Cancelled', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">Cancelled</span>
+                        <div class="sub-radio-circle"></div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Sorting Section -->
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Sort By</strong>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-sales').value='doc-asc'; UI.applyFilters('sales'); UI.closeBottomSheet('sheet-sales-filter');">
-                    <span class="material-symbols-outlined" style="color: #6a1b9a; margin-bottom: 4px;">format_list_numbered</span>
-                    <strong style="display:block; font-size:13px;">Order No (A-Z)</strong>
-                </div>
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-sales').value='date-desc'; UI.applyFilters('sales'); UI.closeBottomSheet('sheet-sales-filter');">
-                    <span class="material-symbols-outlined" style="color: #0061a4; margin-bottom: 4px;">schedule</span>
-                    <strong style="display:block; font-size:13px;">Newest First</strong>
-                </div>
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-sales').value='date-asc'; UI.applyFilters('sales'); UI.closeBottomSheet('sheet-sales-filter');">
-                    <span class="material-symbols-outlined" style="color: #f57f17; margin-bottom: 4px;">history</span>
-                    <strong style="display:block; font-size:13px;">Oldest First</strong>
-                </div>
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-sales').value='amt-desc'; UI.applyFilters('sales'); UI.closeBottomSheet('sheet-sales-filter');">
-                    <span class="material-symbols-outlined" style="color: #146c2e; margin-bottom: 4px;">payments</span>
-                    <strong style="display:block; font-size:13px;">Highest Amt</strong>
-                </div>
-            </div>
-
-            <!-- Status Filters -->
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Status</strong>
-            
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'All', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">receipt_long</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">All Invoices</strong>
-                    <small style="color:var(--md-text-muted);">Show all statuses</small>
-                </div>
-            </div>
-
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'To Receive', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">call_received</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">To Receive (Due)</strong>
-                    <small style="color:var(--md-text-muted);">Invoices with pending balance</small>
-                </div>
-            </div>
-
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Overdue', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">warning</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Overdue</strong>
-                    <small style="color:var(--md-text-muted);">Pending over 15 days</small>
-                </div>
-            </div>
-
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Open', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">pending_actions</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Open (Draft)</strong>
-                    <small style="color:var(--md-text-muted);">Pending invoices</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'GST', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: rgba(0, 97, 164, 0.1);  color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">receipt</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px; color: #0061a4;">B2B (GST)</strong>
-                    <small style="color:var(--md-text-muted);">Standard Tax Invoices</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Non-GST', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: #fff8e1; color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">receipt_long</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px; color: #f57f17;">Bill of Supply</strong>
-                    <small style="color:var(--md-text-muted);">Non-GST / Exempt Invoices</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Shipped', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: #e0f2f1; color: #00897b; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">local_shipping</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Shipped</strong>
-                    <small style="color:var(--md-text-muted);">In-transit orders</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Completed', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">check_circle</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Completed</strong>
-                    <small style="color:var(--md-text-muted);">Fully paid & delivered</small>
-                </div>
-            </div>
-            
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'Cancelled', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">block</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Cancelled</strong>
-                    <small style="color:var(--md-text-muted);">Voided documents</small>
-                </div>
-            </div>
-
-            <!-- Reset Button -->
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('sales', 'All', null); UI.closeBottomSheet('sheet-sales-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">restart_alt</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Reset All Filters</strong>
-                    <small style="color:var(--md-text-muted);">Show everything</small>
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-sales-status').style.display='none'">CANCEL</button>
                 </div>
             </div>
         </div>
+
+        <!-- ============================================== -->
+        <!-- 🚀 2. THE SEPARATE POPUP SCREEN: SORT MENU     -->
+        <!-- ============================================== -->
+        <div id="popup-sales-sort" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Sort Order</div>
+                
+                <div style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-sort', 'date-desc', 'Newest First', 'popup-sales-sort', this)">
+                        <span class="sub-radio-text">Newest First</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-sort', 'date-asc', 'Oldest First', 'popup-sales-sort', this)">
+                        <span class="sub-radio-text">Oldest First</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-sort', 'amt-desc', 'Amount - High to Low', 'popup-sales-sort', this)">
+                        <span class="sub-radio-text">Amount - High to Low</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-sort', 'amt-asc', 'Amount - Low to High', 'popup-sales-sort', this)">
+                        <span class="sub-radio-text">Amount - Low to High</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row selected" onclick="window.pickSubOption('sales-sort', 'doc-desc', 'Invoice No (Z - A)', 'popup-sales-sort', this)">
+                        <span class="sub-radio-text">Invoice No (Z - A)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-sort', 'doc-asc', 'Invoice No (A - Z)', 'popup-sales-sort', this)">
+                        <span class="sub-radio-text">Invoice No (A - Z)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-sales-sort').style.display='none'">CANCEL</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // 🚨 THE POPUP ENGINE
+            window.pickSubOption = function(inputId, value, text, modalId, element) {
+                // 1. Update the actual form values
+                document.getElementById('temp-' + inputId).value = value;
+                document.getElementById('display-' + inputId).innerText = text;
+
+                // 2. Clear old selections and highlight the new one
+                const siblings = element.parentNode.children;
+                for (let i = 0; i < siblings.length; i++) {
+                    siblings[i].classList.remove('selected');
+                }
+                element.classList.add('selected');
+
+                // 3. Smoothly close the popup dialog
+                document.getElementById(modalId).style.display = 'none';
+            };
+
+            // Date logic
+            window.setQuickSalesDate = function(type, element) {
+                document.querySelectorAll('[data-group="sales-quick-date"]').forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+                if (type !== 'all') { if (window.setQuickDates) window.setQuickDates(type, 'sales-start-date', 'sales-end-date', 'sales', null); } 
+                else { window.clearSalesDates(false); }
+            };
+            window.clearSalesDates = function(clearBtn = true) { document.getElementById('sales-start-date').value = ''; document.getElementById('sales-end-date').value = ''; if(clearBtn) window.clearSalesQuickBtn(); };
+            window.clearSalesQuickBtn = function() { document.querySelectorAll('[data-group="sales-quick-date"]').forEach(el => el.classList.remove('active')); }
+            
+            // Sync Engine
+            window.resetSalesFilters = function() { 
+                document.querySelector('#popup-sales-status .sub-radio-row[onclick*="\'All\'"]').click();
+                document.querySelector('#popup-sales-sort .sub-radio-row[onclick*="\'date-desc\'"]').click();
+                document.querySelector('[data-group="sales-quick-date"][onclick*="month"]').click();
+            };
+
+            window.applySalesFilters = function() { 
+                document.getElementById('sort-sales').value = document.getElementById('temp-sales-sort').value; 
+                if (window.UI) { 
+                    window.UI.state.activeFilters['sales'] = document.getElementById('temp-sales-filter').value; 
+                    window.UI.applyFilters('sales'); 
+                    window.UI.closeBottomSheet('sheet-sales-filter'); 
+                } 
+            };
+
+            document.getElementById('sheet-sales-filter').addEventListener('transitionend', function(e) { 
+                if (e.target !== this) return; // Prevent bubbling crashes
+                if (this.classList.contains('open')) { 
+                    // Hide any stuck popups
+                    document.getElementById('popup-sales-status').style.display = 'none';
+                    document.getElementById('popup-sales-sort').style.display = 'none';
+
+                    // Sync Status
+                    if (window.UI && window.UI.state.activeFilters['sales']) { 
+                        let targetVal = window.UI.state.activeFilters['sales'];
+                        let opt = document.querySelector(`#popup-sales-status .sub-radio-row[onclick*="'${targetVal}'"]`);
+                        if(opt) {
+                            document.querySelectorAll('#popup-sales-status .sub-radio-row').forEach(el => el.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            document.getElementById('temp-sales-filter').value = targetVal;
+                            document.getElementById('display-sales-filter').innerText = opt.querySelector('.sub-radio-text').innerText;
+                        }
+                    } 
+                    // Sync Sort
+                    if (document.getElementById('sort-sales')) { 
+                        let targetSort = document.getElementById('sort-sales').value || 'date-desc';
+                        let opt = document.querySelector(`#popup-sales-sort .sub-radio-row[onclick*="'${targetSort}'"]`);
+                        if(opt) {
+                            document.querySelectorAll('#popup-sales-sort .sub-radio-row').forEach(el => el.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            document.getElementById('temp-sales-sort').value = targetSort;
+                            document.getElementById('display-sales-sort').innerText = opt.querySelector('.sub-radio-text').innerText;
+                        }
+                    } 
+                } 
+            });
+        </script>
     </div>
 
-    <!-- 🚀 ENTERPRISE UPGRADE: UNIFIED SORT & FILTER MENU FOR PURCHASES -->
-    <div id="sheet-purchases-filter" class="bottom-sheet">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Sort & Filter Purchases</span>
-            <span class="material-symbols-outlined tap-target">close</span>
+    <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR PURCHASES -->
+    <div id="sheet-purchases-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+        
+        <style>
+            /* Modal Centering */
+            #sheet-purchases-filter.centered-modal {
+                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
+                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
+                border-radius: 12px !important; 
+                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
+                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
+                position: fixed !important;
+            }
+            #sheet-purchases-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
+            #sheet-purchases-filter.centered-modal::before { display: none !important; }
+
+            /* Dark Mode Safeties */
+            body.dark-mode #sheet-purchases-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
+        </style>
+
+        <!-- Header -->
+        <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
+            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Bills By</span>
         </div>
-        <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
+
+        <div style="padding: 0 24px 24px 24px; flex: 1; overflow-y: auto; overflow-x: hidden;">
             
-            <!-- Date Filter Section -->
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
-            
-            <!-- 🚀 NEW QUICK DATE FILTERS -->
-            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2); font-size: 12px; font-weight: bold;">This Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'purchases-start-date', 'purchases-end-date', 'purchases', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            <!-- Dates -->
+            <div style="display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 8px;">
+                <span class="erp-section-label" style="margin:0;">Timeframe</span>
+                <span class="tap-target" onclick="window.clearPurchaseDates()" style="font-size: 11px; color: var(--md-error); font-weight: 800; cursor: pointer; padding: 2px 6px; background: rgba(186,26,26,0.1); border-radius: 4px;">Clear Dates</span>
+            </div>
+            <div class="erp-segmented-track">
+                <div class="erp-segment-btn active" data-group="purchase-quick-date" onclick="window.setQuickPurchaseDate('month', this)">This Month</div>
+                <div class="erp-segment-btn" data-group="purchase-quick-date" onclick="window.setQuickPurchaseDate('last_month', this)">Last Month</div>
+                <div class="erp-segment-btn" data-group="purchase-quick-date" onclick="window.setQuickPurchaseDate('fy', this)">Fiscal Year</div>
+                <div class="erp-segment-btn" data-group="purchase-quick-date" onclick="window.setQuickPurchaseDate('all', this)">All Time</div>
+            </div>
+            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                <div style="flex: 1;"><label class="erp-section-label">Start Date</label><input type="date" id="purchases-start-date" class="erp-date-input" onchange="window.clearPurchaseQuickBtn()"></div>
+                <div style="flex: 1;"><label class="erp-section-label">End Date</label><input type="date" id="purchases-end-date" class="erp-date-input" onchange="window.clearPurchaseQuickBtn()"></div>
             </div>
 
-            <div style="background: rgba(245, 127, 23, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(245, 127, 23, 0.3); margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('purchases-start-date').value=''; document.getElementById('purchases-end-date').value=''; UI.applyFilters('purchases');">close</span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">Start Date</small>
-                        <input type="date" id="purchases-start-date" onchange="UI.applyFilters('purchases')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
+            <!-- STATUS TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Document Status</label>
+                <input type="hidden" id="temp-purchases-filter" value="All">
+                
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-purchases-status').style.display='flex'">
+                    <span id="display-purchases-filter">All Bills</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
+            </div>
+
+            <!-- SORT TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Sort Order</label>
+                <input type="hidden" id="temp-purchases-sort" value="date-desc">
+                
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-purchases-sort').style.display='flex'">
+                    <span id="display-purchases-sort">Bill No (Z - A)</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
+            </div>
+            
+            <div style="height: 40px;"></div> <!-- Breathing room -->
+        </div>
+        
+        <!-- Flat Footer -->
+        <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
+            <button class="dialog-text-btn tap-target" onclick="window.resetPurchaseFilters(); if(window.UI) UI.closeBottomSheet('sheet-purchases-filter')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" onclick="window.applyPurchaseFilters()">DONE</button>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 🚀 1. THE SEPARATE POPUP SCREEN: STATUS MENU   -->
+        <!-- ============================================== -->
+        <div id="popup-purchases-status" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Document Status</div>
+                
+                <div style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <div class="sub-radio-row selected" onclick="window.pickSubOption('purchases-filter', 'All', 'All Bills', 'popup-purchases-status', this)">
+                        <span class="sub-radio-text">All Bills</span>
+                        <div class="sub-radio-circle"></div>
                     </div>
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">End Date</small>
-                        <input type="date" id="purchases-end-date" onchange="UI.applyFilters('purchases')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-filter', 'To Pay', 'To Pay (Pending Dues)', 'popup-purchases-status', this)">
+                        <span class="sub-radio-text">To Pay (Pending Dues)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-filter', 'Open', 'Open (Draft PO)', 'popup-purchases-status', this)">
+                        <span class="sub-radio-text">Open (Draft PO)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-filter', 'GST', 'B2B (GST)', 'popup-purchases-status', this)">
+                        <span class="sub-radio-text">B2B (GST)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-filter', 'Non-GST', 'Bill of Supply (Non-GST)', 'popup-purchases-status', this)">
+                        <span class="sub-radio-text">Bill of Supply (Non-GST)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-filter', 'Completed', 'Completed / Paid', 'popup-purchases-status', this)">
+                        <span class="sub-radio-text">Completed / Paid</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-filter', 'Cancelled', 'Cancelled', 'popup-purchases-status', this)">
+                        <span class="sub-radio-text">Cancelled</span>
+                        <div class="sub-radio-circle"></div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Sorting Grid -->
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Sort By</strong>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-purchases').value='doc-asc'; UI.applyFilters('purchases'); UI.closeBottomSheet('sheet-purchases-filter');">
-                    <span class="material-symbols-outlined" style="color: #6a1b9a; margin-bottom: 4px;">format_list_numbered</span>
-                    <strong style="display:block; font-size:13px;">PO No (A-Z)</strong>
-                </div>
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-purchases').value='date-desc'; UI.applyFilters('purchases'); UI.closeBottomSheet('sheet-purchases-filter');">
-                    <span class="material-symbols-outlined" style="color: #0061a4; margin-bottom: 4px;">schedule</span>
-                    <strong style="display:block; font-size:13px;">Newest First</strong>
-                </div>
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-purchases').value='date-asc'; UI.applyFilters('purchases'); UI.closeBottomSheet('sheet-purchases-filter');">
-                    <span class="material-symbols-outlined" style="color: #f57f17; margin-bottom: 4px;">history</span>
-                    <strong style="display:block; font-size:13px;">Oldest First</strong>
-                </div>
-                <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" onclick="document.getElementById('sort-purchases').value='amt-desc'; UI.applyFilters('purchases'); UI.closeBottomSheet('sheet-purchases-filter');">
-                    <span class="material-symbols-outlined" style="color: #146c2e; margin-bottom: 4px;">payments</span>
-                    <strong style="display:block; font-size:13px;">Highest Amt</strong>
-                </div>
-            </div>
-
-            <!-- Status Filters -->
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Status</strong>
-            
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'To Pay', null); UI.closeBottomSheet('sheet-purchases-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">payments</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">To Pay</strong>
-                    <small style="color:var(--md-text-muted);">Pending payment</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'GST', null); UI.closeBottomSheet('sheet-purchases-filter');">
-                <div style="background: rgba(0, 97, 164, 0.1);  color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">receipt</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px; color: #0061a4;">B2B (GST)</strong>
-                    <small style="color:var(--md-text-muted);">ITC Claimable Bills</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'Non-GST', null); UI.closeBottomSheet('sheet-purchases-filter');">
-                <div style="background: #fff8e1; color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">receipt_long</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px; color: #f57f17;">Bill of Supply</strong>
-                    <small style="color:var(--md-text-muted);">Non-GST / Exempt Bills</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'Completed', null); UI.closeBottomSheet('sheet-purchases-filter');">
-                <div style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">check_circle</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Completed</strong>
-                    <small style="color:var(--md-text-muted);">Fully received & paid</small>
-                </div>
-            </div>
-            
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'Cancelled', null); UI.closeBottomSheet('sheet-purchases-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">block</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Cancelled</strong>
-                    <small style="color:var(--md-text-muted);">Voided documents</small>
-                </div>
-            </div>
-
-            <!-- Reset Button -->
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('purchases', 'All', null); UI.closeBottomSheet('sheet-purchases-filter');">
-                <div style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">restart_alt</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Reset All Filters</strong>
-                    <small style="color:var(--md-text-muted);">Show everything</small>
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-purchases-status').style.display='none'">CANCEL</button>
                 </div>
             </div>
         </div>
+
+        <!-- ============================================== -->
+        <!-- 🚀 2. THE SEPARATE POPUP SCREEN: SORT MENU     -->
+        <!-- ============================================== -->
+        <div id="popup-purchases-sort" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Sort Order</div>
+                
+                <div style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-sort', 'date-desc', 'Newest First', 'popup-purchases-sort', this)">
+                        <span class="sub-radio-text">Newest First</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-sort', 'date-asc', 'Oldest First', 'popup-purchases-sort', this)">
+                        <span class="sub-radio-text">Oldest First</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-sort', 'amt-desc', 'Amount - High to Low', 'popup-purchases-sort', this)">
+                        <span class="sub-radio-text">Amount - High to Low</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-sort', 'amt-asc', 'Amount - Low to High', 'popup-purchases-sort', this)">
+                        <span class="sub-radio-text">Amount - Low to High</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row selected" onclick="window.pickSubOption('purchases-sort', 'doc-desc', 'Bill No (Z - A)', 'popup-purchases-sort', this)">
+                        <span class="sub-radio-text">Bill No (Z - A)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-sort', 'doc-asc', 'Bill No (A - Z)', 'popup-purchases-sort', this)">
+                        <span class="sub-radio-text">Bill No (A - Z)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                </div>
+
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-purchases-sort').style.display='none'">CANCEL</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Date logic for Purchases
+            window.setQuickPurchaseDate = function(type, element) {
+                document.querySelectorAll('[data-group="purchase-quick-date"]').forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+                if (type !== 'all') { if (window.setQuickDates) window.setQuickDates(type, 'purchases-start-date', 'purchases-end-date', 'purchases', null); } 
+                else { window.clearPurchaseDates(false); }
+            };
+            window.clearPurchaseDates = function(clearBtn = true) { document.getElementById('purchases-start-date').value = ''; document.getElementById('purchases-end-date').value = ''; if(clearBtn) window.clearPurchaseQuickBtn(); };
+            window.clearPurchaseQuickBtn = function() { document.querySelectorAll('[data-group="purchase-quick-date"]').forEach(el => el.classList.remove('active')); }
+            
+            // Sync Engine for Purchases
+            window.resetPurchaseFilters = function() { 
+                document.querySelector('#popup-purchases-status .sub-radio-row[onclick*="\'All\'"]').click();
+                document.querySelector('#popup-purchases-sort .sub-radio-row[onclick*="\'date-desc\'"]').click();
+                document.querySelector('[data-group="purchase-quick-date"][onclick*="month"]').click();
+            };
+
+            window.applyPurchaseFilters = function() { 
+                document.getElementById('sort-purchases').value = document.getElementById('temp-purchases-sort').value; 
+                if (window.UI) { 
+                    window.UI.state.activeFilters['purchases'] = document.getElementById('temp-purchases-filter').value; 
+                    window.UI.applyFilters('purchases'); 
+                    window.UI.closeBottomSheet('sheet-purchases-filter'); 
+                } 
+            };
+
+            document.getElementById('sheet-purchases-filter').addEventListener('transitionend', function(e) { 
+                if (e.target !== this) return; // Prevent bubbling crashes
+                if (this.classList.contains('open')) { 
+                    document.getElementById('popup-purchases-status').style.display = 'none';
+                    document.getElementById('popup-purchases-sort').style.display = 'none';
+
+                    // Sync Status
+                    if (window.UI && window.UI.state.activeFilters['purchases']) { 
+                        let targetVal = window.UI.state.activeFilters['purchases'];
+                        let opt = document.querySelector(`#popup-purchases-status .sub-radio-row[onclick*="'${targetVal}'"]`);
+                        if(opt) {
+                            document.querySelectorAll('#popup-purchases-status .sub-radio-row').forEach(el => el.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            document.getElementById('temp-purchases-filter').value = targetVal;
+                            document.getElementById('display-purchases-filter').innerText = opt.querySelector('.sub-radio-text').innerText;
+                        }
+                    } 
+                    // Sync Sort
+                    if (document.getElementById('sort-purchases')) { 
+                        let targetSort = document.getElementById('sort-purchases').value || 'date-desc';
+                        let opt = document.querySelector(`#popup-purchases-sort .sub-radio-row[onclick*="'${targetSort}'"]`);
+                        if(opt) {
+                            document.querySelectorAll('#popup-purchases-sort .sub-radio-row').forEach(el => el.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            document.getElementById('temp-purchases-sort').value = targetSort;
+                            document.getElementById('display-purchases-sort').innerText = opt.querySelector('.sub-radio-text').innerText;
+                        }
+                    } 
+                } 
+            });
+        </script>
     </div>
 
 
@@ -3521,78 +4110,164 @@
         </div>
     </div>
 
-    <div id="sheet-timeline-filter" class="bottom-sheet">
-        <div class="sheet-header">
-            <span style="font-size: 18px; font-weight: 500;">Filter Ledger</span>
-            <span class="material-symbols-outlined tap-target" onclick="UI.closeBottomSheet('sheet-timeline-filter')">close</span>
+    <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR TIMELINE / BANK LEDGER -->
+    <div id="sheet-timeline-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+        <style>
+            /* Modal Centering */
+            #sheet-timeline-filter.centered-modal {
+                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
+                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
+                border-radius: 12px !important; 
+                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
+                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
+                position: fixed !important;
+            }
+            #sheet-timeline-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
+            #sheet-timeline-filter.centered-modal::before { display: none !important; }
+
+            /* Dark Mode Safeties */
+            body.dark-mode #sheet-timeline-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
+        </style>
+
+        <!-- Header -->
+        <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
+            <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Ledger By</span>
         </div>
-        <div style="padding: 16px; max-height: 75vh; overflow-y: auto;">
+
+        <div style="padding: 0 24px 24px 24px; flex: 1; overflow-y: auto; overflow-x: hidden;">
             
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Date</strong>
-            
-            <!-- 🚀 NEW QUICK DATE FILTERS -->
-            <div style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('month', 'timeline-start-date', 'timeline-end-date', 'timeline', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('last_month', 'timeline-start-date', 'timeline-end-date', 'timeline', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Last Month</button>
-                <button type="button" onclick="if(window.setQuickDates) window.setQuickDates('fy', 'timeline-start-date', 'timeline-end-date', 'timeline', this)" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold;">Fiscal Year</button>
+            <!-- Dates -->
+            <div style="display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 8px;">
+                <span class="erp-section-label" style="margin:0;">Timeframe</span>
+                <span class="tap-target" onclick="window.clearTimelineDates()" style="font-size: 11px; color: var(--md-error); font-weight: 800; cursor: pointer; padding: 2px 6px; background: rgba(186,26,26,0.1); border-radius: 4px;">Clear Dates</span>
+            </div>
+            <div class="erp-segmented-track">
+                <div class="erp-segment-btn active" data-group="timeline-quick-date" data-val="month" onclick="window.setQuickTimelineDate('month', this)">This Month</div>
+                <div class="erp-segment-btn" data-group="timeline-quick-date" data-val="last_month" onclick="window.setQuickTimelineDate('last_month', this)">Last Month</div>
+                <div class="erp-segment-btn" data-group="timeline-quick-date" data-val="fy" onclick="window.setQuickTimelineDate('fy', this)">Fiscal Year</div>
+                <div class="erp-segment-btn" data-group="timeline-quick-date" data-val="all" onclick="window.setQuickTimelineDate('all', this)">All Time</div>
+            </div>
+            <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+                <div style="flex: 1;"><label class="erp-section-label">Start Date</label><input type="date" id="timeline-start-date" class="erp-date-input" onchange="window.clearTimelineQuickBtn()"></div>
+                <div style="flex: 1;"><label class="erp-section-label">End Date</label><input type="date" id="timeline-end-date" class="erp-date-input" onchange="window.clearTimelineQuickBtn()"></div>
             </div>
 
-            <div style="background: rgba(0, 97, 164, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0, 97, 164, 0.3); margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span class="material-symbols-outlined tap-target" style="font-size: 16px; color: var(--md-error); cursor: pointer; margin-left: auto;" onclick="document.getElementById('timeline-start-date').value=''; document.getElementById('timeline-end-date').value=''; UI.applyFilters('timeline');">close</span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">Start Date</small>
-                        <input type="date" id="timeline-start-date" onchange="UI.applyFilters('timeline')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
+            <!-- TYPE TRIGGER -->
+            <div style="margin-bottom: 24px;">
+                <label class="erp-section-label">Transaction Type</label>
+                <input type="hidden" id="temp-timeline-filter" value="All">
+                
+                <button type="button" class="dropdown-btn" onclick="document.getElementById('popup-timeline-type').style.display='flex'">
+                    <span id="display-timeline-filter">All Transactions</span>
+                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">arrow_drop_down</span>
+                </button>
+            </div>
+            
+            <div style="height: 40px;"></div>
+        </div>
+
+        <!-- Flat Footer -->
+        <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
+            <button class="dialog-text-btn tap-target" style="margin-right: auto; color: var(--md-error);" onclick="window.resetTimelineFilters(); window.applyTimelineFilters();">RESET</button>
+            <button class="dialog-text-btn tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-timeline-filter')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" onclick="window.applyTimelineFilters()">DONE</button>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 🚀 THE SEPARATE POPUP SCREEN: TYPE MENU        -->
+        <!-- ============================================== -->
+        <div id="popup-timeline-type" class="sub-modal-overlay" onclick="this.style.display='none'">
+            <div class="sub-modal-card" onclick="event.stopPropagation()">
+                <div style="padding: 20px 24px; font-size: 18px; font-weight: 600; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant);">Transaction Type</div>
+                
+                <div style="flex: 1; overflow-y: auto; padding: 8px 0;">
+                    <div class="sub-radio-row selected" data-val="All" onclick="window.pickSubOption('timeline-filter', 'All', 'All Transactions', 'popup-timeline-type', this)">
+                        <span class="sub-radio-text">All Transactions</span>
+                        <div class="sub-radio-circle"></div>
                     </div>
-                    <div style="flex: 1;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; display: block; margin-bottom: 2px;">End Date</small>
-                        <input type="date" id="timeline-end-date" onchange="UI.applyFilters('timeline')" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; background: var(--md-surface); box-sizing: border-box; font-family: inherit; font-size: 14px; outline: none;">
+                    <div class="sub-radio-row" data-val="Money In" onclick="window.pickSubOption('timeline-filter', 'Money In', 'Money In (Receipts)', 'popup-timeline-type', this)">
+                        <span class="sub-radio-text">Money In (Receipts)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" data-val="Money Out" onclick="window.pickSubOption('timeline-filter', 'Money Out', 'Money Out (Payments)', 'popup-timeline-type', this)">
+                        <span class="sub-radio-text">Money Out (Payments)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" data-val="Expenses" onclick="window.pickSubOption('timeline-filter', 'Expenses', 'Expenses Only', 'popup-timeline-type', this)">
+                        <span class="sub-radio-text">Expenses Only</span>
+                        <div class="sub-radio-circle"></div>
                     </div>
                 </div>
-            </div>
 
-            <strong style="display:block; margin-bottom:12px; color:var(--md-primary); font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Filter By Type</strong>
-            
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('timeline', 'Money In', null); UI.closeBottomSheet('sheet-timeline-filter');">
-                <div style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">arrow_downward</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Money In</strong>
-                    <small style="color:var(--md-text-muted);">Receipts & Income</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('timeline', 'Money Out', null); UI.closeBottomSheet('sheet-timeline-filter');">
-                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">arrow_upward</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Money Out</strong>
-                    <small style="color:var(--md-text-muted);">Payments made</small>
-                </div>
-            </div>
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('timeline', 'Expenses', null); UI.closeBottomSheet('sheet-timeline-filter');">
-                <div style="background: #fff8e1; color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">account_balance_wallet</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Expenses Only</strong>
-                    <small style="color:var(--md-text-muted);">Direct business costs</small>
-                </div>
-            </div>
-
-            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" onclick="UI.setFilter('timeline', 'All', null); UI.closeBottomSheet('sheet-timeline-filter');">
-                <div style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                    <span class="material-symbols-outlined">restart_alt</span>
-                </div>
-                <div>
-                    <strong style="display:block; font-size:16px;">Reset All Filters</strong>
-                    <small style="color:var(--md-text-muted);">Show full history</small>
+                <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
+                    <button type="button" class="dialog-text-btn" onclick="document.getElementById('popup-timeline-type').style.display='none'">CANCEL</button>
                 </div>
             </div>
         </div>
+
+        <!-- 🚨 FIXED, ERROR-FREE JAVASCRIPT ENGINE -->
+        <script>
+            window.setQuickTimelineDate = function(type, element) {
+                document.querySelectorAll('[data-group="timeline-quick-date"]').forEach(el => el.classList.remove('active'));
+                element.classList.add('active');
+                if (type !== 'all') { 
+                    if (window.setQuickDates) window.setQuickDates(type, 'timeline-start-date', 'timeline-end-date', 'timeline', null); 
+                } else { 
+                    window.clearTimelineDates(false); 
+                }
+            };
+
+            window.clearTimelineDates = function(clearBtn = true) { 
+                document.getElementById('timeline-start-date').value = ''; 
+                document.getElementById('timeline-end-date').value = ''; 
+                if(clearBtn) window.clearTimelineQuickBtn(); 
+            };
+
+            window.clearTimelineQuickBtn = function() { 
+                document.querySelectorAll('[data-group="timeline-quick-date"]').forEach(el => el.classList.remove('active')); 
+            };
+            
+            window.resetTimelineFilters = function() { 
+                const typeOpt = document.querySelector('#popup-timeline-type .sub-radio-row[data-val="All"]');
+                if (typeOpt) typeOpt.click();
+                
+                const dateOpt = document.querySelector('[data-group="timeline-quick-date"][data-val="all"]');
+                if (dateOpt) dateOpt.click();
+
+                if (window.UI && window.UI.state && window.UI.state.activeFilters) {
+                    window.UI.state.activeFilters['timeline'] = 'All';
+                }
+            };
+
+            window.applyTimelineFilters = function() { 
+                if (window.UI) { 
+                    window.UI.state.activeFilters['timeline'] = document.getElementById('temp-timeline-filter').value;
+                    window.UI.applyFilters('timeline'); 
+                    window.UI.closeBottomSheet('sheet-timeline-filter'); 
+                } 
+            };
+
+            document.getElementById('sheet-timeline-filter').addEventListener('transitionend', function(e) { 
+                if (e.target !== this) return; 
+                if (this.classList.contains('open')) { 
+                    const popupType = document.getElementById('popup-timeline-type');
+                    if (popupType) popupType.style.display = 'none';
+
+                    // Sync Type visually
+                    if (window.UI && window.UI.state && window.UI.state.activeFilters) { 
+                        let targetVal = window.UI.state.activeFilters['timeline'] || 'All';
+                        let opt = document.querySelector('#popup-timeline-type .sub-radio-row[data-val="' + targetVal + '"]');
+                        if(opt) {
+                            document.querySelectorAll('#popup-timeline-type .sub-radio-row').forEach(el => el.classList.remove('selected'));
+                            opt.classList.add('selected');
+                            document.getElementById('temp-timeline-filter').value = targetVal;
+                            document.getElementById('display-timeline-filter').innerText = opt.querySelector('.sub-radio-text').innerText;
+                        }
+                    } 
+                } 
+            });
+        </script>
     </div>
 
     <script>
@@ -4569,10 +5244,10 @@
 
     window.confirmBillSelection = () => {
         const totalStr = document.getElementById('settle-bills-total').innerText.replace(/[^\d.-]/g, '');
-        const totalNum = parseFloat(totalStr) || 0;
+        const allocatedToBills = parseFloat(totalStr) || 0;
         
         const amountInput = document.getElementById(`pay-${currentSettleType}-amount`);
-        const themeColor = currentSettleType === 'in' ? '#0061a4' : '#ba1a1a';
+        const currentTypedAmount = parseFloat(amountInput.value) || 0;
         const hiddenSelect = document.getElementById(`pay-${currentSettleType}-invoice-ref`);
 
         let hasSelections = false;
@@ -4582,21 +5257,29 @@
             });
         }
 
-        if (totalNum > 0) {
-            amountInput.value = totalNum.toFixed(2);
+        // 🚨 SMART OVERPAYMENT ENGINE
+        // If the user hasn't typed enough to cover the bills, auto-fill the total for them!
+        if (currentTypedAmount < allocatedToBills) {
+            amountInput.value = allocatedToBills.toFixed(2);
             amountInput.style.backgroundColor = currentSettleType === 'in' ? 'rgba(0, 97, 164, 0.15)' : 'rgba(186, 26, 26, 0.15)';
             setTimeout(() => { amountInput.style.backgroundColor = 'var(--md-surface-variant)'; }, 400);
             amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            if (window.Utils && allocatedToBills > 0) {
+                window.Utils.showToast(`Amount auto-filled to ₹${allocatedToBills.toFixed(2)}`);
+            }
+        } 
+        // If the user typed MORE than the bills require (Advance Payment), respect their number!
+        else if (currentTypedAmount > allocatedToBills && hasSelections) {
+            const advance = currentTypedAmount - allocatedToBills;
+            if (window.Utils) {
+                window.Utils.showToast(`₹${allocatedToBills.toFixed(2)} applied. ₹${advance.toFixed(2)} saved as Advance.`);
+            }
         }
 
-        // 🚨 ENTERPRISE LOCK: If bills are selected, lock the amount field so users can't accidentally break the math!
-        if (hasSelections) {
-            amountInput.setAttribute('readonly', 'readonly');
-            amountInput.title = "Clear bill selections to manually edit amount.";
-        } else {
-            amountInput.removeAttribute('readonly');
-            amountInput.title = "";
-        }
+        // Ensure the box is permanently unlocked so they can adjust it freely
+        amountInput.removeAttribute('readonly');
+        amountInput.title = "You can increase this amount to save the extra as an advance.";
 
         if (window.UI) window.UI.closeBottomSheet('sheet-settle-bills');
     };
