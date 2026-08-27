@@ -4531,23 +4531,35 @@ if (data.id && splitConfirmed) {
                             return false;
                         });
 
+                        // 🚨 CRITICAL FIX: Calculate the exact amount allocated to THIS bill in THIS receipt!
+                        let allocatedAmt = 0;
+                        if (record.allocationMap && record.allocationMap[ref] !== undefined) {
+                            allocatedAmt = parseFloat(record.allocationMap[ref]) || 0;
+                        } else if (linkedDoc && record.allocationMap && record.allocationMap[linkedDoc.id] !== undefined) {
+                            allocatedAmt = parseFloat(record.allocationMap[linkedDoc.id]) || 0;
+                        } else {
+                            allocatedAmt = (parseFloat(record.amount) || 0) / savedRefs.length;
+                        }
+
                         if (matchingOpt) {
+                            // 🚨 RESTORE THE EXACT ALLOCATION TO THE DOM SO THE UI READS IT!
+                            matchingOpt.setAttribute('data-allocated', allocatedAmt);
                             optionsToSelect.push(matchingOpt);
                             optionsChanged = true;
                         } else {
                             // Inject missing/fully paid invoice back into the dropdown so it isn't lost!
                             let displayRef = ref;
-                            let docTotal = 0;
                             if (linkedDoc) {
                                 let baseDisplay = linkedDoc.orderNo || String(linkedDoc.id).slice(-4).toUpperCase();
                                 let suffix = linkedDoc.invoiceNo ? ` | Inv: ${linkedDoc.invoiceNo}` : '';
                                 displayRef = baseDisplay + suffix;
-                                docTotal = parseFloat(linkedDoc.grandTotal) || 0;
                             }
                             
                             const newOption = document.createElement('option');
                             newOption.value = ref;
-                            newOption.text = `${displayRef} (Settled: \u20B9${docTotal.toFixed(2)})`;
+                            newOption.setAttribute('data-allocated', allocatedAmt);
+                            newOption.setAttribute('data-bal', allocatedAmt); // Failsafe for the display text
+                            newOption.text = `${displayRef} (Settled: \u20B9${allocatedAmt.toFixed(2)})`;
                             
                             // Append to DOM immediately
                             invoiceRefEl.appendChild(newOption);

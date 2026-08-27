@@ -205,7 +205,7 @@ input, textarea, select {
 }
 
 /* NEW: Force instant clicks ONLY on interactive elements to preserve scrolling */
-a, button, input, select, textarea, .nav-item, .chip {
+a, button, input, select, textarea, .nav-item, .chip, .tap-target, .m3-card {
     touch-action: manipulation;
 }
 
@@ -1461,28 +1461,7 @@ body.dark-mode .m3-card:focus-within {
    THE ABSOLUTE PINNACLE: "BESTEST EVER" UX
    ========================================== */
 
-/* 1. The Breathing FAB (Continuous Pulse Animation) */
-@keyframes breathing-pulse {
-    0% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 0 rgba(0, 97, 164, 0.4); }
-    70% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 15px rgba(0, 97, 164, 0); }
-    100% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 0 0 0 rgba(0, 97, 164, 0); }
-}
-body.dark-mode .floating-action-button {
-    animation: breathing-pulse-dark 2.5s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-@keyframes breathing-pulse-dark {
-    0% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(143, 203, 251, 0.3); }
-    70% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 15px rgba(143, 203, 251, 0); }
-    100% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(143, 203, 251, 0); }
-}
-.floating-action-button {
-    animation: breathing-pulse 2.5s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.floating-action-button:active {
-    animation: none !important; /* Stops breathing while you press it */
-}
-
-/* 2. STRICT B2B: Solid Bottom Nav */
+/* 1. STRICT B2B: Solid Bottom Nav */
 .bottom-nav {
     background: #ffffff !important;
     border-top: 1px solid var(--md-outline-variant) !important;
@@ -7831,3 +7810,294 @@ html.slide-right ::view-transition-new(root) { animation-name: slide-in-left; }
 @keyframes slide-out-left { to { transform: translateX(-20%); opacity: 0; } }
 @keyframes slide-in-left { from { transform: translateX(-20%); opacity: 0; } }
 @keyframes slide-out-right { to { transform: translateX(20%); opacity: 0; } }
+/* ==========================================
+   🌙 GLOBAL DARK MODE PERFECTION SHIELD
+   ========================================== */
+
+/* 1. Force all hardcoded Dark Grays/Blacks to turn White */
+body.dark-mode [style*="color: #0f172a"],
+body.dark-mode [style*="color:#0f172a"],
+body.dark-mode [style*="color: #1e293b"],
+body.dark-mode [style*="color:#1e293b"],
+body.dark-mode [style*="color: #333"],
+body.dark-mode [style*="color: #000"] {
+    color: var(--md-on-surface) !important;
+}
+
+/* 2. Force all Medium Grays to turn Light Gray */
+body.dark-mode [style*="color: #475569"],
+body.dark-mode [style*="color:#475569"],
+body.dark-mode [style*="color: #64748b"],
+body.dark-mode [style*="color:#64748b"],
+body.dark-mode [style*="color: #666"],
+body.dark-mode [style*="color: #777"] {
+    color: var(--md-text-muted) !important;
+}
+
+/* 3. Soften harsh Reds, Greens, and Oranges for AMOLED screens */
+/* Dark mode requires pastel colors so they glow properly against black */
+body.dark-mode [style*="color: #ba1a1a"],
+body.dark-mode [style*="color:#ba1a1a"],
+body.dark-mode [style*="color: #dc2626"],
+body.dark-mode [style*="color:#dc2626"] {
+    color: #ffb4ab !important; /* Glowing Pastel Red */
+}
+
+body.dark-mode [style*="color: #146c2e"],
+body.dark-mode [style*="color:#146c2e"],
+body.dark-mode [style*="color: #16a34a"],
+body.dark-mode [style*="color:#16a34a"] {
+    color: #81c995 !important; /* Glowing Pastel Green */
+}
+
+body.dark-mode [style*="color: #ea580c"],
+body.dark-mode [style*="color:#ea580c"],
+body.dark-mode [style*="color: #d84315"],
+body.dark-mode [style*="color:#d84315"] {
+    color: #ffb776 !important; /* Glowing Pastel Orange */
+}
+
+body.dark-mode [style*="color: #f57f17"],
+body.dark-mode [style*="color:#f57f17"] {
+    color: #fde293 !important; /* Glowing Pastel Yellow */
+}
+
+/* 4. Fix stubborn white backgrounds on dynamically generated cards */
+body.dark-mode [style*="background: #ffffff"],
+body.dark-mode [style*="background:#ffffff"],
+body.dark-mode [style*="background: #fff"],
+body.dark-mode [style*="background:#fff"] {
+    background: var(--md-surface) !important;
+}
+
+/* 5. Ensure all Dropdowns and Inputs natively adapt */
+body.dark-mode select, 
+body.dark-mode input:not([type="checkbox"]):not([type="radio"]), 
+body.dark-mode textarea {
+    background-color: var(--md-surface) !important;
+    color: var(--md-on-surface) !important;
+}
+
+body.dark-mode input::placeholder, 
+body.dark-mode textarea::placeholder {
+    color: var(--md-text-muted) !important;
+}
+/* ==========================================
+   🌙 FINAL DARK MODE COLOR & GRADIENT PATCHES
+   ========================================== */
+
+/* 1. Fix Hardcoded Primary Blues turning invisible (Analytics & Headers) */
+body.dark-mode [style*="color: #0061a4"],
+body.dark-mode [style*="color:#0061a4"],
+body.dark-mode [style*="color: #0277bd"],
+body.dark-mode [style*="color:#0277bd"],
+body.dark-mode [style*="color: #01579b"],
+body.dark-mode [style*="color:#01579b"] {
+    color: #7CB1FF !important; /* Glowing Neon Blue */
+}
+
+/* 2. Fix Hardcoded Dark Oranges turning invisible (Reorder Report) */
+body.dark-mode [style*="color: #d97706"],
+body.dark-mode [style*="color:#d97706"],
+body.dark-mode [style*="color: #b45309"],
+body.dark-mode [style*="color:#b45309"] {
+    color: #ffb776 !important; /* Glowing Pastel Orange */
+}
+
+/* 3. Fix the Blinding Bright Gradients on the Ledger Shortcut Cards */
+
+/* Stock Ledger Card */
+body.dark-mode #product-ledger-card .m3-card {
+    background: rgba(124, 177, 255, 0.1) !important;
+    border-color: rgba(124, 177, 255, 0.2) !important;
+    background-image: none !important; /* Kills the bright gradient */
+    box-shadow: none !important;
+}
+
+/* Khata Ledger Card */
+body.dark-mode #ledger-khata-card .m3-card {
+    background: rgba(253, 226, 147, 0.1) !important;
+    border-color: rgba(253, 226, 147, 0.2) !important;
+    background-image: none !important; /* Kills the bright gradient */
+    box-shadow: none !important;
+}
+/* ==========================================
+   🌙 ULTIMATE DARK MODE: THE FINAL GHOST BUGS
+   ========================================== */
+
+/* 1. Fix the Smart Chips (Quick-Add Product Buttons) */
+body.dark-mode .smart-chips-wrapper {
+    background-color: var(--md-surface) !important;
+}
+
+body.dark-mode .smart-chip {
+    background-color: var(--md-surface-variant) !important;
+    color: var(--md-on-surface) !important;
+    border-color: var(--md-outline-variant) !important;
+}
+
+body.dark-mode .smart-chip:active {
+    background-color: var(--md-primary-container) !important;
+    border-color: var(--md-primary) !important;
+    color: var(--md-primary) !important;
+}
+
+/* 2. Fix the Read-Only Invoice Bottom Action Bar */
+body.dark-mode .activity-bottom-bar, 
+body.dark-mode .activity-footer, 
+body.dark-mode #activity-sales-form .bottom-bar, 
+body.dark-mode #activity-purchase-form .bottom-bar, 
+body.dark-mode .bottom-action-bar,
+body.dark-mode .form-sticky-footer {
+    background: #1e1e22 !important;
+    border-top: 1px solid #44474e !important;
+}
+
+/* 3. Protect against the PDF Previewer "Flash-Bang" */
+body.dark-mode #in-app-pdf-viewer {
+    background-color: #000000 !important; /* Dim the canvas background */
+}
+
+body.dark-mode #in-app-pdf-viewer > div:first-child {
+    background-color: #121212 !important; /* Darken the top header */
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+body.dark-mode #in-app-pdf-viewer > div:first-child * {
+    color: var(--md-on-surface) !important; /* Ensure header text/icons turn white */
+}
+/* ==========================================
+   ✨ THE 1% CLUB: ELITE NATIVE POLISH
+   ========================================== */
+
+/* ------------------------------------------
+   1. iOS 3D BACKGROUND RECEDE EFFECT
+   ------------------------------------------ */
+/* Gives the Dashboard a smooth transition state */
+#app-shell {
+    transition: transform 0.45s cubic-bezier(0.32, 0.72, 0, 1), filter 0.45s ease, border-radius 0.45s ease !important;
+    transform-origin: top center;
+    background-color: var(--md-background);
+}
+
+/* THE MAGIC: When a bottom sheet opens, the Dashboard physically sinks into the background! */
+body:has(.bottom-sheet.open) #app-shell {
+    transform: scale(0.94) translateY(12px) !important; /* Shrinks and drops down slightly */
+    filter: brightness(0.65) !important; /* Dims the background */
+    border-radius: 24px !important; /* Rounds the corners like a physical phone screen */
+    pointer-events: none !important; /* Prevents accidental background taps */
+}
+
+/* Ensure the body is black so the receding screen looks like it's inside a phone bezel */
+body:has(.bottom-sheet.open) {
+    background-color: #000000 !important;
+}
+
+
+/* ------------------------------------------
+   2. YOUTUBE-STYLE "LIQUID METAL" SKELETONS
+   ------------------------------------------ */
+.skeleton-card, .skeleton-loader {
+    animation: true-shimmer 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1) !important;
+    /* A sharp, 45-degree angled light beam sweeping across */
+    background: linear-gradient(
+        100deg, 
+        var(--md-surface-variant) 30%, 
+        var(--md-outline-variant) 50%, 
+        var(--md-surface-variant) 70%
+    ) !important;
+    background-size: 400% 100% !important;
+    border: none !important;
+}
+
+/* Smooth transition for the light sweep */
+@keyframes true-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Perfect Dark Mode Liquid Metal */
+body.dark-mode .skeleton-card, 
+body.dark-mode .skeleton-loader {
+    background: linear-gradient(
+        100deg, 
+        rgba(255, 255, 255, 0.03) 30%, 
+        rgba(255, 255, 255, 0.08) 50%, 
+        rgba(255, 255, 255, 0.03) 70%
+    ) !important;
+    background-size: 400% 100% !important;
+}
+
+
+/* ------------------------------------------
+   3. AMBIENT GLOW ON PRIMARY BUTTONS
+   ------------------------------------------ */
+/* Makes the Save/Add buttons look like they are projecting colored light */
+.btn-primary {
+    box-shadow: 0 8px 20px -6px rgba(0, 97, 164, 0.4), 0 4px 8px -4px rgba(0, 97, 164, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important; /* Crisp inner top edge */
+}
+
+body.dark-mode .btn-primary {
+    box-shadow: 0 8px 24px -6px rgba(124, 177, 255, 0.3) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Red "Save Payment Out" button gets a red glow */
+.btn-primary[style*="var(--md-error)"],
+.btn-primary[style*="186, 26, 26"] {
+    box-shadow: 0 8px 20px -6px rgba(186, 26, 26, 0.4), 0 4px 8px -4px rgba(186, 26, 26, 0.3) !important;
+}
+
+/* The glow compresses beautifully when physically pressed */
+.btn-primary:active {
+    box-shadow: 0 2px 4px -2px rgba(0, 97, 164, 0.5) !important;
+}
+
+
+/* ------------------------------------------
+   4. SILKY SMOOTH ACCORDIONS
+   ------------------------------------------ */
+/* When tapping "Advanced Options", the arrow spins smoothly instead of snapping */
+details.advanced-options summary::after {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s ease !important;
+}
+
+details.advanced-options[open] summary::after {
+    transform: rotate(135deg) !important; /* Spins into an 'X' */
+    color: var(--md-error) !important;
+}
+/* ==========================================
+   🚨 UX SPACE OPTIMIZATION: REMOVE REDUNDANT ARROWS
+   ========================================== */
+
+/* 1. Hide the useless Chevron arrows on the Sales & Purchase Party Selection Cards */
+#activity-sales-form .m3-card > span.material-symbols-outlined:last-child,
+#activity-purchase-form .m3-card > span.material-symbols-outlined:last-child {
+    display: none !important;
+}
+
+/* 2. Hide the Chevron arrows in Payment & Expense Forms */
+.premium-input-container > span.material-symbols-outlined:not(.tap-target) {
+    display: none !important;
+}
+
+/* 3. Force proper text truncation so long names NEVER wrap or break the card height */
+#sales-customer-display, 
+#purchase-supplier-display, 
+#pay-in-customer-display, 
+#pay-out-supplier-display, 
+#pay-in-bills-display, 
+#pay-out-bills-display,
+#expense-linked-display {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+}
+
+/* 4. Ensure the Flexbox containers are actually allowed to shrink */
+.m3-card > div[style*="flex: 1"],
+.premium-input-container {
+    min-width: 0 !important;
+}

@@ -507,8 +507,17 @@ const executeBackgroundBackup = async () => {
         return;
     }
 
+    // 🚨 STABILITY FIX: The Cross-Tab Sync Shield!
+    // If you have multiple tabs open, this prevents them all from attacking Google Drive at the exact same millisecond!
+    const lastSyncAttempt = parseInt(localStorage.getItem('sollo_sync_lock')) || 0;
+    if (Date.now() - lastSyncAttempt < 15000) {
+        console.log("☁️ Another tab is already syncing. Yielding to prevent API crash.");
+        return; // Another tab claimed the lock less than 15 seconds ago!
+    }
+    localStorage.setItem('sollo_sync_lock', Date.now().toString());
+
     // 🚨 ENTERPRISE FIX: The Multi-Thread Sync Shield!
-    // Physically locks the engine so it cannot fire multiple simultaneous uploads if the internet flickers!
+    // Physically locks the local tab engine so it cannot fire multiple simultaneous uploads!
     if (window.isCloudSyncing) return;
     window.isCloudSyncing = true; 
 

@@ -637,6 +637,11 @@ const UI = {
         const a = document.getElementById(activityId);
         if(!a) return;
 
+        // 🚨 STABILITY FIX: The Ghost Scroll Shield!
+        // Prevent newly opened forms from starting halfway scrolled down!
+        const scrollArea = a.querySelector('.activity-content');
+        if (scrollArea) scrollArea.scrollTop = 0;
+
         const applyOpen = () => {
             let highestZ = 4000;
             document.querySelectorAll('.activity-screen.open').forEach(el => {
@@ -707,6 +712,14 @@ const UI = {
         // 🚨 BUG FIX: Force the custom Numpad to close if the user exits the screen!
         if (typeof UI !== 'undefined' && UI.closeNumpad) {
             UI.closeNumpad();
+        }
+
+        // 🚨 STABILITY FIX: The Orphaned Keyboard & Ghost Calendar Shield!
+        if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            document.activeElement.blur();
+        }
+        if (typeof flatpickr !== 'undefined') {
+            document.querySelectorAll('.flatpickr-calendar.open').forEach(p => p.classList.remove('open'));
         }
 
         if (activityId.includes('-form') && window.isFormDirty) {
@@ -3485,6 +3498,14 @@ const UI = {
         // ENTERPRISE FIX: Prevent double-tapping from popping multiple history states and crashing the main form!
         if (!sheet || !sheet.classList.contains('open')) { window.softwareBackLock = false; return; }
         
+        // 🚨 STABILITY FIX: The Orphaned Keyboard & Ghost Calendar Shield!
+        if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            document.activeElement.blur();
+        }
+        if (typeof flatpickr !== 'undefined') {
+            document.querySelectorAll('.flatpickr-calendar.open').forEach(p => p.classList.remove('open'));
+        }
+
         sheet.classList.remove('open');
 
         // ENTERPRISE FIX: Destroy the custom Haptic Overlay if the Android Back Button kills the menu!
@@ -3626,16 +3647,13 @@ const UI = {
                 const rowColor = isCust ? '#0061a4' : '#ba1a1a';
                 
                 html += `
-                <div class="m3-card tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; cursor: pointer;">
+                <div class="m3-card tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; justify-content: flex-start; align-items: center; gap: 12px; cursor: pointer;">
                     <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                         <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                     </div>
-                    <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                    <div style="flex: 1; min-width: 0;">
                         <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${l.name}</strong>
                         <small style="color: var(--md-text-muted); display: block; margin-top: 4px; line-height: 1.3;">${l.phone || 'No Phone'}</small>
-                    </div>
-                    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 40px;">
-                        <span class="material-symbols-outlined" style="color: var(--md-outline);">chevron_right</span>
                     </div>
                 </div>`;
             });
@@ -3810,6 +3828,10 @@ const UI = {
                 window.triggerItemLedgerFromForm(); // 🚨 NEW: Trigger Item Ledger Filter
             }
         }
+        
+        // 🚨 CRITICAL FIX: Instantly recalculate taxes in case the new party triggers IGST!
+        if (prefix === 'sales') UI.calcSalesTotals();
+        if (prefix === 'purchase') UI.calcPurchaseTotals();
         
         // MOVED: Safely close the sheet only AFTER the database has finished loading!
         UI.closeBottomSheet('sheet-smart-search');
@@ -4015,6 +4037,10 @@ const UI = {
                 await app.loadPendingInvoices(id, 'out'); // ENTERPRISE FIX: Added await!
             }
         }
+
+        // 🚨 CRITICAL FIX: Instantly recalculate taxes in case the new party triggers IGST!
+        if (prefix === 'sales') UI.calcSalesTotals();
+        if (prefix === 'purchase') UI.calcPurchaseTotals();
 
         UI.closeBottomSheet(prefix === 'sales' || prefix === 'pay-in' ? 'sheet-customers' : 'sheet-suppliers');
     },
@@ -5617,32 +5643,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { passive: true });
     }
 
-    // UPGRADE: Auto-Hiding FAB & Bottom Nav on Scroll
-    let lastScrollY = 0;
-    let isScrolling = false;
-    const mainContent = document.querySelector('.main-content');
-    const fab = document.querySelector('.floating-action-button');
-    const bottomNav = document.querySelector('.bottom-nav'); // <-- NEW
-    
-    if (mainContent) {
-        mainContent.addEventListener('scroll', () => {
-            lastScrollY = mainContent.scrollTop;
-            
-            // STRICT ERP LOGIC: Debounce the DOM paint to prevent CPU layout-thrashing on mobile devices!
-            if (!isScrolling) {
-                window.requestAnimationFrame(() => {
-                    if (lastScrollY > 50) {
-                        if (fab) fab.classList.add('fab-hidden'); 
-                        // 🚨 ENTERPRISE FIX: Removed bottomNav inline styles! app.js handles the Nav Bar cleanly.
-                    } else {
-                        if (fab) fab.classList.remove('fab-hidden'); 
-                    }
-                    isScrolling = false;
-                });
-                isScrolling = true;
-            }
-        }, {passive: true});
-    }
     
     // Bottom Sheet Searches
     ['customers', 'suppliers', 'products'].forEach(type => {
@@ -5814,6 +5814,13 @@ document.addEventListener('click', (e) => {
             action.includes('openExpenseReport') || action.includes('openReorderReport') || action.includes('openItemProfitReport') || 
             action.includes('openPartyTaxReport') || action.includes('openGSTReport') || action.includes('manageSimpleMaster') || 
             action.includes('openAdjustmentSheet')) {
+            
+            // 🚨 STABILITY FIX: The Double-Tap History Shield!
+            // Prevents rapid tapping from pushing 2 history states and breaking the Back Button
+            if (window.isRoutingLocked) return;
+            window.isRoutingLocked = true;
+            setTimeout(() => { window.isRoutingLocked = false; }, 400);
+
             window.history.pushState({ internalRoute: true }, '');
         }
     }
@@ -5848,6 +5855,19 @@ window.addEventListener('popstate', (e) => {
             window.history.pushState({ internalRoute: true }, ''); // Re-trap the back button to protect the form!
             return;
         }
+        
+                // 🚨 STABILITY FIX: The Android Back-Button Modal Shield!
+        // Catch custom modals FIRST so swiping back doesn't close the screen behind them!
+        const visibleModals = Array.from(document.querySelectorAll('#enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)'));
+        if (visibleModals.length > 0) {
+            const topModal = visibleModals[0];
+            const cancelBtn = topModal.querySelector('button'); // Grabs the OK/Cancel button
+            if (cancelBtn) cancelBtn.click(); // Safely dismisses the modal
+            
+            window.history.pushState({ internalRoute: true }, ''); // Re-trap the back button
+            return;
+        }
+
 
         // ENTERPRISE FIX: 1. Catch ONLY sheets that are mathematically OPEN! 
         // Ignoring sheets that are animating closed or ghosting in the DOM prevents the Infinite Back Trap!
@@ -6044,9 +6064,7 @@ document.addEventListener('pointerup', (e) => {
 // ==========================================
 // 🚨 ENTERPRISE UX: NATIVE APP BEHAVIORS
 // ==========================================
-
-// 1. SMART FAB SCROLL ENGINE
-let lastScrollTop = 0;
+// 1. SMART KEYBOARD DISMISSAL ON SCROLL
 const scrollContainers = document.querySelectorAll('.activity-content, .view');
 
 scrollContainers.forEach(container => {
@@ -6061,25 +6079,6 @@ scrollContainers.forEach(container => {
             document.activeElement.blur();
         }
     }, { passive: true });
-
-    container.addEventListener('scroll', () => {
-        const currentScroll = container.scrollTop;
-        // 🚨 ENTERPRISE FIX: Target ALL FABs on the screen so the Inventory Master FAB hides properly!
-        const fabs = document.querySelectorAll('.floating-action-button');
-        
-        if (fabs.length === 0) return;
-
-        // If scrolling DOWN and past the first 50px
-        if (currentScroll > lastScrollTop && currentScroll > 50) {
-            fabs.forEach(fab => fab.classList.add('fab-hidden'));
-        } 
-        // If scrolling UP
-        else if (currentScroll < lastScrollTop) {
-            fabs.forEach(fab => fab.classList.remove('fab-hidden'));
-        }
-        
-        lastScrollTop = currentScroll <= 0 ? 0 : currentScroll; // For Mobile or negative scrolling
-    }, { passive: true }); // passive: true ensures the scroll stays locked at 120fps!
 });
 
 // ==========================================
@@ -6097,7 +6096,10 @@ document.addEventListener('visibilitychange', () => {
         // Also shut down our custom POS Numpad just in case
         if (window.UI && window.UI.closeNumpad) window.UI.closeNumpad();
 
-        // INSTANT LOCK: Display the screen with the blur already applied by the CSS
+        // ⏱️ TRACK TIME: Record exactly when the user left the app
+        window.solloAppHiddenTime = Date.now();
+
+        // INSTANT LOCK: Display the screen with the blur so it hides data in the OS multi-tasking view!
         if (lockScreen) {
             lockScreen.style.transition = 'none'; 
             lockScreen.style.opacity = '1';
@@ -6105,14 +6107,28 @@ document.addEventListener('visibilitychange', () => {
         }
     } 
     else if (document.visibilityState === 'visible') {
-        // WAKE UP: Refresh the dashboard in the background, but leave the lock screen active!
+        // WAKE UP: Refresh the dashboard in the background
         if (window.UI) {
             window.UI.resetStatusBarColor();
-            window.UI.renderDashboard(); 
+            
+            // 🚨 STABILITY FIX: Only run heavy math if they are on the Home screen!
+            const isDashboardActive = document.getElementById('tab-dashboard')?.classList.contains('active-screen');
+            if (isDashboardActive) {
+                window.UI.renderDashboard(); 
+            }
         }
-        // Ensure smooth fade transitions are ready for when the user clicks the unlock button
+        
         if (lockScreen) {
             lockScreen.style.transition = 'opacity 0.3s ease';
+            
+            // 🚀 ENTERPRISE UX: THE 60-SECOND GRACE PERIOD
+            // If the user was gone for less than 60 seconds, automatically unlock the app!
+            const timeAway = Date.now() - (window.solloAppHiddenTime || 0);
+            
+            if (timeAway < 60000) { // 60,000 milliseconds = 60 seconds
+                lockScreen.style.opacity = '0';
+                setTimeout(() => lockScreen.style.display = 'none', 300);
+            }
         }
     }
 });

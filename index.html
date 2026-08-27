@@ -4521,7 +4521,11 @@
             e.preventDefault(); 
             deferredPrompt = e;
             setTimeout(() => {
-                if (window.UI) window.UI.openBottomSheet('sheet-install-app');
+                // 🚨 STABILITY FIX: Only ask to install if they are safely on the Home screen!
+                const isDashboard = document.getElementById('tab-dashboard')?.classList.contains('active-screen');
+                if (window.UI && isDashboard) {
+                    window.UI.openBottomSheet('sheet-install-app');
+                }
             }, 4000);
         });
 
@@ -4662,14 +4666,6 @@
 
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Attach Morph logic to Bottom Nav and Document Toggles
-            const bottomNav = document.querySelector('.bottom-nav');
-            if (bottomNav) bottomNav.addEventListener('click', updateFabMorph);
-            
-            const btnSales = document.getElementById('btn-toggle-sales');
-            const btnPurch = document.getElementById('btn-toggle-purchases');
-            if (btnSales) btnSales.addEventListener('click', updateFabMorph);
-            if (btnPurch) btnPurch.addEventListener('click', updateFabMorph);
 
             // ENTERPRISE UPGRADE: Load saved PDF Theme
             const savedTheme = localStorage.getItem('sollo_invoice_theme');

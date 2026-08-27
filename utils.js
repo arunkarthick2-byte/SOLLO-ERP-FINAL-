@@ -1261,8 +1261,8 @@ Please process this accordingly. Thank you!`;
         const hsnMap = {};
         const itemsBody = [];
         
-        // UPGRADE: Premium Slate Gray Table Headers
-        const thStyle = { bold: true, fontSize: 9, alignment: 'center', margin: [2, 4], fillColor: '#334155', color: '#ffffff' };
+        // REVERT: Classic Light Gray Table Headers
+        const thStyle = { bold: true, fontSize: 9, alignment: 'center', margin: [2, 4], fillColor: '#f1f5f9', color: '#0f172a' };
         
         itemsBody.push([
             {text: 'Sl\nNo.', ...thStyle}, 
@@ -1429,9 +1429,9 @@ Please process this accordingly. Thank you!`;
         // 🚨 TALLY: HSN/SAC Summary Grid
         const hsnBody = [];
         if (!isNonGST && Object.keys(hsnMap).length > 0) {
-            // UPGRADE: Slate Gray HSN Headers for Consistency
-            const hsnTh = { style: 'th', bold: true, fontSize: 8, margin: [2,4], fillColor: '#334155', color: '#ffffff' };
-            const hsnSub = { bold: true, fontSize: 8, fillColor: '#334155', color: '#ffffff' };
+            // REVERT: Classic Light Gray HSN Headers
+            const hsnTh = { style: 'th', bold: true, fontSize: 8, margin: [2,4], fillColor: '#f1f5f9', color: '#0f172a' };
+            const hsnSub = { bold: true, fontSize: 8, fillColor: '#f1f5f9', color: '#0f172a' };
             
             let hsnHeaders = [
                 {text: 'HSN/SAC', alignment: 'center', ...hsnTh},
@@ -1448,7 +1448,7 @@ Please process this accordingly. Thank you!`;
 
             // Sub-Headers for Tax Rates
             let hsnSubHeaders = [
-                {text: '', fillColor: '#334155'}, {text: '', fillColor: '#334155'}
+                {text: '', fillColor: '#f1f5f9'}, {text: '', fillColor: '#f1f5f9'}
             ];
             if (isIGST) {
                 hsnSubHeaders.push({text: 'Rate', alignment: 'center', ...hsnSub}, {text: 'Amount', alignment: 'right', ...hsnSub});
@@ -1456,7 +1456,7 @@ Please process this accordingly. Thank you!`;
                 hsnSubHeaders.push({text: 'Rate', alignment: 'center', ...hsnSub}, {text: 'Amount', alignment: 'right', ...hsnSub});
                 hsnSubHeaders.push({text: 'Rate', alignment: 'center', ...hsnSub}, {text: 'Amount', alignment: 'right', ...hsnSub});
             }
-            hsnSubHeaders.push({text: '', fillColor: '#334155'});
+            hsnSubHeaders.push({text: '', fillColor: '#f1f5f9'});
             hsnBody.push(hsnSubHeaders);
 
             let sumTaxable = 0, sumCgst = 0, sumSgst = 0, sumIgst = 0, sumTotalTax = 0;
@@ -1567,7 +1567,7 @@ Please process this accordingly. Thank you!`;
                                 fillColor: '#f8fafc',
                                 text: [
                                     { text: 'Amount Chargeable (in words)\n', italics: true, fontSize: 8, color: '#475569' },
-                                    { text: 'INR ' + window.Utils.numberToWords(grandTotal), bold: true, fontSize: 11, color: '#0f172a' }
+                                    { text: window.Utils.numberToWords(grandTotal), bold: true, fontSize: 11, color: '#0f172a' }
                                 ],
                                 margin: [4, 6]
                             }],
