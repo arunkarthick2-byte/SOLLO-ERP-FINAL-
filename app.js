@@ -2269,7 +2269,7 @@ const app = {
                             </div>
                         </div>
                         <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
-                            <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="color: var(--md-error); padding: 4px; border-radius: 50%; background: #fff0f2; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                            <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="color: var(--md-error); padding: 4px; border-radius: 50%; background: rgba(186, 26, 26, 0.1); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                 <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
                             </div>
                             <strong class="row-total" style="font-size: 16px; color: var(--md-error); margin-top: auto; padding-top: 8px;">0.00</strong>
@@ -2614,7 +2614,7 @@ const app = {
                 if (docType === 'return') {
                     if (titleEl) titleEl.innerText = id ? `Edit ${type === 'sales' ? 'Credit Note' : 'Debit Note'}` : `New ${type === 'sales' ? 'Credit Note' : 'Debit Note'}`;
                     if (btnEl) btnEl.innerHTML = `Save ${type === 'sales' ? 'Credit Note' : 'Debit Note'} <span class="material-symbols-outlined" style="font-size: 18px; margin-left: 6px;">done_all</span>`;
-                    if (headerEl) headerEl.style.backgroundColor = type === 'sales' ? '#fff0f2' : '#e8f5e9';
+                    if (headerEl) headerEl.style.backgroundColor = type === 'sales' ? 'rgba(220, 38, 38, 0.08)' : 'rgba(22, 163, 74, 0.08)';
                     
                     const refGroup = document.getElementById(`${type}-return-ref-group`);
                     if (refGroup) refGroup.classList.remove('hidden');
@@ -2797,81 +2797,39 @@ const app = {
                 // Removed the deleted instant payment fields from the hydration engine
             }
 
+            // 🚨 ENTERPRISE UPGRADE: Reactive Edit Mode
             const tbody = document.getElementById(`${type}-items-body`);
-            tbody.innerHTML = '';
-
-            // 🚨 SOLLO FIX: Hide the "No items" text when opening a saved invoice!
             const emptyState = document.getElementById(`${type}-empty-items`);
-            if (emptyState) emptyState.style.display = 'none';
+            
+            if (tbody) tbody.innerHTML = '';
+            
+            // 1. CRITICAL: Destroy old proxy array in memory so it doesn't merge old invoices!
+            window[`${type}ObservableItems`] = null; 
 
-            // --- FETCH RETURN MAX ALLOWABLE LOGIC ---
-            let returnedQtyMap = {};
-            let originalDoc = null;
-            if (record.documentType === 'return' && record.orderNo) {
-                const allDocs = storeMap[type] === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases;
-                originalDoc = allDocs.find(d => (d.invoiceNo === record.orderNo || d.poNo === record.orderNo) && d.documentType !== 'return');
-                const previousReturns = allDocs.filter(d => d.documentType === 'return' && d.orderNo === record.orderNo && d.id !== record.id);
-                previousReturns.forEach(ret => ret.items.forEach(i => returnedQtyMap[i.itemId] = (returnedQtyMap[i.itemId] || 0) + parseFloat(i.qty)));
-            }
-            
-            const fragment = document.createDocumentFragment(); // 🚨 PERFORMANCE FIX
-            
-            (record.items || []).forEach(item => {
-                let maxHtml = 'min="0.01" step="any"';
-                let maxLabel = '';
+            if (record.items && record.items.length > 0) {
+                if (emptyState) emptyState.style.display = 'none';
                 
-                if (record.documentType === 'return' && originalDoc) {
-                    const origItem = originalDoc.items.find(i => i.itemId === item.itemId);
-                    if (origItem) {
-                        const maxAllowable = parseFloat(origItem.qty) - (returnedQtyMap[item.itemId] || 0);
-                        maxHtml = `min="0" max="${maxAllowable}" step="any"`;
-                        maxLabel = `<br><small style="color:var(--md-text-muted);">Max Return: ${maxAllowable}</small>`;
+                // 2. Loop through the saved bill and push items through our new Proxy engine
+                record.items.forEach(item => {
+                    if (window.UI && typeof window.UI.addSmartItemRow === 'function') {
+                        // Safely maps legacy database keys to the new smart row engine
+                        window.UI.addSmartItemRow(
+                            type, 
+                            item.itemId, 
+                            item.name, 
+                            item.rate || item.price || 0, 
+                            item.gstPercent || item.gst || 0, 
+                            item.uom || 'Unit', 
+                            item.hsn || '', 
+                            item.buyPrice || 0, 
+                            item.qty || 1, 
+                            true // forceRate = true (Locks the historical price)
+                        );
                     }
-                }
-
-                const tr = document.createElement('div');
-                tr.className = 'item-entry-card m3-card'; /* 🚨 ROOT FIX: Removed 'tap-target' */
-                tr.style.cssText = `padding: 12px; margin-bottom: 8px; border-left: 4px solid ${type === 'sales' ? 'var(--md-primary)' : 'var(--md-error)'};`;
-                
-                tr.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                        <div style="flex: 1; padding-right: 8px; min-width: 0;">
-                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name || 'Archived / Unknown Item'}</strong>
-                            ${maxLabel}
-                            <!-- 🚨 ENTERPRISE UPGRADE: NATIVE KEYBOARD -->
-                            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="decimal" class="row-qty" value="${item.qty}" ${maxHtml} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 4px; color: ${record.documentType === 'return' ? 'var(--md-error)' : 'var(--md-primary)'}; font-size: 14px; background: var(--md-surface); outline: none;">
-                                <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
-                                <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" ${record.documentType === 'return' ? 'readonly' : ''} oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; ${record.documentType === 'return' ? 'background:var(--md-background);' : 'background:var(--md-surface); outline: none;'}">
-                                <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${item.gstPercent || 0}% GST</span>
-                                <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
-                                <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
-                                <input type="hidden" class="row-item-id" value="${item.itemId}">
-                                <input type="hidden" class="row-item-name" value="${String(item.name || '').replace(/"/g, '&quot;')}">
-                                <input type="hidden" class="row-uom" value="${item.uom || ''}">
-                            </div>
-                            
-                            ${type === 'sales' && record.documentType !== 'return' ? `
-                            <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
-                                <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="text" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals()" style="width:65px; padding:2px 4px; font-size:11px; border:1px solid var(--md-outline-variant); border-radius:4px; background:transparent;">
-                                <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
-                            </div>
-                            ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
-                        </div>
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
-                            <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
-                            </div>
-                            <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
-                        </div>
-                    </div>
-                `;
-                fragment.appendChild(tr);
-            });
-            
-            tbody.appendChild(fragment); // 🚨 PERFORMANCE FIX
+                });
+            } else {
+                if (emptyState) emptyState.style.display = 'flex';
+            }
             
             if (record.documentType === 'return') {
                 const refEl = document.getElementById(`${type}-original-ref`);
@@ -3453,6 +3411,12 @@ const app = {
                         safeCompletedDate = '';
                     }
 
+                    const isIGSTRowVisible = (document.getElementById(`${type}-igst-row`) || {}).style?.display === 'flex';
+                    const totalGstVal = parseFloat(document.getElementById(`${type}-gst-total`).innerText.replace(/[^\d.-]/g, '')) || 0;
+                    const calculatedCgst = isIGSTRowVisible ? 0 : Math.round((totalGstVal / 2) * 100) / 100;
+                    const calculatedSgst = isIGSTRowVisible ? 0 : (totalGstVal - calculatedCgst);
+                    const calculatedIgst = isIGSTRowVisible ? totalGstVal : 0;
+
                     const data = {
                         id: app.state.currentEditId || Utils.generateId(),
                         firmId: app.state.firmId,
@@ -3479,7 +3443,14 @@ const app = {
                         // STRICT ERP LOGIC: Force absolute numbers to prevent negative discounts from inflating the total!
                         discount: Math.abs(parseFloat(document.getElementById(`${type}-discount`).value) || 0),
                         discountType: discTypeEl ? discTypeEl.value : '\u20B9',
-                        totalGst: parseFloat(document.getElementById(`${type}-gst-total`).innerText.replace(/[^\d.-]/g, '')) || 0,
+                        totalGst: totalGstVal,
+                        
+                        // 🚨 SAVED TAX SPLIT VALUES
+                        isIGST: isIGSTRowVisible,
+                        cgstTotal: calculatedCgst,
+                        sgstTotal: calculatedSgst,
+                        igstTotal: calculatedIgst,
+
                         grandTotal: parseFloat(document.getElementById(`${type}-grand-total`).innerText.replace(/[^\d.-]/g, '')) || 0,
                         internalNotes: document.getElementById(`${type}-internal-notes`) ? document.getElementById(`${type}-internal-notes`).value : '',
                         printNotes: document.getElementById(`${type}-print-notes`) ? document.getElementById(`${type}-print-notes`).checked : false,
@@ -5541,7 +5512,7 @@ if (data.id && splitConfirmed) {
         
         let advanceAppliedToThisInvoice = 0;
         
-        if (false) { // <-- ADDED 'false' HERE TO DISABLE AUTO-PRINTING ON PDF
+        if (true) { // 🚨 ENTERPRISE FIX: Restored the Advance/Dues Math Engine for PDFs!
             const party = await getRecordById('ledgers', partyId);
             let ob = party ? (parseFloat(party.openingBalance) || 0) : 0;
             const balType = party ? String(party.balanceType || '').toLowerCase() : '';
@@ -7054,20 +7025,21 @@ if (data.id && splitConfirmed) {
             const docNo = s.orderNo || s.invoiceNo || s.id;
             const displayNo = s.orderNo || s.invoiceNo || s.id.slice(-4).toUpperCase();
             
-            // 🚨 DYNAMIC STATE FETCH: Grab the live input value here inside the loop so checkboxes never lose memory!
             const liveSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
             const isSelected = liveSelected.includes(docNo);
             
-            const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
             const checked = isSelected ? 'checked' : '';
 
             return `<li style="background: ${isSelected ? 'var(--md-surface-variant)' : 'transparent'} !important; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
-                <div style="flex:1; min-width:0;"><strong style="color:var(--md-primary); display:block; font-size:15px;">${displayNo}</strong><small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName}</small></div>
+                <div style="flex:1; min-width:0;">
+                    <strong style="color:var(--md-on-surface); display:block; font-size:15px;">${displayNo}</strong>
+                    <small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName}</small>
+                </div>
                 <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none; flex-shrink: 0;">
             </li>`;
         }, emptySalesHTML);
 
-        // 2. Filter and Virtual-Render Purchases
+        // 2. Filter and Virtual-Render Purchases (Duplicate block removed)
         const allPurch = window.UI.state.expenseLinkedPurchases || [];
         const filteredPurch = allPurch.filter(p => {
             const searchStr = (p.orderNo || p.poNo || p.invoiceNo || p.id || '') + ' ' + (p.supplierName || '');
@@ -7078,15 +7050,16 @@ if (data.id && splitConfirmed) {
             const docNo = p.orderNo || p.poNo || p.invoiceNo || p.id;
             const displayNo = p.orderNo || p.poNo || p.invoiceNo || p.id.slice(-4).toUpperCase();
             
-            // 🚨 DYNAMIC STATE FETCH: Grab the live input value here inside the loop!
             const liveSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
             const isSelected = liveSelected.includes(docNo);
             
-            const bg = isSelected ? 'var(--md-surface-variant)' : 'transparent';
             const checked = isSelected ? 'checked' : '';
 
             return `<li style="background: ${isSelected ? 'var(--md-surface-variant)' : 'transparent'} !important; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
-                <div style="flex:1; min-width:0;"><strong style="color:var(--md-error); display:block; font-size:15px;">${displayNo}</strong><small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.supplierName}</small></div>
+                <div style="flex:1; min-width:0;">
+                    <strong style="color:var(--md-on-surface); display:block; font-size:15px;">${displayNo}</strong>
+                    <small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.supplierName}</small>
+                </div>
                 <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none; flex-shrink: 0;">
             </li>`;
         }, emptyPurchHTML);

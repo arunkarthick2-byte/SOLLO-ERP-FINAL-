@@ -55,3 +55,62 @@ document.addEventListener('input', (e) => {
         window.AppState[bindProp] = newValue;
     }
 });
+
+// ==========================================
+// 4. THE ARRAY PROXY ENGINE (Virtual List Binding)
+// ==========================================
+// This watches a JavaScript array. When you push() or splice() an item, 
+// it surgically injects or removes the HTML without wiping the whole list!
+
+window.createObservableArray = function(initialArray, containerId, renderCallback) {
+    const container = document.getElementById(containerId);
+    
+    // Wipe the container clean on initialization
+    if (container) container.innerHTML = '';
+
+    return new Proxy(initialArray, {
+        get(target, property) {
+            const origMethod = target[property];
+            
+            // Intercept the array.push() method
+            if (property === 'push') {
+                return function(...args) {
+                    const newItem = args[0];
+                    const result = origMethod.apply(target, args); // Do the actual array math
+                    
+                    // Surgically inject JUST the new HTML item at the bottom of the list
+                    const actualContainer = document.getElementById(containerId);
+                    if (actualContainer) {
+                        const htmlString = renderCallback(newItem);
+                        actualContainer.insertAdjacentHTML('beforeend', htmlString);
+                    }
+                    return result;
+                };
+            }
+            
+            // Intercept the array.splice() method (for deletions)
+            if (property === 'splice') {
+                return function(...args) {
+                    const startIndex = args[0];
+                    const deleteCount = args[1];
+                    const removedItems = origMethod.apply(target, args); // Do the actual array math
+                    
+                    // Surgically remove JUST the deleted HTML nodes
+                    const actualContainer = document.getElementById(containerId);
+                    if (actualContainer) {
+                        for (let i = 0; i < deleteCount; i++) {
+                            // Always remove at startIndex because the DOM shifts up as items are removed
+                            if (actualContainer.children[startIndex]) {
+                                actualContainer.children[startIndex].remove();
+                            }
+                        }
+                    }
+                    return removedItems;
+                };
+            }
+            
+            // Return standard array properties (like .length or .map) normally
+            return origMethod;
+        }
+    });
+};

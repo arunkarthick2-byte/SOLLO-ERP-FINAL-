@@ -44,66 +44,91 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="date"],
 /* 🚨 Injecting the official Android system font! */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
 
+/* ==========================================
+   🚨 MASTER PALETTE & THEME ENGINE
+   ========================================== */
 :root {
     color-scheme: light;
     --app-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
-    /* Primary Accents */
+    /* Light Mode: Surfaces & Backgrounds */
+    --md-background: #F7F9FC;
+    --md-surface: #ffffff;
+    --md-surface-variant: #F8FAFC;
+    
+    /* Light Mode: Typography */
+    --md-on-surface: #0f172a;
+    --md-on-surface-variant: #1e293b;
+    --md-text-muted: #64748b;
+    
+    /* Light Mode: Borders & Lines */
+    --md-outline: #BDBDBD;
+    --md-outline-variant: #E2E8F0;
+    
+    /* Light Mode: Brand & Status Colors */
     --md-primary: #0061a4;
     --md-on-primary: #ffffff;
     --md-primary-container: #E8EAF6; 
     --md-on-primary-container: #1A237E;
+    
     --md-secondary: #455A64;
     --md-on-secondary: #ffffff;
+    --md-secondary-container: #CFE6F1;
+    --md-on-secondary-container: #071E2B;
     
-    /* Surfaces & Backgrounds */
-    --md-background: #F7F9FC;
-    --md-surface: #ffffff;
-    --md-surface-variant: #F8FAFC;
-    --md-on-surface: #0f172a;
-    --md-on-surface-variant: #1e293b;
-    --md-text-muted: #64748b;
-    --md-outline: #BDBDBD;
-    --md-outline-variant: #E2E8F0;
-    
-    /* Status Colors */
     --md-error: #ba1a1a;
     --md-on-error: #ffffff;
     --md-success: #146c2e;
     --md-warning: #f57f17;
 
-    /* Elevations & Z-Index */
+    /* Universal Shadows & Z-Indexes */
     --elevation-1: 0 2px 4px -1px rgba(0,0,0,0.05), 0 4px 5px 0 rgba(0,0,0,0.02);
     --z-header: 100;
+    --z-search: 150;
     --z-bottom-nav: 1000;
     --z-fab: 1500;
+    --z-overlay: 2500;
     --z-bottom-sheet: 3000;
-    --z-activity-screen: 4000;
-    --z-overlay: 5000;
-    --z-toast: 6000;
-    --z-dialog: 9999;
+    --z-activity: 4000;
+    --z-toast: 99999;
 }
 
-/* 🌙 DARK MODE MASTER OVERRIDES */
+/* 🌙 TRUE AMOLED DARK MODE (Auto-Swaps Variables) */
 body.dark-mode {
     color-scheme: dark;
-    --md-background: #09090B;
-    --md-surface: #18181B;
-    --md-surface-variant: #27272A;
-    --md-on-surface: #F8FAFC;
-    --md-on-surface-variant: #c3c7cf;
-    --md-text-muted: #A1AAB8;
-    --md-outline: #44474e;
-    --md-outline-variant: #3E434A;
     
-    --md-primary: #7CB1FF;
-    --md-on-primary: #000000;
+    /* Dark Mode: Deep OLED Backgrounds */
+    --md-background: #000000; 
+    --md-surface: #121212; 
+    --md-surface-variant: #1E293B; 
+    
+    /* Dark Mode: Eye-Care Text (Prevents Astigmatism Glow) */
+    --md-on-surface: #E2E8F0; 
+    --md-on-surface-variant: #CBD5E1; 
+    --md-text-muted: #94A3B8; 
+    
+    /* Dark Mode: Subtle Borders */
+    --md-outline: #44474e;
+    --md-outline-variant: #27272A; 
+    
+    /* Dark Mode: Neon Accents */
+    --md-primary: #60A5FA; 
+    --md-on-primary: #000000; 
     --md-primary-container: #004a7a;
     --md-on-primary-container: #cce5ff;
     
-    --md-error: #ffb4ab;
-    --md-success: #81c995;
+    --md-secondary: #8E918F;
+    --md-on-secondary: #000000;
+    --md-secondary-container: #2A2D31;
+    --md-on-secondary-container: #E2E2E2;
+    
+    --md-error: #F87171; 
+    --md-on-error: #000000;
+    --md-success: #4ADE80; 
     --md-warning: #ffb74d;
+    
+    /* Dark Mode: Harder Shadows */
+    --elevation-1: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 /* ==========================================
@@ -204,104 +229,86 @@ a, button, input, select, textarea, .nav-item, .chip {
 }
 
 /* ==========================================
-   APP SHELL & LAYOUT
+   CORE APP SHELL & STRUCTURAL LAYOUT
    ========================================== */
-#app-shell {
+
+/* 1. The Main App Container */
+body #app-shell {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    height: 100dvh; 
+    height: 100dvh; /* Adapts dynamically to mobile address bars */
     max-width: 600px;
     margin: 0 auto;
     background: var(--md-background);
     position: relative;
-    
-    /* ENTERPRISE UPGRADE: 3D Pushback Transition Engine */
-    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.4s ease;
-    transform-origin: center top; 
+    overflow: hidden; /* Prevents horizontal wobble */
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), filter 0.4s ease;
 }
 
-/* THE MAGIC: Shrinks the entire app backward when ANY menu or screen opens (iOS Style) */
-body:has(.sheet-overlay.open) #app-shell,
-body:has(.bottom-sheet.open) #app-shell,
-body:has(.activity-screen.open) #app-shell {
-    transform: scale(0.93) translateY(12px);
-    border-radius: 20px;
-    overflow: hidden;
-    /* 🚀 SPOTLIGHT DEPTH SCALING: Blurs, darkens, and desaturates the background app */
-    filter: brightness(0.65) grayscale(30%) blur(3px); 
-}
-
-.app-header {
+/* 2. Top App Header */
+body .app-header {
     height: 64px;
-    padding-top: env(safe-area-inset-top, 0px);
-    background-color: var(--md-primary);
-    color: var(--md-on-primary);
+    padding: calc(12px + env(safe-area-inset-top)) 16px 12px 16px;
+    background-color: var(--md-surface);
+    color: var(--md-on-surface);
+    border-bottom: 1px solid var(--md-outline-variant);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-left: 16px;
-    padding-right: 16px;
-    z-index: var(--z-header, 100); /* FIX: Upgraded from 10 */
+    z-index: var(--z-header);
     flex-shrink: 0;
 }
 
-
-.main-content {
+/* 3. The Scrollable Content Area */
+body .main-content {
     flex: 1;
     overflow-y: auto;
-    position: relative;
     background-color: var(--md-background);
-    
-    /* 🚀 NEW: Layout Quarantine for Maximum Speed */
-    contain: content;
-    
-    /* Hardware Acceleration and Native Android Scroll Momentum */
-    overscroll-behavior-y: contain;
+    contain: content; /* Isolates layout recalculations for max 60fps performance */
+    overscroll-behavior-y: contain; /* Prevents pulling the whole app down */
     -webkit-overflow-scrolling: touch; 
 }
 
-/* Hide the ghost title text to prevent layout shifts */
-#screen-title {
-    display: none !important;
-}
-
-.screen-section {
+/* 4. Standard Screen Margins */
+body .screen-section {
     padding: 16px;
-    /* ENTERPRISE FIX: Protects content from the physical Camera Notch! */
-    padding-top: calc(16px + env(safe-area-inset-top, 0px)) !important;
-    /* NEW: Dynamic bottom padding to account for Android Gesture Bars */
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); 
+    padding-bottom: calc(90px + env(safe-area-inset-bottom)); 
 }
 
 /* ==========================================
    BOTTOM NAVIGATION & FAB
    ========================================== */
-.bottom-nav {
+
+/* 1. The Bottom Navigation Bar */
+body .bottom-nav {
     position: fixed; 
-    bottom: 0; left: 0; right: 0; margin: 0 auto;
-    width: 100%; max-width: 600px;
-    height: calc(72px + env(safe-area-inset-bottom, 0px));
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    display: flex; justify-content: space-around; align-items: center;
-    border-top: 1px solid rgba(195, 199, 207, 0.3); 
-    z-index: 1000;
-    
-    /* UPGRADE: Native Android Glassmorphism Bottom Nav */
-    background: rgba(253, 252, 255, 0.85); 
-    backdrop-filter: blur(16px);
-    
-    /* FIX: Smooth slide transition for scroll-hide feature */
-    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.3s ease;
+    bottom: 0; 
+    left: 0; 
+    right: 0; 
+    margin: 0 auto;
+    width: 100%; 
+    max-width: 600px;
+    height: calc(72px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--md-surface); 
+    border-top: 1px solid var(--md-outline-variant); 
+    display: flex; 
+    justify-content: space-around; 
+    align-items: center;
+    z-index: var(--z-bottom-nav);
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
     will-change: transform;
 }
-body.dark-mode .bottom-nav {
-    background: rgba(26, 28, 30, 0.85);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+
+/* 2. Scroll-to-Hide Toggle */
+body .bottom-nav.nav-hidden {
+    transform: translateY(150%); 
 }
 
+/* 3. Navigation Items */
 .nav-item {
-    position: relative; /* UPGRADE 2: Needed for badge positioning */
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -310,16 +317,49 @@ body.dark-mode .bottom-nav {
     width: 64px;
     height: 64px;
     cursor: pointer;
-    transition: color 0.2s ease;
+    transition: color 0.2s ease, transform 0.2s ease;
 }
 
-/* UPGRADE 2: Bottom Nav Badges */
+.nav-item:active {
+    transform: scale(0.92);
+}
+
+.nav-item span:last-child {
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 4px;
+    transition: font-weight 0.2s ease;
+}
+
+/* 4. Active Nav Item State */
+.nav-item.active {
+    color: var(--md-primary); 
+}
+
+.nav-item.active span:last-child {
+    font-weight: 800;
+}
+
+/* 5. The "Spring" Pill Effect on Active Icons */
+.nav-item .material-symbols-outlined {
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); 
+    border-radius: 24px;
+    padding: 4px; 
+}
+
+.nav-item.active .material-symbols-outlined {
+    background: var(--md-primary-container);
+    color: var(--md-primary); 
+    padding: 4px 20px; 
+}
+
+/* 6. Notification Badges */
 .nav-badge {
     position: absolute;
     top: 4px;
     right: 12px;
     background: var(--md-error);
-    color: white;
+    color: var(--md-on-error);
     font-size: 10px;
     font-weight: bold;
     padding: 2px 6px;
@@ -328,196 +368,117 @@ body.dark-mode .bottom-nav {
     pointer-events: none;
     z-index: 5;
 }
-
-/* UPGRADE 1: Swipe-to-Action Gestures */
-.swipe-container {
-    position: relative;
-    border-radius: 16px;
-    margin-bottom: 16px;
-    background: var(--md-error);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    overflow: hidden;
-}
-.swipe-action-btn {
-    position: absolute;
-    right: 0;
-    padding: 0 24px;
-    color: white;
-    display: flex;
-    align-items: center;
-}
-.swipe-card {
-    background: var(--md-surface);
-    width: 100%;
-    border-radius: 16px;
-    padding: 20px;
-    transition: transform 0.2s ease;
-    box-shadow: var(--elevation-1);
-    position: relative;
-    z-index: 2;
-}
-body.dark-mode .swipe-card {
-    border: 1px solid var(--md-outline-variant);
-    box-shadow: none;
-}
-
-/* UPGRADE 4: View Transitions API */
-::view-transition-old(root),
-::view-transition-new(root) {
-    animation-duration: 0.3s;
-    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-::view-transition-old(app-morph),
-::view-transition-new(app-morph) {
-    animation-duration: 0.35s;
-    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-::view-transition-old(app-morph) { object-fit: contain; }
-::view-transition-new(app-morph) { object-fit: contain; }
-
-.nav-item span:last-child {
-    font-size: 11px;
-    font-weight: 500;
-    margin-top: 4px;
-}
-
-.nav-item.active {
-    color: var(--md-primary); /* UPGRADE: Changed from black to Primary Blue */
-    font-weight: bold;
-}
-
-/* Elite Spring Physics applied to ALL tabs */
-.nav-item .material-symbols-outlined {
-    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); 
-    border-radius: 24px;
-    padding: 4px; /* Default resting padding */
-}
-
-/* The Jelly Spring expansion when a tab becomes active */
-.nav-item.active .material-symbols-outlined {
-    background: var(--md-primary-container);
-    color: var(--md-primary); 
-    padding: 4px 20px; 
-    /* The spring curve above makes this width expansion physically 'bounce' */
-}
-
 /* ==========================================
    UI COMPONENTS (Cards, Buttons, Inputs, Lists)
    ========================================== */
-/* 🚨 SOLLO NATIVE THEME: Flat, Professional Material Cards */
+
+/* 1. 🚨 SOLLO NATIVE THEME: Flat, Professional Material Cards */
 .m3-card {
     background: var(--md-surface);
-    border-radius: 8px; /* Sharper Android corners */
-    padding: 12px 16px; /* High-density padding */
-    margin-bottom: 8px; /* Tighter stacking */
-    border: 1px solid var(--md-outline-variant); /* Flat, strict border */
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Very subtle flat shadow */
-    transition: background-color 0.2s ease; /* Removed the bouncy 3D transforms */
-}
-
-/* UPGRADE 3: Advanced Native Android Tap Feedback & Ink Ripple */
-.m3-card.tap-target, .btn-primary, .list-view li {
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid var(--md-outline-variant);
+    box-shadow: var(--elevation-1);
+    color: var(--md-on-surface);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
     position: relative;
     overflow: hidden;
 }
-.m3-card.tap-target::after, .btn-primary::after, .list-view li::after {
-    content: "";
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.1);
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1);
-    border-radius: 50%;
-    transition: opacity 0.4s ease, transform 0.4s ease;
-    pointer-events: none;
-}
-body.dark-mode .m3-card.tap-target::after, body.dark-mode .btn-primary::after, body.dark-mode .list-view li::after {
-    background: rgba(255, 255, 255, 0.1);
-}
-.m3-card.tap-target:active::after, .btn-primary:active::after, .list-view li:active::after {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(2);
-    transition: 0s; /* Instant ripple trigger on tap */
-}
-.m3-card.tap-target:active {
-    background-color: var(--md-surface-variant);
-    transform: scale(0.96); /* Deeper press feel */
+
+.m3-card:focus-within {
+    transform: translateY(-2px);
+    border-color: var(--md-primary);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-.form-group {
-    margin-bottom: 16px; 
-    position: relative;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
-.form-group label {
-    display: inline-block;
-    font-size: 12px; 
-    margin-bottom: 4px; 
-    color: var(--md-text-muted);
-    font-weight: 500; 
-    transform-origin: left bottom; 
-    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); 
-}
-.form-group:focus-within label {
-    color: var(--md-primary); 
-    font-weight: 600; 
-    transform: translateY(-2px) scale(1.05); 
-}
-
+/* 2. PREMIUM SPREADSHEET INPUTS */
 input[type="text"], input[type="number"], input[type="tel"], input[type="email"], input[type="date"], select, textarea {
     width: 100%;
-    padding: 10px 12px; 
+    padding: 12px 16px; 
     border-radius: 8px; 
-    font-size: 14px;
-    min-height: 44px;
+    font-size: 16px;
+    min-height: 48px;
     font-family: inherit;
     color: var(--md-on-surface);
-    border: 1px solid transparent; 
-    background: rgba(0, 0, 0, 0.02); 
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 0 rgba(255, 255, 255, 0.9);
-    /* Lock transitions to colors and transforms to keep typing ultra-fast */
-    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    border: 1px solid var(--md-outline-variant); 
+    background: var(--md-surface-variant); 
+    transition: all 0.25s ease-out;
+    box-sizing: border-box;
 }
 
-input:focus, select:focus, textarea:focus {
-    background: #ffffff !important;
+/* Magnetic Active Focus Snap */
+input:focus:not([readonly]), select:focus:not([readonly]), textarea:focus:not([readonly]) {
+    background: var(--md-surface) !important;
     border: 1px solid var(--md-primary) !important;
-    /* 🚨 ENTERPRISE UPGRADE: The "Stripe" Double-Ring Focus */
-    box-shadow: 0 0 0 4px var(--md-primary-container), 0 1px 2px rgba(0,0,0,0.05) !important;
-    transform: translateY(0) !important; /* Keep it perfectly stable */
+    box-shadow: 0 0 0 3px var(--md-primary-container) !important;
     outline: none !important;
     z-index: 10;
     position: relative;
 }
-body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea:focus {
-    box-shadow: 0 0 0 4px rgba(143, 203, 251, 0.15) !important;
-    border-color: var(--md-primary) !important;
+
+/* Locked / Read-Only States */
+input[readonly], input[disabled], select[disabled] {
+    background-color: var(--md-surface-variant) !important;
+    color: var(--md-text-muted) !important;
+    cursor: not-allowed;
+    border: 1px dashed var(--md-outline);
+    box-shadow: none !important;
 }
 
+/* 3. HIGH-DENSITY LEDGER LISTS */
+.list-view {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border: 1px solid var(--md-outline-variant);
+    border-radius: 8px;
+    background: var(--md-surface);
+    overflow: hidden;
+}
+
+.list-view li {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--md-surface-variant);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    color: var(--md-on-surface);
+}
+
+/* Zebra Striping */
+.list-view li:nth-child(even) { background-color: var(--md-surface-variant); }
+.list-view li:last-child { border-bottom: none; }
+
+/* Smart text truncation for long names */
+.list-view li span:first-child, .list-view li div:first-child {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1; 
+}
+
+/* 4. PRIMARY BUTTONS */
 .btn-primary {
     background: var(--md-primary);
     color: var(--md-on-primary);
     border: none;
-    /* UPGRADE: 56px Tall Ergonomic Standard */
     min-height: 56px; 
     padding: 0 32px;
-    border-radius: 28px; /* Perfectly half of 56px for a true pill shape */
-    font-size: 15px; /* Slightly larger text for the bigger button */
-    font-weight: 600; /* Bolder call-to-action */
+    border-radius: 28px;
+    font-size: 15px; 
+    font-weight: 600; 
     letter-spacing: 0.3px;
-    display: inline-flex; /* Ensures text stays perfectly centered */
+    display: inline-flex; 
     align-items: center;
     justify-content: center;
     cursor: pointer;
     box-shadow: var(--elevation-1);
-    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
 }
 
-/* NEW: Native Button Press Animation */
 .btn-primary:active {
     transform: scale(0.96);
     box-shadow: none;
@@ -541,52 +502,28 @@ body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea
     background: var(--md-outline-variant);
 }
 
-/* 🚨 SOLLO NATIVE THEME: High-Density Ledger Lists */
-.list-view {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    border: 1px solid var(--md-outline-variant); /* Wraps the whole list in a clean box */
-    border-radius: 8px;
-    background: var(--md-surface);
-    overflow: hidden;
+/* Form Group Utilities */
+.form-group {
+    margin-bottom: 16px; 
+    position: relative;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.form-group label {
+    display: inline-block;
+    font-size: 12px; 
+    margin-bottom: 4px; 
+    color: var(--md-text-muted);
+    font-weight: 500; 
+    transform-origin: left bottom; 
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); 
+}
+.form-group:focus-within label {
+    color: var(--md-primary); 
+    font-weight: 600; 
+    transform: translateY(-2px) scale(1.05); 
 }
 
-.list-view li {
-    padding: 10px 12px; /* Tighter padding to fit 30% more rows on screen */
-    border-bottom: 1px solid var(--md-surface-variant);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    cursor: pointer;
-    border-radius: 0; /* Flat edges to touch the list container perfectly */
-    transition: background-color 0.2s ease;
-    gap: 12px;
-    overflow: hidden;
-}
-
-/* Zebra Striping for high-speed reading */
-.list-view li:nth-child(even) {
-    background-color: var(--md-surface-variant);
-}
-
-.list-view li:last-child {
-    border-bottom: none; /* Keeps the bottom of the list box clean */
-}
-
-/* UPGRADE: Smart text truncation for long item/party names */
-.list-view li span:first-child, .list-view li div:first-child {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1; /* Pushes the price cleanly to the far right */
-}
-
-/* NEW: List Item Tap Feedback */
-.list-view li:active {
-    background-color: var(--md-surface-variant);
-}
-
+/* Search Bar Container */
 .search-bar {
     display: flex;
     align-items: center;
@@ -595,15 +532,55 @@ body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea
     padding: 8px 16px;
     border-radius: 24px;
     margin-bottom: 16px;
+    border: 1px solid var(--md-outline-variant);
 }
 
 .search-bar input {
-    border: none;
-    background: transparent;
-    padding: 0;
-    margin: 0;
-    outline: none;
-    font-size: 16px;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    outline: none !important;
+    font-size: 16px !important;
+    box-shadow: none !important;
+    min-height: auto !important;
+}
+
+/* Material Chips */
+.filter-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: none; 
+    margin: 0 -16px; 
+    padding-left: 16px; 
+    padding-right: 16px; 
+}
+
+.chip {
+    padding: 6px 16px;
+    border: 1px solid var(--md-outline-variant); 
+    border-radius: 50px; 
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    color: var(--md-on-surface-variant);
+    background: var(--md-surface);
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.chip:active {
+    transform: scale(0.95);
+    background-color: var(--md-surface-variant);
+}
+
+.chip.active {
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    border-color: transparent;
+    font-weight: 500;
 }
 
 /* ==========================================
@@ -648,156 +625,133 @@ body.dark-mode input:focus, body.dark-mode select:focus, body.dark-mode textarea
 /* ==========================================
    FULL-SCREEN ACTIVITIES & BOTTOM SHEETS
    ========================================== */
+
+/* 1. The Dark Background Dimmer */
 .sheet-overlay { 
     position: fixed; 
     inset: 0; 
-    /* PREMIUM UPGRADE: Soft Blur Overlay */
-    background: rgba(0,0,0,0.35); 
+    background: rgba(15, 23, 42, 0.45); 
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     opacity: 0; 
     pointer-events: none; 
     transition: opacity 0.3s ease;
+    z-index: var(--z-overlay); /* 🚨 Controlled by Phase 1 Variables */
 }
-
-.sheet-overlay { z-index: 2500; } 
 
 .sheet-overlay.open { 
     opacity: 1; 
     pointer-events: auto; 
 }
 
-/* UPGRADE 4: Full Screen Activities (Native iOS/Android Horizontal Slide) */
+/* 2. Full Screen Activity Pages (Sales, Purchases, Ledgers) */
 .activity-screen { 
     position: fixed; 
     top: 0; left: 0; right: 0; bottom: 0; 
     background-color: var(--md-background) !important; 
-    z-index: 4000; 
+    z-index: var(--z-activity); /* 🚨 Controlled by Phase 1 Variables */
     display: flex; 
     flex-direction: column; 
     transform: translateX(100%); 
     opacity: 0; 
-    /* 🚨 ENTERPRISE FIX: Freezes the DOM element to save GPU RAM */
     visibility: hidden;
     pointer-events: none;
-    /* transition visibility alongside transform to prevent flickering */
     transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease, visibility 0s 0.35s; 
 }
 
 .activity-screen.open { 
     transform: translateX(0); 
     opacity: 1;
-    /* 🚨 ENTERPRISE FIX: Wakes the screen up instantly */
     visibility: visible;
     pointer-events: auto;
     transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.35s ease, visibility 0s;
 }
 
-/* 🚨 ENTERPRISE FIX: Auto-hide Nav & FAB whenever ANY modal, sheet, or screen opens */
-body:has(.activity-screen.open) .bottom-nav,
-body:has(.activity-screen.open) .floating-action-button,
-body:has(.sheet-overlay.open) .bottom-nav,
-body:has(.sheet-overlay.open) .floating-action-button,
-body:has(.numpad-overlay.active) .bottom-nav,
-body:has(.numpad-overlay.active) .floating-action-button {
-    opacity: 0 !important;
-    pointer-events: none !important;
-    transform: translateY(120px) !important; /* Slides safely out of view */
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-}
-
+/* 3. The Top Action Bar for Activity Pages */
 .activity-header { 
-    display: flex; align-items: center; justify-content: space-between; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
     padding: 12px 16px; 
     padding-top: calc(12px + env(safe-area-inset-top, 0px));
-    /* 🚨 SOLLO NATIVE THEME: Solid Primary Color Action Bar */
-    background-color: var(--md-primary); 
-    color: var(--md-on-primary); /* Forces text and icons to be white */
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); /* Classic Android Elevation Drop Shadow */
-    border-bottom: none; 
-    z-index: var(--z-header, 100); 
+    background-color: var(--md-surface); 
+    color: var(--md-on-surface); 
+    border-bottom: 1px solid var(--md-outline-variant); 
+    z-index: var(--z-header); /* 🚨 Controlled by Phase 1 Variables */
+    flex-shrink: 0;
 }
 
-/* Ensure icons inside the new dark header remain visible */
-.activity-header .material-symbols-outlined {
-    color: var(--md-on-primary);
-}
-
-/* Fix specific button circles inside the new dark header so they pop */
-.activity-header .icon-circle {
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
-}
-
-body.dark-mode .activity-header {
-    background-color: rgba(26, 28, 30, 0.85); 
-    border-bottom: 1px solid rgba(67, 71, 78, 0.3); 
-}
-
+/* 4. The Content Area inside Activity Pages */
 .activity-content { 
     flex: 1; 
     overflow-y: auto; 
     padding: 16px; 
-    padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); 
-    
-    /* 🚀 NEW: Layout Quarantine for Fast Form Typing */
+    padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); 
     contain: content;
-    
     -webkit-overflow-scrolling: touch; 
 }
 
-/* Bottom Sheets (Slide Up) */
+/* 5. Bottom Sheets (Slide Up Menus) */
 .bottom-sheet { 
     position: fixed; 
     bottom: 0; left: 0; right: 0; 
     background-color: var(--md-surface) !important; 
-    border-radius: 28px 28px 0 0; 
-    z-index: 3000; 
-    box-shadow: none; 
-    display: flex; flex-direction: column; 
+    border-radius: 24px 24px 0 0; 
+    z-index: var(--z-bottom-sheet); /* 🚨 Controlled by Phase 1 Variables */
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.15); 
+    display: flex; 
+    flex-direction: column; 
     height: auto;
     max-height: 85vh; 
     padding-bottom: env(safe-area-inset-bottom, 0px); 
-    
-    /* 🚀 ENTERPRISE UPGRADE: GPU HARDWARE ACCELERATION (True 3D) */
     transform: translate3d(0, 100%, 0); 
     will-change: transform;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    
-    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease; 
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), visibility 0s 0.3s; 
+    visibility: hidden;
 }
 
-/* 🚨 ENTERPRISE UPGRADE: NATIVE STICKY DRAG PILL */
+/* The native sticky drag handle on top of bottom sheets */
 .bottom-sheet::before {
     content: '';
     display: block;
-    position: sticky; /* Locks it to the top so it never scrolls away */
-    top: 8px; /* Hovers perfectly inside the sheet edge */
+    position: sticky; 
+    top: 8px; 
     width: 36px;
     height: 5px;
-    background: #cbd5e1; /* Premium iOS Slate Grey */
+    background: var(--md-outline); 
     border-radius: 4px;
-    margin: 0 auto -13px auto; /* Pulls the sheet header up seamlessly underneath it */
-    z-index: 99999; /* Forces it to float above ALL sticky headers and search bars */
+    margin: 0 auto -13px auto; 
+    z-index: 10; 
     flex-shrink: 0;
-    box-shadow: 0 1px 1px rgba(255,255,255,0.8); /* Micro-highlight to make it look physically embossed */
-}
-body.dark-mode .bottom-sheet::before {
-    background: #475569;
-    box-shadow: 0 1px 1px rgba(0,0,0,0.5);
 }
 
 .bottom-sheet.open { 
-    /* Maintains GPU 3D lock while open */
     transform: translate3d(0, 0, 0); 
-    box-shadow: 0 -4px 24px rgba(0,0,0,0.4); 
+    visibility: visible;
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), visibility 0s; 
 }
 
 .sheet-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px; border-bottom: 1px solid var(--md-surface-variant);
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+    padding: 16px; 
+    border-bottom: 1px solid var(--md-surface-variant);
+    background: var(--md-surface);
 }
 
+/* 6. Smart Auto-Hide for Nav & FAB when a screen opens */
+body:has(.activity-screen.open) .bottom-nav,
+body:has(.activity-screen.open) .floating-action-button,
+body:has(.sheet-overlay.open) .bottom-nav,
+body:has(.sheet-overlay.open) .floating-action-button {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(120px) !important; 
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+}
 /* ==========================================
    UTILITIES & ANIMATIONS
    ========================================== */
@@ -989,21 +943,6 @@ body.dark-mode .skeleton {
         size: auto; /* Let the printer determine the best fit */
     }
 }
-/* ========================================== */
-/* NEW CODE: DARK MODE & TOAST NOTIFICATIONS  */
-/* ========================================== */
-
-/* Cleaned old dark mode variables */
-
-/* Fix card borders and shadows in Dark Mode */
-body.dark-mode .m3-card, body.dark-mode .app-bar, body.dark-mode .bottom-bar {
-    border: 1px solid rgba(255, 255, 255, 0.08) !important; 
-    border-bottom: 1px solid rgba(0, 0, 0, 1) !important; 
-    /* TRUE BLACK AMOLED SHADOWS */
-    background: #0c0c0c !important;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.8) !important;
-}
-
 /* ==========================================
    🚀 ENTERPRISE UPGRADE: PREMIUM PDF INVOICE LAYOUT
    ========================================== */
@@ -1582,16 +1521,6 @@ body.dark-mode .theme-toggle-track {
 body.dark-mode .theme-toggle-knob {
     transform: translateX(16px);
     background: var(--md-on-primary) !important;
-}
-/* ==========================================
-   BUG FIX: BOTTOM SHEETS OVER ACTIVITIES
-   ========================================== */
-/* 🚨 FIXED: Removed !important locks so ui_6.js can dynamically stack multiple sheets! */
-.sheet-overlay {
-    z-index: 5000;
-}
-.bottom-sheet {
-    z-index: 5100;
 }
 /* ==========================================
    ENTERPRISE UPGRADE: HIGH-PERFORMANCE KEYBOARD SHIELD
@@ -4870,520 +4799,6 @@ img {
     bottom: calc(90px + env(safe-area-inset-bottom)) !important;
 }
 /* ==========================================
-   📱 TRUE ANDROID AMOLED TEXT ADAPTER
-   ========================================== */
-body.dark-mode .large-text, 
-body.dark-mode strong,
-body.dark-mode h1, 
-body.dark-mode h2, 
-body.dark-mode h3 {
-    color: #f8fafc !important;
-}
-
-body.dark-mode small {
-    color: #94a3b8 !important;
-}
-
-body.dark-mode input, 
-body.dark-mode select, 
-body.dark-mode textarea {
-    color: #ffffff !important;
-    background-color: var(--md-surface-variant) !important;
-}
-
-/* Ensure default icons switch to light grey */
-body.dark-mode .material-symbols-outlined:not([style*="color"]) {
-    color: #f8fafc !important;
-}
-
-/* Keep the colored icons vibrant! */
-body.dark-mode .icon-circle.color-primary .material-symbols-outlined,
-body.dark-mode .nav-item.active .material-symbols-outlined {
-    color: #8cbbf1 !important;
-}
-/* ==========================================
-   🤖 AI BUSINESS INSIGHT - DARK MODE ADAPTER
-   ========================================== */
-body.dark-mode #dash-ai-insights {
-    /* Changes the glaring light blue to a deep, translucent night-blue */
-    background-color: rgba(140, 187, 241, 0.1) !important;
-    border-left-color: var(--md-primary) !important;
-}
-
-body.dark-mode #dash-ai-insights .material-symbols-outlined {
-    color: var(--md-primary) !important;
-}
-
-/* Fixes the inline background on the percentage (+%) highlight */
-body.dark-mode #dash-ai-insights strong[style*="background"] {
-    background-color: rgba(255, 255, 255, 0.1) !important;
-    color: var(--md-primary) !important;
-}
-/* ==========================================
-   🌙 DARK MODE: SCROLLBAR & PLACEHOLDER ADAPTER
-   ========================================== */
-/* 1. Turns the invisible black scrollbar into a sleek, glowing white scrollbar at night */
-body.dark-mode ::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 255, 255, 0.25) !important;
-}
-
-body.dark-mode * {
-    scrollbar-color: rgba(255, 255, 255, 0.25) transparent !important;
-}
-
-/* 2. Brightens the placeholder text (like "Search..." or "0.00") so it doesn't get lost in the dark inputs */
-body.dark-mode input::placeholder, 
-body.dark-mode textarea::placeholder {
-    color: #64748b !important;
-    opacity: 1 !important;
-}
-/* ==========================================
-   🌙 DARK MODE: MENU TAB COLOR ADAPTER
-   ========================================== */
-/* 1. Force inline colored text in the Menu to turn readable white/grey */
-body.dark-mode #tab-menu strong[style*="color"],
-body.dark-mode #tab-menu small[style*="color"] {
-    color: var(--md-on-surface) !important;
-    opacity: 1 !important;
-}
-
-/* 2. Brighten Dark Blue icons (e.g., GST Reports, Cloud Backup) */
-body.dark-mode .material-symbols-outlined[style*="#0061a4"] {
-    color: #8cbbf1 !important; /* Neon Blue */
-}
-
-/* 3. Brighten Dark Green icons (e.g., Advanced Reports, Close Year) */
-body.dark-mode .material-symbols-outlined[style*="#146c2e"],
-body.dark-mode .material-symbols-outlined[style*="#2e7d32"] {
-    color: #81c784 !important; /* Neon Green */
-}
-
-/* 4. Brighten Dark Red icons (e.g., Expense Leakage, Restore Drive) */
-body.dark-mode .material-symbols-outlined[style*="#ba1a1a"],
-body.dark-mode .material-symbols-outlined[style*="#e11d48"] {
-    color: #ff8a80 !important; /* Neon Red */
-}
-
-/* 5. Brighten Dark Orange/Yellow icons (e.g., Reorder, Force Sync) */
-body.dark-mode .material-symbols-outlined[style*="#d97706"],
-body.dark-mode .material-symbols-outlined[style*="#f59e0b"],
-body.dark-mode .material-symbols-outlined[style*="#f57f17"] {
-    color: #ffb74d !important; /* Neon Orange */
-}
-/* ==========================================
-   🌙 DARK MODE: MENU CARD BACKGROUND NEUTRALIZER
-   ========================================== */
-/* Automatically strips the bright pastel inline backgrounds from AI Analytics & Cloud Backup cards */
-body.dark-mode #tab-menu .m3-card[style*="background"] {
-    background: var(--md-surface) !important;
-    border-color: var(--md-outline-variant) !important;
-}
-/* ==========================================
-   🚨 SOLLO MENU TAB DARK MODE FIX
-   ========================================== */
-/* Forces all cards in the Menu Tab to obey Dark Mode, overriding any inline pastel HTML colors */
-body.dark-mode #tab-menu .m3-card {
-    background: #121212 !important;
-    background-color: #121212 !important;
-    border: 1px solid rgba(255, 255, 255, 0.05) !important;
-    box-shadow: none !important;
-}
-
-/* Ensure the text inside the cards turns crisp white to remain readable */
-body.dark-mode #tab-menu .m3-card strong,
-body.dark-mode #tab-menu .m3-card div {
-    color: #f8fafc !important;
-}
-
-/* Keep the subtitles and secondary text a soft grey */
-body.dark-mode #tab-menu .m3-card small {
-    color: #94a3b8 !important;
-}
-/* ==========================================
-   🚨 ULTIMATE UNIFIED DARK MODE (HIGH-CONTRAST)
-   ========================================== */
-/* Cleaned duplicate high-contrast variables */
-
-/* 2. Force all screens, sheets, and menus to obey the high-contrast dark background */
-body.dark-mode #app-shell, 
-body.dark-mode .main-content, 
-body.dark-mode .activity-screen, 
-body.dark-mode .bottom-sheet,
-body.dark-mode .sheet-overlay {
-    background-color: var(--md-background) !important;
-    color: var(--md-on-surface) !important;
-}
-
-/* 3. Force all Cards, Lists, and Ledgers to pure dark grey with sharp borders */
-body.dark-mode .m3-card, 
-body.dark-mode .list-view li,
-body.dark-mode .dashboard-card,
-body.dark-mode #tab-dashboard .m3-card,
-body.dark-mode #ledger-summary-card,
-body.dark-mode .sticky-totals {
-    background-color: var(--md-surface) !important;
-    border-color: var(--md-outline-variant) !important;
-    color: var(--md-on-surface) !important;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.5) !important; /* Drops a shadow so cards look 3D */
-}
-
-/* 4. Ensure all text, headings, and icons flip to pure white */
-body.dark-mode h1, 
-body.dark-mode h2, 
-body.dark-mode h3, 
-body.dark-mode strong, 
-body.dark-mode .large-text,
-body.dark-mode .material-symbols-outlined:not([style*="color"]) {
-    color: #FFFFFF !important;
-}
-body.dark-mode small, 
-body.dark-mode p,
-body.dark-mode label {
-    color: var(--md-text-muted) !important;
-}
-
-/* 5. Fix Invisible Inputs & Dropdowns (Crisp boxes) */
-body.dark-mode input, 
-body.dark-mode select, 
-body.dark-mode textarea {
-    background-color: var(--md-surface-variant) !important;
-    color: #FFFFFF !important;
-    border: 1px solid #4B5563 !important; /* Forces a visible bright grey ring around all text boxes! */
-}
-
-/* Brightens placeholder text (like "Search..." or "Enter value") */
-body.dark-mode input::placeholder, 
-body.dark-mode textarea::placeholder {
-    color: #838C98 !important;
-    opacity: 1 !important;
-}
-
-/* 6. Strip hardcoded pastel colors from Enterprise UI & Menu Tabs */
-body.dark-mode #tab-menu .m3-card[style*="background"],
-body.dark-mode #dash-ai-insights,
-body.dark-mode div[style*="linear-gradient"] {
-    background: var(--md-surface) !important;
-    border: 1px solid var(--md-outline-variant) !important;
-}
-body.dark-mode #tab-menu .m3-card[style*="background"] *,
-body.dark-mode #dash-ai-insights *,
-body.dark-mode div[style*="linear-gradient"] * {
-    color: var(--md-on-surface) !important;
-}
-
-/* 7. Auto-Invert Canvas Charts for Dark Mode */
-body.dark-mode canvas {
-    filter: invert(0.9) hue-rotate(180deg) brightness(1.3) contrast(1.2) !important;
-}
-/* ==========================================
-   🚨 FAB MENU & ICON CONTRAST FIX (DARK MODE)
-   ========================================== */
-/* 1. Strip glaring pastel colors from the "Create New" menu circles */
-body.dark-mode .bottom-sheet .icon-circle[style*="background"] {
-    background-color: var(--md-surface-variant) !important;
-    border: 1px solid #4B5563 !important;
-    box-shadow: none !important;
-}
-
-/* 2. Force the icons inside the circles to glow Neon Blue */
-body.dark-mode .bottom-sheet .icon-circle[style*="background"] .material-symbols-outlined {
-    color: var(--md-primary) !important;
-}
-
-/* 3. Force the labels ("Sale Inv", "Purchase", etc.) to be pure white and bold */
-body.dark-mode .bottom-sheet small,
-body.dark-mode #sheet-fab-menu small {
-    color: #FFFFFF !important;
-    font-weight: 600 !important;
-    font-size: 12px !important;
-    opacity: 1 !important;
-}
-/* ==========================================
-   🚨 SOLLO FIX: FINAL INLINE-STYLE OVERRIDES (DARK MODE)
-   ========================================== */
-
-/* 1. FORCE REPORT SCREENS TO DARK BACKGROUND */
-/* Overrides the hardcoded #f4f6fa inline style on all report screens */
-body.dark-mode .activity-content[style*="background-color: #f4f6fa"],
-body.dark-mode .activity-content {
-    background: var(--md-background) !important;
-    background-color: var(--md-background) !important;
-}
-
-/* 2. BULLETPROOF FAB & WORKSPACE "CREATE" GRID FIX */
-/* Forces the pastel circles to become dark grey, ignoring inline HTML styles */
-body.dark-mode #sheet-fab-menu .icon-circle[style*="background"],
-body.dark-mode #ws-view-create .icon-circle[style*="background"] {
-    background: #272A30 !important; 
-    border: 1px solid #4B5563 !important;
-    box-shadow: none !important;
-}
-/* Force the icons inside the circles to glow Neon Blue */
-body.dark-mode #sheet-fab-menu .icon-circle .material-symbols-outlined,
-body.dark-mode #ws-view-create .icon-circle .material-symbols-outlined {
-    color: #7CB1FF !important; 
-}
-/* Force the labels to pure white */
-body.dark-mode #sheet-fab-menu small,
-body.dark-mode #ws-view-create small {
-    color: #FFFFFF !important;
-    font-weight: 600 !important;
-    font-size: 12px !important;
-    opacity: 1 !important;
-}
-
-/* ==========================================
-   🚨 SOLLO NATIVE THEME: GOOGLE DRIVE DARK MODE
-   ========================================== */
-/* Fixes the invisible dark blue text and glaring white pill in Data & Security */
-body.dark-mode div[style*="background: rgba(0, 97, 164, 0.05)"] strong[style*="color: #0061a4"] {
-    color: #7CB1FF !important; /* Glowing neon blue text */
-}
-body.dark-mode div[style*="background: rgba(0, 97, 164, 0.05)"] #cloud-status-tab {
-    color: #7CB1FF !important;
-    background: rgba(124, 177, 255, 0.15) !important; /* Soft translucent blue pill */
-}
-
-/* 3. OVERDUE COLLECTIONS TEXT VISIBILITY */
-/* Fixes the dark-on-dark text inside the Dashboard Overdue card */
-body.dark-mode #list-overdue li {
-    background: var(--md-surface) !important;
-    border-color: var(--md-outline-variant) !important;
-}
-body.dark-mode #list-overdue li strong,
-body.dark-mode #list-overdue li .large-text {
-    color: #FFFFFF !important;
-}
-body.dark-mode #list-overdue li small {
-    color: #A1AAB8 !important;
-}
-/* Convert the dark red "Overdue" pill to a glowing neon red */
-body.dark-mode #list-overdue li span[style*="background:#fff0f2"] {
-    background: rgba(186, 26, 26, 0.2) !important;
-    color: #ffb4ab !important;
-    border: 1px solid rgba(255, 180, 171, 0.3) !important;
-}
-
-/* 4. FIX WHITE BUTTONS ON REPORT SCREENS */
-/* Converts the glaring white "Today / This Month" buttons to sleek dark mode buttons */
-body.dark-mode button[style*="background: white"] {
-    background: var(--md-surface-variant) !important;
-    color: var(--md-primary) !important;
-    border-color: var(--md-primary) !important;
-}
-/* ==========================================
-   5. REPORT VIEWER DARK MODE OVERRIDE
-   ========================================== */
-/* Makes the on-screen Ledger/Report Viewer blend seamlessly into Dark Mode 
-   while strictly keeping the actual exported PDFs pure white! */
-   
-body.dark-mode #activity-report-viewer .activity-header,
-body.dark-mode #activity-item-ledger .activity-header {
-    background: color-mix(in srgb, var(--md-surface) 85%, transparent) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-body.dark-mode #activity-report-viewer .activity-header .material-symbols-outlined,
-body.dark-mode #activity-report-viewer .activity-header strong,
-body.dark-mode #report-party-name,
-body.dark-mode #report-party-balance {
-    color: var(--md-on-surface) !important;
-}
-
-body.dark-mode #activity-report-viewer .activity-content {
-    background: var(--md-background) !important;
-}
-
-/* Ensure the total summary cards in the viewer also respect Dark Mode */
-body.dark-mode #ledger-summary-card {
-    background: var(--md-surface-variant) !important;
-    border-color: var(--md-outline-variant) !important;
-}
-
-/* ==========================================
-   6. DYNAMIC JS ELEMENT & WHITE-BACKGROUND CATCH-ALL
-   ========================================== */
-/* Forces dynamically generated pastel backgrounds to obey Dark Mode! */
-body.dark-mode #risk-banner,
-body.dark-mode #dash-mini-table {
-    background: var(--md-surface-variant) !important;
-    border-color: var(--md-outline-variant) !important;
-}
-
-/* Keep the Low Stock warning tinted red in Dark Mode, but not blinding white! */
-body.dark-mode #dash-low-stock-btn {
-    background: rgba(186, 26, 26, 0.15) !important;
-    border-left-color: var(--md-error) !important;
-}
-
-/* Fixes invisible dark text generated by JavaScript inside dynamic elements */
-body.dark-mode #risk-banner *,
-body.dark-mode #dash-mini-table * {
-    color: var(--md-on-surface) !important;
-}
-
-/* Ensure AI Analytics and Dynamic Modals adapt to Dark Mode */
-body.dark-mode div[id^="ai-analytics-modal-"] > div {
-    background: var(--md-surface) !important;
-    border: 1px solid var(--md-outline-variant) !important;
-}
-
-body.dark-mode div[id^="ai-analytics-modal-"] *,
-body.dark-mode div[id^="ai-analytics-modal-"] h3 {
-    color: var(--md-on-surface) !important;
-}
-
-/* Override the blinding white/pink inline backgrounds on inputs and tables */
-body.dark-mode .row-qty[style*="background: #fff0f2"],
-body.dark-mode input[style*="background: #fff0f2"] {
-    background: rgba(186, 26, 26, 0.15) !important;
-    color: var(--md-error) !important;
-}
-
-body.dark-mode div[style*="background: rgba(255,255,255,0.8)"],
-body.dark-mode .numpad-header[style*="background-color: #ffffff"] {
-    background: var(--md-surface-variant) !important;
-}
-
-/* Ensure empty states don't vanish into the background */
-body.dark-mode .empty-state {
-    color: var(--md-text-muted) !important;
-}
-/* ==========================================
-   7. LINKED DOCS DARK MODE & INVOICE DELETE ICON FIX
-   ========================================== */
-   
-/* --- FIX 1: Linked Expense Documents Dark Mode --- */
-/* 1. Kill the glaring white background shining through from the parent container */
-#list-linked-sales,
-#list-linked-purch {
-    background: transparent !important;
-    border: none !important;
-}
-
-/* 2. Force all unselected items to be completely transparent without shadows */
-#list-linked-sales li,
-#list-linked-purch li {
-    box-shadow: none !important;
-    background: transparent !important;
-}
-
-/* 3. Highlight Selected Items */
-#list-linked-sales li[style*="var(--md-surface-variant)"],
-#list-linked-purch li[style*="var(--md-surface-variant)"] {
-    background: var(--md-surface-variant) !important;
-}
-body.dark-mode #list-linked-sales li[style*="var(--md-surface-variant)"],
-body.dark-mode #list-linked-purch li[style*="var(--md-surface-variant)"] {
-    background: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* 4. Text Readability in Dark Mode */
-body.dark-mode #list-linked-sales li *,
-body.dark-mode #list-linked-purch li *,
-body.dark-mode #list-linked-sales li strong,
-body.dark-mode #list-linked-purch li strong,
-body.dark-mode #list-linked-sales li div,
-body.dark-mode #list-linked-purch li div {
-    color: var(--md-on-surface) !important;
-}
-body.dark-mode #list-linked-sales li small,
-body.dark-mode #list-linked-purch li small {
-    color: var(--md-text-muted) !important;
-}
-
-/* --- FIX 2: Invoice Line-Item Delete Icon Alignment --- */
-/* Forces the delete icon to be a perfect 48px square, perfectly matching the height 
-   of the new quantity/rate inputs so they sit exactly on the same baseline! */
-.item-entry-card div[style*="align-items: flex-end"] {
-    align-items: flex-end !important;
-}
-
-.item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"],
-.item-entry-card .material-symbols-outlined[style*="color: #ef4444"],
-.item-entry-card span[onclick*="remove"] {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    height: 48px !important; /* Exact height of the input boxes */
-    width: 48px !important;  /* Perfect square touch target */
-    margin-bottom: 0 !important;
-    padding: 0 !important;
-    border-radius: 8px !important; /* Matches input corners */
-    transition: background-color 0.2s ease !important;
-}
-
-/* Add a professional soft red hover/press effect when tapping delete */
-.item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"]:active,
-.item-entry-card .material-symbols-outlined[style*="color: #ef4444"]:active,
-.item-entry-card span[onclick*="remove"]:active {
-    background-color: rgba(186, 26, 26, 0.1) !important;
-}
-
-body.dark-mode .item-entry-card .material-symbols-outlined[style*="color: var(--md-error)"]:active,
-body.dark-mode .item-entry-card .material-symbols-outlined[style*="color: #ef4444"]:active,
-body.dark-mode .item-entry-card span[onclick*="remove"]:active {
-    background-color: rgba(255, 180, 171, 0.15) !important;
-}
-/* --- FIX 3: Top Header Delete Icon Alignment --- */
-/* Forces the right-side wrapper to perfectly center its buttons vertically */
-.activity-header > div:last-child {
-    display: flex !important;
-    align-items: center !important;
-    align-self: center !important;
-    height: auto !important;
-}
-
-/* Forces the top-header delete button into a perfect, centered touch-target */
-.activity-header div[id*="delete"]:not(.hidden) {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    width: 40px !important;
-    height: 40px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* Strips invisible HTML text baselines from the trash can icon so it sits dead-center */
-.activity-header div[id*="delete"] .material-symbols-outlined {
-    margin: 0 !important;
-    padding: 0 !important;
-    line-height: 1 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-/* Cleaned global background overrides to rely on root variables */
-/* Cleaned parasite root variables */
-
-/* 2. Soften card borders to look like premium paper rather than rigid plastic boxes */
-body:not(.dark-mode) .m3-card,
-body:not(.dark-mode) .list-view {
-    border: 1px solid rgba(0, 0, 0, 0.06) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.02) !important;
-}
-
-/* 3. Soften list item dividers to be microscopic and elegant */
-body:not(.dark-mode) .list-view li {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
-}
-
-/* 4. Make input boxes look deeply embedded, clean, and premium */
-body:not(.dark-mode) input[type="text"], 
-body:not(.dark-mode) input[type="number"], 
-body:not(.dark-mode) input[type="tel"], 
-body:not(.dark-mode) input[type="date"], 
-body:not(.dark-mode) select, 
-body:not(.dark-mode) textarea {
-    border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    background: #ffffff !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) inset !important;
-    border-radius: 8px !important;
-}
-/* ==========================================
    🚨 FIX: FORM HEADER TEXT & ICON OVERLAP
    ========================================== */
 /* 1. Forces the header to be a flexible row with a safe gap so items can NEVER touch */
@@ -5947,20 +5362,6 @@ body.dark-mode input:focus:not([readonly]), body.dark-mode select:focus {
    🚀 ULTIMATE ENTERPRISE PERFORMANCE MODE
    ========================================== */
 
-/* 1. ANNIHILATE GPU LAG (Kill All Glass & Blurs) */
-* {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-.bottom-sheet, .sheet-overlay, .activity-header, .bottom-nav, .form-sticky-footer, .search-bar, .date-divider, #custom-numpad {
-    background-color: #FFFFFF !important;
-}
-body.dark-mode .bottom-sheet, body.dark-mode .sheet-overlay, body.dark-mode .activity-header, body.dark-mode .bottom-nav, body.dark-mode .form-sticky-footer, body.dark-mode .search-bar, body.dark-mode .date-divider, body.dark-mode #custom-numpad {
-    background-color: #121212 !important;
-}
-.sheet-overlay.open {
-    background-color: rgba(0, 0, 0, 0.6) !important; /* Solid dim, no blur */
-}
 
 /* 2. KILL FLICKERING & GHOSTING (Disable Cascades) */
 /* View Transitions preserved for UI.js App-Morph engine */
@@ -6675,40 +6076,6 @@ body.dark-mode #tab-dashboard strong[style*="display:flex; align-items:center; g
 #tab-reports div[style*="flex-direction: column"],
 #ws-view-master div[style*="flex-direction: column"] {
     gap: 0 !important;
-}
-/* ==========================================
-   🚨 ULTIMATE ANDROID WEBVIEW CRASH FIX
-   ========================================== */
-/* 
-   Android WebViews physically cannot handle overlapping 'backdrop-filter: blur' elements. 
-   When resuming from the background, it corrupts the GPU and smears the screen!
-   This block permanently destroys all glassmorphism and replaces it with solid, battery-saving colors.
-*/
-
-* {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-
-/* 1. Solidify Background Dimming Overlays */
-.sheet-overlay, 
-#success-animation, 
-#split-overlay, 
-#enterprise-dialog, 
-#enterprise-confirm, 
-#enterprise-swipe {
-    background-color: rgba(0, 0, 0, 0.75) !important; /* Solid dark tint instead of glass */
-}
-
-/* 2 & 3. Universal Navigation & Header Theme Link */
-.bottom-nav, .form-sticky-footer, .thumb-action-bar, .sticky-totals {
-    background-color: var(--md-surface) !important;
-    background: var(--md-surface) !important;
-}
-
-.search-bar, .search-container, .date-divider {
-    background-color: var(--md-surface-variant) !important;
-    background: var(--md-surface-variant) !important;
 }
 /* ==========================================
    CLEAN & NEAT INPUTS: Remove blue/green highlights
@@ -8302,3 +7669,165 @@ body.dark-mode .item-entry-card.is-dragging {
 .activity-screen.open {
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.25s ease-out, visibility 0s !important;
 }
+/* ==========================================
+   🌙 DARK MODE: THE EDGE CASES
+   ========================================== */
+
+/* 1. Auto-Invert Canvas Charts for Dark Mode */
+body.dark-mode canvas {
+    filter: invert(0.9) hue-rotate(180deg) brightness(1.3) contrast(1.2) !important;
+}
+
+/* 2. Glowing White Scrollbar Thumb at Night */
+body.dark-mode ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.25) !important;
+}
+body.dark-mode * {
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent !important;
+}
+
+/* 3. Brighten Placeholder Text so it doesn't get lost in dark inputs */
+body.dark-mode input::placeholder, 
+body.dark-mode textarea::placeholder {
+    color: #64748b !important;
+    opacity: 1 !important;
+}
+
+/* 4. Chrome Autofill Fix (Prevents ugly yellow backgrounds) */
+body.dark-mode input:-webkit-autofill,
+body.dark-mode textarea:-webkit-autofill,
+body.dark-mode select:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px var(--md-surface-variant) inset !important;
+    -webkit-text-fill-color: var(--md-on-surface) !important;
+}
+
+/* 5. Apple iOS Switch Adjustments */
+body.dark-mode .ios-slider { background-color: #334155; }
+body.dark-mode .ios-slider:before { background-color: #f8fafc; }
+
+/* 6. Soften the Drop Shadows on Hover/Focus */
+body.dark-mode .m3-card:focus-within {
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.6) !important;
+}
+body.dark-mode input:focus:not([readonly]), 
+body.dark-mode select:focus, 
+body.dark-mode textarea:focus {
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2) !important; /* Soft Neon Blue Glow */
+}
+/* ==========================================
+   🚨 ULTIMATE BOTTOM SHEET DARK MODE FIX
+   ========================================== */
+
+/* 1. Bulletproof Search Bars (Catches inputs even without type attributes) */
+body.dark-mode .bottom-sheet input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode .bottom-sheet .search-bar {
+    background-color: var(--md-surface-variant) !important;
+    background: var(--md-surface-variant) !important;
+    color: var(--md-on-surface) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+
+body.dark-mode .bottom-sheet input::placeholder {
+    color: var(--md-text-muted) !important;
+    opacity: 1 !important;
+}
+
+/* 2. Fix White Cards in Product Search */
+body.dark-mode .bottom-sheet .m3-card,
+body.dark-mode .bottom-sheet li,
+body.dark-mode .bottom-sheet .list-item {
+    background-color: var(--md-surface) !important;
+    background: var(--md-surface) !important;
+    border-color: var(--md-outline-variant) !important;
+}
+
+/* 3. The Inline-Style Annihilator (Fixes Dark Text in Expense Link) */
+/* This actively hunts down hardcoded JS colors and flips them to light gray */
+body.dark-mode .bottom-sheet [style*="color: #333"],
+body.dark-mode .bottom-sheet [style*="color:#333"],
+body.dark-mode .bottom-sheet [style*="color: #000"],
+body.dark-mode .bottom-sheet [style*="color:#000"],
+body.dark-mode .bottom-sheet [style*="color: rgb(0, 0, 0)"] {
+    color: var(--md-on-surface) !important;
+}
+
+body.dark-mode .bottom-sheet [style*="color: #666"],
+body.dark-mode .bottom-sheet [style*="color:#666"],
+body.dark-mode .bottom-sheet [style*="color: #777"],
+body.dark-mode .bottom-sheet [style*="color:#777"] {
+    color: var(--md-text-muted) !important;
+}
+
+/* 4. Fix transparent background list views */
+body.dark-mode .bottom-sheet .list-view {
+    background: transparent !important;
+}
+/* ==========================================
+   🚨 FORCE EXPENSE LINK LIST VISIBILITY IN DARK MODE
+   ========================================== */
+body.dark-mode #list-linked-sales strong,
+body.dark-mode #list-linked-purch strong {
+    color: #ffffff !important; 
+}
+
+body.dark-mode #list-linked-sales small,
+body.dark-mode #list-linked-purch small {
+    color: #cbd5e1 !important; 
+}
+/* ==========================================
+   🌟 PREMIUM UX: GLASSMORPHISM & iOS SLIDING
+   ========================================== */
+
+/* 1. Frosted Glass Headers (Dynamic) */
+.activity-header, .main-header, header, .app-header {
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid transparent;
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body.dark-mode .activity-header, 
+body.dark-mode .main-header, 
+body.dark-mode header, 
+body.dark-mode .app-header {
+    background: rgba(18, 18, 18, 0.75) !important;
+}
+
+/* The class JS will add when the user scrolls down */
+.header-scrolled {
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+}
+body.dark-mode .header-scrolled {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 2. iOS Directional Slide for New Screens */
+/* Forces screens to slide in from the right edge, instead of fading/scaling */
+.activity-screen {
+    transform: translateX(100%);
+    opacity: 0;
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
+}
+.activity-screen.open {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+/* 3. Directional Sliding for Main Tab Switching */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0.35s;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html.slide-left ::view-transition-old(root) { animation-name: slide-out-left; }
+html.slide-left ::view-transition-new(root) { animation-name: slide-in-right; }
+html.slide-right ::view-transition-old(root) { animation-name: slide-out-right; }
+html.slide-right ::view-transition-new(root) { animation-name: slide-in-left; }
+
+@keyframes slide-in-right { from { transform: translateX(20%); opacity: 0; } }
+@keyframes slide-out-left { to { transform: translateX(-20%); opacity: 0; } }
+@keyframes slide-in-left { from { transform: translateX(-20%); opacity: 0; } }
+@keyframes slide-out-right { to { transform: translateX(20%); opacity: 0; } }

@@ -569,7 +569,7 @@ const UI = {
         // app.init() already handles it, preventing the forms from glitching and opening twice!
     },
 
-    switchTab: (tabId, title, navElement) => {
+    switchTab: (tabId, title, navElement, direction = null) => {
         const doSwitch = () => {
             document.querySelectorAll('.screen-section').forEach(el => {
                 el.classList.remove('active-screen');
@@ -590,11 +590,8 @@ const UI = {
                 navElement.classList.add('active');
             }
 
-            // 🚨 ENTERPRISE FIX: If they switch tabs normally, instantly clear the Dashboard Date Lock!
-            // This ensures they see ALL documents when navigating naturally.
             UI.state.applyDashboardDateToDocuments = false;
             
-            // 🚨 CRITICAL BUG FIX: Reset Nav & Scroll Position!
             const resetNavState = () => {
                 const bNav = document.querySelector('.bottom-nav');
                 if (bNav) bNav.classList.remove('nav-hidden');
@@ -605,9 +602,6 @@ const UI = {
             };
             resetNavState();
 
-            // ENTERPRISE FIX: Removed the 20ms delay!
-            // View Transitions automatically pause the DOM paint for you. If you delay the render, 
-            // the transition will accidentally capture a blank screen and ruin the cinematic effect!
             if (tabId === 'tab-dashboard') UI.renderDashboard();
             else if (tabId === 'tab-documents') { UI.applyFilters('sales'); UI.applyFilters('purchases'); }
             else if (tabId === 'tab-cashbook') UI.applyFilters('cashbook');
@@ -616,12 +610,16 @@ const UI = {
             else if (tabId === 'tab-timeline') UI.applyFilters('timeline'); 
         };
 
-        // UPGRADE 4: Cinematic View Transitions
         if (document.startViewTransition) {
+            // 🌟 Inject the direction class right before the animation starts!
+            if (direction) document.documentElement.classList.add(`slide-${direction}`);
+            
             const transition = document.startViewTransition(doSwitch);
-            // 🚨 SOLLO FIX: Force the Nav to stay visible AFTER the animation finishes!
-            // iOS Safari loves to restore old scroll positions when view transitions end.
+            
             transition.finished.then(() => {
+                // Wipe the direction class so it doesn't break future animations
+                document.documentElement.classList.remove('slide-left', 'slide-right');
+                
                 const bNav = document.querySelector('.bottom-nav');
                 if (bNav) bNav.classList.remove('nav-hidden');
                 const floatBtn = document.querySelector('.floating-action-button');
@@ -1184,17 +1182,58 @@ const UI = {
             else gstTotalEl.innerHTML = `&#8377;${totalGst.toFixed(2)}`;
         }
         
-        // 🚨 CRITICAL FIX: The 1-Paisa Mismatch Shield
-        // We round CGST first, and subtract it from the total for SGST. 
-        // This guarantees CGST + SGST perfectly equals totalGst!
-        const roundedCgst = Math.round((totalGst / 2) * 100) / 100;
-        const roundedSgst = totalGst - roundedCgst;
+        // ==========================================
+        // 🚨 SMART GST ENGINE: IGST vs CGST/SGST SPLIT
+        // ==========================================
+        let isIGST = false;
         
+        // 1. Identify Interstate transaction from Company State vs Party State / GSTIN
+        const partyId = (document.getElementById(`${prefix}-${prefix === 'sales' ? 'customer' : 'supplier'}-id`) || {}).value;
+        const party = (UI.state.rawData.ledgers || []).find(l => l.id === partyId);
+        const bizState = (document.getElementById('profile-state') || {}).value || window.AppState?.profileState || '';
+        const bizGst = (document.getElementById('profile-gst') || {}).value || window.AppState?.profileGst || '';
+        
+        if (party) {
+            const partyState = (party.state || '').trim().toLowerCase();
+            const companyState = bizState.trim().toLowerCase();
+            const partyGst = (party.gst || '').trim();
+
+            // Check by 2-digit GST state code if available, otherwise check state name
+            if (partyGst.length >= 2 && bizGst.length >= 2) {
+                isIGST = partyGst.substring(0, 2) !== bizGst.substring(0, 2);
+            } else if (partyState && companyState) {
+                isIGST = partyState !== companyState;
+            }
+        }
+
+        const roundedTotalGst = Math.round(totalGst * 100) / 100;
+        const roundedCgst = isIGST ? 0 : Math.round((roundedTotalGst / 2) * 100) / 100;
+        const roundedSgst = isIGST ? 0 : (roundedTotalGst - roundedCgst);
+        const roundedIgst = isIGST ? roundedTotalGst : 0;
+
+        // 2. Update Tax Display Elements
+        const cgstRow = document.getElementById(`${prefix}-cgst-row`);
+        const sgstRow = document.getElementById(`${prefix}-sgst-row`);
+        const igstRow = document.getElementById(`${prefix}-igst-row`);
+
         const cgstEl = document.getElementById(`${prefix}-cgst-total`);
-        if (cgstEl) cgstEl.innerHTML = `&#8377;${roundedCgst.toFixed(2)}`;
-        
         const sgstEl = document.getElementById(`${prefix}-sgst-total`);
-        if (sgstEl) sgstEl.innerHTML = `&#8377;${roundedSgst.toFixed(2)}`;
+        const igstEl = document.getElementById(`${prefix}-igst-total`);
+
+        if (isIGST) {
+            // Hide CGST/SGST, Show IGST
+            if (cgstRow) cgstRow.style.display = 'none';
+            if (sgstRow) sgstRow.style.display = 'none';
+            if (igstRow) igstRow.style.display = 'flex';
+            if (igstEl) igstEl.innerHTML = `&#8377;${roundedIgst.toFixed(2)}`;
+        } else {
+            // Show CGST/SGST, Hide IGST
+            if (cgstRow) cgstRow.style.display = 'flex';
+            if (sgstRow) sgstRow.style.display = 'flex';
+            if (igstRow) igstRow.style.display = 'none';
+            if (cgstEl) cgstEl.innerHTML = `&#8377;${roundedCgst.toFixed(2)}`;
+            if (sgstEl) sgstEl.innerHTML = `&#8377;${roundedSgst.toFixed(2)}`;
+        }
         
         const roundOffEl = document.getElementById(`${prefix}-round-off`);
         if (roundOffEl) roundOffEl.innerText = `${roundOff > 0 ? '+' : ''}${roundOff.toFixed(2)}`;
@@ -3658,7 +3697,7 @@ const UI = {
                     
                     html += `
                     <!-- 🚨 THE SHADOW FIX: Changed from <li> to <div> so global list CSS & Ripple scripts completely ignore it! -->
-                    <div style="display: block !important; padding: 0 !important; margin-bottom: 8px !important; border: 1px solid var(--md-outline-variant) !important; border-radius: 12px !important; background: #ffffff !important; overflow: hidden !important; -webkit-tap-highlight-color: transparent !important;">
+                    <div style="display: block !important; padding: 0 !important; margin-bottom: 8px !important; border: 1px solid var(--md-outline-variant) !important; border-radius: 12px !important; background: var(--md-surface) !important; overflow: hidden !important; -webkit-tap-highlight-color: transparent !important;">
                         
                         <!-- The Article is now the ONLY tap-target! -->
                         <article class="tap-target" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: flex-start !important; gap: 12px !important; padding: 14px 16px !important; width: 100% !important; box-sizing: border-box !important; cursor: pointer !important; -webkit-tap-highlight-color: transparent !important;"
@@ -3688,7 +3727,7 @@ const UI = {
                                     <input type="text" inputmode="decimal" class="quick-qty" value="1" 
                                         onclick="event.stopPropagation();" 
                                         oninput="const sec=this.closest('section'); const q=parseFloat(sec.querySelector('.quick-qty').value)||0; const r=parseFloat(sec.querySelector('.quick-rate').value)||0; sec.querySelector('.live-preview-total').innerText = '₹' + (q*r).toFixed(2);"
-                                        style="width: 100% !important; height: 44px !important; min-height: 44px !important; border: 1px solid var(--md-outline-variant) !important; background: #ffffff !important; border-radius: 8px !important; text-align: center !important; font-size: 16px !important; font-weight: 800 !important; color: var(--md-on-surface) !important; padding: 4px !important; outline: none !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; box-sizing: border-box !important; margin: 0 !important;">
+                                        style="width: 100% !important; height: 44px !important; min-height: 44px !important; border: 1px solid var(--md-outline-variant) !important; background: var(--md-surface) !important; border-radius: 8px !important; text-align: center !important; font-size: 16px !important; font-weight: 800 !important; color: var(--md-on-surface) !important; padding: 4px !important; outline: none !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; box-sizing: border-box !important; margin: 0 !important;">
                                 </span>
 
                                 <!-- ✨ CLEAN RATE INPUT -->
@@ -3697,7 +3736,7 @@ const UI = {
                                     <input type="text" inputmode="decimal" class="quick-rate" value="${price.toFixed(2)}" 
                                         onclick="event.stopPropagation();" 
                                         oninput="const sec=this.closest('section'); const q=parseFloat(sec.querySelector('.quick-qty').value)||0; const r=parseFloat(sec.querySelector('.quick-rate').value)||0; sec.querySelector('.live-preview-total').innerText = '₹' + (q*r).toFixed(2);"
-                                        style="width: 100% !important; height: 44px !important; min-height: 44px !important; border: 1px solid var(--md-outline-variant) !important; background: #ffffff !important; border-radius: 8px !important; text-align: center !important; font-size: 16px !important; font-weight: 800 !important; color: var(--md-on-surface) !important; padding: 4px !important; outline: none !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; box-sizing: border-box !important; margin: 0 !important;">
+                                        style="width: 100% !important; height: 44px !important; min-height: 44px !important; border: 1px solid var(--md-outline-variant) !important; background: var(--md-surface) !important; border-radius: 8px !important; text-align: center !important; font-size: 16px !important; font-weight: 800 !important; color: var(--md-on-surface) !important; padding: 4px !important; outline: none !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; box-sizing: border-box !important; margin: 0 !important;">
                                 </span>
                             </article>
 
@@ -3816,21 +3855,65 @@ const UI = {
         return { price: defaultPrice, msg: '' };
     },
 
-    // 🚨 ENTERPRISE UPGRADE: Inline Qty & Rate Support
+    // 🚨 ENTERPRISE UPGRADE: Inline Qty & Rate Support (Observable Array Engine)
     addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice, customQty = 1, forceRate = false) => {
-        const container = document.getElementById(`${prefix}-items-body`);
+        const containerId = `${prefix}-items-body`;
         const emptyState = document.getElementById(`${prefix}-empty-items`);
-        if(!container) return;
-        if(emptyState) emptyState.style.display = 'none';
-        
-        // Trigger Smart Pricing Memory
+        if (emptyState) emptyState.style.display = 'none';
+
+        // 1. If the observable array doesn't exist for this form yet, create it!
+        if (!window[`${prefix}ObservableItems`]) {
+            window[`${prefix}ObservableItems`] = window.createObservableArray([], containerId, (item) => {
+                
+                // This is the template the array will use every time you push an item!
+                return `
+                <div class="item-entry-card" style="padding: 14px; margin-bottom: 0; border-left: 4px solid ${prefix === 'sales' ? 'var(--md-primary)' : '#f57f17'};">
+                    <input type="hidden" class="row-item-id" value="${item.id}">
+                    <input type="hidden" class="row-item-name" value="${String(item.name || '').replace(/"/g, '&quot;')}">
+                    <input type="hidden" class="row-uom" value="${item.uom || ''}">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div style="flex: 1; padding-right: 8px; min-width: 0;">
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
+                            <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                                <input type="text" inputmode="decimal" class="row-qty" value="${item.customQty}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
+                                <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
+                                <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
+                                <input type="text" inputmode="decimal" class="row-rate" value="${item.finalRate}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
+                                <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${item.gst || 0}% GST</span>
+                                <input type="hidden" class="row-gst" value="${item.gst || 0}">
+                                <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
+                                <input type="hidden" class="row-item-id" value="${item.id}">
+                                <input type="hidden" class="row-item-name" value="${String(item.name || '').replace(/"/g, '&quot;')}">
+                                <input type="hidden" class="row-uom" value="${item.uom || ''}">
+                            </div>
+                            ${prefix === 'sales' ? `
+                            <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
+                                <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
+                                <input type="text" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                                <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
+                            </div>
+                            ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
+                            ${item.msgHtml}
+                            ${item.conversionHtml}
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
+                            <!-- The Delete 'X' now utilizes the array proxy instead of direct DOM manipulation -->
+                            <div class="tap-target" onclick="const card = this.closest('.item-entry-card'); const index = Array.from(card.parentNode.children).indexOf(card); window['${prefix}ObservableItems'].splice(index, 1); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                                <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                            </div>
+                            <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 2. Data Logic & Memory Lookups
         const smart = UI.getSmartRate(prefix, id, price);
-        
-        // 🚨 Use the manually typed rate if provided, otherwise fallback to history memory
         const finalRate = forceRate ? price : smart.price;
         const msgHtml = (forceRate && price !== smart.price) ? '' : smart.msg;
 
-        // 🚀 DATABASE LOOKUP: Find Alternate UOM Multiplier
         const dbItem = (window.UI.state.rawData.items || []).find(i => i.id === id);
         const altUom = dbItem && dbItem.altUom ? dbItem.altUom : '';
         const conv = dbItem && dbItem.conversionFactor ? parseFloat(dbItem.conversionFactor) || 1 : 1;
@@ -3846,58 +3929,21 @@ const UI = {
             </div>
             `;
         }
-        
-        const itemCard = document.createElement('div');
-        itemCard.className = 'item-entry-card';
-        itemCard.style.padding = '14px';
-        itemCard.style.marginBottom = '0';
-        itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
-        
-        const hiddenInputs = `
-            <input type="hidden" class="row-item-id" value="${id}">
-            <input type="hidden" class="row-item-name" value="${String(name || '').replace(/"/g, '&quot;')}">
-            <input type="hidden" class="row-uom" value="${uom || ''}">
-        `;
 
-        itemCard.innerHTML = `
-            ${hiddenInputs}
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                <div style="flex: 1; padding-right: 8px; min-width: 0;">
-                    <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</strong>
-                    <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" inputmode="decimal" class="row-qty" value="${customQty}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
-                        <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${uom || 'Unit'}</span>
-                        <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                        <input type="text" inputmode="decimal" class="row-rate" value="${finalRate}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
-                        <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${gst || 0}% GST</span>
-                        <input type="hidden" class="row-gst" value="${gst || 0}">
-                        <input type="hidden" class="row-hsn" value="${hsn || ''}">
-                        <input type="hidden" class="row-uom" value="${uom || 'Unit'}">
-                    </div>
-                    ${prefix === 'sales' ? `
-                    <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
-                        <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                        <input type="text" inputmode="decimal" class="row-item-buyprice" value="${buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
-                        <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
-                    </div>
-                    ` : `<input type="hidden" class="row-item-buyprice" value="${buyPrice || 0}">`}
-                    ${msgHtml}
-                    ${conversionHtml}
-                </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
-                    <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                        <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
-                    </div>
-                    <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
-                </div>
-            </div>
-        `;
-        container.appendChild(itemCard);
+        // 3. The Core Action: Just push the object to the Array Proxy! 
+        // The state.js engine intercepts this and renders the HTML above automatically.
+        window[`${prefix}ObservableItems`].push({
+            id, name, price, gst, uom, hsn, buyPrice, customQty, finalRate, msgHtml, conversionHtml
+        });
         
         prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         
+        // Scroll to the newest item
         setTimeout(() => {
-            itemCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const container = document.getElementById(containerId);
+            if (container && container.lastElementChild) {
+                container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         }, 150);
     },
 
@@ -5560,12 +5606,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (diffX < 0 && currentIndex < tabs.length - 1) {
                 // Swipe Left -> Go to Next Tab
                 const nextTab = tabs[currentIndex + 1];
-                UI.switchTab(nextTab.id, nextTab.title, document.getElementById(nextTab.navId));
+                UI.switchTab(nextTab.id, nextTab.title, document.getElementById(nextTab.navId), 'left');
                 if (nextTab.id === 'tab-masters') UI.renderBankBalances();
             } else if (diffX > 0 && currentIndex > 0) {
                 // Swipe Right -> Go to Previous Tab
                 const prevTab = tabs[currentIndex - 1];
-                UI.switchTab(prevTab.id, prevTab.title, document.getElementById(prevTab.navId));
+                UI.switchTab(prevTab.id, prevTab.title, document.getElementById(prevTab.navId), 'right');
                 if (prevTab.id === 'tab-masters') UI.renderBankBalances();
             }
         }, { passive: true });
@@ -6347,18 +6393,13 @@ window.openInvoiceOverview = function(type, id) {
         }
         let freightVal = parseFloat(doc.freightAmount || doc.freight || 0);
         
-        let isIGST = false;
-        try {
-            const firmStateEl = document.getElementById('profile-state');
-            const firmState = firmStateEl ? firmStateEl.value.trim().toLowerCase() : '';
-            const party = window.UI?.state?.rawData?.ledgers?.find(l => l.id === partyId);
-            const partyState = party && party.state ? party.state.trim().toLowerCase() : '';
-            if (firmState && partyState && firmState !== partyState) isIGST = true;
-        } catch(e) {}
 
         const totalGstAmt = parseFloat(doc.gstTotal || doc.totalGst || 0);
         const halfGst = (totalGstAmt / 2).toFixed(2);
         let gstBreakdownHTML = '';
+
+        // 🚨 PULL THE IGST FLAG FROM THE SAVED INVOICE DATA
+        const isIGST = !!doc.isIGST;
 
         if (isNonGST) {
             gstBreakdownHTML = `<div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--md-text-muted);"><span>Taxes</span><span style="color: var(--md-on-surface); font-weight: bold;">Non-GST / Exempt</span></div>`;
@@ -6800,3 +6841,25 @@ window.UI.openActivity = function(activityId) {
     }
     originalOpenActivity.apply(this, arguments);
 };
+// ==========================================
+// 🌟 PREMIUM UX: DYNAMIC GLASSMORPHISM HEADERS
+// ==========================================
+document.addEventListener('scroll', (e) => {
+    const target = e.target;
+    // Only listen to the scrollable body areas
+    if (target.classList && (target.classList.contains('main-content') || target.classList.contains('activity-content') || target.classList.contains('sheet-content'))) {
+        
+        // Find the header sitting directly above this scrolling content
+        const header = target.parentElement.querySelector('.activity-header, .main-header, .sheet-header, header');
+        
+        if (header) {
+            // If scrolled past 10px, apply the shadow and solid border
+            if (target.scrollTop > 10) {
+                header.classList.add('header-scrolled');
+            } else {
+                // Remove it when back at the absolute top
+                header.classList.remove('header-scrolled');
+            }
+        }
+    }
+}, { capture: true, passive: true });

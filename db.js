@@ -5,45 +5,46 @@ const DB_NAME = 'SOLLO_ERP_DB';
 // ENTERPRISE FIX: Jumped to Version 20 to break the browser deadlock and forcefully build all missing tables!
 const DB_VERSION = 72; 
 let db;
-// --- NEW: Global Database Connection Listener & Cross-Tab Sync ---
+// --- ENTERPRISE FIX: RESILIENT CROSS-TAB SYNC ENGINE ---
 window.dbChannel = null;
 let crossTabSyncTimer = null;
 
-// Debounced transmitter prevents flooding when saving 100s of records (e.g., CSV imports)
 window.triggerCrossTabSync = () => {
     if (!window.dbChannel) return;
     clearTimeout(crossTabSyncTimer);
     crossTabSyncTimer = setTimeout(() => {
-        window.dbChannel.postMessage('SYNC_REFRESH');
+        try {
+            window.dbChannel.postMessage('SYNC_REFRESH');
+        } catch (e) {
+            console.warn("BroadcastChannel postMessage failed:", e);
+        }
     }, 500); 
 };
 
 try {
-    // 🚨 FIX: Safely close any ghost connections before opening a new one!
     if (window.dbChannel) {
         window.dbChannel.close();
     }
     window.dbChannel = new BroadcastChannel('sollo_db_channel');
     window.dbChannel.onmessage = (event) => {
-        if (event.data === 'FORCE_CLOSE_DB' && typeof db !== 'undefined' && db) {
-            console.warn("⚠️ Closing database connection to allow another tab to upgrade!");
-            db.close();
-            db = null; 
-        } else if (event.data === 'SYNC_REFRESH') {
+        if (event.data === 'SYNC_REFRESH') {
+            // Guard: Only sync if database is fully initialized
+            if (typeof db === 'undefined' || !db) return;
+            
             console.log("🔄 Cross-Tab Sync Triggered! Updating local UI...");
-            // Wipe local RAM cache to force fresh pull from IndexedDB
             if (window.AppCache) {
                 window.AppCache.items = null;
                 window.AppCache.ledgers = null;
                 window.AppCache.accounts = null;
             }
-            // Silently refresh the UI without triggering redundant Google Drive backups
             if (window.app && typeof window.app.refreshAll === 'function') {
                 window.app.refreshAll(true);
             }
         }
     };
-} catch(e) {}
+} catch(e) {
+    console.warn("BroadcastChannel initialization skipped (unsupported environment).");
+}
 
 const initDB = () => {
     return new Promise(async (resolve, reject) => {
@@ -72,19 +73,9 @@ const initDB = () => {
         // ENTERPRISE FIX: The Database Deadlock Shield! (V2 - No Infinite Loops)
         // Uses BroadcastChannel to tell ghost tabs to close their DB connections instantly!
         request.onblocked = () => {
-            console.warn("🔒 IndexedDB is locked by an older version.");
-            
-            // 1. Tell other open tabs to close their database connections natively
-            try {
-                const bc = new BroadcastChannel('sollo_db_channel');
-                bc.postMessage('FORCE_CLOSE_DB');
-            } catch(e) {} // Failsafe for older browsers
-            
-            // 2. Show a smooth, non-blocking toast notification instead of a screen-freezing alert
+            console.warn("🔒 IndexedDB version conflict detected across open tabs.");
             if (window.Utils && typeof window.Utils.showToast === 'function') {
-                window.Utils.showToast("Database is upgrading... Please close other tabs of this app.");
-            } else {
-                console.warn("Database is upgrading, but another tab is holding it open.");
+                window.Utils.showToast("Database update pending. Please refresh this page.");
             }
         };
 

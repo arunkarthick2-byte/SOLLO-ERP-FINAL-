@@ -134,11 +134,27 @@ self.addEventListener('message', async function(e) {
     if (data.command === 'CALCULATE_AGING') {
         const firmId = data.firmId;
         
-        // 🚀 Fetch directly from disk!
+        // 🚀 Open DB Connection safely in the background thread
+        const db = await new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onsuccess = e => resolve(e.target.result);
+            request.onerror = e => reject(request.error);
+        });
+
+        const tx = db.transaction(['sales', 'receipts'], 'readonly');
+        
+        const fetchStore = (storeName) => new Promise((resolve, reject) => {
+            const req = tx.objectStore(storeName).index('firmId').getAll(firmId);
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+
         const [sales, cashbook] = await Promise.all([
-            fetchFromDB('sales', firmId),
-            fetchFromDB('receipts', firmId) // The store is called 'receipts', UI references it as cashbook
+            fetchStore('sales'),
+            fetchStore('receipts')
         ]);
+        
+        db.close(); // Clean up memory
 
         let bucket30 = 0, bucket60 = 0, bucket90 = 0, totalDue = 0;
         const today = new Date();
