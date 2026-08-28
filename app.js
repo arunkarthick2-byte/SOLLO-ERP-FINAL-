@@ -2472,16 +2472,15 @@ const app = {
             UI.closeAllBottomSheets();
             
             // --- ENTERPRISE UPGRADE: NESTED MEMORY SHIELD ---
-            // Do NOT overwrite memory if we are opening a Master form on top of an active invoice!
-            const sFormNode = document.getElementById('activity-sales-form');
-            const pFormNode = document.getElementById('activity-purchase-form');
-            const salesOpen = sFormNode ? sFormNode.classList.contains('open') : false;
-            const purchOpen = pFormNode ? pFormNode.classList.contains('open') : false;
-            const isMaster = (type === 'ledger' || type === 'product' || type === 'account');
+            // Isolate Master data from Invoice data to prevent database collision!
+            const isMaster = (type === 'ledger' || type === 'product' || type === 'account' || type === 'expense');
             
-            if (!(isMaster && (salesOpen || purchOpen))) {
+            if (isMaster) {
+                app.state.currentMasterId = id;
+            } else {
                 app.state.currentEditId = id;
                 app.state.currentDocType = docType;
+                window.explicitSupplierAdvance = 0; // Reset Wallet
             }
             // ------------------------------------------------
             
@@ -3713,11 +3712,11 @@ if (data.id && splitConfirmed) {
                     if (type === 'product') storeName = 'items';
                     else if (type === 'account') storeName = 'accounts';
 
-                    // Initialize data and merge with existing database record to prevent wiping hidden fields
-                    let data = { id: app.state.currentEditId || Utils.generateId(), firmId: app.state.firmId };
+                    // 🚨 ENTERPRISE FIX: Use dedicated master ID to prevent overwriting nested invoices!
+                    let data = { id: app.state.currentMasterId || Utils.generateId(), firmId: app.state.firmId };
                     
-                    if (app.state.currentEditId) {
-                        const existingRecord = await getRecordById(storeName, app.state.currentEditId);
+                    if (app.state.currentMasterId) {
+                        const existingRecord = await getRecordById(storeName, app.state.currentMasterId);
                         if (existingRecord) data = { ...existingRecord };
                     }
                     
@@ -4973,7 +4972,10 @@ if (data.id && splitConfirmed) {
     },
 
     deleteRecord: async (type) => {
-        const id = type === 'receipt-in' || type === 'receipt-out' ? app.state.currentReceiptId : app.state.currentEditId;
+        let id;
+        if (type === 'receipt-in' || type === 'receipt-out') id = app.state.currentReceiptId;
+        else if (['product', 'ledger', 'expense', 'account'].includes(type)) id = app.state.currentMasterId;
+        else id = app.state.currentEditId;
 
         let storeMap = {
             'sales': 'sales', 'purchase': 'purchases',
@@ -5907,7 +5909,7 @@ if (data.id && splitConfirmed) {
                             width: '55%',
                             stack: [
                                 { text: 'FORMAL DECLARATION', style: 'sectionTitle' },
-                                { text: `${isMoneyIn ? 'We acknowledge with thanks the receipt of' : 'This confirms the payment of'} Rupees ${amountInWords} ${isMoneyIn ? 'from' : 'to'} ${receipt.ledgerName} via ${receipt.mode || 'Cash'} on ${window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(receipt.date) : receipt.date}.`, style: 'sub', margin: [0, 0, 0, 15], alignment: 'justify' },
+                                { text: `${isMoneyIn ? 'We acknowledge with thanks the receipt of' : 'This confirms the payment of'} ${amountInWords} ${isMoneyIn ? 'from' : 'to'} ${receipt.ledgerName} via ${receipt.mode || 'Cash'} on ${window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(receipt.date) : receipt.date}.`, style: 'sub', margin: [0, 0, 0, 15], alignment: 'justify' },
                                 ...(receipt.desc ? [
                                     { text: 'NOTES:', style: 'sectionTitle' },
                                     { text: receipt.desc, style: 'sub' }

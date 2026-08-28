@@ -3295,7 +3295,7 @@ Please process this accordingly. Thank you!`;
                             width: '65%',
                             stack: [
                                 { text: 'AMOUNT IN WORDS', style: 'sectionTitle' },
-                                { text: String('Rupees ' + amountInWords), bold: true, margin: [0, 0, 0, 15] },
+                                { text: String(amountInWords), bold: true, margin: [0, 0, 0, 15] },
                                 ...(expense.notes ? [
                                     { text: 'REMARKS / NOTES:', style: 'sectionTitle' },
                                     { text: String(expense.notes), style: 'sub' }

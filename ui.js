@@ -748,6 +748,14 @@ const UI = {
             if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = null;
             }
+            
+            // 🚨 STABILITY FIX: Auto-Heal the Parent Invoice!
+            // If we just closed a nested menu (like a Payment or Expense), and an invoice is sitting underneath, instantly refresh its data!
+            if (activityId !== 'activity-sales-form' && activityId !== 'activity-purchase-form') {
+                if (window.app && window.app.state.currentEditId && UI.state.activeActivity) {
+                    window.app.populateEditForm(UI.state.activeActivity, window.app.state.currentEditId);
+                }
+            }
         };
 
         // 🚨 ENTERPRISE FIX: The Reverse Container Transform
@@ -3633,160 +3641,121 @@ const UI = {
         const prefix = UI.state.smartSearchPrefix;
         
         let results = [];
-        let html = '';
 
-        if (targetType === 'customer' || targetType === 'supplier') {
+        // --- 1. PARTY SEARCH (Customers & Suppliers) ---
+        if (targetType === 'customer' || targetType === 'supplier' || targetType === 'party') {
             const isCust = targetType === 'customer';
-            const dbType = isCust ? 'Customer' : 'Supplier';
-            // ENTERPRISE UI: Fuzzy Search applied to Customer/Supplier billing selection
-            results = UI.state.rawData.ledgers.filter(l => String(l.type).toLowerCase() === dbType.toLowerCase() && window.fuzzyMatch(query, l.name));
+            const isSupp = targetType === 'supplier';
             
-            results.slice(0, 30).forEach(l => {
+            results = UI.state.rawData.ledgers.filter(l => {
+                const safeType = String(l.type).toLowerCase();
+                if (isCust && safeType !== 'customer') return false;
+                if (isSupp && safeType !== 'supplier') return false;
+                return window.fuzzyMatch(query, l.name);
+            });
+            
+            const emptyHTML = `
+            <div style="padding: 40px 20px; text-align: center;">
+                <div style="color: var(--md-text-muted); margin-bottom: 16px; font-size: 14px;">No matches found.</div>
+                <button class="btn-primary tap-target" onclick="UI.createNewFromSearch()" style="height: 44px; min-height: 44px; padding: 0 24px; border-radius: 22px; margin: 0 auto; display: inline-flex; box-shadow: 0 4px 12px rgba(0,97,164,0.2);"><span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">add</span> Create New Party</button>
+            </div>`;
+
+            // 🚀 ENTERPRISE UPGRADE: Infinite Scroll Virtual List for Parties!
+            UI.renderVirtualList(resultsContainer, results, (l) => {
                 const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const rowIcon = isCust ? 'person' : 'storefront';
-                const rowColor = isCust ? '#0061a4' : '#ba1a1a';
+                const rowIcon = String(l.type).toLowerCase() === 'customer' ? 'person' : 'storefront';
+                const rowColor = String(l.type).toLowerCase() === 'customer' ? '#0061a4' : '#ba1a1a';
                 
-                html += `
+                return `
                 <div class="m3-card tap-target" onclick="UI.selectSmartParty('${prefix}-${targetType}', '${l.id}', '${safeName}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); display: flex; justify-content: flex-start; align-items: center; gap: 12px; cursor: pointer;">
                     <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                         <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                     </div>
                     <div style="flex: 1; min-width: 0;">
-                        <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${l.name}</strong>
+                        <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${UI.highlightText(l.name, query)}</strong>
                         <small style="color: var(--md-text-muted); display: block; margin-top: 4px; line-height: 1.3;">${l.phone || 'No Phone'}</small>
                     </div>
                 </div>`;
-            });
+            }, emptyHTML);
             
-            if (results.length === 0) html = `
-    <div style="padding: 40px 20px; text-align: center;">
-        <div style="color: var(--md-text-muted); margin-bottom: 16px; font-size: 14px;">No matches found.</div>
-        <button class="btn-primary tap-target" onclick="UI.createNewFromSearch()" style="height: 44px; min-height: 44px; padding: 0 24px; border-radius: 22px; margin: 0 auto; display: inline-flex; box-shadow: 0 4px 12px rgba(0,97,164,0.2);"><span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">add</span> Create New Party</button>
-    </div>`;
-            
-        } else if (targetType === 'item') {
+        } 
+        // --- 2. ITEM SEARCH (Products & Inventory) ---
+        else if (targetType === 'item') {
             const isSales = prefix === 'sales';
             
-            // ENTERPRISE UPGRADE: Smart Frequent Items Sorting Engine
+            // Smart Frequent Items Sorting Engine
             const freqMap = {};
             const historyData = isSales ? UI.state.rawData.sales : UI.state.rawData.purchases;
             historyData.forEach(doc => {
-                if (doc.status !== 'Open') { // Ignore drafts
+                if (doc.status !== 'Open') { 
                     (doc.items || []).forEach(row => {
                         freqMap[row.itemId] = (freqMap[row.itemId] || 0) + 1;
                     });
                 }
             });
 
-            // ENTERPRISE UI: Fuzzy Search applied to Product billing selection
             results = UI.state.rawData.items.filter(i => window.fuzzyMatch(query, i.name) || window.fuzzyMatch(query, i.sku));
             
             // Sort by most frequently used first, falling back to alphabetical order
             results.sort((a, b) => {
                 const freqA = freqMap[a.id] || 0;
                 const freqB = freqMap[b.id] || 0;
-                if (freqB !== freqA) return freqB - freqA; // Descending frequency
+                if (freqB !== freqA) return freqB - freqA; 
                 return (a.name || '').localeCompare(b.name || '');
             });
             
-            results.slice(0, 30).forEach(i => {
+            const emptyHTML = `
+            <div style="padding: 40px 20px; text-align: center;">
+                <div style="color: var(--md-text-muted); margin-bottom: 16px; font-size: 14px;">No products found.</div>
+                <button class="btn-primary tap-target" onclick="UI.createNewFromSearch()" style="height: 44px; min-height: 44px; padding: 0 24px; border-radius: 22px; margin: 0 auto; display: inline-flex; box-shadow: 0 4px 12px rgba(0,97,164,0.2);"><span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">add</span> Add New Product</button>
+            </div>`;
+
+            // 🚀 ENTERPRISE UPGRADE: Infinite Scroll Virtual List for Products!
+            UI.renderVirtualList(resultsContainer, results, (i) => {
                 const safeName = String(i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
+                const safeUom = String(i.uom || '').replace(/'/g, "\\'");
+                const safeHsn = String(i.hsn || '').replace(/'/g, "\\'");
                 
                 if (prefix === 'adj') {
+                    // Stock Adjustment View
                     const rawGst = parseFloat(i.stockGst);
                     const rawNon = parseFloat(i.stockNonGst);
                     const g = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
                     const ng = isNaN(rawNon) ? 0 : rawNon;
                     
-                    html += `
-                    <li class="tap-target" onclick="document.getElementById('adj-product-id').value='${i.id}'; document.getElementById('adj-product-display').innerText='${safeName} (GST: ${g} | Non: ${ng})'; document.getElementById('adj-product-display').style.color='var(--md-on-surface)'; UI.closeBottomSheet('sheet-smart-search');">
-                        <div style="display:flex; align-items:center; gap: 12px; width: 100%;">
-                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span></div>
-                            <div style="flex: 1; min-width: 0;"><strong style="font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(i.name, query)}</strong><small style="color: var(--md-text-muted);">GST: ${g} | Non-GST: ${ng}</small></div>
-                        </div>
-                    </li>`;
+                    return `
+                    <div class="m3-card tap-target" onclick="document.getElementById('adj-product-id').value='${i.id}'; document.getElementById('adj-product-display').innerText='${safeName} (GST: ${g} | Non: ${ng})'; document.getElementById('adj-product-display').style.color='var(--md-on-surface)'; UI.closeBottomSheet('sheet-smart-search');" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                        <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: var(--md-primary);"><span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span></div>
+                        <div style="flex: 1; min-width: 0;"><strong style="font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(i.name, query)}</strong><small style="color: var(--md-text-muted);">GST: ${g} | Non-GST: ${ng}</small></div>
+                    </div>`;
                 } else {
-                    const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
-                    const safeUom = String(i.uom || '').replace(/'/g, "\\'");
-                    const safeHsn = String(i.hsn || '').replace(/'/g, "\\'");
+                    // 🚀 ENTERPRISE UPGRADE: 1-Tap POS Style Adding! (Kills the Accordion)
                     const stockVal = parseFloat(i.stock) || 0;
                     const isLowStock = parseFloat(i.minStock) > 0 && stockVal <= parseFloat(i.minStock);
                     const stockStr = `<span style="display: inline-block; padding: 4px 8px; margin-top: 2px; margin-bottom: 2px; line-height: 1.2; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.1)' : (isLowStock ? 'rgba(245, 127, 23, 0.1)' : 'rgba(20, 108, 46, 0.1)')}; color: ${stockVal <= 0 ? 'var(--md-error)' : (isLowStock ? '#d84315' : 'var(--md-success)')}; border: 1px solid ${stockVal <= 0 ? 'rgba(186, 26, 26, 0.3)' : (isLowStock ? 'rgba(245, 127, 23, 0.3)' : 'rgba(20, 108, 46, 0.3)')};">${stockVal <= 0 ? 'Out of Stock' : (isLowStock ? 'Low Stock: ' + stockVal : 'In Stock: ' + stockVal)}</span>`;
                     
-                    html += `
-                    <!-- 🚨 THE SHADOW FIX: Changed from <li> to <div> so global list CSS & Ripple scripts completely ignore it! -->
-                    <div style="display: block !important; padding: 0 !important; margin-bottom: 8px !important; border: 1px solid var(--md-outline-variant) !important; border-radius: 12px !important; background: var(--md-surface) !important; overflow: hidden !important; -webkit-tap-highlight-color: transparent !important;">
+                    return `
+                    <div class="m3-card tap-target" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer;"
+                        onclick="UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', ${price}, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}, 1, true); if(window.Utils) window.Utils.showToast('✅ Added ${safeName}'); UI.closeBottomSheet('sheet-smart-search');">
                         
-                        <!-- The Article is now the ONLY tap-target! -->
-                        <article class="tap-target" style="display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: flex-start !important; gap: 12px !important; padding: 14px 16px !important; width: 100% !important; box-sizing: border-box !important; cursor: pointer !important; -webkit-tap-highlight-color: transparent !important;"
-                            onclick="const body = this.nextElementSibling; const isExpanded = body.style.display === 'flex'; document.querySelectorAll('#smart-search-results section').forEach(el => el.style.display = 'none'); if(!isExpanded) { body.style.display = 'flex'; setTimeout(() => this.parentElement.scrollIntoView({behavior:'smooth', block:'center'}), 150); }">
-                            
-                            <span class="icon-circle" style="width: 40px !important; height: 40px !important; min-width: 40px !important; background: var(--md-surface-variant) !important; color: ${stockVal <= 0 ? 'var(--md-error)' : 'var(--md-primary)'} !important; border-radius: 50% !important; display: flex !important; justify-content: center !important; align-items: center !important; flex-shrink: 0 !important; margin: 0 !important; padding: 0 !important;">
-                                <span class="material-symbols-outlined" style="font-size: 20px !important; margin: 0 !important; padding: 0 !important;">inventory_2</span>
-                            </span>
-                            <span style="flex: 1 1 auto !important; min-width: 0 !important; text-align: left !important; display: block !important; margin: 0 !important; padding: 0 !important;">
-                                <strong style="font-size: 15px !important; color: var(--md-on-surface) !important; display: block !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.2 !important; margin: 0 0 4px 0 !important;">${i.name}</strong>
-                                <span style="display: block !important;">${stockStr}</span>
-                            </span>
-                            <span style="text-align: right !important; flex-shrink: 0 !important; display: block !important; margin: 0 !important; padding: 0 !important;">
-                                <strong style="color: var(--md-primary) !important; font-size: 16px !important; line-height: 1.2 !important; display: block !important;">₹${price.toFixed(2)}</strong>
-                            </span>
-                        </article>
-
-                        <!-- 🚨 ACCORDION BODY WITH LIVE MATH & CLEAN MANUAL INPUTS -->
-                        <section style="display: none; flex-direction: column !important; padding: 0 16px 16px 16px !important; cursor: default !important; width: 100% !important; box-sizing: border-box !important;" onclick="event.stopPropagation();">
-                            <span style="display: block !important; border-top: 1px dashed var(--md-outline-variant) !important; width: 100% !important; margin-bottom: 16px !important; padding-top: 16px !important;"></span>
-                            
-                            <article style="display: flex !important; flex-direction: row !important; gap: 12px !important; margin-bottom: 12px !important; width: 100% !important;">
-                                
-                                <!-- ✨ CLEAN QTY INPUT -->
-                                <span style="flex: 1 1 50% !important; display: flex !important; flex-direction: column !important; min-width: 0 !important;">
-                                    <label style="font-size: 10px !important; color: var(--md-text-muted) !important; font-weight: 800 !important; text-transform: uppercase !important; margin-bottom: 6px !important; display: block !important;">Quantity</label>
-                                    <input type="text" inputmode="decimal" class="quick-qty" value="1" 
-                                        onclick="event.stopPropagation();" 
-                                        oninput="const sec=this.closest('section'); const q=parseFloat(sec.querySelector('.quick-qty').value)||0; const r=parseFloat(sec.querySelector('.quick-rate').value)||0; sec.querySelector('.live-preview-total').innerText = '₹' + (q*r).toFixed(2);"
-                                        style="width: 100% !important; height: 44px !important; min-height: 44px !important; border: 1px solid var(--md-outline-variant) !important; background: var(--md-surface) !important; border-radius: 8px !important; text-align: center !important; font-size: 16px !important; font-weight: 800 !important; color: var(--md-on-surface) !important; padding: 4px !important; outline: none !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; box-sizing: border-box !important; margin: 0 !important;">
-                                </span>
-
-                                <!-- ✨ CLEAN RATE INPUT -->
-                                <span style="flex: 1 1 50% !important; display: flex !important; flex-direction: column !important; min-width: 0 !important;">
-                                    <label style="font-size: 10px !important; color: var(--md-text-muted) !important; font-weight: 800 !important; text-transform: uppercase !important; margin-bottom: 6px !important; display: block !important;">Rate (₹)</label>
-                                    <input type="text" inputmode="decimal" class="quick-rate" value="${price.toFixed(2)}" 
-                                        onclick="event.stopPropagation();" 
-                                        oninput="const sec=this.closest('section'); const q=parseFloat(sec.querySelector('.quick-qty').value)||0; const r=parseFloat(sec.querySelector('.quick-rate').value)||0; sec.querySelector('.live-preview-total').innerText = '₹' + (q*r).toFixed(2);"
-                                        style="width: 100% !important; height: 44px !important; min-height: 44px !important; border: 1px solid var(--md-outline-variant) !important; background: var(--md-surface) !important; border-radius: 8px !important; text-align: center !important; font-size: 16px !important; font-weight: 800 !important; color: var(--md-on-surface) !important; padding: 4px !important; outline: none !important; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; box-sizing: border-box !important; margin: 0 !important;">
-                                </span>
-                            </article>
-
-                            <!-- ✨ UX UPGRADE: Live Subtotal Preview -->
-                            <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 12px; width: 100%;">
-                                <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 600; margin-right: 6px;">Total:</span>
-                                <strong class="live-preview-total" style="font-size: 16px; color: var(--md-primary); font-weight: 800;">₹${price.toFixed(2)}</strong>
-                            </div>
-
-                            <article style="display: flex !important; flex-direction: row !important; gap: 8px !important; width: 100% !important;">
-                                <button class="tap-target" style="flex: 1 1 50% !important; background: var(--md-surface-variant) !important; color: var(--md-on-surface) !important; border: none !important; padding: 14px !important; border-radius: 8px !important; font-size: 14px !important; font-weight: bold !important; cursor: pointer !important; margin: 0 !important;" 
-                                    onclick="event.stopPropagation(); const sec = this.closest('section'); const q = parseFloat(sec.querySelector('.quick-qty').value) || 1; const r = parseFloat(sec.querySelector('.quick-rate').value) || ${price}; UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', r, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}, q, true); document.getElementById('smart-search-input').value=''; UI.executeSmartSearch(); document.getElementById('smart-search-input').focus(); if(window.Utils) window.Utils.showToast('✅ Added & Ready for Next');">
-                                    Done & New
-                                </button>
-                                <button class="tap-target" style="flex: 1 1 50% !important; background: var(--md-primary) !important; color: #ffffff !important; border: none !important; padding: 14px !important; border-radius: 8px !important; font-size: 14px !important; font-weight: bold !important; box-shadow: 0 4px 12px rgba(0,97,164,0.3) !important; cursor: pointer !important; margin: 0 !important;" 
-                                    onclick="event.stopPropagation(); const sec = this.closest('section'); const q = parseFloat(sec.querySelector('.quick-qty').value) || 1; const r = parseFloat(sec.querySelector('.quick-rate').value) || ${price}; UI.addSmartItemRow('${prefix}', '${i.id}', '${safeName}', r, ${i.gst || 0}, '${safeUom}', '${safeHsn}', ${i.buyPrice || 0}, q, true); UI.closeBottomSheet('sheet-smart-search');">
-                                    Add to Bill
-                                </button>
-                            </article>
-                        </section>
+                        <div class="icon-circle" style="width: 40px; height: 40px; min-width: 40px; background: var(--md-surface-variant); color: ${stockVal <= 0 ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
+                        </div>
+                        
+                        <div style="flex: 1 1 auto; min-width: 0; text-align: left;">
+                            <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; margin-bottom: 4px;">${UI.highlightText(i.name, query)}</strong>
+                            ${stockStr}
+                        </div>
+                        
+                        <div style="text-align: right; flex-shrink: 0; display: flex; align-items: center; gap: 12px;">
+                            <strong style="color: var(--md-primary); font-size: 16px; line-height: 1.2;">₹${price.toFixed(2)}</strong>
+                            <span class="material-symbols-outlined" style="color: var(--md-success); font-size: 24px; background: rgba(20, 108, 46, 0.1); border-radius: 50%; padding: 4px;">add</span>
+                        </div>
                     </div>`;
                 }
-            });
-            
-            if (results.length === 0) html = `
-    <div style="padding: 40px 20px; text-align: center;">
-        <div style="color: var(--md-text-muted); margin-bottom: 16px; font-size: 14px;">No products found.</div>
-        <button class="btn-primary tap-target" onclick="UI.createNewFromSearch()" style="height: 44px; min-height: 44px; padding: 0 24px; border-radius: 22px; margin: 0 auto; display: inline-flex; box-shadow: 0 4px 12px rgba(0,97,164,0.2);"><span class="material-symbols-outlined" style="font-size: 18px; margin-right: 6px;">add</span> Add New Product</button>
-    </div>`;
+            }, emptyHTML);
         }
-
-        resultsContainer.innerHTML = html;
     },
 
     // ENTERPRISE FIX: Added 'async' lock to prevent UI crashes!
@@ -5241,8 +5210,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // 4. 🚀 ENTERPRISE UPGRADE: Global Share Engine
             if (tapTarget.id && tapTarget.id.startsWith('btn-share-')) {
                 const recordType = tapTarget.id.replace('btn-share-', '');
-                if (window.app && window.app.state && window.app.state.currentEditId) {
-                    window.app.openSmartShare(recordType, window.app.state.currentEditId);
+                const targetId = ['product', 'ledger', 'expense', 'account'].includes(recordType) ? window.app.state.currentMasterId : window.app.state.currentEditId;
+                
+                if (window.app && window.app.state && targetId) {
+                    window.app.openSmartShare(recordType, targetId);
                 } else {
                     if (window.Utils) window.Utils.showToast('Please save the document first!');
                 }
@@ -5258,8 +5229,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (idStr === 'btn-pdf-purchase') {
                     if (window.app) window.app.generatePDF('purchase');
                 } else if (idStr === 'btn-print-expense') {
-                    if (window.app && window.app.state.currentEditId && window.Utils) {
-                        window.Utils.generateExpenseVoucherPDF(window.app.state.currentEditId);
+                    const expId = window.app.state.currentMasterId || window.app.state.currentEditId;
+                    if (window.app && expId && window.Utils) {
+                        window.Utils.generateExpenseVoucherPDF(expId);
                     } else {
                         if (window.Utils) window.Utils.showToast('Please save the expense first!');
                     }
@@ -5564,7 +5536,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // UPGRADE 5: Smart Search Clear Buttons (Flagship UI)
     // Automatically injects a clear 'X' into every search bar in the entire app
-    document.querySelectorAll('.search-bar').forEach(bar => {
+    document.querySelectorAll('.search-bar, .search-container').forEach(bar => {
         const input = bar.querySelector('input');
         if (!input) return;
         
