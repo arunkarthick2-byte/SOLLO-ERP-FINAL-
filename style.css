@@ -8144,3 +8144,9 @@ html, body {
 body.dark-mode .bottom-sheet::before {
     background-color: rgba(255, 255, 255, 0.2);
 }
+/* 5. HARDWARE NOTCH PROTECTOR (TOP): Pushes header content below the iPhone/Android camera and clock */
+.app-header, .activity-header {
+    /* Adds the exact pixel height of the phone's physical notch to your header's existing padding */
+    padding-top: calc(env(safe-area-inset-top, 0px) + 16px) !important; 
+   }
+           
