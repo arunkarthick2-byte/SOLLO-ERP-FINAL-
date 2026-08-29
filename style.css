@@ -8101,3 +8101,74 @@ details.advanced-options[open] summary::after {
 .premium-input-container {
     min-width: 0 !important;
 }
+
+/* ==========================================
+   🚨 STABILITY FIX: PULL-TO-REFRESH & THEME SHIELD
+   ========================================== */
+
+/* 1. Prevents the browser from reloading the app and wiping unsaved work if the user scrolls up too hard! */
+html, body {
+    overscroll-behavior-y: none !important;
+    overscroll-behavior-x: none !important;
+}
+
+/* 2. Forces Android/iOS to respect your exact colors and prevents the OS from auto-inverting the UI! */
+:root {
+    color-scheme: light !important;
+}
+/* ==========================================
+   🚨 PREMIUM UI: NATIVE GLASSMORPHISM & SAFE AREAS
+   ========================================== */
+
+/* 1. Add Apple/Google Native Blur to all Top Headers and Bottom Navigation */
+.bottom-nav, .app-header, .activity-header {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+}
+
+/* 2. Seamlessly adapt the blur for Dark Mode */
+body.dark-mode .bottom-nav, 
+body.dark-mode .app-header, 
+body.dark-mode .activity-header {
+    background: rgba(18, 18, 18, 0.80) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* 3. HARDWARE NOTCH PROTECTOR: Forces the bottom menu above the iPhone/Android swipe bar */
+.bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+/* 4. Kill the ugly blue "tap highlight" that mobile browsers add when clicking buttons */
+* {
+    -webkit-tap-highlight-color: transparent !important;
+}
+/* ==========================================
+   🚨 PREMIUM UI: NATIVE BOTTOM SHEET DRAG HANDLE
+   ========================================== */
+
+/* 1. Automatically injects the grey "Drag Pill" at the top of every bottom sheet */
+.bottom-sheet::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 5px;
+    background-color: rgba(148, 163, 184, 0.4);
+    border-radius: 4px;
+    z-index: 99;
+}
+
+/* 2. Push the header down slightly so the text doesn't overlap the new drag handle */
+.sheet-header {
+    padding-top: 20px !important;
+    position: relative;
+}
+
+/* 3. Make the drag pill darker in Dark Mode for perfect contrast */
+body.dark-mode .bottom-sheet::before {
+    background-color: rgba(255, 255, 255, 0.2);
+}

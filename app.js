@@ -181,12 +181,6 @@ window.addEventListener('online', updateNetworkStatus);
 if (!navigator.onLine) updateNetworkStatus();
 
 
-// ENTERPRISE FIX: Removed the hazardous 'DOUBLE-CHARGE PREVENTER' from app.js!
-// ui.js already contains a vastly superior 'Anti-Clone Shield' that doesn't break HTML form validators.
-// Having both running simultaneously was causing permanent button freezes!
-
-// (Pincode engine moved inside the main 'app' object below for absolute stability!)
-
 // --- ENTERPRISE UI: REAL-TIME FORM VALIDATION LOCK ---
 // Watches every keystroke and prevents clicking "Save" until required fields are filled!
 let formValidationTimer = null;
@@ -234,11 +228,6 @@ document.addEventListener('click', (e) => {
         }, 350);
     }
 });
-
-// ENTERPRISE FIX: Completely annihilated the Global MutationObserver!
-// The app uses high-speed Virtual Lists (M3 Cards) now. This legacy observer was scanning the entire HTML body 
-// every single time a pixel changed, causing severe CPU lag, battery drain, and stuttering scrolling!
-// ---------------------------------------------
 
 // --- ENTERPRISE UI: SMART SCROLL MENU (AUTO-HIDE) ---
 // Hides the bottom navigation bar when scrolling down to give 100% screen reading space!
@@ -4613,7 +4602,6 @@ if (data.id && splitConfirmed) {
     // AUTO-COMPLETE ADVANCE PAYMENT ENGINE
     // ==========================================
     autoCompleteInvoices: async (partyId, type, triggerDate = null) => {
-        return; // <-- ADD THIS LINE HERE
 
         const isSales = (type === 'sales');
         const storeName = isSales ? 'sales' : 'purchases';

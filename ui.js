@@ -595,8 +595,6 @@ const UI = {
             const resetNavState = () => {
                 const bNav = document.querySelector('.bottom-nav');
                 if (bNav) bNav.classList.remove('nav-hidden');
-                const floatBtn = document.querySelector('.floating-action-button');
-                if (floatBtn) floatBtn.classList.remove('fab-hidden');
                 const mainContainer = document.querySelector('.main-content');
                 if (mainContainer) mainContainer.scrollTop = 0;
             };
@@ -622,8 +620,6 @@ const UI = {
                 
                 const bNav = document.querySelector('.bottom-nav');
                 if (bNav) bNav.classList.remove('nav-hidden');
-                const floatBtn = document.querySelector('.floating-action-button');
-                if (floatBtn) floatBtn.classList.remove('fab-hidden');
                 const mainContainer = document.querySelector('.main-content');
                 if (mainContainer) mainContainer.scrollTop = 0;
             });
@@ -2743,7 +2739,8 @@ const UI = {
                                     let formType = 'sales';
                                     if (!doc) { doc = UI.state.rawData.purchases.find(p => p.id === t.id); formType = 'purchase'; }
                                     if (doc) {
-                                        clickAction = `onclick="app.openForm('${formType}', '${t.id}', '${doc.documentType || 'invoice'}')"`;
+                                        // 🚨 UX FIX: Route to the Read-Only Overview Screen!
+                                        clickAction = `onclick="window.openInvoiceOverview('${formType}', '${t.id}')"`;
                                         pdfAction = `if(window.app){ window.app.state.currentEditId = '${t.id}'; window.app.generatePDF('${formType}'); }`;
                                     }
                                 }
@@ -2801,7 +2798,8 @@ const UI = {
                             let formType = 'sales';
                             if (!doc) { doc = UI.state.rawData.purchases.find(p => p.id === t.id); formType = 'purchase'; }
                             if (doc) {
-                                clickAction = `onclick="app.openForm('${formType}', '${t.id}', '${doc.documentType || 'invoice'}')"`;
+                                // 🚨 UX FIX: Route to the Read-Only Overview Screen!
+                                clickAction = `onclick="window.openInvoiceOverview('${formType}', '${t.id}')"`;
                                 pdfAction = `if(window.app){ window.app.state.currentEditId = '${t.id}'; window.app.generatePDF('${formType}'); }`;
                             }
                         } else if (title.toLowerCase().includes('expense')) {
@@ -5032,6 +5030,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const navItem = e.target.closest('.nav-item');
                 if (!navItem) return;
 
+                // 🚨 STABILITY FIX: If the tab is already active, do absolutely nothing!
+                // Prevents the screen from glitching or reloading if the user double-taps the current tab.
+                if (navItem.classList.contains('active')) return;
+
                 // Extract our clean data attributes
                 const tabId = navItem.getAttribute('data-tab');
                 const title = navItem.getAttribute('data-title');
@@ -5428,7 +5430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target) {
             // 🚀 ENTERPRISE UPGRADE: Consolidated Single-Fire Haptic Motor!
             if (typeof window.UI !== 'undefined' && typeof window.UI.triggerHaptic === 'function') {
-                if (target.classList.contains('btn-primary') || target.id === 'main-fab') {
+                if (target.classList.contains('btn-primary')) {
                     window.UI.triggerHaptic('medium'); 
                 } else {
                     window.UI.triggerHaptic('light'); 
