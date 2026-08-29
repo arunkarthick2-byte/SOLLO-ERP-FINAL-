@@ -8117,34 +8117,6 @@ html, body {
     color-scheme: light !important;
 }
 /* ==========================================
-   🚨 PREMIUM UI: NATIVE GLASSMORPHISM & SAFE AREAS
-   ========================================== */
-
-/* 1. Add Apple/Google Native Blur to all Top Headers and Bottom Navigation */
-.bottom-nav, .app-header, .activity-header {
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-}
-
-/* 2. Seamlessly adapt the blur for Dark Mode */
-body.dark-mode .bottom-nav, 
-body.dark-mode .app-header, 
-body.dark-mode .activity-header {
-    background: rgba(18, 18, 18, 0.80) !important;
-    border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* 3. HARDWARE NOTCH PROTECTOR: Forces the bottom menu above the iPhone/Android swipe bar */
-.bottom-nav {
-    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-}
-
-/* 4. Kill the ugly blue "tap highlight" that mobile browsers add when clicking buttons */
-* {
-    -webkit-tap-highlight-color: transparent !important;
-}
-/* ==========================================
    🚨 PREMIUM UI: NATIVE BOTTOM SHEET DRAG HANDLE
    ========================================== */
 
