@@ -8115,10 +8115,9 @@ input, textarea, select {
    ========================================== */
 #tab-workspace .search-bar {
     margin-top: 0 !important;
-    position: relative !important;
-    z-index: 10 !important;
-}
-
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 95 !important;
 /* ==========================================
    🚨 SOLLO FIX: MASTER & EXPENSE LEDGER OVERLAP
    ========================================== */
