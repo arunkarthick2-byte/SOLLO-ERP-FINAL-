@@ -4788,55 +4788,6 @@
             }, { passive: true });
 
             // ==========================================
-            // 🚀 ELITE UPGRADE: CHAMELEON STATUS BAR ENGINE
-            // ==========================================
-            // Automatically samples the exact background color of your currently active screen 
-            // and forces the phone's status bar to seamlessly melt into it!
-            const themeMeta = document.getElementById('meta-theme-color');
-            const sheetOverlay = document.getElementById('sheet-overlay');
-
-            if (themeMeta) {
-                const syncStatusBar = () => {
-                    const isDark = document.body.classList.contains('dark-mode');
-                    
-                    // 1. If a bottom sheet is open, dim the status bar beautifully
-                    if (sheetOverlay && !sheetOverlay.classList.contains('hidden')) {
-                        themeMeta.setAttribute('content', isDark ? '#080c17' : '#64748b'); 
-                        return;
-                    }
-
-                    // 2. Check if a full-screen Activity (like Sales, Purchase, or Payment) is open
-                    const openActivity = document.querySelector('.activity-screen.open');
-                    if (openActivity) {
-                        const header = openActivity.querySelector('.activity-header');
-                        if (header) {
-                            // Extract the exact color of the header and paint the status bar!
-                            const bgColor = window.getComputedStyle(header).backgroundColor;
-                            if (bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-                                themeMeta.setAttribute('content', bgColor);
-                                return;
-                            }
-                        }
-                    }
-
-                    // 3. Default state (Dashboard/Home)
-                    themeMeta.setAttribute('content', isDark ? '#0f172a' : '#ffffff');
-                };
-
-                // Watch for bottom sheets opening/closing
-                if (sheetOverlay) {
-                    new MutationObserver(syncStatusBar).observe(sheetOverlay, { attributes: true, attributeFilter: ['class'] });
-                }
-
-                // 🚨 PERFORMANCE FIX: Destroyed the heavy subtree MutationObserver!
-                // Watching the entire app for class changes and running getComputedStyle caused severe Layout Thrashing and battery drain.
-                // Status bar colors are already handled natively by the UI routing engine!
-
-                // Watch for Dark Mode toggling
-                new MutationObserver(syncStatusBar).observe(document.body, { attributes: true, attributeFilter: ['class'] });
-            }
-
-            // ==========================================
             // ENTERPRISE UPGRADE: SMART KEYBOARD CAPITALIZATION
             // ==========================================
             // Forces mobile keyboards to automatically capitalize names, products, and cities!
