@@ -8178,4 +8178,25 @@ body.dark-mode #activity-master-view .search-bar,
 body.dark-mode #activity-expense-ledger .search-bar {
     background: rgba(15, 23, 42, 0.85) !important;
                      }
-           
+
+   /* ==========================================
+   🚨 SOLLO FIX: GLOBAL HEADER OVERLAP SHIELD
+   ========================================== */
+/* 1. Force ALL activity headers into the natural document flow (relative) */
+html body #app-shell .activity-screen .activity-header {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 64px !important;
+    /* Safely absorb the camera notch without ever covering content */
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 12px !important;
+    z-index: 100 !important;
+}
+
+/* 2. Strip the hardcoded "push down" spacing from ALL activity contents */
+html body #app-shell .activity-screen .activity-content {
+    padding-top: 0 !important;
+}
