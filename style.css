@@ -1085,7 +1085,7 @@ body.dark-mode .skeleton {
     position: fixed !important; 
     top: calc(12px + env(safe-area-inset-top, 0px)) !important; 
     left: 50% !important;
-    transform: translateX(-50%) translateY(-400%) !important; 
+    transform: translateX(-50%) translateY(-150%) !important; 
     width: auto !important;
     min-width: 220px;
     
