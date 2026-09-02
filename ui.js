@@ -535,23 +535,6 @@ const UI = {
                 svg.parentNode.replaceChild(newSvg, svg);
             }
 
-            // 🚀 PAYMENT CONFETTI ENGINE
-            for(let i=0; i<30; i++) {
-                const conf = document.createElement('div');
-                conf.className = 'confetti-particle';
-                conf.style.left = '50%';
-                conf.style.top = '50%';
-                const angle = Math.random() * Math.PI * 2;
-                const velocity = 50 + Math.random() * 150;
-                const tx = Math.cos(angle) * velocity;
-                const ty = Math.sin(angle) * velocity;
-                conf.style.setProperty('--tx', `${tx}px`);
-                conf.style.setProperty('--ty', `${ty}px`);
-                const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6'];
-                conf.style.background = colors[Math.floor(Math.random() * colors.length)];
-                el.appendChild(conf);
-                setTimeout(() => conf.remove(), 1000);
-            }
 
             if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]); 
             setTimeout(() => el.classList.add('hidden'), 1500); 
@@ -3432,6 +3415,7 @@ const UI = {
         if (overlay) {
             overlay.classList.remove('hidden');
             overlay.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // 🚨 PREMIUM UX: Lock background scroll
             void overlay.offsetWidth; 
             requestAnimationFrame(() => overlay.classList.add('open'));
         }
@@ -3548,7 +3532,10 @@ const UI = {
                 sheet.style.zIndex = ''; 
             }
             const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
-            if (currentlyOpen === 0 && overlay) overlay.classList.add('hidden');
+            if (currentlyOpen === 0 && overlay) {
+                overlay.classList.add('hidden');
+                document.body.style.overflow = ''; // 🚨 PREMIUM UX: Unlock background scroll
+            }
             window.softwareBackLock = false;
         });
 
@@ -3755,6 +3742,8 @@ const UI = {
             }, emptyHTML);
         }
     },
+    
+
 
     // ENTERPRISE FIX: Added 'async' lock to prevent UI crashes!
     selectSmartParty: async (typeId, id, name) => {
@@ -3950,7 +3939,10 @@ const UI = {
             setTimeout(() => {
                 // STRICT ERP LOGIC: Re-check dynamically so rapid tapping doesn't break the background!
                 const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
-                if (currentlyOpen === 0) overlay.classList.add('hidden');
+                if (currentlyOpen === 0) {
+                    overlay.classList.add('hidden');
+                    document.body.style.overflow = ''; // 🚨 PREMIUM UX: Unlock background scroll
+                }
             }, 300);
             closedSomething = true;
         }
@@ -5437,21 +5429,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // True Material Touch Ripple (Calculates exact X/Y finger coordinates)
-            const rect = target.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            const ripple = document.createElement('span');
-            ripple.classList.add('ripple');
-            
-            // Center the ripple exactly under the finger
-            ripple.style.left = `${x}px`;
-            ripple.style.top = `${y}px`;
-            
-            // FIXED: Restored the missing ripple cleanup!
-            target.appendChild(ripple);
-            setTimeout(() => { if(ripple.parentElement) ripple.remove(); }, 600);
         }
     });
 
@@ -5536,32 +5513,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const sortMasterView = document.getElementById('sort-master-view');
     if (sortMasterView) sortMasterView.addEventListener('change', () => UI.applyFilters('masters'));
 
-    // UPGRADE 5: Smart Search Clear Buttons (Flagship UI)
-    // Automatically injects a clear 'X' into every search bar in the entire app
-    document.querySelectorAll('.search-bar, .search-container').forEach(bar => {
-        const input = bar.querySelector('input');
-        if (!input) return;
-        
-        const clearBtn = document.createElement('span');
-        clearBtn.className = 'material-symbols-outlined tap-target hidden';
-        clearBtn.innerText = 'close';
-        clearBtn.style.cssText = 'font-size: 16px; color: var(--md-on-surface-variant); padding: 4px; margin-left: 4px; margin-right: 4px; border-radius: 50%; background: var(--md-surface-variant); cursor: pointer;';
-        
-        input.parentNode.insertBefore(clearBtn, input.nextSibling);
-
-        input.addEventListener('input', () => {
-            if (input.value.length > 0) clearBtn.classList.remove('hidden');
-            else clearBtn.classList.add('hidden');
-        });
-
-        clearBtn.addEventListener('click', () => {
-            input.value = '';
-            clearBtn.classList.add('hidden');
-            input.focus(); 
-            // 🚨 BUG FIX: Added { bubbles: true } so the Master List detects the clear command!
-            input.dispatchEvent(new Event('input', { bubbles: true })); 
-        });
-    });
 
     // UPGRADE 6: Swipe-to-Switch Main Tabs (Gesture Navigation)
     let touchStartX = 0;
@@ -6853,3 +6804,4 @@ document.addEventListener('scroll', (e) => {
         }
     }
 }, { capture: true, passive: true });
+

@@ -2007,7 +2007,7 @@ Please process this accordingly. Thank you!`;
                 previewContent.style.justifyContent = 'flex-start';
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                    if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
+                    if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -2426,7 +2426,7 @@ Please process this accordingly. Thank you!`;
                 previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
-                    if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
+                    if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -2829,7 +2829,7 @@ Please process this accordingly. Thank you!`;
                 previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
-                    if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
+                    if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -3459,7 +3459,7 @@ Please process this accordingly. Thank you!`;
                 previewContent.style.justifyContent = 'flex-start'; // 🚨 NEW: Fixes the missing first page scroll bug
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
-                    if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
+                    if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -3990,7 +3990,7 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
             previewContent.style.justifyContent = 'flex-start'; // 🚨 FIX: Shows the first page correctly!
 
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
+                if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                 const viewport = page.getViewport({ scale: 1.5 });
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
@@ -4385,7 +4385,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             previewContent.style.justifyContent = 'flex-start'; // 🚨 FIX: Shows the first page correctly!
 
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                if (!document.getElementById('in-app-pdf-viewer')) break; if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
+                if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                 const viewport = page.getViewport({ scale: 1.5 });
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');

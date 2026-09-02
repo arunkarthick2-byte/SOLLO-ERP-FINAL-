@@ -129,6 +129,8 @@ self.addEventListener('message', async function(e) {
             totalValuation: totalValuation,
             lowStockItems: lowStockItems
         });
+    } catch (error) {
+        console.error("Worker Inventory Error:", error);
     }
     
     if (data.command === 'CALCULATE_AGING') {

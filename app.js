@@ -121,64 +121,6 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 
-// --- ENTERPRISE UPGRADE: LIVE NETWORK HEARTBEAT BANNER ---
-const updateNetworkStatus = async () => {
-    let banner = document.getElementById('offline-banner');
-    // Dynamically inject the banner into the HTML if it doesn't exist yet
-    if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'offline-banner';
-        banner.className = 'offline-banner'; // Let your premium CSS handle all styling!
-        document.body.appendChild(banner);
-    }
-    
-    // 🚨 CRITICAL FIX: The "Fake Online" Tracker
-    // Browsers lie. navigator.onLine only means you are connected to a router, NOT the internet!
-    let hasTrueInternet = false;
-    if (navigator.onLine) {
-        try {
-            // Ping a tiny, un-cacheable Google pixel to verify actual world-wide-web connectivity
-            await fetch('https://www.google.com/favicon.ico?' + Math.random(), { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
-            hasTrueInternet = true;
-        } catch (err) {
-            hasTrueInternet = false;
-        }
-    }
-
-    if (!hasTrueInternet) {
-        // Drop down the red warning banner
-        banner.className = 'offline-banner show'; // Removes the green 'online' class
-        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_off</span> ' + (navigator.onLine ? 'No internet connection. Working locally.' : 'You are offline. Working locally.');
-        
-        // 🚨 ENTERPRISE FIX: Trigger the Offline Queue Counter!
-        if (window.app && typeof window.app.checkPendingSyncs === 'function') {
-            window.app.checkPendingSyncs();
-        }
-    } else {
-        // Turn it green, tell them they are connected, then slide it away after 3 seconds
-        banner.className = 'offline-banner show online';
-        banner.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_done</span> Back online. Sync ready.';
-        
-        if (window.networkBannerTimeout) clearTimeout(window.networkBannerTimeout);
-        window.networkBannerTimeout = setTimeout(() => { banner.classList.remove('show'); }, 3000);
-
-        // ENTERPRISE UPGRADE: SMART AUTO-RECOVERY
-        // The moment internet is restored, silently push all offline work to Google Drive!
-        if (typeof Cloud !== 'undefined' && typeof Cloud.autoBackup === 'function') {
-            if (typeof gapi !== 'undefined' && gapi.client && gapi.client.getToken() !== null) {
-                // ENTERPRISE FIX: Debounce the connection! 
-                // If 4G flickers rapidly, this prevents 5 simultaneous backups from corrupting the Google Drive file!
-                if (window.cloudSyncTimeout) clearTimeout(window.cloudSyncTimeout);
-                window.cloudSyncTimeout = setTimeout(() => Cloud.autoBackup(), 2000);
-            }
-        }
-    }
-};
-
-window.addEventListener('offline', updateNetworkStatus);
-window.addEventListener('online', updateNetworkStatus);
-// Run once on boot just in case they open the app while already offline
-if (!navigator.onLine) updateNetworkStatus();
 
 
 // --- ENTERPRISE UI: REAL-TIME FORM VALIDATION LOCK ---

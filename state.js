@@ -88,6 +88,32 @@ window.createObservableArray = function(initialArray, containerId, renderCallbac
                 };
             }
             
+            // 🚀 ENTERPRISE UPGRADE: High-Speed Batch Renderer
+            // Injects hundreds of items in a single frame using a Document Fragment!
+            if (property === 'pushBatch') {
+                return function(itemsArray) {
+                    const actualContainer = document.getElementById(containerId);
+                    if (actualContainer && Array.isArray(itemsArray)) {
+                        const fragment = document.createDocumentFragment();
+                        const tempDiv = document.createElement('div');
+                        
+                        itemsArray.forEach(item => {
+                            target.push(item); // Add to the underlying data array quietly
+                            tempDiv.innerHTML = renderCallback(item);
+                            while (tempDiv.firstChild) {
+                                fragment.appendChild(tempDiv.firstChild);
+                            }
+                        });
+                        
+                        // Push all elements to the screen at the exact same millisecond
+                        requestAnimationFrame(() => {
+                            actualContainer.appendChild(fragment);
+                        });
+                    }
+                    return target.length;
+                };
+            }
+
             // Intercept the array.splice() method (for deletions)
             if (property === 'splice') {
                 return function(...args) {

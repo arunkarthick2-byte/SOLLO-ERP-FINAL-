@@ -10,9 +10,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" id="meta-theme-color" content="#ffffff">
     
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
     <title>SOLLO ERP</title>
 
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -63,6 +60,8 @@
     <link rel="manifest" href="./manifest.json"> 
     ​<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <!-- 🚨 Controls the color of the mobile status bar -->
+    <meta id="meta-theme-color" name="theme-color" content="#ffffff">
 
 
     <!-- 🚨 SOLLO FIX: SMART BANNER RELOCATOR (Removed to prevent battery drain) -->
@@ -4675,13 +4674,6 @@
             if (savedTheme && document.getElementById('profile-invoice-theme')) {
                 document.getElementById('profile-invoice-theme').value = savedTheme;
             }
-
-            // UPGRADE: Trigger Silent Background Backup Check on Boot
-            setTimeout(() => {
-                if (window.Cloud && typeof window.Cloud.autoBackup === 'function') {
-                    window.Cloud.autoBackup();
-                }
-            }, 5000); // Wait 5 seconds so it doesn't slow down the app startup
 
             // ENTERPRISE UPGRADE: Dynamic DatePicker Initialization
             const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];

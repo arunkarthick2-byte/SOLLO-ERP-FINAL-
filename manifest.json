@@ -5,9 +5,8 @@
   "description": "Professional Accounting, Billing, and Inventory Management System",
   "start_url": "/?source=pwa",
   "scope": "/",
-  "display": "fullscreen",
+  "display": "standalone",
   "display_override": [
-    "fullscreen",
     "standalone",
     "minimal-ui"
   ],
