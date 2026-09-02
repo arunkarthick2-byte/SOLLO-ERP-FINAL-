@@ -485,7 +485,7 @@
                 <!-- 2. TRANSACTIONS VIEW -->
                 <div id="ws-view-trans" class="hidden">
                     <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                        <button id="ws-pill-sales" type="button" onclick="switchTransView('sales')" style="white-space: nowrap; padding: 6px 16px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 13px; font-weight: bold;">Sales</button>
+                        <button id="ws-pill-sales" type="button" onclick="switchTransView('sales')" style="white-space: nowrap; padding: 6px 16px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: var(--md-on-primary); font-size: 13px; font-weight: bold;">Sales</button>
                         <button id="ws-pill-purchases" type="button" onclick="switchTransView('purchases')" style="white-space: nowrap; padding: 6px 16px; border-radius: 16px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface); font-size: 13px; font-weight: bold;">Purchases</button>
                         <button id="ws-pill-cashbook" type="button" onclick="switchTransView('cashbook')" style="white-space: nowrap; padding: 6px 16px; border-radius: 16px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface); font-size: 13px; font-weight: bold;">Cashbook</button>
                     </div>
@@ -621,7 +621,7 @@
                             const pill = document.getElementById('ws-pill-' + t);
                             if(t === type) {
                                 pill.style.background = 'var(--md-primary)';
-                                pill.style.color = 'white';
+                                pill.style.color = 'var(--md-on-primary)';
                                 pill.style.borderColor = 'var(--md-primary)';
                             } else {
                                 pill.style.background = 'var(--md-surface)';

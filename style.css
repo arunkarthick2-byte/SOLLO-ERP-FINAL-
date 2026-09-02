@@ -8110,3 +8110,11 @@ input, textarea, select {
         padding-bottom: 20px !important; 
     }
 }
+/* ==========================================
+   🚨 SOLLO FIX: WORKSPACE SEARCH BAR OVERLAP
+   ========================================== */
+#tab-workspace .search-bar {
+    margin-top: 0 !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
