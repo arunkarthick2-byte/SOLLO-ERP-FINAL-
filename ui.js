@@ -315,7 +315,7 @@ const UI = {
             if (metaTheme) metaTheme.setAttribute('content', '#000000');
         } else {
             document.body.classList.remove('dark-mode');
-            if (metaTheme) metaTheme.setAttribute('content', '#ffffff');
+            if (metaTheme) metaTheme.setAttribute('content', '#F7F9FC');
         }
 
         // The Live OS Listener: Only auto-switch if the user HAS NOT manually locked a preference
@@ -339,7 +339,7 @@ const UI = {
         localStorage.setItem('sollo_theme_preference', isDark ? 'dark' : 'light');
         
         const metaTheme = document.getElementById('meta-theme-color');
-        if (metaTheme) metaTheme.setAttribute('content', isDark ? '#000000' : '#ffffff');
+        if (metaTheme) metaTheme.setAttribute('content', isDark ? '#000000' : '#F7F9FC');
         
         if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('medium');
     },
@@ -358,8 +358,7 @@ const UI = {
     resetStatusBarColor: () => {
         const isDark = document.body.classList.contains('dark-mode');
         const metaTheme = document.getElementById('meta-theme-color');
-        // 🚨 ENTERPRISE FIX: Permanently lock the light-mode status bar to pure white (#ffffff) instead of blue!
-        if (metaTheme) metaTheme.setAttribute('content', isDark ? '#111315' : '#ffffff');
+        if (metaTheme) metaTheme.setAttribute('content', isDark ? '#000000' : '#F7F9FC');
     },
 
     setStatusBarColor: (color) => {
@@ -704,7 +703,11 @@ const UI = {
         if (activityId.includes('-form') && window.isFormDirty) {
             // 🚨 ENTERPRISE UPGRADE: Beautiful Custom Confirm Dialog
             const isConfirmed = await window.Utils.confirmModal("Discard this document? All unsaved items will be permanently lost.", "Discard", true);
-            if (!isConfirmed) return;
+            if (!isConfirmed) {
+                // 🚨 CRITICAL FIX: Restore the consumed history state!
+                window.history.pushState({ internalRoute: true }, '');
+                return;
+            }
         }
 
         window.isFormDirty = false;
@@ -842,6 +845,9 @@ const UI = {
         if (type === 'adjustments') {
             const searchInput = document.getElementById('search-master-view');
             if (searchInput && searchInput.parentElement) searchInput.parentElement.style.display = 'none';
+            
+            const badge = document.getElementById('sum-masters');
+            if (badge) badge.style.display = 'none';
 
             // ENTERPRISE FIX: Ensure multi-company data isolation for the Stock Ledger
             const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
@@ -955,18 +961,21 @@ const UI = {
     },
 
     renderRowWiseItem: (title, subtitle, rightText, rightSub, icon, iconColor, onClickAction) => {
+        // Automatically tint the background to match the icon color!
+        const bgTint = iconColor.includes('success') || iconColor === '#16a34a' ? 'rgba(20, 108, 46, 0.08)' : (iconColor.includes('error') || iconColor === '#ba1a1a' ? 'rgba(186, 26, 26, 0.08)' : 'rgba(0, 97, 164, 0.08)');
+        
         return `
-        <div class="m3-card tap-target virtual-item" style="padding: 12px; margin-bottom: 8px; border-radius: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.1);" onclick="${onClickAction}">
-            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${iconColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
+        <div class="m3-card tap-target virtual-item" style="padding: 14px 16px; margin-bottom: 10px; border-radius: 12px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);" onclick="${onClickAction}">
+            <div class="icon-circle" style="width: 44px; height: 44px; background: ${bgTint}; color: ${iconColor}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
+                <span class="material-symbols-outlined" style="font-size: 22px;">${icon}</span>
             </div>
             <div style="flex: 1; min-width: 0; overflow: hidden;">
-                <strong style="font-size: 14px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</strong>
-                <small style="color: var(--md-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${subtitle}</small>
+                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${title}</strong>
+                <small style="font-size: 12px; font-weight: 600; color: var(--md-text-muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${subtitle}</small>
             </div>
             <div style="text-align: right; flex-shrink: 0;">
-                <strong style="font-size: 14px; color: var(--md-on-surface);">${rightText}</strong><br>
-                <small style="color: var(--md-text-muted);">${rightSub}</small>
+                <strong style="font-size: 16px; color: ${iconColor}; display: block; margin-bottom: 4px;">${rightText}</strong>
+                <small style="font-size: 11px; font-weight: 700; color: var(--md-text-muted);">${rightSub}</small>
             </div>
         </div>`;
     },
@@ -1591,13 +1600,15 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div class="empty-state">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                    <p style="margin: 0 0 16px 0; font-size: 16px;">No sales invoices match your filters.</p>
-                    <button class="btn-primary" onclick="app.openForm('sales', null, 'invoice')">+ Create Sales Invoice</button>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
+                    <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(0, 97, 164, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                        <span class="material-symbols-outlined" style="font-size: 36px; color: var(--md-primary);">receipt_long</span>
+                    </div>
+                    <strong style="font-size: 18px; color: var(--md-on-surface); margin-bottom: 8px;">No Sales Invoices</strong>
+                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 24px 0; line-height: 1.4;">You haven't created any invoices that match these filters yet.</p>
+                    <button class="tap-target" onclick="app.openForm('sales', null, 'invoice')" style="background: var(--md-primary); color: #ffffff; border: none; padding: 12px 24px; border-radius: 24px; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.2);">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">add</span> Create Invoice
+                    </button>
                 </div>`;
 
                 UI.renderVirtualList(container, data, (s) => {
@@ -1681,15 +1692,15 @@ const UI = {
                             </div>
                         </div>
 
-                        <div style="display: flex; justify-content: space-between; align-items: center; min-height: 36px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
                             <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
                                 ${warningHTML}
                             </div>
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('sales', '${s.id}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('sales', '${s.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(22, 163, 74, 0.1); color: #16a34a; display: flex; align-items: center; justify-content: center;">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
                                 </div>
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                 </div>
                             </div>
@@ -1777,13 +1788,15 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div class="empty-state">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="var(--md-outline-variant)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    <p style="margin: 0 0 16px 0; font-size: 16px;">No purchase bills match your filters.</p>
-                    <button class="btn-primary" onclick="app.openForm('purchase', null, 'invoice')">+ Create Purchase Bill</button>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
+                    <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(245, 127, 23, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                        <span class="material-symbols-outlined" style="font-size: 36px; color: #f57f17;">local_shipping</span>
+                    </div>
+                    <strong style="font-size: 18px; color: var(--md-on-surface); margin-bottom: 8px;">No Purchase Bills</strong>
+                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 24px 0; line-height: 1.4;">You haven't recorded any purchases that match these filters yet.</p>
+                    <button class="tap-target" onclick="app.openForm('purchase', null, 'invoice')" style="background: #f57f17; color: #ffffff; border: none; padding: 12px 24px; border-radius: 24px; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(245, 127, 23, 0.2);">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">add</span> Create Purchase Bill
+                    </button>
                 </div>`;
 
                 UI.renderVirtualList(container, data, (p) => {
@@ -1852,15 +1865,15 @@ const UI = {
         </div>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; min-height: 36px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
         <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
             ${warningHTML}
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('purchases', '${p.id}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('purchases', '${p.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(22, 163, 74, 0.1); color: #16a34a; display: flex; align-items: center; justify-content: center;">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
             </div>
-            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${p.id}'; window.app.generatePDF('purchase'); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${p.id}'; window.app.generatePDF('purchase'); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                 <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
             </div>
         </div>
@@ -2024,38 +2037,36 @@ const UI = {
 
                     const safeName = String(i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
-                    <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;" onclick="app.openForm('product', '${i.id}')">
+                    <div class="m3-card tap-target" style="padding: 14px 16px; margin-bottom: 10px; border-radius: 12px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); position: relative; overflow: hidden;" onclick="app.openForm('product', '${i.id}')">
                         
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
+                        <!-- Top Row: Icon, Name, Price -->
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <div class="icon-circle" style="width: 44px; height: 44px; background: rgba(0, 97, 164, 0.08); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
+                                <span class="material-symbols-outlined" style="font-size: 22px;">inventory_2</span>
                             </div>
-                            <div style="flex: 1; min-width: 0; padding-right: 8px; display: flex; flex-direction: column; min-height: 48px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; word-wrap: break-word; line-height: 1.2; font-weight: 700;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${stockLabel}</small>
+                            
+                            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding-top: 2px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-bottom: 6px;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 11px; font-weight: 800; color: ${isLowStock ? 'var(--md-error)' : 'var(--md-text-muted)'}; background: ${isLowStock ? 'rgba(186, 26, 26, 0.08)' : 'var(--md-surface-variant)'}; padding: 2px 6px; border-radius: 4px;">Tot: ${currentStock} ${i.uom || ''}</span>
+                                    <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">GST: ${gstStock} | Non: ${nonGstStock}</span>
+                                </div>
                             </div>
-                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; min-height: 48px;">
-                                <strong style="font-size: 16px; color: var(--md-on-surface); line-height: 1.2;">\u20B9${(i.sellPrice || 0).toFixed(2)}</strong>
-                                <small style="color: var(--md-text-muted); display: inline-block; margin-top: 4px; font-weight: 600;">Buy: \u20B9${(i.buyPrice || 0).toFixed(2)}</small>
+                            
+                            <div style="text-align: right; flex-shrink: 0; padding-top: 2px;">
+                                <strong style="font-size: 16px; color: var(--md-on-surface); display: block; margin-bottom: 4px;">₹${(i.sellPrice || 0).toFixed(2)}</strong>
+                                <small style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">Buy: ₹${(i.buyPrice || 0).toFixed(2)}</small>
                             </div>
                         </div>
 
-                        <!-- 🚀 NEW: Action Icon Grid -->
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px; padding-top: 8px;">
-                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                
-                                <!-- QUICK NATIVE SHARE -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) { window.triggerItemLedgerFromForm('${i.id}', '${safeName}'); setTimeout(() => { if(navigator.share) { navigator.share({title: '${safeName} Stock Ledger', text: 'Please find the stock ledger attached.'}).catch(console.error); } else if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
-                                </div>
-                                
-                                <!-- QUICK VECTOR PDF -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) { window.triggerItemLedgerFromForm('${i.id}', '${safeName}'); setTimeout(() => { if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                        <!-- Bottom Row: Minimal Action Icons -->
+                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
+                            <div style="display: flex; gap: 8px;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) { window.triggerItemLedgerFromForm('${i.id}', '${safeName}'); setTimeout(() => { if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                 </div>
                                 
-                                <!-- ITEM LEDGER (HISTORY) MENU -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${i.id}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${i.id}', '${safeName}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
                                 </div>
                             </div>
@@ -2166,41 +2177,34 @@ const UI = {
                     // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
                     const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
-                    <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                    <div class="m3-card tap-target" style="padding: 14px 16px; margin-bottom: 10px; border-radius: 12px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); position: relative; overflow: hidden;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
                         
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-                            <div class="icon-circle" style="width: 40px; height: 40px; background: var(--md-surface-variant); color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
+                        <!-- Top Row: Icon, Name, Balance -->
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <div class="icon-circle" style="width: 44px; height: 44px; background: rgba(0, 97, 164, 0.08); color: ${rowColor}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
+                                <span class="material-symbols-outlined" style="font-size: 22px;">${rowIcon}</span>
                             </div>
-                            <div style="flex: 1; min-width: 0; padding-right: 8px; display: flex; flex-direction: column; min-height: 48px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
-                                <!-- 🚨 ROOT FIX: Invisible structural lock for Tax Badges -->
-                                <div style="min-height: 20px; margin-top: 4px; display: flex; align-items: center;">${taxHtml ? taxHtml : ''}</div>
+                            
+                            <div style="flex: 1; min-width: 0; padding-right: 8px; display: flex; flex-direction: column; justify-content: center; padding-top: 2px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700; margin-bottom: 4px;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
+                                <small style="color: var(--md-text-muted); display: block; font-size: 12px; font-weight: 600;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
+                                <div style="margin-top: 6px; display: flex; align-items: center;">${taxHtml ? taxHtml : ''}</div>
                             </div>
-                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start; min-height: 48px;">
+                            
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; padding-top: 2px;">
                                 <strong style="font-size: 16px; color: ${balColor}; line-height: 1.2;">${balText}</strong>
-                                <!-- 🚨 ROOT FIX: Invisible structural lock for Status Badges -->
-                                <div style="min-height: 20px; display: flex; align-items: flex-start; margin-top: 4px;">${statusBadge ? statusBadge : ''}</div>
+                                <div style="display: flex; align-items: flex-start; margin-top: 6px;">${statusBadge ? statusBadge : ''}</div>
                             </div>
                         </div>
 
-                        <!-- 🚀 NEW: Action Icon Grid -->
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px; padding-top: 8px;">
-                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                
-                                <!-- QUICK NATIVE SHARE (WITH STEALTH CLOSE) -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(navigator.share) { navigator.share({title: '${safeName} Ledger', text: 'Please find the ledger statement attached.'}).catch(console.error); } else if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-party-ledger'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">share</span>
-                                </div>
-                                
-                                <!-- QUICK VECTOR PDF (WITH STEALTH CLOSE) -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-party-ledger'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                        <!-- Bottom Row: Minimal Action Icons -->
+                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
+                            <div style="display: flex; gap: 8px;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-party-ledger'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                 </div>
                                 
-                                <!-- KHATA BOOK MENU -->
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">menu_book</span>
                                 </div>
                             </div>
@@ -2250,13 +2254,13 @@ const UI = {
                         </div>
 
                         <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
-                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <button class="tap-target" style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="app.restoreRecord('${t.id}', '${t._module}')">
-                                    <span class="material-symbols-outlined" style="font-size: 16px;">restore</span> Restore
-                                </button>
-                                <button class="tap-target" style="padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(186, 26, 26, 0.3); background: rgba(186, 26, 26, 0.05); color: var(--md-error); font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="app.permanentlyDeleteRecord('${t.id}')">
-                                    <span class="material-symbols-outlined" style="font-size: 16px;">delete_forever</span> Delete
-                                </button>
+                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; margin-top: 4px;">
+                                <div class="tap-target" onclick="app.restoreRecord('${t.id}', '${t._module}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">restore</span>
+                                </div>
+                                <div class="tap-target" onclick="app.permanentlyDeleteRecord('${t.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">delete_forever</span>
+                                </div>
                             </div>
                         </div>
                     </div>`;
@@ -2312,10 +2316,15 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div class="empty-state">
-                    <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-surface-variant);">account_balance_wallet</span>
-                    <p style="margin: 12px 0;">No expenses match your filters.</p>
-                    <button class="btn-primary" onclick="app.openForm('expense')">+ Log New Expense</button>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
+                    <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(186, 26, 26, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                        <span class="material-symbols-outlined" style="font-size: 36px; color: var(--md-error);">account_balance_wallet</span>
+                    </div>
+                    <strong style="font-size: 18px; color: var(--md-on-surface); margin-bottom: 8px;">No Expenses Logged</strong>
+                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 24px 0; line-height: 1.4;">You haven't recorded any expenses that match these filters yet.</p>
+                    <button class="tap-target" onclick="app.openForm('expense')" style="background: var(--md-error); color: #ffffff; border: none; padding: 12px 24px; border-radius: 24px; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(186, 26, 26, 0.2);">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">add</span> Log New Expense
+                    </button>
                 </div>`;
 
                 UI.renderVirtualList(container, data, (e) => {
@@ -2349,9 +2358,9 @@ const UI = {
                             </div>
                         </div>
 
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
+                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.generateExpenseVoucherPDF('${e.id}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.generateExpenseVoucherPDF('${e.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                 </div>
                             </div>
@@ -2462,9 +2471,12 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div class="empty-state">
-                    <span class="material-symbols-outlined" style="font-size: 64px; color: var(--md-surface-variant);">account_balance</span>
-                    <p style="margin: 12px 0;">No bank transactions match your filters.</p>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
+                    <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(0, 97, 164, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                        <span class="material-symbols-outlined" style="font-size: 36px; color: var(--md-primary);">account_balance</span>
+                    </div>
+                    <strong style="font-size: 18px; color: var(--md-on-surface); margin-bottom: 8px;">No Bank Transactions</strong>
+                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0; line-height: 1.4;">No transactions match your current bank or cashbook filters.</p>
                 </div>`;
 
                 UI.renderVirtualList(container, data, (t) => {
@@ -2537,9 +2549,9 @@ const UI = {
                             </div>
                         </div>
 
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
+                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
                             <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <div class="tap-target" onclick="event.stopPropagation(); if(window.app) window.app.generateReceiptPDF('${t.id}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                <div class="tap-target" onclick="event.stopPropagation(); if(window.app) window.app.generateReceiptPDF('${t.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                     <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                 </div>
                             </div>
@@ -2625,7 +2637,14 @@ const UI = {
 
             const container = document.getElementById(containerId);
             if (container) {
-                const emptyHTML = '<p class="empty-state">No records match your filters.</p>';
+                const emptyHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
+                    <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(0, 97, 164, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+                        <span class="material-symbols-outlined" style="font-size: 36px; color: var(--md-primary);">history</span>
+                    </div>
+                    <strong style="font-size: 18px; color: var(--md-on-surface); margin-bottom: 8px;">No Timeline Records</strong>
+                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0; line-height: 1.4;">No historical records or transactions match your current filters.</p>
+                </div>`;
 
                 UI.renderVirtualList(container, data, (t) => {
                     let displayLink = '';
@@ -2692,8 +2711,8 @@ const UI = {
                                     </div>
                                 </div>
                                 ${t.id !== 'open-bal' ? `
-                                <div style="display: flex; justify-content: flex-end; align-items: center;">
-                                    <div class="tap-target" onclick="event.stopPropagation(); ${pdfAction}" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px;">
+                                    <div class="tap-target" onclick="event.stopPropagation(); ${pdfAction}" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                         <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                     </div>
                                 </div>` : ''}
@@ -2745,8 +2764,8 @@ const UI = {
                                     </div>
                                 </div>
                                 ${t.id !== 'open-bal' ? `
-                                <div style="display: flex; justify-content: flex-end; align-items: center;">
-                                    <div class="tap-target" onclick="event.stopPropagation(); ${pdfAction}" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px;">
+                                    <div class="tap-target" onclick="event.stopPropagation(); ${pdfAction}" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                         <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                     </div>
                                 </div>` : ''}
@@ -3249,11 +3268,11 @@ const UI = {
                             <strong style="font-size:16px; color:var(--md-error); line-height:1.2;">\u20B9${balance.toFixed(2)}</strong>
                             <span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; display:inline-block; box-shadow:0 1px 2px rgba(186,26,26,0.1);">OVERDUE: ${diffDays}D</span>
                             <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.Utils.shareOverdueReminder('${phone}', '${String(s.customerName || '').replace(/'/g, "\\'")}', ${balance}, '${s.invoiceNo || ''}')" style="padding: 6px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-text-muted); display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.Utils.shareOverdueReminder('${phone}', '${String(s.customerName || '').replace(/'/g, "\\'")}', ${balance}, '${s.invoiceNo || ''}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(22, 163, 74, 0.1); color: #16a34a; display: flex; align-items: center; justify-content: center;">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
                                 </div>
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="padding: 6px; border-radius: 6px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-text-muted); display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-                                    <span class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                 </div>
                             </div>
                         </div>
@@ -3845,7 +3864,7 @@ const UI = {
                 
                 // This is the template the array will use every time you push an item!
                 return `
-                <div class="item-entry-card" style="padding: 14px; margin-bottom: 0; border-left: 4px solid ${prefix === 'sales' ? 'var(--md-primary)' : '#f57f17'};">
+                <div class="item-entry-card" style="padding: 14px; margin-bottom: 12px; border-radius: 12px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                     <input type="hidden" class="row-item-id" value="${item.id}">
                     <input type="hidden" class="row-item-name" value="${String(item.name || '').replace(/"/g, '&quot;')}">
                     <input type="hidden" class="row-uom" value="${item.uom || ''}">
@@ -3876,9 +3895,9 @@ const UI = {
                             ${item.conversionHtml}
                         </div>
                         <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
-                            <!-- The Delete 'X' now utilizes the array proxy instead of direct DOM manipulation -->
-                            <div class="tap-target" onclick="const card = this.closest('.item-entry-card'); const index = Array.from(card.parentNode.children).indexOf(card); window['${prefix}ObservableItems'].splice(index, 1); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-outline); padding: 4px; border-radius: 50%; background: var(--md-surface-variant); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
-                                <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
+                            <!-- The Delete Button -->
+                            <div class="tap-target" onclick="const card = this.closest('.item-entry-card'); const index = Array.from(card.parentNode.children).indexOf(card); window['${prefix}ObservableItems'].splice(index, 1); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-error); background: rgba(186, 26, 26, 0.08); padding: 6px; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
                             </div>
                             <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
                         </div>
@@ -4036,17 +4055,19 @@ const UI = {
             const checked = isSelected ? 'checked' : '';
             
             return `
-            <li class="virtual-item tap-target" style="background: ${bg};" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${String(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${String(item.uom || '').replace(/'/g, "\\'")}', '${String(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
-                <div>
-                    <div class="large-text">${window.UI.highlightText(item.name || 'Unnamed Product', searchTerm)}</div>
-                    <small>
-                        <span style="${isLowStock ? 'color:var(--md-error); font-weight:bold;' : ''}">Tot: ${currentStock} ${item.uom || ''} ${isLowStock ? '⚠️' : ''}</span> 
-                        | Rate: \u20B9${price.toFixed(2)}
-                        <br><span style="font-size: 10px; color: var(--md-text-muted);">GST: ${gstStock} | Non-GST: ${nonGstStock}</span>
-                    </small>
+            <div class="m3-card tap-target" style="background: ${bg}; padding: 12px 16px; margin-bottom: 8px; border-radius: 12px; border: 1px solid ${isSelected ? 'var(--md-primary)' : 'var(--md-outline-variant)'}; display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: all 0.2s;" onclick="if(window.UI) window.UI.toggleProductSelection(this, '${item.id}', '${String(item.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;")}', ${price}, ${item.gst || 0}, '${String(item.uom || '').replace(/'/g, "\\'")}', '${String(item.hsn || '').replace(/'/g, "\\'")}', ${item.buyPrice || 0})">
+                <div style="flex: 1; min-width: 0;">
+                    <strong style="font-size: 15px; color: ${isSelected ? 'var(--md-primary)' : 'var(--md-on-surface)'}; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${window.UI.highlightText(item.name || 'Unnamed Product', searchTerm)}</strong>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 11px; font-weight: 800; color: ${isLowStock ? 'var(--md-error)' : 'var(--md-text-muted)'}; background: ${isLowStock ? 'rgba(186, 26, 26, 0.08)' : 'var(--md-surface-variant)'}; padding: 2px 6px; border-radius: 4px;">Tot: ${currentStock} ${item.uom || ''}</span>
+                        <strong style="font-size: 13px; color: var(--md-on-surface);">₹${price.toFixed(2)}</strong>
+                    </div>
                 </div>
-                <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none;">
-            </li>`;
+                <div style="width: 24px; height: 24px; border-radius: 50%; border: 2px solid ${isSelected ? 'var(--md-primary)' : 'var(--md-outline-variant)'}; background: ${isSelected ? 'var(--md-primary)' : 'transparent'}; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <span class="material-symbols-outlined" style="font-size: 16px; color: #fff; opacity: ${isSelected ? '1' : '0'};">check</span>
+                    <input type="checkbox" ${checked} style="display: none;">
+                </div>
+            </div>`;
         }, emptyHTML);
     },
 
@@ -4077,8 +4098,11 @@ const UI = {
             const itemCard = document.createElement('div');
             itemCard.className = 'item-entry-card';
             itemCard.style.padding = '14px';
-            itemCard.style.marginBottom = '0';
-            itemCard.style.borderLeft = prefix === 'sales' ? '4px solid var(--md-primary)' : '4px solid #f57f17';
+            itemCard.style.marginBottom = '12px';
+            itemCard.style.borderRadius = '12px';
+            itemCard.style.border = '1px solid var(--md-outline-variant)';
+            itemCard.style.background = 'var(--md-surface)';
+            itemCard.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
             
             const hiddenInputs = `
                 <input type="hidden" class="row-item-id" value="${p.id}">
@@ -4094,7 +4118,9 @@ const UI = {
                         ${p.name}
                         <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:100px; color:inherit;" readonly></div>
                     </div>
-                    <span class="material-symbols-outlined tap-target" style="color:var(--md-error); font-size:22px; padding:4px; margin-right:-4px; margin-top:-4px;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">delete</span>
+                    <div class="tap-target" style="color: var(--md-error); background: rgba(186, 26, 26, 0.08); padding: 6px; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
+                    </div>
                 </div>
                 
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
@@ -5724,11 +5750,65 @@ window.UI = UI;
 document.addEventListener('DOMContentLoaded', UI.initPremiumUX);
 
 // ==========================================
-// ENTERPRISE FIX 3: THE ANDROID BACK-BUTTON SHIELD
+// 🚀 ENTERPRISE UPGRADE: SYSTEM-LEVEL ROUTING (NAVIGATION API)
 // ==========================================
-// Secretly push a safe history state whenever a user opens ANY form, sheet, or report
+// Hooks into the hardware edge-swipe and back buttons natively, paving the way 
+// for Android 14+ Predictive Back Gestures.
+
+const closeTopmostView = () => {
+    if (window.softwareBackLock) return false;
+
+    const getTopElement = (elements) => {
+        return elements.reduce((top, el) => {
+            const z = parseInt(window.getComputedStyle(el).zIndex, 10) || 0;
+            const topZ = parseInt(window.getComputedStyle(top).zIndex, 10) || 0;
+            return z > topZ ? el : top;
+        });
+    };
+    
+    if (window.isHardwareSwiping) return false;
+    window.isHardwareSwiping = true;
+    setTimeout(() => { window.isHardwareSwiping = false; }, 400);
+
+    // 1. Catch the custom Numpad
+    const activeNumpad = document.getElementById('custom-numpad');
+    if (activeNumpad && activeNumpad.classList.contains('active')) {
+        if (window.UI) window.UI.closeNumpad();
+        return true;
+    }
+    
+    // 2. Catch Custom Alert/Confirm Modals
+    const visibleModals = Array.from(document.querySelectorAll('#enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)'));
+    if (visibleModals.length > 0) {
+        const topModal = visibleModals[0];
+        const cancelBtn = topModal.querySelector('button'); 
+        if (cancelBtn) cancelBtn.click(); 
+        return true;
+    }
+
+    // 3. Catch Bottom Sheets
+    const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
+    if (visibleSheets.length > 0) {
+        const topSheet = getTopElement(visibleSheets);
+        if (window.UI) window.UI.closeBottomSheet(topSheet.id);
+        return true; 
+    } 
+    
+    // 4. Catch Full-Screen Activities
+    const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
+    if (visibleScreens.length > 0) {
+        const topScreen = getTopElement(visibleScreens);
+        if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
+            if (window.UI) window.UI.closeActivity(topScreen.id);
+            return true;
+        }
+    }
+
+    return false;
+};
+
+// 1. PUSH NATIVE STATE ON CLICK
 document.addEventListener('click', (e) => {
-    // Catch every single routing action so the user never accidentally swipes out of the app!
     const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"]');
     if (target) {
         const action = target.getAttribute('onclick') || '';
@@ -5740,105 +5820,60 @@ document.addEventListener('click', (e) => {
             action.includes('openPartyTaxReport') || action.includes('openGSTReport') || action.includes('manageSimpleMaster') || 
             action.includes('openAdjustmentSheet')) {
             
-            // 🚨 STABILITY FIX: The Double-Tap History Shield!
-            // Prevents rapid tapping from pushing 2 history states and breaking the Back Button
             if (window.isRoutingLocked) return;
             window.isRoutingLocked = true;
             setTimeout(() => { window.isRoutingLocked = false; }, 400);
 
+            // Silent push state (Prevents URL hash collisions with legacy popstate)
             window.history.pushState({ internalRoute: true }, '');
         }
     }
 });
 
-// Intercept the physical phone back button
-window.addEventListener('popstate', (e) => {
-    if (window.softwareBackLock) return;
-    let trapped = false;
-
-    // ENTERPRISE FIX: Z-Index Engine
-    // Forces the shield to mathematically find the visual "top" screen, completely ignoring HTML file order!
-    const getTopElement = (elements) => {
-        return elements.reduce((top, el) => {
-            const z = parseInt(window.getComputedStyle(el).zIndex, 10) || 0;
-            const topZ = parseInt(window.getComputedStyle(top).zIndex, 10) || 0;
-            return z > topZ ? el : top;
-        });
-    };
-    
-        // 🚨 ENTERPRISE FIX: The "Double-Fire" Hardware Shield!
-        // Prevents index.html and ui.js from executing the back swipe at the exact same millisecond!
-        if (window.isHardwareSwiping) return;
-        window.isHardwareSwiping = true;
-        setTimeout(() => { window.isHardwareSwiping = false; }, 400);
-
-        // 🚨 BUG FIX: The Android Back-Button Numpad Shield!
-        // Catch the Numpad FIRST so swiping back doesn't accidentally close your entire invoice!
-        const activeNumpad = document.getElementById('custom-numpad');
-        if (activeNumpad && activeNumpad.classList.contains('active')) {
-            if (window.UI) window.UI.closeNumpad();
-            window.history.pushState({ internalRoute: true }, ''); // Re-trap the back button to protect the form!
-            return;
-        }
-        
-                // 🚨 STABILITY FIX: The Android Back-Button Modal Shield!
-        // Catch custom modals FIRST so swiping back doesn't close the screen behind them!
-        const visibleModals = Array.from(document.querySelectorAll('#enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)'));
-        if (visibleModals.length > 0) {
-            const topModal = visibleModals[0];
-            const cancelBtn = topModal.querySelector('button'); // Grabs the OK/Cancel button
-            if (cancelBtn) cancelBtn.click(); // Safely dismisses the modal
+// 2. INTERCEPT HARDWARE BACK BUTTON
+if (window.navigation) {
+    window.navigation.addEventListener('navigate', (event) => {
+        if (event.navigationType === 'traverse' || event.navigationType === 'back') {
+            const isAnythingOpen = document.querySelectorAll('.bottom-sheet.open, .activity-screen.open, #custom-numpad.active, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden)').length > 0;
             
-            window.history.pushState({ internalRoute: true }, ''); // Re-trap the back button
-            return;
-        }
-
-
-        // ENTERPRISE FIX: 1. Catch ONLY sheets that are mathematically OPEN! 
-        // Ignoring sheets that are animating closed or ghosting in the DOM prevents the Infinite Back Trap!
-        const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
-    
-    if (visibleSheets.length > 0) {
-        const topSheet = getTopElement(visibleSheets);
-        if (window.UI) window.UI.closeBottomSheet(topSheet.id);
-        trapped = true; 
-    } 
-    else {
-        // 2. Catch ONLY screens that are mathematically OPEN
-        const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
-        
-        if (visibleScreens.length > 0) {
-            const topScreen = getTopElement(visibleScreens);
-            
-            // Protect the main dashboard, but safely close the topmost activity
-            if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
-                if (window.UI) window.UI.closeActivity(topScreen.id);
-                trapped = true;
-            }
-        }
-    }
-
-        // If we saved the app from closing a menu, inject another shield for the next click!
-        if (trapped) {
-            window.history.pushState({ internalRoute: true }, '');
-        } else {
-            // 🚨 ENTERPRISE UX: "Press Back Again to Exit"
-            // Nothing was open. The user is trying to close the app from the Home Screen!
-            if (!window.exitAppPrompted) {
-                window.exitAppPrompted = true;
-                if (window.Utils) window.Utils.showToast("Press back again to exit");
-                
-                // Push a temporary state to block the exit this ONE time
-                window.history.pushState({ internalRoute: true }, '');
-                
-                // Reset the trap after 2 seconds
-                setTimeout(() => { window.exitAppPrompted = false; }, 2000);
+            if (isAnythingOpen) {
+                event.intercept({
+                    async handler() {
+                        closeTopmostView();
+                    }
+                });
             } else {
-                // They pressed back twice within 2 seconds. 
-                // We do NOT push a state, allowing the browser to natively close the PWA!
+                if (!window.exitAppPrompted) {
+                    window.exitAppPrompted = true;
+                    if (window.Utils) window.Utils.showToast("Press back again to exit");
+                    
+                    event.intercept({
+                        handler() {
+                            window.history.pushState({ internalRoute: true }, '');
+                            setTimeout(() => { window.exitAppPrompted = false; }, 2000);
+                        }
+                    });
+                }
             }
         }
     });
+} else {
+    // 3. FALLBACK FOR IOS SAFARI (LEGACY POPSTATE)
+    window.addEventListener('popstate', (e) => {
+        const trapped = closeTopmostView();
+        
+        if (trapped) {
+            window.history.pushState({ internalRoute: true }, '');
+        } else {
+            if (!window.exitAppPrompted) {
+                window.exitAppPrompted = true;
+                if (window.Utils) window.Utils.showToast("Press back again to exit");
+                window.history.pushState({ internalRoute: true }, '');
+                setTimeout(() => { window.exitAppPrompted = false; }, 2000);
+            }
+        }
+    });
+}
 // ==========================================
 // 🚨 ENTERPRISE UX: SMART CURRENCY FORMATTER
 // ==========================================
@@ -5919,10 +5954,11 @@ document.addEventListener('pointerup', (e) => {
 */
 
         // ==========================================
-        // 🚨 ENTERPRISE UX: DRAG-TO-DISMISS SHEETS
+        // 🚀 ENTERPRISE UX: PHYSICS-BASED DRAG-TO-DISMISS
         // ==========================================
         let dragStartY = 0;
         let dragCurrentY = 0;
+        let dragStartTime = 0;
         let isDraggingSheet = false;
         let activeDragSheet = null;
 
@@ -5930,22 +5966,18 @@ document.addEventListener('pointerup', (e) => {
             const sheet = e.target.closest('.bottom-sheet.open');
             if (!sheet) return;
             
-            // 🚨 STATIC FIX: If the sheet has data-no-swipe="true", abort dragging completely!
-            // This locks the screen in place so the user can scroll massively long lists without accidents!
             if (sheet.getAttribute('data-no-swipe') === 'true') return;
 
-            // SCROLL AWARENESS: Check if the user is touching a scrollable area inside the sheet
-            // 🚨 FIX: Added #list-overdue and ul so the Overdue Notification menu can scroll normally!
+            // SCROLL AWARENESS: Only allow drag if at the absolute top of a scrollable area
             const scrollTarget = e.target.closest('[style*="overflow-y: auto"], [style*="overflow: auto"], .activity-content, .list-view, .sheet-content, #list-overdue, ul');
-            
-            // If they are inside a scrollable area, ONLY allow drag if they are at the absolute top!
             if (scrollTarget && scrollTarget.scrollTop > 0) return;
 
             dragStartY = e.touches[0].clientY;
+            dragStartTime = Date.now(); // Record exact millisecond the touch started
             activeDragSheet = sheet;
             isDraggingSheet = true;
             
-            // Disable CSS transitions so the sheet instantly sticks to the user's thumb 1:1
+            // Disable CSS transitions so the sheet sticks to the thumb at 120Hz
             activeDragSheet.style.transition = 'none';
         }, { passive: true });
 
@@ -5953,37 +5985,43 @@ document.addEventListener('pointerup', (e) => {
             if (!isDraggingSheet || !activeDragSheet) return;
 
             dragCurrentY = e.touches[0].clientY;
-            const diffY = dragCurrentY - dragStartY;
+            let diffY = dragCurrentY - dragStartY;
 
-            // Only allow pulling DOWN. If pulling UP, they are just scrolling normally.
-            if (diffY > 0) {
-                // Use translateZ(0) to force the graphics card (GPU) to handle the slide smoothly
-                activeDragSheet.style.transform = `translateY(${diffY}px) translateZ(0)`;
+            // Apply "Rubber Band" resistance if they try to drag it upwards
+            if (diffY < 0) {
+                diffY = diffY * 0.15; 
             }
+
+            activeDragSheet.style.transform = `translateY(${diffY}px) translateZ(0)`;
         }, { passive: true });
 
         document.addEventListener('touchend', (e) => {
             if (!isDraggingSheet || !activeDragSheet) return;
             
             const diffY = dragCurrentY - dragStartY;
+            const timeElapsed = Date.now() - dragStartTime;
             const sheetId = activeDragSheet.id;
 
-            // 1. Instantly wipe inline styles so the CSS classes can take back control
-            activeDragSheet.style.transition = '';
+            // Calculate flick velocity (pixels per millisecond)
+            const velocity = diffY / timeElapsed;
+
+            // 1. Instantly wipe inline styles to return control to CSS
+            activeDragSheet.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
             activeDragSheet.style.transform = '';
 
-            // 2. The Release Threshold: If pulled down more than 120px, snap it closed!
-            if (diffY > 120) {
+            // 2. The Physics Threshold: Close if dragged past 120px OR if flicked downward fast (> 0.6 px/ms)
+            if (diffY > 120 || (velocity > 0.6 && diffY > 20)) {
                 if (window.UI && window.UI.closeBottomSheet) {
                     window.UI.closeBottomSheet(sheetId);
                 }
             }
 
-            // Reset variables for the next swipe
+            // Reset variables
             isDraggingSheet = false;
             activeDragSheet = null;
             dragStartY = 0;
             dragCurrentY = 0;
+            dragStartTime = 0;
         });
 
 // ==========================================
@@ -6360,12 +6398,24 @@ window.openInvoiceOverview = function(type, id) {
             return refs.some(r => uniqueRefs.includes(r));
         });
         if (linkedReceipts.length > 0) {
-            linksHTML += `<div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
-                <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 800; color: var(--md-primary); text-transform: uppercase;">Linked Payments & Receipts</div>`;
+            linksHTML += `<div style="padding: 0; margin-bottom: 16px;">
+                <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 16px 8px 16px;">Linked Payments</div>`;
             linkedReceipts.forEach(r => {
-                linksHTML += `<div class="tap-target" onclick="app.openReceipt('${r.id}', '${r.type}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-surface-variant); cursor: pointer;">
-                    <div><div style="font-weight:bold; font-size: 14px; color: var(--md-primary);">${r.receiptNo || 'Receipt'}</div><small style="color:var(--md-text-muted);">${r.date ? window.Utils.formatDateDisplay(r.date) : ''} | ${r.mode}</small></div>
-                    <strong style="font-size: 14px; color: ${r.type === 'in' ? 'var(--md-success)' : 'var(--md-error)'};">${r.type === 'in' ? '+' : '-'}₹${parseFloat(r.amount).toFixed(2)}</strong>
+                const isMoneyIn = r.type === 'in';
+                const iconBg = isMoneyIn ? 'rgba(20, 108, 46, 0.08)' : 'rgba(186, 26, 26, 0.08)';
+                const iconColor = isMoneyIn ? '#16a34a' : '#ba1a1a';
+                linksHTML += `
+                <div class="tap-target" onclick="app.openReceipt('${r.id}', '${r.type}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="icon-circle" style="width: 36px; height: 36px; background: ${iconBg}; color: ${iconColor}; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">${isMoneyIn ? 'arrow_downward' : 'arrow_upward'}</span>
+                        </div>
+                        <div>
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block;">${r.receiptNo || 'Receipt'}</strong>
+                            <small style="color:var(--md-text-muted);">${r.date ? window.Utils.formatDateDisplay(r.date) : ''} • ${r.mode}</small>
+                        </div>
+                    </div>
+                    <strong style="font-size: 15px; color: ${isMoneyIn ? 'var(--md-success)' : 'var(--md-error)'};">${isMoneyIn ? '+' : '-'}₹${parseFloat(r.amount).toFixed(2)}</strong>
                 </div>`;
             });
             linksHTML += `</div>`;
@@ -6376,12 +6426,21 @@ window.openInvoiceOverview = function(type, id) {
             return refs.some(r => uniqueRefs.includes(r));
         });
         if (linkedExpenses.length > 0) {
-            linksHTML += `<div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
-                <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 800; color: var(--md-error); text-transform: uppercase;">Linked Job Expenses</div>`;
+            linksHTML += `<div style="padding: 0; margin-bottom: 16px;">
+                <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 16px 8px 16px;">Linked Expenses</div>`;
             linkedExpenses.forEach(e => {
-                linksHTML += `<div class="tap-target" onclick="app.openForm('expense', '${e.id}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-surface-variant); cursor: pointer;">
-                    <div><div style="font-weight:bold; font-size: 14px; color: var(--md-error);">${e.expenseNo || 'EXP'} - ${e.category}</div><small style="color:var(--md-text-muted);">${e.date ? window.Utils.formatDateDisplay(e.date) : ''}</small></div>
-                    <strong style="font-size: 14px; color: var(--md-error);">₹${parseFloat(e.amount).toFixed(2)}</strong>
+                linksHTML += `
+                <div class="tap-target" onclick="app.openForm('expense', '${e.id}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="icon-circle" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">account_balance_wallet</span>
+                        </div>
+                        <div>
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block;">${e.expenseNo || 'EXP'} - ${e.category}</strong>
+                            <small style="color:var(--md-text-muted);">${e.date ? window.Utils.formatDateDisplay(e.date) : ''}</small>
+                        </div>
+                    </div>
+                    <strong style="font-size: 15px; color: var(--md-error);">-₹${parseFloat(e.amount).toFixed(2)}</strong>
                 </div>`;
             });
             linksHTML += `</div>`;
@@ -6483,14 +6542,28 @@ window.openInvoiceOverview = function(type, id) {
             <!-- Edge-to-Edge Notes -->
             ${notesHTML}
 
-            <!-- Edge-to-Edge Breakdown -->
-            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 8px; padding: 16px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--md-text-muted);"><span>Subtotal</span><span style="color: var(--md-on-surface);">₹${rawSubtotal.toFixed(2)}</span></div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--md-success);"><span>Discount</span><span>- ₹${discountVal.toFixed(2)}</span></div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: var(--md-text-muted);"><span>Freight</span><span style="color: var(--md-on-surface);">+ ₹${freightVal.toFixed(2)}</span></div>
+            <!-- Premium Receipt Breakdown Card -->
+            <div style="margin: 0 16px 16px 16px; background: rgba(0, 97, 164, 0.03); border: 1px solid rgba(0, 97, 164, 0.08); border-radius: 16px; padding: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 13px; color: var(--md-text-muted);">Subtotal</span>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">₹${rawSubtotal.toFixed(2)}</strong>
+                </div>
+                ${discountVal > 0 ? `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 13px; color: var(--md-text-muted);">Discount</span>
+                    <strong style="font-size: 14px; color: var(--md-success);">- ₹${discountVal.toFixed(2)}</strong>
+                </div>` : ''}
+                ${freightVal > 0 ? `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 13px; color: var(--md-text-muted);">Freight</span>
+                    <strong style="font-size: 14px; color: var(--md-on-surface);">+ ₹${freightVal.toFixed(2)}</strong>
+                </div>` : ''}
                 ${gstBreakdownHTML}
-                <div style="border-top: 1px dashed var(--md-outline-variant); margin: 12px 0;"></div>
-                <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; color: var(--md-on-surface); margin-bottom: 0;"><span>Grand Total</span><span style="color: var(--md-primary);">₹${grandTotal.toFixed(2)}</span></div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(0, 97, 164, 0.2);">
+                    <span style="font-size: 14px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.5px;">Grand Total</span>
+                    <span style="font-size: 22px; font-weight: 900; color: var(--md-primary); line-height: 1;">₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                </div>
             </div>
             
             ${linksHTML}

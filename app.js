@@ -505,6 +505,38 @@ const app = {
                 // (Runs only when explicitly called to save memory on large databases).
             }, 12000);
 
+            // 🚀 ENTERPRISE UPGRADE: OS-Level "Open With" File Interceptor
+            if ('launchQueue' in window) {
+                window.launchQueue.setConsumer(async (launchParams) => {
+                    if (!launchParams.files || !launchParams.files.length) return;
+                    
+                    const fileHandle = launchParams.files[0];
+                    const file = await fileHandle.getFile();
+                    
+                    // Intercept JSON Backup Files
+                    if (file.name.endsWith('.json')) {
+                        const reader = new FileReader();
+                        reader.onload = async (e) => {
+                            try {
+                                const data = JSON.parse(e.target.result);
+                                if (window.Utils) {
+                                    const confirm = await window.Utils.confirmModal(`Do you want to completely restore your database using "${file.name}"? This cannot be undone.`, "Restore Backup", true);
+                                    if (confirm) {
+                                        window.Utils.showToast("Restoring database... ⏳");
+                                        await window.importDatabase(data);
+                                        window.Utils.showToast("✅ Restore Successful! Restarting...");
+                                        setTimeout(() => window.location.reload(true), 1500);
+                                    }
+                                }
+                            } catch (err) {
+                                if (window.Utils) window.Utils.alertModal("The selected file is not a valid SOLLO backup.", "Import Failed");
+                            }
+                        };
+                        reader.readAsText(file);
+                    }
+                });
+            }
+
             // FIX: Parse PWA Home Screen Shortcuts and route the user!
             const urlParams = new URLSearchParams(window.location.search);
             const action = urlParams.get('action');

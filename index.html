@@ -8,7 +8,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" id="meta-theme-color" content="#ffffff">
+    <meta name="theme-color" id="meta-theme-color" content="#F7F9FC">
     
     <title>SOLLO ERP</title>
 
@@ -61,8 +61,6 @@
     ​<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <!-- 🚨 Controls the color of the mobile status bar -->
-    <meta id="meta-theme-color" name="theme-color" content="#ffffff">
-
 
     <!-- 🚨 SOLLO FIX: SMART BANNER RELOCATOR (Removed to prevent battery drain) -->
 
@@ -1760,8 +1758,8 @@
                     </div>
                 </div>
 
-                <div id="product-ledger-card" style="padding: 0 16px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 1px solid #90caf9; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,97,164,0.1);" onclick="window.triggerItemLedgerFromForm()">
+                <div id="product-ledger-card" style="padding: 0 16px; display: none;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 1px solid #90caf9; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,97,164,0.1);" onclick="const pid = window.app.state.currentMasterId; const pname = document.getElementById('prod-name').value; if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm(pid, pname);">
                         <span class="material-symbols-outlined" style="color: #0277bd; font-size: 28px;">inventory_2</span>
                         <div style="flex: 1;">
                             <strong style="font-size:16px; color: #0277bd; display: block;">View Stock Ledger</strong>
@@ -1770,6 +1768,12 @@
                         <span class="material-symbols-outlined" style="color: #0277bd;">chevron_right</span>
                     </div>
                 </div>
+                <script>
+                    // 🚨 SOLLO FIX: Syncs Ledger visibility with the Delete button (Hidden for New, Visible for Existing)
+                    new MutationObserver(() => {
+                        document.getElementById('product-ledger-card').style.display = document.getElementById('btn-delete-product').classList.contains('hidden') ? 'none' : 'block';
+                    }).observe(document.getElementById('btn-delete-product'), { attributes: true, attributeFilter: ['class'] });
+                </script>
 
                 <div style="padding: 0 16px 40px 16px;">
                     <button type="submit" class="btn-primary" style="width: 100%; height: 54px; border-radius: 27px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,97,164,0.25);">Save Product</button>
@@ -1887,8 +1891,8 @@
                     </div>
                 </div>
 
-                <div id="ledger-khata-card" style="padding: 0 16px;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 1px solid #ffe082; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 127, 23, 0.1);" onclick="window.triggerKhataFromForm()">
+                <div id="ledger-khata-card" style="padding: 0 16px; display: none;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 1px solid #ffe082; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 127, 23, 0.1);" onclick="const pid = window.app.state.currentMasterId; const pname = document.getElementById('ledger-name').value; const ptype = document.querySelector('select[name=\'type\']').value; if(window.app) window.app.openPartyLedger(pid, ptype, pname);">
                         <span class="material-symbols-outlined" style="color: #f57f17; font-size: 28px;">menu_book</span>
                         <div style="flex: 1;">
                             <strong style="font-size:16px; color: #f57f17; display: block;">View Khata Ledger</strong>
@@ -1897,6 +1901,12 @@
                         <span class="material-symbols-outlined" style="color: #f57f17;">print</span>
                     </div>
                 </div>
+                <script>
+                    // 🚨 SOLLO FIX: Syncs Khata visibility with the Delete button
+                    new MutationObserver(() => {
+                        document.getElementById('ledger-khata-card').style.display = document.getElementById('btn-delete-ledger').classList.contains('hidden') ? 'none' : 'block';
+                    }).observe(document.getElementById('btn-delete-ledger'), { attributes: true, attributeFilter: ['class'] });
+                </script>
 
                 <div style="padding: 0 16px 40px 16px;">
                     <button type="submit" class="btn-primary" style="width: 100%; height: 54px; border-radius: 27px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 14px rgba(0,97,164,0.25);">Save Party</button>
@@ -4786,6 +4796,55 @@
                     document.activeElement.blur(); 
                 }
             }, { passive: true });
+
+            // ==========================================
+            // 🚀 ELITE UPGRADE: CHAMELEON STATUS BAR ENGINE
+            // ==========================================
+            // Automatically samples the exact background color of your currently active screen 
+            // and forces the phone's status bar to seamlessly melt into it!
+            const themeMeta = document.getElementById('meta-theme-color');
+            const sheetOverlay = document.getElementById('sheet-overlay');
+
+            if (themeMeta) {
+                const syncStatusBar = () => {
+                    const isDark = document.body.classList.contains('dark-mode');
+                    
+                    // 1. If a bottom sheet is open, dim the status bar beautifully
+                    if (sheetOverlay && !sheetOverlay.classList.contains('hidden')) {
+                        themeMeta.setAttribute('content', isDark ? '#080c17' : '#64748b'); 
+                        return;
+                    }
+
+                    // 2. Check if a full-screen Activity (like Sales, Purchase, or Payment) is open
+                    const openActivity = document.querySelector('.activity-screen.open');
+                    if (openActivity) {
+                        const header = openActivity.querySelector('.activity-header');
+                        if (header) {
+                            // Extract the exact color of the header and paint the status bar!
+                            const bgColor = window.getComputedStyle(header).backgroundColor;
+                            if (bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+                                themeMeta.setAttribute('content', bgColor);
+                                return;
+                            }
+                        }
+                    }
+
+                    // 3. Default state (Dashboard/Home)
+                    themeMeta.setAttribute('content', isDark ? '#0f172a' : '#ffffff');
+                };
+
+                // Watch for bottom sheets opening/closing
+                if (sheetOverlay) {
+                    new MutationObserver(syncStatusBar).observe(sheetOverlay, { attributes: true, attributeFilter: ['class'] });
+                }
+
+                // 🚨 PERFORMANCE FIX: Destroyed the heavy subtree MutationObserver!
+                // Watching the entire app for class changes and running getComputedStyle caused severe Layout Thrashing and battery drain.
+                // Status bar colors are already handled natively by the UI routing engine!
+
+                // Watch for Dark Mode toggling
+                new MutationObserver(syncStatusBar).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+            }
 
             // ==========================================
             // ENTERPRISE UPGRADE: SMART KEYBOARD CAPITALIZATION
