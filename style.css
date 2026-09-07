@@ -1623,12 +1623,12 @@ body.dark-mode tbody tr:active {
 .activity-header, 
 .screen-header,
 .sheet-header {
-    /* 1. Make the background 85% solid so the text remains readable */
-    background: color-mix(in srgb, var(--md-surface) 85%, transparent) !important;
+    /* 1. Make the background 90% solid to improve text legibility */
+    background: color-mix(in srgb, var(--md-surface) 90%, transparent) !important;
     
-    /* 2. Apply the Apple iOS style heavy blur to whatever is underneath */
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important; 
+    /* 2. Optimized 8px blur to stop battery drain and scroll-lag on older Androids */
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important; 
 }
 
 /* 3. Add a microscopic translucent border to define the edges of the glass */
@@ -2159,14 +2159,14 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="email"]
 
 /* 4. PROFESSIONAL ACTION BUTTONS */
 .btn-primary {
-    min-height: 44px !important; /* Standard ERP button height (reduced from 56px) */
-    border-radius: 8px !important; /* Square/slightly-rounded B2B buttons */
-    font-size: 14px !important;
+    min-height: 54px !important; /* Increased for premium thumb ergonomics */
+    border-radius: 12px !important; /* Slightly softer corners for comfort */
+    font-size: 15px !important;
 }
 
 .thumb-action-bar button {
-    height: 44px !important;
-    border-radius: 8px !important;
+    height: 54px !important; /* Increased for premium thumb ergonomics */
+    border-radius: 12px !important;
 }
 
 /* 5. TIGHTER SCREEN PADDING */
@@ -2735,12 +2735,12 @@ body.dark-mode .m3-card {
 }
 
 .list-view li { 
-    padding: 10px 12px !important; 
+    padding: 16px 16px !important; /* Expanded for comfortable tapping */
     margin-bottom: 0px !important; 
     display: flex !important; 
     align-items: center !important; 
     justify-content: space-between !important; 
-    gap: 12px !important; 
+    gap: 16px !important; /* More breathing room between text */
     border-radius: 0px !important; 
     border-bottom: 1px solid rgba(0, 0, 0, 0.15) !important; 
     background: #ffffff !important;
@@ -2771,14 +2771,17 @@ body.dark-mode .m3-card {
 }
 
 .list-view li > div:first-child strong {
-    font-size: 13.5px !important; 
+    font-size: 14.5px !important; 
     font-weight: 700 !important;
-    line-height: 1.2 !important; 
-    color: #1a1c1e !important;
-    display: block !important;
-    white-space: nowrap !important;
+    line-height: 1.3 !important; 
+    color: var(--md-on-surface) !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important; /* Allows up to 2 lines of text */
+    -webkit-box-orient: vertical !important;
+    white-space: normal !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important; 
+    word-wrap: break-word !important;
 }
 
 .list-view li > div:first-child small { 
@@ -3336,17 +3339,22 @@ body.compact-mode .icon-circle span {
    ========================================== */
 
 /* 1. PHYSICAL TOUCH ENGINE (Button Physics) */
-/* When pressed, buttons and cards physically shrink into the screen by 4% */
-.tap-target:active, .btn-primary:active, .btn-primary-small:active, .m3-card.tap-target:active, .floating-action-button:active {
+/* Shrink ONLY actual buttons. Lists and cards get a safe color flash instead to prevent scroll-wobble */
+.btn-primary:active, .btn-primary-small:active, .floating-action-button:active {
     transform: scale(0.96) !important;
     transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1) !important;
     opacity: 0.85 !important;
 }
 
-/* Ensures they smoothly bounce back to normal size when you let go */
+.tap-target:active, .m3-card.tap-target:active {
+    background-color: rgba(0, 97, 164, 0.08) !important; /* Soft blue tap feedback */
+    transition: background-color 0s !important; /* Instant response */
+}
+
+/* Ensures buttons smoothly bounce back to normal size when you let go */
 .tap-target, .btn-primary, .btn-primary-small, .m3-card.tap-target, .floating-action-button {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, background-color 0.2s ease !important;
-    will-change: transform; /* Hardware accelerates the animation so it never lags */
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, background-color 0.4s ease !important;
+    will-change: transform; 
 }
 
 /* 2. INFINITE SCROLL GLASS HEADERS */
@@ -3913,23 +3921,19 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
     /* transform: scale(0.98) !important; <-- DISABLED TO STOP BOXES SHRINKING */
 }
 
-/* ------------------------------------------
-   2. FLOATING "STRIPE" SAVE CONSOLE
-   ------------------------------------------ */
+/* 2. FLOATING "STRIPE" SAVE CONSOLE */
 .thumb-action-bar, .activity-bottom-bar, .bottom-action-bar {
     position: fixed !important;
-    /* Hovers safely above the bottom of the screen */
     bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    
     width: 90% !important;
     max-width: 400px !important;
     
-    /* Premium frosted glass pill */
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(20px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    /* Optimized frosted glass (no heavy saturation filters) */
+    background: rgba(255, 255, 255, 0.90) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
     border-radius: 50px !important;
     padding: 8px 12px !important;
     
@@ -4128,10 +4132,10 @@ body.dark-mode .skeleton::after, body.dark-mode .skeleton-card::after, body.dark
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 40px !important;
-    height: 40px !important;
+    width: 48px !important; /* Expanded to Apple/Google 48px standard */
+    height: 48px !important; /* Expanded to Apple/Google 48px standard */
     padding: 0 !important;
-    margin-left: -4px !important; /* Pulls it elegantly towards the bezel */
+    margin-left: -8px !important; /* Adjusted to keep it near the bezel */
     flex-shrink: 0 !important;
     z-index: 2 !important;
 }
@@ -4735,11 +4739,9 @@ img {
     padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important;
 }
 
-/* Pushes AI messages and Error Toasts ABOVE the Bottom Navigation and FAB so they are fully visible! */
+/* Fix: Removed conflicting "bottom" rules so notifications drop smoothly from the top notch! */
 #toast-container {
     z-index: 9999999 !important;
-    bottom: 90px !important;
-    bottom: calc(90px + env(safe-area-inset-bottom)) !important;
 }
 /* ==========================================
    🚨 FIX: FORM HEADER TEXT & ICON OVERLAP
@@ -5019,9 +5021,9 @@ body.dark-mode input[type="email"],
 body.dark-mode input[type="date"], 
 body.dark-mode select, 
 body.dark-mode textarea {
-    background-color: #1F2937 !important;
-    border-color: #374151 !important;
-    color: #F9FAFB !important;
+    background-color: rgba(255, 255, 255, 0.08) !important; /* Brighter translucent fill */
+    border-color: rgba(255, 255, 255, 0.15) !important; /* Crisper border edge */
+    color: #ffffff !important;
 }
 
 body.dark-mode input:focus:not([readonly]), 
@@ -5311,9 +5313,11 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
 }
 
 /* 4. FIX OVERLAY KEYBOARD JUMPING */
-/* Smoothly slides bottom bars away when typing so they never jump to the middle of the screen */
+/* Smoothly slides all bottom bars AND Save Buttons away when typing so they never block the screen */
 body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .bottom-nav,
-body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .floating-action-button {
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .floating-action-button,
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .form-sticky-footer,
+body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .thumb-action-bar {
     opacity: 0 !important;
     pointer-events: none !important;
     transform: translateY(120px) !important;
@@ -5334,7 +5338,7 @@ body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus)
 /* 8. INSTANT TACTILE TAPS */
 .m3-card.tap-target:active, .list-view li:active, .btn-primary:active, .floating-action-button:active {
     transform: scale(0.98) !important;
-    background-color: #F1F5F9 !important;
+    background-color: var(--md-surface-variant) !important; /* Uses theme-aware color instead of hardcoded white/grey */
     transition: none !important; 
 }
 /* ==========================================
@@ -5464,7 +5468,7 @@ body.dark-mode #activity-business-profile {
 
 body.dark-mode #form-business-profile .m3-card {
     background-color: var(--md-surface) !important;
-    border-color: var(--md-border) !important;
+    border-color: var(--md-outline-variant) !important;
 }
 
 body.dark-mode #form-business-profile input,
@@ -5671,81 +5675,6 @@ input[type="search"]:focus {
     box-shadow: 0 4px 12px rgba(0, 97, 164, 0.12), 0 0 0 2px rgba(0, 97, 164, 0.15) !important;
     transform: translateY(-1px);
 }
-// ==========================================
-// 🚀 SOLLO ERP: PREMIUM SNACKBAR (PILL NOTIFICATIONS)
-// ==========================================
-// Intercepts all old, clunky alerts and turns them into sleek Material Design 3 Pills!
-document.addEventListener('DOMContentLoaded', () => {
-    if (!window.Utils) window.Utils = {};
-    
-    window.Utils.showToast = function(message, type = 'success') {
-        // 1. Destroy any existing toast so they don't stack up and look messy
-        const existing = document.getElementById('sollo-premium-toast');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'sollo-premium-toast';
-        
-        // 2. Smart Icon Engine: Automatically read the text and pick the perfect icon & color
-        let icon = 'info';
-        let iconColor = '#60a5fa'; // Soft Blue for general info
-        
-        if (message.includes('✅') || message.toLowerCase().includes('success') || message.toLowerCase().includes('saved')) {
-            icon = 'check_circle';
-            iconColor = '#4ade80'; // Success Green
-            message = message.replace('✅', '').trim(); // Clean up old emojis
-        } else if (message.includes('⚠️') || message.includes('❌') || message.toLowerCase().includes('error') || message.toLowerCase().includes('failed') || message.toLowerCase().includes('cannot')) {
-            icon = 'error';
-            iconColor = '#f87171'; // Danger Red
-            message = message.replace('⚠️', '').replace('❌', '').replace('🗑️', '').trim();
-        }
-
-        // 3. Pure CSS Pill Styling (Floating above the bottom navigation bar)
-        toast.style.cssText = `
-            position: fixed;
-            bottom: 100px; 
-            left: 50%;
-            transform: translateX(-50%) translateY(50px);
-            background: #1e293b; /* Premium Slate Black */
-            color: #f8fafc;
-            padding: 12px 20px;
-            border-radius: 30px; /* Perfect Pill Shape */
-            font-size: 14px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-            z-index: 999999;
-            opacity: 0;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            pointer-events: none;
-            white-space: nowrap;
-            max-width: 90vw;
-        `;
-
-        // 4. Inject the layout
-        toast.innerHTML = `
-            <span class="material-symbols-outlined" style="font-size: 20px; color: ${iconColor};">${icon}</span>
-            <span style="overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.3px;">${message}</span>
-        `;
-
-        document.body.appendChild(toast);
-
-        // 5. The Slide-Up Animation
-        requestAnimationFrame(() => {
-            toast.style.transform = 'translateX(-50%) translateY(0)';
-            toast.style.opacity = '1';
-        });
-
-        // 6. The Slide-Down & Fade Out Animation (After 3 seconds)
-        setTimeout(() => {
-            toast.style.transform = 'translateX(-50%) translateY(20px)';
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 400); // Wait for fade to finish before deleting
-        }, 3000);
-    };
-});
 /* Cleaned Pinnacle SaaS Overrides completely */
 /* ==========================================
    🚨 ULTIMATE EDGE-TO-EDGE REPORTS & WORKSPACE
@@ -6044,14 +5973,14 @@ body.dark-mode .item-entry-card input:focus {
 #purchase-discount, #purchase-freight {
     background-color: var(--md-surface-variant) !important; 
     border: 1px solid var(--md-outline-variant) !important; /* Locked at exactly 1px */
-    border-radius: 6px !important; 
-    padding: 6px 8px !important;
-    font-size: 15px !important;
+    border-radius: 8px !important; 
+    padding: 10px 12px !important; /* Increased padding for finger taps */
+    font-size: 16px !important; /* Bumped to 16px to stop iOS zooming */
     font-weight: 700 !important;
     color: var(--md-on-surface) !important;
     text-align: center !important;
-    min-height: 36px !important; 
-    height: 36px !important; /* Force physical height to never change */
+    min-height: 48px !important; /* Expanded to Apple/Google 48px standard */
+    height: 48px !important; /* Expanded to Apple/Google 48px standard */
     box-sizing: border-box !important;
     margin: 0 !important;
     outline: none !important;
@@ -7169,7 +7098,7 @@ body.dark-mode .icon-circle[style*="rgba(0, 97, 164"] .material-symbols-outlined
 
 /* 🔥 THE KEYBOARD OVERLAP FIX: Forces the phone to scroll higher so the field underneath is always visible and tappable! */
 input, select, textarea {
-    scroll-margin-bottom: 90px !important; 
+    scroll-margin-bottom: 30px !important; /* Reduced to prevent the blank void glitch when keyboard closes */
 }
 
 /* Prevents invisible focus layers from blocking your taps */
@@ -8297,4 +8226,165 @@ input[type="search"]::-webkit-search-cancel-button {
         opacity: 1; 
         transform: translateY(0); 
     }
+}
+/* ==========================================
+   🚀 ENTERPRISE UX: NATIVE APP SHELL OVERRIDES
+   ========================================== */
+
+/* 1. INVISIBLE SCROLLBARS (Strict Native Feel) */
+::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+    background: transparent !important; 
+}
+* {
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+/* 2. MATERIAL 3 BOTTOM NAV "PILL" INDICATOR */
+.nav-item {
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+.nav-item:active {
+    transform: scale(0.92); /* Satisfying physical press effect */
+}
+.nav-item.active .material-symbols-outlined {
+    background: rgba(0, 97, 164, 0.15) !important;
+    color: var(--md-primary) !important;
+    padding: 4px 20px !important;
+    border-radius: 16px !important;
+    /* Optional: If your Google font supports it, this fills the icon */
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48 !important; 
+}
+.nav-item.active span:not(.material-symbols-outlined) {
+    font-weight: 800 !important;
+    color: var(--md-on-surface) !important;
+}
+
+/* 3. HARDWARE NOTCH & HOME BAR AWARENESS (Safe Areas) */
+.bottom-nav {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+}
+.main-header, .activity-header, .sheet-header {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+}
+/* Ensure lists don't hide behind the taller bottom nav */
+.main-content {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+}
+/* ==========================================
+   🚀 ENTERPRISE UX: SEARCH BARS & DRAG HANDLES
+   ========================================== */
+
+/* 1. Perfect Native Pill Search Bars */
+.search-bar {
+    background: var(--md-surface-variant) !important;
+    border-radius: 100px !important; /* Perfect Pill Shape */
+    border: 1px solid var(--md-outline-variant) !important;
+    padding: 2px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Add a glowing elevation effect when typing */
+.search-bar:focus-within {
+    background: var(--md-surface) !important;
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.08) !important;
+}
+
+/* Strip the global input styles from search boxes */
+.search-bar input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin-bottom: 0 !important;
+    padding: 10px 8px !important;
+    font-size: 16px !important;
+}
+
+/* 2. Native Bottom Sheet Drag Handle (The top grey pill) */
+.sheet-header {
+    position: relative !important;
+    padding-top: 24px !important; /* Make room for the pill */
+    border-bottom: 1px solid transparent !important; /* Remove harsh web lines */
+}
+
+/* Auto-inject the pill using CSS */
+.sheet-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 5px;
+    border-radius: 3px;
+    background-color: var(--md-outline);
+    opacity: 0.5;
+}
+/* Premium Native Card Press Physics */
+.m3-card.tap-target {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s ease !important;
+    will-change: transform; /* Optimizes for 120Hz mobile displays */
+}
+
+.m3-card.tap-target:active {
+    transform: scale(0.97) !important;
+    background-color: var(--md-surface-variant) !important;
+    border-color: var(--md-outline) !important;
+}
+/* 1. Make the logo breathe while loading */
+#splash-screen img, #splash-screen .logo-container {
+    animation: premiumPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes premiumPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(0.96); }
+}
+
+/* 2. The 3D Zoom Reveal when hiding the splash screen */
+#splash-screen {
+    transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.2, 1, 0.3, 1);
+    will-change: transform, opacity;
+}
+
+#splash-screen.fade-out {
+    opacity: 0 !important;
+    transform: scale(1.1) !important; /* Creates the 3D zoom effect */
+    pointer-events: none;
+}
+/* Premium Glassmorphism Overlay */
+#sheet-overlay {
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px); /* Safari support */
+}
+
+/* Native Drag Handle & Extreme Rounding for Bottom Sheets */
+.bottom-sheet {
+    border-top-left-radius: 28px !important;
+    border-top-right-radius: 28px !important;
+    padding-top: 8px !important; /* Make room for the pill */
+}
+
+/* Auto-injects the grey pill at the top of every sheet */
+.bottom-sheet::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 5px;
+    background: rgba(100, 116, 139, 0.3); /* Soft, native grey */
+    border-radius: 4px;
+    margin: 4px auto 16px auto;
+}
+
+/* Remove any borders from your sheet headers since the sheet is rounded */
+.bottom-sheet .sheet-header {
+    border-bottom: none !important;
+    padding-top: 0 !important;
 }

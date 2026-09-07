@@ -479,17 +479,23 @@ const UI = {
             // Ensures malicious names don't break the UI layout
             const safeAccName = (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(acc.name) : acc.name;
             
+            // Premium icon tinting based on account type
+            const isCash = acc.id === 'cash';
+            const iconBg = isCash ? 'rgba(20, 108, 46, 0.08)' : 'rgba(0, 97, 164, 0.08)';
+            const iconColor = isCash ? '#16a34a' : '#0061a4';
+
             html += `
-                <div class="m3-card tap-target" onclick="${clickAction}" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin: 0;">
-                    <div class="icon-circle" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); width: 48px; height: 48px; flex-shrink: 0; box-shadow: none;">
-                        <span class="material-symbols-outlined">${icon}</span>
+                <div class="m3-card tap-target" onclick="${clickAction}" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 10px; border-radius: 12px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                    <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 44px; height: 44px; flex-shrink: 0; border-radius: 10px; display: flex; justify-content: center; align-items: center; box-shadow: none;">
+                        <span class="material-symbols-outlined" style="font-size: 22px;">${icon}</span>
                     </div>
                     <div style="flex: 1; min-width: 0; overflow: hidden;">
-                        <strong class="large-text" style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface);">${safeAccName}</strong>
-                        <small style="color: var(--md-text-muted);">View Statement</small>
+                        <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${safeAccName}</strong>
+                        <small style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">View Statement</small>
                     </div>
-                    <div style="text-align: right; flex-shrink: 0;">
-                        <strong style="font-size: 16px; color: ${color};">&#8377;${balance.toFixed(2)}</strong>
+                    <div style="text-align: right; flex-shrink: 0; display: flex; align-items: center; gap: 8px;">
+                        <strong style="font-size: 16px; color: ${color};">&#8377;${balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+                        <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px;">chevron_right</span>
                     </div>
                 </div>
             `;
@@ -2701,9 +2707,10 @@ const UI = {
                                     <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                         <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
                                     </div>
-                                    <div style="flex: 1;">
-                                        <strong class="large-text">${t.desc}</strong><br>
-                                        <small style="color: var(--md-text-muted);">${window.Utils.formatDateDisplay(t.date)} ${t.partyName ? '| ' + t.partyName : ''} ${t.ref ? '<br><span style="color:var(--md-primary); font-size:10px; font-weight:bold;">Ref: ' + t.ref + '</span>' : ''}</small>
+                                    <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                        <strong class="large-text" style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.desc}</strong>
+                                        <small style="color: var(--md-text-muted); display: block; margin-top: 2px;">${window.Utils.formatDateDisplay(t.date)} ${t.partyName ? '| ' + t.partyName : ''}</small>
+                                        ${t.ref ? `<div style="color: var(--md-text-muted); font-size: 11px; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.4;">Ref: ${t.ref}</div>` : ''}
                                     </div>
                                     <div style="text-align:right;">
                                         <strong style="font-size: 14px; color: ${amtColor};">${sign}\u20B9${Math.abs(t.amount || 0).toFixed(2)}</strong><br>
@@ -2824,7 +2831,7 @@ const UI = {
                                 </div>
                                 <div style="flex: 1; min-width: 0; padding-right: 8px;">
                                     <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${title}</strong>
-                                    <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${subtitle1} | ${subtitle2}</small>
+                                    <div style="color: var(--md-text-muted); margin-top: 4px; font-size: 12px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.4;">${subtitle1} | ${subtitle2}</div>
                                 </div>
                                 <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
                                     <strong style="font-size: 16px; color: ${color}; line-height: 1.2;">${rightVal}</strong>
@@ -6878,3 +6885,78 @@ document.addEventListener('scroll', (e) => {
     }
 }, { capture: true, passive: true });
 
+// ==========================================
+// 🚀 SOLLO ERP: PREMIUM SNACKBAR (PILL NOTIFICATIONS)
+// ==========================================
+// Intercepts all old, clunky alerts and turns them into sleek Material Design 3 Pills!
+document.addEventListener('DOMContentLoaded', () => {
+    if (!window.Utils) window.Utils = {};
+    
+    window.Utils.showToast = function(message, type = 'success') {
+        // 1. Destroy any existing toast so they don't stack up and look messy
+        const existing = document.getElementById('sollo-premium-toast');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'sollo-premium-toast';
+        
+        // 2. Smart Icon Engine: Automatically read the text and pick the perfect icon & color
+        let icon = 'info';
+        let iconColor = '#60a5fa'; // Soft Blue for general info
+        
+        if (message.includes('✅') || message.toLowerCase().includes('success') || message.toLowerCase().includes('saved')) {
+            icon = 'check_circle';
+            iconColor = '#4ade80'; // Success Green
+            message = message.replace('✅', '').trim(); // Clean up old emojis
+        } else if (message.includes('⚠️') || message.includes('❌') || message.toLowerCase().includes('error') || message.toLowerCase().includes('failed') || message.toLowerCase().includes('cannot')) {
+            icon = 'error';
+            iconColor = '#f87171'; // Danger Red
+            message = message.replace('⚠️', '').replace('❌', '').replace('🗑️', '').trim();
+        }
+
+        // 3. Pure CSS Pill Styling (Floating above the bottom navigation bar)
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 100px; 
+            left: 50%;
+            transform: translateX(-50%) translateY(50px);
+            background: #1e293b; /* Premium Slate Black */
+            color: #f8fafc;
+            padding: 12px 20px;
+            border-radius: 30px; /* Perfect Pill Shape */
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+            z-index: 999999;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            white-space: nowrap;
+            max-width: 90vw;
+        `;
+
+        // 4. Inject the layout
+        toast.innerHTML = `
+            <span class="material-symbols-outlined" style="font-size: 20px; color: ${iconColor};">${icon}</span>
+            <span style="overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.3px;">${message}</span>
+        `;
+
+        document.body.appendChild(toast);
+
+        // 5. The Slide-Up Animation
+        requestAnimationFrame(() => {
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+            toast.style.opacity = '1';
+        });
+
+        // 6. The Slide-Down & Fade Out Animation (After 3 seconds)
+        setTimeout(() => {
+            toast.style.transform = 'translateX(-50%) translateY(20px)';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 400); // Wait for fade to finish before deleting
+        }, 3000);
+    };
+});
