@@ -1078,7 +1078,8 @@ Please process this accordingly. Thank you!`;
         const safeParty = party || {};
         const isSales = type === 'sales';
         
-        const partyName = safeParty.name ? safeParty.name : (isSales ? doc.customerName : doc.supplierName);
+        let partyName = safeParty.name ? safeParty.name : (isSales ? doc.customerName : doc.supplierName);
+        if (!partyName || partyName === 'Unknown Party') partyName = 'Cash / Walk-in Customer';
         const partyAddress = safeParty.address || safeParty.billingAddress || '';
         const partyLocationStr = [safeParty.city, safeParty.state].filter(Boolean).join(', ') + (safeParty.pincode ? ' - ' + safeParty.pincode : '');
         
@@ -1110,6 +1111,8 @@ Please process this accordingly. Thank you!`;
         let title = isSales ? 'TAX INVOICE' : 'PURCHASE BILL';
         if (isNonGST && !isReturn) title = isSales ? 'BILL OF SUPPLY' : 'PURCHASE BILL';
         if (isReturn) title = isSales ? 'CREDIT NOTE' : 'DEBIT NOTE';
+        // 🚨 FRAUD SHIELD: Permanently watermark cancelled documents!
+        if (doc.status === 'Cancelled') title = 'CANCELLED ' + title;
 
         const safeDocNo = doc.invoiceNo || doc.orderNo || doc.poNo || 'DRAFT';
 
@@ -1169,7 +1172,7 @@ Please process this accordingly. Thank you!`;
                                         { text: bizLocationStr, fontSize: 9 },
                                         { text: 'E-Mail: ' + (biz.email || 'N/A'), fontSize: 9, margin: [0,2,0,0] },
                                         { text: 'Contact: ' + (biz.phone || 'N/A'), fontSize: 9 },
-                                        bizGst ? { text: 'GSTIN/UIN  : ' + bizGst, bold: true, fontSize: 9, margin: [0,4,0,0] } : null,
+                                        (!isNonGST && bizGst) ? { text: 'GSTIN/UIN  : ' + bizGst, bold: true, fontSize: 9, margin: [0,4,0,0] } : null,
                                         biz.state ? { text: 'State Name : ' + biz.state, fontSize: 9 } : null
                                     ].filter(Boolean)
                                 },
@@ -1202,9 +1205,13 @@ Please process this accordingly. Thank you!`;
                                 {
                                     colSpan: 2,
                                     stack: [
+                                        // 🚨 Print Custom Fields (e.g., E-Way Bill, Vehicle No) if they exist
+                                        (biz.cf1Name && doc.cf1Val) ? { text: `${biz.cf1Name}: ${doc.cf1Val}`, bold: true, fontSize: 8, margin: [0, 0, 0, 4] } : null,
+                                        (biz.cf2Name && doc.cf2Val) ? { text: `${biz.cf2Name}: ${doc.cf2Val}`, bold: true, fontSize: 8, margin: [0, 0, 0, 4] } : null,
+                                        (biz.cf3Name && doc.cf3Val) ? { text: `${biz.cf3Name}: ${doc.cf3Val}`, bold: true, fontSize: 8, margin: [0, 0, 0, 4] } : null,
                                         { text: 'Reference / Remarks', fontSize: 7, color: '#475569' },
                                         { text: (shouldPrintNotes && rawNotes) ? rawNotes : '-', bold: true, fontSize: 8 }
-                                    ],
+                                    ].filter(Boolean),
                                     padding: [4, 4]
                                 },
                                 ''
@@ -1228,7 +1235,7 @@ Please process this accordingly. Thank you!`;
                         { text: partyName, bold: true, fontSize: 10 },
                         { text: partyAddress, fontSize: 9 },
                         { text: partyLocationStr, fontSize: 9 },
-                        partyGst ? { text: 'GSTIN/UIN  : ' + partyGst, bold: true, fontSize: 9, margin: [0,4,0,0] } : null,
+                        (!isNonGST && partyGst) ? { text: 'GSTIN/UIN  : ' + partyGst, bold: true, fontSize: 9, margin: [0,4,0,0] } : null,
                         safeParty.state ? { text: 'State Name : ' + safeParty.state, fontSize: 9 } : null
                     ].filter(Boolean),
                     padding: [4, 4]
@@ -1238,8 +1245,8 @@ Please process this accordingly. Thank you!`;
                     colSpan: 2,
                     fillColor: '#f1f5f9', // <--- Adds the premium light-gray shading
                     stack: [
-                        (!isNonGST && isSales && biz.bankDetails) ? { text: "Company's Bank Details", fontSize: 7, color: '#475569', margin: [0,0,0,2] } : null,
-                        (!isNonGST && isSales && biz.bankDetails) ? { text: biz.bankDetails, bold: true, fontSize: 9 } : null,
+                        (!isNonGST && isSales && biz.bankDetails && thisInvoiceDue > 0.5 && doc.status !== 'Cancelled') ? { text: "Company's Bank Details", fontSize: 7, color: '#475569', margin: [0,0,0,2] } : null,
+                        (!isNonGST && isSales && biz.bankDetails && thisInvoiceDue > 0.5 && doc.status !== 'Cancelled') ? { text: biz.bankDetails, bold: true, fontSize: 9 } : null,
 
                         (isNonGST && isSales && biz.upiId && thisInvoiceDue > 0.5 && doc.status !== 'Cancelled') ? {
                             columns: [
@@ -1516,16 +1523,28 @@ Please process this accordingly. Thank you!`;
             detailedTotalsTable.push([{ text: 'TOTAL NET PAYABLE', bold: true, fontSize: 11, margin: [0, 6], fillColor: '#fee2e2', color: '#991b1b' }, { text: '₹' + partyBalance.toLocaleString('en-IN', {minimumFractionDigits: 2}), bold: true, fontSize: 11, alignment: 'right', fillColor: '#fee2e2', color: '#991b1b', margin: [0, 6] }]);
         }
 
+        // 🚨 PDF UPGRADE: Professional Watermarks for non-final documents!
+        let documentWatermark = null;
+        if (doc.status === 'Cancelled') {
+            documentWatermark = { text: 'CANCELLED', color: '#ef4444', opacity: 0.15, bold: true, italics: false };
+        } else if (doc.status === 'Open') {
+            documentWatermark = { text: 'DRAFT ESTIMATE', color: '#94a3b8', opacity: 0.15, bold: true, italics: false };
+        }
+
+        // 🚨 PDF UPGRADE: Red titles for Credit/Debit notes to prevent accounting errors!
+        const headerTitleColor = isReturn ? '#dc2626' : '#334155';
+
         // Tally Base Configuration (Full A4 Size, Pure Monochome styling)
         const docDefinition = {
             pageSize: 'A4', 
-            pageMargins: [15, 12, 15, 12], // 🚨 FIX: Maximum stretch to fit GST + Terms on one page!
+            pageMargins: [15, 12, 15, 12], 
+            watermark: documentWatermark,
             defaultStyle: { font: 'Roboto', fontSize: 9, color: '#000000' }, 
             content: [
                 // 1. Tally Header Title (Original for Recipient)
                 { text: isSales ? (window.solloCurrentCopyType || 'ORIGINAL FOR RECIPIENT') : '', alignment: 'right', fontSize: 7, bold: true, color: '#475569', margin: [0, -10, 0, 5] },
-                                // UPGRADE: Premium Document Title
-                { text: title, alignment: 'center', fontSize: 16, bold: true, color: '#334155', characterSpacing: 2, margin: [0, 0, 0, 5] },
+                // UPGRADE: Premium Document Title
+                { text: title, alignment: 'center', fontSize: 16, bold: true, color: headerTitleColor, characterSpacing: 2, margin: [0, 0, 0, 5] },
 
                 
                 // 2. The Main Bordered Box (Contains Header Grid, Items Grid, and Footers)
@@ -1621,7 +1640,7 @@ Please process this accordingly. Thank you!`;
                 
                 { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 5, 0, 0], color: '#475569' },
                 // UPGRADE: Professional Customer Service Sign-off
-                { text: 'Thank you for your business!', alignment: 'center', italics: true, bold: true, fontSize: 11, margin: [0, 10, 0, 4], color: '#0f172a' },
+                { text: thisInvoiceDue <= 0.01 ? 'Payment Received with Thanks!' : 'Thank you for your business!', alignment: 'center', italics: true, bold: true, fontSize: 11, margin: [0, 10, 0, 4], color: '#0f172a' },
                 { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 0, 0, 0], color: '#475569' },
                 { text: 'This is a Computer Generated Document', alignment: 'center', fontSize: 8, margin: [0, 2, 0, 0], color: '#475569' }
             ]
@@ -1676,7 +1695,14 @@ Please process this accordingly. Thank you!`;
             }
         }, 100);
 
-        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+        document.getElementById('btn-close-pdf-loaded').onclick = () => {
+            // 🚨 OPTIMIZATION: Flush the PDF from RAM before closing the viewer
+            if (window.currentActivePDF) {
+                window.currentActivePDF.destroy();
+                window.currentActivePDF = null;
+            }
+            viewer.remove();
+        };
 
         const safeFilenameDocNo = String(safeDocNo).replace(/[^a-zA-Z0-9_.-]/g, '-');
         const filename = `${title.replace(/ /g, '_')}_${safeFilenameDocNo}.pdf`;
@@ -1742,28 +1768,46 @@ Please process this accordingly. Thank you!`;
                     reader.readAsArrayBuffer(blob);
                 });
 
-                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                // 🚨 OPTIMIZATION: Store reference globally to destroy it later
+                window.currentActivePDF = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const pdf = window.currentActivePDF;
+                
                 const previewContent = document.getElementById('pdf-preview-content');
                 previewContent.innerHTML = ''; 
                 previewContent.style.flexDirection = 'column'; 
                 previewContent.style.alignItems = 'center';
                 previewContent.style.justifyContent = 'flex-start';
 
-                for (let pageNum = 1; pageNum <= 1; pageNum++) { 
+                // 🚨 OPTIMIZATION: Calculate screen width for Auto-Fit (minus 32px padding)
+                const screenWidth = previewContent.clientWidth - 32;
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                     if (!document.getElementById('in-app-pdf-viewer')) break; 
                     const page = await pdf.getPage(pageNum);
-                    const viewport = page.getViewport({ scale: 1.5 });
+                    
+                    // 🚨 OPTIMIZATION: Dynamic Retina Scaling
+                    const unscaledViewport = page.getViewport({ scale: 1.0 });
+                    const baseScale = Math.min(screenWidth / unscaledViewport.width, 1.5); 
+                    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x to save RAM
+                    
+                    const viewport = page.getViewport({ scale: baseScale * pixelRatio });
                     const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
+                    
+                    // 🚨 OPTIMIZATION: Force Opaque GPU Rendering
+                    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
+                    
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     
+                    // Scale it back down via CSS for Retina crispness
+                    canvas.style.width = `${unscaledViewport.width * baseScale}px`;
+                    canvas.style.height = `${unscaledViewport.height * baseScale}px`;
                     canvas.style.maxWidth = '100%';
-                    canvas.style.height = 'auto';
-                    canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    canvas.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
                     canvas.style.borderRadius = '4px';
                     canvas.style.marginBottom = '16px'; 
                     canvas.style.flexShrink = '0';
+                    canvas.style.transform = 'translateZ(0)'; // Hardware accelerate
 
                     await page.render({ canvasContext: context, viewport: viewport }).promise;
                     previewContent.appendChild(canvas);
@@ -1777,7 +1821,6 @@ Please process this accordingly. Thank you!`;
                 btnPrint.style.display = 'inline-block';
 
             } catch (err) {
-                console.error("Preview Render Error:", err);
                 document.getElementById('pdf-preview-content').innerHTML = `
                     <div style="text-align:center; margin-top:50px;">
                         <span class="material-symbols-outlined" style="font-size:40px; color:#16a34a;">picture_as_pdf</span>
@@ -1936,7 +1979,14 @@ Please process this accordingly. Thank you!`;
         `;
         document.body.appendChild(viewer);
 
-        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+        document.getElementById('btn-close-pdf-loaded').onclick = () => {
+            // 🚨 OPTIMIZATION: Flush the PDF from RAM before closing the viewer
+            if (window.currentActivePDF) {
+                window.currentActivePDF.destroy();
+                window.currentActivePDF = null;
+            }
+            viewer.remove();
+        };
 
         const safeFilename = `Receivables_Report_${safeDocNo}.pdf`;
         const shareText = "Here is the Market Receivables Report.";
@@ -1999,7 +2049,8 @@ Please process this accordingly. Thank you!`;
                     reader.readAsArrayBuffer(blob);
                 });
 
-                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                window.currentActivePDF = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+const pdf = window.currentActivePDF;
                 const previewContent = document.getElementById('pdf-preview-content');
                 previewContent.innerHTML = ''; 
                 previewContent.style.flexDirection = 'column'; 
@@ -2010,7 +2061,7 @@ Please process this accordingly. Thank you!`;
                     if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
+                    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     
@@ -2351,7 +2402,14 @@ Please process this accordingly. Thank you!`;
         `;
         document.body.appendChild(viewer);
 
-        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+        document.getElementById('btn-close-pdf-loaded').onclick = () => {
+            // 🚨 OPTIMIZATION: Flush the PDF from RAM before closing the viewer
+            if (window.currentActivePDF) {
+                window.currentActivePDF.destroy();
+                window.currentActivePDF = null;
+            }
+            viewer.remove();
+        };
 
         const docTitle = isAccount ? 'Account_Statement' : 'Ledger_Statement';
         const cleanPartyName = partyName.replace(/[^a-zA-Z0-9]/g, '_');
@@ -2418,7 +2476,8 @@ Please process this accordingly. Thank you!`;
                     reader.readAsArrayBuffer(blob);
                 });
 
-                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                window.currentActivePDF = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+const pdf = window.currentActivePDF;
                 const previewContent = document.getElementById('pdf-preview-content');
                 previewContent.innerHTML = ''; 
                 previewContent.style.flexDirection = 'column'; 
@@ -2429,7 +2488,7 @@ Please process this accordingly. Thank you!`;
                     if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
+                    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     
@@ -2738,7 +2797,14 @@ Please process this accordingly. Thank you!`;
         `;
         document.body.appendChild(viewer);
 
-        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+        document.getElementById('btn-close-pdf-loaded').onclick = () => {
+            // 🚨 OPTIMIZATION: Flush the PDF from RAM before closing the viewer
+            if (window.currentActivePDF) {
+                window.currentActivePDF.destroy();
+                window.currentActivePDF = null;
+            }
+            viewer.remove();
+        };
 
         const safeItemName = itemName ? String(itemName).replace(/[^a-zA-Z0-9]/g, '_') : 'Unknown_Item';
         const safePartyStr = partyName ? `_${String(partyName).replace(/[^a-zA-Z0-9]/g, '_')}` : '';
@@ -2821,7 +2887,8 @@ Please process this accordingly. Thank you!`;
                     reader.readAsArrayBuffer(blob);
                 });
 
-                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                window.currentActivePDF = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+const pdf = window.currentActivePDF;
                 const previewContent = document.getElementById('pdf-preview-content');
                 previewContent.innerHTML = ''; 
                 previewContent.style.flexDirection = 'column'; 
@@ -2832,7 +2899,7 @@ Please process this accordingly. Thank you!`;
                     if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
+                    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     
@@ -3373,7 +3440,14 @@ Please process this accordingly. Thank you!`;
         `;
         document.body.appendChild(viewer);
 
-        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+        document.getElementById('btn-close-pdf-loaded').onclick = () => {
+            // 🚨 OPTIMIZATION: Flush the PDF from RAM before closing the viewer
+            if (window.currentActivePDF) {
+                window.currentActivePDF.destroy();
+                window.currentActivePDF = null;
+            }
+            viewer.remove();
+        };
 
         const safeFilename = `Voucher_${safeExpenseNo.replace(/[^a-zA-Z0-9_.-]/g, '-')}.pdf`;
         const shareText = `Dear ${safePartyName},\n\nPlease find attached the Payment Voucher (${safeExpenseNo}) dated ${safeDate} for the amount of ₹${finalTotalAmt.toFixed(2)}.\n\nThank you!`;
@@ -3451,7 +3525,8 @@ Please process this accordingly. Thank you!`;
                     reader.readAsArrayBuffer(blob);
                 });
 
-                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                window.currentActivePDF = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+const pdf = window.currentActivePDF;
                 const previewContent = document.getElementById('pdf-preview-content');
                 previewContent.innerHTML = ''; 
                 previewContent.style.flexDirection = 'column'; 
@@ -3462,7 +3537,7 @@ Please process this accordingly. Thank you!`;
                     if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
+                    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     
@@ -3574,7 +3649,7 @@ Please process this accordingly. Thank you!`;
                     const viewport = page.getViewport({ scale: 1.5 });
                     
                     const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
+                    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     canvas.style.cssText = 'max-width: 100%; height: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border-radius: 4px;';
@@ -3982,7 +4057,8 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
                 reader.readAsArrayBuffer(blob);
             });
 
-            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            window.currentActivePDF = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+const pdf = window.currentActivePDF;
             const previewContent = document.getElementById('pdf-preview-content');
             previewContent.innerHTML = ''; 
             previewContent.style.flexDirection = 'column'; 
@@ -3993,7 +4069,7 @@ window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyN
                 if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                 const viewport = page.getViewport({ scale: 1.5 });
                 const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
+                const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
                 
@@ -4377,7 +4453,8 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                 reader.readAsArrayBuffer(blob);
             });
 
-            const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            window.currentActivePDF = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+const pdf = window.currentActivePDF;
             const previewContent = document.getElementById('pdf-preview-content');
             previewContent.innerHTML = ''; 
             previewContent.style.flexDirection = 'column'; 
@@ -4388,7 +4465,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                 if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
                 const viewport = page.getViewport({ scale: 1.5 });
                 const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
+                const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
                 
@@ -4459,9 +4536,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.body) observer.observe(document.body, { childList: true });
 });
 
-
 // ==========================================
 // NEW CODE: GLOBAL MAP
 // ==========================================
 // 2. Attach to window so index.html onclick="Utils..." buttons don't break!
 window.Utils = Utils;
+// ==========================================
+// 🚀 FINTECH UTILS: STRICT RUPEE FORMATTER
+// ==========================================
+// Overrides default formatting to enforce the Indian Numbering System globally
+if (!window.Utils) window.Utils = {};
+
+window.Utils.formatMoney = (amount) => {
+    const num = parseFloat(amount);
+    if (isNaN(num)) return '₹ 0.00';
+    
+    // Forces exactly 2 decimal places and the South Asian comma placement
+    return '₹ ' + num.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+};
+

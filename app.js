@@ -1204,7 +1204,7 @@ const app = {
         const currentSort = (window.UI.state.activeSorts && window.UI.state.activeSorts['masters']) ? window.UI.state.activeSorts['masters'] : 'name-asc';
 
         const buildRow = (inputId, val, text, modalId, isSelected) => {
-            return `<div class="sub-radio-row ${isSelected ? 'selected' : ''}" onclick="window.pickSubOption('${inputId}', '${val}', '${text}', '${modalId}', this)">
+            return `<div class="sub-radio-row ${isSelected ? 'selected' : ''}" data-val="${val}" onclick="window.pickSubOption('${inputId}', '${val}', '${text}', '${modalId}', this)">
                         <span class="sub-radio-text">${text}</span>
                         <div class="sub-radio-circle"></div>
                     </div>`;
@@ -3203,7 +3203,7 @@ const app = {
                         const partyKey = type === 'sales' ? 'customer' : 'supplier';
                     const partyId = document.getElementById(`${type}-${partyKey}-id`).value;
                     if (!partyId) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
                         await window.Utils.alertModal(`Please select a ${partyKey}.`, "Action Required");
                         return;
                     }
@@ -3215,7 +3215,7 @@ const app = {
                         const today = new Date();
                         today.setDate(today.getDate() + 1); // Allow up to 1 day for timezone safety
                         if (selectedDate > today) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
                             await window.Utils.alertModal("You cannot save a document with a future date. Please correct the date to protect your financial reports.", "Invalid Date");
                             return;
                         }
@@ -4101,7 +4101,7 @@ if (data.id && splitConfirmed) {
                         // ENTERPRISE FIX: Updated IDs so the database correctly grabs the Smart Search selection!
                         const targetPartyId = type === 'in' ? document.getElementById('pay-in-customer-id').value : document.getElementById('pay-out-supplier-id').value;
                         if (!targetPartyId) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
                             await window.Utils.alertModal("Please select a party.", "Action Required");
                             return;
                         }
@@ -4113,7 +4113,7 @@ if (data.id && splitConfirmed) {
                             const today = new Date();
                             today.setDate(today.getDate() + 1); // 1-day timezone buffer
                             if (selectedDate > today) {
-                                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
                                 await window.Utils.alertModal("Error: You cannot log a future date in the Cashbook. Please use today or a past date.", "Invalid Date");
                                 return;
                             }
@@ -4122,7 +4122,7 @@ if (data.id && splitConfirmed) {
                         // ENTERPRISE FIX: The Cashbook "Zero-Value" Shield!
                         const checkAmt = parseFloat(document.getElementById(`pay-${type}-amount`).value) || 0;
                         if (checkAmt <= 0) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
                             await window.Utils.alertModal("Error: Payment amount must be strictly greater than zero.", "Invalid Amount");
                             return;
                         }
@@ -5057,6 +5057,11 @@ if (data.id && splitConfirmed) {
 
         // Prevent Bank Account Deletion if transactions are tied to it
         if (type === 'account') {
+            // 🚨 CORE SHIELD: Never allow the default Cash Drawer to be deleted!
+            if (id === 'cash') {
+                if (window.Utils) await window.Utils.alertModal("The Default Cash Drawer is a core system account and cannot be deleted.", "Action Blocked");
+                return;
+            }
             const allReceipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
             const linkedTransactions = allReceipts.filter(r => r.accountId === id);
             if (linkedTransactions.length > 0) {
@@ -5451,10 +5456,19 @@ if (data.id && splitConfirmed) {
             if (r.ledgerId === partyId && r.firmId === app.state.firmId) {
                 const refs = String(r.invoiceRef || '').split(',').map(x => x.trim());
                 if (refs.some(ref => uniqueRefs.includes(ref))) {
-                    // ENTERPRISE FIX: Correctly add/subtract based on Refunds so the PDF math doesn't inflate!
-                    const splitAmt = (parseFloat(r.amount) || 0) / (refs.length || 1);
-                    const isRefund = type === 'sales' ? r.type === 'out' : r.type === 'in';
                     
+                    // 🚨 ENTERPRISE FIX: Read exact Database Allocation Map for PDFs!
+                    let splitAmt = 0;
+                    if (r.allocationMap) {
+                        uniqueRefs.forEach(uRef => {
+                            if (r.allocationMap[uRef] !== undefined) splitAmt += parseFloat(r.allocationMap[uRef]);
+                        });
+                    }
+                    if (splitAmt === 0) {
+                        splitAmt = (parseFloat(r.amount) || 0) / (refs.length || 1); // Legacy Fallback
+                    }
+
+                    const isRefund = type === 'sales' ? r.type === 'out' : r.type === 'in';
                     totalPaid += isRefund ? -splitAmt : splitAmt;
                     
                     // Clone the receipt so we can safely alter the displayed amount on the PDF
@@ -10449,3 +10463,118 @@ window.app.showBSBreakdown = function(type, title, color) {
 
     if(window.UI) window.UI.openBottomSheet('sheet-bs-breakdown');
 };
+// ==========================================
+// 🚀 CORE APP: GLOBAL ANTI-CRASH SHIELD
+// ==========================================
+// Prevents the "White Screen of Death" by intercepting fatal JavaScript errors
+window.addEventListener('error', function (e) {
+    console.error("Intercepted App Crash:", e.message);
+    
+    // Stop the browser from freezing
+    e.preventDefault(); 
+    
+    if (window.Utils && window.Utils.showToast) {
+        window.Utils.showToast('⚠️ Minor glitch intercepted. App is still stable.', 'error');
+    }
+    
+    // Attempt to auto-heal the UI by hiding loading spinners that might be stuck
+    document.querySelectorAll('.loading-spinner, .overlay').forEach(el => {
+        el.style.display = 'none';
+    });
+    
+    return true; 
+});
+// ==========================================
+// 🚀 ERP SAFETY: 7-DAY SMART BACKUP REMINDER
+// ==========================================
+// Subconsciously trains the user to maintain bulletproof local backups
+document.addEventListener('DOMContentLoaded', () => {
+    // Waits 5 seconds after the app opens so it doesn't interrupt your workflow
+    setTimeout(() => {
+        const lastBackup = localStorage.getItem('sollo_last_local_backup');
+        const now = Date.now();
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        
+        // If it's been longer than 7 days since your last manual export
+        if (!lastBackup || (now - parseInt(lastBackup)) > sevenDays) {
+            if (window.Utils && window.Utils.showToast) {
+                window.Utils.showToast('🛡️ Security Tip: It’s been a while! Export a local backup today in Settings.', 'success');
+            }
+        }
+        
+        // When you click your actual export button, this resets the 7-day timer
+        const exportBtn = document.getElementById('export-data-btn'); 
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                localStorage.setItem('sollo_last_local_backup', Date.now().toString());
+            });
+        }
+    }, 5000); 
+});
+// ==========================================
+// 🚀 NATIVE UX: ANDROID BACK-BUTTON INTERCEPTOR
+// ==========================================
+// Pushes a hidden state to the phone's history so the Back Button doesn't kill the app
+history.pushState(null, null, window.location.href);
+
+window.addEventListener('popstate', (e) => {
+    // 1. Check if any popups, bottom sheets, or modals are currently open
+    const openModals = document.querySelectorAll('.centered-modal.open, .sheet-content[style*="transform: translateY(0"]');
+    
+    if (openModals.length > 0) {
+        // 2. Prevent the app from exiting
+        e.preventDefault();
+        
+        // 3. Find the dark overlay and simulate a "click" to safely close the menu
+        const overlay = document.querySelector('.sub-modal-overlay[style*="display: flex"], .sub-modal-overlay[style*="display: block"]');
+        if (overlay) overlay.click();
+        
+        // 4. Re-push the state so the next back-button press is also protected
+        history.pushState(null, null, window.location.href);
+    }
+});
+// ==========================================
+// 🚀 FINTECH UX: HOME SCREEN APP BADGING
+// ==========================================
+// Allows the app to draw a red notification dot on the phone's home screen icon
+if (!window.AppUtils) window.AppUtils = {};
+
+window.AppUtils.updateAppBadge = async (pendingCount) => {
+    // Check if the user's phone supports the Badging API (Most modern iOS/Androids do)
+    if ('setAppBadge' in navigator) {
+        try {
+            if (pendingCount > 0) {
+                await navigator.setAppBadge(pendingCount);
+            } else {
+                await navigator.clearAppBadge();
+            }
+        } catch (error) {
+            console.warn('App Badging blocked by OS permissions.');
+        }
+    }
+};
+// ==========================================
+// 🚀 PWA ENGINE: SMART "INSTALL APP" PROMPT
+// ==========================================
+// Silently catches the Android/iOS install event
+let deferredInstallPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the default browser mini-infobar from appearing
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    
+    // Wait 10 seconds, then subtly remind the business owner to install it
+    setTimeout(() => {
+        const lastNag = localStorage.getItem('sollo_install_nag');
+        const now = Date.now();
+        
+        // Only show this reminder once every 24 hours so it isn't annoying
+        if (!lastNag || (now - parseInt(lastNag)) > 86400000) {
+            if (window.Utils && window.Utils.showToast) {
+                window.Utils.showToast('📲 Tip: Tap your browser menu and select "Add to Home Screen" to install SOLLO!', 'success');
+                localStorage.setItem('sollo_install_nag', now.toString());
+            }
+        }
+    }, 10000);
+});

@@ -703,6 +703,11 @@ const UI = {
             document.activeElement.blur();
         }
         if (typeof flatpickr !== 'undefined') {
+            // Safely shut down the JavaScript memory instance, not just the CSS class!
+            document.querySelectorAll('.flatpickr-input').forEach(el => {
+                if (el._flatpickr && el._flatpickr.isOpen) el._flatpickr.close();
+            });
+            // Failsafe visual cleanup
             document.querySelectorAll('.flatpickr-calendar.open').forEach(p => p.classList.remove('open'));
         }
 
@@ -2485,41 +2490,44 @@ const UI = {
                     <p style="font-size: 14px; color: var(--md-text-muted); margin: 0; line-height: 1.4;">No transactions match your current bank or cashbook filters.</p>
                 </div>`;
 
+                // 🚨 O(1) ENGINE: Pre-build an ultra-fast hash map of all documents BEFORE looping through receipts!
+                const fastDocMap = {};
+                UI.state.rawData.sales.forEach(s => {
+                    const label = s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
+                    fastDocMap[s.id] = label;
+                    if(s.invoiceNo) fastDocMap[s.invoiceNo] = label;
+                    if(s.orderNo) fastDocMap[s.orderNo] = label;
+                });
+                UI.state.rawData.purchases.forEach(p => {
+                    const label = p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
+                    fastDocMap[p.id] = label;
+                    if(p.poNo) fastDocMap[p.poNo] = label;
+                    if(p.invoiceNo) fastDocMap[p.invoiceNo] = label;
+                    if(p.orderNo) fastDocMap[p.orderNo] = label;
+                });
+                UI.state.rawData.expenses.forEach(e => {
+                    const label = e.expenseNo || 'EXP';
+                    fastDocMap[e.id] = label;
+                    if(e.expenseNo) fastDocMap[e.expenseNo] = label;
+                    if(e.linkedInvoice) {
+                        const eLinks = String(e.linkedInvoice).split(',').map(x => x.trim());
+                        const eNames = eLinks.map(el => fastDocMap[el] || (el.startsWith('sollo-') ? el.slice(-4).toUpperCase() : el));
+                        fastDocMap[e.id + '_links'] = label + ' (🔗 ' + eNames.join(', ') + ')';
+                        fastDocMap[e.expenseNo + '_links'] = label + ' (🔗 ' + eNames.join(', ') + ')';
+                    }
+                });
+
                 UI.renderVirtualList(container, data, (t) => {
                     let displayLink = '';
                     const refData = t.invoiceRef || t.linkedInvoice;
                     if (refData) {
                         const links = String(refData).split(',').map(x => x.trim()).filter(x => x);
                         const displayNames = links.map(linkId => {
-                            const eDoc = UI.state.rawData.expenses.find(e => e.id === linkId || e.expenseNo === linkId);
-                            if (eDoc && eDoc.linkedInvoice) {
-                                const eLinks = String(eDoc.linkedInvoice).split(',').map(x => x.trim());
-                                const eNames = eLinks.map(el => {
-                                    const s = UI.state.rawData.sales.find(doc => doc.id === el || doc.invoiceNo === el || doc.orderNo === el);
-                                    if (s) return s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
-                                    const p = UI.state.rawData.purchases.find(doc => doc.id === el || doc.invoiceNo === el || doc.poNo === el || doc.orderNo === el);
-                                    if (p) return p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
-                                    return el.startsWith('sollo-') ? el.slice(-4).toUpperCase() : el;
-                                });
-                                return (eDoc.expenseNo || 'EXP') + ' (🔗 ' + eNames.join(', ') + ')';
-                            }
-
-                            const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
-                            const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
-                            
-                            if (sDoc) {
-                                let ref = sDoc.invoiceNo || sDoc.orderNo || sDoc.id.slice(-4).toUpperCase();
-                                return /^\d+$/.test(ref) ? 'INV-' + ref : ref;
-                            }
-                            if (pDoc) {
-                                let ref = pDoc.invoiceNo || pDoc.poNo || pDoc.orderNo || pDoc.id.slice(-4).toUpperCase();
-                                return /^\d+$/.test(ref) ? 'PO-' + ref : ref;
-                            }
-                            if (eDoc) return eDoc.expenseNo || 'EXP';
-
+                            // Instant O(1) lookup! Zero lagging.
+                            if (fastDocMap[linkId + '_links']) return fastDocMap[linkId + '_links'];
+                            if (fastDocMap[linkId]) return (/^\d+$/.test(fastDocMap[linkId]) ? 'DOC-' + fastDocMap[linkId] : fastDocMap[linkId]);
                             if (linkId.includes('sales')) return 'INV-' + linkId.slice(-4).toUpperCase();
                             if (linkId.includes('purchase')) return 'PO-' + linkId.slice(-4).toUpperCase();
-                            
                             return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : (/^\d+$/.test(linkId) ? 'DOC-' + linkId : linkId);
                         });
                         displayLink = [...new Set(displayNames)].join(', ');
@@ -3338,28 +3346,26 @@ const UI = {
             const textColor = isDark ? '#c3c7cf' : '#757575';
 
             UI.chartInstance = new Chart(ctx, {
-                type: 'line',
+                type: 'bar',
                 data: {
                     labels: ['Sales', 'Purchases', 'Expenses'],
                     datasets: [{
                         label: 'Amount (₹)',
                         data: [salesAmt, purchaseAmt, expenseAmt],
                         backgroundColor: [
-                            'rgba(26, 35, 126, 0.2)',
-                            'rgba(245, 127, 23, 0.2)',
-                            'rgba(211, 47, 47, 0.2)'
+                            'rgba(0, 97, 164, 0.85)',   /* SOLLO Primary Blue */
+                            'rgba(245, 127, 23, 0.85)', /* Purchase Orange */
+                            'rgba(186, 26, 26, 0.85)'   /* Expense Red */
                         ],
                         borderColor: [
-                            '#1A237E', 
-                            '#F57F17', 
-                            '#D32F2F'
+                            '#0061a4', 
+                            '#f57f17', 
+                            '#ba1a1a'
                         ],
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                        pointBackgroundColor: '#ffffff'
+                        borderWidth: 1,
+                        borderRadius: 8, /* Gives the bars a premium rounded top */
+                        borderSkipped: false,
+                        barPercentage: 0.5 /* Makes the bars elegantly slim */
                     }]
                 },
                 options: {
@@ -3519,6 +3525,11 @@ const UI = {
             document.activeElement.blur();
         }
         if (typeof flatpickr !== 'undefined') {
+            // Safely shut down the JavaScript memory instance, not just the CSS class!
+            document.querySelectorAll('.flatpickr-input').forEach(el => {
+                if (el._flatpickr && el._flatpickr.isOpen) el._flatpickr.close();
+            });
+            // Failsafe visual cleanup
             document.querySelectorAll('.flatpickr-calendar.open').forEach(p => p.classList.remove('open'));
         }
 
@@ -5625,58 +5636,45 @@ document.addEventListener('DOMContentLoaded', () => {
 }); // <--- CRITICAL FIX: This closes the massive event listener!
 
 // ==========================================
-// ENTERPRISE UPGRADE: SMART SEARCH WATCHERS
+// 🚀 MASTER TOUCH DELEGATOR
+// Consolidates 3 event listeners into 1 for maximum battery life!
 // ==========================================
-// 1. Hide dropdowns when clicking outside of them
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.smart-dropdown') && !e.target.closest('input[id$="-search"]')) {
+    const target = e.target;
+    
+    // 1. Hide dropdowns when clicking outside
+    if (!target.closest('.smart-dropdown') && !target.closest('input[id$="-search"]')) {
         document.querySelectorAll('.smart-dropdown').forEach(d => d.classList.add('hidden'));
     }
-});
 
-// ENTERPRISE FIX: Removed the buggy MutationObserver that caused the "Ghost Filter" lockout.
-// Instead, we ensure search boxes are wiped clean every time a bottom sheet opens!
-document.addEventListener('click', (e) => {
-    const target = e.target.closest('[onclick*="openBottomSheet"]');
-    if (target) {
-        // Find the specific sheet being opened
-        const clickLogic = target.getAttribute('onclick') || '';
+    // 2. Wipe search boxes clean when opening bottom sheets
+    const sheetTrigger = target.closest('[onclick*="openBottomSheet"]');
+    if (sheetTrigger) {
+        const clickLogic = sheetTrigger.getAttribute('onclick') || '';
         const sheetIdMatch = clickLogic.match(/openBottomSheet\(['"]([^'"]+)['"]/);
         if (sheetIdMatch && sheetIdMatch[1]) {
             const sheet = document.getElementById(sheetIdMatch[1]);
-            // If the sheet has a search box, wipe it completely clean!
             if (sheet) {
-                // 🚨 ENTERPRISE FIX: Only target actual search bars, preventing it from wiping settings forms!
                 const searchBox = sheet.querySelector('input[id*="search"]');
                 if (searchBox) {
                     searchBox.value = '';
-                    // Trigger an input event to reset the V2 Universal Search Engine
                     searchBox.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             }
         }
     }
-});
 
-// ==========================================
-// ENTERPRISE FIX 2: SMART KEYBOARD DISMISSAL
-// ==========================================
-document.addEventListener('click', (e) => {
-    // 🚨 SOLLO FIX: Close the custom numpad if the user taps a normal text field!
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
-        if (!e.target.hasAttribute('readonly') && window.UI && window.UI.closeNumpad) {
+    // 3. Smart Keyboard & Custom Numpad Dismissal
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) {
+        if (!target.hasAttribute('readonly') && window.UI && window.UI.closeNumpad) {
             window.UI.closeNumpad();
         }
         return;
     }
 
-    // If the user taps ANY clickable list item or card in the app
-    const target = e.target.closest('.tap-target, .m3-card, li');
-    if (target) {
-        // ENTERPRISE FIX: If they tap the 'Clear Search' (X) button, let the keyboard stay open!
-        if (target.innerText && target.innerText.trim() === 'close') return;
-
-        // If a search box is currently focused and the keyboard is up, FORCE it to close!
+    const clickableTarget = target.closest('.tap-target, .m3-card, li');
+    if (clickableTarget) {
+        if (clickableTarget.innerText && clickableTarget.innerText.trim() === 'close') return;
         if (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') {
             document.activeElement.blur();
         }
@@ -6411,6 +6409,20 @@ window.openInvoiceOverview = function(type, id) {
                 const isMoneyIn = r.type === 'in';
                 const iconBg = isMoneyIn ? 'rgba(20, 108, 46, 0.08)' : 'rgba(186, 26, 26, 0.08)';
                 const iconColor = isMoneyIn ? '#16a34a' : '#ba1a1a';
+                
+                // 🚨 OPTIMIZED MATH: Calculate exact split for Read-Only View!
+                const refs = String(r.invoiceRef || r.linkedInvoice || '').split(',').map(x => x.trim()).filter(Boolean);
+                let displayAmt = 0;
+                
+                if (r.allocationMap) {
+                    uniqueRefs.forEach(uRef => {
+                        if (r.allocationMap[uRef] !== undefined) displayAmt += parseFloat(r.allocationMap[uRef]);
+                    });
+                } 
+                if (displayAmt === 0) {
+                    displayAmt = (parseFloat(r.amount) || 0) / (refs.length || 1); // Legacy Fallback
+                }
+
                 linksHTML += `
                 <div class="tap-target" onclick="app.openReceipt('${r.id}', '${r.type}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); cursor: pointer;">
                     <div style="display: flex; align-items: center; gap: 12px;">
@@ -6422,7 +6434,7 @@ window.openInvoiceOverview = function(type, id) {
                             <small style="color:var(--md-text-muted);">${r.date ? window.Utils.formatDateDisplay(r.date) : ''} • ${r.mode}</small>
                         </div>
                     </div>
-                    <strong style="font-size: 15px; color: ${isMoneyIn ? 'var(--md-success)' : 'var(--md-error)'};">${isMoneyIn ? '+' : '-'}₹${parseFloat(r.amount).toFixed(2)}</strong>
+                    <strong style="font-size: 15px; color: ${isMoneyIn ? 'var(--md-success)' : 'var(--md-error)'};">${isMoneyIn ? '+' : '-'}₹${displayAmt.toFixed(2)}</strong>
                 </div>`;
             });
             linksHTML += `</div>`;
@@ -6960,3 +6972,144 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     };
 });
+// ==========================================
+// 🚀 FINTECH UX: SMART KEYBOARD ENGINE
+// ==========================================
+// Intelligently upgrades text boxes on-the-fly without needing to edit index.html
+document.addEventListener('DOMContentLoaded', () => {
+    const upgradeInputs = () => {
+        document.querySelectorAll('input').forEach(input => {
+            // Skip inputs we already upgraded
+            if (input.dataset.smartKeyboard === 'true') return; 
+            
+            const id = (input.id || '').toLowerCase();
+            const placeholder = (input.placeholder || '').toLowerCase();
+
+            // 1. GSTIN fields automatically force uppercase letters as you type
+            if (id.includes('gst') || placeholder.includes('gstin')) {
+                input.setAttribute('autocapitalize', 'characters');
+                input.addEventListener('input', function() {
+                    this.value = this.value.toUpperCase();
+                });
+            }
+
+            // 2. Phone & PIN fields instantly summon the native mobile dialer pad
+            else if (id.includes('phone') || id.includes('mobile') || id.includes('pin') || placeholder.includes('phone')) {
+                input.setAttribute('type', 'tel'); 
+            }
+
+            // 3. Name fields automatically capitalize the First Letter Of Each Word
+            else if (id.includes('name') || placeholder.includes('name') || id.includes('customer') || id.includes('supplier')) {
+                input.setAttribute('autocapitalize', 'words');
+            }
+
+            // Mark as upgraded so we don't process it twice
+            input.dataset.smartKeyboard = 'true'; 
+        });
+    };
+    
+    // Run once on load, and keep watching in case new menus are opened!
+    upgradeInputs();
+    const observer = new MutationObserver(upgradeInputs);
+    observer.observe(document.body, { childList: true, subtree: true });
+});
+// ==========================================
+// 🚀 SENSORY UX: HAPTICS & RIPPLE ENGINE
+// ==========================================
+document.addEventListener('click', (e) => {
+    
+    // 1. VISUAL RIPPLE GENERATOR
+    const rippleTarget = e.target.closest('.btn-primary, .nav-item, .sub-radio-row, .dialog-text-btn, .dropdown-btn');
+    if (rippleTarget) {
+        const rect = rippleTarget.getBoundingClientRect();
+        const ripple = document.createElement('div');
+        
+        // Calculate the perfect size based on the button
+        const diameter = Math.max(rect.width, rect.height);
+        const radius = diameter / 2;
+        
+        ripple.style.width = ripple.style.height = `${diameter}px`;
+        ripple.style.left = `${e.clientX - rect.left - radius}px`;
+        ripple.style.top = `${e.clientY - rect.top - radius}px`;
+        ripple.classList.add('premium-ripple');
+        
+        rippleTarget.appendChild(ripple);
+        // Clean up the DOM after animation finishes
+        setTimeout(() => ripple.remove(), 500); 
+    }
+
+    // 2. PHYSICAL HAPTIC MOTOR (Vibration)
+    if (navigator.vibrate) {
+        const isMajorAction = e.target.closest('.btn-primary, .thumb-action-bar button, .dropdown-btn');
+        const isMinorAction = e.target.closest('.sub-radio-row, .nav-item, .list-view li, .dialog-text-btn');
+        const isDestructive = e.target.closest('.delete-btn, [style*="color: var(--md-error)"]');
+        
+        if (isDestructive) {
+            navigator.vibrate([15, 40, 15]); // Double warning pulse (Tick... Tick) for deletes/resets
+        } else if (isMajorAction) {
+            navigator.vibrate(20); // Solid "Thud" for saving invoices and primary actions
+        } else if (isMinorAction) {
+            navigator.vibrate(8); // Ultra-light mechanical "Tick" for changing tabs and filters
+        }
+    }
+});
+// ==========================================
+// 🚀 NATIVE UX: "TAP-TO-TOP" SCROLL ENGINE
+// ==========================================
+// Automatically scrolls the screen to the top if you tap the active bottom-nav icon
+document.addEventListener('click', (e) => {
+    const navItem = e.target.closest('.nav-item');
+    if (navItem && navItem.classList.contains('active')) {
+        // Find the screen that is currently visible
+        const activeScreen = document.querySelector('.activity-screen[style*="display: block"], .activity-screen[style*="display: flex"]');
+        if (activeScreen) {
+            // Smoothly glide back to the top
+            activeScreen.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // Trigger a light haptic tick to confirm the action
+            if (navigator.vibrate) navigator.vibrate(8);
+        }
+    }
+});
+// ==========================================
+// 🚀 ERP SAFETY: NETWORK CONNECTION MONITOR
+// ==========================================
+window.addEventListener('offline', () => {
+    if (window.Utils && window.Utils.showToast) {
+        window.Utils.showToast('⚠️ Connection lost. Working in Offline Mode.', 'error');
+    }
+});
+
+window.addEventListener('online', () => {
+    if (window.Utils && window.Utils.showToast) {
+        window.Utils.showToast('✅ Back online. Background sync ready.', 'success');
+    }
+});
+// ==========================================
+// 🚀 NATIVE UX: OS SHARE MENU (WHATSAPP/EMAIL)
+// ==========================================
+// Bridges the ERP to the phone's native sharing hardware
+if (!window.UI) window.UI = {};
+
+window.UI.shareInvoice = async (invoiceTitle, textContent, pdfFileObj = null) => {
+    try {
+        const shareData = {
+            title: invoiceTitle || 'SOLLO ERP Invoice',
+            text: textContent || 'Please find the attached document from our business.',
+        };
+        
+        // If your app generates a PDF file, this securely attaches it to the WhatsApp/Email message
+        if (pdfFileObj && navigator.canShare && navigator.canShare({ files: [pdfFileObj] })) {
+            shareData.files = [pdfFileObj];
+        }
+        
+        if (navigator.share) {
+            await navigator.share(shareData);
+            if (window.Utils && window.Utils.showToast) window.Utils.showToast('✅ Sent successfully', 'success');
+        } else {
+            if (window.Utils && window.Utils.showToast) window.Utils.showToast('⚠️ Native sharing not supported on this device', 'error');
+        }
+    } catch (err) {
+        console.log('User cancelled the share menu');
+    }
+};

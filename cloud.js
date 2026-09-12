@@ -142,39 +142,40 @@ const Cloud = {
                 
                 const metadata = { 'name': backupFileName, 'mimeType': 'application/json' };
 
-                let response = await gapi.client.drive.files.list({
-                    q: `name='${backupFileName}' and trashed=false`,
-                    spaces: 'drive', 
-                    orderBy: 'modifiedTime desc', // 🚨 BUG FIX: Force Google to sort by newest first!
-                    fields: 'files(id)'
-                });
+                // 🚨 ENTERPRISE FIX: Use Local Storage to remember the File ID and prevent duplicate file creation!
+                let finalFileId = localStorage.getItem(`sollo_drive_file_id_${activeFirmId}`);
 
-                // STRICT ERP LOGIC: Hunt down and destroy Google Drive duplicates in the background to prevent version fragmentation!
-                let fileId = null;
-                if (response.result.files.length > 0) {
-                    fileId = response.result.files[0].id;
-                    // If Drive allowed ghost duplicates, nuke all of them except the primary one!
-                    if (response.result.files.length > 1) {
-                        for (let i = 1; i < response.result.files.length; i++) {
-                            await gapi.client.drive.files.delete({ fileId: response.result.files[i].id });
-                        }
-                    }
-                }
-                
-                // ENTERPRISE FIX: Applied the Safe-Split Upload to the Auto-Backup engine!
-                let finalFileId = fileId;
-                
                 if (!finalFileId) {
-                    const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-                        method: 'POST',
-                        headers: new Headers({ 
-                            'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
-                            'Content-Type': 'application/json'
-                        }),
-                        body: JSON.stringify(metadata)
+                    let response = await gapi.client.drive.files.list({
+                        q: `name='${backupFileName}' and trashed=false`,
+                        spaces: 'drive', 
+                        orderBy: 'modifiedTime desc',
+                        fields: 'files(id)'
                     });
-                    const metaData = await metaRes.json();
-                    finalFileId = metaData.id;
+
+                    if (response.result.files.length > 0) {
+                        finalFileId = response.result.files[0].id;
+                        localStorage.setItem(`sollo_drive_file_id_${activeFirmId}`, finalFileId);
+                        
+                        if (response.result.files.length > 1) {
+                            for (let i = 1; i < response.result.files.length; i++) {
+                                await gapi.client.drive.files.delete({ fileId: response.result.files[i].id });
+                            }
+                        }
+                    } else {
+                        // Create new file shell
+                        const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                            method: 'POST',
+                            headers: new Headers({ 
+                                'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                                'Content-Type': 'application/json'
+                            }),
+                            body: JSON.stringify(metadata)
+                        });
+                        const metaData = await metaRes.json();
+                        finalFileId = metaData.id;
+                        localStorage.setItem(`sollo_drive_file_id_${activeFirmId}`, finalFileId);
+                    }
                 }
 
                 // 🚨 ENTERPRISE FIX: Corrected Google Drive API Upload Strategy!
@@ -214,8 +215,8 @@ const Cloud = {
                         }
                     };
                     
-                    // prompt: '' skips the account selection screen and auto-renews if the user is already trusted!
-                    tokenClient.requestAccessToken({ prompt: '' });
+                    // 🚨 ENTERPRISE FIX: Google Identity v3 requires 'none' for silent token renewal!
+                    tokenClient.requestAccessToken({ prompt: 'none' });
                 }
             } catch (e) {
                 console.error("Auto backup failed quietly", e);
@@ -274,41 +275,42 @@ const Cloud = {
                     'mimeType': 'application/json'
                 };
 
-                // STRICT ERP LOGIC: Hunt down and destroy Google Drive duplicates to prevent version fragmentation!
-                let response = await gapi.client.drive.files.list({
-                    q: `name='${backupFileName}' and trashed=false`,
-                    spaces: 'drive',
-                    orderBy: 'modifiedTime desc', // 🚨 BUG FIX: Force Google to sort by newest first!
-                    fields: 'files(id)'
-                });
-
-                let fileId = null;
-                if (response.result.files.length > 0) {
-                    fileId = response.result.files[0].id;
-                    // If Drive allowed ghost duplicates, nuke all of them except the primary one!
-                    if (response.result.files.length > 1) {
-                        for (let i = 1; i < response.result.files.length; i++) {
-                            await gapi.client.drive.files.delete({ fileId: response.result.files[i].id });
-                        }
-                    }
-                }
                 window.Utils.showToast("Uploading to Google Drive...");
 
-                // ENTERPRISE FIX: Bypass the Google Drive API 'multipart' crash by splitting the upload!
-                let finalFileId = fileId;
-                
+                // 🚨 ENTERPRISE FIX: Use Local Storage to remember the File ID and prevent duplicate file creation!
+                let finalFileId = localStorage.getItem(`sollo_drive_file_id_${activeFirmId}`);
+
                 if (!finalFileId) {
-                    // Step 1: Create a perfectly named empty shell file first
-                    const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-                        method: 'POST',
-                        headers: new Headers({ 
-                            'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
-                            'Content-Type': 'application/json'
-                        }),
-                        body: JSON.stringify(metadata)
+                    let response = await gapi.client.drive.files.list({
+                        q: `name='${backupFileName}' and trashed=false`,
+                        spaces: 'drive', 
+                        orderBy: 'modifiedTime desc',
+                        fields: 'files(id)'
                     });
-                    const metaData = await metaRes.json();
-                    finalFileId = metaData.id;
+
+                    if (response.result.files.length > 0) {
+                        finalFileId = response.result.files[0].id;
+                        localStorage.setItem(`sollo_drive_file_id_${activeFirmId}`, finalFileId);
+                        
+                        if (response.result.files.length > 1) {
+                            for (let i = 1; i < response.result.files.length; i++) {
+                                await gapi.client.drive.files.delete({ fileId: response.result.files[i].id });
+                            }
+                        }
+                    } else {
+                        // Create new file shell
+                        const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                            method: 'POST',
+                            headers: new Headers({ 
+                                'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
+                                'Content-Type': 'application/json'
+                            }),
+                            body: JSON.stringify(metadata)
+                        });
+                        const metaData = await metaRes.json();
+                        finalFileId = metaData.id;
+                        localStorage.setItem(`sollo_drive_file_id_${activeFirmId}`, finalFileId);
+                    }
                 }
 
                 // Step 2: Inject the raw JSON database directly into that file shell
@@ -556,3 +558,21 @@ document.addEventListener('visibilitychange', () => {
 // 3. (REMOVED) The "Offline Recovery" Trigger was causing a Race Condition! 
 // It is now strictly handled by the safe 2-second debouncer in app.js.
 
+// ==========================================
+// 🚀 CLOUD ENGINE: GOOGLE DRIVE THROTTLER
+// ==========================================
+// Prevents Google Drive API rate-limiting by bundling rapid sync requests
+if (!window.Cloud) window.Cloud = {};
+
+window.Cloud.syncDebounceTimer = null;
+window.Cloud.safeAutoSync = () => {
+    // If another sync was requested recently, cancel it and restart the 3-second timer
+    if (window.Cloud.syncDebounceTimer) clearTimeout(window.Cloud.syncDebounceTimer);
+    
+    window.Cloud.syncDebounceTimer = setTimeout(() => {
+        // 🚨 CRITICAL FIX: Point to the correct autoBackup function!
+        if (typeof window.Cloud.autoBackup === 'function') {
+            window.Cloud.autoBackup();
+        }
+    }, 3000); 
+};

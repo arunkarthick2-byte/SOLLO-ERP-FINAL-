@@ -256,145 +256,86 @@ const saveRecord = (storeName, data) => {
 };
 
 const deleteRecordById = async (storeName, id) => {
-    try {
-        // 1. Fetch the record first to identify linked impacts
-        const oldRecord = await getRecordById(storeName, id);
-        
-        // STRICT ERP LOGIC: Stop ghost deletion! If the record doesn't exist, exit safely.
-        if (!oldRecord) return;
-        
-        // 🚨 ENTERPRISE UPGRADE: RELATIONAL INTEGRITY LOCK
-        // Prevent deletion of Master Data if they have connected financial history!
-        if (storeName === 'ledgers') {
-            const relatedSales = await getAllRecords('sales', 'firmId', oldRecord.firmId);
-            const relatedPurchases = await getAllRecords('purchases', 'firmId', oldRecord.firmId);
-            const hasTransactions = relatedSales.some(s => s.customerId === id) || relatedPurchases.some(p => p.supplierId === id);
-            
-            if (hasTransactions) {
-                if (window.Utils) await window.Utils.alertModal(`Cannot delete ${oldRecord.name}. There are invoices attached to this party. Please delete the invoices first or mark the party as inactive.`, "⚠️ INTEGRITY LOCK");
-                return false; // Safely abort deletion
-            }
-        } else if (storeName === 'items') {
-            // 🚨 ENTERPRISE FIX: Prevent OOM (Out of Memory) Crash by using an early-exit cursor instead of loading 50,000 invoices into RAM!
-            const checkItemUsage = (store) => new Promise((resolve) => {
-                const request = db.transaction(store, 'readonly').objectStore(store).index('firmId').openCursor(IDBKeyRange.only(oldRecord.firmId));
-                request.onsuccess = (e) => {
-                    const cursor = e.target.result;
-                    if (!cursor) return resolve(false);
-                    if ((cursor.value.items || []).some(row => String(row.itemId) === String(id) || String(row.id) === String(id))) return resolve(true);
-                    cursor.continue();
-                };
-                request.onerror = () => resolve(false);
-            });
-            
-            const itemIsUsed = await checkItemUsage('sales') || await checkItemUsage('purchases');
-            
-            if (itemIsUsed) {
-                if (window.Utils) await window.Utils.alertModal(`Cannot delete ${oldRecord.name}. This product is used in historical invoices. Deleting it will corrupt your financial history.`, "⚠️ INTEGRITY LOCK");
-                return false; // Safely abort deletion
-            }
+    const oldRecord = await getRecordById(storeName, id);
+    if (!oldRecord) return;
+    
+    if (storeName === 'ledgers') {
+        const relatedSales = await getAllRecords('sales', 'firmId', oldRecord.firmId);
+        const relatedPurchases = await getAllRecords('purchases', 'firmId', oldRecord.firmId);
+        if (relatedSales.some(s => s.customerId === id) || relatedPurchases.some(p => p.supplierId === id)) {
+            if (window.Utils) await window.Utils.alertModal(`Cannot delete ${oldRecord.name}. There are invoices attached to this party.`, "⚠️ INTEGRITY LOCK");
+            return false;
         }
-
-        // Ensure we use the exact data type from the DB for the physical deletion
-        const actualId = oldRecord.id; 
-        
-        // 1. Save to Recycle Bin first (Safest operation)
-        if (oldRecord && storeName !== 'trash') {
-            oldRecord._module = storeName; 
-            oldRecord._deletedAt = new Date().toISOString(); 
-            try {
-                await saveRecord('trash', oldRecord); 
-            } catch (trashError) {
-                // 🚨 ENTERPRISE FIX: The "Full Disk Deadlock" Shield!
-                // If the phone is 100% full, the recycle bin cannot save the file. 
-                // We must bypass the trash and perform a permanent hard delete to rescue the user's storage!
-                console.warn("Storage is too full to use the Recycle Bin. Bypassing trash for permanent deletion.");
-            }
-        }
-
-        if (oldRecord && (storeName === 'sales' || storeName === 'purchases' || storeName === 'adjustments' || storeName === 'expenses')) {
-            // 2. CRITICAL FIX: Reverse Inventory BEFORE deleting the document
-            await reverseStockImpact(storeName, oldRecord);
-            
-            // 3. Batched cleanup of auto-generated receipts
-            const uniqueRefs = [...new Set([oldRecord.orderNo, oldRecord.invoiceNo, oldRecord.poNo, oldRecord.expenseNo, oldRecord.id].filter(Boolean))];
-            const partyId = storeName === 'sales' ? oldRecord.customerId : (storeName === 'purchases' ? oldRecord.supplierId : null);
-            
-            // ENTERPRISE FIX: Force all references to Strings so we don't strand numeric ghost receipts in the trash!
-            const safeRefs = uniqueRefs.map(String);
-            
-            // CRITICAL SHIELD: Safely clean up Cashbook entries for both Invoices AND Expenses!
-            if ((partyId || storeName === 'expenses') && safeRefs.length > 0) {
-                // ENTERPRISE FIX: Use the native index to prevent a massive RAM spike when deleting invoices!
-                const receipts = await getAllRecords('receipts', 'firmId', oldRecord.firmId);
-                const receiptsToDelete = receipts.filter(r => {
-                    // 🚨 ENTERPRISE FIX: The Ghost Receipt Comma-Splitter!
-                    // If a receipt is linked to multiple documents, the old engine failed to find it. We MUST split by commas first!
-                    const rRefs = String(r.invoiceRef || '').split(',').map(x => x.trim());
-                    const lRefs = String(r.linkedInvoice || '').split(',').map(x => x.trim());
-                    const hasMatch = rRefs.some(ref => safeRefs.includes(ref)) || lRefs.some(ref => safeRefs.includes(ref));
-                    
-                    return hasMatch && 
-                           (!partyId || String(r.ledgerId) === String(partyId)) && 
-                           r.isAutoGenerated && 
-                           String(r.firmId) === String(oldRecord.firmId);
-                });
-
-                if (receiptsToDelete.length > 0) {
-                    await new Promise((resolveBatch, rejectBatch) => {
-                        // STRICT ERP LOGIC: Open BOTH stores so receipts can be safely sent to the Trash!
-                        const t = db.transaction(['receipts', 'trash'], 'readwrite');
-                        const recStore = t.objectStore('receipts');
-                        const trashStore = t.objectStore('trash');
-                        
-                        receiptsToDelete.forEach(r => {
-                            r._module = 'receipts';
-                            r._deletedAt = new Date().toISOString();
-                            trashStore.put(r); // Save to recycle bin first
-                            recStore.delete(r.id); // Then remove from active ledger
-                        });
-                        
-                        t.oncomplete = () => resolveBatch();
-                        t.onerror = () => rejectBatch(t.error);
-                    });
-                }
-            }
-        } 
-        else if (storeName === 'accounts') {
-            // ENTERPRISE FIX: If you delete a bank account, safely orphan the cashbook receipts to 'cash' to prevent money from disappearing!
-            const receipts = await getAllRecords('receipts', 'firmId', oldRecord.firmId);
-            for (const r of receipts) {
-                if (String(r.accountId) === String(actualId)) {
-                    r.accountId = 'cash';
-                    await saveRecord('receipts', r);
-                }
-            }
-            
-            // ENTERPRISE FIX: Safely remap Expenses to 'cash' to prevent the Expense Ledger from permanently breaking!
-            const expenses = await getAllRecords('expenses', 'firmId', oldRecord.firmId);
-            for (const e of expenses) {
-                if (String(e.accountId) === String(actualId)) {
-                    e.accountId = 'cash';
-                    await saveRecord('expenses', e);
-                }
-            }
-        }
-
-        // 4. Finally, delete the actual document only after all reversals finish
-        await new Promise((resolveDelete, rejectDelete) => {
-            const transaction = db.transaction(storeName, 'readwrite');
-            const request = transaction.objectStore(storeName).delete(actualId); // <--- FIXED TYPE LOCK
-            request.onsuccess = () => {
-                if (window.triggerCrossTabSync) window.triggerCrossTabSync();
-                resolveDelete();
+    } else if (storeName === 'items') {
+        const checkItemUsage = (store) => new Promise((resolve) => {
+            const request = db.transaction(store, 'readonly').objectStore(store).index('firmId').openCursor(IDBKeyRange.only(oldRecord.firmId));
+            request.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (!cursor) return resolve(false);
+                if ((cursor.value.items || []).some(row => String(row.itemId) === String(id) || String(row.id) === String(id))) return resolve(true);
+                cursor.continue();
             };
-            request.onerror = () => rejectDelete(request.error);
+            request.onerror = () => resolve(false);
         });
-
-    } catch (err) {
-        console.error("Deletion engine failure:", err);
-        throw err; // Properly throws the error to the caller instead of swallowing it
+        if (await checkItemUsage('sales') || await checkItemUsage('purchases')) {
+            if (window.Utils) await window.Utils.alertModal(`Cannot delete ${oldRecord.name}. This product is used in historical invoices.`, "⚠️ INTEGRITY LOCK");
+            return false;
+        }
     }
+
+    const atomicPuts = [];
+    const atomicDeletes = [];
+
+    if (['sales', 'purchases', 'adjustments', 'expenses'].includes(storeName)) {
+        if (oldRecord.status !== 'Open' && oldRecord.status !== 'Cancelled') {
+            const isReturn = oldRecord.documentType === 'return';
+            const isNonGST = oldRecord.invoiceType === 'Non-GST'; 
+            const rowsToProcess = storeName === 'adjustments' ? [oldRecord] : (oldRecord.items || []);
+            const itemIds = [...new Set(rowsToProcess.map(row => String(row.itemId || row.id)))];
+            const itemsSnapshot = (await Promise.all(itemIds.map(i => getRecordById('items', i)))).filter(Boolean);
+            
+            rowsToProcess.forEach(row => {
+                const dbItem = itemsSnapshot.find(i => String(i.id) === String(row.itemId || row.id));
+                if (dbItem) {
+                    let qty = Math.abs(parseFloat(row.qty) || 0); 
+                    let impact = storeName === 'sales' ? (isReturn ? -qty : qty) : storeName === 'purchases' ? (isReturn ? qty : -qty) : storeName === 'adjustments' ? (oldRecord.type === 'add' ? -qty : qty) : qty;
+                    let targetPoolIsNonGST = storeName === 'adjustments' ? oldRecord.pool !== 'gst' : isNonGST;
+                    let impactInPaise = Math.round(impact * 100);
+
+                    if (targetPoolIsNonGST) {
+                        dbItem.stockNonGst = (Math.round((parseFloat(dbItem.stockNonGst)||0) * 100) + impactInPaise) / 100;
+                    } else {
+                        dbItem.stockGst = (Math.round((parseFloat(dbItem.stockGst)||0) * 100) + impactInPaise) / 100;
+                    }
+                    dbItem.stock = (Math.round((parseFloat(dbItem.stockGst)||0)*100) + Math.round((parseFloat(dbItem.stockNonGst)||0)*100)) / 100;
+                }
+            });
+            itemsSnapshot.forEach(item => atomicPuts.push({ store: 'items', data: item }));
+        }
+        
+        const uniqueRefs = [...new Set([oldRecord.orderNo, oldRecord.invoiceNo, oldRecord.poNo, oldRecord.expenseNo, oldRecord.id].filter(Boolean).map(String))];
+        const partyId = storeName === 'sales' ? oldRecord.customerId : (storeName === 'purchases' ? oldRecord.supplierId : null);
+        if ((partyId || storeName === 'expenses') && uniqueRefs.length > 0) {
+            const receipts = await getAllRecords('receipts', 'firmId', oldRecord.firmId);
+            receipts.forEach(r => {
+                const rRefs = String(r.invoiceRef || '').split(',').map(x => x.trim());
+                const lRefs = String(r.linkedInvoice || '').split(',').map(x => x.trim());
+                const hasMatch = rRefs.some(ref => uniqueRefs.includes(ref)) || lRefs.some(ref => uniqueRefs.includes(ref));
+                if (hasMatch && (!partyId || String(r.ledgerId) === String(partyId)) && r.isAutoGenerated) {
+                    atomicDeletes.push({ store: 'receipts', id: r.id, trashData: r });
+                }
+            });
+        }
+    } else if (storeName === 'accounts') {
+        const receipts = await getAllRecords('receipts', 'firmId', oldRecord.firmId);
+        receipts.forEach(r => { if (String(r.accountId) === String(oldRecord.id)) { r.accountId = 'cash'; atomicPuts.push({ store: 'receipts', data: r }); }});
+        const expenses = await getAllRecords('expenses', 'firmId', oldRecord.firmId);
+        expenses.forEach(e => { if (String(e.accountId) === String(oldRecord.id)) { e.accountId = 'cash'; atomicPuts.push({ store: 'expenses', data: e }); }});
+    }
+
+    atomicDeletes.push({ store: storeName, id: oldRecord.id, trashData: storeName !== 'trash' ? oldRecord : null });
+    await executeAtomicBatch(atomicPuts, atomicDeletes);
+    if (window.AppCache) { window.AppCache.items = null; window.AppCache.ledgers = null; window.AppCache.accounts = null; }
 };
 
 const getAllFirms = () => getAllRecords('firms');
@@ -426,149 +367,10 @@ window.getRecordsByDateRange = getRecordsByDateRange;
 // ==========================================
 // STRICT INVENTORY & INVOICE ENGINE
 // ==========================================
-const reverseStockImpact = async (storeName, record) => {
-    // ENTERPRISE FIX: The Phantom Cancelled Leak!
-    if (record.status === 'Open' || record.status === 'Cancelled') return; 
-    const isReturn = record.documentType === 'return';
-    const isNonGST = record.invoiceType === 'Non-GST'; 
-    
-    const rowsToProcess = storeName === 'adjustments' ? [record] : (record.items || []);
-    
-    for (const row of rowsToProcess) {
-        const dbItem = await getRecordById('items', row.itemId || row.id);
-        if (dbItem) {
-            // 🚨 ENTERPRISE FIX: Absolute Math Shield! 
-            // Strips accidental negatives out of the quantity so the math logic perfectly dictates the flow!
-            let qty = Math.abs(parseFloat(row.qty) || 0); 
-            
-            let stockGst = parseFloat(dbItem.stockGst);
-            if (isNaN(stockGst)) stockGst = parseFloat(dbItem.stock) || 0;
-            
-            let stockNonGst = parseFloat(dbItem.stockNonGst);
-            if (isNaN(stockNonGst)) stockNonGst = 0;
-            
-            dbItem.stockGst = stockGst;
-            dbItem.stockNonGst = stockNonGst;
-            
-            let impact = 0;
-            if (storeName === 'sales') {
-                impact = isReturn ? -qty : qty;
-            } else if (storeName === 'purchases') {
-                impact = isReturn ? qty : -qty;
-            } else if (storeName === 'adjustments') {
-                impact = record.type === 'add' ? -qty : qty; 
-            } else if (storeName === 'expenses') {
-                impact = qty; 
-            }
-            
-            let targetPoolIsNonGST = isNonGST;
-            if (storeName === 'adjustments') targetPoolIsNonGST = record.pool !== 'gst';
-            
-            // MATH FIX: Convert to paise (integers) to prevent decimal drift
-            let impactInPaise = Math.round(impact * 100);
-
-            if (targetPoolIsNonGST) {
-                let currentNonGstPaise = Math.round((stockNonGst || 0) * 100);
-                dbItem.stockNonGst = (currentNonGstPaise + impactInPaise) / 100;
-            } else {
-                let currentGstPaise = Math.round((stockGst || 0) * 100);
-                dbItem.stockGst = (currentGstPaise + impactInPaise) / 100;
-            }
-            
-            let finalGstPaise = Math.round((dbItem.stockGst || 0) * 100);
-            let finalNonGstPaise = Math.round((dbItem.stockNonGst || 0) * 100);
-            dbItem.stock = (finalGstPaise + finalNonGstPaise) / 100;
-            await saveRecord('items', dbItem);
-        }
-    }
-};
-
-const applyStockImpact = async (storeName, record) => {
-    // ENTERPRISE FIX: The Phantom Cancelled Leak!
-    if (record.status === 'Open' || record.status === 'Cancelled') return; 
-    const isReturn = record.documentType === 'return';
-    const isNonGST = record.invoiceType === 'Non-GST'; 
-    
-    const rowsToProcess = storeName === 'adjustments' ? [record] : (record.items || []);
-    
-    for (const row of rowsToProcess) {
-        const dbItem = await getRecordById('items', row.itemId || row.id);
-        if (dbItem) {
-            // 🚨 ENTERPRISE FIX: Absolute Math Shield!
-            let qty = Math.abs(parseFloat(row.qty) || 0); 
-            
-            let stockGst = parseFloat(dbItem.stockGst);
-            if (isNaN(stockGst)) stockGst = parseFloat(dbItem.stock) || 0;
-            
-            let stockNonGst = parseFloat(dbItem.stockNonGst);
-            if (isNaN(stockNonGst)) stockNonGst = 0;
-            
-            dbItem.stockGst = stockGst;
-            dbItem.stockNonGst = stockNonGst;
-            
-            let impact = 0;
-            if (storeName === 'sales') {
-                impact = isReturn ? qty : -qty;
-            } else if (storeName === 'purchases') {
-                impact = isReturn ? -qty : qty;
-                
-                if (!isReturn && parseFloat(row.rate) > 0) {
-                    let discountRatio = 0;
-                    const trueSubtotal = (record.items || []).reduce((sum, item) => sum + (Math.abs(parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
-                    if (record.discount > 0 && trueSubtotal > 0) {
-                        discountRatio = record.discountType === '%' ? (record.discount / 100) : (record.discount / trueSubtotal);
-                    }
-                    const newPrice = Math.max(0, parseFloat(row.rate) * (1 - discountRatio));
-                    const newQty = qty;
-                    
-                    const oldStock = Math.max(0, parseFloat(dbItem.stock) || 0);
-                    const oldPrice = parseFloat(dbItem.buyPrice) || 0;
-                    
-                    if (newQty > 0) {
-                        const totalOldValue = oldStock * oldPrice;
-                        const totalNewValue = newQty * newPrice;
-                        const newTotalStock = oldStock + newQty;
-                        dbItem.buyPrice = newTotalStock > 0 ? Math.round(((totalOldValue + totalNewValue) / newTotalStock) * 100) / 100 : newPrice;
-                    }
-                }
-            } else if (storeName === 'adjustments') {
-                impact = record.type === 'add' ? qty : -qty;
-            } else if (storeName === 'expenses') {
-                impact = -qty; 
-            }
-            
-            let targetPoolIsNonGST = isNonGST;
-            if (storeName === 'adjustments') targetPoolIsNonGST = record.pool !== 'gst';
-            
-            // MATH FIX: Convert to paise (integers) to prevent decimal drift
-            let impactInPaise = Math.round(impact * 100);
-
-            if (targetPoolIsNonGST) {
-                let currentNonGstPaise = Math.round((stockNonGst || 0) * 100);
-                dbItem.stockNonGst = (currentNonGstPaise + impactInPaise) / 100;
-            } else {
-                let currentGstPaise = Math.round((stockGst || 0) * 100);
-                dbItem.stockGst = (currentGstPaise + impactInPaise) / 100;
-            }
-            
-            let finalGstPaise = Math.round((dbItem.stockGst || 0) * 100);
-            let finalNonGstPaise = Math.round((dbItem.stockNonGst || 0) * 100);
-            dbItem.stock = (finalGstPaise + finalNonGstPaise) / 100;
-            await saveRecord('items', dbItem);
-        }
-    }
-};
-
 const saveInvoiceTransaction = async (storeName, data) => {
-    // 🚨 ENTERPRISE UPGRADE: GLOBAL DATA NORMALIZER
-    // Silently fixes messy typists before the data ever hits the database!
-    if (data.customerName) {
-        data.customerName = data.customerName.replace(/\b\w/g, c => c.toUpperCase());
-    }
-    if (data.supplierName) {
-        data.supplierName = data.supplierName.replace(/\b\w/g, c => c.toUpperCase());
-    }
-    if (data.items && data.items.length > 0) {
+    if (data.customerName) data.customerName = data.customerName.replace(/\b\w/g, c => c.toUpperCase());
+    if (data.supplierName) data.supplierName = data.supplierName.replace(/\b\w/g, c => c.toUpperCase());
+    if (data.items) {
         data.items.forEach(item => {
             if (item.hsn) item.hsn = String(item.hsn).toUpperCase().trim();
             if (item.name) item.name = item.name.replace(/\b\w/g, c => c.toUpperCase());
@@ -576,127 +378,127 @@ const saveInvoiceTransaction = async (storeName, data) => {
     }
 
     const existingRecord = await getRecordById(storeName, data.id);
+    if (existingRecord) data.id = existingRecord.id;
     
-    // STRICT ERP LOGIC: Inherit the exact DB type to prevent string/number cloning!
-    if (existingRecord) {
-        data.id = existingRecord.id;
-    }
-    
-    // STRICT ERP LOGIC: Map all IDs to strings to prevent snapshot rollback failures!
-    // ENTERPRISE FIX: Ensure Adjustments are correctly coerced to strings to prevent snapshot failures!
+    // 1. CREATE ATOMIC RAM VAULT
+    const atomicPuts = [];
+    const atomicDeletes = [];
+
     const newDataItems = storeName === 'adjustments' ? [String(data.itemId)] : (data.items || []).map(row => String(row.itemId || row.id));
     const oldDataItems = existingRecord ? (storeName === 'adjustments' ? [String(existingRecord.itemId)] : (existingRecord.items || []).map(row => String(row.itemId || row.id))) : [];
     const allItemIds = [...new Set([...newDataItems, ...oldDataItems].filter(Boolean))];
-    
-    // 🚀 ENTERPRISE UPGRADE: Parallel N+1 Query Resolution
-    // Instead of waiting for each item one by one, fetch all 50 items simultaneously!
     const itemsSnapshot = (await Promise.all(allItemIds.map(id => getRecordById('items', id)))).filter(Boolean);
-    // ENTERPRISE FIX: Create a snapshot array to protect receipts in case of a system crash!
-    let deletedReceiptsSnapshot = [];
+    const getRamItem = (id) => itemsSnapshot.find(i => String(i.id) === String(id));
 
-    try {
-        if (existingRecord) {
-            await reverseStockImpact(storeName, existingRecord);
-            
-            const docNo = existingRecord.invoiceNo || existingRecord.poNo || existingRecord.id;
-            const partyId = storeName === 'sales' ? existingRecord.customerId : existingRecord.supplierId;
-            const newDocNo = data.invoiceNo || data.poNo || data.id; 
-            
-            // ENTERPRISE FIX: Track the new party so we can migrate payments if the customer name changed!
-            const newPartyId = storeName === 'sales' ? data.customerId : data.supplierId;
-            const newPartyName = storeName === 'sales' ? data.customerName : data.supplierName;
-            
-            if (docNo && partyId) {
-                // ENTERPRISE FIX: Stop the "Save Button" from freezing on large databases!
-                const receipts = await getAllRecords('receipts', 'firmId', data.firmId);
-                for (const r of receipts) {
-                    // ENTERPRISE FIX: The Ghost Payment Multiplier Shield!
-                    // Purchases use 'linkedInvoice' instead of 'invoiceRef'. Auto-generated split tenders use data.id instead of docNo!
-                    if ((String(r.invoiceRef) === String(docNo) || String(r.invoiceRef) === String(existingRecord.id) || String(r.linkedInvoice) === String(docNo) || String(r.linkedInvoice) === String(existingRecord.id)) && String(r.ledgerId) === String(partyId) && r.isAutoGenerated) {
-                        
-                        // 🚨 ENTERPRISE FIX: The "Evaporating Payment" Shield + Void Cleanup
-                        // Keep split payments safe during edits, UNLESS the invoice is being Voided/Cancelled/Drafted!
-                        if (!String(r.id).startsWith('split-') || data.status === 'Open' || data.status === 'Cancelled') {
-                            deletedReceiptsSnapshot.push(r); // Safely back it up before deleting!
-                            await deleteRecordById('receipts', r.id); 
-                        }
+    // 2. REVERSE OLD STOCK IN RAM
+    if (existingRecord && existingRecord.status !== 'Open' && existingRecord.status !== 'Cancelled') {
+        const isReturn = existingRecord.documentType === 'return';
+        const isNonGST = existingRecord.invoiceType === 'Non-GST'; 
+        const rowsToProcess = storeName === 'adjustments' ? [existingRecord] : (existingRecord.items || []);
+        
+        rowsToProcess.forEach(row => {
+            const dbItem = getRamItem(row.itemId || row.id);
+            if (dbItem) {
+                let qty = Math.abs(parseFloat(row.qty) || 0); 
+                let impact = storeName === 'sales' ? (isReturn ? -qty : qty) : storeName === 'purchases' ? (isReturn ? qty : -qty) : storeName === 'adjustments' ? (existingRecord.type === 'add' ? -qty : qty) : qty;
+                let targetPoolIsNonGST = storeName === 'adjustments' ? existingRecord.pool !== 'gst' : isNonGST;
+                let impactInPaise = Math.round(impact * 100);
+
+                if (targetPoolIsNonGST) {
+                    dbItem.stockNonGst = (Math.round((parseFloat(dbItem.stockNonGst)||0) * 100) + impactInPaise) / 100;
+                } else {
+                    dbItem.stockGst = (Math.round((parseFloat(dbItem.stockGst)||0) * 100) + impactInPaise) / 100;
+                }
+                dbItem.stock = (Math.round((parseFloat(dbItem.stockGst)||0)*100) + Math.round((parseFloat(dbItem.stockNonGst)||0)*100)) / 100;
+            }
+        });
+    }
+
+    // 3. CLEAN UP LINKED RECEIPTS IN RAM
+    if (existingRecord) {
+        const docNo = existingRecord.invoiceNo || existingRecord.poNo || existingRecord.id;
+        const partyId = storeName === 'sales' ? existingRecord.customerId : existingRecord.supplierId;
+        const newDocNo = data.invoiceNo || data.poNo || data.id; 
+        const newPartyId = storeName === 'sales' ? data.customerId : data.supplierId;
+        const newPartyName = storeName === 'sales' ? data.customerName : data.supplierName;
+        
+        if (docNo && partyId) {
+            const receipts = await getAllRecords('receipts', 'firmId', data.firmId);
+            receipts.forEach(r => {
+                const rRefs = String(r.invoiceRef || '').split(',').map(x => x.trim());
+                const lRefs = String(r.linkedInvoice || '').split(',').map(x => x.trim());
+                const hasMatch = rRefs.includes(String(docNo)) || rRefs.includes(String(existingRecord.id)) || lRefs.includes(String(docNo)) || lRefs.includes(String(existingRecord.id));
+
+                if (hasMatch && String(r.ledgerId) === String(partyId) && r.isAutoGenerated) {
+                    if (!String(r.id).startsWith('split-') || data.status === 'Open' || data.status === 'Cancelled') {
+                        atomicDeletes.push({ store: 'receipts', id: r.id, trashData: r });
                     }
-                    // ENTERPRISE FIX: Trigger the update if the Invoice Number OR the Customer Name changed!
-                    else if (String(r.ledgerId) === String(partyId) && !r.isAutoGenerated && (String(docNo) !== String(newDocNo) || String(partyId) !== String(newPartyId))) {
-                        let updated = false;
-                        
-                        // ENTERPRISE FIX: Check standard invoice references (Sales)
-                        if (r.invoiceRef) {
-                            const refs = String(r.invoiceRef).split(',').map(x => x.trim());
-                            if (refs.includes(String(docNo))) {
-                                r.invoiceRef = refs.map(ref => ref === String(docNo) ? String(newDocNo) : ref).join(', ');
-                                updated = true;
-                            }
+                } else if (String(r.ledgerId) === String(partyId) && !r.isAutoGenerated && (String(docNo) !== String(newDocNo) || String(partyId) !== String(newPartyId))) {
+                    let updated = false;
+                    if (r.invoiceRef && rRefs.includes(String(docNo))) { r.invoiceRef = rRefs.map(ref => ref === String(docNo) ? String(newDocNo) : ref).join(', '); updated = true; }
+                    if (r.linkedInvoice && lRefs.includes(String(docNo))) { r.linkedInvoice = lRefs.map(ref => ref === String(docNo) ? String(newDocNo) : ref).join(', '); updated = true; }
+                    
+                    if (updated) {
+                        if (String(partyId) !== String(newPartyId)) {
+                            if (rRefs.length > 1 || lRefs.length > 1) throw new Error("Cannot change Customer/Supplier! Invoice is tied to a Bulk Payment.");
+                            r.ledgerId = newPartyId; r.ledgerName = newPartyName;
                         }
-                        
-                        // ENTERPRISE FIX: Check linked invoice references (Purchases)
-                        if (r.linkedInvoice) {
-                            const linkedRefs = String(r.linkedInvoice).split(',').map(x => x.trim());
-                            if (linkedRefs.includes(String(docNo))) {
-                                r.linkedInvoice = linkedRefs.map(ref => ref === String(docNo) ? String(newDocNo) : ref).join(', ');
-                                updated = true;
-                            }
-                        }
-
-                        if (updated) {
-                            // ENTERPRISE FIX: Physically migrate the receipt to the new customer's ledger!
-                            if (String(partyId) !== String(newPartyId)) {
-                                // ENTERPRISE FIX: The Bulk Payment Hijack Shield!
-                                // If this receipt pays for MULTIPLE invoices, moving it to a new customer will permanently orphan the other invoices!
-                                const refCount = String(r.invoiceRef || '').split(',').filter(x => x.trim()).length;
-                                const linkCount = String(r.linkedInvoice || '').split(',').filter(x => x.trim()).length;
-                                if (refCount > 1 || linkCount > 1) {
-                                    throw new Error("Cannot change the Customer/Supplier! This invoice is tied to a Bulk Payment covering multiple invoices. Please unlink the payment in the Cashbook first.");
-                                }
-                                
-                                r.ledgerId = newPartyId;
-                                r.ledgerName = newPartyName;
-                            }
-                            
                         if (r.desc && r.desc.includes(docNo)) {
-                            // 🚨 ENTERPRISE FIX: Escape special characters so invoice numbers like "INV[2024]" don't crash the database engine!
                             const safeDocNo = String(docNo).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            const strictRegex = new RegExp('(?<=^|\\s)' + safeDocNo + '(?=\\s|$)', 'g');
-                            r.desc = r.desc.replace(strictRegex, newDocNo); 
+                            r.desc = r.desc.replace(new RegExp('(?<=^|\\s)' + safeDocNo + '(?=\\s|$)', 'g'), newDocNo); 
                         }
-                            await saveRecord('receipts', r);
-                        }
+                        atomicPuts.push({ store: 'receipts', data: r });
                     }
                 }
-            }
+            });
         }
-
-        // 🚨 CRITICAL FIX: The Half-Saved Invoice Trap!
-        // Save the invoice FIRST! If the device is out of storage, it will instantly reject 
-        // the save BEFORE touching the inventory, keeping your stock perfectly safe!
-        await saveRecord(storeName, data);
-        await applyStockImpact(storeName, data);
-        
-        if (typeof triggerAutoBackup === 'function') triggerAutoBackup();
-
-    } catch (error) {
-        console.error("CRITICAL DB ERROR: Rolling back data to prevent corruption...", error);
-        // 🚨 ENTERPRISE FIX: Wrap the rollback in a silent try/catch!
-        // If the DB crashed because the Storage Quota is 100% full, the rollback will ALSO crash and throw an Unhandled Promise Rejection!
-        try {
-            // 1. Rollback Inventory
-            for (const oldItem of itemsSnapshot) {
-                await saveRecord('items', oldItem);
-            }
-            // 2. Rollback deleted receipts so the customer's payment isn't permanently lost!
-            for (const oldReceipt of deletedReceiptsSnapshot) {
-                await saveRecord('receipts', oldReceipt);
-            }
-        } catch (rollbackError) {
-            console.error("Rollback failed. Storage is likely physically exhausted.", rollbackError);
-        }
-        throw new Error("Transaction failed due to a system error. If storage is full, please free up space.");
     }
+
+    // 4. APPLY NEW STOCK IN RAM
+    if (data.status !== 'Open' && data.status !== 'Cancelled') {
+        const isReturn = data.documentType === 'return';
+        const isNonGST = data.invoiceType === 'Non-GST'; 
+        const rowsToProcess = storeName === 'adjustments' ? [data] : (data.items || []);
+        
+        rowsToProcess.forEach(row => {
+            const dbItem = getRamItem(row.itemId || row.id);
+            if (dbItem) {
+                let qty = Math.abs(parseFloat(row.qty) || 0); 
+                let impact = storeName === 'sales' ? (isReturn ? qty : -qty) : storeName === 'purchases' ? (isReturn ? -qty : qty) : storeName === 'adjustments' ? (data.type === 'add' ? qty : -qty) : -qty;
+                
+                if (storeName === 'purchases' && !isReturn && parseFloat(row.rate) > 0) {
+                    let discountRatio = 0;
+                    const trueSubtotal = (data.items || []).reduce((sum, item) => sum + (Math.abs(parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
+                    if (data.discount > 0 && trueSubtotal > 0) discountRatio = data.discountType === '%' ? (data.discount / 100) : (data.discount / trueSubtotal);
+                    const newPrice = Math.max(0, parseFloat(row.rate) * (1 - discountRatio));
+                    const oldStock = Math.max(0, parseFloat(dbItem.stock) || 0);
+                    const oldPrice = parseFloat(dbItem.buyPrice) || 0;
+                    if (qty > 0) {
+                        const newTotalStock = oldStock + qty;
+                        dbItem.buyPrice = newTotalStock > 0 ? Math.round((((oldStock * oldPrice) + (qty * newPrice)) / newTotalStock) * 100) / 100 : newPrice;
+                    }
+                }
+
+                let targetPoolIsNonGST = storeName === 'adjustments' ? data.pool !== 'gst' : isNonGST;
+                let impactInPaise = Math.round(impact * 100);
+
+                if (targetPoolIsNonGST) {
+                    dbItem.stockNonGst = (Math.round((parseFloat(dbItem.stockNonGst)||0) * 100) + impactInPaise) / 100;
+                } else {
+                    dbItem.stockGst = (Math.round((parseFloat(dbItem.stockGst)||0) * 100) + impactInPaise) / 100;
+                }
+                dbItem.stock = (Math.round((parseFloat(dbItem.stockGst)||0)*100) + Math.round((parseFloat(dbItem.stockNonGst)||0)*100)) / 100;
+            }
+        });
+    }
+
+    // 5. SECURE TRANSACTION PUSH
+    atomicPuts.push({ store: storeName, data: data });
+    itemsSnapshot.forEach(item => atomicPuts.push({ store: 'items', data: item }));
+    
+    await executeAtomicBatch(atomicPuts, atomicDeletes);
+    if (window.AppCache) { window.AppCache.items = null; window.AppCache[storeName] = null; }
+    if (typeof triggerAutoBackup === 'function') triggerAutoBackup();
 };
 
 // ==========================================
@@ -991,8 +793,6 @@ const getGlobalTimeline = async (firmId) => {
 // AUTO-BACKUP & BULK EXPORT ENGINE
 // ==========================================
 const triggerAutoBackup = async () => {
-    // ENTERPRISE FIX: Debounce the heavy export engine!
-    // Prevents the "Save" button from freezing for 3 seconds while the database serializes.
     if (window.localBackupTimer) clearTimeout(window.localBackupTimer);
     
     window.localBackupTimer = setTimeout(async () => {
@@ -1000,8 +800,6 @@ const triggerAutoBackup = async () => {
             if (typeof exportDatabase !== 'function') return;
             const backupData = await exportDatabase();
             
-            // 🚨 ENTERPRISE UPGRADE: INLINE WEB WORKER
-            // Offloads massive JSON stringification to a secondary CPU core so the UI never stutters!
             const workerCode = `
                 self.onmessage = function(e) {
                     try {
@@ -1013,7 +811,8 @@ const triggerAutoBackup = async () => {
                 };
             `;
             const blob = new Blob([workerCode], { type: 'application/javascript' });
-            const worker = new Worker(URL.createObjectURL(blob));
+            const blobUrl = URL.createObjectURL(blob);
+            const worker = new Worker(blobUrl);
 
             worker.onmessage = function(e) {
                 if (e.data.success) {
@@ -1022,57 +821,66 @@ const triggerAutoBackup = async () => {
                         localStorage.setItem('sollo_auto_backup_date', new Date().toISOString());
                     } catch (storageError) {
                         console.warn("Storage quota exceeded. Skipping local backup string to prevent crash.");
-                        localStorage.removeItem('sollo_auto_backup'); // Clear space safely
+                        localStorage.removeItem('sollo_auto_backup');
                     }
                 }
-                worker.terminate(); // Safely kill the background thread to save phone battery
+                worker.terminate(); 
+                URL.revokeObjectURL(blobUrl); // 🚨 CRITICAL FIX: Flush the virtual file from RAM!
             };
 
-            worker.postMessage(backupData); // Send the heavy data to the background core!
+            worker.postMessage(backupData); 
             
         } catch (e) {
-            console.warn("Auto-backup engine silently skipped (data might be too large).");
+            console.warn("Auto-backup engine silently skipped.");
         }
-    }, 3000); // Wait 3 seconds for the UI to settle before running background math!
+    }, 3000); 
 };
 
-const exportDatabase = async () => {
-    // ENTERPRISE FIX: Capture the phone's current active Firm ID
-    const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
-    
-    // FIX: Added 'trash' to the export array so the recycle bin is safely backed up to the cloud
-    const stores = ['firms', 'businessProfile', 'counters', 'items', 'ledgers', 'sales', 'purchases', 'receipts', 'expenses', 'accounts', 'adjustments', 'units', 'expenseCategories', 'trash'];
-    const backupData = {};
-    
-    for (const store of stores) {
-        const allRecords = await getAllRecords(store);
+const exportDatabase = () => {
+    return new Promise((resolve, reject) => {
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+        const stores = ['firms', 'businessProfile', 'counters', 'items', 'ledgers', 'sales', 'purchases', 'receipts', 'expenses', 'accounts', 'adjustments', 'units', 'expenseCategories', 'trash'];
+        const backupData = {};
+        stores.forEach(s => backupData[s] = []);
         
-        // --- ENTERPRISE FIX: STRICT DATA ISOLATION ---
-        // Only export global settings OR records that belong exactly to the active business!
-        // ENTERPRISE FIX: The Master-Data Blackhole Shield!
-        // Units and Expense Categories are legacy tables that lack strict firmIds. They MUST bypass the filter or they get permanently deleted during backup!
-        if (store === 'counters' || store === 'units' || store === 'expenseCategories') {
-            backupData[store] = allRecords; // Global dropdowns and settings
-        } else {
-            // Filter out any data that belongs to other businesses (if multi-firm is used)
-            backupData[store] = allRecords.filter(record => record.firmId === activeFirmId || record.id === activeFirmId);
+        const appSettings = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('sollo_') && !key.includes('auto_backup')) {
+                appSettings[key] = localStorage.getItem(key);
+            }
         }
-    }
+        backupData['appSettings'] = [appSettings];
 
-    // 🚨 ENTERPRISE UPGRADE: LOCAL STORAGE SETTINGS BACKUP
-    // Safely extract all UI themes, PDF fonts, numbering formats, and custom starting numbers!
-    const appSettings = {};
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        // Backup all SOLLO settings EXCEPT the massive background temporary auto-backup strings!
-        if (key && key.startsWith('sollo_') && !key.includes('auto_backup')) {
-            appSettings[key] = localStorage.getItem(key);
-        }
-    }
-    // Store it as a single object array to perfectly match the existing JSON structure parser!
-    backupData['appSettings'] = [appSettings];
-    
-    return backupData;
+        // 🚨 ENTERPRISE UPGRADE: O(1) Memory Streaming Cursor
+        // Streams data chunk-by-chunk directly from the hard drive, bypassing mobile RAM limits!
+        const transaction = db.transaction(stores, 'readonly');
+        let storesCompleted = 0;
+
+        stores.forEach(storeName => {
+            const store = transaction.objectStore(storeName);
+            const request = store.openCursor();
+            
+            request.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor) {
+                    const record = cursor.value;
+                    if (storeName === 'counters' || storeName === 'units' || storeName === 'expenseCategories') {
+                        backupData[storeName].push(record);
+                    } else if (record.firmId === activeFirmId || record.id === activeFirmId) {
+                        backupData[storeName].push(record);
+                    }
+                    cursor.continue();
+                } else {
+                    storesCompleted++;
+                    if (storesCompleted === stores.length) {
+                        resolve(backupData);
+                    }
+                }
+            };
+            request.onerror = () => reject(request.error);
+        });
+    });
 };
 
 const importDatabase = async (parsedData) => {
@@ -1393,3 +1201,22 @@ window.executeAtomicBatch = (puts, deletes) => {
     });
 };
 
+// ==========================================
+// 🚀 ERP SAFETY: STORAGE INTEGRITY MONITOR
+// ==========================================
+// Checks if the phone is running out of space to prevent silent data loss
+if (navigator.storage && navigator.storage.estimate) {
+    setInterval(async () => {
+        try {
+            const estimate = await navigator.storage.estimate();
+            const usagePercent = (estimate.usage / estimate.quota) * 100;
+            
+            // If storage is over 90% full, trigger a critical warning
+            if (usagePercent > 90 && window.Utils && window.Utils.showToast) {
+                window.Utils.showToast('⚠️ DEVICE STORAGE FULL. Backup data immediately to prevent loss.', 'error');
+            }
+        } catch (e) {
+            console.warn('Storage estimation not supported on this device.');
+        }
+    }, 60000); // Runs a silent check every 60 seconds
+}

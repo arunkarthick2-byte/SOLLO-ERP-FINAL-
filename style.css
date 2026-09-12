@@ -1618,17 +1618,32 @@ body.dark-mode tbody tr:active {
 /* ENTERPRISE UPGRADE: FROSTED GLASS UI       */
 /* ========================================== */
 
-/* Target the Top Headers and Bottom Navigation */
-.bottom-nav, 
+/* 🚀 PREMIUM UX: Hide Web Scrollbars for a Native App Feel */
+::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+    display: none !important;
+}
+* {
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+/* 🚀 PREMIUM UX: Split Headers and Bottom Nav to add precise Apple Hairline separators */
 .activity-header, 
 .screen-header,
 .sheet-header {
-    /* 1. Make the background 90% solid to improve text legibility */
     background: color-mix(in srgb, var(--md-surface) 90%, transparent) !important;
-    
-    /* 2. Optimized 8px blur to stop battery drain and scroll-lag on older Androids */
     backdrop-filter: blur(8px) !important;
     -webkit-backdrop-filter: blur(8px) !important; 
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06) !important; /* Crisp bottom hairline */
+}
+
+.bottom-nav {
+    background: color-mix(in srgb, var(--md-surface) 90%, transparent) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important; 
+    box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.06) !important; /* Crisp top hairline */
 }
 
 /* 3. Add a microscopic translucent border to define the edges of the glass */
@@ -3028,16 +3043,16 @@ select:focus {
     align-items: center !important;
 }
 
-/* Strict Material Design Square Buttons */
+/* Premium Friendly Form Buttons */
 .activity-bottom-bar button, .activity-footer button, .bottom-action-bar button, .activity-screen .primary-btn {
-    border-radius: 4px !important; /* Flat Native Corners */
+    border-radius: 12px !important; /* Soft, friendly corners matching the rest of the app */
     width: 100% !important;
     margin: 0 !important;
     font-weight: 700 !important;
-    letter-spacing: 0.5px !important;
-    text-transform: uppercase !important;
-    padding: 16px !important; /* Standardized 16px internal padding */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    letter-spacing: 0.3px !important;
+    text-transform: none !important; /* Removes the aggressive ALL CAPS */
+    padding: 16px !important; 
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.15) !important; /* Premium soft blue glow */
 }
 
 /* Add a hover/press effect to the new pill buttons */
@@ -3930,7 +3945,6 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
     width: 90% !important;
     max-width: 400px !important;
     
-    /* Optimized frosted glass (no heavy saturation filters) */
     background: rgba(255, 255, 255, 0.90) !important;
     backdrop-filter: blur(8px) !important;
     -webkit-backdrop-filter: blur(8px) !important;
@@ -3939,8 +3953,12 @@ form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:f
     
     display: flex !important;
     gap: 8px !important;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0,0,0,0.04) !important;
-    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    
+    /* 🚀 3D FINTECH DEPTH: Replaces flat shadows with a multi-layered native floating effect */
+    box-shadow: 0 24px 48px -12px rgba(0, 97, 164, 0.20), 
+                0 12px 24px -8px rgba(0, 0, 0, 0.10), 
+                0 4px 8px -4px rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
     z-index: 2000 !important;
 }
 
@@ -5972,20 +5990,33 @@ body.dark-mode .item-entry-card input:focus {
 #sales-discount, #sales-freight,
 #purchase-discount, #purchase-freight {
     background-color: var(--md-surface-variant) !important; 
-    border: 1px solid var(--md-outline-variant) !important; /* Locked at exactly 1px */
+    border: 1px solid var(--md-outline-variant) !important; 
     border-radius: 8px !important; 
-    padding: 10px 12px !important; /* Increased padding for finger taps */
-    font-size: 16px !important; /* Bumped to 16px to stop iOS zooming */
+    padding: 10px 12px !important; 
+    font-size: 16px !important; 
     font-weight: 700 !important;
     color: var(--md-on-surface) !important;
     text-align: center !important;
-    min-height: 48px !important; /* Expanded to Apple/Google 48px standard */
-    height: 48px !important; /* Expanded to Apple/Google 48px standard */
+    min-height: 48px !important; 
+    height: 48px !important; 
     box-sizing: border-box !important;
     margin: 0 !important;
     outline: none !important;
-    transform: translateZ(0) !important; /* GPU lock prevents layout reflows */
-    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease !important;
+    transform: translateZ(0) !important; 
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+/* 🔥 THE FINTECH GLOW: Elevates and highlights the box when you are typing */
+.item-entry-card input.row-qty:focus,
+.item-entry-card input.row-rate:focus,
+.item-entry-card input.row-item-buyprice:focus,
+.item-entry-card input.row-gst:focus,
+#sales-discount:focus, #sales-freight:focus,
+#purchase-discount:focus, #purchase-freight:focus {
+    background-color: var(--md-surface) !important;
+    border-color: var(--md-primary) !important;
+    box-shadow: 0 0 0 3px rgba(0, 97, 164, 0.15), 0 4px 12px rgba(0,0,0,0.05) !important;
+    transform: translateY(-1px) translateZ(0) !important;
 }
 
 /* 3. Kill the ugly green "Valid" borders on spreadsheet cells */
@@ -8387,4 +8418,179 @@ input[type="search"]::-webkit-search-cancel-button {
 .bottom-sheet .sheet-header {
     border-bottom: none !important;
     padding-top: 0 !important;
+}
+/* 🚀 NATIVE APP ILLUSION: Prevent accidental text highlighting and popups on UI elements */
+.activity-header, .bottom-nav, .screen-header, .sheet-header, .dropdown-btn, .dialog-text-btn, .btn-primary, .sub-radio-row, .nav-item {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important; /* Stops the iOS popup menu on long-press */
+}
+/* 🚀 NATIVE SCREEN PHYSICS: Locks the viewport to prevent web-browser behaviors */
+html, body {
+    overscroll-behavior-y: none !important; /* Disables the browser pull-to-refresh glitch */
+    overscroll-behavior-x: none !important; /* Disables edge-swiping browser navigation */
+    -webkit-tap-highlight-color: transparent !important; /* Kills the cheap web browser tap flash */
+}
+
+/* Ensure modal overlays don't trigger background scrolling */
+body.modal-open {
+    overflow: hidden !important;
+    touch-action: none !important;
+}
+/* ==========================================
+   🚀 FINAL NATIVE POLISH (FinTech UX)
+   ========================================== */
+
+/* 1. CAMERA NOTCH SAFETY */
+/* Pushes the top headers down safely so your title and back arrow never overlap with the phone's clock, battery, or camera cutout. */
+.activity-header, .screen-header, .sheet-header {
+    padding-top: env(safe-area-inset-top) !important;
+}
+
+/* Pushes the bottom navigation safely above the iPhone "Home Swipe" bar */
+.bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom) !important;
+}
+
+/* 2. FINTECH NUMBER ALIGNMENT */
+/* Forces all prices, balances, and quantities to use "Tabular Nums". 
+   This makes thin numbers (like 1) take up the same width as wide numbers (like 8), 
+   ensuring all your decimal points align perfectly in a list! */
+.row-qty, .row-rate, .row-amount, .list-view strong, .m3-card h2, .sub-radio-text {
+    font-variant-numeric: tabular-nums !important;
+}
+
+/* 3. THE 60FPS SCREEN TRANSITION */
+/* Instead of tabs instantly "blinking" into existence, this adds a premium, 
+   subtle slide-up fade whenever you switch from Dashboard to Transactions or Masters. */
+.activity-screen, #dashboard-view, #transactions-view, #masters-view, .tab-content {
+    animation: nativeFadeIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+    will-change: transform, opacity;
+}
+
+@keyframes nativeFadeIn {
+    0% { 
+        opacity: 0; 
+        transform: translateY(16px); 
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* 4. ANTI-FLASH ENGINE */
+/* Tells the mobile browser to pre-load a dark background if the phone is in Dark Mode, 
+   completely eliminating the blinding "white flash" when you first open the app. */
+:root {
+    color-scheme: light dark;
+}
+/* 🚀 FINTECH UX: Apple-Style Drag Indicator for Modals */
+/* Automatically injects a premium grey pill at the top of your popup cards */
+.sub-modal-card, .sheet-content {
+    position: relative !important;
+    padding-top: 16px !important; /* Makes safe room for the pill */
+}
+
+.sub-modal-card::after, .sheet-content::after {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    background-color: var(--md-outline-variant);
+    border-radius: 4px;
+    opacity: 0.8;
+    pointer-events: none;
+    z-index: 10;
+}
+/* ==========================================
+   🚀 SENSORY UX: LIQUID RIPPLE EFFECT
+   ========================================== */
+/* Prepares the buttons to hold the ripple animation inside their borders */
+.btn-primary, .nav-item, .sub-radio-row, .dialog-text-btn, .dropdown-btn {
+    position: relative;
+    overflow: hidden !important;
+}
+
+/* The actual expanding circle */
+.premium-ripple {
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    animation: ripple-anim 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+    background-color: rgba(255, 255, 255, 0.4); /* White glow for solid primary buttons */
+    pointer-events: none; /* Stops it from blocking double-taps */
+}
+
+/* Uses a dark blue ripple for buttons that have white/light backgrounds */
+.sub-radio-row .premium-ripple, 
+.dialog-text-btn .premium-ripple, 
+.dropdown-btn .premium-ripple,
+.nav-item .premium-ripple {
+    background-color: rgba(0, 97, 164, 0.15);
+}
+
+@keyframes ripple-anim {
+    to {
+        transform: scale(3);
+        opacity: 0;
+    }
+}
+/* ==========================================
+   🚀 PREMIUM UX: AUTOMATIC EMPTY STATES
+   ========================================== */
+/* Triggers a sleek graphic whenever a search yields zero results */
+.list-view:empty {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-height: 250px;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+    background-repeat: no-repeat;
+    background-position: center 60px;
+    position: relative;
+    border: none !important;
+}
+
+.list-view:empty::after {
+    content: 'No records found';
+    position: absolute;
+    top: 140px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--md-text-muted);
+    letter-spacing: 0.5px;
+}
+/* ==========================================
+   🚀 INVOICE UX: PREMIUM PRINT & PDF ENGINE
+   ========================================== */
+@media print {
+    /* Instantly hides all app navigation and buttons from the printed page */
+    .bottom-nav, .activity-header, .screen-header, .search-container, .thumb-action-bar, .sub-modal-overlay, button, .dropdown-btn {
+        display: none !important;
+    }
+    
+    /* Forces the background to pure white to save printer ink and ensure high contrast */
+    body, .activity-screen, .sheet-content {
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+    }
+    
+    /* Expands the invoice content to stretch across the physical A4 paper */
+    .activity-screen {
+        position: relative !important;
+        overflow: visible !important;
+        height: auto !important;
+        padding: 0 !important;
+    }
+    
+    /* Converts all light-grey FinTech borders to crisp black lines for printing */
+    table, th, td, .erp-section-label {
+        border-color: #000000 !important;
+        color: #000000 !important;
+    }
 }
