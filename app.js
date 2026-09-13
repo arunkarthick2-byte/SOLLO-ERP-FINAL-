@@ -3273,13 +3273,22 @@ const app = {
                     });
                     
                     if (items.length === 0) {
-                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText;                             submitBtn.style.opacity = "1"; 
-                        }
+                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
                         if (window.Utils) await window.Utils.alertModal("Please add at least one item with a quantity greater than 0.", "Action Required");
                         return;
                     }
 
                     const isReturn = app.state.currentDocType === 'return';
+                    
+                    // 🚨 SAFETY NET: Zero-Price Warning!
+                    const hasZeroPrice = items.some(i => i.rate === 0);
+                    if (hasZeroPrice && !isReturn) {
+                        const confirmZero = await window.Utils.confirmModal("One or more items have a price of ₹0.00. Are you sure you want to bill them for free?", "Confirm Free Item", false);
+                        if (!confirmZero) {
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; submitBtn.classList.remove('btn-loading'); }
+                            return;
+                        }
+                    }
                     const discTypeEl = document.getElementById(`${type}-discount-type`);
                     const accEl = document.getElementById(`${type}-account-id`);
 
@@ -3624,6 +3633,11 @@ if (data.id && splitConfirmed) {
                         } else if (window.UI && typeof window.UI.renderDashboard === 'function') {
                             window.UI.renderDashboard();
                         }
+                        
+                        // 🚨 AUTO-HEAL: Refresh the Read-Only Overview screen if you just edited the invoice!
+                        if (document.getElementById('activity-invoice-overview') && document.getElementById('activity-invoice-overview').classList.contains('open') && window.currentOverviewId) {
+                            window.openInvoiceOverview(window.currentOverviewType, window.currentOverviewId);
+                        }
                     } catch (error) {
                         console.error("Save failed:", error);
                         // Prevent the annoying "Double Alert" if validation already warned the user
@@ -3882,7 +3896,19 @@ if (data.id && splitConfirmed) {
                 // Only trigger a full UI refresh if we are NOT inside a nested invoice! 
                 // A full refresh while an invoice is open would wipe out the unsaved invoice data.
                 if (!(isSalesFormOpen || isPurchFormOpen)) {
-                    app.refreshAll();
+                    await app.refreshAll(); // 🚨 CRITICAL FIX: Wait for UI to update!
+                    
+                    // 🚨 AUTO-HEAL 1: Refresh Invoice Overview if an Expense was edited!
+                    if (document.getElementById('activity-invoice-overview') && document.getElementById('activity-invoice-overview').classList.contains('open') && window.currentOverviewId) {
+                        window.openInvoiceOverview(window.currentOverviewType, window.currentOverviewId);
+                    }
+                    
+                    // 🚨 AUTO-HEAL 2: Refresh Party Ledger (Khata) if Party details were edited!
+                    if (type === 'ledger' && document.getElementById('activity-report-viewer') && document.getElementById('activity-report-viewer').classList.contains('open')) {
+                        const pname = document.getElementById('ledger-name').value;
+                        const ptype = document.querySelector('select[name="type"]').value;
+                        app.openPartyLedger(data.id, ptype, pname);
+                    }
                 }
                 
                 } catch (error) {
@@ -3988,7 +4014,7 @@ if (data.id && splitConfirmed) {
                     
                     if (window.Utils) window.Utils.showToast("✅ Stock adjusted successfully!");
                     UI.closeBottomSheet('sheet-stock-adjustment');
-                    app.refreshAll();
+                    await app.refreshAll(); // 🚨 CRITICAL FIX: Wait for UI to update!
                 } catch (error) {
                     alert(error.message || "An error occurred while saving.");
                 } finally {
@@ -4334,7 +4360,12 @@ if (data.id && splitConfirmed) {
 
                         UI.showSuccess(); // UPGRADE: Trigger GPay Animation!
                         UI.closeActivity(`activity-payment-${type}-form`);
-                        app.refreshAll();
+                        await app.refreshAll(); // 🚨 CRITICAL FIX: Force the UI to wait for the math to finish!
+                        
+                        // 🚨 AUTO-HEAL: Refresh the Read-Only Overview screen if it's currently open!
+                        if (document.getElementById('activity-invoice-overview') && document.getElementById('activity-invoice-overview').classList.contains('open') && window.currentOverviewId) {
+                            window.openInvoiceOverview(window.currentOverviewType, window.currentOverviewId);
+                        }
                     } catch (error) {
             console.error("Payment save failed:", error);
             if (window.Utils) await window.Utils.alertModal("An error occurred. Please try again.", "Payment Error");
@@ -5126,11 +5157,20 @@ if (data.id && splitConfirmed) {
             }
         }
 
-        if (type === 'sales' || type === 'purchase') UI.closeActivity(`activity-${type}-form`);
+        if (type === 'sales' || type === 'purchase') {
+            UI.closeActivity(`activity-${type}-form`);
+            // 🚨 GHOST SHIELD: Close the Overview screen if we just deleted the invoice we are looking at!
+            if (window.currentOverviewId === id) UI.closeActivity('activity-invoice-overview');
+        }
         else if (type === 'receipt-in' || type === 'receipt-out') UI.closeActivity(`activity-payment-${type.split('-')[1]}-form`);
         else UI.closeActivity(`activity-${type}-form`);
         
-        app.refreshAll();
+        app.refreshAll().then(() => {
+            // 🚨 AUTO-HEAL: Refresh the Read-Only Overview screen after a linked payment/expense deletion!
+            if (document.getElementById('activity-invoice-overview') && document.getElementById('activity-invoice-overview').classList.contains('open') && window.currentOverviewId && window.currentOverviewId !== id) {
+                window.openInvoiceOverview(window.currentOverviewType, window.currentOverviewId);
+            }
+        });
     },
 
     // ==========================================

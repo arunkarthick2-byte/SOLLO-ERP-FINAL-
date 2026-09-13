@@ -3873,6 +3873,34 @@ const UI = {
     // 🚨 ENTERPRISE UPGRADE: Inline Qty & Rate Support (Observable Array Engine)
     addSmartItemRow: (prefix, id, name, price, gst, uom, hsn, buyPrice, customQty = 1, forceRate = false) => {
         const containerId = `${prefix}-items-body`;
+        const container = document.getElementById(containerId);
+        
+        // 🚨 POINT OF SALE UPGRADE: Auto-Merge Duplicate Items!
+        if (container) {
+            const existingRows = Array.from(container.querySelectorAll('.item-entry-card'));
+            const duplicateRow = existingRows.find(row => {
+                const rowIdInput = row.querySelector('.row-item-id');
+                return rowIdInput && rowIdInput.value === id;
+            });
+
+            if (duplicateRow) {
+                const qtyInput = duplicateRow.querySelector('.row-qty');
+                if (qtyInput) {
+                    qtyInput.value = (parseFloat(qtyInput.value) || 0) + customQty;
+                    qtyInput.dispatchEvent(new Event('input', { bubbles: true })); // Triggers math recalculation
+                    
+                    // Flash the row blue to show the user it was bumped
+                    duplicateRow.style.transition = 'none';
+                    duplicateRow.style.backgroundColor = 'rgba(0, 97, 164, 0.15)';
+                    setTimeout(() => {
+                        duplicateRow.style.transition = 'background-color 0.4s ease';
+                        duplicateRow.style.backgroundColor = 'var(--md-surface)';
+                    }, 50);
+                    return; // Stop here, do not create a duplicate row!
+                }
+            }
+        }
+
         const emptyState = document.getElementById(`${prefix}-empty-items`);
         if (emptyState) emptyState.style.display = 'none';
 
@@ -6224,17 +6252,19 @@ window.quickUpdateStatus = async function(storeName, docId, newStatus) {
 
     // Wipe cache and trigger background refresh
     if (window.AppCache) window.AppCache[storeName] = null;
-    if (window.app && typeof window.app.refreshAll === 'function') window.app.refreshAll(true);
+    
+    // 🚨 CRITICAL FIX: Use 'await' to guarantee the math finishes instead of guessing with a timer!
+    if (window.app && typeof window.app.refreshAll === 'function') await window.app.refreshAll(true); 
     
     if (window.Utils) window.Utils.showToast(`✅ Marked as ${newStatus}`);
     
-    // Refresh the current screen to show the new date and banner instantly!
-    setTimeout(() => {
-        if (window.openInvoiceOverview) window.openInvoiceOverview(storeName === 'sales' ? 'sales' : 'purchase', docId);
-    }, 150);
+    // 🚨 AUTO-HEAL: Refresh the screen instantly and reliably!
+    if (window.openInvoiceOverview) window.openInvoiceOverview(storeName === 'sales' ? 'sales' : 'purchase', docId);
 };
 
 window.openInvoiceOverview = function(type, id) {
+    window.currentOverviewType = type;
+    window.currentOverviewId = id;
     try {
         // Map 'purchase' to 'purchases' so the memory engine finds the data
         const storeKey = type === 'purchase' ? 'purchases' : type;
@@ -7113,3 +7143,235 @@ window.UI.shareInvoice = async (invoiceTitle, textContent, pdfFileObj = null) =>
         console.log('User cancelled the share menu');
     }
 };
+
+// ==========================================
+// 🚨 ENTERPRISE UPGRADE: DYNAMIC FIRM BRANDING (SPLASH SCREEN)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    // We use a slight timeout to let IndexedDB initialize first
+    setTimeout(async () => {
+        try {
+            // Find the active splash screen
+            const splashScreen = document.getElementById('splash-screen') || document.querySelector('.splash-screen');
+            if (!splashScreen) return; // Failsafe: If the screen is already gone, do nothing
+
+            if (typeof window.getRecordById !== 'function') return;
+
+            // Fetch the firm's data directly from the hard drive
+            const activeFirmId = (window.app && window.app.state && window.app.state.firmId) ? window.app.state.firmId : (localStorage.getItem('sollo_active_firm') || 'firm1');
+            const biz = await window.getRecordById('businessProfile', activeFirmId);
+
+            if (biz && biz.name) {
+                // Calculate Time of Day for the smart greeting
+                const hour = new Date().getHours();
+                let greeting = 'Good Evening';
+                if (hour < 12) greeting = 'Good Morning';
+                else if (hour < 18) greeting = 'Good Afternoon';
+
+                // Smoothly morph the splash screen into the custom branded version
+                splashScreen.style.transition = 'opacity 0.3s ease';
+                splashScreen.style.opacity = '0';
+                
+                setTimeout(() => {
+                    splashScreen.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: var(--md-background, #f8fafc);">
+                            ${biz.logo 
+                                ? `<img src="${biz.logo}" style="width: 110px; height: 110px; object-fit: contain; border-radius: 24px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); background: #ffffff; padding: 8px;" />` 
+                                : `<div style="width: 100px; height: 100px; border-radius: 24px; background: var(--md-primary, #0061a4); color: white; display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 900; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,97,164,0.3);">${biz.name.charAt(0).toUpperCase()}</div>`
+                            }
+                            <h2 style="color: var(--md-on-background, #0f172a); font-size: 26px; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.5px;">${greeting},</h2>
+                            <h3 style="color: var(--md-primary, #0061a4); font-size: 16px; font-weight: 700; margin: 0 0 40px 0; text-transform: uppercase; letter-spacing: 1px;">${biz.name}</h3>
+                            
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                                <div class="loader-spinner" style="width: 36px; height: 36px; border: 4px solid var(--md-surface-variant, #e2e8f0); border-top-color: var(--md-primary, #0061a4); border-radius: 50%; animation: sollo-spin 1s linear infinite;"></div>
+                                <span style="font-size: 12px; font-weight: 700; color: var(--md-text-muted, #64748b); letter-spacing: 0.5px; text-transform: uppercase;">Syncing Vault...</span>
+                            </div>
+                        </div>
+                        <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
+                    `;
+                    splashScreen.style.opacity = '1';
+                }, 300);
+            }
+        } catch (e) {
+            console.warn("Dynamic Splash Engine bypassed:", e);
+        }
+    }, 150); // 150ms delay gives the database engine time to lock in
+});
+
+// ==========================================
+// 🚨 ENTERPRISE UPGRADE: BANK-GRADE PIN VAULT (WITH SETTINGS TOGGLE)
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Inject the pure CSS and HTML PIN Pad directly into the DOM
+    const pinContainer = document.createElement('div');
+    pinContainer.id = 'enterprise-pin-vault';
+    pinContainer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.98); backdrop-filter:blur(15px); z-index:99999999; display:none; flex-direction:column; align-items:center; justify-content:center; color:white; font-family:Roboto, sans-serif; touch-action:none;';
+    
+    pinContainer.innerHTML = `
+        <span class="material-symbols-outlined" style="font-size: 54px; color: #0ea5e9; margin-bottom: 20px;">lock</span>
+        <h2 id="pin-title" style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">Enter Security PIN</h2>
+        <p id="pin-subtitle" style="margin: 0 0 40px 0; color: #94a3b8; font-size: 14px;">App locked for your privacy</p>
+        
+        <div style="display: flex; gap: 20px; margin-bottom: 50px;">
+            <div class="pin-dot" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0ea5e9; transition: background 0.2s;"></div>
+            <div class="pin-dot" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0ea5e9; transition: background 0.2s;"></div>
+            <div class="pin-dot" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0ea5e9; transition: background 0.2s;"></div>
+            <div class="pin-dot" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0ea5e9; transition: background 0.2s;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; max-width: 300px;">
+            ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="pin-btn tap-target" data-val="${n}" style="width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 28px; font-weight: 400; cursor: pointer; display: flex; align-items: center; justify-content: center;">${n}</button>`).join('')}
+            <button class="pin-btn tap-target" data-val="clear" style="width: 72px; height: 72px; border-radius: 50%; background: transparent; border: none; color: #ef4444; font-size: 16px; font-weight: 700; cursor: pointer;">CLR</button>
+            <button class="pin-btn tap-target" data-val="0" style="width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 28px; font-weight: 400; cursor: pointer; display: flex; align-items: center; justify-content: center;">0</button>
+            <button class="pin-btn tap-target" data-val="back" style="width: 72px; height: 72px; border-radius: 50%; background: transparent; border: none; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center;"><span class="material-symbols-outlined" style="font-size: 32px;">backspace</span></button>
+        </div>
+        <button id="cancel-pin-btn" style="margin-top: 40px; background: transparent; color: #94a3b8; border: none; font-size: 14px; font-weight: 600; cursor: pointer; display: none;">Cancel</button>
+    `;
+    document.body.appendChild(pinContainer);
+
+    // 2. State & Logic Engine
+    let currentInput = "";
+    let expectedPin = localStorage.getItem('sollo_secure_pin');
+    let isEnabled = localStorage.getItem('sollo_pin_enabled') === 'true';
+    let isSetupMode = false;
+    let isDisableMode = false;
+    let setupStep = 1;
+    let tempPin = "";
+
+    const dots = document.querySelectorAll('.pin-dot');
+    const updateDots = () => { dots.forEach((dot, idx) => { dot.style.background = idx < currentInput.length ? '#0ea5e9' : 'transparent'; }); };
+
+    const triggerErrorShake = () => {
+        pinContainer.animate([
+            { transform: 'translateX(0)' }, { transform: 'translateX(-12px)' }, { transform: 'translateX(12px)' }, 
+            { transform: 'translateX(-12px)' }, { transform: 'translateX(12px)' }, { transform: 'translateX(0)' }
+        ], { duration: 400, easing: 'ease-in-out' });
+        if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('heavy');
+    };
+
+    const syncToggleButton = () => {
+        const btn = document.getElementById('toggle-pin-btn');
+        if (btn) {
+            if (isEnabled) {
+                btn.innerText = "Disable Lock";
+                btn.style.background = "#ef4444";
+            } else {
+                btn.innerText = "Enable Lock";
+                btn.style.background = "#0ea5e9";
+            }
+        }
+    };
+
+    // Keep Settings UI synced natively
+    setInterval(syncToggleButton, 1000);
+
+    // Global Click Listener for the Settings Button
+    document.body.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'toggle-pin-btn') {
+            currentInput = ""; updateDots();
+            if (isEnabled) {
+                isDisableMode = true; isSetupMode = false;
+                document.getElementById('pin-title').innerText = "Disable Security";
+                document.getElementById('pin-subtitle').innerText = "Enter your current PIN to turn off lock";
+                document.getElementById('pin-subtitle').style.color = "#94a3b8";
+            } else {
+                isSetupMode = true; isDisableMode = false; setupStep = 1;
+                document.getElementById('pin-title').innerText = "Create Master PIN";
+                document.getElementById('pin-subtitle').innerText = "Enter a 4-digit code to lock your app";
+                document.getElementById('pin-subtitle').style.color = "#94a3b8";
+            }
+            document.getElementById('cancel-pin-btn').style.display = 'block';
+            pinContainer.style.display = 'flex';
+        }
+    });
+
+    document.getElementById('cancel-pin-btn').onclick = () => {
+        pinContainer.style.display = 'none';
+        currentInput = ""; updateDots();
+    };
+
+    const processPinSubmission = () => {
+        if (isSetupMode) {
+            if (setupStep === 1) {
+                tempPin = currentInput; currentInput = ""; setupStep = 2;
+                document.getElementById('pin-title').innerText = "Confirm New PIN";
+                document.getElementById('pin-subtitle').innerText = "Enter the same 4 digits to verify";
+                updateDots();
+            } else {
+                if (currentInput === tempPin) {
+                    localStorage.setItem('sollo_secure_pin', currentInput);
+                    localStorage.setItem('sollo_pin_enabled', 'true');
+                    expectedPin = currentInput; isEnabled = true; isSetupMode = false;
+                    pinContainer.style.display = 'none';
+                    syncToggleButton();
+                    if (window.Utils) window.Utils.showToast("✅ Master PIN Secured!");
+                } else {
+                    triggerErrorShake();
+                    document.getElementById('pin-subtitle').innerText = "PINs do not match. Try again.";
+                    document.getElementById('pin-subtitle').style.color = "#ef4444";
+                    currentInput = ""; setupStep = 1; tempPin = "";
+                    setTimeout(() => {
+                        document.getElementById('pin-title').innerText = "Create New PIN";
+                        document.getElementById('pin-subtitle').innerText = "Enter a 4-digit code";
+                        document.getElementById('pin-subtitle').style.color = "#94a3b8";
+                    }, 1500);
+                    updateDots();
+                }
+            }
+        } else if (isDisableMode) {
+            if (currentInput === expectedPin) {
+                localStorage.setItem('sollo_pin_enabled', 'false');
+                isEnabled = false; isDisableMode = false;
+                pinContainer.style.display = 'none';
+                syncToggleButton();
+                if (window.Utils) window.Utils.showToast("🔓 Security PIN Disabled");
+            } else {
+                triggerErrorShake(); currentInput = ""; updateDots();
+            }
+        } else {
+            // Normal Unlock Mode (Waking up from background)
+            if (currentInput === expectedPin) {
+                pinContainer.style.display = 'none'; currentInput = ""; updateDots();
+                if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+            } else {
+                triggerErrorShake(); currentInput = ""; updateDots();
+            }
+        }
+    };
+
+    document.querySelectorAll('.pin-btn').forEach(btn => {
+        btn.onclick = () => {
+            const val = btn.getAttribute('data-val');
+            if (val === 'clear') currentInput = "";
+            else if (val === 'back') currentInput = currentInput.slice(0, -1);
+            else if (currentInput.length < 4) currentInput += val;
+            
+            updateDots();
+            if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+            
+            if (currentInput.length === 4) setTimeout(processPinSubmission, 150);
+        };
+    });
+
+    // 3. Waking up from background
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            isEnabled = localStorage.getItem('sollo_pin_enabled') === 'true';
+            expectedPin = localStorage.getItem('sollo_secure_pin');
+            
+            // Hide the old generic lock screen if it accidentally fired
+            const oldLock = document.getElementById('activity-app-lock');
+            if (oldLock) oldLock.classList.remove('open');
+
+            if (isEnabled && expectedPin) {
+                // Instantly lock down the app
+                isSetupMode = false; isDisableMode = false; currentInput = ""; updateDots();
+                document.getElementById('pin-title').innerText = "Enter PIN";
+                document.getElementById('pin-subtitle').innerText = "App locked for your privacy";
+                document.getElementById('pin-subtitle').style.color = "#94a3b8";
+                document.getElementById('cancel-pin-btn').style.display = 'none'; // Cannot cancel out of lock!
+                pinContainer.style.display = 'flex';
+            }
+        }
+    });
+});

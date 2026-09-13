@@ -2414,7 +2414,16 @@ const pdf = window.currentActivePDF;
         const docTitle = isAccount ? 'Account_Statement' : 'Ledger_Statement';
         const cleanPartyName = partyName.replace(/[^a-zA-Z0-9]/g, '_');
         const safeFilename = `${docTitle}_${cleanPartyName}_${safeDocNo}.pdf`;
-        const shareText = `Dear ${partyName},\n\nPlease find attached your ledger statement.\n\nThank you!`;
+        
+        // 🚨 COMMUNICATIONS UPGRADE: Inject the live balance directly into the WhatsApp message!
+        let smartBalanceText = '';
+        if (Math.abs(finalBal) > 0.01) {
+            const isOwed = party.type === 'Customer' ? finalBal > 0 : finalBal < 0;
+            smartBalanceText = isOwed ? `\n\n📌 *Pending Balance:* ₹${Math.abs(finalBal).toFixed(2)}` : `\n\n✅ *Advance Balance:* ₹${Math.abs(finalBal).toFixed(2)}`;
+        } else {
+            smartBalanceText = `\n\n✅ *Account Settled (Zero Balance)*`;
+        }
+        const shareText = `Dear ${partyName},\n\nPlease find attached your ledger statement.${smartBalanceText}\n\nThank you!`;
 
         let pdfDocGenerator;
         try {
@@ -4389,11 +4398,20 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 
     document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
 
-    const cleanPartyName = partyName.replace(/[^a-zA-Z0-9]/g, '_');
-    const safeFilename = `Ledger_Statement_${cleanPartyName}_${safeDocNo}.pdf`;
-    const shareText = `Dear ${partyName},\n\nPlease find attached your ledger statement.\n\nThank you!`;
+        const cleanPartyName = partyName.replace(/[^a-zA-Z0-9]/g, '_');
+        const safeFilename = `Ledger_Statement_${cleanPartyName}_${safeDocNo}.pdf`;
+        
+        // 🚨 COMMUNICATIONS UPGRADE: Inject the live balance directly into the WhatsApp message!
+        let smartBalanceText = '';
+        if (Math.abs(finalBal) > 0.01) {
+            const isOwed = party.type === 'Customer' ? finalBal > 0 : finalBal < 0;
+            smartBalanceText = isOwed ? `\n\n📌 *Pending Balance:* ₹${Math.abs(finalBal).toFixed(2)}` : `\n\n✅ *Advance Balance:* ₹${Math.abs(finalBal).toFixed(2)}`;
+        } else {
+            smartBalanceText = `\n\n✅ *Account Settled (Zero Balance)*`;
+        }
+        const shareText = `Dear ${partyName},\n\nPlease find attached your ledger statement.${smartBalanceText}\n\nThank you!`;
 
-    let pdfDocGenerator;
+        let pdfDocGenerator;
     try {
         pdfDocGenerator = pdfMake.createPdf(docDefinition);
     } catch (e) {
