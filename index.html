@@ -1009,7 +1009,7 @@
     </div>
 
     <div id="activity-master-view" class="activity-screen hidden">
-            <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; position: relative; padding: 12px 16px 24px 16px; margin-bottom: -16px; z-index: 105 !important; background-color: var(--md-surface-variant) !important; border-bottom: none !important;">
+            <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; position: sticky; top: 0; padding: 12px 16px 24px 16px; margin-bottom: -16px; z-index: 105 !important; border-bottom: none !important;">
             
             <!-- LEFT: Locked Back Arrow -->
             <span class="material-symbols-outlined tap-target" style="margin: 0; padding: 4px; flex-shrink: 0; z-index: 2; position: relative !important; left: auto !important;">arrow_back</span>
@@ -4677,6 +4677,40 @@
                 </div>
         </div>
     </div>
+    
+        <!-- 🌟 PREMIUM FINTECH UX ENGINE 🌟 -->
+    <style>
+        /* The Frosted Glass Privacy Blur */
+        .privacy-blur-active {
+            filter: blur(12px) grayscale(30%) !important;
+            opacity: 0.8 !important;
+            transition: filter 0.15s ease-out, opacity 0.15s ease-out !important;
+            pointer-events: none !important;
+        }
+    </style>
+    <script>
+        // 1. App Switcher Privacy Shield
+        // Blurs the app when it loses focus to protect financial data
+        window.addEventListener('blur', function() {
+            document.getElementById('app-shell').classList.add('privacy-blur-active');
+        });
+        window.addEventListener('focus', function() {
+            document.getElementById('app-shell').classList.remove('privacy-blur-active');
+        });
+
+        // 2. Universal Taptic Engine
+        // Listens to the whole app and fires a tiny vibration on interactive elements
+        document.body.addEventListener('pointerdown', function(e) {
+            // Check if the user tapped a button, card, or menu item
+            if (e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .nav-item, .m3-card, .list-view li, .chip')) {
+                // Fire a 10ms micro-vibration (Android only, iOS PWA restricts this)
+                if (navigator.vibrate) {
+                    navigator.vibrate(10); 
+                }
+            }
+        });
+    </script>
+
 
     <script src="components.js?v=94"></script>
     <script src="db.js?v=94"></script>

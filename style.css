@@ -4306,31 +4306,41 @@ body.dark-mode .activity-header strong {
    🚨 SOLLO NATIVE THEME: EDGE-TO-EDGE LEDGER SUMMARIES
    ========================================== */
 
-/* 1. Account Statement & Party Ledger Summary Card */
-#ledger-summary-card {
+/* 1. Edge-to-Edge Fused Search Bar & Ledger Summary */
+#activity-report-viewer .search-bar {
     border-radius: 0 !important;
+    margin: 0 -16px 0 -16px !important;
     border-left: none !important;
     border-right: none !important;
-    margin-left: -16px !important;
-    margin-right: -16px !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
+    border-bottom: none !important;
     box-shadow: none !important;
-    border-top: 1px solid var(--md-outline-variant) !important;
-    border-bottom: 1px solid var(--md-outline-variant) !important;
-    background: var(--md-surface) !important;
+    position: sticky !important;
+    top: -1px !important;
+    z-index: 95 !important;
 }
 
-/* Fuse the Search Bar to the Summary Card seamlessly */
-#activity-report-viewer .search-bar {
-    margin-bottom: 0 !important;
-    border-bottom: none !important;
+#ledger-summary-card {
+    border-radius: 0 !important;
+    /* 🚨 THE MAGIC: -2px pulls it up into the search bar, killing the gap */
+    margin: -2px -16px 16px -16px !important; 
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important; /* Removed to create a perfect fusion */
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    background: var(--md-surface) !important;
+    
+    /* 🚨 THE SHIELD: Casts a solid white shadow upwards to paint over the seam */
+    box-shadow: 0 -10px 0 var(--md-surface) !important;
+    
+    position: sticky !important;
+    top: 48px !important; 
+    z-index: 85 !important;
 }
 
 body.dark-mode #ledger-summary-card {
     background: #121212 !important;
-    border-top: 1px solid rgba(255,255,255,0.05) !important;
-    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 -10px 0 #121212 !important; /* Dark mode shield */
 }
 
 /* 2. Item Ledger Filters & Stock Summaries */
@@ -6453,35 +6463,37 @@ body.dark-mode #activity-item-ledger .activity-header {
     padding-right: 16px !important;
 }
 
-    /* 4. Flush Sticky Glass Search Bar */
-    #activity-report-viewer .search-bar,
-    #activity-item-ledger .search-bar {
-        position: sticky !important;
-        top: 0px !important; 
-        z-index: 90 !important;
-        
-        /* Pull flush to edges */
-        margin-top: 0 !important;
-        margin-left: -16px !important;
-        margin-right: -16px !important;
-        margin-bottom: 16px !important;
-        border-radius: 0 !important;
-        /* 🚨 THE SEAM SHIELD: A 1px border that perfectly blends the search bar into the header! */
-        border-top: 1px solid rgba(0,0,0,0.05) !important;
-        border-left: none !important;
-        border-right: none !important;
+/* 4. Flush Sticky Glass Search Bar (BULLETPROOF SHIELD) */
+#activity-report-viewer .search-bar,
+#activity-item-ledger .search-bar {
+    position: sticky !important;
+    top: -1px !important; 
+    z-index: 90 !important;
+    
+    /* 🚨 THE MAGIC: Negative margin to force overlap */
+    margin-top: -2px !important;
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+    margin-bottom: 16px !important;
+    border-radius: 0 !important;
+    
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
 
-        /* 🚨 INCREASED OPACITY: Prevents text from bleeding through the search bar! */
-        background: rgba(253, 252, 255, 0.95) !important;
-        backdrop-filter: blur(16px) !important;
-        -webkit-backdrop-filter: blur(16px) !important;
-    }
+    /* 🚨 THE SHIELD: Upward shadow to paint over the seam */
+    box-shadow: 0 -10px 0 var(--md-surface) !important; 
 
-    body.dark-mode #activity-report-viewer .search-bar,
-    body.dark-mode #activity-item-ledger .search-bar {
-        background: rgba(15, 23, 42, 0.95) !important;
-        border-top: 1px solid rgba(255,255,255,0.05) !important;
-    }
+    background: rgba(253, 252, 255, 0.95) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+}
+
+body.dark-mode #activity-report-viewer .search-bar,
+body.dark-mode #activity-item-ledger .search-bar {
+    background: rgba(18, 18, 18, 0.95) !important;
+    box-shadow: 0 -10px 0 #121212 !important; /* Dark mode shield */
+}
 /* ==========================================
    🚨 UI POLISH: SPINNING ICONS & STICKY BALANCES
    ========================================== */
@@ -7972,12 +7984,13 @@ input, textarea, select {
     }
 }
 /* ==========================================
-   🚨 SOLLO FIX: WORKSPACE SEARCH BAR OVERLAP
+   🚨 SOLLO FIX: WORKSPACE SEARCH BAR OVERLAP (BULLETPROOF)
    ========================================== */
 #tab-workspace .search-bar {
-    margin-top: 0 !important;
     position: sticky !important;
-    top: 0 !important;
+    top: -1px !important;
+    margin-top: -2px !important; /* Forces the physical overlap */
+    box-shadow: 0 -10px 0 var(--md-background) !important; /* Upward shadow shield */
     z-index: 95 !important;
 }
 /* ==========================================
@@ -8017,12 +8030,13 @@ html body #app-shell #activity-expense-ledger .activity-content {
     padding-top: 0 !important;
 }
 
-        /* 4. FLAWLESS SEARCH BAR SHIELD (Kills the scroll gap) */
+        /* FLAWLESS SEARCH BAR SHIELD (Kills the scroll gap) */
         #activity-master-view .search-bar,
         #activity-expense-ledger .search-bar {
             position: sticky !important;
-            top: -1px !important; /* Pulls up slightly to snap to the header */
-            margin-top: 0 !important;
+            top: -1px !important;
+            /* 🚨 THE MAGIC: Pulls it up securely under the header */
+            margin-top: -2px !important; 
             z-index: 90 !important;
             border-radius: 0 !important;
             margin-left: -16px !important;
@@ -8031,8 +8045,8 @@ html body #app-shell #activity-expense-ledger .activity-content {
             border-left: none !important;
             border-right: none !important;
             
-            /* 🚨 THE FIX: Massive solid shadow projecting upwards to permanently block list items from bleeding through! */
-            box-shadow: 0 -50px 0 var(--md-background) !important; 
+            /* 🚨 THE SHIELD: Casts a solid shadow matching the header to paint over the seam */
+            box-shadow: 0 -10px 0 var(--md-surface) !important; 
             
             background: rgba(253, 252, 255, 0.95) !important;
             backdrop-filter: blur(16px) !important;
@@ -8042,7 +8056,7 @@ html body #app-shell #activity-expense-ledger .activity-content {
         body.dark-mode #activity-master-view .search-bar,
         body.dark-mode #activity-expense-ledger .search-bar {
             background: rgba(18, 18, 18, 0.95) !important;
-            box-shadow: 0 -50px 0 var(--md-background) !important; /* Solid black upward shield */
+            box-shadow: 0 -10px 0 #121212 !important; /* Dark mode shield */
         }
 /* ==========================================
    🚨 SOLLO FIX: GLOBAL HEADER OVERLAP SHIELD
@@ -8512,25 +8526,74 @@ body.dark-mode .bottom-nav, body.dark-mode .form-sticky-footer, body.dark-mode .
     border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
 /* ==========================================
-   🌟 ULTIMATE GLASSMORPHISM OVERRIDE
+   🌟 TRUE GLASSMORPHISM OVERRIDE (V3)
    ========================================== */
-
-/* 1. Frosted Glass Headers & Footers (Light Mode) */
 html body #app-shell .activity-header,
 html body #app-shell .app-header,
 html body #app-shell .bottom-nav,
 html body #app-shell .form-sticky-footer {
-    background: rgba(255, 255, 255, 0.75) !important;
-    backdrop-filter: blur(20px) saturate(150%) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
-    border-color: rgba(0, 0, 0, 0.05) !important;
+    /* 1. High Transparency: Lets the content underneath actually show through */
+    background: rgba(255, 255, 255, 0.65) !important;
+    
+    /* 2. The Frosting: Blurs the content underneath so text stays readable */
+    backdrop-filter: blur(24px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+    
+    /* 3. The Glass Edge: A subtle glossy white border */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* 2. Frosted Glass Headers & Footers (Dark Mode) */
+/* Dark Mode Adapter */
 body.dark-mode #app-shell .activity-header,
 body.dark-mode #app-shell .app-header,
 body.dark-mode #app-shell .bottom-nav,
 body.dark-mode #app-shell .form-sticky-footer {
-    background: rgba(18, 18, 18, 0.75) !important;
-    border-color: rgba(255, 255, 255, 0.05) !important;
+    background: rgba(18, 18, 18, 0.65) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3) !important;
+}
+/* ==========================================
+   🌟 PREMIUM COMPACT FILTER DIALOGS
+   ========================================== */
+
+/* 1. Transform the bulky bottom sheets into floating center cards */
+html body #app-shell .bottom-sheet.centered-modal {
+    top: 50% !important;
+    left: 50% !important;
+    bottom: auto !important;
+    right: auto !important;
+    
+    /* Narrow, thumb-friendly width */
+    width: 90% !important;
+    max-width: 360px !important; 
+    height: auto !important;
+    max-height: 85vh !important;
+    
+    /* Premium smooth corners and borders */
+    border-radius: 24px !important; 
+    background: var(--md-surface) !important;
+    
+    /* 3D Floating Shadow */
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+    
+    /* Resting State (Hidden and slightly lowered) */
+    transform: translate(-50%, -40%) scale(0.95) !important; 
+    opacity: 0 !important;
+}
+
+/* 2. The Pop-Up Animation (Center locked) */
+html body #app-shell .bottom-sheet.centered-modal.open {
+    transform: translate(-50%, -50%) scale(1) !important;
+    opacity: 1 !important;
+}
+
+/* 3. Hide the useless drag-pill handle since it's no longer a bottom sheet */
+html body #app-shell .bottom-sheet.centered-modal::before {
+    display: none !important;
+}
+
+/* 4. Dark Mode Adapter for the 3D Shadow */
+body.dark-mode #app-shell .bottom-sheet.centered-modal {
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
 }
