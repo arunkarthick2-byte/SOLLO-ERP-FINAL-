@@ -8187,77 +8187,57 @@ input[type="search"]::-webkit-search-cancel-button {
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
 }
 /* ==========================================
-   🚀 ENTERPRISE UX: PREMIUM SEARCH BARS & DRAG HANDLES
+   🚀 ENTERPRISE UX: SEARCH BARS & DRAG HANDLES
    ========================================== */
 
-/* 1. True Premium Floating Pill Search Bar */
+/* 1. Perfect Native Pill Search Bars */
 .search-bar {
-    background: var(--md-surface) !important;
-    border-radius: 24px !important; /* Perfect Pill Shape */
-    border: 1px solid rgba(128, 128, 128, 0.15) !important; /* Premium subtle border */
-    padding: 4px 16px !important;
+    background: var(--md-surface-variant) !important;
+    border-radius: 100px !important; /* Perfect Pill Shape */
+    border: 1px solid var(--md-outline-variant) !important;
+    padding: 2px 16px !important;
     display: flex !important;
     align-items: center !important;
-    /* 3D Depth: Outer shadow for floating, inner highlight for glass effect */
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06), inset 0 2px 4px rgba(255, 255, 255, 0.5) !important; 
-    /* The Magic Fix: Gives it breathing room so the gap looks intentional and beautiful */
-    margin: 12px 16px 16px 16px !important; 
-    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
-    position: relative !important;
-    z-index: 95 !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
+    transition: all 0.2s ease !important;
 }
 
-/* 2. Magnetic Glowing Focus State */
+/* Add a glowing elevation effect when typing */
 .search-bar:focus-within {
+    background: var(--md-surface) !important;
     border-color: var(--md-primary) !important;
-    box-shadow: 0 8px 24px rgba(0, 97, 164, 0.12), 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
-    transform: translateY(-2px) !important; /* Physically lifts up when typing */
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.08) !important;
 }
 
-/* 3. Strip the global input styles for the inner text box */
+/* Strip the global input styles from search boxes */
 .search-bar input {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    margin: 0 !important;
+    margin-bottom: 0 !important;
     padding: 10px 8px !important;
     font-size: 16px !important;
-    color: var(--md-on-surface) !important;
-    width: 100% !important;
 }
 
-/* 4. Native Bottom Sheet Drag Handle (Apple-Style) */
+/* 2. Native Bottom Sheet Drag Handle (The top grey pill) */
 .sheet-header {
     position: relative !important;
-    padding-top: 24px !important; /* Safe room for the pill */
-    border-bottom: none !important; /* Ultra-clean transition to content */
-    background: transparent !important;
+    padding-top: 24px !important; /* Make room for the pill */
+    border-bottom: 1px solid transparent !important; /* Remove harsh web lines */
 }
 
-/* 5. The Premium Grey Pill */
+/* Auto-inject the pill using CSS */
 .sheet-header::before {
     content: '';
     position: absolute;
-    top: 10px;
+    top: 8px;
     left: 50%;
     transform: translateX(-50%);
-    width: 40px;
+    width: 36px;
     height: 5px;
-    border-radius: 4px;
-    background-color: var(--md-text-muted); /* Auto-adapts perfectly to dark mode */
-    opacity: 0.3;
-    transition: opacity 0.2s ease;
-}
-
-/* Tactile feedback when the user taps the top of the menu */
-.sheet-header:active::before {
-    opacity: 0.7; 
-}
-
-/* 6. Dark Mode Adapter for the Search Bar */
-body.dark-mode .search-bar {
-    background: var(--md-surface-variant) !important;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+    border-radius: 3px;
+    background-color: var(--md-outline);
+    opacity: 0.5;
 }
 /* Premium Native Card Press Physics */
 .m3-card.tap-target {
@@ -8530,4 +8510,27 @@ body.dark-mode .app-header, body.dark-mode .activity-header, body.dark-mode .top
 body.dark-mode .bottom-nav, body.dark-mode .form-sticky-footer, body.dark-mode .activity-bottom-bar, body.dark-mode .bottom-action-bar {
     background: rgba(18, 18, 18, 0.85) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+/* ==========================================
+   🌟 ULTIMATE GLASSMORPHISM OVERRIDE
+   ========================================== */
+
+/* 1. Frosted Glass Headers & Footers (Light Mode) */
+html body #app-shell .activity-header,
+html body #app-shell .app-header,
+html body #app-shell .bottom-nav,
+html body #app-shell .form-sticky-footer {
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(20px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+    border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 2. Frosted Glass Headers & Footers (Dark Mode) */
+body.dark-mode #app-shell .activity-header,
+body.dark-mode #app-shell .app-header,
+body.dark-mode #app-shell .bottom-nav,
+body.dark-mode #app-shell .form-sticky-footer {
+    background: rgba(18, 18, 18, 0.75) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
 }
