@@ -536,8 +536,8 @@
 
                     <div id="doc-cashbook-view" class="hidden" style="padding-bottom: 40px;">
                         <div class="search-bar" style="border-radius: 0 !important; border-left: none !important; border-right: none !important; margin-bottom: 16px; border-top: 1px solid var(--md-outline-variant);">
-                            <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                            <input type="text" id="search-cashbook" placeholder="Search Cashbook..." style="flex: 1; min-width: 0;">
+                            <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                            <input type="text" id="search-cashbook" placeholder="Search Cashbook..." autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0;">
                             <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
                             <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-cashbook-filter')">tune</span>
                         </div>
@@ -1009,7 +1009,7 @@
     </div>
 
     <div id="activity-master-view" class="activity-screen hidden">
-        <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; position: relative; padding: 12px 16px;">
+            <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; position: relative; padding: 12px 16px 24px 16px; margin-bottom: -16px; z-index: 105 !important; background-color: var(--md-surface-variant) !important; border-bottom: none !important;">
             
             <!-- LEFT: Locked Back Arrow -->
             <span class="material-symbols-outlined tap-target" style="margin: 0; padding: 4px; flex-shrink: 0; z-index: 2; position: relative !important; left: auto !important;">arrow_back</span>
@@ -1027,7 +1027,9 @@
         </div>
         <div class="activity-content" style="padding: 0px 16px 16px 16px;">
             
-            <div class="search-bar" style="margin-bottom: 16px; padding-right: 8px;">
+            <!-- 🚨 SOLLO FIX: Removed background wrapper to fix scroll gap -->
+            <div class="search-bar" style="position: sticky !important; top: -1px !important; margin-top: 0 !important; z-index: 99 !important; background: var(--md-surface) !important; box-shadow: 0 -50px 0 var(--md-surface) !important; margin-bottom: 16px; padding-right: 8px;">
+
                 <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                 <input type="text" id="search-master-view" placeholder="Search..." style="flex: 1; min-width: 0;">
                 
@@ -2231,39 +2233,27 @@
         </div>
         <div class="activity-content" style="background: var(--md-background); padding: 16px;">
             
-            <!-- True Edge-to-Edge Sticky Dashboard -->
-            <div style="position: sticky; top: -16px; margin: -16px -16px 16px -16px; background: var(--md-surface); z-index: 100; border-bottom: 1px solid var(--md-outline-variant);">
+            <!-- 🚨 ENTERPRISE FIX: Flush search bar and sticky ledger summary -->
+            <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
+                <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
+                <input type="text" id="search-timeline" placeholder="Search amount, ref, or notes..." style="flex: 1; min-width: 0;">
                 
-                <!-- Max-Width Unified Search Pill -->
-                <div style="padding: 8px 16px;">
-                    <div style="display: flex; align-items: center; background: var(--md-surface-variant); border-radius: 100px; padding: 0 6px 0 16px; height: 40px; width: 100%;">
-                        
-                        <span class="material-symbols-outlined" style="color: var(--md-on-surface-variant); font-size: 18px; margin-right: 8px;">search</span>
-                        
-                        <input type="text" id="search-timeline" placeholder="Search amount, ref, or notes..." style="flex: 1; min-width: 0; border: none !important; box-shadow: none !important; background: transparent !important; outline: none !important; padding: 0 !important; margin: 0 !important; font-size: 14px; font-weight: 500; color: var(--md-on-surface); line-height: normal;">
-                        
-                        <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 6px;"></div>
-                        
-                        <div class="tap-target" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" onclick="UI.openBottomSheet('sheet-timeline-filter')">
-                            <span class="material-symbols-outlined" style="color: var(--md-primary); font-size: 20px;">tune</span>
-                        </div>
-                        
-                    </div>
-                </div>
+                <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
+                
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="UI.openBottomSheet('sheet-timeline-filter')">tune</span>
+            </div>
 
-                <!-- Edge-to-Edge Full Width Totals Strip -->
-                <div id="ledger-summary-card" style="display: flex; justify-content: space-between; padding: 8px 16px; background: var(--md-surface); border-top: 1px solid var(--md-outline-variant);">
-                    <div style="text-align: center; flex: 1;">
-                        <small style="color: var(--md-text-muted); display: block; font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px;">Total Debit</small>
-                        <strong id="ledger-total-debit" style="color: var(--md-error); font-size: 15px; font-weight: 900;">₹0.00</strong>
-                    </div>
-                    <div style="width: 1px; background: var(--md-outline-variant); margin: 0 16px;"></div>
-                    <div style="text-align: center; flex: 1;">
-                        <small style="color: var(--md-text-muted); display: block; font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px;">Total Credit</small>
-                        <strong id="ledger-total-credit" style="color: var(--md-success); font-size: 15px; font-weight: 900;">₹0.00</strong>
-                    </div>
+            <!-- Edge-to-Edge Full Width Totals Strip -->
+            <div id="ledger-summary-card" style="display: flex; justify-content: space-between; padding: 8px 16px; background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant);">
+                <div style="text-align: center; flex: 1;">
+                    <small style="color: var(--md-text-muted); display: block; font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px;">Total Debit</small>
+                    <strong id="ledger-total-debit" style="color: var(--md-error); font-size: 15px; font-weight: 900;">₹0.00</strong>
                 </div>
-
+                <div style="width: 1px; background: var(--md-outline-variant); margin: 0 16px;"></div>
+                <div style="text-align: center; flex: 1;">
+                    <small style="color: var(--md-text-muted); display: block; font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 2px;">Total Credit</small>
+                    <strong id="ledger-total-credit" style="color: var(--md-success); font-size: 15px; font-weight: 900;">₹0.00</strong>
+                </div>
             </div>
 
             <div id="timeline-list">
@@ -3670,21 +3660,14 @@
                 
                 <div class="premium-form-section">
                     <div class="premium-row">
-                        <div class="premium-label">Amount (₹)<span class="required-star">*</span></div>
+                        <div class="premium-label">Primary Amount (₹)<span class="required-star">*</span></div>
                         <div class="premium-input-container">
                             <input type="text" id="pay-in-amount" required inputmode="decimal" class="premium-input" placeholder="0.00">
                         </div>
                     </div>
                     
                     <div class="premium-row">
-                        <div class="premium-label">Date<span class="required-star">*</span></div>
-                        <div class="premium-input-container">
-                            <input type="date" id="pay-in-date" required class="premium-input" style="direction: rtl;">
-                        </div>
-                    </div>
-
-                    <div class="premium-row">
-                        <div class="premium-label">Mode<span class="required-star">*</span></div>
+                        <div class="premium-label">Primary Mode<span class="required-star">*</span></div>
                         <div class="premium-input-container">
                             <div class="premium-select-wrapper">
                                 <select id="pay-in-mode" required class="premium-input premium-select">
@@ -3698,18 +3681,53 @@
                     </div>
 
                     <div class="premium-row">
-                        <div class="premium-label">Receipt No.<span class="required-star">*</span></div>
-                        <div class="premium-input-container">
-                            <input type="text" id="pay-in-no" required class="premium-input" placeholder="Auto">
-                        </div>
-                    </div>
-
-                    <div class="premium-row">
                         <div class="premium-label">Deposit To<span class="required-star">*</span></div>
                         <div class="premium-input-container">
                             <div class="premium-select-wrapper">
                                 <select id="pay-in-account" required class="premium-input premium-select"></select>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- 🚨 SPLIT PAYMENT TOGGLE -->
+                    <div class="premium-row tap-target" style="background: rgba(0, 97, 164, 0.05); cursor: pointer; justify-content: center;" onclick="document.getElementById('pay-in-split-section').classList.toggle('hidden');">
+                        <span style="color: var(--md-primary); font-weight: bold; font-size: 13px;">+ Add Split Payment (e.g. Cash + UPI)</span>
+                    </div>
+
+                    <!-- 🚨 SPLIT PAYMENT DETAILS (HIDDEN BY DEFAULT) -->
+                    <div id="pay-in-split-section" class="hidden" style="border-top: 1px dashed var(--md-outline-variant); background: rgba(0,0,0,0.02);">
+                        <div class="premium-row">
+                            <div class="premium-label" style="color: var(--md-primary);">Split Amount (₹)</div>
+                            <div class="premium-input-container">
+                                <input type="text" id="pay-in-amount-2" inputmode="decimal" class="premium-input" placeholder="0.00" style="color: var(--md-primary); font-weight: bold;">
+                            </div>
+                        </div>
+                        <div class="premium-row">
+                            <div class="premium-label" style="color: var(--md-primary);">Split Mode</div>
+                            <div class="premium-input-container">
+                                <div class="premium-select-wrapper">
+                                    <select id="pay-in-mode-2" class="premium-input premium-select" style="color: var(--md-primary); font-weight: bold;">
+                                        <option value="Cash">Cash</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="UPI" selected>UPI / QR</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="premium-row" style="border-top: 1px solid var(--md-outline-variant);">
+                        <div class="premium-label">Date<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="date" id="pay-in-date" required class="premium-input" style="direction: rtl;">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Receipt No.<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-in-no" required class="premium-input" placeholder="Auto">
                         </div>
                     </div>
                 </div>
@@ -3786,21 +3804,14 @@
                 
                 <div class="premium-form-section">
                     <div class="premium-row">
-                        <div class="premium-label">Amount (₹)<span class="required-star">*</span></div>
+                        <div class="premium-label">Primary Amount (₹)<span class="required-star">*</span></div>
                         <div class="premium-input-container">
                             <input type="text" id="pay-out-amount" required inputmode="decimal" class="premium-input" placeholder="0.00">
                         </div>
                     </div>
                     
                     <div class="premium-row">
-                        <div class="premium-label">Date<span class="required-star">*</span></div>
-                        <div class="premium-input-container">
-                            <input type="date" id="pay-out-date" required class="premium-input" style="direction: rtl;">
-                        </div>
-                    </div>
-
-                    <div class="premium-row">
-                        <div class="premium-label">Mode<span class="required-star">*</span></div>
+                        <div class="premium-label">Primary Mode<span class="required-star">*</span></div>
                         <div class="premium-input-container">
                             <div class="premium-select-wrapper">
                                 <select id="pay-out-mode" required class="premium-input premium-select">
@@ -3814,18 +3825,53 @@
                     </div>
 
                     <div class="premium-row">
-                        <div class="premium-label">Voucher No.<span class="required-star">*</span></div>
-                        <div class="premium-input-container">
-                            <input type="text" id="pay-out-no" required class="premium-input" placeholder="Auto">
-                        </div>
-                    </div>
-
-                    <div class="premium-row">
                         <div class="premium-label">Paid From<span class="required-star">*</span></div>
                         <div class="premium-input-container">
                             <div class="premium-select-wrapper">
                                 <select id="pay-out-account" required class="premium-input premium-select"></select>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- 🚨 SPLIT PAYMENT TOGGLE -->
+                    <div class="premium-row tap-target" style="background: rgba(186, 26, 26, 0.05); cursor: pointer; justify-content: center;" onclick="document.getElementById('pay-out-split-section').classList.toggle('hidden');">
+                        <span style="color: var(--md-error); font-weight: bold; font-size: 13px;">+ Add Split Payment (e.g. Cash + UPI)</span>
+                    </div>
+
+                    <!-- 🚨 SPLIT PAYMENT DETAILS (HIDDEN BY DEFAULT) -->
+                    <div id="pay-out-split-section" class="hidden" style="border-top: 1px dashed var(--md-outline-variant); background: rgba(0,0,0,0.02);">
+                        <div class="premium-row">
+                            <div class="premium-label" style="color: var(--md-error);">Split Amount (₹)</div>
+                            <div class="premium-input-container">
+                                <input type="text" id="pay-out-amount-2" inputmode="decimal" class="premium-input" placeholder="0.00" style="color: var(--md-error); font-weight: bold;">
+                            </div>
+                        </div>
+                        <div class="premium-row">
+                            <div class="premium-label" style="color: var(--md-error);">Split Mode</div>
+                            <div class="premium-input-container">
+                                <div class="premium-select-wrapper">
+                                    <select id="pay-out-mode-2" class="premium-input premium-select" style="color: var(--md-error); font-weight: bold;">
+                                        <option value="Cash">Cash</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="UPI" selected>UPI / QR</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="premium-row" style="border-top: 1px solid var(--md-outline-variant);">
+                        <div class="premium-label">Date<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="date" id="pay-out-date" required class="premium-input" style="direction: rtl;">
+                        </div>
+                    </div>
+
+                    <div class="premium-row">
+                        <div class="premium-label">Voucher No.<span class="required-star">*</span></div>
+                        <div class="premium-input-container">
+                            <input type="text" id="pay-out-no" required class="premium-input" placeholder="Auto">
                         </div>
                     </div>
                 </div>

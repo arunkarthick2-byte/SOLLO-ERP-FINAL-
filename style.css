@@ -135,20 +135,13 @@ body.dark-mode {
    🚨 MASTER SCROLLBAR ENGINE
    ========================================== */
 ::-webkit-scrollbar {
-    width: 5px !important;
-    height: 5px !important;
-    background-color: transparent !important;
-}
-::-webkit-scrollbar-track {
-    background-color: transparent !important;
-}
-::-webkit-scrollbar-thumb {
-    background-color: rgba(0, 0, 0, 0.15) !important;
-    border-radius: 10px !important;
+    display: none !important;
+    width: 0px !important;
+    height: 0px !important;
 }
 * {
-    scrollbar-width: thin !important;
-    scrollbar-color: rgba(0, 0, 0, 0.15) transparent !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
 }
 
 /* ==========================================
@@ -182,19 +175,13 @@ html, body, input, button, select, textarea, table, th, td, span, strong, div {
 
 /* 🚨 ANDROID UPGRADE: Native OS Typography Engine */
 body {
-    /* 🚨 SOLLO THEME: Forces the official Android 'Roboto' font globally! */
     font-family: var(--app-font); 
     font-variant-numeric: tabular-nums; 
     color: var(--md-on-surface);
     overflow: hidden; 
-    /* overscroll-behavior-y: none; DISABLED TO FIX ANDROID SCROLL BUG */
-    
-    /* Prevent text highlighting, long-press menus, and magnifying glass */
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
-    
-    /* 🚨 ENTERPRISE UPGRADE: Cinematic Dark Mode Fade */
     transition: background-color 0.4s ease, color 0.4s ease !important;
 }
 
@@ -544,43 +531,6 @@ input[readonly], input[disabled], select[disabled] {
     font-size: 16px !important;
     box-shadow: none !important;
     min-height: auto !important;
-}
-
-/* Material Chips */
-.filter-chips {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 8px;
-    scrollbar-width: none; 
-    margin: 0 -16px; 
-    padding-left: 16px; 
-    padding-right: 16px; 
-}
-
-.chip {
-    padding: 6px 16px;
-    border: 1px solid var(--md-outline-variant); 
-    border-radius: 50px; 
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-    color: var(--md-on-surface-variant);
-    background: var(--md-surface);
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.chip:active {
-    transform: scale(0.95);
-    background-color: var(--md-surface-variant);
-}
-
-.chip.active {
-    background: var(--md-primary-container);
-    color: var(--md-on-primary-container);
-    border-color: transparent;
-    font-weight: 500;
 }
 
 /* ==========================================
@@ -1516,7 +1466,6 @@ body.dark-mode .theme-toggle-knob {
     
     body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .activity-content,
     body:has(input:not([type="checkbox"]):not([type="radio"]):focus, textarea:focus) .main-content {
-        /* padding-bottom: 250px !important;  <-- DISABLED TO STOP SCREEN JUMPING */
         transition: padding-bottom 0.3s ease-out;
     }
 }
@@ -2504,33 +2453,6 @@ body.dark-mode .sheet-overlay {
 }
 .status-ribbon.overdue::before {
     border-top-color: #8c1313; /* Dark red 3D shadow */
-}
-/* ==========================================
-   PERFORMANCE MODE: STATIC AURORA & SOLID CARDS
-   ========================================== */
-body, #app-shell, .main-content {
-    background-color: var(--md-background);
-    background-image: 
-        radial-gradient(at 0% 0%, rgba(0, 97, 164, 0.08) 0px, transparent 50%),
-        /* ... gradients ... */
-        radial-gradient(at 0% 100%, rgba(0, 97, 164, 0.08) 0px, transparent 50%);
-    background-size: 200% 200%;
-    
-    /* FIX: Removed transform: translateZ(0) to unfreeze mobile scrolling */
-}
-
-body.dark-mode, body.dark-mode #app-shell, body.dark-mode .main-content {
-    background-image: 
-        radial-gradient(at 0% 0%, rgba(143, 203, 251, 0.08) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(74, 222, 128, 0.05) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(251, 113, 133, 0.05) 0px, transparent 50%);
-}
-
-/* CARDS RESTORED TO SOLID COLORS (Kills the blur lag and glare math) */
-.m3-card {
-    background: var(--md-surface) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
 }
 /* ==========================================
    ENTERPRISE UPGRADE: FLUID iOS SLIDE ROUTING
@@ -3933,7 +3855,6 @@ body.dark-mode .sku-pill {
 form:has(input:focus, textarea:focus, select:focus) .form-group:not(:has(input:focus, textarea:focus, select:focus)) {
     opacity: 0.4 !important;
     filter: grayscale(30%) !important;
-    /* transform: scale(0.98) !important; <-- DISABLED TO STOP BOXES SHRINKING */
 }
 
 /* 2. FLOATING "STRIPE" SAVE CONSOLE */
@@ -5949,28 +5870,6 @@ body.dark-mode #tab-dashboard strong[style*="display:flex; align-items:center; g
     gap: 0 !important;
 }
 /* ==========================================
-   CLEAN & NEAT INPUTS: Remove blue/green highlights
-   ========================================== */
-body .item-entry-card input.row-qty:focus, 
-body .item-entry-card input.row-rate:focus,
-body .item-entry-card input.row-item-buyprice:focus,
-body input#sales-discount:focus,
-body input#purchase-discount:focus,
-body input#sales-freight:focus,
-body input#purchase-freight:focus {
-    background: transparent !important;
-    box-shadow: none !important;
-    border: 1px solid #CBD5E1 !important;
-    color: #0f172a !important;
-    border-bottom: 1px solid #CBD5E1 !important;
-}
-
-body.dark-mode .item-entry-card input:focus {
-    border: 1px solid #4B5563 !important;
-    color: #F8FAFC !important;
-    border-bottom: 1px solid #4B5563 !important;
-}
-/* ==========================================
    🚨 ULTIMATE FIX: PROFESSIONAL INVOICE INPUTS & CURSOR
    ========================================== */
 
@@ -6554,33 +6453,35 @@ body.dark-mode #activity-item-ledger .activity-header {
     padding-right: 16px !important;
 }
 
-/* 4. Flush Sticky Glass Search Bar */
-#activity-report-viewer .search-bar,
-#activity-item-ledger .search-bar {
-    position: sticky !important;
-    top: 0px !important; 
-    z-index: 90 !important;
-    
-    /* Pull flush to edges */
-    margin-top: 0 !important;
-    margin-left: -16px !important;
-    margin-right: -16px !important;
-    margin-bottom: 16px !important;
-    border-radius: 0 !important;
-    border-top: none !important;
-    border-left: none !important;
-    border-right: none !important;
+    /* 4. Flush Sticky Glass Search Bar */
+    #activity-report-viewer .search-bar,
+    #activity-item-ledger .search-bar {
+        position: sticky !important;
+        top: 0px !important; 
+        z-index: 90 !important;
+        
+        /* Pull flush to edges */
+        margin-top: 0 !important;
+        margin-left: -16px !important;
+        margin-right: -16px !important;
+        margin-bottom: 16px !important;
+        border-radius: 0 !important;
+        /* 🚨 THE SEAM SHIELD: A 1px border that perfectly blends the search bar into the header! */
+        border-top: 1px solid rgba(0,0,0,0.05) !important;
+        border-left: none !important;
+        border-right: none !important;
 
-    /* Matching Glassmorphism for the search bar */
-    background: rgba(253, 252, 255, 0.85) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-}
+        /* 🚨 INCREASED OPACITY: Prevents text from bleeding through the search bar! */
+        background: rgba(253, 252, 255, 0.95) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+    }
 
-body.dark-mode #activity-report-viewer .search-bar,
-body.dark-mode #activity-item-ledger .search-bar {
-    background: rgba(15, 23, 42, 0.85) !important;
-}
+    body.dark-mode #activity-report-viewer .search-bar,
+    body.dark-mode #activity-item-ledger .search-bar {
+        background: rgba(15, 23, 42, 0.95) !important;
+        border-top: 1px solid rgba(255,255,255,0.05) !important;
+    }
 /* ==========================================
    🚨 UI POLISH: SPINNING ICONS & STICKY BALANCES
    ========================================== */
@@ -8116,28 +8017,33 @@ html body #app-shell #activity-expense-ledger .activity-content {
     padding-top: 0 !important;
 }
 
-/* 4. Fix Search Bar position to sit perfectly under the header */
-#activity-master-view .search-bar,
-#activity-expense-ledger .search-bar {
-    position: sticky !important;
-    top: 0 !important;
-    margin-top: 0 !important;
-    z-index: 90 !important;
-    border-radius: 0 !important;
-    margin-left: -16px !important;
-    margin-right: -16px !important;
-    border-top: none !important;
-    border-left: none !important;
-    border-right: none !important;
-    background: rgba(253, 252, 255, 0.85) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-}
+        /* 4. FLAWLESS SEARCH BAR SHIELD (Kills the scroll gap) */
+        #activity-master-view .search-bar,
+        #activity-expense-ledger .search-bar {
+            position: sticky !important;
+            top: -1px !important; /* Pulls up slightly to snap to the header */
+            margin-top: 0 !important;
+            z-index: 90 !important;
+            border-radius: 0 !important;
+            margin-left: -16px !important;
+            margin-right: -16px !important;
+            border-top: none !important;
+            border-left: none !important;
+            border-right: none !important;
+            
+            /* 🚨 THE FIX: Massive solid shadow projecting upwards to permanently block list items from bleeding through! */
+            box-shadow: 0 -50px 0 var(--md-background) !important; 
+            
+            background: rgba(253, 252, 255, 0.95) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
+        }
 
-body.dark-mode #activity-master-view .search-bar,
-body.dark-mode #activity-expense-ledger .search-bar {
-    background: rgba(15, 23, 42, 0.85) !important;
-}
+        body.dark-mode #activity-master-view .search-bar,
+        body.dark-mode #activity-expense-ledger .search-bar {
+            background: rgba(18, 18, 18, 0.95) !important;
+            box-shadow: 0 -50px 0 var(--md-background) !important; /* Solid black upward shield */
+        }
 /* ==========================================
    🚨 SOLLO FIX: GLOBAL HEADER OVERLAP SHIELD
    ========================================== */
@@ -8155,10 +8061,11 @@ html body #app-shell .activity-screen .activity-header {
     z-index: 100 !important;
 }
 
-/* 2. Strip the hardcoded "push down" spacing from ALL activity contents */
-html body #app-shell .activity-screen .activity-content {
-    padding-top: 0 !important;
-}
+        /* 2. Strip the hardcoded "push down" spacing from ALL activity contents */
+        html body #app-shell .activity-screen .activity-content {
+            padding-top: 0 !important;
+            margin-top: 0 !important; /* Restored to perfect 0 to prevent glass bleeding */
+        }
 /* ==========================================
    🚀 ENTERPRISE UX: NATIVE MATERIAL 3 INPUTS
    ========================================== */
@@ -8234,31 +8141,6 @@ input[type="search"]::-webkit-search-cancel-button {
     }
 }
 /* ==========================================
-   🚀 ENTERPRISE UX: NATIVE SCREEN TRANSITIONS
-   ========================================== */
-.m3-card, .empty-state, .item-entry-card {
-    animation: fadeSlideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
-}
-
-/* Stagger the animations so lists flow in sequentially */
-.m3-card:nth-child(1) { animation-delay: 0.05s; }
-.m3-card:nth-child(2) { animation-delay: 0.10s; }
-.m3-card:nth-child(3) { animation-delay: 0.15s; }
-.m3-card:nth-child(4) { animation-delay: 0.20s; }
-.m3-card:nth-child(5) { animation-delay: 0.25s; }
-.m3-card:nth-child(n+6) { animation-delay: 0.30s; }
-
-@keyframes fadeSlideUp {
-    from { 
-        opacity: 0; 
-        transform: translateY(16px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateY(0); 
-    }
-}
-/* ==========================================
    🚀 ENTERPRISE UX: NATIVE APP SHELL OVERRIDES
    ========================================== */
 
@@ -8305,57 +8187,77 @@ input[type="search"]::-webkit-search-cancel-button {
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
 }
 /* ==========================================
-   🚀 ENTERPRISE UX: SEARCH BARS & DRAG HANDLES
+   🚀 ENTERPRISE UX: PREMIUM SEARCH BARS & DRAG HANDLES
    ========================================== */
 
-/* 1. Perfect Native Pill Search Bars */
+/* 1. True Premium Floating Pill Search Bar */
 .search-bar {
-    background: var(--md-surface-variant) !important;
-    border-radius: 100px !important; /* Perfect Pill Shape */
-    border: 1px solid var(--md-outline-variant) !important;
-    padding: 2px 16px !important;
+    background: var(--md-surface) !important;
+    border-radius: 24px !important; /* Perfect Pill Shape */
+    border: 1px solid rgba(128, 128, 128, 0.15) !important; /* Premium subtle border */
+    padding: 4px 16px !important;
     display: flex !important;
     align-items: center !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02) !important;
-    transition: all 0.2s ease !important;
+    /* 3D Depth: Outer shadow for floating, inner highlight for glass effect */
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06), inset 0 2px 4px rgba(255, 255, 255, 0.5) !important; 
+    /* The Magic Fix: Gives it breathing room so the gap looks intentional and beautiful */
+    margin: 12px 16px 16px 16px !important; 
+    transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+    position: relative !important;
+    z-index: 95 !important;
 }
 
-/* Add a glowing elevation effect when typing */
+/* 2. Magnetic Glowing Focus State */
 .search-bar:focus-within {
-    background: var(--md-surface) !important;
     border-color: var(--md-primary) !important;
-    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.08) !important;
+    box-shadow: 0 8px 24px rgba(0, 97, 164, 0.12), 0 0 0 3px rgba(0, 97, 164, 0.15) !important;
+    transform: translateY(-2px) !important; /* Physically lifts up when typing */
 }
 
-/* Strip the global input styles from search boxes */
+/* 3. Strip the global input styles for the inner text box */
 .search-bar input {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    margin-bottom: 0 !important;
+    margin: 0 !important;
     padding: 10px 8px !important;
     font-size: 16px !important;
+    color: var(--md-on-surface) !important;
+    width: 100% !important;
 }
 
-/* 2. Native Bottom Sheet Drag Handle (The top grey pill) */
+/* 4. Native Bottom Sheet Drag Handle (Apple-Style) */
 .sheet-header {
     position: relative !important;
-    padding-top: 24px !important; /* Make room for the pill */
-    border-bottom: 1px solid transparent !important; /* Remove harsh web lines */
+    padding-top: 24px !important; /* Safe room for the pill */
+    border-bottom: none !important; /* Ultra-clean transition to content */
+    background: transparent !important;
 }
 
-/* Auto-inject the pill using CSS */
+/* 5. The Premium Grey Pill */
 .sheet-header::before {
     content: '';
     position: absolute;
-    top: 8px;
+    top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    width: 36px;
+    width: 40px;
     height: 5px;
-    border-radius: 3px;
-    background-color: var(--md-outline);
-    opacity: 0.5;
+    border-radius: 4px;
+    background-color: var(--md-text-muted); /* Auto-adapts perfectly to dark mode */
+    opacity: 0.3;
+    transition: opacity 0.2s ease;
+}
+
+/* Tactile feedback when the user taps the top of the menu */
+.sheet-header:active::before {
+    opacity: 0.7; 
+}
+
+/* 6. Dark Mode Adapter for the Search Bar */
+body.dark-mode .search-bar {
+    background: var(--md-surface-variant) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
 }
 /* Premium Native Card Press Physics */
 .m3-card.tap-target {
@@ -8593,4 +8495,39 @@ body.modal-open {
         border-color: #000000 !important;
         color: #000000 !important;
     }
+}
+/* ==========================================
+   🌟 ELITE EDGE-TO-EDGE IMMERSIVE UI
+   ========================================== */
+
+/* 1. Frosted Glass Top Headers */
+.app-header, .activity-header, .top-app-bar, .screen-header {
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    /* Pushes content cleanly into the top notch */
+    padding-top: calc(12px + env(safe-area-inset-top)) !important; 
+}
+
+/* Dark Mode Frosted Top Headers */
+body.dark-mode .app-header, body.dark-mode .activity-header, body.dark-mode .top-app-bar, body.dark-mode .screen-header {
+    background: rgba(18, 18, 18, 0.75) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 2. Frosted Glass Bottom Navigation & Footers */
+.bottom-nav, .form-sticky-footer, .activity-bottom-bar, .bottom-action-bar {
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(16px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+    /* Bleeds the background behind the bottom swipe gesture bar */
+    padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important; 
+}
+
+/* Dark Mode Frosted Bottom Navigation */
+body.dark-mode .bottom-nav, body.dark-mode .form-sticky-footer, body.dark-mode .activity-bottom-bar, body.dark-mode .bottom-action-bar {
+    background: rgba(18, 18, 18, 0.85) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
