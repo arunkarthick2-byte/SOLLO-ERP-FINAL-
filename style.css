@@ -7183,30 +7183,19 @@ body.hide-overdue-alerts #overdue-reminders-container {
 }
 
 /* 🚀 ENTERPRISE UPGRADE: Clean Grid Engine */
-html body #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn,
-html body #app-shell #tab-reports #reports-action-container .m3-card.report-btn {
+.m3-card.report-btn, .m3-card.master-action-btn {
     display: flex !important;
     align-items: center !important;
     gap: 16px !important;
     padding: 16px !important;
     margin: 0 !important;
 }
-
-/* Crisp divider borders under General Masters, Bank & Cash, and Reports */
-html body #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn:not(:last-child),
-html body #app-shell #tab-workspace #bank-balances-container .m3-card:not(:last-child),
-html body #app-shell #tab-reports #reports-action-container > div > .m3-card.report-btn:not(:last-child),
-html body #app-shell #activity-master-view #master-list-container .m3-card:not(:last-child) {
-    border-bottom: 1px solid var(--md-outline-variant) !important;
+/* Automatically applies the divider lines to everything except the last item! */
+#reports-action-container > div > .m3-card.report-btn:not(:last-child),
+#workspace-master-grid .m3-card.master-action-btn:not(:last-child) {
+    border-bottom: 1px solid var(--md-surface-variant) !important;
 }
 
-/* Subtle hairline divider borders for Dark Mode */
-html body.dark-mode #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn:not(:last-child),
-html body.dark-mode #app-shell #tab-workspace #bank-balances-container .m3-card:not(:last-child),
-html body.dark-mode #app-shell #tab-reports #reports-action-container > div > .m3-card.report-btn:not(:last-child),
-html body.dark-mode #app-shell #activity-master-view #master-list-container .m3-card:not(:last-child) {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
 
 /* 🚨 MOBILE KEYBOARD FIX: Hide floating buttons when typing */
 @media screen and (max-height: 600px) and (orientation: portrait) {
