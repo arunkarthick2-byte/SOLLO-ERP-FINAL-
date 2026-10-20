@@ -7182,7 +7182,7 @@ body.hide-overdue-alerts #overdue-reminders-container {
     color: var(--md-text-muted) !important;
 }
 
-/* 🚀 ENTERPRISE UPGRADE: Clean Grid Engine */
+/* 🚀 ENTERPRISE UPGRADE: Clean Grid Engine (No Divider Lines in Masters) */
 .m3-card.report-btn, .m3-card.master-action-btn {
     display: flex !important;
     align-items: center !important;
@@ -7190,10 +7190,18 @@ body.hide-overdue-alerts #overdue-reminders-container {
     padding: 16px !important;
     margin: 0 !important;
 }
-/* Automatically applies the divider lines to everything except the last item! */
-#reports-action-container > div > .m3-card.report-btn:not(:last-child),
-#workspace-master-grid .m3-card.master-action-btn:not(:last-child) {
-    border-bottom: 1px solid var(--md-surface-variant) !important;
+
+/* Force zero divider lines under General Masters and Bank & Cash (Light & Dark Mode) */
+html body #app-shell #tab-workspace #workspace-master-grid .m3-card,
+html body #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn,
+html body #app-shell #tab-workspace #bank-balances-container .m3-card,
+html body.dark-mode #app-shell #tab-workspace #workspace-master-grid .m3-card,
+html body.dark-mode #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn,
+html body.dark-mode #app-shell #tab-workspace #bank-balances-container .m3-card {
+    border: none !important;
+    border-bottom: none !important;
+    border-top: none !important;
+    box-shadow: none !important;
 }
 
 
