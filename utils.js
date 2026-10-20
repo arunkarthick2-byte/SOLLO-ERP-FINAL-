@@ -1292,8 +1292,8 @@ Please process this accordingly. Thank you!`;
             const gstPercent = isNonGST ? 0 : (parseFloat(item.gstPercent) || 0);
             
             const baseAmount = qty * rate;
-            const discountedBase = baseAmount - (baseAmount * discountRatio); 
-            const gstAmount = discountedBase * (gstPercent / 100);
+            const discountedBase = Math.round((baseAmount - (baseAmount * discountRatio)) * 100) / 100; 
+            const gstAmount = Math.round((discountedBase * (gstPercent / 100)) * 100) / 100;
             
             totalTaxableValue += discountedBase;
 
@@ -1638,7 +1638,6 @@ Please process this accordingly. Thank you!`;
                     }
                 },
                 
-                { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 5, 0, 0], color: '#475569' },
                 // UPGRADE: Professional Customer Service Sign-off
                 { text: thisInvoiceDue <= 0.01 ? 'Payment Received with Thanks!' : 'Thank you for your business!', alignment: 'center', italics: true, bold: true, fontSize: 11, margin: [0, 10, 0, 4], color: '#0f172a' },
                 { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 0, 0, 0], color: '#475569' },

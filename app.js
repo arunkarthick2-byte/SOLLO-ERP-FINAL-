@@ -403,10 +403,10 @@ const app = {
                     const m = parseInt(today.split('-')[1]) - 1;
                     
                     if(filter === 'month') { s = `${y}-${String(m+1).padStart(2,'0')}-01`; }
-                    else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = new Date(ty, tm+1, 0).toISOString().split('T')[0]; }
+                    else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; let endDt = new Date(ty, tm+1, 0); e = `${endDt.getFullYear()}-${String(endDt.getMonth()+1).padStart(2,'0')}-${String(endDt.getDate()).padStart(2,'0')}`; }
                     else if(filter === 'year') { s = `${m<3 ? y-1 : y}-04-01`; }
                     else if(filter === 'all') { s = ''; e = ''; }
-                    else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = new Date(cy, cm, 0).toISOString().split('T')[0]; } }
+                    else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); let endDt = new Date(cy, cm, 0); e = `${endDt.getFullYear()}-${String(endDt.getMonth()+1).padStart(2,'0')}-${String(endDt.getDate()).padStart(2,'0')}`; } }
                     
                     // 🚨 THE LOGIC FIX: Overdue and Open orders should ALWAYS show all-time data so nothing is missed!
                     if (status === 'Overdue' || status === 'Open') {
@@ -1157,7 +1157,7 @@ const app = {
             const displayEl = document.getElementById('adj-product-display');
             const idEl = document.getElementById('adj-product-id');
             if (displayEl) {
-                displayEl.innerText = 'Tap to search...';
+                displayEl.innerText = 'Select Product';
                 displayEl.style.color = 'var(--md-text-muted)';
             }
             if (idEl) idEl.value = '';
@@ -1327,7 +1327,7 @@ const app = {
             cats = ((await getAllRecords('expenseCategories').catch(() => [])) || []).filter(c => c.firmId === app.state.firmId);
         }
         const catSelect = document.getElementById('expense-category-select');
-        if (catSelect) catSelect.innerHTML = '<option value="">Select Category...</option>' + cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+        if (catSelect) catSelect.innerHTML = '<option value="">Select Category</option>' + cats.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
     },
 
     manageSimpleMaster: async (storeName, title) => {
@@ -2556,7 +2556,7 @@ const app = {
                 if (document.getElementById(`${type}-installment-tracker`)) document.getElementById(`${type}-installment-tracker`).style.display = 'none';
                 if (document.getElementById(`${type}-payment-history-list`)) document.getElementById(`${type}-payment-history-list`).innerHTML = '';
                 
-                document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).innerText = `Select ${type === 'sales' ? 'Customer' : 'Supplier'}...`;
+                document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).innerText = `Select ${type === 'sales' ? 'Customer' : 'Supplier'}`;
                 document.getElementById(`${type}-${type === 'sales' ? 'customer' : 'supplier'}-display`).style.color = 'var(--md-text-muted)';
                 
                 // NEW: Hide insight card and payment history when creating a brand new record
@@ -2655,7 +2655,7 @@ const app = {
                     
                     const displayEl = document.getElementById('expense-linked-display');
                     if (displayEl) {
-                        displayEl.innerText = '-- No Link (General Expense) --';
+                        displayEl.innerText = 'General Expense';
                         displayEl.style.color = 'var(--md-text-muted)';
                     }
                 }
@@ -2744,7 +2744,7 @@ const app = {
             const partyNameKey = type === 'sales' ? 'customerName' : 'supplierName';
             
             document.getElementById(`${type}-${partyKey}-id`).value = record[partyIdKey] || '';
-            document.getElementById(`${type}-${partyKey}-display`).innerText = record[partyNameKey] || `Select ${type === 'sales' ? 'Customer' : 'Supplier'}...`;
+            document.getElementById(`${type}-${partyKey}-display`).innerText = record[partyNameKey] || `Select ${type === 'sales' ? 'Customer' : 'Supplier'}`;
             document.getElementById(`${type}-${partyKey}-display`).style.color = 'var(--md-on-surface)';
             
             if (typeof app.updateInlineInsights === 'function') {
@@ -3468,36 +3468,64 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
         let bankOptions = allAccs.filter(a => a.id !== 'cash').map(a => `<option value="${a.id}">${a.name}</option>`).join('');
         if (!bankOptions) bankOptions = `<option value="cash">Default Bank / Cash</option>`;
 
-        // Dynamically construct the gorgeous Split-Tender Bottom Sheet
+        // Dynamically construct the Centered Floating Split-Tender Modal
         const modalHTML = `
-        <div id="split-tender-modal" data-total="${total}" class="bottom-sheet" style="z-index: 99999; display: flex; flex-direction: column; background: var(--md-surface); border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -4px 20px rgba(0,0,0,0.2);">
-            <div style="padding: 20px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="margin: 0; color: var(--md-primary); font-weight: 800;">Split Payment</h3>
-                <h3 style="margin: 0; color: var(--md-on-surface); font-weight: 900;">Total: ₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</h3>
+        <div id="split-tender-modal" data-total="${total}" class="bottom-sheet centered-modal" data-no-swipe="true" style="z-index: 99999; display: flex; flex-direction: column; padding: 0;">
+            <style>
+                #split-tender-modal.centered-modal {
+                    top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
+                    width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
+                    border-radius: 12px !important;
+                    transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
+                    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+                    box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface, #ffffff) !important;
+                    position: fixed !important; overflow: hidden !important;
+                }
+                #split-tender-modal.centered-modal.open {
+                    transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important;
+                }
+                #split-tender-modal.centered-modal::before { display: none !important; }
+                body.dark-mode #split-tender-modal.centered-modal {
+                    background: #1e293b !important; border: 1px solid #334155 !important;
+                }
+            </style>
+
+            <!-- Flat Header -->
+            <div style="padding: 20px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                <span style="font-size: 16px; font-weight: 800; color: var(--md-on-surface);">Split Payment</span>
+                <span style="font-size: 15px; font-weight: 900; color: var(--md-primary);">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
             </div>
-            <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+
+            <!-- Modal Body -->
+            <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto;">
                 <div>
-                    <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">CASH RECEIVED (₹)</label>
-                    <input type="number" id="split-cash" placeholder="0.00" step="any" style="width: 100%; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold; margin-top: 6px;" oninput="window.calcSplit()">
+                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--md-text-muted); margin-bottom: 6px; display: block; letter-spacing: 0.5px;">Cash Received (₹)</label>
+                    <input type="number" id="split-cash" inputmode="decimal" placeholder="0.00" step="any" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 16px; font-weight: 700; background: var(--md-surface); color: var(--md-on-surface); box-sizing: border-box; outline: none;" oninput="window.calcSplit()">
                 </div>
+
                 <div>
-                    <label style="font-size: 12px; font-weight: 900; color: var(--md-secondary); letter-spacing: 0.5px;">BANK / UPI RECEIVED (₹)</label>
-                    <div style="display: flex; gap: 8px; margin-top: 6px;">
-                        <input type="number" id="split-bank" placeholder="0.00" step="any" style="flex: 1; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-size: 20px; font-weight: bold;" oninput="window.calcSplit()">
-                        <select id="split-bank-account" style="width: 140px; padding: 14px; border: 2px solid var(--md-outline-variant); border-radius: 8px; font-weight: bold; background: var(--md-surface-variant);">
+                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--md-text-muted); margin-bottom: 6px; display: block; letter-spacing: 0.5px;">Bank / UPI Received (₹)</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="split-bank" inputmode="decimal" placeholder="0.00" step="any" style="flex: 1; min-width: 0; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 16px; font-weight: 700; background: var(--md-surface); color: var(--md-on-surface); box-sizing: border-box; outline: none;" oninput="window.calcSplit()">
+                        <select id="split-bank-account" style="width: 130px; padding: 12px 8px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--md-surface-variant); color: var(--md-on-surface); box-sizing: border-box; outline: none;">
                             ${bankOptions}
                         </select>
                     </div>
                 </div>
-                <div style="background: rgba(186, 26, 26, 0.1); padding: 16px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
-                    <span style="color: var(--md-error); font-weight: 900; font-size: 14px; letter-spacing: 0.5px;">PENDING CREDIT:</span>
-                    <span id="split-credit" style="color: var(--md-error); font-size: 24px; font-weight: 900;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
+
+                <div style="background: rgba(186, 26, 26, 0.08); padding: 14px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
+                    <span style="color: var(--md-error); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Pending Credit</span>
+                    <span id="split-credit" style="color: var(--md-error); font-size: 18px; font-weight: 900;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                 </div>
-                <button id="split-confirm-btn" class="btn-primary" style="padding: 16px; font-size: 18px; border-radius: 12px; margin-top: 12px; font-weight: 900;">Finalize Split Invoice</button>
-                <button id="split-cancel-btn" style="padding: 12px; font-size: 14px; background: transparent; border: none; color: var(--md-secondary); font-weight: bold;">Cancel</button>
+            </div>
+
+            <!-- Flat Footer -->
+            <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
+                <button type="button" id="split-cancel-btn" class="dialog-text-btn tap-target" style="color: var(--md-text-muted);">CANCEL</button>
+                <button type="button" id="split-confirm-btn" class="dialog-text-btn tap-target" style="font-weight: 800;">FINALIZE</button>
             </div>
         </div>
-        <div id="split-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99998; backdrop-filter: blur(3px);"></div>
+        <div id="split-overlay" onclick="const cBtn = document.getElementById('split-cancel-btn'); if(cBtn) cBtn.click();" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 99998; backdrop-filter: blur(3px);"></div>
         `;
         
         document.body.insertAdjacentHTML('beforeend', modalHTML);
@@ -3730,8 +3758,8 @@ if (data.id && splitConfirmed) {
                     
                     // STRICT ERP LOGIC: Prevent "Race Condition" Stock Wipeouts!
                     // If editing an existing product, NEVER overwrite the live stock with the stale UI number. 
-                    if (app.state.currentEditId) {
-                        const liveRecord = await getRecordById('items', app.state.currentEditId);
+                    if (app.state.currentMasterId) {
+                        const liveRecord = await getRecordById('items', app.state.currentMasterId);
                         data.stockGst = liveRecord ? parseFloat(liveRecord.stockGst) || 0 : 0;
                         data.stockNonGst = liveRecord ? parseFloat(liveRecord.stockNonGst) || 0 : 0;
                         
@@ -4457,7 +4485,7 @@ if (data.id && splitConfirmed) {
         const displayEl = document.getElementById(`${prefix}-${isOut ? 'supplier' : 'customer'}-display`);
         const idEl = document.getElementById(`${prefix}-${isOut ? 'supplier' : 'customer'}-id`);
         if (displayEl) {
-            displayEl.innerText = `Select ${isOut ? 'Supplier' : 'Customer'}...`;
+            displayEl.innerText = `Select ${isOut ? 'Supplier' : 'Customer'}`;
             displayEl.style.color = 'var(--md-text-muted)';
         }
         if (idEl) idEl.value = '';
@@ -4524,7 +4552,14 @@ if (data.id && splitConfirmed) {
             const noInput = document.getElementById(`pay-${type}-no`);
             if (noInput) noInput.value = record.receiptNo || String(record.id).substring(0, 12).toUpperCase();
 
-            document.getElementById(`pay-${type}-date`).value = record.date || '';
+            const dateEl = document.getElementById(`pay-${type}-date`);
+            if (dateEl) {
+                dateEl.value = record.date || '';
+                if (dateEl._flatpickr) {
+                    if (record.date) dateEl._flatpickr.setDate(record.date);
+                    else dateEl._flatpickr.clear();
+                }
+            }
             
             // UPGRADE: Hydrate the new custom Tap-to-Select UI display
             const partyInput = document.getElementById(type === 'in' ? 'pay-in-customer-id' : 'pay-out-supplier-id');
@@ -6300,7 +6335,7 @@ if (data.id && splitConfirmed) {
         const displayEl = document.getElementById('tax-report-display');
         const idEl = document.getElementById('tax-report-id');
         if (displayEl) {
-            displayEl.innerText = 'Tap to search...';
+            displayEl.innerText = 'Select Party';
             displayEl.style.color = 'var(--md-text-muted)';
         }
         if (idEl) idEl.value = '';
@@ -6506,7 +6541,7 @@ if (data.id && splitConfirmed) {
             });
             
             // The Bridging Reconciliation Block!
-            const finalBridgedProfit = totalItemProfit + totalFreight - totalDiscount + totalRoundOff;
+            const finalBridgedProfit = totalItemProfit + totalFreight + totalRoundOff;
             
             html += `
             <div class="m3-card" style="margin-top: 24px; padding: 16px; background: rgba(0, 97, 164, 0.05); border: 1px solid rgba(0, 97, 164, 0.2);">
@@ -10583,33 +10618,7 @@ window.addEventListener('error', function (e) {
     
     return true; 
 });
-// ==========================================
-// 🚀 ERP SAFETY: 7-DAY SMART BACKUP REMINDER
-// ==========================================
-// Subconsciously trains the user to maintain bulletproof local backups
-document.addEventListener('DOMContentLoaded', () => {
-    // Waits 5 seconds after the app opens so it doesn't interrupt your workflow
-    setTimeout(() => {
-        const lastBackup = localStorage.getItem('sollo_last_local_backup');
-        const now = Date.now();
-        const sevenDays = 7 * 24 * 60 * 60 * 1000;
-        
-        // If it's been longer than 7 days since your last manual export
-        if (!lastBackup || (now - parseInt(lastBackup)) > sevenDays) {
-            if (window.Utils && window.Utils.showToast) {
-                window.Utils.showToast('🛡️ Security Tip: It’s been a while! Export a local backup today in Settings.', 'success');
-            }
-        }
-        
-        // When you click your actual export button, this resets the 7-day timer
-        const exportBtn = document.getElementById('export-data-btn'); 
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                localStorage.setItem('sollo_last_local_backup', Date.now().toString());
-            });
-        }
-    }, 5000); 
-});
+// Backup reminder disabled to keep startup clean
 // ==========================================
 // 🚀 NATIVE UX: ANDROID BACK-BUTTON INTERCEPTOR
 // ==========================================
@@ -10676,4 +10685,42 @@ window.addEventListener('beforeinstallprompt', (e) => {
             }
         }
     }, 10000);
+});
+// ==========================================
+// 🚨 ENTERPRISE UX: SMART SEARCH BAR FOCUS ENGINE
+// ==========================================
+// Conditional logic to instantly hide the total amount numbers when the user taps the search bar
+document.addEventListener('focusin', (e) => {
+    if (e.target.tagName === 'INPUT' && e.target.closest('.search-bar')) {
+        const searchBar = e.target.closest('.search-bar');
+        
+        // Find the badge holding the total amount
+        const sumBadge = searchBar.querySelector('div[id^="sum-"], .ws-trans-sum-badge');
+        
+        if (sumBadge) {
+            // Save the original state so we don't accidentally show hidden badges later
+            const currentDisplay = window.getComputedStyle(sumBadge).display;
+            sumBadge.setAttribute('data-original-display', currentDisplay);
+            
+            // Hide the numbers while typing
+            sumBadge.style.setProperty('display', 'none', 'important');
+        }
+    }
+});
+
+document.addEventListener('focusout', (e) => {
+    if (e.target.tagName === 'INPUT' && e.target.closest('.search-bar')) {
+        const searchBar = e.target.closest('.search-bar');
+        const sumBadge = searchBar.querySelector('div[id^="sum-"], .ws-trans-sum-badge');
+        
+        if (sumBadge) {
+            // Restore the numbers when the user closes the keyboard
+            const originalDisplay = sumBadge.getAttribute('data-original-display');
+            if (originalDisplay && originalDisplay !== 'none') {
+                sumBadge.style.setProperty('display', originalDisplay, 'important');
+            } else {
+                sumBadge.style.display = ''; // Fallback
+            }
+        }
+    }
 });

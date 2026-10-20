@@ -150,10 +150,32 @@ const UI = {
         // ENTERPRISE FIX 7: Smart Error Finder (Auto-scrolls to missing required fields!)
         document.addEventListener('invalid', (e) => {
             e.preventDefault(); 
-            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            e.target.style.border = '2px solid red';
-            setTimeout(() => e.target.style.border = '', 2500);
-            if (window.Utils) window.Utils.showToast("⚠️ Missing required field!");
+            const target = e.target;
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // 🚀 INLINE VALIDATION: Soft red background and inline text instead of a jarring popup
+            target.style.borderColor = 'var(--md-error)';
+            target.style.backgroundColor = 'rgba(186, 26, 26, 0.04)';
+            
+            // Remove any existing inline error message to prevent duplicates
+            const existingError = target.parentNode.querySelector('.inline-error-msg');
+            if (existingError) existingError.remove();
+
+            // Inject the soft error message directly below the input
+            const errorMsg = document.createElement('div');
+            errorMsg.className = 'inline-error-msg';
+            errorMsg.style.cssText = 'color: var(--md-error); font-size: 11px; font-weight: 700; margin-top: 4px; animation: nativeFadeIn 0.2s ease;';
+            errorMsg.innerText = "⚠️ This field is required.";
+            target.parentNode.appendChild(errorMsg);
+
+            // Clean up the error visually the exact moment the user starts typing again!
+            target.addEventListener('input', function clearError() {
+                target.style.borderColor = '';
+                target.style.backgroundColor = '';
+                if (errorMsg.parentNode) errorMsg.remove();
+                target.removeEventListener('input', clearError);
+            });
+
             if (window.UI) window.UI.triggerHaptic('heavy');
         }, true);
 
@@ -342,6 +364,11 @@ const UI = {
         if (metaTheme) metaTheme.setAttribute('content', isDark ? '#000000' : '#F7F9FC');
         
         if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('medium');
+        
+        // 🚨 Instantly redraw the Dashboard chart to match the new dark/light theme!
+        if (document.getElementById('tab-dashboard') && document.getElementById('tab-dashboard').classList.contains('active-screen')) {
+            if (typeof window.UI.renderDashboard === 'function') window.UI.renderDashboard();
+        }
     },
 
     triggerError: (elementId) => {
@@ -928,7 +955,7 @@ const UI = {
             // FIX: Restore the search bar for Products, Customers, etc.
             if (searchInput.parentElement) searchInput.parentElement.style.display = 'flex'; 
             searchInput.value = '';
-            searchInput.placeholder = `Search ${title}...`;
+            searchInput.placeholder = 'Search';
         }
         
         const actionBtn = document.getElementById('btn-master-action');
@@ -1161,8 +1188,8 @@ const UI = {
                     : rowTotal.toFixed(2);
             }
             
-            finalSubtotal += discountedBase;
-            totalGst += gstAmount;
+            finalSubtotal += roundedDiscountedBase;
+            totalGst += roundedGst;
 
             // Update Live Margin (Only for Sales)
             if (isSales) {
@@ -1611,14 +1638,14 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
-                    <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(0, 97, 164, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-                        <span class="material-symbols-outlined" style="font-size: 36px; color: var(--md-primary);">receipt_long</span>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: transparent; margin: 16px;">
+                    <div style="width: 80px; height: 80px; border-radius: 24px; background: linear-gradient(135deg, rgba(0, 97, 164, 0.1), rgba(0, 97, 164, 0.02)); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5);">
+                        <span style="font-size: 40px;">🚀</span>
                     </div>
-                    <strong style="font-size: 18px; color: var(--md-on-surface); margin-bottom: 8px;">No Sales Invoices</strong>
-                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 24px 0; line-height: 1.4;">You haven't created any invoices that match these filters yet.</p>
-                    <button class="tap-target" onclick="app.openForm('sales', null, 'invoice')" style="background: var(--md-primary); color: #ffffff; border: none; padding: 12px 24px; border-radius: 24px; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0, 97, 164, 0.2);">
-                        <span class="material-symbols-outlined" style="font-size: 18px;">add</span> Create Invoice
+                    <strong style="font-size: 20px; color: var(--md-on-surface); margin-bottom: 8px; letter-spacing: -0.5px;">You're ready for business!</strong>
+                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 28px 0; line-height: 1.5; max-width: 280px;">Create your first sales invoice to start tracking your revenue and unlock your dashboard insights.</p>
+                    <button class="tap-target" onclick="app.openForm('sales', null, 'invoice')" style="background: var(--md-primary); color: #ffffff; border: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 20px -6px rgba(0, 97, 164, 0.4);">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">add</span> Create First Invoice
                     </button>
                 </div>`;
 
@@ -1799,14 +1826,14 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
-                    <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(245, 127, 23, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-                        <span class="material-symbols-outlined" style="font-size: 36px; color: #f57f17;">local_shipping</span>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: transparent; margin: 16px;">
+                    <div style="width: 80px; height: 80px; border-radius: 24px; background: linear-gradient(135deg, rgba(245, 127, 23, 0.1), rgba(245, 127, 23, 0.02)); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(255,255,255,0.5);">
+                        <span style="font-size: 40px;">📦</span>
                     </div>
-                    <strong style="font-size: 18px; color: var(--md-on-surface); margin-bottom: 8px;">No Purchase Bills</strong>
-                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 24px 0; line-height: 1.4;">You haven't recorded any purchases that match these filters yet.</p>
-                    <button class="tap-target" onclick="app.openForm('purchase', null, 'invoice')" style="background: #f57f17; color: #ffffff; border: none; padding: 12px 24px; border-radius: 24px; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(245, 127, 23, 0.2);">
-                        <span class="material-symbols-outlined" style="font-size: 18px;">add</span> Create Purchase Bill
+                    <strong style="font-size: 20px; color: var(--md-on-surface); margin-bottom: 8px; letter-spacing: -0.5px;">Stock up your inventory</strong>
+                    <p style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 28px 0; line-height: 1.5; max-width: 280px;">Record your first purchase bill to track expenses and automatically update your warehouse stock.</p>
+                    <button class="tap-target" onclick="app.openForm('purchase', null, 'invoice')" style="background: #f57f17; color: #ffffff; border: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 20px -6px rgba(245, 127, 23, 0.4);">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">add</span> Record Purchase
                     </button>
                 </div>`;
 
@@ -2185,38 +2212,39 @@ const UI = {
                     const tBg = bal < -0.01 ? 'rgba(20, 108, 46, 0.08)' : 'rgba(186, 26, 26, 0.08)';
                     const taxHtml = taxInfo ? `<span style="color:${tColor}; font-size:10px; font-weight:800; background:${tBg}; padding:4px 8px; border-radius:4px; display:inline-block;">${taxInfo}</span>` : '';
 
-                    // STRICT ERP LOGIC: Custom Card with 1-Click View & PDF Action Buttons!
+                    // STRICT ERP LOGIC: Compact Single-Row Card with 1-Tap Call, PDF & Ledger!
                     const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    const cleanPhone = String(l.phone || '').replace(/[^0-9+]/g, '');
+                    const callBtn = cleanPhone ? `
+                        <a href="tel:${cleanPhone}" class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation();" style="width: 28px; height: 28px; border-radius: 6px; background: rgba(20, 108, 46, 0.08); color: var(--md-success); display: flex; align-items: center; justify-content: center; text-decoration: none;">
+                            <span class="material-symbols-outlined" style="font-size: 16px;">call</span>
+                        </a>` : '';
                     return `
-                    <div class="m3-card tap-target" style="padding: 14px 16px; margin-bottom: 10px; border-radius: 12px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); position: relative; overflow: hidden;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
-                        
-                        <!-- Top Row: Icon, Name, Balance -->
-                        <div style="display: flex; align-items: flex-start; gap: 12px;">
-                            <div class="icon-circle" style="width: 44px; height: 44px; background: rgba(0, 97, 164, 0.08); color: ${rowColor}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
-                                <span class="material-symbols-outlined" style="font-size: 22px;">${rowIcon}</span>
+                    <div class="m3-card tap-target" style="padding: 10px 16px !important; margin-bottom: 0 !important; border-radius: 0 !important; background: var(--md-surface); border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important; position: relative; overflow: hidden;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(0, 97, 164, 0.08); color: ${rowColor}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                             </div>
                             
-                            <div style="flex: 1; min-width: 0; padding-right: 8px; display: flex; flex-direction: column; justify-content: center; padding-top: 2px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700; margin-bottom: 4px;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; font-size: 12px; font-weight: 600;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
-                                <div style="margin-top: 6px; display: flex; align-items: center;">${taxHtml ? taxHtml : ''}</div>
-                            </div>
-                            
-                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; padding-top: 2px;">
-                                <strong style="font-size: 16px; color: ${balColor}; line-height: 1.2;">${balText}</strong>
-                                <div style="display: flex; align-items: flex-start; margin-top: 6px;">${statusBadge ? statusBadge : ''}</div>
-                            </div>
-                        </div>
-
-                        <!-- Bottom Row: Minimal Action Icons -->
-                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
-                            <div style="display: flex; gap: 8px;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-party-ledger'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                            <div style="flex: 1; min-width: 0; padding-right: 6px; display: flex; flex-direction: column; justify-content: center;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; font-weight: 700; margin-bottom: 3px;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                    <small style="color: var(--md-text-muted); font-size: 12px; font-weight: 600;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
+                                    ${statusBadge ? statusBadge.replace('margin-top:4px;', 'margin-top:0;') : ''}
+                                    ${taxHtml ? taxHtml : ''}
                                 </div>
-                                
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">menu_book</span>
+                            </div>
+                            
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px;">
+                                <strong style="font-size: 15px; color: ${balColor}; line-height: 1.1;">${balText}</strong>
+                                <div style="display: flex; gap: 6px; align-items: center;">
+                                    ${callBtn}
+                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-report-viewer'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 28px; height: 28px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
+                                    </div>
+                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 28px; height: 28px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 16px;">menu_book</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2454,12 +2482,20 @@ const UI = {
                 }
             });
 
-            // Update the new dedicated UI cards
+            // Update the new dedicated UI cards with smooth rolling animations
             const inCard = document.getElementById('cashbook-total-in');
             const outCard = document.getElementById('cashbook-total-out');
             
-            if (inCard) inCard.innerText = `₹${totalIn.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-            if (outCard) outCard.innerText = `₹${totalOut.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            if (inCard) {
+                const currentIn = parseFloat(inCard.innerText.replace(/[^\d.-]/g, '')) || 0;
+                if (window.animateCurrency) window.animateCurrency('cashbook-total-in', currentIn, totalIn, 800);
+                else inCard.innerText = `₹${totalIn.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            }
+            if (outCard) {
+                const currentOut = parseFloat(outCard.innerText.replace(/[^\d.-]/g, '')) || 0;
+                if (window.animateCurrency) window.animateCurrency('cashbook-total-out', currentOut, totalOut, 800);
+                else outCard.innerText = `₹${totalOut.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+            }
 
             // Keep backward compatibility for the old badge just in case
             const badge = document.getElementById('sum-cashbook');
@@ -3345,6 +3381,19 @@ const UI = {
             const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
             const textColor = isDark ? '#c3c7cf' : '#757575';
 
+            // Generate Premium FinTech Gradients
+            const gradientSales = ctx.createLinearGradient(0, 0, 0, 400);
+            gradientSales.addColorStop(0, 'rgba(0, 97, 164, 0.95)');
+            gradientSales.addColorStop(1, 'rgba(0, 97, 164, 0.2)');
+
+            const gradientPurchases = ctx.createLinearGradient(0, 0, 0, 400);
+            gradientPurchases.addColorStop(0, 'rgba(245, 127, 23, 0.95)');
+            gradientPurchases.addColorStop(1, 'rgba(245, 127, 23, 0.2)');
+
+            const gradientExpenses = ctx.createLinearGradient(0, 0, 0, 400);
+            gradientExpenses.addColorStop(0, 'rgba(186, 26, 26, 0.95)');
+            gradientExpenses.addColorStop(1, 'rgba(186, 26, 26, 0.2)');
+
             UI.chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -3352,20 +3401,12 @@ const UI = {
                     datasets: [{
                         label: 'Amount (₹)',
                         data: [salesAmt, purchaseAmt, expenseAmt],
-                        backgroundColor: [
-                            'rgba(0, 97, 164, 0.85)',   /* SOLLO Primary Blue */
-                            'rgba(245, 127, 23, 0.85)', /* Purchase Orange */
-                            'rgba(186, 26, 26, 0.85)'   /* Expense Red */
-                        ],
-                        borderColor: [
-                            '#0061a4', 
-                            '#f57f17', 
-                            '#ba1a1a'
-                        ],
-                        borderWidth: 1,
-                        borderRadius: 8, /* Gives the bars a premium rounded top */
+                        backgroundColor: [gradientSales, gradientPurchases, gradientExpenses],
+                        borderColor: ['#0061a4', '#f57f17', '#ba1a1a'],
+                        borderWidth: { top: 2, right: 0, bottom: 0, left: 0 }, /* Sharp top highlight only */
+                        borderRadius: 6, 
                         borderSkipped: false,
-                        barPercentage: 0.5 /* Makes the bars elegantly slim */
+                        barPercentage: 0.55 
                     }]
                 },
                 options: {
@@ -3507,7 +3548,7 @@ const UI = {
             const input = document.getElementById(`${prefix}-customer`) || document.getElementById(`${prefix}-supplier`);
             
             if (display) {
-                display.innerText = sheetId === 'sheet-payment-in' ? 'Select Customer...' : 'Select Supplier...';
+                display.innerText = sheetId === 'sheet-payment-in' ? 'Select Customer' : 'Select Supplier';
                 display.style.color = 'var(--md-text-muted)';
             }
             if (input) input.value = '';
@@ -3597,11 +3638,21 @@ const UI = {
         
         const titleEl = document.getElementById('smart-search-title');
         const inputEl = document.getElementById('smart-search-input');
+        const tabsEl = document.getElementById('smart-search-tabs');
         
         if (targetType === 'customer') titleEl.innerText = "Select Customer";
         else if (targetType === 'supplier') titleEl.innerText = "Select Supplier";
         else if (targetType === 'item') titleEl.innerText = "Add Product";
         else if (targetType === 'party') titleEl.innerText = "Select Party";
+        
+        if (tabsEl) {
+            if (targetType === 'party') {
+                tabsEl.style.display = 'flex';
+                if (window.switchSmartTab) window.switchSmartTab(UI.state.smartSearchPartyFilter || 'customer', true);
+            } else {
+                tabsEl.style.display = 'none';
+            }
+        }
         
         inputEl.value = '';
         UI.executeSmartSearch(); // Load initial list
@@ -3666,8 +3717,9 @@ const UI = {
 
         // --- 1. PARTY SEARCH (Customers & Suppliers) ---
         if (targetType === 'customer' || targetType === 'supplier' || targetType === 'party') {
-            const isCust = targetType === 'customer';
-            const isSupp = targetType === 'supplier';
+            const activePartyTab = UI.state.smartSearchPartyFilter || 'customer';
+            const isCust = targetType === 'customer' || (targetType === 'party' && activePartyTab === 'customer');
+            const isSupp = targetType === 'supplier' || (targetType === 'party' && activePartyTab === 'supplier');
             
             results = UI.state.rawData.ledgers.filter(l => {
                 const safeType = String(l.type).toLowerCase();
@@ -4599,7 +4651,7 @@ const UI = {
         const fmt = (num) => '₹' + (num || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 
         const thStyle = `padding: 10px 12px; background: var(--md-primary); font-size: 11px; font-weight: 800; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px;`;
-        const groupStyle = `padding: 10px 12px; font-size: 13px; font-weight: 800; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant); background: #fdfdfd;`;
+        const groupStyle = `padding: 10px 12px; font-size: 13px; font-weight: 800; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface-variant);`;
         
         const getRow = (label, amt, type, color) => `
             <div class="tap-target" onclick="if(window.app) window.app.showBSBreakdown('${type}', '${label}', '${color}')" style="padding: 10px 12px 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--md-text-muted); border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;">
@@ -5048,30 +5100,47 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('sheet-invoice-more-options')) {
         const optionsMenu = document.createElement('div');
         optionsMenu.id = 'sheet-invoice-more-options';
-        optionsMenu.className = 'bottom-sheet';
+        optionsMenu.className = 'bottom-sheet centered-modal';
+        optionsMenu.setAttribute('data-no-swipe', 'true');
+        optionsMenu.style.cssText = 'display: flex; flex-direction: column; padding: 0;';
         optionsMenu.innerHTML = `
-            <div class="sheet-header">
-                <span style="font-size: 18px; font-weight: 500;">Document Options</span>
-                <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options')">close</span>
+            <style>
+                #sheet-invoice-more-options.centered-modal {
+                    top: 50% !important; left: 16px !important; right: 16px !important; bottom: auto !important;
+                    width: auto !important; max-width: 600px !important; margin: 0 auto !important;
+                    height: auto !important; max-height: calc(100vh - 32px) !important;
+                    border-radius: 12px !important; 
+                    transform: translateY(-50%) scale(0.95) !important; opacity: 0 !important;
+                    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
+                    box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
+                    position: fixed !important;
+                }
+                #sheet-invoice-more-options.centered-modal.open { transform: translateY(-50%) scale(1) !important; opacity: 1 !important; }
+                #sheet-invoice-more-options.centered-modal::before { display: none !important; }
+                body.dark-mode #sheet-invoice-more-options.centered-modal { background: #1e293b !important; border: 1px solid rgba(255,255,255,0.08) !important; }
+            </style>
+            
+            <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); border-radius: 12px 12px 0 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Document Options</strong>
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options')">close</span>
+                </div>
             </div>
-            <div style="padding: 16px;">
-                <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.cancelDocument(isSales ? 'sales' : 'purchase', window.app.state.currentEditId); }, 300);">
-                    <div style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                        <span class="material-symbols-outlined">block</span>
-                    </div>
-                    <div>
-                        <strong style="display:block; font-size:16px;">Cancel Document</strong>
-                        <small style="color:var(--md-text-muted);">Mark as void & reverse stock</small>
+            
+            <div style="padding: 0; flex: 1; overflow-y: auto; overflow-x: hidden;">
+                <div class="sub-radio-row tap-target" style="justify-content: flex-start; gap: 16px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.cancelDocument(isSales ? 'sales' : 'purchase', window.app.state.currentEditId); }, 300);">
+                    <span class="material-symbols-outlined" style="color: #f57f17; font-size: 24px;">block</span>
+                    <div style="display: flex; flex-direction: column;">
+                        <span class="sub-radio-text" style="font-weight: 600;">Cancel Document</span>
+                        <span style="font-size: 12px; color: var(--md-text-muted);">Mark as void & reverse stock</span>
                     </div>
                 </div>
 
-                <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.deleteRecord(isSales ? 'sales' : 'purchase'); }, 300);">
-                    <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                        <span class="material-symbols-outlined">delete_forever</span>
-                    </div>
-                    <div>
-                        <strong style="display:block; font-size:16px;">Delete Permanently</strong>
-                        <small style="color:var(--md-text-muted);">Move to recycle bin</small>
+                <div class="sub-radio-row tap-target" style="justify-content: flex-start; gap: 16px; border-bottom: none;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.deleteRecord(isSales ? 'sales' : 'purchase'); }, 300);">
+                    <span class="material-symbols-outlined" style="color: #ba1a1a; font-size: 24px;">delete_forever</span>
+                    <div style="display: flex; flex-direction: column;">
+                        <span class="sub-radio-text" style="font-weight: 600;">Delete Permanently</span>
+                        <span style="font-size: 12px; color: var(--md-text-muted);">Move to recycle bin</span>
                     </div>
                 </div>
             </div>
@@ -6121,7 +6190,7 @@ document.addEventListener('visibilitychange', () => {
             // If the user was gone for less than 60 seconds, automatically unlock the app!
             const timeAway = Date.now() - (window.solloAppHiddenTime || 0);
             
-            if (timeAway < 60000) { // 60,000 milliseconds = 60 seconds
+            if (timeAway < 60000 && !localStorage.getItem('sollo_app_pin')) { // Only auto-unlock if no PIN is set
                 lockScreen.style.opacity = '0';
                 setTimeout(() => lockScreen.style.display = 'none', 300);
             }

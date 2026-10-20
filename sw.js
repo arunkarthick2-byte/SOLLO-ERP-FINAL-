@@ -1,8 +1,7 @@
 // ==========================================
-// SOLLO ERP - SMART OFFLINE ENGINE (v6.4)
+// SOLLO ERP - SMART OFFLINE ENGINE (v6.4 Fine-Tuned)
 // ==========================================
-// ENTERPRISE RULE: Every time you change your code, you MUST change this version number (e.g., to 11.8, 11.9)!
-const CACHE_NAME = 'sollo-erp-v94-offline'; // Bumped version to v94
+const CACHE_NAME = 'sollo-erp-v96-offline';
 
 const ASSETS_TO_CACHE = [
     './',
@@ -20,6 +19,7 @@ const ASSETS_TO_CACHE = [
     './icon-512.png',
     './manifest.json',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0',
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
     'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css',
@@ -31,22 +31,18 @@ const ASSETS_TO_CACHE = [
     'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
 ];
 
-
 self.addEventListener('install', (event) => {
-    // 🚨 CRITICAL PWA FIX: Removed unconditional skipWaiting()!
-    // This prevents the "Frankenstein Cache" crash. Updates are now safely controlled by the 'message' listener when the user clicks 'Update' in the UI.
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            // STRICT ERP LOGIC: Force { cache: 'reload' } to bypass the browser's HTTP cache.
-            // This guarantees the Service Worker downloads the absolute newest files from your server!
             return Promise.all(ASSETS_TO_CACHE.map(url => {
-                return cache.add(new Request(url, { cache: 'reload' })).catch(err => console.warn(`Failed to cache: ${url}`, err));
+                return cache.add(new Request(url, { cache: 'reload' })).catch(err => {
+                    console.warn(`Failed to precache: ${url}`, err);
+                });
             }));
         })
     );
 });
 
-// STRICT ERP LOGIC: The Garbage Collector. Destroys outdated caches to prevent mobile storage bombs!
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
@@ -62,17 +58,16 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// ENTERPRISE UPGRADE: 3-Second Timeout Engine for "Lie-Fi" connections
-const fetchWithTimeout = (request, timeout = 3000) => {
+const fetchWithTimeout = (request, timeout = 2500) => {
     return new Promise((resolve, reject) => {
         const controller = new AbortController();
         const timer = setTimeout(() => {
-            controller.abort(); // STRICT ERP LOGIC: Physically sever the hanging network connection!
+            controller.abort();
             reject(new Error('Network Timeout'));
         }, timeout);
-        fetch(request, { signal: controller.signal }).then(response => {
+        fetch(request, { signal: controller.signal }).then(res => {
             clearTimeout(timer);
-            resolve(response);
+            resolve(res);
         }).catch(err => {
             clearTimeout(timer);
             reject(err);
@@ -81,62 +76,70 @@ const fetchWithTimeout = (request, timeout = 3000) => {
 };
 
 self.addEventListener('fetch', (event) => {
-    if (event.request.method !== 'GET') return;
-    if (event.request.url.startsWith('blob:') || event.request.url.startsWith('data:')) return;
-    
-    // STRICT ERP LOGIC: Never intercept or cache Google Auth & API scripts! 
-    // This prevents permanent "Token Mismatch" lockouts on the Cloud Backup engine.
     const url = event.request.url;
-    // ENTERPRISE FIX: Also exclude 'googleapis.com' so massive database restores don't hit the 3-second timeout and crash on 3G networks!
-    if (url.includes('apis.google.com') || url.includes('accounts.google.com') || url.includes('googleapis.com')) {
+
+    // 1. Bypass Google Auth and Drive API requests only (preserves fonts.googleapis.com)
+    if (url.includes('apis.google.com') || 
+        url.includes('accounts.google.com') || 
+        url.includes('content.googleapis.com') || 
+        url.includes('www.googleapis.com/drive')) {
         return; 
     }
 
-    // 🚨 NEW: NETWORK-FIRST STRATEGY (Best for mostly online users!)
-    // It always tries to get your newest code from the internet first.
-    // If you go offline, it falls back to the saved cache!
+    // 2. Prevent 405 Method Not Allowed on static servers when handling CSV Share Target
+    if (event.request.method === 'POST' && url.includes('action=import_csv')) {
+        event.respondWith(Response.redirect('./?action=import_csv', 303));
+        return;
+    }
+
+    if (event.request.method !== 'GET') return;
+    if (url.startsWith('blob:') || url.startsWith('data:')) return;
+
+    // 3. Navigation requests: Network-first (fast 1.5s timeout) falling back to cached index.html
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetchWithTimeout(event.request, 1500)
+                .then(networkResponse => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const copy = networkResponse.clone();
+                        caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+                    }
+                    return networkResponse;
+                })
+                .catch(() => caches.match('./index.html'))
+        );
+        return;
+    }
+
+    // 4. Static App Assets, Google Fonts (.woff2), and Vendor CDNs: Cache-First
     event.respondWith(
-        // BUG FIX: Actually plug in the 3-second timeout engine here!
-        fetchWithTimeout(event.request).then((networkResponse) => {
-            // We got a good response from the internet! Save it to cache and show it.
-            if (networkResponse && networkResponse.status === 200) {
-                const responseToCache = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-            }
-            return networkResponse;
-        }).catch(() => {
-            // The internet failed (user is offline). Pull from the cache instead!
-            return caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
-                if (cachedResponse) return cachedResponse;
-                if (event.request.mode === 'navigate') return caches.match('./index.html');
+        caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+
+            return fetchWithTimeout(event.request, 3000).then((networkResponse) => {
+                if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+                    const copy = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+                }
+                return networkResponse;
+            }).catch(() => {
+                return new Response('', { status: 408, statusText: 'Offline' });
             });
         })
     );
 });
 
-// ==========================================
-// ENTERPRISE FIX: THE PWA UPDATE LISTENER
-// ==========================================
-// Listens for the "SKIP_WAITING" signal from app.js so the app actually updates when a new version drops!
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
     }
 });
-// ==========================================
-// 🚨 ENTERPRISE UPGRADE: BACKGROUND SYNC API
-// ==========================================
-// Wakes up in the background the moment the phone connects to WiFi!
+
 self.addEventListener('sync', (event) => {
     if (event.tag === 'sollo-auto-backup') {
-        console.log("☁️ Background Sync Triggered: Network Restored!");
-        
-        // Wake up the minimized app and command it to run the backup securely!
         event.waitUntil(
             self.clients.matchAll({ type: 'window' }).then(clients => {
-                clients.forEach(client => {
-                    client.postMessage({ type: 'TRIGGER_BACKGROUND_BACKUP' });
-                });
+                clients.forEach(client => client.postMessage({ type: 'TRIGGER_BACKGROUND_BACKUP' }));
             })
         );
     }

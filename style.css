@@ -41,15 +41,16 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="date"],
    SOLLO ERP - MASTER STYLESHEET (v6.1 Enterprise)
    ========================================== */
 
-/* 🚨 Injecting the official Android system font! */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
-
 /* ==========================================
    🚨 MASTER PALETTE & THEME ENGINE
    ========================================== */
 :root {
     color-scheme: light;
     --app-font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    
+    /* Edge-to-Edge Safe Area Shortcuts */
+    --safe-top: calc(12px + env(safe-area-inset-top, 0px));
+    --safe-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
 
     /* Light Mode: Surfaces & Backgrounds */
     --md-background: #F7F9FC;
@@ -99,8 +100,8 @@ body.dark-mode {
     
     /* Dark Mode: Deep OLED Backgrounds */
     --md-background: #000000; 
-    --md-surface: #121212; 
-    --md-surface-variant: #1E293B; 
+    --md-surface: #0A0A0A; 
+    --md-surface-variant: #1C1C1E; 
     
     /* Dark Mode: Eye-Care Text (Prevents Astigmatism Glow) */
     --md-on-surface: #E2E8F0; 
@@ -449,27 +450,29 @@ input[readonly], input[disabled], select[disabled] {
 
 /* 4. PRIMARY BUTTONS */
 .btn-primary {
-    background: var(--md-primary);
-    color: var(--md-on-primary);
-    border: none;
-    min-height: 56px; 
-    padding: 0 32px;
-    border-radius: 28px;
-    font-size: 15px; 
-    font-weight: 600; 
-    letter-spacing: 0.3px;
-    display: inline-flex; 
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: var(--elevation-1);
-    transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
+    background: linear-gradient(180deg, var(--md-primary) 0%, color-mix(in srgb, var(--md-primary) 85%, black)) !important;
+    color: var(--md-on-primary) !important;
+    border: none !important;
+    min-height: 56px !important; 
+    padding: 0 32px !important;
+    border-radius: 28px !important;
+    font-size: 16px !important; 
+    font-weight: 700 !important; 
+    letter-spacing: 0.5px !important;
+    display: inline-flex !important; 
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    
+    /* Ambient Glow & Inner Highlight */
+    box-shadow: 0 8px 20px -6px rgba(0, 97, 164, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, opacity 0.2s ease !important;
 }
 
 .btn-primary:active {
-    transform: scale(0.96);
-    box-shadow: none;
-    opacity: 0.9;
+    transform: scale(0.94) translateY(2px) !important; /* Deep physical squish */
+    box-shadow: 0 2px 4px -2px rgba(0, 97, 164, 0.6), inset 0 2px 4px rgba(0, 0, 0, 0.1) !important; /* Shadow collapses into the screen */
+    opacity: 0.95 !important;
 }
 
 .btn-primary-small {
@@ -514,12 +517,18 @@ input[readonly], input[disabled], select[disabled] {
 .search-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 0px !important; /* Forces seamless alignment */
     background: var(--md-surface-variant);
-    padding: 8px 16px;
-    border-radius: 24px;
-    margin-bottom: 16px;
-    border: 1px solid var(--md-outline-variant);
+    padding: 12px 16px !important;
+    border-radius: 0 !important; /* Creates edge-to-edge architecture */
+    margin-bottom: 0 !important;
+    border: none !important; 
+}
+
+/* Removes search icons and visible numbers cluttering the fields */
+.search-bar > span.material-symbols-outlined:first-child,
+.search-bar > div[id^="sum-"] {
+    display: none !important;
 }
 
 .search-bar input {
@@ -623,7 +632,7 @@ input[readonly], input[disabled], select[disabled] {
     align-items: center; 
     justify-content: space-between; 
     padding: 12px 16px; 
-    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-top: var(--safe-top); /* Uses your new shortcut */
     background-color: var(--md-surface); 
     color: var(--md-on-surface); 
     border-bottom: 1px solid var(--md-outline-variant); 
@@ -1777,22 +1786,10 @@ body.dark-mode .search-container > button:first-child {
 /* ENTERPRISE UPGRADE: ANTI-DOUBLE-SUBMIT     */
 /* ========================================== */
 .btn-loading {
-    opacity: 0.7 !important;
+    opacity: 0.8 !important;
     pointer-events: none !important; /* Physically blocks double-taps */
     position: relative !important;
-    color: transparent !important; /* Hides the original text */
-}
-
-.btn-loading::after {
-    content: "Saving...";
-    position: absolute;
-    top: 50%; 
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: 14px;
-    font-weight: bold;
-    letter-spacing: 0.5px;
+    color: transparent !important; /* Hides the original text so the JS SVG spinner can center perfectly */
 }
 /* ========================================== */
 /* ENTERPRISE UPGRADE: ULTRA-MINIMAL SEARCH   */
@@ -2041,9 +2038,9 @@ header, .header, .top-bar {
 }
 
 body.dark-mode .m3-card, body.dark-mode .list-view li {
-    border: 1px solid rgba(255, 255, 255, 0.04) !important;
-    /* Deep outer shadow + Soft grey inner top-edge highlight */
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    /* Deep outer shadow + Bright metallic inner top-edge highlight */
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
 /* 🚨 SOLLO NATIVE THEME: Material Design Form Fields */
@@ -2222,14 +2219,14 @@ input[type="text"], input[type="number"], input[type="tel"], input[type="email"]
 
 /* 2. Flatten the inner menu cards */
 #tab-menu div[style*="flex-direction: column"] > .m3-card,
-#tab-masters div[style*="flex-direction: column"] > .m3-card {
+#tab-masters div[style*="flex-direction: column"] > .m3-card,
+.report-section-list > .m3-card {
     margin: 0 !important;
-    padding: 16px !important; /* Comfortable native touch target */
+    padding: 18px 20px !important; /* Luxurious touch target dimensions */
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     background: transparent !important;
-    border-bottom: 1px solid var(--md-surface-variant) !important; /* Single crisp dividing line */
 }
 
 /* Dark Mode separator line support */
@@ -2523,32 +2520,46 @@ body.dark-mode .sheet-overlay {
 .activity-screen.hidden {
     display: none !important;
 }
-/* 🚨 SOLLO NATIVE THEME: Premium Top-Screen Alerts */
+/* 🚨 ELITE FINTECH THEME: Dynamic Island Notifications */
 #toast-container {
-    top: calc(20px + env(safe-area-inset-top, 0px)) !important; 
+    top: calc(12px + env(safe-area-inset-top, 0px)) !important; 
     bottom: auto !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     align-items: center !important;
-    width: 90% !important;
-    max-width: 400px !important;
+    width: auto !important;
+    min-width: 250px !important;
+    max-width: 90% !important;
     pointer-events: none;
+    z-index: 999999 !important;
 }
 
 .toast {
-    background: #323232 !important; /* Solid Android Dark Grey */
+    background: rgba(20, 20, 22, 0.85) !important; 
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
     color: #ffffff !important;
-    border-radius: 50px !important; /* Perfect Pill Shape */
-    padding: 12px 24px !important;
-    font-weight: 600 !important;
+    border-radius: 50px !important; 
+    padding: 14px 28px !important;
+    font-weight: 700 !important;
     font-size: 14px !important;
+    letter-spacing: 0.3px !important;
     text-align: center !important;
-    box-shadow: 0 12px 32px rgba(0,0,0,0.3) !important; 
-    animation: snackbarDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0,0,0,0.2) !important; 
+    animation: dynamicIslandDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
 }
 
-@keyframes snackbarDrop {
-    0% { transform: translateY(-100px) scale(0.5); opacity: 0; }
+body.dark-mode .toast {
+    background: rgba(20, 20, 22, 0.95) !important;
+    color: #ffffff !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(96, 165, 250, 0.1) !important;
+}
+
+@keyframes dynamicIslandDrop {
+    0% { transform: translateY(-100px) scale(0.6); opacity: 0; }
+    60% { transform: translateY(10px) scale(1.02); opacity: 1; }
     100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 /* FIX: Restores native scroll physics across all devices */
@@ -2611,9 +2622,9 @@ body.dark-mode .sheet-overlay {
 /* Removed .list-view li from this section so lists don't get thick borders */
 .m3-card {
     background: var(--md-surface) !important; 
-    border: 1px solid rgba(0, 0, 0, 0.03) !important; /* Almost invisible FinTech border */
-    border-radius: 16px !important; /* Smoother, friendly Apple-style corners */
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.03), 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+    border: none !important; /* Eliminates border fatigue */
+    border-radius: 16px !important; 
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02) !important; /* Relies purely on depth */
 }
 body.dark-mode .m3-card {
     border: 1px solid rgba(255, 255, 255, 0.05) !important;
@@ -2662,13 +2673,14 @@ body.dark-mode .m3-card {
 /* ENTERPRISE UPGRADE: STRICT DATA GRID       */
 /* ========================================== */
 
-/* 1. STRICT DATA GRID (Zebra Striping & Hidden Icons) */
+/* 1. EDGE-TO-EDGE DATA GRID (Flush Alignment) */
 .list-view {
-    border: 1px solid rgba(0, 0, 0, 0.15) !important;
-    border-bottom: none !important;
-    border-radius: 4px !important;
+    border: none !important; /* Removes the boxing effect */
+    border-radius: 0 !important;
+    background: transparent !important;
+    margin-left: -16px !important; /* Pulls absolutely flush to the left edge */
+    margin-right: -16px !important; /* Pulls absolutely flush to the right edge */
     overflow: hidden !important;
-    background: #ffffff !important;
 }
 
 .list-view li { 
@@ -2679,13 +2691,13 @@ body.dark-mode .m3-card {
     justify-content: space-between !important; 
     gap: 16px !important; /* More breathing room between text */
     border-radius: 0px !important; 
-    border-bottom: 1px solid rgba(0, 0, 0, 0.15) !important; 
-    background: #ffffff !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important; 
+    background: var(--md-surface) !important;
 }
 
 /* Zebra Striping for high-speed reading */
 .list-view li:nth-child(even) {
-    background: #f4f6f8 !important;
+    background: var(--md-surface-variant) !important;
 }
 
 /* HIDE BULKY ICONS TO CREATE A TRUE SPREADSHEET LOOK */
@@ -3452,22 +3464,36 @@ button[type="submit"], .btn-primary {
    ENTERPRISE UPGRADE: 3-IN-1 UI ENGINE
    ========================================== */
 
-/* 2. SKELETON LOADING ENGINE */
-/* Creates the cinematic pulsing grey boxes while data loads */
-.skeleton-loader {
+/* 2. ELITE SKELETON ENGINE (Liquid Metal) */
+.skeleton-loader, .skeleton-card {
     display: block;
     width: 100%;
     height: 68px;
-    background: linear-gradient(90deg, var(--md-surface-variant) 25%, var(--md-outline-variant) 50%, var(--md-surface-variant) 75%);
-    background-size: 200% 100%;
-    animation: skeleton-shimmer 1.5s infinite linear;
+    background: var(--md-surface-variant) !important;
     border-radius: 12px;
     margin-bottom: 8px;
-    opacity: 0.6;
+    position: relative;
+    overflow: hidden;
+    border: none !important;
+    transform: translateZ(0); /* Hardware acceleration */
 }
-@keyframes skeleton-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+
+.skeleton-loader::after, .skeleton-card::after {
+    content: "";
+    position: absolute;
+    top: 0; left: -100%;
+    width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+    animation: liquid-shimmer 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.dark-mode .skeleton-loader::after, body.dark-mode .skeleton-card::after {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+@keyframes liquid-shimmer {
+    0% { transform: skewX(-20deg) translateX(-150%); }
+    100% { transform: skewX(-20deg) translateX(400%); }
 }
 
 /* 3. DATA DENSITY ENGINE (Compact Mode) */
@@ -3639,8 +3665,9 @@ body.compact-mode input, body.compact-mode select {
     transition: transform 0.08s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.08s ease, background 0.08s ease !important;
 }
 body.dark-mode .numpad-btn {
-    background: linear-gradient(180deg, #1e1e22 0%, #121212) !important;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 6px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a) !important;
+    color: #F8FAFC !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 6px rgba(0, 0, 0, 0.6);
 }
 .numpad-btn:active {
     /* Physical Sinking Motion: Key drops down and shadow collapses */
@@ -3914,7 +3941,7 @@ body.dark-mode .thumb-action-bar {
     contain: none !important;
 }
 
-/* 2. Professional Flat & Clean Aesthetic (Kills the Pill) */
+/* 2. Professional Flat & Clean Aesthetic (True Glass Pane) */
 .form-sticky-footer, .activity-bottom-bar, .bottom-action-bar {
     position: fixed !important;
     bottom: 0 !important;
@@ -3924,18 +3951,18 @@ body.dark-mode .thumb-action-bar {
     max-width: 600px !important;
     margin: 0 auto !important;
     
-    /* Flatten the background and remove all curves */
-    background: var(--md-surface) !important;
-    border-top: 1px solid var(--md-outline-variant) !important;
+    /* Unified Frosted Glassmorphism */
+    background: rgba(255, 255, 255, 0.80) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border-top: 0.5px solid rgba(128, 128, 128, 0.25) !important; /* Microscopic glass edge */
     border-radius: 0 !important; 
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
     
-    /* Sharp, non-intrusive shadow */
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.05) !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.05) !important;
     
-    padding: 12px 16px !important;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    /* Edge-to-Edge Flush Alignment */
+    padding: 0px !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     z-index: 100 !important; 
 }
 
@@ -3943,17 +3970,18 @@ body.dark-mode .thumb-action-bar {
 body.dark-mode .form-sticky-footer, 
 body.dark-mode .activity-bottom-bar, 
 [data-theme="dark"] .form-sticky-footer {
-    background: #1e1e22 !important;
-    border-top: 1px solid #44474e !important;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.4) !important;
+    background: rgba(18, 18, 18, 0.75) !important;
+    border-top: none !important;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* 3. Revert the buttons back to sharp enterprise squares */
 .form-sticky-footer button, .activity-bottom-bar button, .bottom-action-bar button {
-    border-radius: 8px !important; 
-    height: 48px !important;
+    border-radius: 0 !important; /* Flush Edge-to-Edge */
+    height: 60px !important; /* Taller for premium feel */
     margin: 0 !important;
     box-shadow: none !important;
+    font-size: 16px !important;
 }
 
 /* 4. Fix padding so the flat footer doesn't hide the last invoice row */
@@ -4004,7 +4032,7 @@ body.dark-mode .skeleton, body.dark-mode .skeleton-card, body.dark-mode .skeleto
 }
 
 body.dark-mode .skeleton::after, body.dark-mode .skeleton-card::after, body.dark-mode .skeleton-loader::after {
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.04), transparent);
 }
 
 @keyframes glass-wave {
@@ -4208,17 +4236,6 @@ body:has(.bottom-sheet.open) {
     0% { opacity: 0; transform: translateY(10px); }
     100% { opacity: 1; transform: translateY(0); }
 }
-/* ==========================================
-   🚨 SOLLO NATIVE THEME: MASTER UI OVERRIDE (CLEANED)
-   ========================================== */
-.activity-header, .top-app-bar, .app-header, .sheet-header, .screen-header {
-    background-color: var(--md-surface) !important;
-    color: var(--md-on-surface) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-bottom: 1px solid var(--md-outline-variant) !important;
-    box-shadow: none !important;
-}
 /* ========================================== */
 /* 🚨 SOLLO NATIVE THEME: FLAT DASHBOARD JS INJECTIONS */
 /* ========================================== */
@@ -4388,16 +4405,14 @@ body.dark-mode #activity-item-ledger .activity-content > div[style*="gap: 8px"] 
 /* Target standalone cards in the Menu Tab (Business Profile, Cash Recovery, Doc Formats, Close FY) */
 #tab-menu > .m3-card {
     border-radius: 0 !important;
-    border-left: none !important;
-    border-right: none !important;
     margin-left: -16px !important;
     margin-right: -16px !important;
     box-shadow: none !important;
-    background: var(--md-surface) !important;
-    border-top: 1px solid var(--md-outline-variant) !important;
-    border-bottom: 1px solid var(--md-outline-variant) !important;
-    width: auto !important; /* Stretch to physical edges */
+    background: transparent !important; /* Lets the native app canvas show through */
+    border: none !important; /* Kills all borders for a pure flush look */
+    width: auto !important; 
     box-sizing: border-box !important;
+    padding: 16px 20px !important; /* Premium horizontal breathing room */
 }
 
 body.dark-mode #tab-menu > .m3-card {
@@ -4741,17 +4756,23 @@ img {
 }
 
 /* 2. iOS/Android Gesture Bar Shield & Clean Theme */
-/* Forces the keypad into a pure white container and dynamically pushes the bottom row up and away from the mobile swipe bar! */
+/* Forces the keypad into a theme-aware container and dynamically pushes the bottom row up and away from the mobile swipe bar! */
 #custom-numpad, .numpad-grid {
-    background-color: #ffffff !important;
+    background-color: var(--md-surface) !important;
     padding-bottom: env(safe-area-inset-bottom, 24px) !important;
 }
 /* ==========================================
    🚨 ENTERPRISE UX: ACTION REQUIRED INDICATOR
    ========================================== */
 .requires-attention {
-    background-color: #ffffff !important; /* Strict pure white background for highest contrast */
+    background-color: #ffffff !important;
     position: relative !important;
+}
+
+body.dark-mode .requires-attention {
+    background-color: #1a1c1e !important; /* Muted dark surface instead of blinding white */
+    border-color: rgba(245, 127, 23, 0.4) !important; /* Subtle warning border */
+    box-shadow: inset 0 0 0 1px rgba(245, 127, 23, 0.1) !important; /* Soft orange inner glow */
 }
 /* Cleaned Pure White Focus Mode Overrides */
 /* ==========================================
@@ -4825,14 +4846,19 @@ input[type=number] {
    🚀 ENTERPRISE SAAS UI POLISH (STEEL & FLAT)
    ========================================== */
 
-/* 1. FAST, SOLID BOTTOM SHEETS & OVERLAYS (No Bouncing, No Glass) */
+/* 1. PREMIUM NATIVE BOTTOM SHEETS (Glassmorphism & Spring Physics) */
 .bottom-sheet {
-    background-color: var(--md-surface) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-radius: 12px 12px 0 0 !important; /* Sharper, professional corners */
-    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.1) !important; /* Hard, flat shadow */
-    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out !important; /* Lightning fast */
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(20px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+    border-radius: 24px 24px 0 0 !important; /* True native rounding */
+    border-top: 0.5px solid rgba(128, 128, 128, 0.2) !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.08) !important; 
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), box-shadow 0.4s ease !important; /* Apple-style spring */
+}
+body.dark-mode .bottom-sheet {
+    background-color: rgba(18, 18, 18, 0.75) !important;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.1) !important;
 }
 
 .sheet-overlay, .sheet-overlay.open {
@@ -4850,11 +4876,12 @@ input[type=number] {
 }
 
 .list-view li {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
-    padding: 14px 16px !important;
+    border-bottom: 0.5px solid rgba(128, 128, 128, 0.25) !important;
+    padding: 16px 20px !important;
     background: transparent !important;
     border-radius: 0 !important;
     margin-bottom: 0 !important;
+    position: relative;
 }
 
 /* 3. STRICT, SHARP CARDS */
@@ -4924,25 +4951,27 @@ input[type="email"],
 input[type="date"], 
 select, 
 textarea {
-    background-color: #F9FAFB !important; /* Very soft resting grey */
-    border: 1px solid #D1D5DB !important; /* Crisp, thin border */
-    border-radius: 6px !important; /* Sharp corners */
-    padding: 10px 12px !important;
-    color: #111827 !important; /* Pure dark text */
-    font-size: 14px !important;
+    background-color: rgba(0, 97, 164, 0.04) !important; 
+    border: 1px solid transparent !important; /* INVISIBLE BORDER: Prevents layout jitter on tap */
+    border-radius: 8px !important; 
+    padding: 13px 15px !important; /* Adjusted by 1px to account for the invisible border */
+    color: var(--md-on-surface) !important;
+    font-size: 15px !important;
     font-weight: 600 !important;
-    transition: all 0.15s ease-in-out !important;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important; /* Micro-depth */
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important; /* Smoother spring physics */
+    box-shadow: none !important; 
     width: 100% !important;
     box-sizing: border-box !important;
 }
 
-/* 3. THE "ACTIVE FOCUS" SNAP */
+/* 3. THE "ACTIVE FOCUS" SNAP (Crisp FinTech Glow) */
 input:focus:not([readonly]), select:focus, textarea:focus {
-    background-color: #FFFFFF !important; /* Snaps to pure white so the user focuses */
-    border-color: #2563EB !important; /* Sharp Primary Blue */
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important; /* Glowing focus ring */
+    background-color: var(--md-surface) !important; 
+    border-color: var(--md-primary) !important; 
+    /* Sharp inner ring + soft outer ambient glow */
+    box-shadow: 0 0 0 1px var(--md-primary), 0 4px 12px rgba(0, 97, 164, 0.1) !important; 
     outline: none !important;
+    transform: translateY(-1px) !important; 
 }
 
 /* 4. OBVIOUS READ-ONLY & DISABLED STATES */
@@ -5043,9 +5072,9 @@ body.dark-mode input[disabled] {
 /* Flattens the harsh black background behind menus into a premium frosted glass */
 .sheet-overlay, .sheet-overlay.open, 
 #enterprise-dialog, #enterprise-confirm, #enterprise-swipe {
-    background-color: rgba(15, 23, 42, 0.4) !important; 
-    backdrop-filter: blur(5px) !important; 
-    -webkit-backdrop-filter: blur(5px) !important;
+    background-color: rgba(0, 0, 0, 0.25) !important; 
+    backdrop-filter: blur(14px) saturate(150%) !important; 
+    -webkit-backdrop-filter: blur(14px) saturate(150%) !important;
 }
 /* Cleaned hardcoded Navy Blue canvas theme */
 /* ==========================================
@@ -5170,22 +5199,6 @@ body.dark-mode .form-sticky-footer {
    🚀 MAXIMUM PERFORMANCE & BUSINESS CLASS UI
    ========================================== */
 
-/* 1. ⚡ KILL THE LAG: DESTROY HEAVY BLURS */
-/* Frosted glass is the #1 cause of scrolling lag and screen flickering on mobile. This makes all layers solid. */
-.bottom-sheet, .sheet-overlay, .activity-header, .bottom-nav, .form-sticky-footer, .search-bar, .date-divider {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-
-/* 2. 🛡️ SOLIDIFY OVERLAYS & HEADERS */
-/* Prevents text from bleeding through overlapping menus, fixing visual glitches. */
-.sheet-overlay.open, #enterprise-dialog, #enterprise-confirm {
-    background-color: rgba(15, 23, 42, 0.75) !important; /* Solid dark slate, zero blur */
-}
-.bottom-nav, .activity-header, .form-sticky-footer, .app-header {
-    background-color: #FFFFFF !important; 
-    border-color: #E2E8F0 !important;
-}
 .search-bar {
     background-color: #F8FAFC !important;
     border-bottom: 1px solid #E2E8F0 !important;
@@ -5229,9 +5242,12 @@ body.dark-mode .bottom-nav, body.dark-mode .activity-header, body.dark-mode .for
     background-color: #121212 !important;
     border-color: #333333 !important;
 }
-body.dark-mode input:focus:not([readonly]), body.dark-mode select:focus {
-    border-color: #3B82F6 !important;
-    box-shadow: 0 0 0 1px #3B82F6 !important;
+body.dark-mode input:focus:not([readonly]), 
+body.dark-mode select:focus, 
+body.dark-mode textarea:focus {
+    border-color: #60A5FA !important;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2), 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    background-color: #111827 !important;
 }
 /* ==========================================
    🚀 ULTIMATE ENTERPRISE PERFORMANCE MODE
@@ -5654,15 +5670,15 @@ input[type="search"]:focus {
     width: auto !important; /* Force them to stretch to the screen edges */
     background: transparent !important; /* Inherit the main canvas color */
     
-    /* Elegant separator line */
-    border-bottom: 1px solid var(--md-outline-variant) !important;
+    /* Sub-Pixel Retina Hairline Separator */
+    border-bottom: 0.5px solid rgba(128, 128, 128, 0.25) !important;
 }
 
-/* Ensure the dark mode uses the clean neon-grey separator line */
+/* Ensure the dark mode uses the sub-pixel hairline separator */
 body.dark-mode #tab-reports .m3-card,
 body.dark-mode #tab-workspace .m3-card,
 body.dark-mode #tab-settings .m3-card {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 /* Hide the line on the very last card to keep the bottom clean */
@@ -5695,24 +5711,65 @@ body.dark-mode #tab-settings .m3-card {
 }
 
 /* 4. Fused Transaction Sub-Navigation (Sales | Purchases | Cashbook) */
-#ws-view-trans > div[style*="display: flex; gap: 8px"] {
+#ws-view-trans > div:first-child {
+    display: flex !important;
     gap: 0 !important;
     border-radius: 8px !important;
     border: 1px solid var(--md-outline-variant) !important;
     overflow: hidden !important;
     padding: 0 !important;
+    background: transparent !important;
+    margin-bottom: 16px !important;
 }
 
-#ws-view-trans > div[style*="display: flex; gap: 8px"] > button {
+#ws-view-trans > div:first-child > button {
     border-radius: 0 !important;
     border: none !important;
     border-right: 1px solid var(--md-outline-variant) !important;
     margin: 0 !important;
     flex: 1 !important;
+    padding: 10px 16px !important;
+    background: var(--md-surface) !important;
+    color: var(--md-on-surface) !important;
 }
 
-#ws-view-trans > div[style*="display: flex; gap: 8px"] > button:last-child {
+#ws-view-trans > div:first-child > button:last-child {
     border-right: none !important;
+}
+
+/* Maintain active blue state */
+#ws-view-trans > div:first-child > button[style*="var(--md-primary)"] {
+    background: var(--md-primary) !important;
+    color: #ffffff !important;
+}
+
+/* Force Cashbook Metrics to display properly side-by-side */
+#cashbook-metrics-card {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+#cashbook-metrics-card > div {
+    flex: 1 !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    text-align: center !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+#cashbook-metrics-card > div:first-child {
+    background: rgba(20, 108, 46, 0.08) !important;
+    border: 1px solid rgba(20, 108, 46, 0.2) !important;
+}
+
+#cashbook-metrics-card > div:last-child {
+    background: rgba(186, 26, 26, 0.08) !important;
+    border: 1px solid rgba(186, 26, 26, 0.2) !important;
 }
 
 /* Dark Mode fixes for sub-nav borders */
@@ -5756,10 +5813,10 @@ body.dark-mode #ws-view-trans > div[style*="display: flex; gap: 8px"] > button {
 #tab-dashboard .tap-target[onclick*="DeepAnalytics"],
 #tab-dashboard > div[style*="margin: 0 -16px"] > div:has(canvas) {
     background: var(--md-surface) !important;
-    border: 1px solid var(--md-outline-variant) !important;
+    border: none !important; /* Eliminates visual clutter */
     border-radius: 16px !important;
     margin-bottom: 16px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.02) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.02) !important; /* Ambient floating depth */
 }
 
 /* Specific Hero Card padding */
@@ -6377,10 +6434,11 @@ body.dark-mode button[id^="ws-pill-"][style*="var(--md-primary)"] {
 
 /* 2. Glassmorphism Bottom Nav */
 .bottom-nav {
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(0,0,0,0.05) !important;
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+    border-top: none !important; /* Removes the harsh dividing line */
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.03) !important; /* Soft, premium depth */
 }
 body.dark-mode .bottom-nav {
     background: rgba(15, 23, 42, 0.85) !important;
@@ -6888,27 +6946,20 @@ details.advanced-options > div {
     contain: content !important;
 }
 /* ==========================================
-   🚀 GPU-ACCELERATED NATIVE TAP FEEDBACK
+   🚀 SMOOTH NATIVE TAP FEEDBACK (BATTERY SAFE)
    ========================================== */
-/* 1. Pre-warn the graphics card that these elements will be tapped */
-.tap-target, .btn-primary, .btn-primary-small, .list-view li, .m3-card, .floating-action-button {
-    will-change: transform !important;
-    /* Force 3D hardware acceleration even when resting */
-    transform: translateZ(0) !important; 
+.tap-target, .list-view li, .m3-card {
+    will-change: auto !important;
+    transform: none !important;
+    transition: background-color 0.15s ease !important;
 }
 
-/* 2. Instant physical compression (Squish effect) on press */
-.tap-target:active, .btn-primary:active, .btn-primary-small:active, .list-view li:active, .floating-action-button:active {
-    /* Locks the Z-axis so text doesn't blur while shrinking */
-    transform: scale(0.96) translateZ(0) !important;
-    /* Lightning fast 0.05s response time */
-    transition: transform 0.05s cubic-bezier(0.4, 0, 0.2, 1) !important;
+.btn-primary, .btn-primary-small, .floating-action-button {
+    transition: transform 0.15s ease, background-color 0.15s ease !important;
 }
 
-/* 3. Smooth "Apple-style" spring-back when the finger is released */
-.tap-target, .btn-primary, .btn-primary-small, .list-view li, .floating-action-button {
-    /* Uses a mathematical spring curve to bounce back perfectly */
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease !important;
+.btn-primary:active, .btn-primary-small:active, .floating-action-button:active {
+    transform: scale(0.97) !important;
 }
 /* ==========================================
    🚀 HD TYPOGRAPHY & NATIVE TEXT RENDERING
@@ -7132,17 +7183,29 @@ body.hide-overdue-alerts #overdue-reminders-container {
 }
 
 /* 🚀 ENTERPRISE UPGRADE: Clean Grid Engine */
-.m3-card.report-btn, .m3-card.master-action-btn {
+html body #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn,
+html body #app-shell #tab-reports #reports-action-container .m3-card.report-btn {
     display: flex !important;
     align-items: center !important;
     gap: 16px !important;
     padding: 16px !important;
     margin: 0 !important;
 }
-/* Automatically applies the divider lines to everything except the last item! */
-#reports-action-container > div > .m3-card.report-btn:not(:last-child),
-#workspace-master-grid .m3-card.master-action-btn:not(:last-child) {
-    border-bottom: 1px solid var(--md-surface-variant) !important;
+
+/* Crisp divider borders under General Masters, Bank & Cash, and Reports */
+html body #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn:not(:last-child),
+html body #app-shell #tab-workspace #bank-balances-container .m3-card:not(:last-child),
+html body #app-shell #tab-reports #reports-action-container > div > .m3-card.report-btn:not(:last-child),
+html body #app-shell #activity-master-view #master-list-container .m3-card:not(:last-child) {
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+
+/* Subtle hairline divider borders for Dark Mode */
+html body.dark-mode #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn:not(:last-child),
+html body.dark-mode #app-shell #tab-workspace #bank-balances-container .m3-card:not(:last-child),
+html body.dark-mode #app-shell #tab-reports #reports-action-container > div > .m3-card.report-btn:not(:last-child),
+html body.dark-mode #app-shell #activity-master-view #master-list-container .m3-card:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 /* 🚨 MOBILE KEYBOARD FIX: Hide floating buttons when typing */
@@ -7823,8 +7886,8 @@ body.dark-mode .skeleton-loader {
 }
 
 body.dark-mode .btn-primary {
-    box-shadow: 0 8px 24px -6px rgba(124, 177, 255, 0.3) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 8px 24px -6px rgba(96, 165, 250, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(96, 165, 250, 0.4) !important;
 }
 
 /* Red "Save Payment Out" button gets a red glow */
@@ -7896,9 +7959,9 @@ html, body {
     overscroll-behavior-x: none !important;
 }
 
-/* 2. Forces Android/iOS to respect your exact colors and prevents the OS from auto-inverting the UI! */
+/* 2. Respects both Light and Dark mode native controls */
 :root {
-    color-scheme: light !important;
+    color-scheme: light dark;
 }
 /* ==========================================
    🚨 PREMIUM UI: NATIVE BOTTOM SHEET DRAG HANDLE
@@ -8381,26 +8444,9 @@ body.modal-open {
 :root {
     color-scheme: light dark;
 }
-/* 🚀 FINTECH UX: Apple-Style Drag Indicator for Modals */
-/* Automatically injects a premium grey pill at the top of your popup cards */
-.sub-modal-card, .sheet-content {
+/* 🚀 FINTECH UX: Clean centered sub-modals without drag pills */
+.sub-modal-card {
     position: relative !important;
-    padding-top: 16px !important; /* Makes safe room for the pill */
-}
-
-.sub-modal-card::after, .sheet-content::after {
-    content: '';
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 36px;
-    height: 4px;
-    background-color: var(--md-outline-variant);
-    border-radius: 4px;
-    opacity: 0.8;
-    pointer-events: none;
-    z-index: 10;
 }
 /* ==========================================
    🚀 SENSORY UX: LIQUID RIPPLE EFFECT
@@ -8444,7 +8490,7 @@ body.modal-open {
     align-items: center;
     justify-content: center;
     min-height: 250px;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+    background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"%3E%3Ccircle cx="11" cy="11" r="8"%3E%3C/circle%3E%3Cline x1="21" y1="21" x2="16.65" y2="16.65"%3E%3C/line%3E%3C/svg%3E');
     background-repeat: no-repeat;
     background-position: center 60px;
     position: relative;
@@ -8532,16 +8578,14 @@ html body #app-shell .activity-header,
 html body #app-shell .app-header,
 html body #app-shell .bottom-nav,
 html body #app-shell .form-sticky-footer {
-    /* 1. High Transparency: Lets the content underneath actually show through */
-    background: rgba(255, 255, 255, 0.65) !important;
+    /* Unified Frosted Glassmorphism */
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(16px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
     
-    /* 2. The Frosting: Blurs the content underneath so text stays readable */
-    backdrop-filter: blur(24px) saturate(150%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
-    
-    /* 3. The Glass Edge: A subtle glossy white border */
-    border-bottom: 1px solid rgba(255, 255, 255, 0.5) !important;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.05) !important;
+    /* Edge-to-Edge Seamless Borders */
+    border: none !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03) !important;
 }
 
 /* Dark Mode Adapter */
@@ -8549,9 +8593,10 @@ body.dark-mode #app-shell .activity-header,
 body.dark-mode #app-shell .app-header,
 body.dark-mode #app-shell .bottom-nav,
 body.dark-mode #app-shell .form-sticky-footer {
-    background: rgba(18, 18, 18, 0.65) !important;
+    background: rgba(18, 18, 18, 0.92) !important; /* Increased darkness to prevent bleeding */
     border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important; /* Protects text readability */
 }
 /* ==========================================
    🌟 PREMIUM COMPACT FILTER DIALOGS
@@ -8570,12 +8615,15 @@ html body #app-shell .bottom-sheet.centered-modal {
     height: auto !important;
     max-height: 85vh !important;
     
-    /* Premium smooth corners and borders */
-    border-radius: 24px !important; 
-    background: var(--md-surface) !important;
+    /* Unified Frosted Glassmorphism for Modals */
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border-radius: 28px !important; 
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
     
     /* 3D Floating Shadow */
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.02) !important;
     
     /* Resting State (Hidden and slightly lowered) */
     transform: translate(-50%, -40%) scale(0.95) !important; 
@@ -8595,5 +8643,823 @@ html body #app-shell .bottom-sheet.centered-modal::before {
 
 /* 4. Dark Mode Adapter for the 3D Shadow */
 body.dark-mode #app-shell .bottom-sheet.centered-modal {
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+/* ==========================================
+   🌟 ELITE FUSED HEADER & SEARCH BAR
+   ========================================== */
+
+/* 1. Erase the border separating the Header and Search Bar */
+html body #app-shell div.activity-screen div.activity-header {
+    border-bottom: none !important;
+    box-shadow: none !important;
+    padding-bottom: 8px !important; /* Pulls the search bar up tightly */
+}
+
+/* 2. Seamlessly fuse the Search Bar to the Header */
+html body #app-shell div.activity-screen .search-bar,
+html body #app-shell div.screen-section .search-bar {
+    border-top: none !important;
+    border-radius: 0 !important;
+    margin-top: -2px !important; /* 🚨 PROTECTED: Forces the physical overlap */
+    margin-bottom: 16px !important;
+    margin-left: -16px !important; 
+    margin-right: -16px !important;
+    
+    /* Inherit the exact same frosted glass as the header */
+    background: rgba(255, 255, 255, 0.70) !important;
+    backdrop-filter: blur(24px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
+    
+    /* Apply a single, unified shadow to the bottom of the entire fused block */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 3. Dark Mode Fusion */
+body.dark-mode #app-shell div.activity-screen .search-bar,
+body.dark-mode #app-shell div.screen-section .search-bar {
+    background: rgba(18, 18, 18, 0.70) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* 4. Thicken the Search Input Box for premium thumb-tapping */
+html body #app-shell div.activity-screen .search-bar input {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    margin: 0 8px !important;
+}
+body.dark-mode #app-shell div.activity-screen .search-bar input {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+/* --- Settings Hero Header Styles --- */
+.hero-header-container {
+    margin: 0 0 24px 0; 
+    padding: var(--safe-top) 0 8px 0; 
+    display: flex; 
+    align-items: center; 
+    gap: 16px;
+}
+
+.hero-icon {
+    width: 56px; 
+    height: 56px; 
+    background: var(--md-surface); 
+    color: var(--md-primary); 
+    flex-shrink: 0; 
+    border: 1px solid var(--md-outline-variant); 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+/* --- App Lock Screen Styles --- */
+.lock-screen-container {
+    display: none; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    z-index: 9999999;
+}
+
+.lock-icon-box {
+    width: 80px; 
+    height: 80px; 
+    background: rgba(0, 97, 164, 0.1); 
+    color: var(--md-primary); 
+    margin-bottom: 16px;
+}
+
+.lock-icon-symbol {
+    font-size: 36px;
+}
+
+.lock-title {
+    font-size: 20px; 
+    color: var(--md-on-surface); 
+    font-weight: 800;
+}
+
+.lock-subtitle {
+    color: var(--md-text-muted); 
+    font-size: 14px; 
+    margin-top: 8px; 
+    margin-bottom: 32px;
+}
+
+.lock-unlock-btn {
+    background: var(--md-primary); 
+    color: white; 
+    border: none; 
+    padding: 12px 32px; 
+    border-radius: 24px; 
+    font-size: 16px; 
+    font-weight: bold; 
+    box-shadow: 0 4px 12px rgba(0,97,164,0.3); 
+    cursor: pointer; 
+    transition: transform 0.1s ease;
+}
+/* --- Splash Screen Styles --- */
+.custom-splash {
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    background: var(--md-background, #F7F9FC); 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    bottom: 0; 
+    z-index: 999999; 
+    transition: opacity 0.4s ease, visibility 0.4s;
+}
+
+.splash-icon-wrapper {
+    margin-bottom: 32px; 
+    position: relative; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+}
+
+.splash-pulse-ring {
+    position: absolute; 
+    width: 100px; 
+    height: 100px; 
+    border-radius: 50%; 
+    background: var(--md-primary, #0061a4); 
+    opacity: 0.1; 
+    animation: m3Pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.splash-logo-box {
+    width: 80px; 
+    height: 80px; 
+    background: var(--md-primary, #0061a4); 
+    color: #ffffff; 
+    border-radius: 22px; 
+    box-shadow: 0 12px 32px rgba(0, 97, 164, 0.3); 
+    z-index: 1; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+}
+
+.splash-title {
+    color: var(--md-on-surface, #0f172a); 
+    margin: 0; 
+    font-size: 28px; 
+    font-weight: 900; 
+    letter-spacing: -0.5px;
+}
+
+.splash-loader-pill {
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    margin-top: 16px; 
+    background: rgba(0, 97, 164, 0.08); 
+    padding: 8px 16px; 
+    border-radius: 20px;
+}
+
+.splash-spinner {
+    width: 14px; 
+    height: 14px; 
+    border: 2px solid var(--md-primary, #0061a4); 
+    border-top-color: transparent; 
+    border-radius: 50%; 
+    animation: spin 1s linear infinite;
+}
+
+.splash-loader-text {
+    color: var(--md-primary, #0061a4); 
+    margin: 0; 
+    font-weight: 700; 
+    font-size: 13px; 
+    text-transform: uppercase; 
+    letter-spacing: 0.5px;
+}
+/* --- Dashboard Top Bar & Greeting Styles --- */
+.dashboard-top-bar {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 24px; 
+    padding-top: var(--safe-top); /* Using the shortcut! */
+}
+
+.greeting-container {
+    display: flex; 
+    flex-direction: column;
+}
+
+.greeting-title {
+    font-size: 18px; 
+    display: flex; 
+    align-items: center; 
+    gap: 6px;
+}
+
+.greeting-icon-style {
+    font-size: 20px;
+}
+
+.greeting-date-style {
+    color: var(--md-text-muted); 
+    font-size: 12px; 
+    font-weight: 600; 
+    margin-top: 2px;
+}
+
+/* --- Dashboard Filters Styles --- */
+.dashboard-filter-group {
+    display: flex; 
+    gap: 6px; 
+    align-items: center;
+}
+
+.dashboard-custom-month-input {
+    padding: 4px; 
+    font-size: 13px; 
+    border: 1px solid var(--md-primary); 
+    border-radius: 6px; 
+    outline: none; 
+    background: rgba(0, 97, 164, 0.1);  
+    color: #0061a4; 
+    font-weight: bold;
+}
+
+.dashboard-date-select {
+    width: auto; 
+    padding: 6px 10px; 
+    font-size: 13px; 
+    font-weight: 600; 
+    border: none; 
+    background: var(--md-surface-variant); 
+    color: var(--md-on-surface); 
+    border-radius: 8px; 
+    outline: none; 
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+/* --- Dashboard Hero Metrics Styles --- */
+.dash-metrics-row {
+    display: flex; 
+    border-bottom: 1px solid var(--md-outline-variant);
+}
+
+.dash-metric-box {
+    flex: 1; 
+    padding: 16px;
+}
+
+.dash-metric-border {
+    border-right: 1px solid var(--md-outline-variant);
+}
+
+.dash-metric-label {
+    color: var(--md-text-muted); 
+    font-weight: 600; 
+    text-transform: uppercase;
+}
+
+.dash-metric-value {
+    font-size: 20px; 
+    font-weight: 700; 
+    margin-top: 4px; 
+    min-height: 24px;
+}
+
+.dash-profit-val {
+    color: var(--md-success);
+}
+
+.dash-skeleton-small {
+    height: 20px; 
+    width: 70%; 
+    margin: 0; 
+    border-radius: 4px;
+}
+
+.dash-profit-breakdown {
+    font-size: 10px; 
+    color: var(--md-text-muted); 
+    display: block; 
+    margin-top: 4px; 
+    min-height: 12px;
+}
+/* --- Dashboard Middle Sections Styles --- */
+.dash-list-card {
+    padding: 16px; 
+    border-bottom: 1px solid var(--md-outline-variant); 
+    cursor: pointer;
+}
+
+.dash-list-row {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-start;
+}
+
+.dash-list-title {
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    font-size: 14px; 
+    text-transform: uppercase;
+}
+
+.dash-list-icon {
+    font-size: 18px;
+}
+
+.dash-list-content {
+    margin-top: 12px;
+}
+
+.dash-list-subtitle {
+    color: var(--md-text-muted);
+}
+
+.dash-list-value {
+    font-size: 20px; 
+    font-weight: 700; 
+    margin-top: 4px;
+}
+
+.dash-skeleton-half {
+    height: 20px; 
+    width: 50%; 
+    margin: 0; 
+    border-radius: 4px;
+}
+
+.dash-chevron {
+    color: var(--md-outline); 
+    margin-top: 4px;
+}
+
+.dash-ai-card {
+    padding: 12px 16px; 
+    border-bottom: 1px solid var(--md-outline-variant); 
+    background: var(--md-surface);
+}
+
+.dash-ai-row {
+    display: flex; 
+    gap: 12px; 
+    align-items: center;
+}
+
+.dash-ai-icon {
+    color: var(--md-primary); 
+    font-size: 24px;
+}
+
+.dash-ai-content {
+    flex: 1;
+}
+
+.dash-ai-title {
+    color: var(--md-on-surface); 
+    font-size: 13px; 
+    display: block; 
+    margin-bottom: 2px;
+}
+
+.dash-ai-text {
+    font-size: 13px; 
+    color: var(--md-text-muted); 
+    line-height: 1.4;
+}
+
+.dash-analytics-card {
+    padding: 12px 16px; 
+    border-bottom: 1px solid var(--md-outline-variant); 
+    background: var(--md-surface); 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between;
+}
+
+.dash-analytics-row {
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+}
+
+.dash-analytics-title {
+    color: var(--md-primary); 
+    font-size: 14px;
+}
+/* --- Dashboard Chart & Fulfillment Styles --- */
+.dash-chart-card {
+    padding: 16px; 
+    border-bottom: 1px solid var(--md-outline-variant); 
+    background: var(--md-surface);
+}
+
+.dash-section-title {
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    font-size: 14px; 
+    color: var(--md-primary); 
+    text-transform: uppercase; 
+    margin-bottom: 12px;
+}
+
+/* Removes bottom margin for the fulfillment header */
+.dash-fulfillment-header .dash-section-title {
+    margin-bottom: 0;
+}
+
+.dash-section-icon {
+    font-size: 18px;
+}
+
+.dash-chart-container {
+    height: 200px; 
+    width: 100%; 
+    position: relative;
+}
+
+.dash-fulfillment-header {
+    padding: 16px; 
+    border-bottom: 1px solid var(--md-outline-variant); 
+    background: var(--md-surface-variant);
+}
+
+.dash-fulfillment-row {
+    padding: 12px 16px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    border-bottom: 1px solid var(--md-outline-variant);
+}
+
+.dash-fulfillment-label {
+    color: var(--md-on-surface); 
+    font-size: 14px; 
+    font-weight: 500; 
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+}
+
+.dash-fulfillment-value {
+    font-size: 14px; 
+    color: var(--md-on-surface); 
+    font-weight: 600;
+}
+/* --- Dashboard Overdue Collections Styles --- */
+.dash-overdue-card {
+    border-left: 4px solid var(--md-error); 
+    margin-bottom: 16px;
+}
+
+.dash-overdue-header {
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    margin-bottom: 12px; 
+    cursor: pointer; 
+    padding-bottom: 12px; 
+    border-bottom: 1px dashed rgba(186, 26, 26, 0.2);
+}
+
+.dash-overdue-title-group {
+    display: flex; 
+    align-items: center; 
+    gap: 8px; 
+    color: var(--md-error);
+}
+
+.dash-overdue-arrow {
+    color: var(--md-error); 
+    background: rgba(186, 26, 26, 0.1); 
+    border-radius: 50%; 
+    padding: 4px;
+}
+
+.dash-overdue-text {
+    font-size: 14px; 
+    margin-bottom: 12px; 
+    color: var(--md-text-muted);
+}
+
+.dash-overdue-list {
+    display: flex; 
+    flex-direction: column; 
+    opacity: 0.9;
+}
+/* --- Reports Tab Styles --- */
+.report-main-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 20px;
+}
+
+.report-main-title {
+    font-size: 24px; 
+    font-weight: 900; 
+    color: var(--md-on-surface); 
+    letter-spacing: -0.5px; 
+    display: block;
+}
+
+.report-main-subtitle {
+    color: var(--md-text-muted); 
+    font-weight: 600; 
+    font-size: 13px;
+}
+
+.report-section-title {
+    display: block; 
+    margin-bottom: 12px; 
+    color: var(--md-primary); 
+    font-size: 12px; 
+    text-transform: uppercase; 
+    letter-spacing: 1px; 
+    font-weight: 800;
+}
+
+.report-section-list {
+    display: flex; 
+    flex-direction: column; 
+    margin-bottom: 24px;
+}
+/* --- Workspace Create Grid Styles --- */
+.ws-create-card {
+    padding: 16px 8px !important; 
+    margin: 0 !important;
+}
+
+.ws-create-icon {
+    margin: 0 auto 8px auto !important;
+}
+/* --- Workspace Transactions View Styles (RESTORED OLD VERSION) --- */
+.ws-trans-tabs-container {
+    display: flex !important; 
+    gap: 0 !important; 
+    margin-bottom: 16px !important; 
+    border-radius: 8px !important; 
+    border: 1px solid var(--md-outline-variant) !important;
+    overflow: hidden !important; 
+    padding: 0 !important; 
+    background: transparent !important;
+}
+
+.ws-trans-pill {
+    flex: 1 !important; 
+    white-space: nowrap !important; 
+    padding: 10px 16px !important; 
+    border-radius: 0 !important; 
+    border: none !important; 
+    border-right: 1px solid var(--md-outline-variant) !important; 
+    font-size: 13px !important; 
+    font-weight: bold !important;
+    margin: 0 !important;
+    text-align: center !important;
+    box-shadow: none !important;
+}
+
+.ws-trans-pill:last-child {
+    border-right: none !important;
+}
+
+/* Restore Top Workspace Tabs (Create | Transactions | Masters) to Old Version */
+#tab-workspace > div[style*="border-radius: 12px"] {
+    padding: 0 !important;
+    gap: 0 !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    background: transparent !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
+
+#ws-active-pill {
+    display: none !important; /* Hides the liquid pill background */
+}
+
+#ws-btn-create, #ws-btn-trans, #ws-btn-master {
+    border-right: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+}
+
+#ws-btn-master {
+    border-right: none !important;
+}
+
+/* Dark Mode Adapters for the Restored Fused Tabs */
+body.dark-mode .ws-trans-tabs-container,
+body.dark-mode #tab-workspace > div[style*="border-radius: 12px"] {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.dark-mode .ws-trans-pill,
+body.dark-mode #ws-btn-create, 
+body.dark-mode #ws-btn-trans {
+    border-right-color: rgba(255, 255, 255, 0.1) !important;
+}
+/* --- Workspace Masters & Fintech Hub Styles --- */
+.ws-masters-header {
+    margin-top: 8px; 
+    margin-bottom: 12px; 
+    padding: 0 4px;
+}
+
+.fintech-hub-container {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-top: 36px; 
+    margin-bottom: 16px; 
+    padding: 0 4px;
+}
+
+.fintech-hub-title {
+    font-size: 20px; 
+    font-weight: 900; 
+    color: var(--md-on-surface); 
+    letter-spacing: -0.5px; 
+    display: block; 
+    margin-bottom: 2px;
+}
+
+.fintech-hub-subtitle {
+    color: var(--md-text-muted); 
+    font-size: 12px; 
+    font-weight: 600;
+}
+
+.action-capsule {
+    display: flex; 
+    background: var(--md-surface-variant); 
+    border-radius: 24px; 
+    padding: 4px; 
+    border: 1px solid var(--md-outline-variant);
+}
+
+.capsule-btn {
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    width: 36px; 
+    height: 36px; 
+    border-radius: 20px; 
+    background: var(--md-surface); 
+    color: var(--md-primary); 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.capsule-btn-primary {
+    background: var(--md-primary); 
+    color: #ffffff; 
+    margin-left: 6px; 
+    box-shadow: 0 2px 6px rgba(0,97,164,0.2);
+}
+/* ==========================================
+   ✨ NEW UPGRADES: FLUSH UI & TACTILE LISTS
+   ========================================== */
+
+/* 1. ULTIMATE ZERO-CLUTTER FLUSH SEARCH BAR */
+.search-bar, .search-container {
+    border-radius: 0 !important; 
+    margin: 0 -16px 16px -16px !important; 
+    padding: 12px 16px !important; 
+    background: rgba(255, 255, 255, 0.65) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.dark-mode .search-bar, body.dark-mode .search-container {
+    background: rgba(18, 18, 18, 0.65) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Eradicate the magnifying glass icon for a cleaner look */
+.search-bar > span.material-symbols-outlined:first-child,
+.search-container > span.material-symbols-outlined:first-child {
+    display: none !important;
+}
+
+/* Flush the input box directly to the left edge */
+.search-bar input, .search-container input {
+    padding: 0 !important;
+    margin: 0 !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+    color: var(--md-on-surface) !important;
+}
+
+/* 2. EDGE-TO-EDGE TACTILE DATA LISTS (SMOOTH SCROLLING) */
+.list-view li, .m3-card.list-card {
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    box-shadow: none !important;
+    will-change: auto !important;
+    transform: none !important;
+    transition: background-color 0.12s ease !important;
+}
+
+/* Clean highlight on tap without shifting the layout while scrolling */
+.list-view li:active, .m3-card.list-card:active, .m3-card.tap-target:active {
+    background-color: var(--md-surface-variant) !important;
+    transform: none !important;
+}
+/* ==========================================
+   ✨ UPGRADE 2: SEAMLESS FORMS & FROSTED MENUS
+   ========================================== */
+
+/* 1. iOS-Style Frosted Glass Bottom Navigation */
+.bottom-nav, .form-sticky-footer, .activity-bottom-bar, .bottom-action-bar {
+    background: rgba(255, 255, 255, 0.70) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.dark-mode .bottom-nav, 
+body.dark-mode .form-sticky-footer, 
+body.dark-mode .activity-bottom-bar, 
+body.dark-mode .bottom-action-bar {
+    background: rgba(18, 18, 18, 0.70) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 2. Ambient Glow on Primary Buttons (Save / Add) */
+.btn-primary {
+    box-shadow: 0 8px 24px -6px rgba(0, 97, 164, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+    border: 1px solid rgba(0, 97, 164, 0.8) !important;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.btn-primary:active {
+    transform: scale(0.95) translateY(2px) !important;
+    box-shadow: 0 4px 10px -4px rgba(0, 97, 164, 0.6) !important;
+}
+
+/* 3. SEAMLESS "NOTION-STYLE" INVOICE ROWS */
+#sales-items-body .item-entry-card, 
+#purchase-items-body .item-entry-card {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px dashed var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    padding: 16px 4px !important;
+    box-shadow: none !important;
+    margin-bottom: 0 !important;
+}
+
+#sales-items-body .item-entry-card:last-child, 
+#purchase-items-body .item-entry-card:last-child {
+    border-bottom: none !important;
+}
+
+/* Make inputs look like plain text until tapped */
+.item-entry-card input.row-qty,
+.item-entry-card input.row-rate,
+.item-entry-card input.row-item-buyprice,
+.item-entry-card input.row-gst {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-bottom: 1px solid rgba(0,0,0,0.1) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 6px !important;
+}
+
+/* When tapped, they pop out into a clean glowing box */
+.item-entry-card input:focus {
+    background: var(--md-surface) !important;
+    border: 1px solid var(--md-primary) !important;
+    border-radius: 6px !important;
+    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.12) !important;
+    transform: translateY(-2px) !important;
+}
+
+body.dark-mode .item-entry-card input.row-qty,
+body.dark-mode .item-entry-card input.row-rate,
+body.dark-mode .item-entry-card input.row-item-buyprice,
+body.dark-mode .item-entry-card input.row-gst {
+    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
 }
