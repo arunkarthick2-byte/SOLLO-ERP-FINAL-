@@ -2188,7 +2188,7 @@ const app = {
         // STRICT ERP LOGIC: Block Cross-Company Leaks and safely map Supplier Bills!
         const originalDocNo = originalDoc.invoiceNo || originalDoc.poNo || originalDoc.orderNo || originalDoc.id;
         // 🚨 ENTERPRISE FIX: Safely exclude the currently editing document so it doesn't subtract its own items from the max allowable limit!
-        const previousReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.orderNo === originalDocNo && d.id !== app.state.currentEditId);
+        const previousReturns = allDocs.filter(d => d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo === originalDocNo && d.id !== app.state.currentEditId);
         
         const returnedQtyMap = {};
         previousReturns.forEach(ret => {
@@ -2253,12 +2253,17 @@ const app = {
     loadPendingInvoices: async (partyId, type) => {
         const isMoneyIn = type === 'in';
         const selectId = isMoneyIn ? 'pay-in-invoice-ref' : 'pay-out-invoice-ref';
+        const displayBox = document.getElementById(`pay-${isMoneyIn ? 'in' : 'out'}-bills-display`);
         
         const selectEl = document.getElementById(selectId);
         if (!selectEl) return;
         
         if (!partyId) {
             selectEl.innerHTML = '<option value="">On Account / Advance</option>';
+            if (displayBox) {
+                displayBox.innerText = 'Advance / On Account';
+                displayBox.style.color = 'var(--md-text-muted)';
+            }
             return;
         }
 
@@ -2328,7 +2333,7 @@ const app = {
         // 2. PRE-CALCULATE RETURNS
         const returnMap = {};
         allDocs.forEach(d => {
-            if (d.firmId === activeFirmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+            if (d.firmId === activeFirmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                 returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
             }
         });
@@ -2421,9 +2426,13 @@ const app = {
         }
 
         // 🚨 VISUAL WARNING ENGINE: Tell the user an advance exists!
-        const displayBox = document.getElementById(`pay-${isMoneyIn ? 'in' : 'out'}-bills-display`);
-        if (displayBox && totalAdvance > 0.01) {
-            displayBox.innerHTML = `<span style="color:#ba1a1a; font-weight:900;">⚠️ ₹${totalAdvance.toFixed(2)} Advance Available (Edit in Cashbook)</span>`;
+        if (displayBox) {
+            if (totalAdvance > 0.01) {
+                displayBox.innerHTML = `<span style="color:#ba1a1a; font-weight:900;">⚠️ ₹${totalAdvance.toFixed(2)} Advance Available (Edit in Cashbook)</span>`;
+            } else {
+                displayBox.innerText = 'Advance / On Account';
+                displayBox.style.color = 'var(--md-text-muted)';
+            }
         }
     },
 
@@ -2600,16 +2609,30 @@ const app = {
                     if (el && typeof Utils !== 'undefined' && Utils.getLocalDate) {
                         const localDate = Utils.getLocalDate();
                         el.value = localDate; // MUST be YYYY-MM-DD for native HTML5
-                        if (el._flatpickr) el._flatpickr.setDate(localDate); // Flatpickr handles the DD/MM/YYYY display
+                        if (el._flatpickr) {
+                            el._flatpickr.setDate(localDate, true);
+                            if (el._flatpickr.mobileInput) el._flatpickr.mobileInput.value = localDate;
+                        }
                     }
                 };
 
                 // Auto-fill primary date (Sales, Purchase, Expense)
                 setTodayDate(`${type}-date`);
                 
-                // Auto-fill order/po date for Sales & Purchases
+                // Auto-fill order/po date for Sales & Purchases, and fully reset Shipped/Completed dates
                 if (type === 'sales' || type === 'purchase') {
                     setTodayDate(`${type}-order-date`);
+                    [`${type}-shipped-date`, `${type}-completed-date`].forEach(dId => {
+                        const dEl = document.getElementById(dId);
+                        if (dEl) {
+                            dEl.value = '';
+                            dEl.removeAttribute('value');
+                            if (dEl._flatpickr) {
+                                dEl._flatpickr.clear();
+                                if (dEl._flatpickr.mobileInput) dEl._flatpickr.mobileInput.value = '';
+                            }
+                        }
+                    });
                 }
                 
                 // ENTERPRISE FIX: Force status to "Open" for brand new documents
@@ -2685,10 +2708,16 @@ const app = {
             const setDateSafe = (id, val) => {
                 const el = document.getElementById(id);
                 if (el) {
-                    el.value = val;
+                    el.value = val || '';
+                    if (!val) el.removeAttribute('value');
                     if (el._flatpickr) {
-                        if (val) { el._flatpickr.setDate(val); }
-                        else { el._flatpickr.clear(); } // Safely clears empty dates
+                        if (val) {
+                            el._flatpickr.setDate(val, true);
+                            if (el._flatpickr.mobileInput) el._flatpickr.mobileInput.value = val;
+                        } else {
+                            el._flatpickr.clear();
+                            if (el._flatpickr.mobileInput) el._flatpickr.mobileInput.value = '';
+                        }
                     }
                 }
             };
@@ -2844,7 +2873,7 @@ const app = {
                 const allDocs = storeMap[type] === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases;
                 let totalReturned = 0;
                 allDocs.forEach(d => {
-                    if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && uniqueRefs.includes(d.orderNo)) {
+                    if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && uniqueRefs.includes(d.orderNo)) {
                         const rAmt = parseFloat(d.grandTotal) || 0;
                         totalReturned += rAmt;
                         linkedReceipts.push({
@@ -2934,11 +2963,17 @@ const app = {
                                         let remainingPayment = impact;
                                         refs.forEach(ref => {
                                             const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
-                                            let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (impact / refs.length);
-                                            let applyAmt = Math.min(docTotal, remainingPayment);
+                                            let applyAmt = 0;
+                                            if (c.allocationMap && c.allocationMap[ref] !== undefined) {
+                                                applyAmt = parseFloat(c.allocationMap[ref]) || 0;
+                                                remainingPayment -= applyAmt;
+                                            } else {
+                                                let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (impact / refs.length);
+                                                applyAmt = Math.min(docTotal, remainingPayment);
+                                                if (applyAmt > 0) remainingPayment -= applyAmt;
+                                            }
                                             if (applyAmt > 0) {
                                                 fastPaymentMap[ref] = (fastPaymentMap[ref] || 0) + applyAmt;
-                                                remainingPayment -= applyAmt;
                                             }
                                         });
                                         if (remainingPayment > 0.01 && refs[0]) fastPaymentMap[refs[0]] = (fastPaymentMap[refs[0]] || 0) + remainingPayment;
@@ -2950,7 +2985,7 @@ const app = {
 
                     const fastReturnMap = {};
                     allDocs.forEach(d => {
-                        if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                        if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                             fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
                         }
                     });
@@ -3075,8 +3110,13 @@ const app = {
                     } else {
                         el.value = val;
                         if (el._flatpickr) {
-                            if (val) el._flatpickr.setDate(val);
-                            else el._flatpickr.clear();
+                            if (val) {
+                                el._flatpickr.setDate(val, true);
+                                if (el._flatpickr.mobileInput) el._flatpickr.mobileInput.value = val;
+                            } else {
+                                el._flatpickr.clear();
+                                if (el._flatpickr.mobileInput) el._flatpickr.mobileInput.value = '';
+                            }
                         }
                     }
                 }
@@ -4494,6 +4534,13 @@ if (data.id && splitConfirmed) {
         const refSelect = document.getElementById(`${prefix}-invoice-ref`);
         if (refSelect) refSelect.innerHTML = '<option value="">On Account / Advance</option>';
         
+        // 🚨 FIX: Reset the visible "Select Bills" display text so old Advance warnings don't leak!
+        const billsDisplay = document.getElementById(`${prefix}-bills-display`);
+        if (billsDisplay) {
+            billsDisplay.innerText = 'Advance / On Account';
+            billsDisplay.style.color = 'var(--md-text-muted)';
+        }
+
         // 🚨 NEW: Hide split payment sections on fresh open
         const splitSection = document.getElementById(`${prefix}-split-section`);
         if (splitSection) splitSection.classList.add('hidden');
@@ -4509,7 +4556,10 @@ if (data.id && splitConfirmed) {
             const localDate = (typeof Utils !== 'undefined' && typeof Utils.getLocalDate === 'function') ? Utils.getLocalDate() : today;
             
             dateInput.value = localDate;
-            if (dateInput._flatpickr) dateInput._flatpickr.setDate(localDate);
+            if (dateInput._flatpickr) {
+                dateInput._flatpickr.setDate(localDate, true);
+                if (dateInput._flatpickr.mobileInput) dateInput._flatpickr.mobileInput.value = localDate;
+            }
         }
 
         // 5. Generate Auto-Receipt / Voucher Number
@@ -4556,8 +4606,13 @@ if (data.id && splitConfirmed) {
             if (dateEl) {
                 dateEl.value = record.date || '';
                 if (dateEl._flatpickr) {
-                    if (record.date) dateEl._flatpickr.setDate(record.date);
-                    else dateEl._flatpickr.clear();
+                    if (record.date) {
+                        dateEl._flatpickr.setDate(record.date, true);
+                        if (dateEl._flatpickr.mobileInput) dateEl._flatpickr.mobileInput.value = record.date;
+                    } else {
+                        dateEl._flatpickr.clear();
+                        if (dateEl._flatpickr.mobileInput) dateEl._flatpickr.mobileInput.value = '';
+                    }
                 }
             }
             
@@ -6072,7 +6127,7 @@ if (data.id && splitConfirmed) {
                     columns: [
                         { width: '*', text: '' }, // Spacer
                         {
-                            width: '200',
+                            width: 200,
                             stack: [
                                 biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
                                 { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] },
@@ -6086,6 +6141,13 @@ if (data.id && splitConfirmed) {
         };
 
         // --- 4. PREVIEW UI RENDERING ---
+        const existingViewer = document.getElementById('in-app-pdf-viewer');
+        if (existingViewer) existingViewer.remove();
+        if (window.currentActivePDF) {
+            try { window.currentActivePDF.destroy(); } catch (e) {}
+            window.currentActivePDF = null;
+        }
+
         const viewer = document.createElement('div');
         viewer.id = 'in-app-pdf-viewer';
         viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
@@ -6112,7 +6174,13 @@ if (data.id && splitConfirmed) {
         `;
         document.body.appendChild(viewer);
 
-        document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+        document.getElementById('btn-close-pdf-loaded').onclick = () => {
+            if (window.currentActivePDF) {
+                try { window.currentActivePDF.destroy(); } catch (e) {}
+                window.currentActivePDF = null;
+            }
+            viewer.remove();
+        };
 
         const filename = `${title.replace(/ /g, '_')}_${safeDocNo.replace(/[\/\\]/g, '-')}.pdf`;
         const shareText = `Dear ${party ? party.name : 'Sir/Madam'},\n\nPlease find attached the ${title} (${safeDocNo}) dated ${window.Utils.formatDateDisplay(receipt.date)} for the amount of ₹${receiptAmt.toLocaleString('en-IN', {minimumFractionDigits: 2})}.\n\nThank you!`;
@@ -6381,9 +6449,10 @@ if (data.id && splitConfirmed) {
         docs.forEach(s => {
             // ENTERPRISE FIX: The Timezone Trap Shield!
             // Direct string comparison natively ignores timezones, preventing missing invoices!
-            if (s.firmId === app.state.firmId && s[partyKey] === partyId && s.status !== 'Open' && s.date >= fromVal && s.date <= toVal) {
+            if (s.firmId === app.state.firmId && s[partyKey] === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.invoiceType !== 'Non-GST' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
-                const isB2B = s.invoiceType === 'B2B';
+                const snapshotGst = s.customerGst || s.supplierGst || s.gstin || party.gst || '';
+                const isB2B = String(snapshotGst).trim().length === 15;
                 
                 // 🚨 CRITICAL FIX: Deduct the discount to find the true Taxable Value for the Party!
                 let rawSubtotal = Math.abs(parseFloat(s.subtotal) || 0);
@@ -6391,7 +6460,7 @@ if (data.id && splitConfirmed) {
                 if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
                 
                 const taxable = (rawSubtotal - discountAmt) * mult;
-                const tax = (parseFloat(s.totalGst) || 0) * mult;
+                const tax = Math.abs(parseFloat(s.totalGst) || 0) * mult;
 
                 if (isB2B) {
                     b2bTaxable += taxable;
@@ -6735,109 +6804,11 @@ if (data.id && splitConfirmed) {
     },
 
     // ==========================================
-    // ENTERPRISE UPGRADE: DEAD STOCK SCANNER
+    // ENTERPRISE UPGRADE: DEAD STOCK PDF EXPORT
     // ==========================================
-    openDeadStockReport: async () => {
-        if (window.UI) window.UI.openActivity('activity-dead-stock-report');
-        if (typeof app.generateDeadStockReport === 'function') await app.generateDeadStockReport();
-    },
-
-    generateDeadStockReport: async () => {
-        const firmId = app.state.firmId;
-        const items = (await window.getAllRecords('items', 'firmId', firmId)) || [];
-        const sales = (await window.getAllRecords('sales', 'firmId', firmId)) || [];
-        
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-        
-        // Track the exact last sold date for each item
-        const lastSoldMap = {};
-        sales.forEach(s => {
-            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return') {
-                const sDate = window.Utils.safeDate(s.date);
-                (s.items || []).forEach(row => {
-                    const id = String(row.itemId || row.id);
-                    if (!lastSoldMap[id] || sDate > lastSoldMap[id]) {
-                        lastSoldMap[id] = sDate;
-                    }
-                });
-            }
-        });
-
-        let totalTrappedCapital = 0;
-        let deadItems = [];
-
-        items.forEach(i => {
-            const stock = parseFloat(i.stock) || 0;
-            if (stock > 0) {
-                const lastSold = lastSoldMap[String(i.id)];
-                let isDead = false;
-                let daysSinceSale = 'Never Sold';
-                
-                if (!lastSold) {
-                    isDead = true; 
-                } else if (lastSold < ninetyDaysAgo) {
-                    isDead = true;
-                    const diffTime = Math.abs(new Date() - lastSold);
-                    daysSinceSale = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + ' Days Ago';
-                }
-
-                if (isDead) {
-                    const buyPrice = parseFloat(i.buyPrice) || 0;
-                    const trappedValue = stock * buyPrice;
-                    totalTrappedCapital += trappedValue;
-                    
-                    deadItems.push({
-                        id: i.id,
-                        name: i.name,
-                        stock: stock,
-                        uom: i.uom || 'Unit',
-                        buyPrice: buyPrice,
-                        trappedValue: trappedValue,
-                        lastSoldText: daysSinceSale
-                    });
-                }
-            }
-        });
-
-        deadItems.sort((a, b) => b.trappedValue - a.trappedValue);
-        
-        let html = '';
-        if (deadItems.length === 0) {
-            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">verified</span>Excellent! No dead stock detected.</div>';
-        } else {
-            html = deadItems.map(item => {
-                const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(item.name).replace(/'/g, "\\'") : item.name;
-                return `
-                <div class="m3-card tap-target" onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${item.id}', '${safeName}')" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
-                        <div>
-                            <strong style="color: var(--md-on-surface); font-size: 14px; display:block;">${item.name}</strong>
-                            <small style="color: var(--md-error); font-weight:bold;">Trapped Stock: ${item.stock} ${item.uom}</small>
-                        </div>
-                        <div style="text-align:right;">
-                            <small style="color: var(--md-text-muted); display:block;">Locked Capital</small>
-                            <strong style="color: var(--md-error); font-size: 16px;">₹${item.trappedValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dashed var(--md-outline-variant); padding-top: 8px; margin-top: 4px;">
-                        <span style="font-size: 11px; color: var(--md-text-muted);">Buy Price: ₹${item.buyPrice.toFixed(2)}</span>
-                        <span style="font-size: 11px; font-weight:bold; color: var(--md-error);">Last Sold: ${item.lastSoldText}</span>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        document.getElementById('dead-stock-list').innerHTML = html;
-        document.getElementById('dead-stock-total').innerHTML = `₹${totalTrappedCapital.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-        
-        if (!app.state) app.state = {};
-        app.state.deadStockData = deadItems;
-    },
-
     exportDeadStockPDF: async () => {
         try {
-            const data = app.state.deadStockData;
+            const data = app.state.deadStockData || app.state.lastDeadStockData;
             if (!data || data.length === 0) return alert("No dead stock data to export.");
             
             if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
@@ -6857,7 +6828,7 @@ if (data.id && splitConfirmed) {
                     {text: row.name, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
                     {text: row.stock + ' ' + row.uom, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: '₹' + row.buyPrice.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: row.lastSoldText, alignment: 'center', color: '#dc2626', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: row.lastSoldText || row.lastSold || 'Never Sold', alignment: 'center', color: '#dc2626', margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: '₹' + row.trappedValue.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
                 ]);
             });
@@ -6901,101 +6872,11 @@ if (data.id && splitConfirmed) {
     },
 
     // ==========================================
-    // ENTERPRISE UPGRADE: PROFIT LEAKAGE AUDIT
+    // ENTERPRISE UPGRADE: PROFIT LEAKAGE PDF EXPORT
     // ==========================================
-    openProfitLeakageReport: async () => {
-        if (window.UI) window.UI.openActivity('activity-profit-leakage-report');
-        if (typeof app.generateProfitLeakageReport === 'function') await app.generateProfitLeakageReport();
-    },
-
-    generateProfitLeakageReport: async () => {
-        const firmId = app.state.firmId;
-        const sales = (await window.getAllRecords('sales', 'firmId', firmId)) || [];
-        
-        let totalLeakage = 0;
-        let html = '';
-        let leakageItems = [];
-
-        sales.forEach(s => {
-            // Ignore Drafts, Cancelled Invoices, and Returns
-            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return') {
-                
-                // Calculate actual discount ratio to find the true selling price per unit
-                let rawSubtotal = 0;
-                (s.items || []).forEach(item => {
-                    rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
-                });
-                
-                let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
-                if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-                
-                const discountRatio = rawSubtotal > 0 ? (discountAmt / rawSubtotal) : 0;
-
-                (s.items || []).forEach(item => {
-                    const qty = parseFloat(item.qty) || 0;
-                    const rate = parseFloat(item.rate) || 0;
-                    const buyPrice = parseFloat(item.buyPrice) || 0;
-                    
-                    // The True Sell Rate mathematically deducts global invoice discounts from the line item
-                    const trueSellRate = rate - (rate * discountRatio);
-                    
-                    if (trueSellRate < buyPrice && qty > 0) {
-                        const lossPerUnit = buyPrice - trueSellRate;
-                        const totalLoss = lossPerUnit * qty;
-                        totalLeakage += totalLoss;
-                        
-                        leakageItems.push({
-                            date: window.Utils.formatDateDisplay(s.date),
-                            invoiceNo: s.invoiceNo || s.orderNo || s.id.slice(-4).toUpperCase(),
-                            customer: s.customerName,
-                            itemName: item.name,
-                            qty: qty,
-                            buyPrice: buyPrice,
-                            sellPrice: trueSellRate,
-                            loss: totalLoss,
-                            docId: s.id
-                        });
-                    }
-                });
-            }
-        });
-
-        if (leakageItems.length === 0) {
-            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">verified</span>Excellent! No profit leakage detected.</div>';
-        } else {
-            // Sort by highest financial loss first
-            leakageItems.sort((a, b) => b.loss - a.loss);
-            
-            html = leakageItems.map(item => `
-                <div class="m3-card tap-target" onclick="window.openInvoiceOverview('sales', '${item.docId}')" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
-                        <div>
-                            <strong style="color: var(--md-on-surface); font-size: 14px; display:block;">${item.itemName}</strong>
-                            <small style="color: var(--md-text-muted);">Inv: ${item.invoiceNo} | ${item.customer}</small>
-                        </div>
-                        <div style="text-align:right;">
-                            <strong style="color: var(--md-error); font-size: 16px;">- ₹${item.loss.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px dashed var(--md-outline-variant); padding-top: 8px; margin-top: 4px;">
-                        <span style="font-size: 11px; color: var(--md-text-muted);">Cost: ₹${item.buyPrice.toFixed(2)} | Sold At: ₹${item.sellPrice.toFixed(2)}</span>
-                        <span style="font-size: 11px; font-weight:bold; color: var(--md-error);">Qty: ${item.qty}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        document.getElementById('profit-leakage-list').innerHTML = html;
-        document.getElementById('profit-leakage-total').innerHTML = `₹${totalLeakage.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-        
-        // Store locally for the CSV export engine
-        if (!app.state) app.state = {};
-        app.state.leakageData = leakageItems;
-    },
-
     exportProfitLeakagePDF: async () => {
         try {
-            const data = app.state.leakageData;
+            const data = app.state.leakageData || app.state.lastProfitLeakageData;
             if (!data || data.length === 0) return alert("No leakage data to export.");
             
             if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
@@ -7009,14 +6890,17 @@ if (data.id && splitConfirmed) {
             ];
 
             data.forEach((row, index) => {
-                totalLoss += row.loss;
+                const rowLoss = row.loss !== undefined ? row.loss : (row.totalLoss || 0);
+                const rowSell = row.sellPrice !== undefined ? row.sellPrice : (row.effectiveRate || 0);
+                const rowCust = row.customer || row.customerName || 'Unknown Party';
+                totalLoss += rowLoss;
                 const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
                 tableBody.push([
                     {stack: [{text: row.invoiceNo, bold: true, color: '#0f172a'}, {text: row.date, fontSize: 8, color: '#64748b'}], margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: row.customer, margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: rowCust, margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: row.itemName + ` (x${row.qty})`, margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {stack: [{text: 'Buy: ₹' + row.buyPrice.toFixed(2), color: '#64748b'}, {text: 'Sell: ₹' + row.sellPrice.toFixed(2), color: '#0f172a', bold: true}], alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: '- ₹' + row.loss.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                    {stack: [{text: 'Buy: ₹' + row.buyPrice.toFixed(2), color: '#64748b'}, {text: 'Sell: ₹' + rowSell.toFixed(2), color: '#0f172a', bold: true}], alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '- ₹' + rowLoss.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
                 ]);
             });
 
@@ -7070,11 +6954,11 @@ if (data.id && splitConfirmed) {
         const sales = await getAllRecords('sales', 'firmId', app.state.firmId);
         const purchases = await getAllRecords('purchases', 'firmId', app.state.firmId);
 
-        // 2. Filter out Drafts
-        const recentSales = sales.filter(s => s.firmId === app.state.firmId && s.status !== 'Open');
+        // 2. Filter out Drafts & Cancelled Bills
+        const recentSales = sales.filter(s => s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled');
         recentSales.sort((a,b) => String(b.orderNo || b.invoiceNo || b.id).localeCompare(String(a.orderNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
 
-        const recentPurch = purchases.filter(p => p.firmId === app.state.firmId && p.status !== 'Open');
+        const recentPurch = purchases.filter(p => p.firmId === app.state.firmId && p.status !== 'Open' && p.status !== 'Cancelled');
         recentPurch.sort((a,b) => String(b.orderNo || b.poNo || b.invoiceNo || b.id).localeCompare(String(a.orderNo || a.poNo || a.invoiceNo || a.id), undefined, {numeric: true, sensitivity: 'base'}));
 
         // 3. Save to memory for the high-speed search engine!
@@ -7293,13 +7177,13 @@ if (data.id && splitConfirmed) {
 
             if (window.UI && window.UI.state && window.UI.state.rawData) {
                 (window.UI.state.rawData.sales || []).forEach(s => {
-                    if (s.firmId === app.state.firmId && s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
+                    if (s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled' && balanceCache[s.customerId] !== undefined) {
                         balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
                     }
                 });
 
                 (window.UI.state.rawData.purchases || []).forEach(p => {
-                    if (p.firmId === app.state.firmId && p.status !== 'Open' && balanceCache[p.supplierId] !== undefined) {
+                    if (p.firmId === app.state.firmId && p.status !== 'Open' && p.status !== 'Cancelled' && balanceCache[p.supplierId] !== undefined) {
                         balanceCache[p.supplierId] += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
                     }
                 });
@@ -7964,11 +7848,18 @@ if (data.id && splitConfirmed) {
                         refs.forEach(ref => {
                             let innerDoc = allDocs.find(d => d.id===ref || d.invoiceNo===ref || d.poNo===ref || d.orderNo===ref);
                             let returned = [innerDoc?.orderNo, innerDoc?.invoiceNo, innerDoc?.poNo, innerDoc?.id, ref].filter(Boolean).reduce((sum, rx)=>sum+(returnMap[rx]||0), 0);
-                            let docTot = innerDoc ? Math.max(0, (parseFloat(innerDoc.grandTotal)||0) - returned) : rem/refs.length;
-                            let apply = Math.min(docTot, rem);
-                            if(apply > 0) { paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`]||0) + apply; rem -= apply; }
+                            let apply = 0;
+                            if (r.allocationMap && r.allocationMap[ref] !== undefined) {
+                                apply = parseFloat(r.allocationMap[ref]) || 0;
+                                rem -= apply;
+                            } else {
+                                let docTot = innerDoc ? Math.max(0, (parseFloat(innerDoc.grandTotal)||0) - returned) : rem/refs.length;
+                                apply = Math.min(docTot, rem);
+                                if (apply > 0) rem -= apply;
+                            }
+                            if(apply > 0) { paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`]||0) + apply; }
                         });
-                        if(rem > 0 && refs[0]) paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`]||0) + rem;
+                        if(rem > 0.01 && refs[0]) paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`]||0) + rem;
                     }
                 });
 
@@ -8732,11 +8623,14 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             allReceipts.forEach(c => {
                 if (c.ledgerId === partyId && c.invoiceRef) {
                     let amt = parseFloat(c.amount) || 0;
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                    let remainingAmt = amt;
+                    let impact = String(partyType).toLowerCase() === 'customer' ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                    if (impact <= 0) return;
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
                     refs.forEach(ref => {
-                        if (remainingAmt <= 0) return;
-                        exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length);
+                        const allocated = (c.allocationMap && c.allocationMap[ref] !== undefined)
+                            ? (parseFloat(c.allocationMap[ref]) || 0)
+                            : (impact / refs.length);
+                        exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + allocated;
                     });
                 }
             });
@@ -8744,13 +8638,13 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             const docs = String(partyType).toLowerCase() === 'customer' ? await getAllRecords('sales', 'firmId', window.app.state.firmId) : await getAllRecords('purchases', 'firmId', window.app.state.firmId);
             
             docs.forEach(d => {
-                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo && (String(partyType).toLowerCase() === 'customer' ? d.customerId === partyId : d.supplierId === partyId)) {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && (String(partyType).toLowerCase() === 'customer' ? d.customerId === partyId : d.supplierId === partyId)) {
                     exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
                 }
             });
 
             docs.forEach(doc => {
-                if (doc.status !== 'Open' && doc.documentType !== 'return' && (String(partyType).toLowerCase() === 'customer' ? doc.customerId === partyId : doc.supplierId === partyId)) {
+                if (doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return' && (String(partyType).toLowerCase() === 'customer' ? doc.customerId === partyId : doc.supplierId === partyId)) {
                     const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
                     const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
@@ -8867,55 +8761,6 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         document.getElementById('activity-khata-viewer').classList.add('open');
         window.Utils.showToast("✅ Ledger Ready!");
     }, 50);
-};
-
-// ==========================================
-// NEW: KHATA (LEDGER) STATEMENT ENGINE
-// ==========================================
-window.triggerKhataReport = async () => {
-    if (!UI.state.rawData.ledgers) return window.Utils.showToast("No data available yet!");
-    
-    // 1. Get all Customers and Suppliers safely
-    const parties = UI.state.rawData.ledgers.filter(l => {
-        const type = String(l.type).toLowerCase();
-        return type === 'customer' || type === 'supplier';
-    });
-    if (parties.length === 0) return window.Utils.showToast("No Customers or Suppliers found!");
-
-    // STRICT ERP LOGIC: Destroy old instances to prevent catastrophic DOM memory leaks!
-    const oldSheet = document.getElementById('sheet-khata-select');
-    if (oldSheet) oldSheet.remove();
-    const oldOverlay = document.getElementById('khata-overlay');
-    if (oldOverlay) oldOverlay.remove();
-
-    // 2. Build a beautiful native Bottom Sheet dynamically
-    let sheetHTML = `
-    <div id="sheet-khata-select" class="bottom-sheet open" style="z-index: 9999; max-height: 80vh;">
-        <div class="sheet-header" style="background: var(--md-surface); position: sticky; top: 0; z-index: 10;">
-            <div>
-                <span style="font-size: 18px; font-weight: 600; display: block;">Khata Statement</span>
-                <small style="color: var(--md-text-muted);">Select a party to generate report</small>
-            </div>
-            <span class="material-symbols-outlined tap-target" onclick="this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();" style="background: var(--md-surface-variant); padding: 8px; border-radius: 50%;">close</span>
-        </div>
-        <div style="padding: 16px; overflow-y: auto;">
-            ${parties.map(p => `
-                <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant);" 
-                     onclick="window.executeKhataReport('${p.id}', '${(p.name || 'Unknown').replace(/'/g, "\\'")}', '${p.type}'); this.closest('.bottom-sheet').remove(); document.getElementById('khata-overlay').remove();">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: ${String(p.type).toLowerCase() === 'customer' ? 'rgba(0, 97, 164, 0.1)' : 'rgba(186, 26, 26, 0.1)'}; color: ${String(p.type).toLowerCase() === 'customer' ? '#42a5f5' : 'var(--md-error)'}; box-shadow: none;">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">${String(p.type).toLowerCase() === 'customer' ? 'person' : 'storefront'}</span>
-                        </div>
-                        <strong style="font-size: 15px;">${p.name || 'Unknown'}</strong>
-                    </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-text-muted);">print</span>
-                </div>
-            `).join('')}
-        </div>
-    </div>
-    <div id="khata-overlay" class="sheet-overlay open" style="z-index: 9998;" onclick="document.getElementById('sheet-khata-select').remove(); this.remove();"></div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', sheetHTML);
 };
 
 // ==========================================
@@ -9156,7 +9001,7 @@ app.openItemLedger = async (itemId, itemName) => {
     // 1. Scan Sales & Returns
     const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
     sales.forEach(s => {
-        if(s.status !== 'Open') {
+        if(s.status !== 'Open' && s.status !== 'Cancelled') {
             (s.items || []).forEach(row => {
                 if(row.itemId === itemId) {
                     const isReturn = s.documentType === 'return';
@@ -9170,7 +9015,7 @@ app.openItemLedger = async (itemId, itemName) => {
     // 2. Scan Purchases & Returns
     const purchases = await window.getAllRecords('purchases', 'firmId', app.state.firmId);
     purchases.forEach(p => {
-        if(p.status !== 'Open') {
+        if(p.status !== 'Open' && p.status !== 'Cancelled') {
             (p.items || []).forEach(row => {
                 if(row.itemId === itemId) {
                     const isReturn = p.documentType === 'return';
@@ -9302,6 +9147,7 @@ new MutationObserver((mutations) => {
                     s.firmId === window.app.state.firmId && 
                     s.customerId === customerId && 
                     s.status !== 'Open' &&
+                    s.status !== 'Cancelled' &&
                     s.documentType !== 'return'
                 ).sort((a, b) => window.Utils.safeDate(b.date) - window.Utils.safeDate(a.date)); // Sort newest first
 
@@ -9319,15 +9165,15 @@ new MutationObserver((mutations) => {
                     }
                 }
 
-                // If found, dynamically inject a beautiful blue badge!
+                // If found, dynamically inject clean inline text (no pill box)
                 if (lastRate !== null && !node.querySelector('.last-sold-badge')) {
                     const d = window.Utils.safeDate(lastDate); // ENTERPRISE FIX: Protect Apple/iOS
                     const fDate = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
                     
                     const badge = document.createElement('div');
                     badge.className = 'last-sold-badge';
-                    badge.style.cssText = 'display: inline-block; background: rgba(0, 97, 164, 0.1); color: #42a5f5; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 12px; margin-top: 6px; border: 1px solid rgba(0, 97, 164, 0.3); box-shadow: 0 1px 2px rgba(0,0,0,0.05);';
-                    badge.innerHTML = `<span class="material-symbols-outlined" style="font-size:12px; vertical-align:text-bottom; margin-right:4px;">history</span>Last sold: ₹${lastRate} on ${fDate}`;
+                    badge.style.cssText = 'display: inline-flex; align-items: center; gap: 3px; color: var(--md-primary); font-size: 11px; font-weight: 700; margin-top: 4px; padding: 0; background: transparent; border: none; box-shadow: none;';
+                    badge.innerHTML = `<span class="material-symbols-outlined" style="font-size:13px;">history</span>Last sold: ₹${lastRate} on ${fDate}`;
                     
                     const nameEl = node.querySelector('strong');
                     if (nameEl && nameEl.parentNode) {
@@ -9782,36 +9628,23 @@ let inactivityTimer;
 const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 Minutes of no touching
 
 const triggerPrivacyLock = () => {
-    const lockScreen = document.getElementById('privacy-lock-screen');
-    // If the app is currently unlocked, lock it!
-    if (lockScreen && lockScreen.classList.contains('hidden-lock')) {
-        lockScreen.style.transition = 'none'; 
+    const lockScreen = document.getElementById('app-lock-screen');
+    // Only auto-lock if the user has a PIN enabled and the lock screen is currently hidden
+    if (lockScreen && localStorage.getItem('sollo_app_pin') && lockScreen.style.display === 'none') {
         lockScreen.style.opacity = '1';
         lockScreen.style.display = 'flex';
-        lockScreen.classList.remove('hidden-lock');
-        if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50); // Small haptic bump
+        if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50);
     }
 };
 
 const resetInactivityTimer = () => {
     clearTimeout(inactivityTimer);
-    const lockScreen = document.getElementById('privacy-lock-screen');
+    const lockScreen = document.getElementById('app-lock-screen');
     // Only restart the 5-minute countdown if the app isn't currently locked
-    if (lockScreen && lockScreen.classList.contains('hidden-lock')) {
+    if (lockScreen && lockScreen.style.display === 'none') {
         inactivityTimer = setTimeout(triggerPrivacyLock, IDLE_TIMEOUT);
     }
 };
-
-// Make sure the Unlock button actually works!
-document.addEventListener('click', (e) => {
-    if (e.target && e.target.id === 'btn-unlock-app') {
-        const lockScreen = document.getElementById('privacy-lock-screen');
-        if (lockScreen) {
-            lockScreen.classList.add('hidden-lock'); // Hide the lock screen
-            resetInactivityTimer(); // Restart the 5-minute timer
-        }
-    }
-});
 
 // Listen for physical screen interactions to keep the app awake
 ['touchstart', 'click', 'scroll', 'keypress'].forEach(evt => {
@@ -9944,8 +9777,8 @@ document.addEventListener('input', (e) => {
     const target = e.target;
     if (!target || !target.id) return;
     
-    // 1. GSTIN Auto-Formatting: Forces Uppercase, max 15 chars, blocks invalid symbols instantly
-    if (target.id.toLowerCase().includes('gst')) {
+    // 1. GSTIN Auto-Formatting: Strictly target GSTIN inputs (not prod-stock-gst or gst-month-selector!)
+    if (target.id === 'ledger-gst' || target.id === 'profile-gst') {
         const start = target.selectionStart; // Preserves cursor position so it doesn't jump!
         target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 15);
         // Only reset cursor if the element is currently focused
@@ -10046,8 +9879,9 @@ window.AnalyticsEngine = {
 
     runProfitLeakageAudit: async () => {
         if (window.Utils) window.Utils.showToast("Scanning historical sales for profit leakage... ⏳");
-        const sales = await window.getAllRecords('sales');
-        const items = await window.getAllRecords('items');
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+        const sales = await window.getAllRecords('sales', 'firmId', activeFirmId);
+        const items = await window.getAllRecords('items', 'firmId', activeFirmId);
         
         let leakageHtml = '';
         let totalLeakage = 0;
@@ -10205,7 +10039,8 @@ window.exportBalanceSheetPDF = function() {
         return;
     }
 
-    const asOfDate = document.getElementById('report-bs-date').value;
+    const bsDateEl = document.getElementById('report-bs-end') || document.getElementById('report-bs-date');
+    const asOfDate = (bsDateEl && bsDateEl.value) ? bsDateEl.value : (window.Utils ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0]);
     const profile = window.UI.state.rawData.profile || {};
     const businessName = profile.name || 'My Business';
     
@@ -10367,12 +10202,16 @@ window.openBalanceSheetPreview = function() {
         let outputTax = 0, inputTax = 0;
         (window.UI.state.rawData.sales || []).forEach(s => { 
             if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
-                outputTax += (parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0);
+                const mult = s.documentType === 'return' ? -1 : 1;
+                const gst = parseFloat(s.totalGst) || ((parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0));
+                outputTax += Math.abs(gst) * mult;
             }
         });
         (window.UI.state.rawData.purchases || []).forEach(p => { 
             if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date <= asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
-                inputTax += (parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0);
+                const mult = p.documentType === 'return' ? -1 : 1;
+                const gst = parseFloat(p.totalGst) || ((parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0));
+                inputTax += Math.abs(gst) * mult;
             }
         });
 

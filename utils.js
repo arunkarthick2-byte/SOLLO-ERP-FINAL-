@@ -121,6 +121,7 @@ const Utils = {
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, width, height);
                 ctx.drawImage(bitmap, 0, 0, width, height);
+                if (typeof bitmap.close === 'function') bitmap.close();
                 const blob = await offscreen.convertToBlob({ type: 'image/jpeg', quality: quality });
                 
                 return new Promise(res => {
@@ -136,6 +137,7 @@ const Utils = {
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, width, height);
                 ctx.drawImage(bitmap, 0, 0, width, height);
+                if (typeof bitmap.close === 'function') bitmap.close();
                 return canvas.toDataURL('image/jpeg', quality);
             }
         } catch (e) {
@@ -1343,11 +1345,12 @@ Please process this accordingly. Thank you!`;
         }
         
         if (!isNonGST) {
+            const taxPrefix = isSales ? 'Output' : 'Input';
             if (isIGST && totalIgstAmount > 0) {
-                itemsBody.push([ '', {text: 'Output IGST', alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalIgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+                itemsBody.push([ '', {text: `${taxPrefix} IGST`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalIgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
             } else {
-                if (totalCgstAmount > 0) itemsBody.push([ '', {text: 'Output CGST', alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalCgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
-                if (totalSgstAmount > 0) itemsBody.push([ '', {text: 'Output SGST', alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalSgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+                if (totalCgstAmount > 0) itemsBody.push([ '', {text: `${taxPrefix} CGST`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalCgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+                if (totalSgstAmount > 0) itemsBody.push([ '', {text: `${taxPrefix} SGST`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalSgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
             }
         }
 
@@ -2238,11 +2241,14 @@ const pdf = window.currentActivePDF;
                     (window.UI.state.rawData.cashbook || []).forEach(c => {
                         if (c.ledgerId === party.id && c.invoiceRef) {
                             let amt = parseFloat(c.amount) || 0;
-                            const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                            let remainingAmt = amt;
+                            let impact = party.type === 'Customer' ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                            if (impact <= 0) return;
+                            const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
                             refs.forEach(ref => {
-                                if (remainingAmt <= 0) return;
-                                exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length);
+                                const allocated = (c.allocationMap && c.allocationMap[ref] !== undefined)
+                                    ? (parseFloat(c.allocationMap[ref]) || 0)
+                                    : (impact / refs.length);
+                                exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + allocated;
                             });
                         }
                     });
@@ -2554,7 +2560,7 @@ const pdf = window.currentActivePDF;
 
         let timeline = [];
         
-        const sales = await window.getAllRecords('sales');
+        const sales = await window.getAllRecords('sales', 'firmId', activeFirmId);
         sales.forEach(s => {
             if(s.status !== 'Open' && s.status !== 'Cancelled' && s.firmId === activeFirmId && (!partyId || s.customerId === partyId)) {
                 (s.items || []).forEach(row => {
@@ -2567,7 +2573,7 @@ const pdf = window.currentActivePDF;
             }
         });
 
-        const purchases = await window.getAllRecords('purchases');
+        const purchases = await window.getAllRecords('purchases', 'firmId', activeFirmId);
         purchases.forEach(p => {
             if(p.status !== 'Open' && p.status !== 'Cancelled' && p.firmId === activeFirmId && (!partyId || p.supplierId === partyId)) {
                 (p.items || []).forEach(row => {
@@ -2581,7 +2587,7 @@ const pdf = window.currentActivePDF;
         });
 
         if (!partyId) {
-            const adjustments = await window.getAllRecords('adjustments');
+            const adjustments = await window.getAllRecords('adjustments', 'firmId', activeFirmId);
             adjustments.forEach(a => {
                 if(a.itemId === itemId && a.firmId === activeFirmId) {
                     const qty = parseFloat(a.qty) || 0;
@@ -2589,7 +2595,7 @@ const pdf = window.currentActivePDF;
                 }
             });
             
-            const expenses = await window.getAllRecords('expenses');
+            const expenses = await window.getAllRecords('expenses', 'firmId', activeFirmId);
             expenses.forEach(e => {
                 if(e.firmId === activeFirmId) {
                     (e.items || []).forEach(row => {
@@ -3605,7 +3611,7 @@ const pdf = window.currentActivePDF;
             if (!document.getElementById('script-pdfjs')) {
                 const s3 = document.createElement('script');
                 s3.id = 'script-pdfjs';
-                s3.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+                s3.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
                 document.head.appendChild(s3);
             }
 
@@ -3613,7 +3619,7 @@ const pdf = window.currentActivePDF;
             return;
         }
 
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         try {
             document.querySelectorAll('#in-app-pdf-viewer').forEach(el => el.remove());
@@ -3717,403 +3723,7 @@ const pdf = window.currentActivePDF;
 // ==========================================
 // ENTERPRISE UPGRADE: PARTY-FILTERED ITEM LEDGER PDF
 // ==========================================
-window.executeItemLedgerReport = async (itemId, itemName, partyId = null, partyName = null, searchText = '', typeFilter = 'ALL', dateFilter = '', actionType = 'preview') => {
-    if (typeof pdfMake === 'undefined') {
-        if (window.Utils) window.Utils.showToast("⏳ Loading Vector Engine...");
-        return;
-    }
-
-    if (window.Utils) window.Utils.showToast("⚡ Generating Premium Stock Ledger...");
-    
-    const activeFirmId = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
-    const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
-    const bizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
-
-    const product = await window.getRecordById('items', itemId);
-    const openingStock = (product && !partyId) ? (parseFloat(product.openingStock) || 0) : 0;
-
-    let timeline = [];
-    
-    const sales = await window.getAllRecords('sales');
-    sales.forEach(s => {
-        if(s.status !== 'Open' && s.status !== 'Cancelled' && s.firmId === activeFirmId && (!partyId || s.customerId === partyId)) {
-            (s.items || []).forEach(row => {
-                if(row.itemId === itemId) {
-                    const isReturn = s.documentType === 'return';
-                    const qty = parseFloat(row.qty) || 0;
-                    timeline.push({ id: s.id, date: s.date, type: isReturn ? 'Sales Return' : 'Sale', desc: s.customerName || 'Unknown Party', ref: s.invoiceNo || s.orderNo || s.id.slice(-4).toUpperCase(), inQty: isReturn ? qty : 0, outQty: isReturn ? 0 : qty });
-                }
-            });
-        }
-    });
-
-    const purchases = await window.getAllRecords('purchases');
-    purchases.forEach(p => {
-        if(p.status !== 'Open' && p.status !== 'Cancelled' && p.firmId === activeFirmId && (!partyId || p.supplierId === partyId)) {
-            (p.items || []).forEach(row => {
-                if(row.itemId === itemId) {
-                    const isReturn = p.documentType === 'return';
-                    const qty = parseFloat(row.qty) || 0;
-                    timeline.push({ id: p.id, date: p.date, type: isReturn ? 'Purchase Return' : 'Purchase', desc: p.supplierName || 'Unknown Party', ref: p.invoiceNo || p.poNo || p.id.slice(-4).toUpperCase(), inQty: isReturn ? 0 : qty, outQty: isReturn ? qty : 0 });
-                }
-            });
-        }
-    });
-
-    if (!partyId) {
-        const adjustments = await window.getAllRecords('adjustments');
-        adjustments.forEach(a => {
-            if(a.itemId === itemId && a.firmId === activeFirmId) {
-                const qty = parseFloat(a.qty) || 0;
-                timeline.push({ id: a.id, date: a.date, type: 'Adjustment', desc: 'Manual Correction', ref: a.notes || 'Audit', inQty: a.type === 'add' ? qty : 0, outQty: a.type === 'reduce' ? qty : 0 });
-            }
-        });
-        
-        const expenses = await window.getAllRecords('expenses');
-        expenses.forEach(e => {
-            if(e.firmId === activeFirmId) {
-                (e.items || []).forEach(row => {
-                    if(row.itemId === itemId) {
-                        const qty = parseFloat(row.qty) || 0;
-                        timeline.push({ id: e.id, date: e.date, type: 'Expense', desc: 'Internal Expense', ref: e.expenseNo || 'EXP', inQty: 0, outQty: qty });
-                    }
-                });
-            }
-        });
-    }
-
-    timeline.sort((a, b) => {
-        const dateA = new Date(a.date || 0).getTime();
-        const dateB = new Date(b.date || 0).getTime();
-        if (dateA !== dateB) return dateA - dateB;
-        const timeA = parseInt(String(a.id || '').split('-').pop()) || 0;
-        const timeB = parseInt(String(b.id || '').split('-').pop()) || 0;
-        return timeA - timeB;
-    });
-
-    let runningStock = openingStock;
-    timeline.forEach(t => {
-        runningStock += t.inQty;
-        runningStock -= t.outQty;
-        t.trueRunningBalance = runningStock; 
-    });
-
-    const trueFinalStock = runningStock;
-
-    timeline = timeline.filter(t => {
-        if (searchText && !String(t.ref || '').toLowerCase().includes(searchText) && !String(t.type || '').toLowerCase().includes(searchText)) return false;
-        const impact = (t.inQty || 0) - (t.outQty || 0);
-        if (typeFilter === 'IN' && impact <= 0) return false;
-        if (typeFilter === 'OUT' && impact >= 0) return false;
-        if (typeFilter === 'Expense' && t.type !== 'Expense') return false;
-        if (dateFilter && t.date !== dateFilter) return false;
-        return true;
-    });
-
-    let totalIn = 0;
-    let totalOut = 0;
-    
-    const itemsBody = [
-        [
-            { text: 'Date', style: 'th', alignment: 'center' },
-            { text: 'Type', style: 'th' },
-            { text: 'Particulars & Ref', style: 'th' },
-            { text: 'Stock IN', style: 'th', alignment: 'center' },
-            { text: 'Stock OUT', style: 'th', alignment: 'center' },
-            { text: 'Running Bal', style: 'th', alignment: 'right' }
-        ]
-    ];
-
-    if (!partyId && !dateFilter) {
-        itemsBody.push([
-            { text: 'Opening', style: 'td', color: '#475569', alignment: 'center' },
-            { text: 'Opening Stock', style: 'td', bold: true },
-            { text: 'Initial Inventory Balance', style: 'td' },
-            { text: openingStock > 0 ? openingStock.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
-            { text: openingStock < 0 ? Math.abs(openingStock).toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
-            { text: openingStock.toFixed(2), style: 'td', alignment: 'right', bold: true }
-        ]);
-    }
-
-    timeline.forEach(t => {
-        totalIn += t.inQty;
-        totalOut += t.outQty;
-        
-        itemsBody.push([
-            { text: window.Utils.formatDateDisplay(t.date), style: 'td', alignment: 'center', color: '#475569' },
-            { text: t.type, style: 'td', bold: true },
-            { stack: [{ text: t.desc }, { text: 'Ref: ' + t.ref, fontSize: 8, color: '#64748b', margin: [0, 2, 0, 0] }], style: 'td' },
-            { text: t.inQty > 0 ? t.inQty.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
-            { text: t.outQty > 0 ? t.outQty.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
-            { text: t.trueRunningBalance.toFixed(2), style: 'td', alignment: 'right', bold: true }
-        ]);
-    });
-
-    const finalDisplayBalance = trueFinalStock;
-
-    itemsBody.push([
-        { text: 'Total Volume Summary', style: 'td', colSpan: 3, alignment: 'right', bold: true, color: '#0f172a' },
-        {}, {},
-        { text: totalIn.toFixed(2), style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
-        { text: totalOut.toFixed(2), style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
-        { text: finalDisplayBalance.toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#0f172a' }
-    ]);
-
-    const reportSubtitle = partyId ? `Filtered By Party: ${partyName}` : (dateFilter ? `Filtered By Date: ${dateFilter}` : 'Global Stock Movement');
-
-    const docDefinition = {
-        pageSize: 'A4',
-        pageMargins: [30, 30, 30, 30],
-        defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
-        styles: {
-            h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
-            title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
-            sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
-            subBold: { fontSize: 9, bold: true, color: '#0f172a' },
-            sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
-            th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
-            td: { fontSize: 9, margin: [2, 4] }
-        },
-        content: [
-            {
-                columns: [
-                    {
-                        width: '60%',
-                        stack: [
-                            biz.logo ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
-                            { text: biz.name || 'Company Name', style: 'h1' },
-                            { text: 'Official Stock Ledger & Inventory Audit', style: 'sub' }
-                        ].filter(Boolean)
-                    },
-                    {
-                        width: '40%',
-                        stack: [
-                            { text: 'STOCK LEDGER', style: 'title' },
-                            { text: 'DATE: ' + window.Utils.formatDateDisplay(window.Utils.getLocalDate()), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] }
-                        ]
-                    }
-                ],
-                margin: [0, 0, 0, 20]
-            },
-            {
-                columns: [
-                    {
-                        width: '60%',
-                        stack: [
-                            { text: 'Product / Item Name', style: 'subBold', color: '#64748b' },
-                            { text: itemName || 'Unknown Item', bold: true, fontSize: 14 }
-                        ]
-                    },
-                    {
-                        width: '40%',
-                        stack: [
-                            { text: 'Filter Scope', style: 'subBold', color: '#64748b', alignment: 'right' },
-                            { text: reportSubtitle, bold: true, fontSize: 11, alignment: 'right' }
-                        ]
-                    }
-                ],
-                margin: [0, 0, 0, 15]
-            },
-            {
-                table: { headerRows: 1, widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
-                layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
-                margin: [0, 0, 0, 20]
-            },
-            {
-                columns: [
-                    {
-                        width: '50%',
-                        stack: [
-                            { text: 'LEDGER SUMMARY', style: 'sectionTitle' },
-                            { text: `Total Stock IN:  + ${totalIn.toFixed(2)}`, color: '#16a34a', bold: true, margin: [0, 2, 0, 0] },
-                            { text: `Total Stock OUT: - ${totalOut.toFixed(2)}`, color: '#dc2626', bold: true, margin: [0, 2, 0, 0] }
-                        ]
-                    },
-                    {
-                        width: '50%',
-                        stack: [
-                            { text: 'Closing Stock Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 0, 0, 2] },
-                            { text: finalDisplayBalance.toFixed(2), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
-                            { text: finalDisplayBalance > 0 ? 'Net Surplus (IN)' : (finalDisplayBalance < 0 ? 'Net Deficit (OUT)' : 'Zero Balance'), alignment: 'right', fontSize: 10, bold: true, color: finalDisplayBalance > 0 ? '#16a34a' : (finalDisplayBalance < 0 ? '#dc2626' : '#475569') }
-                        ]
-                    }
-                ],
-                margin: [0, 0, 0, 20]
-            },
-            {
-                columns: [
-                    { text: '*** End of Ledger ***', fontSize: 9, color: '#94a3b8', bold: true, alignment: 'left', width: '*' },
-                    {
-                        width: 200,
-                        stack: [
-                            biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
-                            { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] }
-                        ]
-                    }
-                ],
-                unbreakable: true 
-            }
-        ]
-    };
-
-    const viewer = document.createElement('div');
-    viewer.id = 'in-app-pdf-viewer';
-    viewer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background-color:#e8eaed; z-index:999999; display:flex; flex-direction:column;';
-    viewer.innerHTML = `
-        <div style="background:#ffffff; color:#0f172a; padding:16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; flex-shrink:0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div>
-                <div style="font-weight:bold; font-size:18px;">Document Preview</div>
-                <div style="font-size:12px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Preview...</div>
-            </div>
-            <div id="pdf-header-actions" style="display: flex; gap: 20px; align-items: center; color:#475569;">
-                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-print">print</span>
-                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-download">download</span>
-                <span class="material-symbols-outlined tap-target" style="font-size:24px; display:none;" id="preview-action-share">share</span>
-                <span id="btn-close-pdf-loaded" class="material-symbols-outlined tap-target" style="font-size:28px; color:#ba1a1a; cursor:pointer;">close</span>
-            </div>
-        </div>
-        <div id="pdf-preview-content" style="flex:1; overflow:auto; padding:16px; display:flex; justify-content:center; align-items:flex-start; touch-action: pan-x pan-y pinch-zoom;">
-            <div style="text-align:center; margin-top:50px;">
-                <span class="material-symbols-outlined" style="font-size:32px; color:#0061a4; animation: sollo-spin 1s linear infinite;">autorenew</span>
-                <div style="margin-top:8px; font-weight:600; color:#475569;">Loading Preview...</div>
-            </div>
-            <style>@keyframes sollo-spin { 100% { transform: rotate(360deg); } }</style>
-        </div>
-    `;
-    document.body.appendChild(viewer);
-
-    document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
-
-    const safeItemName = itemName ? String(itemName).replace(/[^a-zA-Z0-9]/g, '_') : 'Unknown_Item';
-    const safePartyStr = partyName ? `_${String(partyName).replace(/[^a-zA-Z0-9]/g, '_')}` : '';
-    const safeFilename = `Stock_Ledger_${safeItemName}${safePartyStr}.pdf`;
-    const shareText = `Please find attached the Stock Ledger for ${itemName}.`;
-
-    let pdfDocGenerator;
-    try {
-        pdfDocGenerator = pdfMake.createPdf(docDefinition);
-    } catch (e) {
-        window.Utils.showToast("❌ Error generating PDF structure.");
-        viewer.remove();
-        return;
-    }
-
-    if (actionType === 'share') {
-        pdfDocGenerator.getBlob(async (blob) => {
-            const file = new File([blob], safeFilename, { type: 'application/pdf' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({ title: safeFilename, text: shareText, files: [file] });
-                } catch (err) { console.log("Share cancelled."); }
-            } else {
-                window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
-                pdfDocGenerator.download(safeFilename);
-            }
-            viewer.remove();
-        });
-        return;
-    }
-
-    pdfDocGenerator.getBlob(async (blob) => {
-        document.getElementById('pdf-status-text').innerText = "Generating Preview..."; 
-        document.getElementById('pdf-status-text').style.color = '#0061a4';
-
-        const file = new File([blob], safeFilename, { type: 'application/pdf' });
-
-        const btnDown = document.getElementById('preview-action-download');
-        const btnShare = document.getElementById('preview-action-share');
-        const btnPrint = document.getElementById('preview-action-print');
-
-        btnDown.onclick = () => {
-            pdfDocGenerator.download(safeFilename);
-            if (window.Utils) window.Utils.showToast("✅ Download Started!");
-        };
-
-        btnShare.onclick = async () => {
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({ title: safeFilename, text: shareText, files: [file] });
-                } catch (err) { console.log("Share cancelled."); }
-            } else {
-                window.Utils.showToast("⚠️ Native Share blocked by phone. Downloading instead...");
-                pdfDocGenerator.download(safeFilename);
-            }
-        };
-        
-        btnPrint.onclick = () => {
-            pdfDocGenerator.print();
-        };
-
-        try {
-            if (typeof window.pdfjsLib === 'undefined') {
-                await new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
-                    script.onload = () => {
-                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-                        resolve();
-                    };
-                    script.onerror = reject;
-                    document.head.appendChild(script);
-                });
-            }
-
-            const arrayBuffer = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(blob);
-            });
-
-            window.currentActivePDF = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-const pdf = window.currentActivePDF;
-            const previewContent = document.getElementById('pdf-preview-content');
-            previewContent.innerHTML = ''; 
-            previewContent.style.flexDirection = 'column'; 
-            previewContent.style.alignItems = 'center';
-            previewContent.style.justifyContent = 'flex-start'; // 🚨 FIX: Shows the first page correctly!
-
-            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 1.5 });
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                
-                canvas.style.maxWidth = '100%';
-                canvas.style.height = 'auto';
-                canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                canvas.style.borderRadius = '4px';
-                canvas.style.marginBottom = '16px'; 
-                canvas.style.flexShrink = '0';
-
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
-                previewContent.appendChild(canvas);
-            }
-
-            document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
-            document.getElementById('pdf-status-text').style.color = '#64748b';
-            
-            btnDown.style.display = 'inline-block';
-            btnShare.style.display = 'inline-block';
-            btnPrint.style.display = 'inline-block';
-
-        } catch (err) {
-            document.getElementById('pdf-preview-content').innerHTML = `
-                <div style="text-align:center; margin-top:50px;">
-                    <span class="material-symbols-outlined" style="font-size:40px; color:#16a34a;">picture_as_pdf</span>
-                    <h3 style="color:#0f172a; margin-top:8px;">PDF Generated</h3>
-                    <p style="color:#475569; font-size:14px;">Preview unavailable on this device, but the document is ready!</p>
-                </div>
-            `;
-            document.getElementById('pdf-status-text').innerText = "Ready";
-            btnDown.style.display = 'inline-block';
-            btnShare.style.display = 'inline-block';
-            btnPrint.style.display = 'inline-block';
-        }
-    });
-};
+window.executeItemLedgerReport = Utils.executeItemLedgerReport;
 
 // ==========================================
 // ENTERPRISE UPGRADE: MASTER TAB KHATA PDF ENGINE
@@ -4236,11 +3846,14 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             (window.UI.state.rawData.cashbook || []).forEach(c => {
                 if (c.ledgerId === party.id && c.invoiceRef) {
                     let amt = parseFloat(c.amount) || 0;
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim());
-                    let remainingAmt = amt;
+                    let impact = party.type === 'Customer' ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                    if (impact <= 0) return;
+                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
                     refs.forEach(ref => {
-                        if (remainingAmt <= 0) return;
-                        exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + (amt / refs.length);
+                        const allocated = (c.allocationMap && c.allocationMap[ref] !== undefined)
+                            ? (parseFloat(c.allocationMap[ref]) || 0)
+                            : (impact / refs.length);
+                        exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + allocated;
                     });
                 }
             });
@@ -4395,7 +4008,13 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
     `;
     document.body.appendChild(viewer);
 
-    document.getElementById('btn-close-pdf-loaded').onclick = () => viewer.remove();
+    document.getElementById('btn-close-pdf-loaded').onclick = () => {
+        if (window.currentActivePDF) {
+            window.currentActivePDF.destroy();
+            window.currentActivePDF = null;
+        }
+        viewer.remove();
+    };
 
         const cleanPartyName = partyName.replace(/[^a-zA-Z0-9]/g, '_');
         const safeFilename = `Ledger_Statement_${cleanPartyName}_${safeDocNo}.pdf`;

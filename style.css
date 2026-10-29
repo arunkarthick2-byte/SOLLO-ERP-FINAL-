@@ -4643,7 +4643,7 @@ select:-webkit-autofill:focus {
     padding: 16px !important;
 }
 /* ==========================================
-/* 🚨 ANDROID UPGRADE 6: OFF-SCREEN CPU OPTIMIZER
+   🚨 ANDROID UPGRADE 6: OFF-SCREEN CPU OPTIMIZER
    ========================================== */
 /* JS Virtualizer handles DOM off-loading now. This just forces GPU rendering! */
 .list-view li, .m3-card {
@@ -7182,7 +7182,7 @@ body.hide-overdue-alerts #overdue-reminders-container {
     color: var(--md-text-muted) !important;
 }
 
-/* 🚀 ENTERPRISE UPGRADE: Clean Grid Engine (No Divider Lines in Masters) */
+/* 🚀 ENTERPRISE UPGRADE: Clean Grid Engine */
 .m3-card.report-btn, .m3-card.master-action-btn {
     display: flex !important;
     align-items: center !important;
@@ -7190,20 +7190,11 @@ body.hide-overdue-alerts #overdue-reminders-container {
     padding: 16px !important;
     margin: 0 !important;
 }
-
-/* Force zero divider lines under General Masters and Bank & Cash (Light & Dark Mode) */
-html body #app-shell #tab-workspace #workspace-master-grid .m3-card,
-html body #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn,
-html body #app-shell #tab-workspace #bank-balances-container .m3-card,
-html body.dark-mode #app-shell #tab-workspace #workspace-master-grid .m3-card,
-html body.dark-mode #app-shell #tab-workspace #workspace-master-grid .m3-card.master-action-btn,
-html body.dark-mode #app-shell #tab-workspace #bank-balances-container .m3-card {
-    border: none !important;
-    border-bottom: none !important;
-    border-top: none !important;
-    box-shadow: none !important;
+/* Automatically applies the divider lines to everything except the last item! */
+#reports-action-container > div > .m3-card.report-btn:not(:last-child),
+#workspace-master-grid .m3-card.master-action-btn:not(:last-child) {
+    border-bottom: 1px solid var(--md-surface-variant) !important;
 }
-
 
 /* 🚨 MOBILE KEYBOARD FIX: Hide floating buttons when typing */
 @media screen and (max-height: 600px) and (orientation: portrait) {
@@ -8878,24 +8869,33 @@ body.dark-mode #app-shell div.activity-screen .search-bar input {
 /* --- Dashboard Filters Styles --- */
 .dashboard-filter-group {
     display: flex; 
+    flex-direction: column;
     gap: 6px; 
-    align-items: center;
+    align-items: flex-end;
+    flex-shrink: 0;
 }
 
 .dashboard-custom-month-input {
-    padding: 4px; 
-    font-size: 13px; 
-    border: 1px solid var(--md-primary); 
-    border-radius: 6px; 
+    width: auto !important;
+    max-width: 155px !important;
+    min-height: 32px !important;
+    padding: 4px 10px !important; 
+    margin-bottom: 0 !important;
+    font-size: 12px !important; 
+    border: 1px solid var(--md-primary) !important; 
+    border-radius: 16px !important; 
     outline: none; 
-    background: rgba(0, 97, 164, 0.1);  
-    color: #0061a4; 
-    font-weight: bold;
+    background: rgba(0, 97, 164, 0.1) !important;  
+    color: #0061a4 !important; 
+    font-weight: bold !important;
 }
 
 .dashboard-date-select {
-    width: auto; 
-    padding: 6px 10px; 
+    width: auto !important; 
+    max-width: 155px !important;
+    min-height: 32px !important;
+    margin-bottom: 0 !important;
+    padding: 6px 32px 6px 12px !important; 
     font-size: 13px; 
     font-weight: 600; 
     border: none; 
@@ -9116,9 +9116,30 @@ body.dark-mode #app-shell div.activity-screen .search-bar input {
     font-weight: 600;
 }
 /* --- Dashboard Overdue Collections Styles --- */
-.dash-overdue-card {
-    border-left: 4px solid var(--md-error); 
-    margin-bottom: 16px;
+.dash-overdue-card,
+html body #app-shell #tab-dashboard #overdue-reminders-container.dash-overdue-card {
+    border-radius: 16px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 16px !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    border-left: 1px solid var(--md-outline-variant) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04) !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard #overdue-reminders-container.dash-overdue-card {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Restore subtle hairline dividers between overdue items inside #list-overdue */
+html body #app-shell #tab-dashboard #list-overdue > div:not(:last-child) {
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard #list-overdue > div:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .dash-overdue-header {
@@ -9202,70 +9223,76 @@ body.dark-mode #app-shell div.activity-screen .search-bar input {
 .ws-create-icon {
     margin: 0 auto 8px auto !important;
 }
-/* --- Workspace Transactions View Styles (RESTORED OLD VERSION) --- */
+/* --- Workspace Navigation Hierarchy: Segmented Top Track + Detached Sub-Capsules --- */
+#tab-workspace > div[style*="border-radius: 12px"] {
+    padding: 4px !important;
+    gap: 4px !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    background: var(--md-surface-variant) !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    margin-bottom: 16px !important;
+}
+
+#ws-active-pill {
+    display: block !important;
+    top: 4px !important;
+    bottom: 4px !important;
+    left: 4px !important;
+    width: calc(33.333% - 5.33px) !important;
+    background: var(--md-surface) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+#ws-btn-create, #ws-btn-trans, #ws-btn-master {
+    border-right: none !important;
+    border-radius: 10px !important;
+    margin: 0 !important;
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.1px !important;
+    padding: 9px 8px !important;
+}
+
+/* Detached Floating Sub-Category Capsules (Sales | Purchases | Cashbook) */
 .ws-trans-tabs-container {
     display: flex !important; 
-    gap: 0 !important; 
-    margin-bottom: 16px !important; 
-    border-radius: 8px !important; 
-    border: 1px solid var(--md-outline-variant) !important;
-    overflow: hidden !important; 
+    gap: 8px !important; 
+    margin-bottom: 14px !important; 
+    border-radius: 0 !important; 
+    border: none !important;
+    overflow: visible !important; 
     padding: 0 !important; 
     background: transparent !important;
 }
 
 .ws-trans-pill {
     flex: 1 !important; 
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
     white-space: nowrap !important; 
-    padding: 10px 16px !important; 
-    border-radius: 0 !important; 
-    border: none !important; 
-    border-right: 1px solid var(--md-outline-variant) !important; 
-    font-size: 13px !important; 
-    font-weight: bold !important;
+    padding: 9px 12px !important; 
+    border-radius: 999px !important; 
+    font-size: 12.5px !important; 
+    font-weight: 800 !important;
     margin: 0 !important;
     text-align: center !important;
-    box-shadow: none !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    transition: all 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
 }
 
-.ws-trans-pill:last-child {
-    border-right: none !important;
-}
-
-/* Restore Top Workspace Tabs (Create | Transactions | Masters) to Old Version */
-#tab-workspace > div[style*="border-radius: 12px"] {
-    padding: 0 !important;
-    gap: 0 !important;
-    border: 1px solid var(--md-outline-variant) !important;
-    background: transparent !important;
-    border-radius: 8px !important;
-    overflow: hidden !important;
-}
-
-#ws-active-pill {
-    display: none !important; /* Hides the liquid pill background */
-}
-
-#ws-btn-create, #ws-btn-trans, #ws-btn-master {
-    border-right: 1px solid var(--md-outline-variant) !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-}
-
-#ws-btn-master {
-    border-right: none !important;
-}
-
-/* Dark Mode Adapters for the Restored Fused Tabs */
-body.dark-mode .ws-trans-tabs-container,
+/* Dark Mode Adapters for Segmented Top Track & Sub-Capsules */
 body.dark-mode #tab-workspace > div[style*="border-radius: 12px"] {
-    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: #141417 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-body.dark-mode .ws-trans-pill,
-body.dark-mode #ws-btn-create, 
-body.dark-mode #ws-btn-trans {
-    border-right-color: rgba(255, 255, 255, 0.1) !important;
+body.dark-mode #ws-active-pill {
+    background: #222226 !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4) !important;
 }
 /* --- Workspace Masters & Fintech Hub Styles --- */
 .ws-masters-header {
@@ -9329,21 +9356,47 @@ body.dark-mode #ws-btn-trans {
    ========================================== */
 
 /* 1. ULTIMATE ZERO-CLUTTER FLUSH SEARCH BAR */
-.search-bar, .search-container {
+.search-bar,
+html body #activity-master-view .search-bar,
+html body #activity-expense-ledger .search-bar,
+html body #activity-report-viewer .search-bar,
+html body #activity-item-ledger .search-bar {
     border-radius: 0 !important; 
     margin: 0 -16px 16px -16px !important; 
     padding: 12px 16px !important; 
-    background: rgba(255, 255, 255, 0.65) !important;
+    background: rgba(255, 255, 255, 0.78) !important;
     backdrop-filter: blur(24px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
     border: none !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
 }
 
-body.dark-mode .search-bar, body.dark-mode .search-container {
-    background: rgba(18, 18, 18, 0.65) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+body.dark-mode .search-bar,
+html body.dark-mode #activity-master-view .search-bar,
+html body.dark-mode #activity-expense-ledger .search-bar,
+html body.dark-mode #activity-report-viewer .search-bar,
+html body.dark-mode #activity-item-ledger .search-bar {
+    background: rgba(18, 18, 18, 0.78) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Keep Smart Search Modal's internal search-container neatly boxed inside its header */
+#sheet-smart-search .search-container {
+    margin: 0 0 12px 0 !important;
+    padding: 0 12px !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    background: var(--md-surface-variant) !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+body.dark-mode #sheet-smart-search .search-container {
+    background: #1e293b !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 /* Eradicate the magnifying glass icon for a cleaner look */
@@ -9362,10 +9415,24 @@ body.dark-mode .search-bar, body.dark-mode .search-container {
     color: var(--md-on-surface) !important;
 }
 
-/* 2. EDGE-TO-EDGE TACTILE DATA LISTS (SMOOTH SCROLLING) */
-.list-view li, .m3-card.list-card {
-    margin-left: -16px !important;
-    margin-right: -16px !important;
+#sheet-smart-search .search-container input {
+    padding: 12px 4px !important;
+}
+
+/* 2. EDGE-TO-EDGE TACTILE DATA LISTS (OVERRIDES NUCLEAR ERASER V4) */
+html body #app-shell .list-view li,
+html body #app-shell .m3-card.list-card,
+html body #app-shell .m3-card.virtual-item,
+html body .activity-screen .list-view li,
+html body .activity-screen .m3-card.list-card,
+html body .activity-screen .m3-card.virtual-item,
+html body .list-view li,
+html body .m3-card.list-card,
+html body .m3-card.virtual-item {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
     border-radius: 0 !important;
     border-left: none !important;
     border-right: none !important;
@@ -9377,21 +9444,126 @@ body.dark-mode .search-bar, body.dark-mode .search-container {
     transition: background-color 0.12s ease !important;
 }
 
-/* Clean highlight on tap without shifting the layout while scrolling */
-.list-view li:active, .m3-card.list-card:active, .m3-card.tap-target:active {
+/* Remove hairline dividers in Reports, Workspace Masters & Settings lists */
+html body #app-shell #tab-reports .m3-card,
+html body #app-shell #tab-reports sollo-nav-card .m3-card,
+html body #app-shell #workspace-master-grid .m3-card,
+html body #app-shell #bank-balances-container .m3-card,
+html body #app-shell #tab-menu .m3-card,
+html body #app-shell #tab-menu .setting-btn,
+html body #app-shell #tab-menu .report-section-list > .m3-card,
+html body.dark-mode #app-shell #tab-reports .m3-card,
+html body.dark-mode #app-shell #tab-reports sollo-nav-card .m3-card,
+html body.dark-mode #app-shell #workspace-master-grid .m3-card,
+html body.dark-mode #app-shell #bank-balances-container .m3-card,
+html body.dark-mode #app-shell #tab-menu .m3-card,
+html body.dark-mode #app-shell #tab-menu .setting-btn,
+html body.dark-mode #app-shell #tab-menu .report-section-list > .m3-card {
+    border: none !important;
+    border-bottom: none !important;
+}
+
+/* Clean highlight on tap ONLY when tapping the row itself (not inner Share/PDF/Log icons) */
+.list-view li:active,
+.m3-card.list-card:not(:has(.tap-target:active)):active,
+.m3-card.tap-target:not(:has(.tap-target:active)):active {
     background-color: var(--md-surface-variant) !important;
     transform: none !important;
 }
+
+/* 1. Stop the parent list row background & shrink from triggering when an inner icon is tapped */
+html body #app-shell #sales-history-container .m3-card:has(.tap-target:active):active,
+html body #app-shell #purchase-history-container .m3-card:has(.tap-target:active):active,
+html body #app-shell #cashbook-container .m3-card:has(.tap-target:active):active,
+html body #app-shell #list-overdue > .tap-target:has(.tap-target:active):active,
+html body #expense-history-container .m3-card:has(.tap-target:active):active,
+html body #master-list-container .m3-card:has(.tap-target:active):active,
+html body #timeline-list .m3-card:has(.tap-target:active):active,
+html body.dark-mode #app-shell #sales-history-container .m3-card:has(.tap-target:active):active,
+html body.dark-mode #app-shell #purchase-history-container .m3-card:has(.tap-target:active):active,
+html body.dark-mode #app-shell #cashbook-container .m3-card:has(.tap-target:active):active,
+html body.dark-mode #app-shell #list-overdue > .tap-target:has(.tap-target:active):active,
+html body.dark-mode #expense-history-container .m3-card:has(.tap-target:active):active,
+html body.dark-mode #master-list-container .m3-card:has(.tap-target:active):active,
+html body.dark-mode #timeline-list .m3-card:has(.tap-target:active):active {
+    background: transparent !important;
+    background-color: transparent !important;
+    transform: none !important;
+}
+
+/* 2. Kill the hidden ::after full-row overlay on parent list rows when an inner icon is tapped */
+html body #sales-history-container .m3-card:has(.tap-target:active)::after,
+html body #purchase-history-container .m3-card:has(.tap-target:active)::after,
+html body #cashbook-container .m3-card:has(.tap-target:active)::after,
+html body #list-overdue > .tap-target:has(.tap-target:active)::after,
+html body #expense-history-container .m3-card:has(.tap-target:active)::after,
+html body #master-list-container .m3-card:has(.tap-target:active)::after,
+html body #timeline-list .m3-card:has(.tap-target:active)::after {
+    opacity: 0 !important;
+    display: none !important;
+}
+
+/* 3. Scoped strictly to inner action icons inside list rows & invoice product rows */
+html body #sales-history-container .m3-card .tap-target,
+html body #purchase-history-container .m3-card .tap-target,
+html body #cashbook-container .m3-card .tap-target,
+html body #expense-history-container .m3-card .tap-target,
+html body #master-list-container .m3-card .tap-target,
+html body #timeline-list .m3-card .tap-target,
+html body #list-overdue > .tap-target .tap-target,
+html body #sales-items-body .item-entry-card div.tap-target,
+html body #purchase-items-body .item-entry-card div.tap-target {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 50% !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.1s ease, background-color 0.1s ease !important;
+}
+
+html body #sales-history-container .m3-card .tap-target::after,
+html body #purchase-history-container .m3-card .tap-target::after,
+html body #cashbook-container .m3-card .tap-target::after,
+html body #expense-history-container .m3-card .tap-target::after,
+html body #master-list-container .m3-card .tap-target::after,
+html body #timeline-list .m3-card .tap-target::after,
+html body #list-overdue > .tap-target .tap-target::after,
+html body #sales-items-body .item-entry-card div.tap-target::after,
+html body #purchase-items-body .item-entry-card div.tap-target::after {
+    display: none !important;
+}
+
+html body #sales-history-container .m3-card .tap-target:active,
+html body #purchase-history-container .m3-card .tap-target:active,
+html body #cashbook-container .m3-card .tap-target:active,
+html body #expense-history-container .m3-card .tap-target:active,
+html body #master-list-container .m3-card .tap-target:active,
+html body #timeline-list .m3-card .tap-target:active,
+html body #list-overdue > .tap-target .tap-target:active,
+html body #sales-items-body .item-entry-card div.tap-target:active,
+html body #purchase-items-body .item-entry-card div.tap-target:active {
+    background-color: rgba(148, 163, 184, 0.22) !important;
+    transform: scale(0.85) !important;
+    opacity: 1 !important;
+}
+
 /* ==========================================
    ✨ UPGRADE 2: SEAMLESS FORMS & FROSTED MENUS
    ========================================== */
 
 /* 1. iOS-Style Frosted Glass Bottom Navigation */
 .bottom-nav, .form-sticky-footer, .activity-bottom-bar, .bottom-action-bar {
-    background: rgba(255, 255, 255, 0.70) !important;
+    background: rgba(255, 255, 255, 0.75) !important;
     backdrop-filter: blur(24px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-    border-top: 1px solid rgba(0, 0, 0, 0.05) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
     box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.03) !important;
 }
 
@@ -9399,9 +9571,9 @@ body.dark-mode .bottom-nav,
 body.dark-mode .form-sticky-footer, 
 body.dark-mode .activity-bottom-bar, 
 body.dark-mode .bottom-action-bar {
-    background: rgba(18, 18, 18, 0.70) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3) !important;
+    background: rgba(18, 18, 18, 0.78) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* 2. Ambient Glow on Primary Buttons (Save / Add) */
@@ -9432,31 +9604,309 @@ body.dark-mode .bottom-action-bar {
     border-bottom: none !important;
 }
 
-/* Make inputs look like plain text until tapped */
-.item-entry-card input.row-qty,
-.item-entry-card input.row-rate,
-.item-entry-card input.row-item-buyprice,
-.item-entry-card input.row-gst {
+/* Make inputs look like plain text until tapped (High specificity overrides global input pill) */
+html body .activity-screen .item-entry-card input.row-qty,
+html body .activity-screen .item-entry-card input.row-rate,
+html body .activity-screen .item-entry-card input.row-item-buyprice,
+html body .activity-screen .item-entry-card input.row-gst {
     background: transparent !important;
     border: 1px solid transparent !important;
-    border-bottom: 1px solid rgba(0,0,0,0.1) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.15) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     padding: 6px !important;
+    text-align: center !important;
+}
+
+html body .activity-screen .item-entry-card input.row-qty { width: 70px !important; min-height: 38px !important; height: 38px !important; }
+html body .activity-screen .item-entry-card input.row-rate { width: 90px !important; min-height: 38px !important; height: 38px !important; }
+html body .activity-screen .item-entry-card input.row-gst { width: 50px !important; min-height: 38px !important; height: 38px !important; }
+html body .activity-screen .item-entry-card input.row-item-buyprice {
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+    min-height: 30px !important;
+    height: 30px !important;
+    padding: 2px 4px !important;
+    font-size: 14px !important;
 }
 
 /* When tapped, they pop out into a clean glowing box */
-.item-entry-card input:focus {
+html body .activity-screen .item-entry-card input:focus {
     background: var(--md-surface) !important;
     border: 1px solid var(--md-primary) !important;
     border-radius: 6px !important;
     box-shadow: 0 4px 12px rgba(0, 97, 164, 0.12) !important;
-    transform: translateY(-2px) !important;
+    transform: translateY(-1px) !important;
 }
 
-body.dark-mode .item-entry-card input.row-qty,
-body.dark-mode .item-entry-card input.row-rate,
-body.dark-mode .item-entry-card input.row-item-buyprice,
-body.dark-mode .item-entry-card input.row-gst {
-    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+html body.dark-mode .activity-screen .item-entry-card input.row-qty,
+html body.dark-mode .activity-screen .item-entry-card input.row-rate,
+html body.dark-mode .activity-screen .item-entry-card input.row-item-buyprice,
+html body.dark-mode .activity-screen .item-entry-card input.row-gst {
+    border-bottom: 1px solid rgba(255,255,255,0.15) !important;
+}
+
+/* ==========================================
+   ✨ UPGRADE 3: MASTER VISUAL ENGINE & BUG SHIELD (v6.2)
+   ========================================== */
+
+/* 1. DASHBOARD TYPOGRAPHY, BORDERS & SEMANTIC COLORS RESTORATION
+      Fixes legacy #tab-dashboard .m3-card:first-of-type rules that forced
+      section titles to 28px and wiped out profit/order status colors! */
+html body #app-shell #tab-dashboard > .m3-card:first-of-type {
+    padding: 0 !important;
+    border-radius: 16px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04) !important;
+    overflow: hidden !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard > .m3-card:first-of-type {
+    background: #121212 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+html body #app-shell #tab-dashboard .dash-metrics-row,
+html body #app-shell #tab-dashboard .dash-list-card,
+html body #app-shell #tab-dashboard .dash-ai-card,
+html body #app-shell #tab-dashboard .dash-analytics-card,
+html body #app-shell #tab-dashboard .dash-chart-card,
+html body #app-shell #tab-dashboard .dash-fulfillment-header,
+html body #app-shell #tab-dashboard .dash-fulfillment-row:not(:last-child) {
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+
+html body #app-shell #tab-dashboard .dash-metric-border {
+    border-right: 1px solid var(--md-outline-variant) !important;
+}
+
+html body #app-shell #tab-dashboard .dash-list-title,
+html body #app-shell #tab-dashboard .dash-section-title,
+html body #app-shell #tab-dashboard .dash-analytics-title {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.4px !important;
+    color: var(--md-primary) !important;
+    margin: 0 !important;
+}
+
+html body #app-shell #tab-dashboard .dash-chart-card .dash-section-title {
+    margin-bottom: 12px !important;
+}
+
+html body #app-shell #tab-dashboard .dash-ai-title {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    color: var(--md-on-surface) !important;
+    margin: 0 0 2px 0 !important;
+}
+
+html body #app-shell #tab-dashboard #dash-total-sales,
+html body #app-shell #tab-dashboard #dash-inventory-value {
+    color: var(--md-primary) !important;
+    font-size: clamp(20px, 5.5vw, 25px) !important;
+    font-weight: 800 !important;
+}
+
+html body #app-shell #tab-dashboard #dash-net-profit,
+html body #app-shell #tab-dashboard .dash-profit-val {
+    color: var(--md-success) !important;
+    font-size: clamp(20px, 5.5vw, 25px) !important;
+    font-weight: 800 !important;
+}
+
+/* Preserve semantic status icon colors in Order Fulfillment rows */
+html body #app-shell #tab-dashboard .dash-fulfillment-row[data-status="Open"] .material-symbols-outlined {
+    color: var(--md-error) !important;
+}
+html body #app-shell #tab-dashboard .dash-fulfillment-row[data-status="Shipped"] .material-symbols-outlined {
+    color: #f57f17 !important;
+}
+html body #app-shell #tab-dashboard .dash-fulfillment-row[data-status="Completed"] .material-symbols-outlined {
+    color: var(--md-success) !important;
+}
+
+/* Completely borderless Overdue Collections section (no top, bottom, left, or right box border) */
+html body #app-shell #tab-dashboard #overdue-reminders-container.dash-overdue-card,
+html body.dark-mode #app-shell #tab-dashboard #overdue-reminders-container.dash-overdue-card {
+    border: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+    padding: 16px !important;
+}
+
+/* 2. GLOBAL ACTIVITY SCREEN & HEADER ALIGNMENT
+      Targets .activity-screen directly (since activity screens are siblings of #app-shell) */
+html body .activity-screen {
+    animation: none !important;
+    transform: translateX(100%) !important;
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+html body .activity-screen.open {
+    transform: translateX(0) !important;
+}
+
+/* Keep smooth fade-up animation strictly on main tab switches */
+html body .screen-section.active-screen {
+    animation: nativeFadeIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) forwards !important;
+}
+
+html body .activity-screen > .activity-header {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    width: 100% !important;
+    min-height: 64px !important;
+    flex-shrink: 0 !important;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 12px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    box-sizing: border-box !important;
+    z-index: 105 !important;
+}
+
+html body.dark-mode .activity-screen > .activity-header {
+    background: rgba(18, 18, 18, 0.88) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Flush content top padding where search bars or edge-to-edge form sheets attach directly */
+html body .activity-screen > .activity-content {
+    padding-top: 16px !important;
+    margin-top: 0 !important;
+}
+
+html body #activity-master-view > .activity-content,
+html body #activity-invoice-overview > .activity-content,
+html body #activity-sales-form > .activity-content,
+html body #activity-purchase-form > .activity-content,
+html body #activity-expense-form > .activity-content,
+html body #activity-product-form > .activity-content,
+html body #activity-ledger-form > .activity-content,
+html body #activity-account-form > .activity-content,
+html body #activity-expense-ledger > .activity-content,
+html body #activity-report-viewer > .activity-content,
+html body #activity-payment-in-form > .activity-content,
+html body #activity-payment-out-form > .activity-content,
+html body #activity-item-ledger > .activity-content {
+    padding-top: 0 !important;
+}
+
+html body #form-sales > .m3-card:first-of-type {
+    margin-top: 0 !important;
+    border-left: 4px solid var(--md-primary) !important;
+}
+
+html body #form-purchase > .m3-card:first-of-type {
+    margin-top: 0 !important;
+    border-left: 4px solid #d84315 !important;
+}
+
+/* Ensure hidden action icons inside activity headers stay hidden */
+html body .activity-screen .activity-header .hidden {
+    display: none !important;
+}
+
+/* 3. CENTERED MODALS & FLOATING SHEETS (OUTSIDE #app-shell)
+      Restores centered card layout for all 10 .centered-modal dialogs
+      and removes duplicate drag-handle pills! */
+html body .bottom-sheet .sheet-header::before {
+    display: none !important;
+}
+
+html body .bottom-sheet[data-no-swipe="true"]::before,
+html body .bottom-sheet.centered-modal::before {
+    display: none !important;
+}
+
+html body .bottom-sheet[data-no-swipe="true"]:not(.centered-modal) {
+    border-radius: 16px !important;
+    padding-top: 0 !important;
+}
+
+html body .bottom-sheet.centered-modal {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    bottom: auto !important;
+    right: auto !important;
+    width: 90% !important;
+    max-width: 360px !important;
+    height: auto !important;
+    max-height: 85vh !important;
+    padding: 0 !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border-radius: 24px !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 28px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+    transform: translate(-50%, -44%) scale(0.95) !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
+}
+
+html body .bottom-sheet.centered-modal.open {
+    transform: translate(-50%, -50%) scale(1) !important;
+    opacity: 1 !important;
+}
+
+html body.dark-mode .bottom-sheet.centered-modal {
+    background: rgba(24, 24, 27, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 28px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ==========================================
+   ✨ UNIFIED STICKY GLASS TOP (HEADER + SEARCH BAR)
+   ========================================== */
+.sticky-glass-top {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 105 !important;
+    margin: 0 -16px 12px -16px !important;
+    background: rgba(255, 255, 255, 0.65) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+}
+
+body.dark-mode .sticky-glass-top {
+    background: rgba(18, 18, 18, 0.65) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Make the inner header and search bar transparent so they share the single glass pane */
+.sticky-glass-top .activity-header,
+.sticky-glass-top .search-bar,
+html body #activity-master-view .sticky-glass-top .activity-header,
+html body #activity-master-view .sticky-glass-top .search-bar,
+html body #activity-expense-ledger .sticky-glass-top .activity-header,
+html body #activity-expense-ledger .sticky-glass-top .search-bar {
+    position: relative !important;
+    top: auto !important;
+    margin: 0 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    border: none !important;
 }

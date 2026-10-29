@@ -674,6 +674,12 @@ const UI = {
                 UI.state.activeActivity = 'sales';
             } else if (activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = 'purchase';
+            } else if (activityId === 'activity-payment-in-form' && (!window.app || !window.app.state.currentReceiptId)) {
+                const disp = document.getElementById('pay-in-bills-display');
+                if (disp) { disp.innerText = 'Advance / On Account'; disp.style.color = 'var(--md-text-muted)'; }
+            } else if (activityId === 'activity-payment-out-form' && (!window.app || !window.app.state.currentReceiptId)) {
+                const disp = document.getElementById('pay-out-bills-display');
+                if (disp) { disp.innerText = 'Advance / On Account'; disp.style.color = 'var(--md-text-muted)'; }
             }
         };
 
@@ -704,6 +710,13 @@ const UI = {
                 
                 if (activityId === 'activity-sales-form') UI.state.activeActivity = 'sales';
                 else if (activityId === 'activity-purchase-form') UI.state.activeActivity = 'purchase';
+                else if (activityId === 'activity-payment-in-form' && (!window.app || !window.app.state.currentReceiptId)) {
+                    const disp = document.getElementById('pay-in-bills-display');
+                    if (disp) { disp.innerText = 'Advance / On Account'; disp.style.color = 'var(--md-text-muted)'; }
+                } else if (activityId === 'activity-payment-out-form' && (!window.app || !window.app.state.currentReceiptId)) {
+                    const disp = document.getElementById('pay-out-bills-display');
+                    if (disp) { disp.innerText = 'Advance / On Account'; disp.style.color = 'var(--md-text-muted)'; }
+                }
             });
             
             transition.finished.then(() => {
@@ -767,6 +780,11 @@ const UI = {
             
             if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
                 UI.state.activeActivity = null;
+                window.salesObservableItems = null;
+                window.purchaseObservableItems = null;
+            }
+            if ((activityId === 'activity-payment-in-form' || activityId === 'activity-payment-out-form') && window.app && window.app.state) {
+                window.app.state.currentReceiptId = null;
             }
             
             // 🚨 STABILITY FIX: Auto-Heal the Parent Invoice!
@@ -920,8 +938,7 @@ const UI = {
                 const iconBg = adj.type === 'add' ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
 
                 return `
-                <div class="m3-card" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;">
-                    
+                <div class="m3-card" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                         <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${iconColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
@@ -929,19 +946,14 @@ const UI = {
                         <div style="flex: 1; min-width: 0; padding-right: 8px;">
                             <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${safeProdName}</strong>
                             <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(adj.date)} | ${safeNotes}</small>
+                            ${poolBadge ? `<div style="margin-top: 6px;">${poolBadge}</div>` : ''}
                         </div>
-                        <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                        <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
                             <strong style="font-size: 16px; color: ${color}; line-height: 1.2;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
-                        </div>
-                    </div>
-
-                    <div style="display: flex; justify-content: space-between; align-items: center; min-height: 36px;">
-                        <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
-                            ${poolBadge}
-                        </div>
-                        <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
-                                <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+                            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
+                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="width: 34px; height: 34px; border-radius: 50%; color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                    <span class="material-symbols-outlined" style="font-size: 19px;">history</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1038,14 +1050,18 @@ const UI = {
         if (status === 'Shipped' || status === 'Unpaid' || (type === 'purchase' && status !== 'Open')) {
             if (shippedGroup) shippedGroup.classList.remove('hidden');
             
-            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date to Today (ONLY if blank!)
-            if (shippedInput && !shippedInput.value) {
+            // 🚨 ENTERPRISE FIX: Auto-set Dispatched Date to Today if either the hidden input OR mobile box is blank!
+            const isMobileBlank = shippedInput && shippedInput._flatpickr && shippedInput._flatpickr.mobileInput && !shippedInput._flatpickr.mobileInput.value;
+            if (shippedInput && (!shippedInput.value || isMobileBlank)) {
                 const todayStr = (window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0];
                 shippedInput.value = todayStr;
-                // Force the calendar UI to update so it isn't visually blank!
-                if (shippedInput._flatpickr) shippedInput._flatpickr.setDate(todayStr, false);
+                // Force both Flatpickr and its mobile input clone to display today's date!
+                if (shippedInput._flatpickr) {
+                    shippedInput._flatpickr.setDate(todayStr, false);
+                    if (shippedInput._flatpickr.mobileInput) shippedInput._flatpickr.mobileInput.value = todayStr;
+                }
             }
-        } 
+        }
         
         if (status === 'Completed') {
             // Keep the shipped date visible to retain history, but let them edit it!
@@ -1106,8 +1122,11 @@ const UI = {
                 }
                 
                 completedInput.value = bestDate;
-                // 🚨 CRITICAL FIX: Force the Calendar UI to actually draw the date!
-                if (completedInput._flatpickr) completedInput._flatpickr.setDate(bestDate, false);
+                // 🚨 CRITICAL FIX: Force both Flatpickr and its mobile input clone to draw the date!
+                if (completedInput._flatpickr) {
+                    completedInput._flatpickr.setDate(bestDate, false);
+                    if (completedInput._flatpickr.mobileInput) completedInput._flatpickr.mobileInput.value = bestDate;
+                }
             }
         }
     },
@@ -1714,32 +1733,30 @@ const UI = {
                     }
                     const attentionClass = isOverdue ? 'requires-attention' : '';
                     
-                    const warningHTML = isOverdue ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">⚠️ OVERDUE: ${exactDays}D</span>` : '';
+                    const warningHTML = isOverdue ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:3px 7px; border-radius:5px; display:inline-block;">⚠️ OVERDUE: ${exactDays}D</span>` : '';
                     
                     return `
-                    <div class="m3-card tap-target list-card ${attentionClass}" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="window.openInvoiceOverview('sales', '${s.id}')">
-                        
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                            <div style="flex:1; min-width:0; overflow:hidden;">
-                                <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(CR)</span>' : ''}</strong>
-                                <span style="display:block; color: var(--md-text-muted); margin-top:4px; font-size: 12px; font-weight: 600;">${s.orderNo || s.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</span>
-                            </div>
-                            <div style="display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0;">
-                                <strong style="font-size:16px; color:${isReturn ? 'var(--md-error)' : 'var(--md-on-surface)'}; line-height:1.2;">${isReturn ? '-' : ''}\u20B9${(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
-                                <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; display: inline-block;">${statusText}</span>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-                            <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
-                                ${warningHTML}
-                            </div>
-                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('sales', '${s.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(22, 163, 74, 0.1); color: #16a34a; display: flex; align-items: center; justify-content: center;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                    <div class="m3-card tap-target list-card ${attentionClass}" style="padding: 13px 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="window.openInvoiceOverview('sales', '${s.id}')">
+                        <div style="display: flex; justify-content: space-between; align-items: stretch; gap: 12px;">
+                            <div style="flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div>
+                                    <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700; line-height: 1.25;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(CR)</span>' : ''}</strong>
+                                    <span style="display: block; color: var(--md-text-muted); margin-top: 3px; font-size: 12px; font-weight: 600;">${s.orderNo || s.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</span>
                                 </div>
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+                                    <div class="tap-target" title="Share on WhatsApp" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('sales', '${s.id}')" style="width: 24px; height: 24px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                                    </div>
+                                    <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 24px; height: 24px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                                        <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; text-align: right;">
+                                <strong style="font-size: 16px; color: ${isReturn ? 'var(--md-error)' : 'var(--md-on-surface)'}; line-height: 1.2; font-variant-numeric: tabular-nums;">${isReturn ? '-' : ''}\u20B9${(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
+                                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                                    <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; display: inline-block; white-space: nowrap;">${statusText}</span>
+                                    ${warningHTML}
                                 </div>
                             </div>
                         </div>
@@ -1887,32 +1904,30 @@ const UI = {
                             const attentionClass = (p.status === 'Open') ? 'requires-attention' : '';
                             
                             // 🚨 ENTERPRISE UX: Fixed-height structural grid for perfect uniformity!
-                            const warningHTML = (p.status === 'Open') ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">⚠️ DRAFT PO</span>` : '';
+                            const warningHTML = (p.status === 'Open') ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:3px 7px; border-radius:5px; display:inline-block;">⚠️ DRAFT PO</span>` : '';
                             
                             return `
-<div class="m3-card tap-target list-card ${attentionClass}" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="window.openInvoiceOverview('purchase', '${p.id}')">
-    
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-        <div style="flex:1; min-width:0; overflow:hidden;">
-            <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(DR)</span>' : ''}</strong>
-            <span style="display:block; color: var(--md-text-muted); margin-top:4px; font-size: 12px; font-weight: 600;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(p.date) || 'Unknown Date'}</span>
-        </div>
-        <div style="display:flex; flex-direction:column; align-items:flex-end; flex-shrink:0;">
-            <strong style="font-size:16px; color:${isReturn ? 'var(--md-success)' : 'var(--md-on-surface)'}; line-height:1.2;">${isReturn ? '-' : ''}\u20B9${(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
-            <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; display: inline-block;">${statusText}</span>
-        </div>
-    </div>
-
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-        <div style="flex: 1; min-width: 0; display: flex; align-items: center;">
-            ${warningHTML}
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('purchases', '${p.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(22, 163, 74, 0.1); color: #16a34a; display: flex; align-items: center; justify-content: center;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+<div class="m3-card tap-target list-card ${attentionClass}" style="padding: 13px 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="window.openInvoiceOverview('purchase', '${p.id}')">
+    <div style="display: flex; justify-content: space-between; align-items: stretch; gap: 12px;">
+        <div style="flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700; line-height: 1.25;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(DR)</span>' : ''}</strong>
+                <span style="display: block; color: var(--md-text-muted); margin-top: 3px; font-size: 12px; font-weight: 600;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(p.date) || 'Unknown Date'}</span>
             </div>
-            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${p.id}'; window.app.generatePDF('purchase'); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+            <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+                <div class="tap-target" title="Share on WhatsApp" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('purchases', '${p.id}')" style="width: 24px; height: 24px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                </div>
+                <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${p.id}'; window.app.generatePDF('purchase'); }" style="width: 24px; height: 24px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                    <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
+                </div>
+            </div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; text-align: right;">
+            <strong style="font-size: 16px; color: ${isReturn ? 'var(--md-success)' : 'var(--md-on-surface)'}; line-height: 1.2; font-variant-numeric: tabular-nums;">${isReturn ? '-' : ''}\u20B9${(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; display: inline-block; white-space: nowrap;">${statusText}</span>
+                ${warningHTML}
             </div>
         </div>
     </div>
@@ -2075,37 +2090,34 @@ const UI = {
 
                     const safeName = String(i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
-                    <div class="m3-card tap-target" style="padding: 14px 16px; margin-bottom: 10px; border-radius: 12px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); position: relative; overflow: hidden;" onclick="app.openForm('product', '${i.id}')">
-                        
-                        <!-- Top Row: Icon, Name, Price -->
-                        <div style="display: flex; align-items: flex-start; gap: 12px;">
-                            <div class="icon-circle" style="width: 44px; height: 44px; background: rgba(0, 97, 164, 0.08); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
-                                <span class="material-symbols-outlined" style="font-size: 22px;">inventory_2</span>
-                            </div>
-                            
-                            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; padding-top: 2px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-bottom: 6px;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 11px; font-weight: 800; color: ${isLowStock ? 'var(--md-error)' : 'var(--md-text-muted)'}; background: ${isLowStock ? 'rgba(186, 26, 26, 0.08)' : 'var(--md-surface-variant)'}; padding: 2px 6px; border-radius: 4px;">Tot: ${currentStock} ${i.uom || ''}</span>
-                                    <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">GST: ${gstStock} | Non: ${nonGstStock}</span>
-                                </div>
-                            </div>
-                            
-                            <div style="text-align: right; flex-shrink: 0; padding-top: 2px;">
-                                <strong style="font-size: 16px; color: var(--md-on-surface); display: block; margin-bottom: 4px;">₹${(i.sellPrice || 0).toFixed(2)}</strong>
-                                <small style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">Buy: ₹${(i.buyPrice || 0).toFixed(2)}</small>
-                            </div>
-                        </div>
-
-                        <!-- Bottom Row: Minimal Action Icons -->
-                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
-                            <div style="display: flex; gap: 8px;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) { window.triggerItemLedgerFromForm('${i.id}', '${safeName}'); setTimeout(() => { if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                    <div class="m3-card tap-target" style="padding: 12px 16px; margin-bottom: 10px; border-radius: 12px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); position: relative; overflow: hidden;" onclick="app.openForm('product', '${i.id}')">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                                <div class="icon-circle" style="width: 42px; height: 42px; background: rgba(0, 97, 164, 0.08); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
+                                    <span class="material-symbols-outlined" style="font-size: 21px;">inventory_2</span>
                                 </div>
                                 
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${i.id}', '${safeName}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+                                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
+                                    <strong style="font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-bottom: 4px;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
+                                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                        <span style="font-size: 11px; font-weight: 800; color: ${isLowStock ? 'var(--md-error)' : 'var(--md-text-muted)'}; background: ${isLowStock ? 'rgba(186, 26, 26, 0.08)' : 'var(--md-surface-variant)'}; padding: 2px 6px; border-radius: 4px;">Tot: ${currentStock} ${i.uom || ''}</span>
+                                        <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">GST: ${gstStock} | Non: ${nonGstStock}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 6px; flex-shrink: 0;">
+                                <div style="text-align: right;">
+                                    <strong style="font-size: 15.5px; color: var(--md-on-surface); display: block; line-height: 1.15; font-variant-numeric: tabular-nums;">₹${(i.sellPrice || 0).toFixed(2)}</strong>
+                                    <small style="font-size: 10.5px; color: var(--md-text-muted); font-weight: 600;">Buy: ₹${(i.buyPrice || 0).toFixed(2)}</small>
+                                </div>
+                                <div style="display: inline-flex; align-items: center; gap: 10px;">
+                                    <div class="tap-target" title="Download PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) { window.triggerItemLedgerFromForm('${i.id}', '${safeName}'); setTimeout(() => { if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 24px; height: 24px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-end; padding: 0;">
+                                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                    </div>
+                                    <div class="tap-target" title="Stock Log" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${i.id}', '${safeName}')" style="width: 24px; height: 24px; background: transparent; color: var(--md-primary); display: inline-flex; align-items: center; justify-content: flex-end; padding: 0;">
+                                        <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2216,8 +2228,8 @@ const UI = {
                     const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     const cleanPhone = String(l.phone || '').replace(/[^0-9+]/g, '');
                     const callBtn = cleanPhone ? `
-                        <a href="tel:${cleanPhone}" class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation();" style="width: 28px; height: 28px; border-radius: 6px; background: rgba(20, 108, 46, 0.08); color: var(--md-success); display: flex; align-items: center; justify-content: center; text-decoration: none;">
-                            <span class="material-symbols-outlined" style="font-size: 16px;">call</span>
+                        <a href="tel:${cleanPhone}" class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation();" style="width: 28px; height: 28px; color: var(--md-success); display: flex; align-items: center; justify-content: center; text-decoration: none;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">call</span>
                         </a>` : '';
                     return `
                     <div class="m3-card tap-target" style="padding: 10px 16px !important; margin-bottom: 0 !important; border-radius: 0 !important; background: var(--md-surface); border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important; position: relative; overflow: hidden;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
@@ -2237,13 +2249,13 @@ const UI = {
                             
                             <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px;">
                                 <strong style="font-size: 15px; color: ${balColor}; line-height: 1.1;">${balText}</strong>
-                                <div style="display: flex; gap: 6px; align-items: center;">
+                                <div style="display: flex; gap: 10px; align-items: center;">
                                     ${callBtn}
-                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-report-viewer'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 28px; height: 28px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                        <span class="material-symbols-outlined" style="font-size: 16px;">picture_as_pdf</span>
+                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-report-viewer'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 28px; height: 28px; color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                     </div>
-                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 28px; height: 28px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
-                                        <span class="material-symbols-outlined" style="font-size: 16px;">menu_book</span>
+                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 28px; height: 28px; color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 18px;">menu_book</span>
                                     </div>
                                 </div>
                             </div>
@@ -2381,8 +2393,7 @@ const UI = {
                     }
                     
                     return `
-                    <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;" onclick="app.openForm('expense', '${e.id}')">
-                        
+                    <div class="m3-card tap-target" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant);" onclick="app.openForm('expense', '${e.id}')">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                             <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">account_balance_wallet</span>
@@ -2392,15 +2403,12 @@ const UI = {
                                 <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(e.date) || ''} ${displayLink ? `| <span style="color:var(--md-primary);">🔗 ${displayLink}</span>` : ''}</small>
                                 ${e.notes ? `<small style="display: block; margin-top: 4px; color: var(--md-text-muted); font-size: 12px;">${e.notes}</small>` : ''}
                             </div>
-                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
                                 <strong style="font-size: 16px; color: var(--md-error); line-height: 1.2;">-\u20B9${(parseFloat(e.amount) || 0).toFixed(2)}</strong>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
-                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.generateExpenseVoucherPDF('${e.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
+                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.generateExpenseVoucherPDF('${e.id}')" style="width: 34px; height: 34px; border-radius: 50%; color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2583,8 +2591,7 @@ const UI = {
                     const iconBg = isMoneyIn ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
 
                     return `
-                    <div class="m3-card tap-target" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;" onclick="app.openReceipt('${t.id}', '${t.type}')">
-                        
+                    <div class="m3-card tap-target" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant);" onclick="app.openReceipt('${t.id}', '${t.type}')">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                             <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${rowColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
@@ -2594,15 +2601,12 @@ const UI = {
                                 <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(t.date)} ${displayLink ? `| <span style="color:var(--md-primary);">🔗 ${displayLink}</span>` : ''}</small>
                                 ${thirdLine}
                             </div>
-                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-start;">
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
                                 <strong style="font-size: 16px; color: ${rowColor}; line-height: 1.2;">${isMoneyIn ? '+' : '-'}\u20B9${(parseFloat(t.amount) || 0).toFixed(2)}</strong>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 8px;">
-                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0;">
-                                <div class="tap-target" onclick="event.stopPropagation(); if(window.app) window.app.generateReceiptPDF('${t.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
+                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) window.app.generateReceiptPDF('${t.id}')" style="width: 34px; height: 34px; border-radius: 50%; color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2746,8 +2750,8 @@ const UI = {
                             }
 
                             return `
-                            <div class="m3-card ${tapClass}" ${clickAction} style="padding: 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
-                                <div style="display:flex; align-items:flex-start; gap: 12px;">
+                            <div class="m3-card ${tapClass}" ${clickAction} style="padding: 14px 16px; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: flex-start; gap: 12px;">
                                     <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                         <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
                                     </div>
@@ -2756,17 +2760,19 @@ const UI = {
                                         <small style="color: var(--md-text-muted); display: block; margin-top: 2px;">${window.Utils.formatDateDisplay(t.date)} ${t.partyName ? '| ' + t.partyName : ''}</small>
                                         ${t.ref ? `<div style="color: var(--md-text-muted); font-size: 11px; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.4;">Ref: ${t.ref}</div>` : ''}
                                     </div>
-                                    <div style="text-align:right;">
-                                        <strong style="font-size: 14px; color: ${amtColor};">${sign}\u20B9${Math.abs(t.amount || 0).toFixed(2)}</strong><br>
-                                        <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                    <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
+                                        <div>
+                                            <strong style="font-size: 14px; color: ${amtColor};">${sign}\u20B9${Math.abs(t.amount || 0).toFixed(2)}</strong><br>
+                                            <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                        </div>
+                                        ${t.id !== 'open-bal' ? `
+                                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
+                                            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); ${pdfAction}" style="width: 34px; height: 34px; border-radius: 50%; color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                                <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
+                                            </div>
+                                        </div>` : ''}
                                     </div>
                                 </div>
-                                ${t.id !== 'open-bal' ? `
-                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px;">
-                                    <div class="tap-target" onclick="event.stopPropagation(); ${pdfAction}" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
-                                    </div>
-                                </div>` : ''}
                             </div>`;
                         } else {
                             // 👤 PARTY LEDGER RENDER
@@ -2800,26 +2806,28 @@ const UI = {
                             }
 
                             return `
-                            <div class="m3-card ${tapClass}" ${clickAction} style="padding: 12px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
-                                <div style="display:flex; align-items:flex-start; gap: 12px;">
+                            <div class="m3-card ${tapClass}" ${clickAction} style="padding: 14px 16px; margin-bottom: 8px;">
+                                <div style="display: flex; align-items: flex-start; gap: 12px;">
                                     <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                         <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
                                     </div>
-                                    <div style="flex: 1;">
-                                        <strong class="large-text">${t.desc}</strong><br>
-                                        <small style="color: var(--md-text-muted);">${window.Utils.formatDateDisplay(t.date)}</small>
+                                    <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                        <strong class="large-text" style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.desc}</strong>
+                                        <small style="color: var(--md-text-muted); display: block; margin-top: 2px;">${window.Utils.formatDateDisplay(t.date)}</small>
                                     </div>
-                                    <div style="text-align:right;">
-                                        <strong style="font-size: 14px; color: ${amtColor};">${t.isInvoice ? '+' : '-'}\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
-                                        <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                    <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
+                                        <div>
+                                            <strong style="font-size: 14px; color: ${amtColor};">${t.isInvoice ? '+' : '-'}\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
+                                            <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                        </div>
+                                        ${t.id !== 'open-bal' ? `
+                                        <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
+                                            <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); ${pdfAction}" style="width: 34px; height: 34px; border-radius: 50%; color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                                <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
+                                            </div>
+                                        </div>` : ''}
                                     </div>
                                 </div>
-                                ${t.id !== 'open-bal' ? `
-                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px;">
-                                    <div class="tap-target" onclick="event.stopPropagation(); ${pdfAction}" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
-                                    </div>
-                                </div>` : ''}
                             </div>`;
                         }
                     } else {
@@ -3861,12 +3869,33 @@ const UI = {
 
         if (typeof app !== 'undefined') {
             if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
+                if (app.state && app.state.currentDocType === 'return') {
+                    const tbody = document.getElementById(`${prefix}-items-body`);
+                    if (tbody) tbody.innerHTML = '';
+                    window[`${prefix}ObservableItems`] = null;
+                }
                 app.loadOriginalDocuments(id, prefix);
                 if (typeof app.updateInlineInsights === 'function') app.updateInlineInsights(id, prefix);
             } else if (prefix === 'pay-in' && typeof app.loadPendingInvoices === 'function') {
-                await app.loadPendingInvoices(id, 'in'); // Added await
+                const disp = document.getElementById('pay-in-bills-display');
+                if (disp) { disp.innerText = 'Advance / On Account'; disp.style.color = 'var(--md-text-muted)'; }
+                const filt = document.getElementById('pay-in-bill-filter');
+                if (filt) filt.value = 'All';
+                const refEl = document.getElementById('pay-in-invoice-ref');
+                if (refEl) { refEl.innerHTML = '<option value="">On Account / Advance</option>'; refEl.selectedIndex = -1; }
+                const amtEl = document.getElementById('pay-in-amount');
+                if (amtEl && (!window.app || !window.app.state.currentReceiptId)) amtEl.value = '';
+                await app.loadPendingInvoices(id, 'in');
             } else if (prefix === 'pay-out' && typeof app.loadPendingInvoices === 'function') {
-                await app.loadPendingInvoices(id, 'out'); // Added await
+                const disp = document.getElementById('pay-out-bills-display');
+                if (disp) { disp.innerText = 'Advance / On Account'; disp.style.color = 'var(--md-text-muted)'; }
+                const filt = document.getElementById('pay-out-bill-filter');
+                if (filt) filt.value = 'All';
+                const refEl = document.getElementById('pay-out-invoice-ref');
+                if (refEl) { refEl.innerHTML = '<option value="">On Account / Advance</option>'; refEl.selectedIndex = -1; }
+                const amtEl = document.getElementById('pay-out-amount');
+                if (amtEl && (!window.app || !window.app.state.currentReceiptId)) amtEl.value = '';
+                await app.loadPendingInvoices(id, 'out');
             } else if (typeId === 'tax-report' && typeof app.generatePartyTaxReport === 'function') {
                 app.generatePartyTaxReport(); // 🚨 NEW: Trigger Tax Report Math
             } else if (typeId === 'item-ledger-party' && typeof window.triggerItemLedgerFromForm === 'function') {
@@ -3916,7 +3945,7 @@ const UI = {
 
             return { 
                 price: lastRate, 
-                msg: `<div style="margin-top: 8px;"><span class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${itemId}', '${itemName}');" style="color: #0061a4; font-weight: 600; font-size: 11px; background: #e3f2fd; padding: 4px 12px; border-radius: 12px; border: 1px solid #90caf9; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">history</span> Last sold: ₹${lastRate} on ${dateStr}</span></div>` 
+                msg: `<div style="margin-top: 6px;"><span class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${itemId}', '${itemName}');" style="color: var(--md-primary); font-weight: 700; font-size: 11px; background: transparent; padding: 2px 0; border-radius: 4px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 14px;">history</span> Last sold: ₹${lastRate} on ${dateStr}</span></div>` 
             };
         }
         return { price: defaultPrice, msg: '' };
@@ -4105,12 +4134,33 @@ const UI = {
 
         if (typeof app !== 'undefined') {
             if ((prefix === 'sales' || prefix === 'purchase') && typeof app.loadOriginalDocuments === 'function') {
+                if (app.state && app.state.currentDocType === 'return') {
+                    const tbody = document.getElementById(`${prefix}-items-body`);
+                    if (tbody) tbody.innerHTML = '';
+                    window[`${prefix}ObservableItems`] = null;
+                }
                 app.loadOriginalDocuments(id, prefix);
                 if (typeof app.updateInlineInsights === 'function') app.updateInlineInsights(id, prefix);
             } else if (prefix === 'pay-in' && typeof app.loadPendingInvoices === 'function') {
-                await app.loadPendingInvoices(id, 'in'); // ENTERPRISE FIX: Added await!
+                const disp = document.getElementById('pay-in-bills-display');
+                if (disp) { disp.innerText = 'Advance / On Account'; disp.style.color = 'var(--md-text-muted)'; }
+                const filt = document.getElementById('pay-in-bill-filter');
+                if (filt) filt.value = 'All';
+                const refEl = document.getElementById('pay-in-invoice-ref');
+                if (refEl) { refEl.innerHTML = '<option value="">On Account / Advance</option>'; refEl.selectedIndex = -1; }
+                const amtEl = document.getElementById('pay-in-amount');
+                if (amtEl && (!window.app || !window.app.state.currentReceiptId)) amtEl.value = '';
+                await app.loadPendingInvoices(id, 'in');
             } else if (prefix === 'pay-out' && typeof app.loadPendingInvoices === 'function') {
-                await app.loadPendingInvoices(id, 'out'); // ENTERPRISE FIX: Added await!
+                const disp = document.getElementById('pay-out-bills-display');
+                if (disp) { disp.innerText = 'Advance / On Account'; disp.style.color = 'var(--md-text-muted)'; }
+                const filt = document.getElementById('pay-out-bill-filter');
+                if (filt) filt.value = 'All';
+                const refEl = document.getElementById('pay-out-invoice-ref');
+                if (refEl) { refEl.innerHTML = '<option value="">On Account / Advance</option>'; refEl.selectedIndex = -1; }
+                const amtEl = document.getElementById('pay-out-amount');
+                if (amtEl && (!window.app || !window.app.state.currentReceiptId)) amtEl.value = '';
+                await app.loadPendingInvoices(id, 'out');
             }
         }
 
@@ -4605,10 +4655,18 @@ const UI = {
 
         let outputTax = 0; let inputTax = 0;
         (UI.state.rawData.sales || []).forEach(s => {
-            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) outputTax += (parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0);
+            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
+                const mult = s.documentType === 'return' ? -1 : 1;
+                const gst = parseFloat(s.totalGst) || ((parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0));
+                outputTax += Math.abs(gst) * mult;
+            }
         });
         (UI.state.rawData.purchases || []).forEach(p => {
-            if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date <= asOfDate && (!activeFirmId || p.firmId === activeFirmId)) inputTax += (parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0);
+            if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date <= asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
+                const mult = p.documentType === 'return' ? -1 : 1;
+                const gst = parseFloat(p.totalGst) || ((parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0));
+                inputTax += Math.abs(gst) * mult;
+            }
         });
 
         let netTaxLiability = 0; let netTaxReceivable = 0;
@@ -6588,103 +6646,215 @@ window.openInvoiceOverview = function(type, id) {
             notesHTML += `</div>`;
         }
 
-        // 6.6. PROGRESS BAR MATH
+        // 6.6. PROGRESS BAR, WATERMARK STAMP & LIFECYCLE TIMELINE MATH
         const percentPaid = grandTotal > 0 ? Math.min(100, (totalPaid / grandTotal) * 100) : (balance <= 0.01 && statusText === 'Paid' ? 100 : 0);
+
+        // Status Watermark Stamp & Document Badge
+        let stampText = 'UNPAID';
+        let stampColor = '#0061a4';
+        if (doc.status === 'Cancelled') { stampText = 'CANCELLED'; stampColor = '#dc2626'; }
+        else if (doc.documentType === 'return') { stampText = isSales ? 'CREDIT NOTE' : 'DEBIT NOTE'; stampColor = '#7c3aed'; }
+        else if (statusText === 'Paid') { stampText = 'PAID'; stampColor = '#16a34a'; }
+        else if (statusText === 'Partially Paid') { stampText = 'PARTIAL'; stampColor = '#ea580c'; }
+        else if (statusText === 'Overdue') { stampText = 'OVERDUE'; stampColor = '#dc2626'; }
+        else if (doc.status === 'Open') { stampText = 'DRAFT'; stampColor = '#64748b'; }
+
+        const docTypeBadge = doc.documentType === 'return'
+            ? (isSales ? 'Credit Note' : 'Debit Note')
+            : (doc.status === 'Open' ? (isSales ? 'Draft Estimate' : 'Draft PO') : (isSales ? (isNonGST ? 'Bill of Supply' : 'Tax Invoice') : 'Purchase Bill'));
+
+        // 3-Step Visual Lifecycle Timeline (Created -> Dispatched -> Settled)
+        const step1Done = true;
+        const step2Done = Boolean(safeShipDate || doc.status === 'Shipped' || doc.status === 'Completed' || statusText === 'Paid');
+        const step3Done = Boolean(statusText === 'Paid' || doc.status === 'Completed');
+        const step1Sub = safeOrdDate || safeInvDate || 'Saved';
+        const step2Sub = safeShipDate || (step2Done ? 'Dispatched' : 'Pending');
+        const step3Sub = safePaidDate || safeCompDate || (step3Done ? 'Settled' : (balance > 0.01 ? 'Due' : 'Pending'));
 
         // 6.7. QUICK ACTION BUTTONS (1-Click Workflow)
         let quickActionHTML = '';
         if (doc.status === 'Open') {
             quickActionHTML = `
-            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; margin-bottom: 8px; display: flex; gap: 8px;">
-                <button class="btn-primary tap-target" style="flex: 1; padding: 12px; border-radius: 8px; font-weight: 900; background: var(--md-primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,97,164,0.2);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Unpaid')">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">task_alt</span> Finalize Document
+            <div style="padding: 12px 16px; border-bottom: 1px dashed var(--md-outline-variant); background: rgba(0, 97, 164, 0.03); display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: var(--md-primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(0,97,164,0.22);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Unpaid')">
+                    <span class="material-symbols-outlined" style="font-size: 19px;">task_alt</span> Finalize Document
                 </button>
             </div>`;
         } else if (doc.status === 'Unpaid' && !safeShipDate && doc.status !== 'Completed' && doc.status !== 'Cancelled') {
             quickActionHTML = `
-            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; margin-bottom: 8px; display: flex; gap: 8px;">
-                <button class="btn-primary tap-target" style="flex: 1; padding: 12px; border-radius: 8px; font-weight: 900; background: #f57f17; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(245,127,23,0.2);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Shipped')">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">local_shipping</span> Mark as Dispatched
+            <div style="padding: 12px 16px; border-bottom: 1px dashed var(--md-outline-variant); background: rgba(245, 127, 23, 0.04); display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: #f57f17; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(245,127,23,0.22);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Shipped')">
+                    <span class="material-symbols-outlined" style="font-size: 19px;">local_shipping</span> Mark as Dispatched
                 </button>
             </div>`;
         } else if ((doc.status === 'Unpaid' || doc.status === 'Shipped') && safeShipDate && !safeCompDate && doc.status !== 'Completed' && doc.status !== 'Cancelled') {
             quickActionHTML = `
-            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); padding: 12px 16px; margin-bottom: 8px; display: flex; gap: 8px;">
-                <button class="btn-primary tap-target" style="flex: 1; padding: 12px; border-radius: 8px; font-weight: 900; background: #16a34a; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 6px rgba(22,163,74,0.2);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Completed')">
-                    <span class="material-symbols-outlined" style="font-size: 20px;">done_all</span> Mark as Completed
+            <div style="padding: 12px 16px; border-bottom: 1px dashed var(--md-outline-variant); background: rgba(22, 163, 74, 0.04); display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: #16a34a; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(22,163,74,0.22);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Completed')">
+                    <span class="material-symbols-outlined" style="font-size: 19px;">done_all</span> Mark as Completed
                 </button>
             </div>`;
         }
 
-        // 7. ASSEMBLE EDGE-TO-EDGE HTML
+        // 7. ASSEMBLE DIGITAL PAPER RECEIPT CARD HTML
         const contentEl = document.getElementById('overview-main-content');
         contentEl.innerHTML = `
-            <!-- Full-Width Status Banner -->
-            <div style="background: ${sBg}; color: ${sColor}; text-align: center; padding: 8px 16px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--md-outline-variant);">
-                ${bannerStatusText}
-            </div>
+            <style>
+                #overview-main-content .receipt-aux-wrap > div {
+                    border-radius: 16px !important;
+                    border: 1px solid var(--md-outline-variant) !important;
+                    background: var(--md-surface) !important;
+                    overflow: hidden !important;
+                    margin-bottom: 12px !important;
+                    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+                }
+                #overview-main-content .receipt-aux-wrap > div > div:first-child {
+                    padding-top: 12px !important;
+                }
+                #overview-main-content .receipt-aux-wrap .tap-target:last-child {
+                    border-bottom: none !important;
+                }
+            </style>
 
-            <!-- Edge-to-Edge Hero Card -->
-            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); padding: 16px; text-align: center; margin-bottom: 8px;">
-                <h2 style="font-size: 28px; margin: 0 0 4px 0; color: var(--md-primary); letter-spacing: -0.5px;">₹${grandTotal.toFixed(2)}</h2>
-                <small style="color: var(--md-text-muted);">Balance Due: <strong style="color: var(--md-error);">₹${balance.toFixed(2)}</strong></small>
+            <!-- Digital Paper Receipt Card -->
+            <div style="margin: 14px 16px 14px 16px; background: var(--md-surface); border-radius: 20px; border: 1px solid var(--md-outline-variant); box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.03); overflow: hidden; position: relative;">
                 
-                <!-- Visual Progress Bar -->
-                ${grandTotal > 0 ? `
-                <div style="width: 100%; max-width: 250px; margin: 12px auto 0; background: var(--md-surface-variant); border-radius: 4px; height: 6px; overflow: hidden;">
-                    <div style="width: ${percentPaid}%; height: 100%; background: var(--md-success); transition: width 0.5s ease;"></div>
-                </div>
-                <div style="font-size: 10px; color: var(--md-success); margin-top: 4px; font-weight: 800;">${percentPaid.toFixed(0)}% PAID</div>
-                ` : ''}
-
-                <div style="margin-top: 16px; text-align: left;">
-                    <small style="color: var(--md-text-muted); font-size: 10px; text-transform: uppercase; display: block; margin-bottom: 4px; font-weight: 800; letter-spacing: 0.5px;">Billed To</small>
-                    <div class="tap-target" 
-                         style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; margin-left: -10px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); cursor: pointer; border: 1px solid rgba(0, 97, 164, 0.15);" 
-                         onclick="if(window.app) window.app.openPartyLedger('${partyId}', '${isSales ? 'Customer' : 'Supplier'}', '${String(partyName).replace(/'/g, "\\'").replace(/"/g, "&quot;")}')">
-                        <strong style="color: var(--md-primary); font-size: 15px;">${partyName}</strong>
-                        <span class="material-symbols-outlined" style="font-size: 16px; color: var(--md-primary);">open_in_new</span>
+                <!-- Top Status Ribbon -->
+                <div style="background: ${sBg}; color: ${sColor}; padding: 9px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;">
+                        <span style="width: 7px; height: 7px; border-radius: 50%; background: ${sColor}; display: inline-block;"></span>
+                        ${bannerStatusText}
                     </div>
-                    ${dateGridHTML}
+                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.65); color: ${sColor}; border: 1px solid rgba(0,0,0,0.05);">${docTypeBadge}</span>
+                </div>
+
+                <!-- Receipt Hero Header + Rotated Watermark Stamp -->
+                <div style="padding: 18px 16px 16px 16px; position: relative; overflow: hidden; border-bottom: 1px dashed var(--md-outline-variant);">
+                    
+                    <!-- Ink Watermark Stamp -->
+                    <div style="position: absolute; top: 16px; right: 14px; transform: rotate(-12deg); border: 2.5px solid ${stampColor}; color: ${stampColor}; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.18; pointer-events: none; user-select: none; box-shadow: inset 0 0 0 1px ${stampColor};">
+                        ${stampText}
+                    </div>
+
+                    <div style="text-align: left;">
+                        <small style="color: var(--md-text-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 2px;">Total Invoice Value</small>
+                        <h2 style="font-size: 30px; font-weight: 900; margin: 0 0 6px 0; color: var(--md-primary); letter-spacing: -0.6px; font-variant-numeric: tabular-nums;">₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h2>
+                        
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-size: 12px; color: var(--md-text-muted);">Balance Due: <strong style="color: ${balance > 0.01 ? 'var(--md-error)' : 'var(--md-success)'}; font-variant-numeric: tabular-nums;">₹${balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></span>
+                            ${grandTotal > 0 ? `<span style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: rgba(22, 163, 74, 0.1); color: var(--md-success);">${percentPaid.toFixed(0)}% PAID</span>` : ''}
+                        </div>
+
+                        ${grandTotal > 0 ? `
+                        <div style="width: 100%; margin: 10px 0 0 0; background: var(--md-surface-variant); border-radius: 999px; height: 6px; overflow: hidden;">
+                            <div style="width: ${percentPaid}%; height: 100%; background: linear-gradient(90deg, #16a34a, #22c55e); border-radius: 999px; transition: width 0.5s ease;"></div>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Billed To Party Pill & Dates -->
+                    <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--md-outline-variant); text-align: left;">
+                        <small style="color: var(--md-text-muted); font-size: 10px; text-transform: uppercase; display: block; margin-bottom: 6px; font-weight: 800; letter-spacing: 0.6px;">${isSales ? 'Billed To Party' : 'Supplier Party'}</small>
+                        <div class="tap-target" 
+                             style="display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 10px; background: rgba(0, 97, 164, 0.07); cursor: pointer; border: 1px solid rgba(0, 97, 164, 0.16); max-width: 100%;" 
+                             onclick="if(window.app) window.app.openPartyLedger('${partyId}', '${isSales ? 'Customer' : 'Supplier'}', '${String(partyName).replace(/'/g, "\\'").replace(/"/g, "&quot;")}')">
+                            <span class="material-symbols-outlined" style="font-size: 17px; color: var(--md-primary);">storefront</span>
+                            <strong style="color: var(--md-primary); font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${partyName}</strong>
+                            <span class="material-symbols-outlined" style="font-size: 15px; color: var(--md-primary);">open_in_new</span>
+                        </div>
+                        ${dateGridHTML}
+                    </div>
+                </div>
+
+                <!-- 3-Step Visual Lifecycle Timeline Strip -->
+                <div style="padding: 12px 16px; background: color-mix(in srgb, var(--md-surface-variant) 45%, transparent); border-bottom: 1px dashed var(--md-outline-variant);">
+                    <div style="display: flex; align-items: center; justify-content: space-between; position: relative;">
+                        <!-- Step 1: Created -->
+                        <div style="display: flex; flex-direction: column; align-items: flex-start; z-index: 2; flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span class="material-symbols-outlined" style="font-size: 16px; color: #16a34a; font-variation-settings: 'FILL' 1;">check_circle</span>
+                                <span style="font-size: 11px; font-weight: 800; color: var(--md-on-surface);">Created</span>
+                            </div>
+                            <small style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">${step1Sub}</small>
+                        </div>
+
+                        <!-- Connector 1 -> 2 -->
+                        <div style="flex: 0.6; height: 2px; background: ${step2Done ? '#16a34a' : 'var(--md-outline-variant)'}; margin: -12px 4px 0 4px; border-radius: 2px;"></div>
+
+                        <!-- Step 2: Dispatched -->
+                        <div style="display: flex; flex-direction: column; align-items: center; z-index: 2; flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span class="material-symbols-outlined" style="font-size: 16px; color: ${step2Done ? '#16a34a' : 'var(--md-text-muted)'}; font-variation-settings: 'FILL' ${step2Done ? 1 : 0};">${step2Done ? 'local_shipping' : 'schedule'}</span>
+                                <span style="font-size: 11px; font-weight: 800; color: ${step2Done ? 'var(--md-on-surface)' : 'var(--md-text-muted)'};">Dispatched</span>
+                            </div>
+                            <small style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">${step2Sub}</small>
+                        </div>
+
+                        <!-- Connector 2 -> 3 -->
+                        <div style="flex: 0.6; height: 2px; background: ${step3Done ? '#16a34a' : 'var(--md-outline-variant)'}; margin: -12px 4px 0 4px; border-radius: 2px;"></div>
+
+                        <!-- Step 3: Settled -->
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; z-index: 2; flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span class="material-symbols-outlined" style="font-size: 16px; color: ${step3Done ? '#16a34a' : 'var(--md-text-muted)'}; font-variation-settings: 'FILL' ${step3Done ? 1 : 0};">${step3Done ? 'verified' : 'pending'}</span>
+                                <span style="font-size: 11px; font-weight: 800; color: ${step3Done ? 'var(--md-on-surface)' : 'var(--md-text-muted)'};">Settled</span>
+                            </div>
+                            <small style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">${step3Sub}</small>
+                        </div>
+                    </div>
+                </div>
+
+                ${quickActionHTML}
+
+                <!-- Itemized Receipt Rows -->
+                <div>
+                    <div style="padding: 10px 16px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; background: rgba(0, 97, 164, 0.02);">
+                        <span style="font-size: 11px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.6px;">Items (${doc.items ? doc.items.length : 0})</span>
+                        <span style="font-size: 10px; font-weight: 700; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Line Total</span>
+                    </div>
+                    ${itemsHTML}
+                </div>
+
+                <!-- Tactile Perforated Ticket Cutout Divider -->
+                <div style="position: relative; height: 24px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                    <div style="position: absolute; left: -11px; width: 22px; height: 22px; border-radius: 50%; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);"></div>
+                    <div style="width: 100%; border-top: 1.5px dashed var(--md-outline-variant); margin: 0 16px;"></div>
+                    <div style="position: absolute; right: -11px; width: 22px; height: 22px; border-radius: 50%; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);"></div>
+                </div>
+
+                <!-- Receipt Breakdown & Grand Total Stub -->
+                <div style="padding: 4px 16px 18px 16px; background: linear-gradient(180deg, transparent 0%, rgba(0, 97, 164, 0.03) 100%);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: var(--md-text-muted);">Subtotal</span>
+                        <strong style="font-size: 14px; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">₹${rawSubtotal.toFixed(2)}</strong>
+                    </div>
+                    ${discountVal > 0 ? `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: var(--md-text-muted);">Discount</span>
+                        <strong style="font-size: 14px; color: var(--md-success); font-variant-numeric: tabular-nums;">- ₹${discountVal.toFixed(2)}</strong>
+                    </div>` : ''}
+                    ${freightVal > 0 ? `
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: var(--md-text-muted);">Freight</span>
+                        <strong style="font-size: 14px; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">+ ₹${freightVal.toFixed(2)}</strong>
+                    </div>` : ''}
+                    ${gstBreakdownHTML}
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1.5px dashed rgba(0, 97, 164, 0.25);">
+                        <div>
+                            <span style="font-size: 13px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.6px; display: block;">Grand Total</span>
+                            <small style="font-size: 10px; color: var(--md-text-muted);">${isNonGST ? 'Exempt / Non-GST' : 'Inclusive of Taxes'}</small>
+                        </div>
+                        <span style="font-size: 23px; font-weight: 900; color: var(--md-primary); line-height: 1; font-variant-numeric: tabular-nums;">₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    </div>
                 </div>
             </div>
 
-            ${quickActionHTML}
-
-            <!-- Edge-to-Edge Items -->
-            <div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 8px;">
-                <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 800; color: var(--md-primary); text-transform: uppercase;">Items (${doc.items ? doc.items.length : 0})</div>
-                ${itemsHTML}
+            <!-- Auxiliary Cards (Notes, Linked Payments, Linked Expenses) with 16px Breathing Space -->
+            <div class="receipt-aux-wrap" style="margin: 0 16px 16px 16px;">
+                ${notesHTML}
+                ${linksHTML}
             </div>
-
-            <!-- Edge-to-Edge Notes -->
-            ${notesHTML}
-
-            <!-- Premium Receipt Breakdown Card -->
-            <div style="margin: 0 16px 16px 16px; background: rgba(0, 97, 164, 0.03); border: 1px solid rgba(0, 97, 164, 0.08); border-radius: 16px; padding: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 13px; color: var(--md-text-muted);">Subtotal</span>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">₹${rawSubtotal.toFixed(2)}</strong>
-                </div>
-                ${discountVal > 0 ? `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 13px; color: var(--md-text-muted);">Discount</span>
-                    <strong style="font-size: 14px; color: var(--md-success);">- ₹${discountVal.toFixed(2)}</strong>
-                </div>` : ''}
-                ${freightVal > 0 ? `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-size: 13px; color: var(--md-text-muted);">Freight</span>
-                    <strong style="font-size: 14px; color: var(--md-on-surface);">+ ₹${freightVal.toFixed(2)}</strong>
-                </div>` : ''}
-                ${gstBreakdownHTML}
-                
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px dashed rgba(0, 97, 164, 0.2);">
-                    <span style="font-size: 14px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.5px;">Grand Total</span>
-                    <span style="font-size: 22px; font-weight: 900; color: var(--md-primary); line-height: 1;">₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                </div>
-            </div>
-            
-            ${linksHTML}
         `;
 
         // Memory lock set EARLY to guarantee PDF viewer works immediately
@@ -6729,7 +6899,7 @@ window.openInvoiceOverview = function(type, id) {
             </div>
 
             <!-- 3. More Actions -->
-            <div class="tap-target" style="width: 52px; height: 52px; border-radius: 14px; background: var(--md-surface-variant); color: var(--md-on-surface); display: flex; justify-content: center; align-items: center; cursor: pointer; flex-shrink: 0;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-invoice-more')">
+            <div class="tap-target" style="width: 52px; height: 52px; border-radius: 14px; background: var(--md-surface-variant); color: var(--md-on-surface); display: flex; justify-content: center; align-items: center; cursor: pointer; flex-shrink: 0;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-invoice-more-options')">
                 <span class="material-symbols-outlined" style="font-size: 24px;">more_vert</span>
             </div>
         `;
@@ -7267,180 +7437,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 150); // 150ms delay gives the database engine time to lock in
 });
 
-// ==========================================
-// 🚨 ENTERPRISE UPGRADE: BANK-GRADE PIN VAULT (WITH SETTINGS TOGGLE)
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Inject the pure CSS and HTML PIN Pad directly into the DOM
-    const pinContainer = document.createElement('div');
-    pinContainer.id = 'enterprise-pin-vault';
-    pinContainer.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15, 23, 42, 0.98); backdrop-filter:blur(15px); z-index:99999999; display:none; flex-direction:column; align-items:center; justify-content:center; color:white; font-family:Roboto, sans-serif; touch-action:none;';
-    
-    pinContainer.innerHTML = `
-        <span class="material-symbols-outlined" style="font-size: 54px; color: #0ea5e9; margin-bottom: 20px;">lock</span>
-        <h2 id="pin-title" style="margin: 0 0 8px 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px;">Enter Security PIN</h2>
-        <p id="pin-subtitle" style="margin: 0 0 40px 0; color: #94a3b8; font-size: 14px;">App locked for your privacy</p>
-        
-        <div style="display: flex; gap: 20px; margin-bottom: 50px;">
-            <div class="pin-dot" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0ea5e9; transition: background 0.2s;"></div>
-            <div class="pin-dot" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0ea5e9; transition: background 0.2s;"></div>
-            <div class="pin-dot" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0ea5e9; transition: background 0.2s;"></div>
-            <div class="pin-dot" style="width: 18px; height: 18px; border-radius: 50%; border: 2px solid #0ea5e9; transition: background 0.2s;"></div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; max-width: 300px;">
-            ${[1,2,3,4,5,6,7,8,9].map(n => `<button class="pin-btn tap-target" data-val="${n}" style="width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 28px; font-weight: 400; cursor: pointer; display: flex; align-items: center; justify-content: center;">${n}</button>`).join('')}
-            <button class="pin-btn tap-target" data-val="clear" style="width: 72px; height: 72px; border-radius: 50%; background: transparent; border: none; color: #ef4444; font-size: 16px; font-weight: 700; cursor: pointer;">CLR</button>
-            <button class="pin-btn tap-target" data-val="0" style="width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); color: white; font-size: 28px; font-weight: 400; cursor: pointer; display: flex; align-items: center; justify-content: center;">0</button>
-            <button class="pin-btn tap-target" data-val="back" style="width: 72px; height: 72px; border-radius: 50%; background: transparent; border: none; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center;"><span class="material-symbols-outlined" style="font-size: 32px;">backspace</span></button>
-        </div>
-        <button id="cancel-pin-btn" style="margin-top: 40px; background: transparent; color: #94a3b8; border: none; font-size: 14px; font-weight: 600; cursor: pointer; display: none;">Cancel</button>
-    `;
-    document.body.appendChild(pinContainer);
-
-    // 2. State & Logic Engine
-    let currentInput = "";
-    let expectedPin = localStorage.getItem('sollo_secure_pin');
-    let isEnabled = localStorage.getItem('sollo_pin_enabled') === 'true';
-    let isSetupMode = false;
-    let isDisableMode = false;
-    let setupStep = 1;
-    let tempPin = "";
-
-    const dots = document.querySelectorAll('.pin-dot');
-    const updateDots = () => { dots.forEach((dot, idx) => { dot.style.background = idx < currentInput.length ? '#0ea5e9' : 'transparent'; }); };
-
-    const triggerErrorShake = () => {
-        pinContainer.animate([
-            { transform: 'translateX(0)' }, { transform: 'translateX(-12px)' }, { transform: 'translateX(12px)' }, 
-            { transform: 'translateX(-12px)' }, { transform: 'translateX(12px)' }, { transform: 'translateX(0)' }
-        ], { duration: 400, easing: 'ease-in-out' });
-        if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('heavy');
-    };
-
-    const syncToggleButton = () => {
-        const btn = document.getElementById('toggle-pin-btn');
-        if (btn) {
-            if (isEnabled) {
-                btn.innerText = "Disable Lock";
-                btn.style.background = "#ef4444";
-            } else {
-                btn.innerText = "Enable Lock";
-                btn.style.background = "#0ea5e9";
-            }
-        }
-    };
-
-    // Keep Settings UI synced natively
-    setInterval(syncToggleButton, 1000);
-
-    // Global Click Listener for the Settings Button
-    document.body.addEventListener('click', (e) => {
-        if (e.target && e.target.id === 'toggle-pin-btn') {
-            currentInput = ""; updateDots();
-            if (isEnabled) {
-                isDisableMode = true; isSetupMode = false;
-                document.getElementById('pin-title').innerText = "Disable Security";
-                document.getElementById('pin-subtitle').innerText = "Enter your current PIN to turn off lock";
-                document.getElementById('pin-subtitle').style.color = "#94a3b8";
-            } else {
-                isSetupMode = true; isDisableMode = false; setupStep = 1;
-                document.getElementById('pin-title').innerText = "Create Master PIN";
-                document.getElementById('pin-subtitle').innerText = "Enter a 4-digit code to lock your app";
-                document.getElementById('pin-subtitle').style.color = "#94a3b8";
-            }
-            document.getElementById('cancel-pin-btn').style.display = 'block';
-            pinContainer.style.display = 'flex';
-        }
-    });
-
-    document.getElementById('cancel-pin-btn').onclick = () => {
-        pinContainer.style.display = 'none';
-        currentInput = ""; updateDots();
-    };
-
-    const processPinSubmission = () => {
-        if (isSetupMode) {
-            if (setupStep === 1) {
-                tempPin = currentInput; currentInput = ""; setupStep = 2;
-                document.getElementById('pin-title').innerText = "Confirm New PIN";
-                document.getElementById('pin-subtitle').innerText = "Enter the same 4 digits to verify";
-                updateDots();
-            } else {
-                if (currentInput === tempPin) {
-                    localStorage.setItem('sollo_secure_pin', currentInput);
-                    localStorage.setItem('sollo_pin_enabled', 'true');
-                    expectedPin = currentInput; isEnabled = true; isSetupMode = false;
-                    pinContainer.style.display = 'none';
-                    syncToggleButton();
-                    if (window.Utils) window.Utils.showToast("✅ Master PIN Secured!");
-                } else {
-                    triggerErrorShake();
-                    document.getElementById('pin-subtitle').innerText = "PINs do not match. Try again.";
-                    document.getElementById('pin-subtitle').style.color = "#ef4444";
-                    currentInput = ""; setupStep = 1; tempPin = "";
-                    setTimeout(() => {
-                        document.getElementById('pin-title').innerText = "Create New PIN";
-                        document.getElementById('pin-subtitle').innerText = "Enter a 4-digit code";
-                        document.getElementById('pin-subtitle').style.color = "#94a3b8";
-                    }, 1500);
-                    updateDots();
-                }
-            }
-        } else if (isDisableMode) {
-            if (currentInput === expectedPin) {
-                localStorage.setItem('sollo_pin_enabled', 'false');
-                isEnabled = false; isDisableMode = false;
-                pinContainer.style.display = 'none';
-                syncToggleButton();
-                if (window.Utils) window.Utils.showToast("🔓 Security PIN Disabled");
-            } else {
-                triggerErrorShake(); currentInput = ""; updateDots();
-            }
-        } else {
-            // Normal Unlock Mode (Waking up from background)
-            if (currentInput === expectedPin) {
-                pinContainer.style.display = 'none'; currentInput = ""; updateDots();
-                if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
-            } else {
-                triggerErrorShake(); currentInput = ""; updateDots();
-            }
-        }
-    };
-
-    document.querySelectorAll('.pin-btn').forEach(btn => {
-        btn.onclick = () => {
-            const val = btn.getAttribute('data-val');
-            if (val === 'clear') currentInput = "";
-            else if (val === 'back') currentInput = currentInput.slice(0, -1);
-            else if (currentInput.length < 4) currentInput += val;
-            
-            updateDots();
-            if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
-            
-            if (currentInput.length === 4) setTimeout(processPinSubmission, 150);
-        };
-    });
-
-    // 3. Waking up from background
-    document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            isEnabled = localStorage.getItem('sollo_pin_enabled') === 'true';
-            expectedPin = localStorage.getItem('sollo_secure_pin');
-            
-            // Hide the old generic lock screen if it accidentally fired
-            const oldLock = document.getElementById('activity-app-lock');
-            if (oldLock) oldLock.classList.remove('open');
-
-            if (isEnabled && expectedPin) {
-                // Instantly lock down the app
-                isSetupMode = false; isDisableMode = false; currentInput = ""; updateDots();
-                document.getElementById('pin-title').innerText = "Enter PIN";
-                document.getElementById('pin-subtitle').innerText = "App locked for your privacy";
-                document.getElementById('pin-subtitle').style.color = "#94a3b8";
-                document.getElementById('cancel-pin-btn').style.display = 'none'; // Cannot cancel out of lock!
-                pinContainer.style.display = 'flex';
-            }
-        }
-    });
-});
+// (Legacy duplicate PIN vault removed — handled natively by #sheet-pin-setup and #app-lock-screen in index.html)

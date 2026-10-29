@@ -260,10 +260,17 @@ const deleteRecordById = async (storeName, id) => {
     if (!oldRecord) return;
     
     if (storeName === 'ledgers') {
-        const relatedSales = await getAllRecords('sales', 'firmId', oldRecord.firmId);
-        const relatedPurchases = await getAllRecords('purchases', 'firmId', oldRecord.firmId);
-        if (relatedSales.some(s => s.customerId === id) || relatedPurchases.some(p => p.supplierId === id)) {
-            if (window.Utils) await window.Utils.alertModal(`Cannot delete ${oldRecord.name}. There are invoices attached to this party.`, "⚠️ INTEGRITY LOCK");
+        const [relatedSales, relatedPurchases, relatedReceipts] = await Promise.all([
+            getAllRecords('sales', 'firmId', oldRecord.firmId),
+            getAllRecords('purchases', 'firmId', oldRecord.firmId),
+            getAllRecords('receipts', 'firmId', oldRecord.firmId)
+        ]);
+        if (
+            relatedSales.some(s => String(s.customerId) === String(id)) ||
+            relatedPurchases.some(p => String(p.supplierId) === String(id)) ||
+            relatedReceipts.some(r => String(r.ledgerId) === String(id))
+        ) {
+            if (window.Utils) await window.Utils.alertModal(`Cannot delete ${oldRecord.name}. There are invoices or payment receipts attached to this party.`, "⚠️ INTEGRITY LOCK");
             return false;
         }
     } else if (storeName === 'items') {
@@ -451,6 +458,11 @@ const saveInvoiceTransaction = async (storeName, data) => {
                     let updated = false;
                     if (r.invoiceRef && rRefs.includes(String(docNo))) { r.invoiceRef = rRefs.map(ref => ref === String(docNo) ? String(newDocNo) : ref).join(', '); updated = true; }
                     if (r.linkedInvoice && lRefs.includes(String(docNo))) { r.linkedInvoice = lRefs.map(ref => ref === String(docNo) ? String(newDocNo) : ref).join(', '); updated = true; }
+                    if (r.allocationMap && String(docNo) !== String(newDocNo) && r.allocationMap[String(docNo)] !== undefined) {
+                        r.allocationMap[String(newDocNo)] = r.allocationMap[String(docNo)];
+                        delete r.allocationMap[String(docNo)];
+                        updated = true;
+                    }
                     
                     if (updated) {
                         if (String(partyId) !== String(newPartyId)) {
@@ -1223,7 +1235,7 @@ if (navigator.storage && navigator.storage.estimate) {
     setInterval(async () => {
         try {
             const estimate = await navigator.storage.estimate();
-            const usagePercent = (estimate.usage / estimate.quota) * 100;
+            const usagePercent = estimate.quota > 0 ? (estimate.usage / estimate.quota) * 100 : 0;
             
             // If storage is over 90% full, trigger a critical warning
             if (usagePercent > 90 && window.Utils && window.Utils.showToast) {

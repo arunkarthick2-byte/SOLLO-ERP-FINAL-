@@ -41,12 +41,19 @@ self.addEventListener('message', async function(e) {
         const purchaseMap = {};
         (purchases || []).forEach(p => {
             if (p.status !== 'Open' && p.status !== 'Cancelled') {
+                let discountRatio = 0;
+                const rawSub = (p.items || []).reduce((sum, item) => sum + ((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)), 0);
+                const discVal = parseFloat(p.discount) || 0;
+                if (discVal > 0 && rawSub > 0) {
+                    discountRatio = p.discountType === '%' ? (discVal / 100) : Math.min(1, discVal / rawSub);
+                }
+
                 (p.items || []).forEach(row => {
                     const id = String(row.itemId || row.id);
                     if (!purchaseMap[id]) purchaseMap[id] = { qty: 0, val: 0 };
                     
                     let q = parseFloat(row.qty) || 0;
-                    let r = parseFloat(row.rate) || 0;
+                    let r = Math.max(0, (parseFloat(row.rate) || 0) * (1 - discountRatio));
                     
                     if (p.documentType === 'return') {
                         purchaseMap[id].qty -= q;
@@ -129,8 +136,9 @@ self.addEventListener('message', async function(e) {
             totalValuation: totalValuation,
             lowStockItems: lowStockItems
         });
-    } catch (error) {
-        console.error("Worker Inventory Error:", error);
+        } catch (error) {
+            console.error("Worker Inventory Error:", error);
+        }
     }
     
     if (data.command === 'CALCULATE_AGING') {
@@ -163,7 +171,7 @@ self.addEventListener('message', async function(e) {
         
         const dashboardReturnMap = {};
         (sales || []).forEach(d => {
-            if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+            if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                 dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
             }
         });
@@ -177,12 +185,18 @@ self.addEventListener('message', async function(e) {
                 refs.forEach(ref => {
                     const linkedDoc = (sales || []).find(d => String(d.id) === ref || String(d.invoiceNo) === ref || String(d.orderNo) === ref || String(d.id).endsWith(ref));
                     const returned = [linkedDoc?.orderNo, linkedDoc?.invoiceNo, linkedDoc?.id, ref].filter(Boolean).reduce((sum, rx) => sum + (dashboardReturnMap[rx] || 0), 0);
-                    let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / refs.length);
                     
-                    let applyAmt = Math.min(docTotal, remainingPayment);
+                    let applyAmt = 0;
+                    if (r.allocationMap && r.allocationMap[ref] !== undefined) {
+                        applyAmt = parseFloat(r.allocationMap[ref]) || 0;
+                        remainingPayment -= applyAmt;
+                    } else {
+                        let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / refs.length);
+                        applyAmt = Math.min(docTotal, remainingPayment);
+                        if (applyAmt > 0) remainingPayment -= applyAmt;
+                    }
                     if (applyAmt > 0) {
                         paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + applyAmt;
-                        remainingPayment -= applyAmt;
                     }
                 });
                 if (remainingPayment > 0.01 && refs[0]) {

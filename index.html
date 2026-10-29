@@ -59,11 +59,13 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=96">
+        <link rel="stylesheet" href="style.css">
     
-    <link rel="manifest" href="./manifest.json"> 
-    ​<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
+    <link rel="shortcut icon" type="image/png" href="./icon-192.png">
     <!-- 🚨 Controls the color of the mobile status bar -->
 
     <!-- 🚨 SOLLO FIX: SMART BANNER RELOCATOR (Removed to prevent battery drain) -->
@@ -92,8 +94,27 @@
         <strong class="lock-title">SOLLO ERP Secured</strong>
         <p id="lock-screen-subtitle" class="lock-subtitle">Your financial data is hidden.</p>
         
-        <div id="lock-pin-Entry-box" style="display: none; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 16px; width: 100%; max-width: 240px;">
-            <input type="password" id="lock-screen-pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value.length === 4) window.verifyAppLockPin();" style="width: 100%; padding: 12px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 12px; border: 1px solid var(--md-outline-variant, #cbd5e1); border-radius: 12px; background: var(--md-surface, #ffffff); color: var(--md-on-surface, #0f172a); outline: none; box-sizing: border-box;">
+        <div id="lock-pin-Entry-box" style="display: none; flex-direction: column; align-items: center; gap: 20px; margin-bottom: 8px; width: 100%; max-width: 260px;">
+            <div id="lock-pin-dots" style="display: flex; gap: 16px; justify-content: center; margin: 4px 0;">
+                <div class="pin-dot" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--md-primary, #0061a4); transition: 0.15s;"></div>
+                <div class="pin-dot" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--md-primary, #0061a4); transition: 0.15s;"></div>
+                <div class="pin-dot" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--md-primary, #0061a4); transition: 0.15s;"></div>
+                <div class="pin-dot" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--md-primary, #0061a4); transition: 0.15s;"></div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%;">
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('1')">1</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('2')">2</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('3')">3</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('4')">4</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('5')">5</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('6')">6</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('7')">7</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('8')">8</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('9')">9</button>
+                <button type="button" class="tap-target pin-pad-btn" style="font-size: 13px; color: var(--md-text-muted);" onclick="window.pressLockPin('CLR')">CLR</button>
+                <button type="button" class="tap-target pin-pad-btn" onclick="window.pressLockPin('0')">0</button>
+                <button type="button" class="tap-target pin-pad-btn" style="color: var(--md-error);" onclick="window.pressLockPin('DEL')"><span class="material-symbols-outlined" style="font-size: 20px;">backspace</span></button>
+            </div>
         </div>
 
         <button id="lock-unlock-action-btn" onclick="window.handleLockScreenBtn()" class="lock-unlock-btn">Unlock App</button>
@@ -178,19 +199,21 @@
                         </script>
                     </div>
                     
-                    <div class="dashboard-filter-group">
-                        <button id="btn-privacy-toggle" type="button" onclick="window.toggleDashPrivacy()" title="Hide/Show Figures" style="display: flex; align-items: center; justify-content: center; width: 34px; height: 32px; border: none; border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); cursor: pointer; padding: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                            <span id="privacy-eye-icon" class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
-                        </button>
-                        <input type="month" id="dashboard-custom-month" class="dashboard-custom-month-input" style="display: none;" onchange="UI.renderDashboard()">
-                        <select id="dashboard-date-filter" class="dashboard-date-select" onchange="if(this.value==='custom') { document.getElementById('dashboard-custom-month').style.display='block'; document.getElementById('dashboard-custom-month').showPicker ? document.getElementById('dashboard-custom-month').showPicker() : document.getElementById('dashboard-custom-month').focus(); } else { document.getElementById('dashboard-custom-month').style.display='none'; UI.renderDashboard(); }">
-                            <option value="today">Today</option>
-                            <option value="month" selected>This Month</option>
-                            <option value="last_month">Last Month</option>
-                            <option value="year">This Year</option>
-                            <option value="all">All Time</option>
-                            <option value="custom">Specific Month...</option>
-                        </select>
+                    <div class="dashboard-filter-group" style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button id="btn-privacy-toggle" type="button" onclick="window.toggleDashPrivacy()" title="Hide/Show Figures" style="display: flex; align-items: center; justify-content: center; width: 34px; height: 32px; border: none; border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); cursor: pointer; padding: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex-shrink: 0;">
+                                <span id="privacy-eye-icon" class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
+                            </button>
+                            <select id="dashboard-date-filter" class="dashboard-date-select" style="width: auto !important; max-width: 145px !important; margin-bottom: 0 !important;" onchange="const cm = document.getElementById('dashboard-custom-month'); if(this.value==='custom') { if(!cm.value) cm.value = new Date().toISOString().slice(0, 7); cm.style.display='block'; UI.renderDashboard(); cm.showPicker ? cm.showPicker() : cm.focus(); } else { cm.style.display='none'; UI.renderDashboard(); }">
+                                <option value="today">Today</option>
+                                <option value="month" selected>This Month</option>
+                                <option value="last_month">Last Month</option>
+                                <option value="year">This Year</option>
+                                <option value="all">All Time</option>
+                                <option value="custom">Specific Month...</option>
+                            </select>
+                        </div>
+                        <input type="month" id="dashboard-custom-month" class="dashboard-custom-month-input" style="display: none; width: auto !important; max-width: 165px !important; min-height: 32px !important; padding: 4px 10px !important; margin-bottom: 0 !important; font-size: 12px !important; border-radius: 16px !important;" onchange="UI.renderDashboard()">
                     </div>
                     <style>
                         #tab-dashboard.privacy-masked #dash-total-sales,
@@ -583,9 +606,9 @@
                 <!-- 2. TRANSACTIONS VIEW -->
                 <div id="ws-view-trans" class="hidden">
                     <div class="ws-trans-tabs-container">
-                        <button id="ws-pill-sales" type="button" onclick="switchTransView('sales')" class="ws-trans-pill" style="border: 1px solid var(--md-primary); background: var(--md-primary); color: var(--md-on-primary);">Sales</button>
-                        <button id="ws-pill-purchases" type="button" onclick="switchTransView('purchases')" class="ws-trans-pill" style="border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface);">Purchases</button>
-                        <button id="ws-pill-cashbook" type="button" onclick="switchTransView('cashbook')" class="ws-trans-pill" style="border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface);">Cashbook</button>
+                        <button id="ws-pill-sales" type="button" onclick="switchTransView('sales')" class="ws-trans-pill" style="border: 1px solid var(--md-primary); background: var(--md-primary); color: var(--md-on-primary);"><span class="material-symbols-outlined" style="font-size: 16px;">receipt_long</span><span>Sales</span></button>
+                        <button id="ws-pill-purchases" type="button" onclick="switchTransView('purchases')" class="ws-trans-pill" style="border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface);"><span class="material-symbols-outlined" style="font-size: 16px;">local_shipping</span><span>Purchases</span></button>
+                        <button id="ws-pill-cashbook" type="button" onclick="switchTransView('cashbook')" class="ws-trans-pill" style="border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface);"><span class="material-symbols-outlined" style="font-size: 16px;">account_balance_wallet</span><span>Cashbook</span></button>
                     </div>
 
                     <div id="doc-sales-view" style="padding-bottom: 40px;">
@@ -1033,46 +1056,106 @@ Data & Security</strong>
     <button type="button" id="toggle-pin-btn" class="tap-target" onclick="window.openPinSetupModal()" style="background: var(--md-primary); color: #ffffff; border: none; padding: 8px 18px; border-radius: 20px; font-weight: 700; font-size: 13px; cursor: pointer; transition: 0.2s;">Enable</button>
 </div>
 
-<!-- 🚀 CENTERED FLOATING MODAL FOR PIN SETUP -->
-<div id="sheet-pin-setup" class="bottom-sheet centered-modal" data-no-swipe="true" style="display: flex; flex-direction: column; padding: 0;">
+<!-- 🚀 STANDALONE PIN SETUP MODAL (INBUILT NUMPAD — NO BLUR LOCK) -->
+<div id="pin-setup-backdrop" onclick="window.closePinSetupModal()" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); z-index: 999990; opacity: 0; transition: opacity 0.2s ease;"></div>
+
+<div id="sheet-pin-setup" data-no-swipe="true" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -45%) scale(0.95); width: 90%; max-width: 340px; background: var(--md-surface, #ffffff); border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.35); z-index: 999995; flex-direction: column; padding: 0; overflow: hidden; opacity: 0; transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;">
     <style>
-        #sheet-pin-setup.centered-modal {
-            top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-            width: 90% !important; max-width: 360px !important; height: auto !important; max-height: 90vh !important;
-            border-radius: 12px !important;
-            transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-            box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-            position: fixed !important; overflow: hidden !important;
+        #sheet-pin-setup.pin-modal-open {
+            transform: translate(-50%, -50%) scale(1) !important;
+            opacity: 1 !important;
         }
-        #sheet-pin-setup.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
-        #sheet-pin-setup.centered-modal::before { display: none !important; }
-        body.dark-mode #sheet-pin-setup.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
+        body.dark-mode #sheet-pin-setup {
+            background: #1e293b !important;
+            border: 1px solid #334155 !important;
+        }
+        .pin-pad-btn {
+            height: 52px; border-radius: 12px; border: 1px solid var(--md-outline-variant, #e2e8f0);
+            background: var(--md-surface-variant, #f1f5f9); color: var(--md-on-surface, #0f172a);
+            font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+        .pin-pad-btn:active { background: rgba(0, 97, 164, 0.15); transform: scale(0.96); }
     </style>
 
-    <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
-        <span id="pin-modal-title" style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Set Security PIN</span>
+    <div style="padding: 20px 24px 12px 24px; border-bottom: 1px solid var(--md-outline-variant); text-align: center; flex-shrink: 0;">
+        <span id="pin-modal-title" style="font-size: 18px; font-weight: 800; color: var(--md-on-surface); display: block;">Set Security PIN</span>
+        <small id="pin-modal-label" style="font-size: 12px; font-weight: 600; color: var(--md-text-muted); display: block; margin-top: 4px;">Create 4-Digit PIN</small>
     </div>
 
-    <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
-        <label id="pin-modal-label" style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--md-text-muted); letter-spacing: 0.5px;">Enter 4-Digit PIN</label>
-        <input type="password" id="setup-pin-input" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off" oninput="this.value = this.value.replace(/[^0-9]/g, '');" style="width: 100%; padding: 14px; text-align: center; font-size: 24px; font-weight: 800; letter-spacing: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface); color: var(--md-on-surface); box-sizing: border-box; outline: none;">
+    <div style="padding: 20px 24px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+        <div id="setup-pin-dots" style="display: flex; gap: 16px; justify-content: center;">
+            <div class="pin-dot" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--md-primary, #0061a4); transition: 0.15s;"></div>
+            <div class="pin-dot" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--md-primary, #0061a4); transition: 0.15s;"></div>
+            <div class="pin-dot" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--md-primary, #0061a4); transition: 0.15s;"></div>
+            <div class="pin-dot" style="width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--md-primary, #0061a4); transition: 0.15s;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%;">
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('1')">1</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('2')">2</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('3')">3</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('4')">4</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('5')">5</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('6')">6</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('7')">7</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('8')">8</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('9')">9</button>
+            <button type="button" class="tap-target pin-pad-btn" style="font-size: 13px; color: var(--md-text-muted);" onclick="window.pressSetupPin('CLR')">CLR</button>
+            <button type="button" class="tap-target pin-pad-btn" onclick="window.pressSetupPin('0')">0</button>
+            <button type="button" class="tap-target pin-pad-btn" style="color: var(--md-error);" onclick="window.pressSetupPin('DEL')"><span class="material-symbols-outlined" style="font-size: 20px;">backspace</span></button>
+        </div>
     </div>
 
-    <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
-        <button type="button" class="dialog-text-btn tap-target" style="color: var(--md-text-muted);" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-pin-setup')">CANCEL</button>
+    <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 16px 16px;">
+        <button type="button" class="dialog-text-btn tap-target" style="color: var(--md-text-muted);" onclick="window.closePinSetupModal()">CANCEL</button>
         <button type="button" class="dialog-text-btn tap-target" style="font-weight: 800;" onclick="window.saveOrDisablePin()">CONFIRM</button>
     </div>
 </div>
 
 <script>
     (function() {
+        let setupPinBuffer = '';
+        let lockPinBuffer = '';
+
+        const clearAnyStuckBlur = () => {
+            const shell = document.getElementById('app-shell');
+            if (shell) shell.classList.remove('privacy-blur-active');
+            const sheetOverlay = document.getElementById('sheet-overlay');
+            const openSheets = document.querySelectorAll('.bottom-sheet.open');
+            if (sheetOverlay && openSheets.length === 0) {
+                sheetOverlay.classList.remove('open');
+                sheetOverlay.classList.add('hidden');
+                sheetOverlay.style.display = 'none';
+            }
+            document.body.style.overflow = '';
+        };
+
+        const renderDots = (containerId, length, isError = false) => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const dots = container.querySelectorAll('.pin-dot');
+            dots.forEach((dot, idx) => {
+                if (isError) {
+                    dot.style.background = 'var(--md-error, #ba1a1a)';
+                    dot.style.borderColor = 'var(--md-error, #ba1a1a)';
+                } else if (idx < length) {
+                    dot.style.background = 'var(--md-primary, #0061a4)';
+                    dot.style.borderColor = 'var(--md-primary, #0061a4)';
+                } else {
+                    dot.style.background = 'transparent';
+                    dot.style.borderColor = 'var(--md-primary, #0061a4)';
+                }
+            });
+        };
+
         const syncPinUI = () => {
             const savedPin = localStorage.getItem('sollo_app_pin');
             const btn = document.getElementById('toggle-pin-btn');
             const sub = document.getElementById('pin-status-subtext');
             const pinBox = document.getElementById('lock-pin-Entry-box');
             const subTitle = document.getElementById('lock-screen-subtitle');
+            const unlockBtn = document.getElementById('lock-unlock-action-btn');
 
             if (btn && sub) {
                 if (savedPin) {
@@ -1092,20 +1175,25 @@ Data & Security</strong>
                 if (savedPin) {
                     pinBox.style.display = 'flex';
                     subTitle.innerText = 'Enter your 4-digit PIN to unlock.';
+                    if (unlockBtn) unlockBtn.style.display = 'none';
                 } else {
                     pinBox.style.display = 'none';
                     subTitle.innerText = 'Your financial data is hidden.';
+                    if (unlockBtn) unlockBtn.style.display = 'inline-block';
                 }
             }
         };
 
         window.openPinSetupModal = () => {
+            if (document.activeElement) document.activeElement.blur();
+            clearAnyStuckBlur();
+            setupPinBuffer = '';
+            renderDots('setup-pin-dots', 0);
+
             const savedPin = localStorage.getItem('sollo_app_pin');
             const titleEl = document.getElementById('pin-modal-title');
             const labelEl = document.getElementById('pin-modal-label');
-            const inputEl = document.getElementById('setup-pin-input');
 
-            if (inputEl) inputEl.value = '';
             if (savedPin) {
                 if (titleEl) titleEl.innerText = 'Disable Security PIN';
                 if (labelEl) labelEl.innerText = 'Enter Current 4-Digit PIN';
@@ -1114,13 +1202,51 @@ Data & Security</strong>
                 if (labelEl) labelEl.innerText = 'Create 4-Digit PIN';
             }
 
-            if (window.UI) window.UI.openBottomSheet('sheet-pin-setup');
-            setTimeout(() => { if (inputEl) inputEl.focus(); }, 250);
+            const modal = document.getElementById('sheet-pin-setup');
+            const backdrop = document.getElementById('pin-setup-backdrop');
+            if (modal && modal.parentElement !== document.body) document.body.appendChild(modal);
+            if (backdrop && backdrop.parentElement !== document.body) document.body.appendChild(backdrop);
+
+            if (backdrop) {
+                backdrop.style.display = 'block';
+                requestAnimationFrame(() => { backdrop.style.opacity = '1'; });
+            }
+            if (modal) {
+                modal.style.display = 'flex';
+                requestAnimationFrame(() => { modal.classList.add('pin-modal-open'); });
+            }
+        };
+
+        window.closePinSetupModal = () => {
+            const modal = document.getElementById('sheet-pin-setup');
+            const backdrop = document.getElementById('pin-setup-backdrop');
+            if (modal) modal.classList.remove('pin-modal-open');
+            if (backdrop) backdrop.style.opacity = '0';
+
+            setTimeout(() => {
+                if (modal) modal.style.display = 'none';
+                if (backdrop) backdrop.style.display = 'none';
+                clearAnyStuckBlur();
+            }, 200);
+        };
+
+        window.pressSetupPin = (key) => {
+            if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+            if (key === 'CLR') {
+                setupPinBuffer = '';
+            } else if (key === 'DEL') {
+                setupPinBuffer = setupPinBuffer.slice(0, -1);
+            } else if (setupPinBuffer.length < 4) {
+                setupPinBuffer += key;
+            }
+            renderDots('setup-pin-dots', setupPinBuffer.length);
+            if (setupPinBuffer.length === 4) {
+                setTimeout(() => window.saveOrDisablePin(), 120);
+            }
         };
 
         window.saveOrDisablePin = () => {
-            const inputEl = document.getElementById('setup-pin-input');
-            const val = inputEl ? inputEl.value.trim() : '';
+            const val = setupPinBuffer;
             const savedPin = localStorage.getItem('sollo_app_pin');
 
             if (val.length !== 4) {
@@ -1132,36 +1258,63 @@ Data & Security</strong>
                 if (val === savedPin) {
                     localStorage.removeItem('sollo_app_pin');
                     if (window.Utils) window.Utils.showToast('Security PIN Disabled');
-                    if (window.UI) window.UI.closeBottomSheet('sheet-pin-setup');
+                    window.closePinSetupModal();
+                    setupPinBuffer = '';
+                    renderDots('setup-pin-dots', 0);
                     syncPinUI();
                 } else {
                     if (window.Utils) window.Utils.showToast('Incorrect PIN');
-                    if (window.UI && window.UI.triggerError) window.UI.triggerError('setup-pin-input');
-                    inputEl.value = '';
+                    renderDots('setup-pin-dots', 4, true);
+                    if (window.UI && window.UI.triggerError) window.UI.triggerError('setup-pin-dots');
+                    setTimeout(() => {
+                        setupPinBuffer = '';
+                        renderDots('setup-pin-dots', 0);
+                    }, 400);
                 }
             } else {
                 localStorage.setItem('sollo_app_pin', val);
                 if (window.Utils) window.Utils.showToast('Security PIN Enabled 🔒');
-                if (window.UI) window.UI.closeBottomSheet('sheet-pin-setup');
+                window.closePinSetupModal();
+                setupPinBuffer = '';
+                renderDots('setup-pin-dots', 0);
                 syncPinUI();
+            }
+        };
+
+        window.pressLockPin = (key) => {
+            if (window.UI && window.UI.triggerHaptic) window.UI.triggerHaptic('light');
+            if (key === 'CLR') {
+                lockPinBuffer = '';
+            } else if (key === 'DEL') {
+                lockPinBuffer = lockPinBuffer.slice(0, -1);
+            } else if (lockPinBuffer.length < 4) {
+                lockPinBuffer += key;
+            }
+            renderDots('lock-pin-dots', lockPinBuffer.length);
+            if (lockPinBuffer.length === 4) {
+                setTimeout(() => window.verifyAppLockPin(), 120);
             }
         };
 
         window.verifyAppLockPin = () => {
             const savedPin = localStorage.getItem('sollo_app_pin');
-            const inputEl = document.getElementById('lock-screen-pin-input');
             const lockScreen = document.getElementById('app-lock-screen');
-            if (!savedPin || !inputEl || !lockScreen) return;
+            if (!savedPin || !lockScreen) return;
 
-            if (inputEl.value === savedPin) {
-                inputEl.blur();
-                inputEl.value = '';
+            if (lockPinBuffer === savedPin) {
+                lockPinBuffer = '';
+                renderDots('lock-pin-dots', 0);
                 lockScreen.style.opacity = '0';
+                clearAnyStuckBlur();
                 setTimeout(() => { lockScreen.style.display = 'none'; }, 300);
             } else {
                 if (window.Utils) window.Utils.showToast('Incorrect PIN');
-                if (window.UI && window.UI.triggerError) window.UI.triggerError('lock-screen-pin-input');
-                inputEl.value = '';
+                renderDots('lock-pin-dots', 4, true);
+                if (window.UI && window.UI.triggerError) window.UI.triggerError('lock-pin-dots');
+                setTimeout(() => {
+                    lockPinBuffer = '';
+                    renderDots('lock-pin-dots', 0);
+                }, 400);
             }
         };
 
@@ -1170,6 +1323,7 @@ Data & Security</strong>
             const lockScreen = document.getElementById('app-lock-screen');
             if (!savedPin) {
                 lockScreen.style.opacity = '0';
+                clearAnyStuckBlur();
                 setTimeout(() => { lockScreen.style.display = 'none'; }, 300);
             } else {
                 window.verifyAppLockPin();
@@ -1177,6 +1331,11 @@ Data & Security</strong>
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('sheet-pin-setup');
+            const backdrop = document.getElementById('pin-setup-backdrop');
+            if (modal && modal.parentElement !== document.body) document.body.appendChild(modal);
+            if (backdrop && backdrop.parentElement !== document.body) document.body.appendChild(backdrop);
+
             syncPinUI();
             if (localStorage.getItem('sollo_app_pin')) {
                 const lockScreen = document.getElementById('app-lock-screen');
@@ -1251,45 +1410,43 @@ Data & Security</strong>
     </div>
 
     <div id="activity-master-view" class="activity-screen hidden">
-            <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; position: sticky; top: 0; padding: 12px 16px 24px 16px; margin-bottom: -16px; z-index: 105 !important; border-bottom: none !important;">
-            
-            <!-- LEFT: Locked Back Arrow -->
-            <span class="material-symbols-outlined tap-target" style="margin: 0; padding: 4px; flex-shrink: 0; z-index: 2; position: relative !important; left: auto !important;">arrow_back</span>
-            
-            <!-- CENTER: Title (Overriding the CSS Absolute Lock) -->
-            <div style="flex: 1; min-width: 0; display: flex; justify-content: center; z-index: 1;">
-                <span id="master-view-title" style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: static !important; width: auto !important; pointer-events: auto !important; padding: 0 12px;">Master List</span>
-            </div>
-            
-            <!-- RIGHT: Spacer/Action Button (Balances the left side so title is dead-center) -->
-            <div style="display: flex; justify-content: flex-end; align-items: center; flex-shrink: 0; min-width: 32px; z-index: 2; position: relative !important; right: auto !important;">
-                <span id="btn-master-action" class="tap-target hidden" style="color: var(--md-on-primary); font-weight: 500; margin: 0;">Action</span>
-            </div>
-            
-        </div>
         <div class="activity-content" style="padding: 0px 16px 16px 16px;">
-            
-            <!-- 🚨 SOLLO FIX: Removed background wrapper to fix scroll gap -->
-            <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
+            <div class="sticky-glass-top">
+                <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 8px 16px; border-bottom: none !important;">
+                    <!-- LEFT: Locked Back Arrow -->
+                    <span class="material-symbols-outlined tap-target" style="margin: 0; padding: 4px; flex-shrink: 0; z-index: 2; position: relative !important; left: auto !important;">arrow_back</span>
+                    
+                    <!-- CENTER: Title -->
+                    <div style="flex: 1; min-width: 0; display: flex; justify-content: center; z-index: 1;">
+                        <span id="master-view-title" style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: static !important; width: auto !important; pointer-events: auto !important; padding: 0 12px;">Master List</span>
+                    </div>
+                    
+                    <!-- RIGHT: Spacer/Action Button -->
+                    <div style="display: flex; justify-content: flex-end; align-items: center; flex-shrink: 0; min-width: 32px; z-index: 2; position: relative !important; right: auto !important;">
+                        <span id="btn-master-action" class="tap-target hidden" style="color: var(--md-on-primary); font-weight: 500; margin: 0;">Action</span>
+                    </div>
+                </div>
 
-                <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                <input type="text" id="search-master-view" placeholder="Search" style="flex: 1; min-width: 0;">
-                
-                <div id="sum-masters" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px; display: none;">&#8377;0.00</div>
-                
-                <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
-                
-                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.app) window.app.openMasterSort(); else UI.openBottomSheet('sheet-dynamic-master-sort')">tune</span>
-                
-                <span id="master-more-options" class="material-symbols-outlined tap-target hidden" style="color: var(--md-on-surface-variant); padding: 6px; border-radius: 50%; margin-left: 2px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-master-actions')">more_vert</span>
-                
-                <span class="material-symbols-outlined tap-target" style="background: var(--md-primary); color: var(--md-on-primary); padding: 6px; border-radius: 50%; margin-left: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" 
-                      onclick="if(window.app) { 
-                          const title = document.getElementById('master-view-title').innerText; 
-                          if(title.includes('Inventory')) window.app.openForm('product'); 
-                          else if(title.includes('Customer') || title.includes('Supplier') || title.includes('Address')) window.app.openForm('ledger'); 
-                          else if(title.includes('Stock') && window.app) window.app.openAdjustmentSheet();
-                      }">add</span>
+                <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
+                    <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
+                    <input type="text" id="search-master-view" placeholder="Search" style="flex: 1; min-width: 0;">
+                    
+                    <div id="sum-masters" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px; display: none;">&#8377;0.00</div>
+                    
+                    <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
+                    
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.app) window.app.openMasterSort(); else UI.openBottomSheet('sheet-dynamic-master-sort')">tune</span>
+                    
+                    <span id="master-more-options" class="material-symbols-outlined tap-target hidden" style="color: var(--md-on-surface-variant); padding: 6px; border-radius: 50%; margin-left: 2px;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-master-actions')">more_vert</span>
+                    
+                    <span class="material-symbols-outlined tap-target" style="background: var(--md-primary); color: var(--md-on-primary); padding: 6px; border-radius: 50%; margin-left: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" 
+                          onclick="if(window.app) { 
+                              const title = document.getElementById('master-view-title').innerText; 
+                              if(title.includes('Inventory')) window.app.openForm('product'); 
+                              else if(title.includes('Customer') || title.includes('Supplier') || title.includes('Address')) window.app.openForm('ledger'); 
+                              else if(title.includes('Stock') && window.app) window.app.openAdjustmentSheet();
+                          }">add</span>
+                </div>
             </div>
             
             <input type="file" id="csv-import-file" accept=".csv" class="hidden" onchange="if(window.app) window.app.handleCSVImport(event)">
@@ -2384,21 +2541,23 @@ Data & Security</strong>
         </div>
     </div>
         <div id="activity-expense-ledger" class="activity-screen hidden">
-        <div class="activity-header" style="justify-content: center; position: relative;">
-            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
-            <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Ledger</span>
-        </div>
         <div class="activity-content" style="padding-top: 0px;">
-            <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
-                <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                <input type="text" id="search-expenses" placeholder="Search" style="flex: 1; min-width: 0;">
-                
-                <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
-                
-                <!-- 🚀 SOLLO FIX: Unified Sort & Filter Icon -->
-                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-expenses-filter')">tune</span>
+            <div class="sticky-glass-top">
+                <div class="activity-header" style="justify-content: center; position: relative; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 8px 16px; border-bottom: none !important;">
+                    <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
+                    <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Ledger</span>
+                </div>
+                <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
+                    <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
+                    <input type="text" id="search-expenses" placeholder="Search" style="flex: 1; min-width: 0;">
+                    
+                    <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
+                    
+                    <!-- 🚀 SOLLO FIX: Unified Sort & Filter Icon -->
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-expenses-filter')">tune</span>
 
-                <span class="material-symbols-outlined tap-target" style="background: var(--md-primary); color: var(--md-on-primary); padding: 6px; border-radius: 50%; margin-left: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="if(window.app) window.app.openForm('expense')">add</span>
+                    <span class="material-symbols-outlined tap-target" style="background: var(--md-primary); color: var(--md-on-primary); padding: 6px; border-radius: 50%; margin-left: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="if(window.app) window.app.openForm('expense')">add</span>
+                </div>
             </div>
             
             <input type="hidden" id="sort-expenses" value="date-desc">
@@ -3461,7 +3620,8 @@ Data & Security</strong>
         
         <!-- Flat Footer -->
         <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
-            <button class="dialog-text-btn tap-target" onclick="window.resetCashbookFilters(); if(window.UI) UI.closeBottomSheet('sheet-cashbook-filter')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" style="margin-right: auto; color: var(--md-error);" onclick="window.resetCashbookFilters(); window.applyCashbookFilters();">RESET</button>
+            <button class="dialog-text-btn tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-cashbook-filter')">CLOSE</button>
             <button class="dialog-text-btn tap-target" onclick="window.applyCashbookFilters()">DONE</button>
         </div>
 
@@ -3720,7 +3880,8 @@ Data & Security</strong>
         
         <!-- Flat Footer -->
         <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
-            <button class="dialog-text-btn tap-target" onclick="window.resetSalesFilters(); if(window.UI) UI.closeBottomSheet('sheet-sales-filter')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" style="margin-right: auto; color: var(--md-error);" onclick="window.resetSalesFilters(); window.applySalesFilters();">RESET</button>
+            <button class="dialog-text-btn tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-sales-filter')">CLOSE</button>
             <button class="dialog-text-btn tap-target" onclick="window.applySalesFilters()">DONE</button>
         </div>
 
@@ -3961,7 +4122,8 @@ Data & Security</strong>
         
         <!-- Flat Footer -->
         <div style="padding: 12px 24px 16px 24px; display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); border-radius: 0 0 12px 12px;">
-            <button class="dialog-text-btn tap-target" onclick="window.resetPurchaseFilters(); if(window.UI) UI.closeBottomSheet('sheet-purchases-filter')">CLOSE</button>
+            <button class="dialog-text-btn tap-target" style="margin-right: auto; color: var(--md-error);" onclick="window.resetPurchaseFilters(); window.applyPurchaseFilters();">RESET</button>
+            <button class="dialog-text-btn tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-purchases-filter')">CLOSE</button>
             <button class="dialog-text-btn tap-target" onclick="window.applyPurchaseFilters()">DONE</button>
         </div>
 
@@ -5087,51 +5249,6 @@ Data & Security</strong>
         </div>
     </div>
     <div id="toast-container"></div>
-    
-
-    <!-- 🚨 ENTERPRISE UPGRADE: CUSTOM CONFIRM DIALOG -->
-    <div id="enterprise-dialog" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
-        <div id="enterprise-dialog-card" style="background: var(--md-surface); width: 85%; max-width: 340px; border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.9); transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); text-align: center;">
-            <div id="enterprise-dialog-icon-bg" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0, 97, 164, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
-                <span id="enterprise-dialog-icon" class="material-symbols-outlined" style="color: var(--md-primary); font-size: 24px;">info</span>
-            </div>
-            <strong id="enterprise-dialog-title" style="font-size: 18px; color: var(--md-on-surface); display: block; margin-bottom: 8px;">Notice</strong>
-            <p id="enterprise-dialog-msg" style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 24px 0; line-height: 1.4;"></p>
-            <button class="btn-primary tap-target" style="width: 100%; border-radius: 24px; padding: 12px; font-size: 15px;">OK</button>
-        </div>
-    </div>
-
-    <div id="enterprise-confirm" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 99999; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.25s ease;">
-        <div id="enterprise-confirm-card" style="background: var(--md-surface); width: 85%; max-width: 340px; border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.9); transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); text-align: center;">
-            <div id="enterprise-confirm-icon-bg" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(0, 97, 164, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
-                <span id="enterprise-confirm-icon" class="material-symbols-outlined" style="color: var(--md-primary); font-size: 24px;">help</span>
-            </div>
-            <strong id="enterprise-confirm-title" style="font-size: 18px; color: var(--md-on-surface); display: block; margin-bottom: 8px;">Please Confirm</strong>
-            <p id="enterprise-confirm-msg" style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 24px 0; line-height: 1.4;"></p>
-            <div style="display: flex; gap: 12px;">
-                <button id="enterprise-confirm-no" class="tap-target" style="flex: 1; background: transparent; border: 1px solid var(--md-outline-variant); color: var(--md-on-surface); border-radius: 24px; padding: 12px; font-weight: bold; font-size: 15px;">Cancel</button>
-                <button id="enterprise-confirm-yes" class="btn-primary tap-target" style="flex: 1; border-radius: 24px; padding: 12px; font-size: 15px;">Confirm</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="enterprise-swipe" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 99999; display: flex; flex-direction: column; justify-content: flex-end; opacity: 0; transition: opacity 0.3s ease;">
-        <div id="enterprise-swipe-card" style="background: var(--md-surface); border-radius: 24px 24px 0 0; padding: 24px 24px calc(24px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 40px rgba(0,0,0,0.2); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); text-align: center;">
-            <div style="width: 40px; height: 4px; background: var(--md-outline); border-radius: 2px; margin: 0 auto 20px auto; opacity: 0.5;"></div>
-            <span class="material-symbols-outlined" style="color: var(--md-error); font-size: 32px; margin-bottom: 12px;">warning</span>
-            <strong style="font-size: 18px; color: var(--md-on-surface); display: block; margin-bottom: 8px;">Critical Action</strong>
-            <p id="enterprise-swipe-msg" style="font-size: 14px; color: var(--md-text-muted); margin: 0 0 32px 0; line-height: 1.4;"></p>
-            
-            <div id="swipe-track" style="position: relative; width: 100%; height: 56px; background: rgba(186, 26, 26, 0.1); border-radius: 28px; display: flex; align-items: center; overflow: hidden; margin-bottom: 16px;">
-                <span id="swipe-track-text" style="position: absolute; width: 100%; text-align: center; color: var(--md-error); font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; pointer-events: none; transition: opacity 0.2s;">Slide to Confirm</span>
-                <div id="swipe-thumb" style="position: absolute; left: 4px; width: 48px; height: 48px; background: var(--md-error); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(186, 26, 26, 0.4); z-index: 2; cursor: grab;">
-                    <span class="material-symbols-outlined" style="color: white; font-size: 20px;">double_arrow</span>
-                </div>
-            </div>
-            
-            <button id="enterprise-swipe-cancel" class="tap-target" style="background: transparent; border: none; color: var(--md-text-muted); font-weight: bold; font-size: 15px; padding: 12px; width: 100%;">Cancel</button>
-        </div>
-    </div>
 
     <div id="activity-item-ledger" class="activity-screen hidden">
         <div class="activity-header" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; background: var(--md-primary-container); color: var(--md-on-primary-container); width: 100%; box-sizing: border-box; min-height: 60px;">
@@ -5256,13 +5373,13 @@ Data & Security</strong>
     </script>
 
 
-    <script src="components.js?v=96"></script>
-    <script src="db.js?v=96"></script>
-    <script src="utils.js?v=96"></script>
-    <script src="ui.js?v=96"></script>
-    <script src="cloud.js?v=96"></script>
-    <script src="app.js?v=96"></script>
-    <script src="state.js?v=96"></script>
+    <script src="components.js"></script>
+    <script src="db.js"></script>
+    <script src="utils.js"></script>
+    <script src="ui.js"></script>
+    <script src="cloud.js"></script>
+    <script src="app.js"></script>
+    <script src="state.js"></script>
 
     <script src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
     <script src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
@@ -5296,8 +5413,8 @@ Data & Security</strong>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 // ENTERPRISE UPGRADE: Dynamic Service Worker Registration
-                // 🚨 ENTERPRISE FIX: Added '?v=96' to force the Live Server to bypass its own cache!
-                navigator.serviceWorker.register(`sw.js?v=96`).then(reg => {
+                // 🚨 ENTERPRISE FIX: updateViaCache: 'none' forces the browser to always check sw.js directly!
+                navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
                     // Check if an update was already downloaded and is waiting
                     if (reg.waiting && navigator.serviceWorker.controller) {
                         newWorker = reg.waiting;
@@ -5439,12 +5556,13 @@ Data & Security</strong>
                 document.getElementById('profile-invoice-theme').value = savedTheme;
             }
 
-            // ENTERPRISE UPGRADE: Dynamic DatePicker Initialization
+            // ENTERPRISE UPGRADE: Dynamic DatePicker Initialization & Universal Mobile Sync
             const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+            const nativeValDesc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
             
             document.querySelectorAll('input[type="date"]').forEach(el => {
-                // 🚨 THE FIX: Do NOT auto-fill Future/Lifecycle dates! Leave them blank until actually needed!
-                const isFutureDate = el.id.includes('completed') || el.id.includes('shipped');
+                // 🚨 THE FIX: Do NOT auto-fill Future/Lifecycle or Item Ledger filter dates on boot!
+                const isFutureDate = el.id.includes('completed') || el.id.includes('shipped') || el.id === 'adv-item-date';
                 
                 if (!el.value && !isFutureDate) {
                     el.value = today;
@@ -5460,6 +5578,35 @@ Data & Security</strong>
                     disableMobile: false 
                 });
 
+                // 🚨 UNIVERSAL MOBILE DATE SHIELD: Automatically syncs Flatpickr & mobileInput whenever .value is changed by JS!
+                if (nativeValDesc && nativeValDesc.get && nativeValDesc.set) {
+                    Object.defineProperty(el, 'value', {
+                        configurable: true,
+                        enumerable: true,
+                        get: function() {
+                            return nativeValDesc.get.call(this);
+                        },
+                        set: function(newVal) {
+                            const strVal = (newVal === null || newVal === undefined) ? '' : String(newVal);
+                            nativeValDesc.set.call(this, strVal);
+                            if (this._flatpickr && !this._syncingFp) {
+                                this._syncingFp = true;
+                                try {
+                                    if (strVal) {
+                                        this._flatpickr.setDate(strVal, false);
+                                    } else {
+                                        this._flatpickr.clear(false);
+                                    }
+                                    if (this._flatpickr.mobileInput) {
+                                        nativeValDesc.set.call(this._flatpickr.mobileInput, strVal);
+                                    }
+                                } finally {
+                                    this._syncingFp = false;
+                                }
+                            }
+                        }
+                    });
+                }
             });
 
             // UPGRADE 4: Smart Offline / Online Listener
@@ -6004,8 +6151,12 @@ Data & Security</strong>
         
         const mainDisplay = document.getElementById(`pay-${type}-bills-display`);
         if (mainDisplay) {
-            if (count > 0) mainDisplay.innerHTML = `<span style="color:${themeColor}">${count} Bill(s) Selected</span>`;
-            else mainDisplay.innerText = 'Advance / On Account';
+            if (count > 0) {
+                mainDisplay.innerHTML = `<span style="color:${themeColor}">${count} Bill(s) Selected (₹${totalAllocated.toFixed(2)})</span>`;
+            } else if (!mainDisplay.innerHTML.includes('Advance Available')) {
+                mainDisplay.innerText = 'Advance / On Account';
+                mainDisplay.style.color = 'var(--md-text-muted)';
+            }
         }
     };
 
@@ -6058,157 +6209,7 @@ Data & Security</strong>
     </script>
 
     <script>
-    setTimeout(() => {
-        if (window.app) {
-            // 🚀 ENTERPRISE UPGRADE: DYNAMIC M3 CARD GENERATOR FOR MASTER TAB
-            window.app.openMasterSort = function() {
-                const tab = window.UI.state.currentMasterType;
-                const sortContainer = document.getElementById('dynamic-sort-container');
-                const filterContainer = document.getElementById('dynamic-filter-container');
-                
-                if (!sortContainer || !filterContainer) return;
-                
-                let sortHTML = '';
-                let filterHTML = '';
-
-                const applyClick = (filterVal, sortVal) => {
-                    return `onclick="if('${filterVal}' || '${filterVal}'==='') document.getElementById('filter-master-view').value='${filterVal}'; if('${sortVal}' || '${sortVal}'==='') document.getElementById('sort-master-view').value='${sortVal}'; if(window.app) window.app.applySmartMasterFilter(); else UI.applyFilters('masters'); UI.closeBottomSheet('sheet-dynamic-master-sort');"`;
-                };
-
-                // Common Sorts
-                sortHTML += `
-                    <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" ${applyClick('', 'name-asc')}>
-                        <span class="material-symbols-outlined" style="color: #0061a4; margin-bottom: 4px;">sort_by_alpha</span>
-                        <strong style="display:block; font-size:13px;">A to Z</strong>
-                    </div>
-                    <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" ${applyClick('', 'name-desc')}>
-                        <span class="material-symbols-outlined" style="color: #6a1b9a; margin-bottom: 4px;">sort_by_alpha</span>
-                        <strong style="display:block; font-size:13px;">Z to A</strong>
-                    </div>
-                `;
-
-                if (tab === 'products') {
-                    sortHTML += `
-                        <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" ${applyClick('', 'stock-asc')}>
-                            <span class="material-symbols-outlined" style="color: #ba1a1a; margin-bottom: 4px;">trending_down</span>
-                            <strong style="display:block; font-size:13px;">Lowest Stock</strong>
-                        </div>
-                        <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" ${applyClick('', 'stock-desc')}>
-                            <span class="material-symbols-outlined" style="color: #146c2e; margin-bottom: 4px;">trending_up</span>
-                            <strong style="display:block; font-size:13px;">Highest Stock</strong>
-                        </div>
-                    `;
-                    
-                    filterHTML += `
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('In Stock', '')}>
-                            <div style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">inventory_2</span></div>
-                            <div><strong style="display:block; font-size:16px;">In Stock</strong><small style="color:var(--md-text-muted);">Items available</small></div>
-                        </div>
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('Out of Stock', '')}>
-                            <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">remove_shopping_cart</span></div>
-                            <div><strong style="display:block; font-size:16px;">Out of Stock</strong><small style="color:var(--md-text-muted);">Zero inventory</small></div>
-                        </div>
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('Low Stock', '')}>
-                            <div style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">warning</span></div>
-                            <div><strong style="display:block; font-size:16px;">Low Stock</strong><small style="color:var(--md-text-muted);">Below minimum alert</small></div>
-                        </div>
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('GST Stock', '')}>
-                            <div style="background: rgba(0, 97, 164, 0.1); color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">account_balance</span></div>
-                            <div><strong style="display:block; font-size:16px;">GST Stock</strong><small style="color:var(--md-text-muted);">Official tax pool</small></div>
-                        </div>
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('Non-GST Stock', '')}>
-                            <div style="background: #fff8e1; color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">receipt_long</span></div>
-                            <div><strong style="display:block; font-size:16px;">Non-GST Stock</strong><small style="color:var(--md-text-muted);">Estimate / bill of supply pool</small></div>
-                        </div>
-                    `;
-                } 
-                else if (tab === 'customers' || tab === 'suppliers' || tab === 'contacts') {
-                    sortHTML += `
-                        <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" ${applyClick('', 'bal-desc')}>
-                            <span class="material-symbols-outlined" style="color: #ba1a1a; margin-bottom: 4px;">south_east</span>
-                            <strong style="display:block; font-size:13px;">Highest Bal</strong>
-                        </div>
-                        <div class="m3-card tap-target" style="padding: 12px; text-align: center; margin: 0; background: var(--md-surface-variant);" ${applyClick('', 'bal-asc')}>
-                            <span class="material-symbols-outlined" style="color: #146c2e; margin-bottom: 4px;">north_east</span>
-                            <strong style="display:block; font-size:13px;">Lowest Bal</strong>
-                        </div>
-                    `;
-
-                    if (tab === 'contacts') {
-                        filterHTML += `
-                            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('Customers Only', '')}>
-                                <div style="background: rgba(0, 97, 164, 0.1); color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">groups</span></div>
-                                <div><strong style="display:block; font-size:16px;">Customers Only</strong><small style="color:var(--md-text-muted);">View buyers</small></div>
-                            </div>
-                            <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('Suppliers Only', '')}>
-                                <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">local_shipping</span></div>
-                                <div><strong style="display:block; font-size:16px;">Suppliers Only</strong><small style="color:var(--md-text-muted);">View vendors</small></div>
-                            </div>
-                        `;
-                    }
-
-                    filterHTML += `
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('To Receive', '')}>
-                            <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">call_received</span></div>
-                            <div><strong style="display:block; font-size:16px;">To Receive (Due)</strong><small style="color:var(--md-text-muted);">Pending collections</small></div>
-                        </div>
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('To Pay', '')}>
-                            <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">call_made</span></div>
-                            <div><strong style="display:block; font-size:16px;">To Pay (Due)</strong><small style="color:var(--md-text-muted);">Pending payments</small></div>
-                        </div>
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('Advance', '')}>
-                            <div style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">account_balance_wallet</span></div>
-                            <div><strong style="display:block; font-size:16px;">Advance</strong><small style="color:var(--md-text-muted);">Paid or received</small></div>
-                        </div>
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('GST', '')}>
-                            <div style="background: rgba(0, 97, 164, 0.1); color: #0061a4; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">verified</span></div>
-                            <div><strong style="display:block; font-size:16px;">GST (Registered)</strong><small style="color:var(--md-text-muted);">Parties with GSTIN</small></div>
-                        </div>
-                        <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px;" ${applyClick('Non-GST', '')}>
-                            <div style="background: #fff8e1; color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">person_off</span></div>
-                            <div><strong style="display:block; font-size:16px;">Non-GST (Unregistered)</strong><small style="color:var(--md-text-muted);">Parties without GSTIN</small></div>
-                        </div>
-                    `;
-                }
-
-                sortContainer.innerHTML = sortHTML;
-                filterContainer.innerHTML = filterHTML;
-
-                window.UI.openBottomSheet('sheet-dynamic-master-sort');
-            };
-
-            // Hijack the Filtering Engine to force the math to calculate
-            const originalFilter = window.app.applySmartMasterFilter;
-            window.app.applySmartMasterFilter = function() {
-                originalFilter.apply(this, arguments);
-                setTimeout(() => {
-                    const filterVal = document.getElementById('filter-master-view').value;
-                    if (filterVal === 'GST Stock' || filterVal === 'Non-GST Stock') {
-                        const list = document.querySelector('#master-list-container .list-view');
-                        if (!list) return;
-                        
-                        Array.from(list.children).forEach(li => {
-                            if (li.classList.contains('empty-state')) return;
-                            let show = true;
-                            const idMatch = li.innerHTML.match(/(sollo-[a-z0-9-]+)/);
-                            const itemId = idMatch ? idMatch[1] : null;
-                            
-                            if (itemId && window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.items) {
-                                const dbItem = window.UI.state.rawData.items.find(i => i.id === itemId);
-                                if (dbItem) {
-                                    if (filterVal === 'GST Stock' && (parseFloat(dbItem.stockGst) || 0) <= 0) show = false;
-                                    if (filterVal === 'Non-GST Stock' && (parseFloat(dbItem.stockNonGst) || 0) <= 0) show = false;
-                                }
-                            } else {
-                                show = false;
-                            }
-                            li.style.display = show ? 'flex' : 'none';
-                        });
-                    }
-                }, 100);
-            };
-        }
-    }, 1500);
+    // (Legacy openMasterSort override removed so app.js native radio-row filter engine runs cleanly)
     </script>
 
     <script>
@@ -6226,7 +6227,8 @@ Data & Security</strong>
                 if (tabsEl) {
                     if (targetType === 'party') {
                         tabsEl.style.display = 'flex';
-                        if(window.switchSmartTab) window.switchSmartTab('customer'); // Default to Customer Tab
+                        if(window.selectSmartPartyTab) window.selectSmartPartyTab('customer', true); // Default to Customer Tab
+                        if(window.UI.executeSmartSearch) window.UI.executeSmartSearch();
                     } else {
                         tabsEl.style.display = 'none'; // Hide tabs for Products
                     }
@@ -6320,8 +6322,8 @@ Data & Security</strong>
         let name = overrideName;
 
         // If no override is provided, check if we are currently inside an active Product Edit form
-        if (!id && window.app && window.app.state.currentEditId && document.getElementById('activity-product-form').classList.contains('open')) {
-            id = window.app.state.currentEditId;
+        if (!id && window.app && window.app.state.currentMasterId && document.getElementById('activity-product-form').classList.contains('open')) {
+            id = window.app.state.currentMasterId;
             name = document.getElementById('prod-name').value;
         }
 
@@ -6375,7 +6377,7 @@ Data & Security</strong>
             
             const purchases = window.UI.state.rawData.purchases || [];
             purchases.forEach(p => {
-                if(p.status === 'Open' || p.firmId !== activeFirmId) return;
+                if(p.status === 'Open' || p.status === 'Cancelled' || p.firmId !== activeFirmId) return;
                 if(filterPartyId && p.supplierId !== filterPartyId) return; // 🛡️ STRICT PARTY FILTER SHIELD
                 
                 (p.items || []).forEach(i => {
@@ -6390,7 +6392,7 @@ Data & Security</strong>
             
             const sales = window.UI.state.rawData.sales || [];
             sales.forEach(s => {
-                if(s.status === 'Open' || s.firmId !== activeFirmId) return;
+                if(s.status === 'Open' || s.status === 'Cancelled' || s.firmId !== activeFirmId) return;
                 if(filterPartyId && s.customerId !== filterPartyId) return; // 🛡️ STRICT PARTY FILTER SHIELD
                 
                 (s.items || []).forEach(i => {
@@ -6407,7 +6409,7 @@ Data & Security</strong>
             if (!filterPartyId) {
                 const adjustments = window.UI.state.rawData.adjustments || [];
                 adjustments.forEach(a => {
-                    if (a.itemId === id) {
+                    if (a.itemId === id && (!a.firmId || a.firmId === activeFirmId)) {
                         const qty = parseFloat(a.qty) || 0;
                         timeline.push({ date: a.date, type: 'Adjustment', desc: `Stock Adj (${a.pool === 'gst' ? 'GST' : 'Non-GST'})`, partyName: 'Manual Correction', ref: a.notes || 'Audit', impact: a.type === 'add' ? qty : -qty, rate: 0 });
                     }
@@ -6415,6 +6417,7 @@ Data & Security</strong>
                 
                 const expenses = window.UI.state.rawData.expenses || [];
                 expenses.forEach(e => {
+                    if (e.firmId && e.firmId !== activeFirmId) return;
                     (e.items || []).forEach(row => {
                         if(row.itemId === id) {
                             timeline.push({ date: e.date, type: 'Expense', desc: 'Internal Expense', partyName: e.category || 'Consumed', ref: e.expenseNo || 'EXP', impact: -(parseFloat(row.qty) || 0), rate: 0 });
@@ -6450,7 +6453,7 @@ Data & Security</strong>
     // 🚀 ENTERPRISE FIX: THE MISSING KHATA LEDGER TRIGGER
     window.triggerKhataFromForm = async () => {
         // 1. Check if the user is editing a saved party, or creating a brand new one
-        const partyId = window.app && window.app.state ? window.app.state.currentEditId : null;
+        const partyId = window.app && window.app.state ? window.app.state.currentMasterId : null;
         
         if (!partyId) {
             if (window.Utils) window.Utils.showToast("⚠️ Please save the party first!");
@@ -6539,10 +6542,10 @@ Data & Security</strong>
                 </div>
                 <div style="flex: 1;">
                     <strong class="large-text">${t.desc}</strong><br>
-                    <small style="color: var(--md-text-muted);">${t.date} | ${t.partyName || 'System'} ${t.ref ? '| Ref: ' + t.ref : ''}</small>
+                    <small style="color: var(--md-text-muted);">${window.Utils ? window.Utils.formatDateDisplay(t.date) : t.date} | ${t.partyName || 'System'} ${t.ref ? '| Ref: ' + t.ref : ''}</small>
                 </div>
                 <div style="text-align:right;">
-                    <strong style="font-size: 15px; color: ${iconColor};">${sign}${t.impact} Units</strong><br>
+                    <strong style="font-size: 15px; color: ${iconColor};">${sign}${parseFloat(t.impact || 0).toFixed(2)} Units</strong><br>
                     <small style="color: var(--md-text-muted);">Bal: ${t.runningBalance.toFixed(2)}</small>
                 </div>
             </div>`;
@@ -6616,78 +6619,6 @@ Data & Security</strong>
         }
     });
     </script>
-    <div id="sheet-smart-search" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: auto; max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff); overflow: hidden;">
-        
-        <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; border-radius: 12px 12px 0 0; flex-shrink: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; padding-bottom: 8px;">
-                <!-- 🚀 ADDED: Top Left Close Icon for Double Safety -->
-                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                    <span class="material-symbols-outlined tap-target" style="font-size: 22px; color: var(--md-on-surface-variant);" onclick="UI.closeBottomSheet('sheet-smart-search')">close</span>
-                    <strong id="smart-search-title" style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b);">Search</strong>
-                </div>
-                <span class="material-symbols-outlined tap-target" style="color: var(--md-primary, #0061a4); font-size: 24px; padding: 4px;" onclick="UI.createNewFromSearch()">add</span>
-            </div>
-            
-            <div style="background: var(--md-surface, #ffffff); padding: 0 16px 12px 16px;">
-                <input type="text" id="smart-search-input" placeholder="Search name or phone..." autocomplete="off" oninput="if(window.st) clearTimeout(window.st); window.st = setTimeout(() => UI.executeSmartSearch(), 250);" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: var(--md-surface-variant, #f1f5f9); padding: 10px; border-radius: 8px; font-size: 14px; color: var(--md-on-surface, #1e293b); outline: none; margin-bottom: 0;">
-            </div>
-
-            <div id="smart-search-tabs" style="display: none; background: var(--md-surface-variant); padding: 4px; border-radius: 8px; margin: 0 16px 12px 16px;">
-                <div id="tab-btn-smart-customers" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; background: var(--md-surface); color: var(--md-primary); box-shadow: var(--elevation-1); font-size: 13px;" onclick="window.switchSmartTab('customer')">Customers</div>
-                <div id="tab-btn-smart-suppliers" class="tap-target" style="flex: 1; text-align: center; padding: 8px; border-radius: 6px; font-weight: bold; color: var(--md-text-muted); font-size: 13px;" onclick="window.switchSmartTab('supplier')">Suppliers</div>
-            </div>
-            <div style="height: 1px; background: var(--md-outline-variant, #e2e8f0); width: 100%;"></div>
-        </div>
-                    <!-- Script to make the Customer/Supplier tabs work -->
-            <script>
-                window.switchSmartTab = function(type) {
-                    const btnC = document.getElementById('tab-btn-smart-customers');
-                    const btnS = document.getElementById('tab-btn-smart-suppliers');
-                    
-                    if (type === 'customer') {
-                        btnC.style.background = 'var(--md-surface)'; btnC.style.color = 'var(--md-primary)'; btnC.style.boxShadow = 'var(--elevation-1)';
-                        btnS.style.background = 'transparent'; btnS.style.color = 'var(--md-text-muted)'; btnS.style.boxShadow = 'none';
-                    } else {
-                        btnS.style.background = 'var(--md-surface)'; btnS.style.color = 'var(--md-primary)'; btnS.style.boxShadow = 'var(--elevation-1)';
-                        btnC.style.background = 'transparent'; btnC.style.color = 'var(--md-text-muted)'; btnC.style.boxShadow = 'none';
-                    }
-                    
-                    // Tell the app to change the search target and re-search!
-                    if (window.UI) {
-                        window.UI.state.smartSearchTarget = type;
-                        window.UI.executeSmartSearch();
-                    }
-                };
-            </script>
-
-        
-        <div id="smart-search-results" style="flex: 1; overflow-y: auto; padding: 0; background: var(--md-surface, #ffffff); min-height: 0;">
-        </div>
-        
-    </div>
-
-        
-        <!-- Tab Switching Logic -->
-        <script>
-            window.switchSmartTab = function(tab) {
-                const btnC = document.getElementById('tab-btn-smart-customers');
-                const btnS = document.getElementById('tab-btn-smart-suppliers');
-                
-                if (tab === 'customer') {
-                    btnC.style.background = 'var(--md-surface)'; btnC.style.color = 'var(--md-primary)'; btnC.style.boxShadow = 'var(--elevation-1)';
-                    btnS.style.background = 'transparent'; btnS.style.color = 'var(--md-text-muted)'; btnS.style.boxShadow = 'none';
-                } else {
-                    btnS.style.background = 'var(--md-surface)'; btnS.style.color = 'var(--md-primary)'; btnS.style.boxShadow = 'var(--elevation-1)';
-                    btnC.style.background = 'transparent'; btnC.style.color = 'var(--md-text-muted)'; btnC.style.boxShadow = 'none';
-                }
-                
-                if (window.UI) {
-                    window.UI.state.smartSearchPartyFilter = tab;
-                    window.UI.executeSmartSearch(); // Refresh the list instantly!
-                }
-            };
-        </script>
-    </div>
 
     <!-- 🚨 ENTERPRISE UPGRADE: COMPACT POS NUMPAD OVERLAY -->
     <div class="pos-numpad-overlay" id="custom-numpad" style="background-color: var(--md-surface-variant); padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
@@ -6760,7 +6691,7 @@ Data & Security</strong>
     
     <div id="enterprise-dialog" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 999999; display: flex; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.25s ease;">
         <div id="enterprise-dialog-card" style="background: var(--md-surface, #ffffff); width: 85%; max-width: 340px; border-radius: 28px; padding: 28px 24px; box-shadow: 0 24px 48px rgba(0,0,0,0.3); transform: scale(0.9); transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); text-align: center;">
-            <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(0, 97, 164, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
+            <div id="enterprise-dialog-icon-bg" style="width: 64px; height: 64px; border-radius: 50%; background: rgba(0, 97, 164, 0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
                 <span id="enterprise-dialog-icon" class="material-symbols-outlined" style="color: var(--md-primary, #0061a4); font-size: 32px;">info</span>
             </div>
             <h3 id="enterprise-dialog-title" style="margin: 0 0 12px 0; font-size: 20px; font-weight: 800; color: var(--md-on-surface, #0f172a);">Notice</h3>
@@ -6809,14 +6740,32 @@ Data & Security</strong>
         window.addEventListener('popstate', function (event) {
             let preventedAction = false;
 
-            // 1. Check if a Bottom Sheet is open
+            // 1. Check if the In-App PDF Viewer is open
+            const pdfViewer = document.getElementById('in-app-pdf-viewer');
+            const numpad = document.getElementById('custom-numpad');
             const openSheet = document.querySelector('.bottom-sheet.open');
-            if (openSheet) {
+
+            if (pdfViewer) {
+                const closeBtn = document.getElementById('btn-close-pdf-loaded') || document.getElementById('btn-close-pdf-loading');
+                if (closeBtn) closeBtn.click();
+                else {
+                    if (window.currentActivePDF) { window.currentActivePDF.destroy(); window.currentActivePDF = null; }
+                    pdfViewer.remove();
+                    document.body.style.overflow = '';
+                }
+                preventedAction = true;
+            }
+            // 2. Check if the POS Numpad is open
+            else if (numpad && numpad.classList.contains('open')) {
+                if (window.UI) window.UI.closeNumpad();
+                preventedAction = true;
+            }
+            // 3. Check if a Bottom Sheet is open
+            else if (openSheet) {
                 if (window.UI) window.UI.closeBottomSheet(openSheet.id);
                 preventedAction = true;
             }
-            
-            // 2. Check if a Full-Screen Form/Activity is open
+            // 4. Check if a Full-Screen Form/Activity is open
             else {
                 const openActivity = document.querySelector('.activity-screen.open');
                 if (openActivity) {

@@ -1,7 +1,7 @@
 // ==========================================
-// SOLLO ERP - SMART OFFLINE ENGINE (v6.4 Fine-Tuned)
+// SOLLO ERP - SMART OFFLINE ENGINE (v6.5 Auto-Fresh)
 // ==========================================
-const CACHE_NAME = 'sollo-erp-v96-offline';
+const CACHE_NAME = 'sollo-erp-evergreen-offline';
 
 const ASSETS_TO_CACHE = [
     './',
@@ -32,6 +32,7 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return Promise.all(ASSETS_TO_CACHE.map(url => {
@@ -58,14 +59,14 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-const fetchWithTimeout = (request, timeout = 2500) => {
+const fetchWithTimeout = (request, timeout = 1500, fetchOptions = {}) => {
     return new Promise((resolve, reject) => {
         const controller = new AbortController();
         const timer = setTimeout(() => {
             controller.abort();
             reject(new Error('Network Timeout'));
         }, timeout);
-        fetch(request, { signal: controller.signal }).then(res => {
+        fetch(request, { ...fetchOptions, signal: controller.signal }).then(res => {
             clearTimeout(timer);
             resolve(res);
         }).catch(err => {
@@ -95,10 +96,13 @@ self.addEventListener('fetch', (event) => {
     if (event.request.method !== 'GET') return;
     if (url.startsWith('blob:') || url.startsWith('data:')) return;
 
-    // 3. Navigation requests: Network-first (fast 1.5s timeout) falling back to cached index.html
-    if (event.request.mode === 'navigate') {
+    const urlObj = new URL(url);
+    const isLocalAsset = urlObj.origin === self.location.origin;
+
+    // 3. All Local App Files (HTML, CSS, JS, Manifest, Icons): Network-First (cache: 'no-cache') with 1.5s Offline Fallback
+    if (event.request.mode === 'navigate' || isLocalAsset) {
         event.respondWith(
-            fetchWithTimeout(event.request, 1500)
+            fetchWithTimeout(event.request, 1500, { cache: 'no-cache' })
                 .then(networkResponse => {
                     if (networkResponse && networkResponse.status === 200) {
                         const copy = networkResponse.clone();
@@ -106,12 +110,18 @@ self.addEventListener('fetch', (event) => {
                     }
                     return networkResponse;
                 })
-                .catch(() => caches.match('./index.html'))
+                .catch(() => {
+                    return caches.match(event.request, { ignoreSearch: true }).then(cached => {
+                        if (cached) return cached;
+                        if (event.request.mode === 'navigate') return caches.match('./index.html');
+                        return new Response('', { status: 408, statusText: 'Offline' });
+                    });
+                })
         );
         return;
     }
 
-    // 4. Static App Assets, Google Fonts (.woff2), and Vendor CDNs: Cache-First
+    // 4. External Vendor CDNs & Google Fonts (.woff2): Cache-First for Instant Speed
     event.respondWith(
         caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
             if (cachedResponse) return cachedResponse;
