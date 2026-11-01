@@ -2136,8 +2136,10 @@ const UI = {
                     let matchFilter = true;
                     const bal = getBal(l.id, l.type);
 
-                    if (activeMasterFilter === 'To Receive') matchFilter = safeType === 'customer' && bal > 0.01;
-                    else if (activeMasterFilter === 'To Pay') matchFilter = safeType === 'supplier' && bal > 0.01;
+                    const spFilter = splitBalances[l.id] || { gst: 0, non: 0, total: 0 };
+                    if (activeMasterFilter === 'To Receive') matchFilter = safeType === 'customer' && (bal > 0.01 || spFilter.gst > 0.01 || spFilter.non > 0.01);
+                    else if (activeMasterFilter === 'To Pay') matchFilter = safeType === 'supplier' && (bal > 0.01 || spFilter.gst > 0.01 || spFilter.non > 0.01);
+                    else if (activeMasterFilter === 'Advance') matchFilter = (bal < -0.01 || spFilter.gst < -0.01 || spFilter.non < -0.01);
                     else if (activeMasterFilter === 'Advance') matchFilter = bal < -0.01; 
                     else if (activeMasterFilter === 'GST') matchFilter = l.gst && l.gst.trim() !== '';
                     else if (activeMasterFilter === 'Non-GST') matchFilter = !l.gst || l.gst.trim() === '';

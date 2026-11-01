@@ -5931,8 +5931,8 @@ if (data.id && splitConfirmed) {
             currStatus = getStatus(bal);
             currColor = (party.type === 'Customer' ? bal > 0.01 : bal < -0.01) ? '#dc2626' : '#16a34a';
 
-            // GST Split Math
-            if ((party.type === 'Customer' && bal > 0.01) || (party.type === 'Supplier' && bal < -0.01)) {
+            // GST Split Math (Supports both Dues and Advances for Customer & Supplier)
+            if (Math.abs(bal) > 0.01 || true) {
                 let trueBalGST = 0;
                 let trueBalNonGST = 0;
                 const isCustomer = party.type === 'Customer';
@@ -5978,13 +5978,14 @@ if (data.id && splitConfirmed) {
                     }
                 });
 
-                trueBalGST = Math.max(0, trueBalGST);
-                trueBalNonGST = Math.max(0, trueBalNonGST);
-
-                if (trueBalGST > 0.01 || trueBalNonGST > 0.01) {
-                    if (trueBalGST > 0.01) splitStack.push({text: `GST Due: ₹${trueBalGST.toLocaleString('en-IN', {minimumFractionDigits: 2})}`, fontSize: 9, bold: true, color: '#0f172a'});
-                    if (trueBalNonGST > 0.01) splitStack.push({text: `Non-GST Due: ₹${trueBalNonGST.toLocaleString('en-IN', {minimumFractionDigits: 2})}`, fontSize: 9, bold: true, color: '#0f172a', margin: [0, 2, 0, 0]});
+                const pdfDueWord = String(party.type).toLowerCase() === 'customer' ? 'Due' : 'To Pay';
+                if (Math.abs(trueBalGST) > 0.01 || Math.abs(trueBalNonGST) > 0.01) {
+                    if (trueBalGST > 0.01) splitStack.push({text: `GST ${pdfDueWord}: ₹${trueBalGST.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, fontSize: 9, bold: true, color: '#dc2626'});
+                    else if (trueBalGST < -0.01) splitStack.push({text: `GST Adv: ₹${Math.abs(trueBalGST).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, fontSize: 9, bold: true, color: '#16a34a'});
+                    if (trueBalNonGST > 0.01) splitStack.push({text: `Non-GST ${pdfDueWord}: ₹${trueBalNonGST.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, fontSize: 9, bold: true, color: '#dc2626', margin: [0, 2, 0, 0]});
+                    else if (trueBalNonGST < -0.01) splitStack.push({text: `Non-GST Adv: ₹${Math.abs(trueBalNonGST).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, fontSize: 9, bold: true, color: '#16a34a', margin: [0, 2, 0, 0]});
                 }
+
             }
         }
 
@@ -8603,7 +8604,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 
         // 🚀 ENTERPRISE GST SPLIT ENGINE FOR KHATA STATEMENT PDF
         let splitHtml = '';
-        if ((String(partyType).toLowerCase() === 'customer' && runBal > 0.01) || (String(partyType).toLowerCase() !== 'customer' && runBal < -0.01)) {
+        if (Math.abs(runBal) > 0.01 || true) {
             const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
             let ob = parseFloat(party.openingBalance) || 0;
             let isAdv = String(partyType).toLowerCase() === 'customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
@@ -8667,10 +8668,43 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                 }
             }
 
-            if (debitsGst > 0.01 || debitsNon > 0.01) {
+            const isCust = String(partyType).toLowerCase() === 'customer';
+            let trueBalGST = 0;
+            let trueBalNonGST = !isAdv ? ob : -ob;
+            docs.forEach(d => {
+                if (d.status !== 'Open' && d.status !== 'Cancelled' && (isCust ? d.customerId === partyId : d.supplierId === partyId)) {
+                    const amt = parseFloat(d.grandTotal) || 0;
+                    const imp = d.documentType === 'return' ? -amt : amt;
+                    if (d.invoiceType === 'Non-GST') trueBalNonGST += imp;
+                    else trueBalGST += imp;
+                }
+            });
+            allReceipts.forEach(r => {
+                if (r.ledgerId === partyId) {
+                    let isNonGstReceipt = r.taxPool === 'Non-GST';
+                    const legacyRef = r.invoiceRef || r.linkedInvoice;
+                    if (!r.taxPool || r.taxPool === 'All') {
+                        isNonGstReceipt = true;
+                        if (legacyRef) {
+                            const firstRef = String(legacyRef).split(',')[0].trim();
+                            const linkedDoc = docs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                        }
+                    }
+                    const amt = parseFloat(r.amount) || 0;
+                    const imp = isCust ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
+                    if (isNonGstReceipt) trueBalNonGST += imp;
+                    else trueBalGST += imp;
+                }
+            });
+            const dueLabel = isCust ? 'Due' : 'To Pay';
+            const fmtK = (v) => Math.abs(v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (Math.abs(trueBalGST) > 0.01 || Math.abs(trueBalNonGST) > 0.01) {
                 splitHtml = `<div style="margin-top: 12px; background: #f1f5f9; padding: 10px; border-radius: 6px; border: 1px dashed #cbd5e1; width: 100%; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">`;
-                if (debitsGst > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f172a; font-weight: 800;"><span>GST Due:</span><span>₹${debitsGst.toFixed(2)}</span></div>`;
-                if (debitsNon > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #0f172a; font-weight: 800;"><span>Non-GST Due:</span><span>₹${debitsNon.toFixed(2)}</span></div>`;
+                if (trueBalGST > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #dc2626; font-weight: 800;"><span>GST ${dueLabel}:</span><span>₹${fmtK(trueBalGST)}</span></div>`;
+                else if (trueBalGST < -0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #16a34a; font-weight: 800;"><span>GST Adv:</span><span>₹${fmtK(trueBalGST)}</span></div>`;
+                if (trueBalNonGST > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #dc2626; font-weight: 800;"><span>Non-GST ${dueLabel}:</span><span>₹${fmtK(trueBalNonGST)}</span></div>`;
+                else if (trueBalNonGST < -0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #16a34a; font-weight: 800;"><span>Non-GST Adv:</span><span>₹${fmtK(trueBalNonGST)}</span></div>`;
                 splitHtml += `</div>`;
             }
         }

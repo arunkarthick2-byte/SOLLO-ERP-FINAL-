@@ -2242,7 +2242,7 @@ const pdf = window.currentActivePDF;
                 balSuffix = finalBal < 0 ? 'Cr (To Pay)' : 'Dr (Advance)';
             }
 
-            if ((party.type === 'Customer' && finalBal > 0.01) || (party.type === 'Supplier' && finalBal < -0.01)) {
+            if (Math.abs(finalBal) > 0.01 || true) {
                 let debitsGst = 0;
                 let debitsNon = 0;
                 const exactPaymentMap = {};
@@ -2309,10 +2309,44 @@ const pdf = window.currentActivePDF;
                     else debitsGst += missingDebt;
                 }
 
-                if (debitsGst > 0.01 || debitsNon > 0.01) {
-                    if (debitsGst > 0.01) splitStack.push({ text: `GST Due: ₹${window.Utils.formatCurrency(debitsGst)}`, fontSize: 9, bold: true, color: '#0f172a' });
-                    if (debitsNon > 0.01) splitStack.push({ text: `Non-GST Due: ₹${window.Utils.formatCurrency(debitsNon)}`, fontSize: 9, bold: true, color: '#0f172a', margin: [0, 2, 0, 0] });
-                }
+                const isCust = String(party.type).toLowerCase() === 'customer';
+                const ob = parseFloat(party.openingBalance) || 0;
+                const bType = String(party.balanceType || '').toLowerCase();
+                const isAdv = isCust ? (bType.includes('pay') || bType.includes('credit')) : (bType.includes('receive') || bType.includes('debit'));
+                let trueBalGST = 0;
+                let trueBalNonGST = !isAdv ? ob : -ob;
+                const pDocs = isCust ? (window.UI?.state?.rawData?.sales || []) : (window.UI?.state?.rawData?.purchases || []);
+                pDocs.forEach(d => {
+                    if (d.status !== 'Open' && d.status !== 'Cancelled' && (!party.firmId || d.firmId === party.firmId) && (isCust ? d.customerId : d.supplierId) === party.id) {
+                        const amt = parseFloat(d.grandTotal) || 0;
+                        const imp = d.documentType === 'return' ? -amt : amt;
+                        if (d.invoiceType === 'Non-GST') trueBalNonGST += imp;
+                        else trueBalGST += imp;
+                    }
+                });
+                (window.UI?.state?.rawData?.cashbook || []).forEach(r => {
+                    if ((!party.firmId || r.firmId === party.firmId) && r.ledgerId === party.id) {
+                        let isNonGstReceipt = r.taxPool === 'Non-GST';
+                        const legacyRef = r.invoiceRef || r.linkedInvoice;
+                        if (!r.taxPool || r.taxPool === 'All') {
+                            isNonGstReceipt = true;
+                            if (legacyRef) {
+                                const firstRef = String(legacyRef).split(',')[0].trim();
+                                const linkedDoc = pDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                                if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                            }
+                        }
+                        const amt = parseFloat(r.amount) || 0;
+                        const imp = isCust ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
+                        if (isNonGstReceipt) trueBalNonGST += imp;
+                        else trueBalGST += imp;
+                    }
+                });
+                const dueLabel = isCust ? 'Due' : 'To Pay';
+                if (trueBalGST > 0.01) splitStack.push({ text: `GST ${dueLabel}: ₹${window.Utils.formatCurrency(trueBalGST)}`, fontSize: 9, bold: true, color: '#dc2626' });
+                else if (trueBalGST < -0.01) splitStack.push({ text: `GST Adv: ₹${window.Utils.formatCurrency(Math.abs(trueBalGST))}`, fontSize: 9, bold: true, color: '#16a34a' });
+                if (trueBalNonGST > 0.01) splitStack.push({ text: `Non-GST ${dueLabel}: ₹${window.Utils.formatCurrency(trueBalNonGST)}`, fontSize: 9, bold: true, color: '#dc2626', margin: [0, 2, 0, 0] });
+                else if (trueBalNonGST < -0.01) splitStack.push({ text: `Non-GST Adv: ₹${window.Utils.formatCurrency(Math.abs(trueBalNonGST))}`, fontSize: 9, bold: true, color: '#16a34a', margin: [0, 2, 0, 0] });
             }
         }
 
@@ -2773,8 +2807,9 @@ const pdf = window.currentActivePDF;
                             width: '50%',
                             stack: [
                                 { text: 'Closing Stock Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 0, 0, 2] },
-                                { text: finalDisplayBalance.toFixed(2), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
-                                { text: finalDisplayBalance > 0 ? 'Net Surplus (IN)' : (finalDisplayBalance < 0 ? 'Net Deficit (OUT)' : 'Zero Balance'), alignment: 'right', fontSize: 10, bold: true, color: finalDisplayBalance > 0 ? '#16a34a' : (finalDisplayBalance < 0 ? '#dc2626' : '#475569') }
+                                { text: finalDisplayBalance.toFixed(2) + (product && product.uom ? ' ' + product.uom : ''), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
+                                { text: finalDisplayBalance > 0 ? 'Net Surplus (IN)' : (finalDisplayBalance < 0 ? 'Net Deficit (OUT)' : 'Zero Balance'), alignment: 'right', fontSize: 10, bold: true, color: finalDisplayBalance > 0 ? '#16a34a' : (finalDisplayBalance < 0 ? '#dc2626' : '#475569') },
+                                ...(!partyId && !dateFilter && product ? [{ text: `GST: ${isNaN(parseFloat(product.stockGst)) ? (parseFloat(product.stock) || 0) : parseFloat(product.stockGst)} | Non: ${parseFloat(product.stockNonGst) || 0}`, alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, 4, 0, 0] }] : [])
                             ]
                         }
                     ],
@@ -3847,7 +3882,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         balSuffix = finalBal < 0 ? 'Cr (To Pay)' : 'Dr (Advance)';
     }
 
-    if ((party.type === 'Customer' && finalBal > 0.01) || (party.type === 'Supplier' && finalBal < -0.01)) {
+    if (Math.abs(finalBal) > 0.01 || true) {
         let debitsGst = 0;
         let debitsNon = 0;
         const exactPaymentMap = {};
@@ -3914,10 +3949,44 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             else debitsGst += missingDebt;
         }
 
-        if (debitsGst > 0.01 || debitsNon > 0.01) {
-            if (debitsGst > 0.01) splitStack.push({ text: `GST Due: ₹${window.Utils.formatCurrency(debitsGst)}`, fontSize: 9, bold: true, color: '#0f172a' });
-            if (debitsNon > 0.01) splitStack.push({ text: `Non-GST Due: ₹${window.Utils.formatCurrency(debitsNon)}`, fontSize: 9, bold: true, color: '#0f172a', margin: [0, 2, 0, 0] });
-        }
+        const isCust = String(party.type).toLowerCase() === 'customer';
+        const ob = parseFloat(party.openingBalance) || 0;
+        const bType = String(party.balanceType || '').toLowerCase();
+        const isAdv = isCust ? (bType.includes('pay') || bType.includes('credit')) : (bType.includes('receive') || bType.includes('debit'));
+        let trueBalGST = 0;
+        let trueBalNonGST = !isAdv ? ob : -ob;
+        const pDocs = isCust ? (window.UI?.state?.rawData?.sales || []) : (window.UI?.state?.rawData?.purchases || []);
+        pDocs.forEach(d => {
+            if (d.status !== 'Open' && d.status !== 'Cancelled' && (!party.firmId || d.firmId === party.firmId) && (isCust ? d.customerId : d.supplierId) === party.id) {
+                const amt = parseFloat(d.grandTotal) || 0;
+                const imp = d.documentType === 'return' ? -amt : amt;
+                if (d.invoiceType === 'Non-GST') trueBalNonGST += imp;
+                else trueBalGST += imp;
+            }
+        });
+        (window.UI?.state?.rawData?.cashbook || []).forEach(r => {
+            if ((!party.firmId || r.firmId === party.firmId) && r.ledgerId === party.id) {
+                let isNonGstReceipt = r.taxPool === 'Non-GST';
+                const legacyRef = r.invoiceRef || r.linkedInvoice;
+                if (!r.taxPool || r.taxPool === 'All') {
+                    isNonGstReceipt = true;
+                    if (legacyRef) {
+                        const firstRef = String(legacyRef).split(',')[0].trim();
+                        const linkedDoc = pDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                        if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
+                    }
+                }
+                const amt = parseFloat(r.amount) || 0;
+                const imp = isCust ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
+                if (isNonGstReceipt) trueBalNonGST += imp;
+                else trueBalGST += imp;
+            }
+        });
+        const dueLabel = isCust ? 'Due' : 'To Pay';
+        if (trueBalGST > 0.01) splitStack.push({ text: `GST ${dueLabel}: ₹${window.Utils.formatCurrency(trueBalGST)}`, fontSize: 9, bold: true, color: '#dc2626' });
+        else if (trueBalGST < -0.01) splitStack.push({ text: `GST Adv: ₹${window.Utils.formatCurrency(Math.abs(trueBalGST))}`, fontSize: 9, bold: true, color: '#16a34a' });
+        if (trueBalNonGST > 0.01) splitStack.push({ text: `Non-GST ${dueLabel}: ₹${window.Utils.formatCurrency(trueBalNonGST)}`, fontSize: 9, bold: true, color: '#dc2626', margin: [0, 2, 0, 0] });
+        else if (trueBalNonGST < -0.01) splitStack.push({ text: `Non-GST Adv: ₹${window.Utils.formatCurrency(Math.abs(trueBalNonGST))}`, fontSize: 9, bold: true, color: '#16a34a', margin: [0, 2, 0, 0] });
     }
 
     const statementBizLocationStr = [biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
