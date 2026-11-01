@@ -1161,8 +1161,19 @@ Please process this accordingly. Thank you!`;
         // 🚨 TALLY: Top Meta Grid Layout (Professional Stacked Layout - UNIFORM HEIGHT FIX)
         const tallyHeaderGrid = [
             [
-                // Outer Left - Company Details
-                {
+                // Outer Left - Company Details (Hidden on Bill of Supply / Non-GST)
+                isNonGST ? {
+                    rowSpan: 2,
+                    stack: [
+                        { text: isSales ? 'Buyer (Bill to)' : 'Supplier (Bill from)', fontSize: 8, color: '#475569', margin: [0,0,0,2] },
+                        { text: partyName, bold: true, fontSize: 10 },
+                        { text: partyAddress, fontSize: 9 },
+                        { text: partyLocationStr, fontSize: 9 },
+                        safeParty.phone ? { text: 'Contact: ' + safeParty.phone, fontSize: 9 } : null,
+                        safeParty.state ? { text: 'State Name : ' + safeParty.state, fontSize: 9 } : null
+                    ].filter(Boolean),
+                    padding: [4, 4]
+                } : {
                     stack: [
                         {
                             columns: [
@@ -1231,7 +1242,7 @@ Please process this accordingly. Thank you!`;
             ],
             [
                 // Outer Left - Buyer Details
-                {
+                isNonGST ? '' : {
                     stack: [
                         { text: isSales ? 'Buyer (Bill to)' : 'Supplier (Bill from)', fontSize: 8, color: '#475569', margin: [0,0,0,2] },
                         { text: partyName, bold: true, fontSize: 10 },
@@ -1626,9 +1637,9 @@ Please process this accordingly. Thank you!`;
                                                 layout: { defaultBorder: false, hLineWidth: (i, node) => i === node.table.body.length - 1 && partyBalance > 0.01 ? 0.5 : 0, hLineColor: () => '#000000' },
                                                 margin: [0, 4, 4, 5]
                                             },
-                                            { text: `for ${safeBizName}`, bold: true, fontSize: 10, alignment: 'right', margin: [0, 4, 4, 5] },
-                                            biz.signature ? { image: biz.signature, fit: [120, 40], alignment: 'right', margin: [0, 0, 4, 5] } : { text: '\n\n', margin: [0, 0, 0, 5] },
-                                            { text: 'Authorised Signatory', fontSize: 9, alignment: 'right', margin: [0, 0, 4, 4] }
+                                            !isNonGST ? { text: `for ${safeBizName}`, bold: true, fontSize: 10, alignment: 'right', margin: [0, 4, 4, 5] } : { text: '' },
+                                            !isNonGST ? (biz.signature ? { image: biz.signature, fit: [120, 40], alignment: 'right', margin: [0, 0, 4, 5] } : { text: '\n\n', margin: [0, 0, 0, 5] }) : { text: '' },
+                                            !isNonGST ? { text: 'Authorised Signatory', fontSize: 9, alignment: 'right', margin: [0, 0, 4, 4] } : { text: '' }
                                         ]
                                     }
                                 ],
@@ -1643,7 +1654,7 @@ Please process this accordingly. Thank you!`;
                 
                 // UPGRADE: Professional Customer Service Sign-off
                 { text: thisInvoiceDue <= 0.01 ? 'Payment Received with Thanks!' : 'Thank you for your business!', alignment: 'center', italics: true, bold: true, fontSize: 11, margin: [0, 10, 0, 4], color: '#0f172a' },
-                { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 0, 0, 0], color: '#475569' },
+                !isNonGST ? { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 0, 0, 0], color: '#475569' } : { text: '' },
                 { text: 'This is a Computer Generated Document', alignment: 'center', fontSize: 8, margin: [0, 2, 0, 0], color: '#475569' }
             ]
         };

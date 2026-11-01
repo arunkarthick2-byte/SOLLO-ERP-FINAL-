@@ -9654,69 +9654,292 @@ html body.dark-mode .activity-screen .item-entry-card input.row-gst {
 /* 1. DASHBOARD TYPOGRAPHY, BORDERS & SEMANTIC COLORS RESTORATION
       Fixes legacy #tab-dashboard .m3-card:first-of-type rules that forced
       section titles to 28px and wiped out profit/order status colors! */
-html body #app-shell #tab-dashboard > .m3-card:first-of-type {
-    padding: 0 !important;
-    border-radius: 16px !important;
+/* ==========================================
+   🏛️ UNIFIED LIGHT BENTO DASHBOARD SYSTEM
+   ========================================== */
+
+/* 1. Keep Greeting Header on a Single Clean Line */
+html body #app-shell #tab-dashboard .dashboard-top-bar {
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+html body #app-shell #tab-dashboard .greeting-title {
+    font-size: clamp(17px, 4.5vw, 20px) !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    line-height: 1.2 !important;
+}
+
+/* 2. Unified Pure White Bento Cards (Hero, AI Insight, Chart, Order Fulfillment) */
+html body #app-shell #tab-dashboard > .m3-card:first-of-type,
+html body #app-shell #tab-dashboard > .dash-royal-hero,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero,
+html body #app-shell #tab-dashboard > .dash-bento-card:not(.dash-royal-hero),
+html body #app-shell #tab-dashboard #dash-ai-insights {
+    background: var(--md-surface) !important;
+    color: var(--md-on-surface) !important;
+    border-radius: 18px !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
-    border: 1px solid var(--md-outline-variant) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04) !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 10px 28px -8px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03) !important;
     overflow: hidden !important;
 }
 
-html body.dark-mode #app-shell #tab-dashboard > .m3-card:first-of-type {
-    background: #121212 !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+html body #app-shell #tab-dashboard > .m3-card:first-of-type,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero {
+    padding: 0 !important;
 }
 
-html body #app-shell #tab-dashboard .dash-metrics-row,
-html body #app-shell #tab-dashboard .dash-list-card,
-html body #app-shell #tab-dashboard .dash-ai-card,
-html body #app-shell #tab-dashboard .dash-analytics-card,
-html body #app-shell #tab-dashboard .dash-chart-card,
-html body #app-shell #tab-dashboard .dash-fulfillment-header,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero::before,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero::after {
+    display: none !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard > .m3-card:first-of-type,
+html body.dark-mode #app-shell #tab-dashboard > .dash-royal-hero,
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero,
+html body.dark-mode #app-shell #tab-dashboard > .dash-bento-card:not(.dash-royal-hero),
+html body.dark-mode #app-shell #tab-dashboard #dash-ai-insights {
+    background: #131720 !important;
+    color: #f8fafc !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* 3. Top Hero Card Internal Layout & Subtle Two-Tone Dock (#2) */
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero div {
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero .dash-metrics-row {
+    display: flex !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero .dash-metric-box {
+    flex: 1 !important;
+    padding: 18px 16px 16px 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    min-width: 0 !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-sales {
+    border-right: 1px solid var(--md-outline-variant) !important;
+}
+
+/* Two-tone soft slate surface on the lower Warehouse & Analytics dock */
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero .dash-hero-dock {
+    background: #f8fafc !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero .dash-hero-dock {
+    background: rgba(255, 255, 255, 0.025) !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-warehouse {
+    border-top: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+
+/* 4. Hero Card Typography & Semantic Profit/Loss Colors (#3) */
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero .dash-metric-label {
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.8px !important;
+    text-transform: uppercase !important;
+    color: var(--md-text-muted) !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-sales small,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-profit small,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-sales span:not(.material-symbols-outlined),
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-warehouse small,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-analytics small {
+    color: var(--md-text-muted) !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-total-sales,
+html body #app-shell #tab-dashboard .dash-royal-hero #dash-total-sales {
+    color: var(--md-primary) !important;
+    -webkit-text-fill-color: var(--md-primary) !important;
+    font-size: clamp(20px, 5.5vw, 24px) !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.7px !important;
+    font-variant-numeric: tabular-nums !important;
+    margin-top: 2px !important;
+    line-height: 1.15 !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-total-sales,
+html body.dark-mode #app-shell #tab-dashboard .dash-royal-hero #dash-total-sales {
+    color: #60a5fa !important;
+    -webkit-text-fill-color: #60a5fa !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-net-profit,
+html body #app-shell #tab-dashboard .dash-royal-hero #dash-net-profit {
+    color: #16a34a !important;
+    -webkit-text-fill-color: #16a34a !important;
+    font-size: clamp(20px, 5.5vw, 24px) !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.7px !important;
+    font-variant-numeric: tabular-nums !important;
+    margin-top: 2px !important;
+    line-height: 1.15 !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-net-profit,
+html body.dark-mode #app-shell #tab-dashboard .dash-royal-hero #dash-net-profit {
+    color: #34d399 !important;
+    -webkit-text-fill-color: #34d399 !important;
+}
+
+/* Automatic Red Alert Color When Net Profit Is Negative (Loss) */
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-net-profit[style*="error"],
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-net-profit[style*="186"],
+html body #app-shell #tab-dashboard .dash-royal-hero #dash-net-profit[style*="error"],
+html body #app-shell #tab-dashboard .dash-royal-hero #dash-net-profit[style*="186"] {
+    color: var(--md-error) !important;
+    -webkit-text-fill-color: var(--md-error) !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-net-profit[style*="error"],
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-net-profit[style*="186"] {
+    color: #f87171 !important;
+    -webkit-text-fill-color: #f87171 !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-sales .material-symbols-outlined {
+    font-size: 16px !important;
+    color: var(--md-primary) !important;
+    opacity: 0.75 !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-profit .material-symbols-outlined {
+    font-size: 16px !important;
+    color: #16a34a !important;
+    opacity: 0.8 !important;
+}
+
+/* Gross | Exp Breakdown Pill */
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #profit-breakdown {
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    background: rgba(22, 163, 74, 0.08) !important;
+    color: #15803d !important;
+    border: 1px solid rgba(22, 163, 74, 0.16) !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.35 !important;
+    display: inline-block !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin-top: 6px !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero #profit-breakdown {
+    background: rgba(52, 211, 153, 0.12) !important;
+    color: #6ee7b7 !important;
+    border-color: rgba(52, 211, 153, 0.22) !important;
+}
+
+/* 5. Warehouse Capital & Deep Business Analytics Dock Rows (#1) */
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-warehouse strong,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-analytics strong {
+    color: var(--md-on-surface) !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    text-transform: none !important;
+    margin: 0 !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-inventory-value,
+html body #app-shell #tab-dashboard .dash-royal-hero #dash-inventory-value {
+    color: var(--md-primary) !important;
+    -webkit-text-fill-color: var(--md-primary) !important;
+    font-size: 15.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.3px !important;
+    font-variant-numeric: tabular-nums !important;
+    margin: 0 !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-inventory-value,
+html body.dark-mode #app-shell #tab-dashboard .dash-royal-hero #dash-inventory-value {
+    color: #60a5fa !important;
+    -webkit-text-fill-color: #60a5fa !important;
+}
+
+/* Style ONLY the left 38x38 icon badge (.dash-dock-icon-box), never the right value wrapper */
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero .dash-dock-icon-box {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 11px !important;
+    background: rgba(25, 118, 210, 0.08) !important;
+    border: 1px solid rgba(25, 118, 210, 0.14) !important;
+    color: var(--md-primary) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .m3-card.dash-royal-hero .dash-dock-icon-box {
+    background: rgba(96, 165, 250, 0.12) !important;
+    border-color: rgba(96, 165, 250, 0.2) !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-warehouse .material-symbols-outlined,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-analytics .material-symbols-outlined {
+    color: var(--md-primary) !important;
+}
+
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero .dash-chevron,
+html body #app-shell #tab-dashboard .m3-card.dash-royal-hero #dash-action-warehouse div:last-child > .material-symbols-outlined {
+    color: var(--md-text-muted) !important;
+    opacity: 0.6 !important;
+    margin: 0 !important;
+}
+
+/* 6. Section Headers & Clean White Order Fulfillment Header (#4C) */
+html body #app-shell #tab-dashboard .dash-section-title {
+    font-size: 13px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+    color: var(--md-primary) !important;
+    text-transform: uppercase !important;
+    margin: 0 !important;
+}
+
+html body #app-shell #tab-dashboard .dash-fulfillment-header {
+    background: transparent !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+
 html body #app-shell #tab-dashboard .dash-fulfillment-row:not(:last-child) {
     border-bottom: 1px solid var(--md-outline-variant) !important;
 }
 
-html body #app-shell #tab-dashboard .dash-metric-border {
-    border-right: 1px solid var(--md-outline-variant) !important;
-}
-
-html body #app-shell #tab-dashboard .dash-list-title,
-html body #app-shell #tab-dashboard .dash-section-title,
-html body #app-shell #tab-dashboard .dash-analytics-title {
-    font-size: 13px !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.4px !important;
-    color: var(--md-primary) !important;
-    margin: 0 !important;
-}
-
-html body #app-shell #tab-dashboard .dash-chart-card .dash-section-title {
-    margin-bottom: 12px !important;
-}
-
-html body #app-shell #tab-dashboard .dash-ai-title {
-    font-size: 13px !important;
-    font-weight: 800 !important;
-    color: var(--md-on-surface) !important;
-    margin: 0 0 2px 0 !important;
-}
-
-html body #app-shell #tab-dashboard #dash-total-sales,
-html body #app-shell #tab-dashboard #dash-inventory-value {
-    color: var(--md-primary) !important;
-    font-size: clamp(20px, 5.5vw, 25px) !important;
-    font-weight: 800 !important;
-}
-
-html body #app-shell #tab-dashboard #dash-net-profit,
-html body #app-shell #tab-dashboard .dash-profit-val {
-    color: var(--md-success) !important;
-    font-size: clamp(20px, 5.5vw, 25px) !important;
-    font-weight: 800 !important;
+html body #app-shell #tab-dashboard .dash-stage-badge {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
 }
 
 /* Preserve semantic status icon colors in Order Fulfillment rows */
@@ -9730,7 +9953,7 @@ html body #app-shell #tab-dashboard .dash-fulfillment-row[data-status="Completed
     color: var(--md-success) !important;
 }
 
-/* Completely borderless Overdue Collections section (no top, bottom, left, or right box border) */
+/* Completely borderless Overdue Collections section (kept as-is) */
 html body #app-shell #tab-dashboard #overdue-reminders-container.dash-overdue-card,
 html body.dark-mode #app-shell #tab-dashboard #overdue-reminders-container.dash-overdue-card {
     border: none !important;
@@ -9909,4 +10132,80 @@ html body #activity-expense-ledger .sticky-glass-top .search-bar {
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     border: none !important;
+}
+
+/* ==========================================
+   ✨ OPTION A: EDGE-TO-EDGE WHITE DASHBOARD SECTIONS (NO LEFT/RIGHT BORDERS)
+   ========================================== */
+html body #app-shell #tab-dashboard {
+    background-color: #F1F5F9 !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard {
+    background-color: #000000 !important;
+}
+
+html body #app-shell #tab-dashboard > .m3-card:first-of-type,
+html body #app-shell #tab-dashboard > .m3-card.dash-bento-card,
+html body #app-shell #tab-dashboard > .m3-card.dash-royal-hero,
+html body #app-shell #tab-dashboard > .dash-bento-card,
+html body #app-shell #tab-dashboard > .dash-bento-card:not(.dash-royal-hero),
+html body #app-shell #tab-dashboard #dash-ai-insights,
+html body #app-shell #tab-dashboard #dash-ai-insights.dash-ai-card,
+html body #app-shell #tab-dashboard #dash-ai-insights.dash-bento-card {
+    margin-left: -16px !important;
+    margin-right: -16px !important;
+    margin-bottom: 10px !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.8) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.02) !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard > .m3-card:first-of-type,
+html body.dark-mode #app-shell #tab-dashboard > .m3-card.dash-bento-card,
+html body.dark-mode #app-shell #tab-dashboard > .m3-card.dash-royal-hero,
+html body.dark-mode #app-shell #tab-dashboard > .dash-bento-card,
+html body.dark-mode #app-shell #tab-dashboard > .dash-bento-card:not(.dash-royal-hero),
+html body.dark-mode #app-shell #tab-dashboard #dash-ai-insights,
+html body.dark-mode #app-shell #tab-dashboard #dash-ai-insights.dash-ai-card,
+html body.dark-mode #app-shell #tab-dashboard #dash-ai-insights.dash-bento-card {
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+    box-shadow: none !important;
+}
+
+/* Make Order Fulfillment inner rows edge-to-edge without side borders */
+html body #app-shell #tab-dashboard .dash-fulfillment-row,
+html body #app-shell #tab-dashboard .dash-action-fulfillment.dash-fulfillment-row {
+    margin: 0 !important;
+    padding: 13px 16px !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.7) !important;
+    box-shadow: none !important;
+}
+
+html body #app-shell #tab-dashboard .dash-fulfillment-row:last-child,
+html body #app-shell #tab-dashboard .dash-action-fulfillment.dash-fulfillment-row:last-child {
+    border-bottom: none !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .dash-fulfillment-row,
+html body.dark-mode #app-shell #tab-dashboard .dash-action-fulfillment.dash-fulfillment-row {
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+html body.dark-mode #app-shell #tab-dashboard .dash-fulfillment-row:last-child,
+html body.dark-mode #app-shell #tab-dashboard .dash-action-fulfillment.dash-fulfillment-row:last-child {
+    border-bottom: none !important;
 }

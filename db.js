@@ -635,7 +635,7 @@ const getKhataStatement = async (partyId, partyType) => {
     if (isCustomer) {
         openingBalance = (balType.includes('pay') || balType.includes('credit')) ? -openingBalance : openingBalance;
     } else {
-        openingBalance = (balType.includes('receive') || balType.includes('debit')) ? -openingBalance : openingBalance;
+        openingBalance = (balType.includes('receive') || balType.includes('debit')) ? openingBalance : -openingBalance;
     }
 
     let timeline = [];

@@ -17,7 +17,13 @@
     
     <title>SOLLO ERP</title>
 
-        <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
+    <link rel="shortcut icon" type="image/png" href="./icon-192.png">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
@@ -59,13 +65,7 @@
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-        <link rel="stylesheet" href="style.css">
-    
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png">
-    <link rel="shortcut icon" type="image/png" href="./icon-192.png">
+    <link rel="stylesheet" href="style.css">
     <!-- 🚨 Controls the color of the mobile status bar -->
 
     <!-- 🚨 SOLLO FIX: SMART BANNER RELOCATOR (Removed to prevent battery drain) -->
@@ -219,7 +219,11 @@
                         #tab-dashboard.privacy-masked #dash-total-sales,
                         #tab-dashboard.privacy-masked #dash-net-profit,
                         #tab-dashboard.privacy-masked #profit-breakdown,
-                        #tab-dashboard.privacy-masked #dash-inventory-value {
+                        #tab-dashboard.privacy-masked #dash-inventory-value,
+                        #tab-dashboard.privacy-masked #dash-orders-open strong,
+                        #tab-dashboard.privacy-masked #dash-orders-shipped strong,
+                        #tab-dashboard.privacy-masked #dash-orders-completed strong,
+                        #tab-dashboard.privacy-masked #list-overdue .overdue-amt {
                             filter: blur(8px);
                             user-select: none;
                             transition: filter 0.2s ease;
@@ -242,92 +246,146 @@
                     </script>
                 </div>
                 
-                <div class="m3-card" style="padding: 0; overflow: hidden; margin-bottom: 24px; border: 1px solid var(--md-outline-variant); box-shadow: 0 8px 24px rgba(0,0,0,0.04);">
+                <!-- 1. EXECUTIVE ROYAL SAPPHIRE COMMAND CARD -->
+                <div class="m3-card dash-bento-card dash-royal-hero" style="padding: 0; overflow: hidden; margin-bottom: 16px; border-radius: 20px; position: relative;">
                     
+                    <!-- Dual Hero Metric Pods -->
                     <div class="dash-metrics-row">
                         <div id="dash-action-sales" class="tap-target dash-metric-box dash-metric-border">
-                            <small class="dash-metric-label">Total Sales</small>
-                            <div class="large-text color-primary dash-metric-value" id="dash-total-sales" data-bind="totalSalesDisplay">
-                                <div class="skeleton-card dash-skeleton-small"></div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                <small class="dash-metric-label">Total Revenue</small>
+                                <span class="material-symbols-outlined dash-hero-mini-icon">north_east</span>
                             </div>
+                            <div class="large-text dash-metric-value" id="dash-total-sales" data-bind="totalSalesDisplay">
+                                <div class="skeleton-card dash-skeleton-small" style="opacity: 0.25;"></div>
+                            </div>
+                            <small class="dash-hero-sub-hint">Tap to view register</small>
                         </div>
                         <div id="dash-action-profit" class="tap-target dash-metric-box">
-                            <small class="dash-metric-label">True Net Profit</small>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                <small class="dash-metric-label">True Net Profit</small>
+                                <span class="material-symbols-outlined dash-hero-mini-icon">monitoring</span>
+                            </div>
                             <div class="large-text dash-metric-value dash-profit-val" id="dash-net-profit">
-                                <div class="skeleton-card dash-skeleton-small" style="animation-delay: 0.1s;"></div>
+                                <div class="skeleton-card dash-skeleton-small" style="animation-delay: 0.1s; opacity: 0.25;"></div>
                             </div>
                             <small id="profit-breakdown" class="dash-profit-breakdown"></small>
                         </div>
                     </div>
 
-                    <div id="dash-action-warehouse" class="tap-target dash-list-card">
-                        <div class="dash-list-row">
-                            <div>
-                                <strong class="dash-list-title color-primary">
-                                    <span class="material-symbols-outlined dash-list-icon">inventory</span> Warehouse Capital
-                                </strong>
-                                <div class="dash-list-content">
-                                    <small class="dash-list-subtitle">Total Value Locked in Stock</small>
-                                    <div class="large-text color-primary dash-list-value" id="dash-inventory-value">
-                                        <div class="skeleton-card dash-skeleton-half"></div>
+                    <!-- Frosted Glass Asset & Intelligence Dock -->
+                    <div class="dash-hero-dock">
+                        <!-- Warehouse Locked Capital Tier -->
+                        <div id="dash-action-warehouse" class="tap-target dash-list-card" style="padding: 13px 16px;">
+                            <div class="dash-list-row" style="align-items: center; gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1;">
+                                    <div class="dash-dock-icon-box">
+                                        <span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span>
                                     </div>
+                                    <div style="min-width: 0;">
+                                        <strong class="dash-list-title" style="display: block; line-height: 1.2;">Warehouse Capital</strong>
+                                        <small class="dash-list-subtitle" style="display: block; margin-top: 2px;">Total Value Locked in Stock</small>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <div class="large-text dash-list-value" id="dash-inventory-value">
+                                        <div class="skeleton-card dash-skeleton-half" style="width: 75px; opacity: 0.25;"></div>
+                                    </div>
+                                    <span class="material-symbols-outlined dash-chevron">chevron_right</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Deep Analytics Quick Bar -->
+                        <div id="dash-action-analytics" class="tap-target dash-analytics-card" style="border-bottom: none !important; padding: 12px 16px;">
+                            <div class="dash-analytics-row" style="gap: 12px;">
+                                <div class="dash-dock-icon-box">
+                                    <span class="material-symbols-outlined" style="font-size: 20px;">insights</span>
+                                </div>
+                                <div>
+                                    <strong class="dash-analytics-title" style="display: block; line-height: 1.2;">Deep Business Analytics</strong>
+                                    <small class="dash-list-subtitle" style="display: block; margin-top: 2px;">Top Products, Parties & Expenses</small>
                                 </div>
                             </div>
                             <span class="material-symbols-outlined dash-chevron">chevron_right</span>
                         </div>
                     </div>
+                </div>
 
-                    <div id="dash-ai-insights" class="dash-ai-card" style="display: none;">
-                        <div class="dash-ai-row">
-                            <span class="material-symbols-outlined dash-ai-icon">auto_awesome</span>
-                            <div class="dash-ai-content">
-                                <strong class="dash-ai-title">AI Business Insight</strong>
-                                <span id="ai-insight-text" class="dash-ai-text">Analyzing data...</span>
+                <!-- 2. EXECUTIVE AI COPILOT ADVISORY BANNER -->
+                <div id="dash-ai-insights" class="dash-ai-card dash-bento-card" style="display: none; margin-bottom: 16px; border-radius: 16px; padding: 14px 16px;">
+                    <div class="dash-ai-row" style="align-items: flex-start; gap: 12px;">
+                        <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); color: #6366f1; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">auto_awesome</span>
+                        </div>
+                        <div class="dash-ai-content" style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                                <strong class="dash-ai-title" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: #6366f1; margin: 0;">AI Executive Insight</strong>
                             </div>
+                            <span id="ai-insight-text" class="dash-ai-text" style="font-size: 13.5px; line-height: 1.45; color: var(--md-on-surface); display: block;">Analyzing data...</span>
                         </div>
                     </div>
+                </div>
 
-                    <div id="dash-action-analytics" class="tap-target dash-analytics-card">
-                        <div class="dash-analytics-row">
-                            <span class="material-symbols-outlined color-primary">insights</span>
-                            <strong class="dash-analytics-title">View Deep Analytics</strong>
-                        </div>
-                        <span class="material-symbols-outlined dash-chevron">chevron_right</span>
-                    </div>
-
-                    <div class="dash-chart-card">
-                        <strong class="dash-section-title">
+                <!-- 3. FINANCIAL OVERVIEW CHART CARD -->
+                <div class="dash-chart-card dash-bento-card" style="margin-bottom: 16px; border-radius: 18px; padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                        <strong class="dash-section-title" style="margin: 0;">
                             <span class="material-symbols-outlined dash-section-icon">bar_chart</span> Financial Overview
                         </strong>
-                        <div class="dash-chart-container">
-                            <canvas id="dashboard-chart"></canvas>
+                        <div style="display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 700; color: var(--md-text-muted);">
+                            <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #0061a4; display: inline-block;"></span>Sales</span>
+                            <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #f57f17; display: inline-block;"></span>Purch</span>
+                            <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ba1a1a; display: inline-block;"></span>Exp</span>
                         </div>
                     </div>
+                    <div class="dash-chart-container" style="height: 190px;">
+                        <canvas id="dashboard-chart"></canvas>
+                    </div>
+                </div>
 
-                    <div id="expense-ledger-container"></div>
+                <div id="expense-ledger-container"></div>
 
-                    <div class="dash-fulfillment-header">
-                        <strong class="dash-section-title">
+                <!-- 4. ORDER FULFILLMENT PIPELINE CARD -->
+                <div class="dash-bento-card" style="padding: 0; overflow: hidden; margin-bottom: 20px; border-radius: 18px;">
+                    <div class="dash-fulfillment-header" style="padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; background: transparent;">
+                        <strong class="dash-section-title" style="margin: 0;">
                             <span class="material-symbols-outlined dash-section-icon">local_shipping</span> Order Fulfillment
                         </strong>
+                        <span style="font-size: 11px; font-weight: 700; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Live Pipeline</span>
                     </div>
                     
-                    <div class="tap-target dash-action-fulfillment dash-fulfillment-row" data-status="Open">
-                        <span class="dash-fulfillment-label"><span class="material-symbols-outlined" style="color: var(--md-error); font-size: 20px;">pending_actions</span> Open</span>
+                    <div class="tap-target dash-action-fulfillment dash-fulfillment-row" data-status="Open" style="padding: 12px 16px;">
+                        <span class="dash-fulfillment-label" style="gap: 12px;">
+                            <span class="dash-stage-badge" style="background: rgba(186, 26, 26, 0.08); color: var(--md-error);">
+                                <span class="material-symbols-outlined" style="font-size: 19px;">pending_actions</span>
+                            </span>
+                            <span style="font-weight: 700; font-size: 14.5px; color: var(--md-on-surface);">Open Orders</span>
+                        </span>
                         <span id="dash-orders-open" class="dash-fulfillment-value">
                             <div class="skeleton-card dash-skeleton-small" style="animation-delay: 0.2s;"></div>
                         </span>
                     </div>
                     
-                    <div class="tap-target dash-action-fulfillment dash-fulfillment-row" data-status="Shipped">
-                        <span class="dash-fulfillment-label"><span class="material-symbols-outlined" style="color: #f57f17; font-size: 20px;">flight_takeoff</span> Shipped</span>
+                    <div class="tap-target dash-action-fulfillment dash-fulfillment-row" data-status="Shipped" style="padding: 12px 16px;">
+                        <span class="dash-fulfillment-label" style="gap: 12px;">
+                            <span class="dash-stage-badge" style="background: rgba(245, 127, 23, 0.1); color: #f57f17;">
+                                <span class="material-symbols-outlined" style="font-size: 19px;">flight_takeoff</span>
+                            </span>
+                            <span style="font-weight: 700; font-size: 14.5px; color: var(--md-on-surface);">Shipped / In Transit</span>
+                        </span>
                         <span id="dash-orders-shipped" class="dash-fulfillment-value">
                             <div class="skeleton-card dash-skeleton-small" style="animation-delay: 0.3s;"></div>
                         </span>
                     </div>
                     
-                    <div class="tap-target dash-action-fulfillment dash-fulfillment-row" data-status="Completed" style="border-bottom: none;">
-                        <span class="dash-fulfillment-label"><span class="material-symbols-outlined" style="color: var(--md-success); font-size: 20px;">task_alt</span> Completed</span>
+                    <div class="tap-target dash-action-fulfillment dash-fulfillment-row" data-status="Completed" style="padding: 12px 16px; border-bottom: none !important;">
+                        <span class="dash-fulfillment-label" style="gap: 12px;">
+                            <span class="dash-stage-badge" style="background: rgba(20, 108, 46, 0.08); color: var(--md-success);">
+                                <span class="material-symbols-outlined" style="font-size: 19px;">task_alt</span>
+                            </span>
+                            <span style="font-weight: 700; font-size: 14.5px; color: var(--md-on-surface);">Completed Orders</span>
+                        </span>
                         <span id="dash-orders-completed" class="dash-fulfillment-value">
                             <div class="skeleton-card dash-skeleton-small" style="animation-delay: 0.4s;"></div>
                         </span>
@@ -5458,17 +5516,21 @@ Data & Security</strong>
                 if (!isConfirmed) return;
             }
             
-            // 🚨 CRITICAL FIX: The Race Condition Shield
-            // Wait for the background worker to officially take over before reloading the page!
-            if (newWorker) {
+            const banner = document.getElementById('update-banner');
+            if (banner) banner.classList.add('hidden');
+
+            // 🚨 CRITICAL FIX: If sw.js already activated in the background, reload immediately!
+            if (newWorker && newWorker.state === 'installed') {
                 let isRefreshing = false;
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                const doReload = () => {
                     if (!isRefreshing) {
                         isRefreshing = true;
                         window.location.reload();
                     }
-                });
+                };
+                navigator.serviceWorker.addEventListener('controllerchange', doReload);
                 newWorker.postMessage({ type: 'SKIP_WAITING' });
+                setTimeout(doReload, 400);
             } else {
                 window.location.reload();
             }

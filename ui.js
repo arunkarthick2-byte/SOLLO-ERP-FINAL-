@@ -2219,10 +2219,19 @@ const UI = {
                     const rowIcon = isCustomer ? 'person' : 'storefront';
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
                     
-                    // 🚨 DYNAMIC COLOR: Green for Advances, Red for Debts
-                    const tColor = bal < -0.01 ? 'var(--md-success)' : 'var(--md-error)';
-                    const tBg = bal < -0.01 ? 'rgba(20, 108, 46, 0.08)' : 'rgba(186, 26, 26, 0.08)';
-                    const taxHtml = taxInfo ? `<span style="color:${tColor}; font-size:10px; font-weight:800; background:${tBg}; padding:4px 8px; border-radius:4px; display:inline-block;">${taxInfo}</span>` : '';
+                    // 🚨 DYNAMIC COLOR: Exact Balance + Separate Red/Green Badges for Due & Advance
+                    const badgeParts = [];
+                    if (split.gst > 0.01) {
+                        badgeParts.push(`<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">GST: \u20B9${split.gst.toFixed(2)}</span>`);
+                    } else if (split.gst < -0.01) {
+                        badgeParts.push(`<span style="color:var(--md-success); font-size:10px; font-weight:800; background:rgba(20, 108, 46, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">GST Adv: \u20B9${Math.abs(split.gst).toFixed(2)}</span>`);
+                    }
+                    if (split.non > 0.01) {
+                        badgeParts.push(`<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">Non: \u20B9${split.non.toFixed(2)}</span>`);
+                    } else if (split.non < -0.01) {
+                        badgeParts.push(`<span style="color:var(--md-success); font-size:10px; font-weight:800; background:rgba(20, 108, 46, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">Non-GST Adv: \u20B9${Math.abs(split.non).toFixed(2)}</span>`);
+                    }
+                    const taxHtml = badgeParts.join(' ');
 
                     // STRICT ERP LOGIC: Compact Single-Row Card with 1-Tap Call, PDF & Ledger!
                     const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
@@ -3175,9 +3184,24 @@ const UI = {
             }
         });
 
-        if(document.getElementById('dash-orders-open')) document.getElementById('dash-orders-open').innerHTML = `${openCount} Orders <strong style="color:var(--md-error); margin-left:8px;">\u20B9${openOrders.toFixed(2)}</strong>`;
-        if(document.getElementById('dash-orders-shipped')) document.getElementById('dash-orders-shipped').innerHTML = `${shippedCount} Orders <strong style="color:#f57f17; margin-left:8px;">\u20B9${shippedOrders.toFixed(2)}</strong>`;
-        if(document.getElementById('dash-orders-completed')) document.getElementById('dash-orders-completed').innerHTML = `${completedCount} Orders <strong style="color:var(--md-success); margin-left:8px;">\u20B9${completedOrders.toFixed(2)}</strong>`;
+        if(document.getElementById('dash-orders-open')) document.getElementById('dash-orders-open').innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 8px;">
+                <span style="font-size: 11px; color: var(--md-error); background: rgba(186, 26, 26, 0.08); padding: 2px 8px; border-radius: 999px; font-weight: 800;">${openCount} Orders</span>
+                <strong style="font-size: 15px; color: var(--md-error); font-weight: 800; font-variant-numeric: tabular-nums;">\u20B9${openOrders.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+            </span>
+        `;
+        if(document.getElementById('dash-orders-shipped')) document.getElementById('dash-orders-shipped').innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 8px;">
+                <span style="font-size: 11px; color: #f57f17; background: rgba(245, 127, 23, 0.1); padding: 2px 8px; border-radius: 999px; font-weight: 800;">${shippedCount} Orders</span>
+                <strong style="font-size: 15px; color: #f57f17; font-weight: 800; font-variant-numeric: tabular-nums;">\u20B9${shippedOrders.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+            </span>
+        `;
+        if(document.getElementById('dash-orders-completed')) document.getElementById('dash-orders-completed').innerHTML = `
+            <span style="display: inline-flex; align-items: center; gap: 8px;">
+                <span style="font-size: 11px; color: var(--md-success); background: rgba(20, 108, 46, 0.08); padding: 2px 8px; border-radius: 999px; font-weight: 800;">${completedCount} Orders</span>
+                <strong style="font-size: 15px; color: var(--md-success); font-weight: 800; font-variant-numeric: tabular-nums;">\u20B9${completedOrders.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
+            </span>
+        `;
         
         
         // ==========================================
@@ -3196,7 +3220,7 @@ const UI = {
                 if (prevTargetMonth < 0) { prevTargetMonth = 11; prevTargetYear -= 1; }
                 
                 sales.forEach(s => {
-                    if (s.status !== 'Open' && s.date) {
+                    if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date) {
                         const sDate = new Date(s.date);
                         if (sDate.getMonth() === prevTargetMonth && sDate.getFullYear() === prevTargetYear) {
                             prevSales += (s.documentType === 'return' ? -1 : 1) * (parseFloat(s.grandTotal) || 0);
@@ -3207,15 +3231,15 @@ const UI = {
                 if (prevSales > 0 && totalSales > 0) {
                     const growth = ((totalSales - prevSales) / prevSales) * 100;
                     if (growth >= 0) {
-                        aiText.innerHTML = `Great job! Sales are up <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">+${growth.toFixed(1)}%</strong> compared to last month. Keep up the momentum! 🚀`;
+                        aiText.innerHTML = `Great job! Sales are up <strong style="background: rgba(22, 163, 74, 0.12); color: #15803d; padding: 2px 7px; border-radius: 6px; font-weight: 800;">+${growth.toFixed(1)}%</strong> compared to last month. Keep up the momentum! 🚀`;
                     } else {
-                        aiText.innerHTML = `Heads up! Sales are down <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">${growth.toFixed(1)}%</strong> compared to last month. Follow up on open quotes! 📉`;
+                        aiText.innerHTML = `Heads up! Sales are down <strong style="background: rgba(220, 38, 38, 0.12); color: #dc2626; padding: 2px 7px; border-radius: 6px; font-weight: 800;">${growth.toFixed(1)}%</strong> compared to last month. Follow up on open quotes! 📉`;
                     }
                 } else if (totalSales > 0 && prevSales === 0) {
-                    aiText.innerHTML = `You've made <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">₹${totalSales.toFixed(0)}</strong> in sales this period! Excellent start! 🌟`;
+                    aiText.innerHTML = `You've made <strong style="background: rgba(25, 118, 210, 0.1); color: var(--md-primary); padding: 2px 7px; border-radius: 6px; font-weight: 800;">₹${totalSales.toLocaleString('en-IN', {maximumFractionDigits: 0})}</strong> in sales this period! Excellent start! 🌟`;
                 } else if (prevSales > 0 && totalSales === 0) {
                     // 🚨 AI OPTIMIZATION: Smart Month-Rollover Memory!
-                    aiText.innerHTML = `You made <strong style="background: rgba(255,255,255,0.5); padding: 2px 6px; border-radius: 4px;">₹${prevSales.toFixed(0)}</strong> last period. Time to log your first sale and beat your record! 🎯`;
+                    aiText.innerHTML = `You made <strong style="background: rgba(25, 118, 210, 0.1); color: var(--md-primary); padding: 2px 7px; border-radius: 6px; font-weight: 800;">₹${prevSales.toLocaleString('en-IN', {maximumFractionDigits: 0})}</strong> last period. Time to log your first sale and beat your record! 🎯`;
                 } else {
                     aiText.innerHTML = `Log your sales to unlock AI trend analysis! 📊`;
                 }
@@ -3229,7 +3253,7 @@ const UI = {
         // ENTERPRISE FIX: O(1) Return Map to prevent Dashboard rendering from lagging on huge databases!
         const dashboardReturnMap = {};
         sales.forEach(d => {
-            if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+            if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                 dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
             }
         });
@@ -3297,10 +3321,11 @@ const UI = {
                 document.getElementById('overdue-text').innerText = `${overdueSales.length} invoices pending over 15 days.`;
                 
                 document.getElementById('list-overdue').innerHTML = overdueSales.map(s => {
-                    // FIX: Update the dashboard display to match the new cross-linked math!
+                    // FIX: Update the dashboard display to match the new cross-linked math (including returns)!
                     const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
                     const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
-                    const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived);
+                    const returnTotal = uniqueRefs.reduce((sum, ref) => sum + (dashboardReturnMap[ref] || 0), 0);
+                    const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived - returnTotal);
                     
                     // 🚨 ENTERPRISE UPGRADE: Exact Days Overdue Calculator!
                     const baseDate = s.shippedDate ? s.shippedDate : s.date;
@@ -3315,23 +3340,25 @@ const UI = {
                     const phone = customer ? customer.phone : '';
 
                     return `
-                    <div class="tap-target" style="display: flex; justify-content: space-between; align-items: flex-start; padding: 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); cursor: pointer; gap: 12px;" onclick="window.openInvoiceOverview('sales', '${s.id}')">
-                        <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                    <div class="tap-target" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); cursor: pointer; gap: 12px;" onclick="window.openInvoiceOverview('sales', '${s.id}')">
+                        <div class="icon-circle" style="width: 38px; height: 38px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">warning</span>
                         </div>
-                        <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                            <strong class="large-text" style="color: var(--md-on-surface); font-size: 15px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;">${s.customerName || 'Unknown Party'}</strong>
-                            <small class="color-primary" style="display:block; margin-top:4px;">${s.orderNo || s.invoiceNo || 'Draft'} | ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</small>
+                        <div style="flex: 1; min-width: 0; padding-right: 6px;">
+                            <strong class="large-text" style="color: var(--md-on-surface); font-size: 14.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25;">${s.customerName || 'Unknown Party'}</strong>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 3px;">
+                                <small class="color-primary" style="font-size: 12px; font-weight: 600;">${s.orderNo || s.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</small>
+                                <span style="background: rgba(186, 26, 26, 0.08); color: var(--md-error); padding: 1px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 800; text-transform: uppercase;">${diffDays}D Overdue</span>
+                            </div>
                         </div>
-                        <div style="display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-start; gap:4px; flex-shrink:0;">
-                            <strong style="font-size:16px; color:var(--md-error); line-height:1.2;">\u20B9${balance.toFixed(2)}</strong>
-                            <span style="background:rgba(186, 26, 26, 0.1); color:var(--md-error); border:1px solid rgba(186, 26, 26, 0.3); padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; display:inline-block; box-shadow:0 1px 2px rgba(186,26,26,0.1);">OVERDUE: ${diffDays}D</span>
-                            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.Utils.shareOverdueReminder('${phone}', '${String(s.customerName || '').replace(/'/g, "\\'")}', ${balance}, '${s.invoiceNo || ''}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(22, 163, 74, 0.1); color: #16a34a; display: flex; align-items: center; justify-content: center;">
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; flex-shrink: 0;">
+                            <strong class="overdue-amt" style="font-size: 15px; color: var(--md-error); line-height: 1.1; font-variant-numeric: tabular-nums;">\u20B9${balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px;">
+                                <div class="tap-target" title="WhatsApp Reminder" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.Utils.shareOverdueReminder('${phone}', '${String(s.customerName || '').replace(/'/g, "\\'")}', ${balance}, '${s.invoiceNo || ''}')" style="width: 24px; height: 24px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
                                 </div>
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                                <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 24px; height: 24px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: center; padding: 0;">
+                                    <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
                                 </div>
                             </div>
                         </div>
@@ -3411,10 +3438,10 @@ const UI = {
                         data: [salesAmt, purchaseAmt, expenseAmt],
                         backgroundColor: [gradientSales, gradientPurchases, gradientExpenses],
                         borderColor: ['#0061a4', '#f57f17', '#ba1a1a'],
-                        borderWidth: { top: 2, right: 0, bottom: 0, left: 0 }, /* Sharp top highlight only */
-                        borderRadius: 6, 
+                        borderWidth: { top: 2, right: 0, bottom: 0, left: 0 },
+                        borderRadius: 10, 
                         borderSkipped: false,
-                        barPercentage: 0.55 
+                        barPercentage: 0.44 
                     }]
                 },
                 options: {
@@ -3423,31 +3450,39 @@ const UI = {
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: '#323232',
-                            titleFont: { size: 13, family: 'Inter, sans-serif' },
+                            backgroundColor: '#0f172a',
+                            titleFont: { size: 12, family: 'Inter, sans-serif' },
                             bodyFont: { size: 14, weight: 'bold', family: 'Inter, sans-serif' },
-                            padding: 10,
-                            cornerRadius: 4,
-                            displayColors: false
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const val = parseFloat(context.raw) || 0;
+                                    return '₹' + val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                }
+                            }
                         }
                     },
                     scales: {
                         x: { 
                             grid: { display: false },
-                            // 🚨 Apply dynamic text color to X-Axis
-                            ticks: { font: { weight: 'bold', family: 'Inter, sans-serif' }, color: textColor }
+                            border: { display: false },
+                            ticks: { font: { size: 12, weight: '700', family: 'Inter, sans-serif' }, color: textColor }
                         },
                         y: { 
                             beginAtZero: true,
                             suggestedMax: 100, 
-                            // 🚨 Apply dynamic grid and text color to Y-Axis
-                            grid: { color: gridColor }, 
+                            border: { display: false, dash: [4, 4] },
+                            grid: { color: gridColor, borderDash: [4, 4] }, 
                             ticks: {
+                                maxTicksLimit: 5,
                                 callback: function(value) { 
+                                    if (value >= 100000) return '₹' + (value/100000).toFixed(1) + 'L';
                                     if (value >= 1000) return '₹' + (value/1000).toFixed(1) + 'k';
                                     return '₹' + value; 
                                 },
-                                font: { family: 'Inter, sans-serif' },
+                                font: { size: 11, family: 'Inter, sans-serif' },
                                 color: textColor
                             }
                         }
@@ -3769,7 +3804,7 @@ const UI = {
             const freqMap = {};
             const historyData = isSales ? UI.state.rawData.sales : UI.state.rawData.purchases;
             historyData.forEach(doc => {
-                if (doc.status !== 'Open') { 
+                if (doc.status !== 'Open' && doc.status !== 'Cancelled') { 
                     (doc.items || []).forEach(row => {
                         freqMap[row.itemId] = (freqMap[row.itemId] || 0) + 1;
                     });
@@ -3925,7 +3960,7 @@ const UI = {
 
         // Scan history to find the most recent price charged to THIS specific party
         historyData.forEach(doc => {
-            if (doc.status !== 'Open' && doc.documentType !== 'return' && (isSales ? doc.customerId === partyId : doc.supplierId === partyId)) {
+            if (doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return' && (isSales ? doc.customerId === partyId : doc.supplierId === partyId)) {
                 const docTime = new Date(doc.date || 0).getTime();
                 (doc.items || []).forEach(row => {
                     const rId = row.itemId || row.id; 
@@ -4349,7 +4384,7 @@ const UI = {
         const sales = UI.state.rawData.sales || [];
         for (let i = 0; i < sales.length; i++) {
             let s = sales[i];
-            if ((!activeFirmId || s.firmId === activeFirmId) && s.status !== 'Open' && balanceCache[s.customerId] !== undefined) {
+            if ((!activeFirmId || s.firmId === activeFirmId) && s.status !== 'Open' && s.status !== 'Cancelled' && balanceCache[s.customerId] !== undefined) {
                 balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0)); 
             }
             if (i % 50 === 0) await new Promise(res => setTimeout(res, 0)); // Yield to UI
@@ -4422,27 +4457,28 @@ const UI = {
         let html = '';
 
         const dailyActivity = [];
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
         
-        UI.state.rawData.sales.filter(s => s.date === targetDate && s.status !== 'Open' && s.status !== 'Cancelled').forEach(s => {
+        UI.state.rawData.sales.filter(s => (!activeFirmId || s.firmId === activeFirmId) && s.date === targetDate && s.status !== 'Open' && s.status !== 'Cancelled').forEach(s => {
             const isRet = s.documentType === 'return';
             const isNonGST = s.invoiceType === 'Non-GST';
             const docLabel = isRet ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
             dailyActivity.push({ time: s.id, type: docLabel, desc: s.customerName, amount: s.grandTotal, icon: isRet ? 'assignment_return' : 'receipt_long', color: isRet ? 'var(--md-error)' : 'var(--md-success)', sign: isRet ? '-' : '+' });
         });
         
-        UI.state.rawData.purchases.filter(p => p.date === targetDate && p.status !== 'Open' && p.status !== 'Cancelled').forEach(p => {
+        UI.state.rawData.purchases.filter(p => (!activeFirmId || p.firmId === activeFirmId) && p.date === targetDate && p.status !== 'Open' && p.status !== 'Cancelled').forEach(p => {
             const isRet = p.documentType === 'return';
             const isNonGST = p.invoiceType === 'Non-GST';
             const docLabel = isRet ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
             dailyActivity.push({ time: p.id, type: docLabel, desc: p.supplierName, amount: p.grandTotal, icon: isRet ? 'assignment_returned' : 'local_shipping', color: isRet ? 'var(--md-success)' : 'var(--md-error)', sign: isRet ? '+' : '-' });
         });
         
-        UI.state.rawData.cashbook.filter(c => c.date === targetDate && !c.isAutoGenerated).forEach(c => {
+        UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === targetDate && !c.isAutoGenerated).forEach(c => {
             const isIn = c.type === 'in';
             dailyActivity.push({ time: c.id, type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: parseFloat(c.amount), icon: isIn ? 'arrow_downward' : 'arrow_upward', color: isIn ? 'var(--md-success)' : 'var(--md-error)', sign: isIn ? '+' : '-' });
         });
         
-        UI.state.rawData.expenses.filter(e => e.date === targetDate).forEach(e => {
+        UI.state.rawData.expenses.filter(e => (!activeFirmId || e.firmId === activeFirmId) && e.date === targetDate).forEach(e => {
             dailyActivity.push({ time: e.id, type: 'Expense', desc: e.category, amount: parseFloat(e.amount), icon: 'account_balance_wallet', color: 'var(--md-error)', sign: '-' });
         });
 
@@ -4682,13 +4718,13 @@ const UI = {
             
             const targetDocs = isCustomer ? UI.state.rawData.sales : UI.state.rawData.purchases;
             targetDocs.forEach(d => {
-                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
+                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (!activeFirmId || d.firmId === activeFirmId) && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
                     partyBal += (d.documentType === 'return' ? -(parseFloat(d.grandTotal)||0) : (parseFloat(d.grandTotal)||0));
                 }
             });
 
             (UI.state.rawData.cashbook || []).forEach(c => {
-                if (c.ledgerId === l.id && c.date <= asOfDate) {
+                if (c.ledgerId === l.id && c.date <= asOfDate && (!activeFirmId || c.firmId === activeFirmId)) {
                     partyBal += isCustomer ? (c.type === 'in' ? -(parseFloat(c.amount)||0) : (parseFloat(c.amount)||0)) : (c.type === 'in' ? (parseFloat(c.amount)||0) : -(parseFloat(c.amount)||0));
                 }
             });
@@ -4913,7 +4949,7 @@ const UI = {
             
             if (UI.state.rawData.adjustments) {
                 UI.state.rawData.adjustments.forEach(adj => {
-                    if (adj.date >= start && adj.date <= end) {
+                    if ((!activeFirmId || adj.firmId === activeFirmId) && adj.date >= start && adj.date <= end) {
                         const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
                         const value = (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
                         if (adj.type === 'reduce') stockLoss += value;
@@ -5088,7 +5124,7 @@ const UI = {
             
             if (UI.state.rawData.adjustments) {
                 UI.state.rawData.adjustments.forEach(adj => {
-                    if (adj.date >= start && adj.date <= end) {
+                    if ((!activeFirmId || adj.firmId === activeFirmId) && adj.date >= start && adj.date <= end) {
                         const product = UI.state.rawData.items.find(i => i.id === adj.itemId);
                         const value = (parseFloat(adj.qty) || 0) * (product ? parseFloat(product.buyPrice) || 0 : 0);
                         if (adj.type === 'reduce') stockLoss += value;
@@ -5757,12 +5793,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Swipe Left -> Go to Next Tab
                 const nextTab = tabs[currentIndex + 1];
                 UI.switchTab(nextTab.id, nextTab.title, document.getElementById(nextTab.navId), 'left');
-                if (nextTab.id === 'tab-masters') UI.renderBankBalances();
+                if (nextTab.id === 'tab-workspace') UI.renderBankBalances();
             } else if (diffX > 0 && currentIndex > 0) {
                 // Swipe Right -> Go to Previous Tab
                 const prevTab = tabs[currentIndex - 1];
                 UI.switchTab(prevTab.id, prevTab.title, document.getElementById(prevTab.navId), 'right');
-                if (prevTab.id === 'tab-masters') UI.renderBankBalances();
+                if (prevTab.id === 'tab-workspace') UI.renderBankBalances();
             }
         }, { passive: true });
     }
@@ -7319,24 +7355,6 @@ document.addEventListener('click', (e) => {
             navigator.vibrate(20); // Solid "Thud" for saving invoices and primary actions
         } else if (isMinorAction) {
             navigator.vibrate(8); // Ultra-light mechanical "Tick" for changing tabs and filters
-        }
-    }
-});
-// ==========================================
-// 🚀 NATIVE UX: "TAP-TO-TOP" SCROLL ENGINE
-// ==========================================
-// Automatically scrolls the screen to the top if you tap the active bottom-nav icon
-document.addEventListener('click', (e) => {
-    const navItem = e.target.closest('.nav-item');
-    if (navItem && navItem.classList.contains('active')) {
-        // Find the screen that is currently visible
-        const activeScreen = document.querySelector('.activity-screen[style*="display: block"], .activity-screen[style*="display: flex"]');
-        if (activeScreen) {
-            // Smoothly glide back to the top
-            activeScreen.scrollTo({ top: 0, behavior: 'smooth' });
-            
-            // Trigger a light haptic tick to confirm the action
-            if (navigator.vibrate) navigator.vibrate(8);
         }
     }
 });

@@ -448,16 +448,7 @@ const app = {
             // (Service Worker registration moved to index.html for PWABuilder)
             
             // --- ENTERPRISE UPGRADE: SMART PWA UPDATER ---
-            if ('serviceWorker' in navigator) {
-                // The sleek update banner is now strictly handled by index.html to prevent UI conflicts!
-                
-                // ENTERPRISE FIX: Removed the Violent Auto-Reload!
-                // Force-reloading the DOM while a user is typing an invoice will destroy their data!
-                // We let the Service Worker install silently, and it will apply naturally the next time they open the app.
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    if (window.Utils) window.Utils.showToast("✨ App updated in background! Restart later to apply.");
-                });
-            }
+            // (Handled cleanly by #update-banner and window.applyAppUpdate in index.html)
 
             // --- NEW CODE: Request Persistent Storage ---
             if (navigator.storage && navigator.storage.persist) {
@@ -779,7 +770,7 @@ const app = {
                         
                         const dashboardReturnMap = {};
                         sales.forEach(d => {
-                            if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                            if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                                 dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
                             }
                         });
@@ -1807,10 +1798,10 @@ const app = {
             
             // 🚀 ENTERPRISE UPGRADE: EXPLICIT TAX-SPLIT ENGINE FOR LEDGER
             // Respects exact invoice mapping instead of guessing via FIFO!
-            if ((partyType === 'Customer' && bal > 0.01) || (partyType !== 'Customer' && bal < -0.01)) {
+            if (Math.abs(bal) > 0.01 || true) {
                 const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
                 let ob = parseFloat(party.openingBalance) || 0;
-                let isAdv = partyType === 'Customer' ? (String(party.balanceType || '').toLowerCase().includes('pay') || String(party.balanceType || '').toLowerCase().includes('credit')) : (String(party.balanceType || '').toLowerCase().includes('receive') || String(party.balanceType || '').toLowerCase().includes('debit'));
+                let isAdv = String(partyType).toLowerCase() === 'customer' ? (String(party.balanceType || '').toLowerCase().includes('pay') || String(party.balanceType || '').toLowerCase().includes('credit')) : (String(party.balanceType || '').toLowerCase().includes('receive') || String(party.balanceType || '').toLowerCase().includes('debit'));
                 
                 // 🚨 THE FIX: ISOLATE LEDGER UI BADGES TO MATCH THE PAYMENT ENGINE!
                 let trueBalGST = 0;
@@ -1855,9 +1846,13 @@ const app = {
                 let debitsGst = Math.max(0, trueBalGST);
                 let debitsNon = Math.max(0, trueBalNonGST);
 
-                if (debitsGst > 0.01 && debitsNon > 0.01) subText = `<br><span style="font-size:11px; color:var(--md-on-surface); font-weight: 800;">GST Due: \u20B9${debitsGst.toLocaleString('en-IN', {minimumFractionDigits:2})} | Non-GST Due: \u20B9${debitsNon.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>`;
-                else if (debitsGst > 0.01) subText = `<br><span style="font-size:11px; color:var(--md-on-surface); font-weight: 800;">GST Due: \u20B9${debitsGst.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>`;
-                else if (debitsNon > 0.01) subText = `<br><span style="font-size:11px; color:var(--md-on-surface); font-weight: 800;">Non-GST Due: \u20B9${debitsNon.toLocaleString('en-IN', {minimumFractionDigits:2})}</span>`;
+                const dueWord = String(partyType).toLowerCase() === 'customer' ? 'Due' : 'To Pay';
+                const headerPills = [];
+                if (trueBalGST > 0.01) headerPills.push(`<span style="color:#dc2626;">GST ${dueWord}: \u20B9${trueBalGST.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`);
+                else if (trueBalGST < -0.01) headerPills.push(`<span style="color:#16a34a;">GST Adv: \u20B9${Math.abs(trueBalGST).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`);
+                if (trueBalNonGST > 0.01) headerPills.push(`<span style="color:#dc2626;">Non-GST ${dueWord}: \u20B9${trueBalNonGST.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`);
+                else if (trueBalNonGST < -0.01) headerPills.push(`<span style="color:#16a34a;">Non-GST Adv: \u20B9${Math.abs(trueBalNonGST).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`);
+                if (headerPills.length > 0) subText = `<br><span style="font-size:11px; font-weight:800;">${headerPills.join(' &nbsp;|&nbsp; ')}</span>`;
             }
 
             balEl.innerHTML = balText + subText; 
@@ -4402,7 +4397,7 @@ if (data.id && splitConfirmed) {
                         // 🚨 ENTERPRISE FIX 2: Pre-calculate Returns so Credit Notes don't swallow waterfall payments!
                         const paymentReturnMap = {};
                         allDocs.forEach(d => {
-                            if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                            if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                                 paymentReturnMap[d.orderNo] = (paymentReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
                             }
                         });
@@ -4440,7 +4435,7 @@ if (data.id && splitConfirmed) {
                         // STRICT ERP LOGIC: Add Returns (Credit/Debit Notes) to the total settled amount!
                         let totalReturned = 0;
                         allDocs.forEach(d => {
-                                        if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open') {
+                                        if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled') {
                                             // Match returns to the original invoice
                                             if (d.orderNo === linkedInvoice.invoiceNo || d.orderNo === linkedInvoice.poNo || d.orderNo === linkedInvoice.orderNo || d.orderNo === linkedInvoice.id) {
                                                 totalReturned += (parseFloat(d.grandTotal) || 0);
@@ -4812,7 +4807,7 @@ if (data.id && splitConfirmed) {
         // 2. PRE-CALCULATE RETURNS
         const returnMap = {};
         allDocs.forEach(d => {
-            if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+            if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                 returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
             }
         });
@@ -5671,7 +5666,7 @@ if (data.id && splitConfirmed) {
         const allDocs = await getAllRecords(storeName, 'firmId', app.state.firmId);
         let totalReturned = 0;
         allDocs.forEach(d => {
-            if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open') {
+            if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled') {
                 if (uniqueRefs.includes(d.orderNo)) {
                     totalReturned += (parseFloat(d.grandTotal) || 0);
                     // Push the return into the receipts array so it prints on the PDF as an offset payment!
@@ -5768,7 +5763,7 @@ if (data.id && splitConfirmed) {
 
             const fastReturnMap = {};
             allDocs.forEach(d => {
-                if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.orderNo) {
+                if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
                     fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
                 }
             });

@@ -27,6 +27,8 @@ const ASSETS_TO_CACHE = [
     'https://cdn.jsdelivr.net/npm/chart.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js',
     'https://cdn.jsdelivr.net/npm/html-to-pdfmake/browser.js',
     'https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js'
 ];
@@ -98,8 +100,30 @@ self.addEventListener('fetch', (event) => {
 
     const urlObj = new URL(url);
     const isLocalAsset = urlObj.origin === self.location.origin;
+    const isAppIdentityAsset = isLocalAsset && (
+        urlObj.pathname.endsWith('icon-192.png') ||
+        urlObj.pathname.endsWith('icon-512.png') ||
+        urlObj.pathname.endsWith('manifest.json')
+    );
 
-    // 3. All Local App Files (HTML, CSS, JS, Manifest, Icons): Network-First (cache: 'no-cache') with 1.5s Offline Fallback
+    // 2.5. Instant 0ms Cache-First for App Icons & Manifest (Prevents Chrome Icon Flash on Launch)
+    if (isAppIdentityAsset) {
+        event.respondWith(
+            caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+                const networkFetch = fetch(event.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        const copy = networkResponse.clone();
+                        caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+                    }
+                    return networkResponse;
+                }).catch(() => {});
+                return cachedResponse || networkFetch;
+            })
+        );
+        return;
+    }
+
+    // 3. All Local App Files (HTML, CSS, JS): Network-First (cache: 'no-cache') with Offline Fallback
     if (event.request.mode === 'navigate' || isLocalAsset) {
         event.respondWith(
             fetchWithTimeout(event.request, 1500, { cache: 'no-cache' })
@@ -122,11 +146,12 @@ self.addEventListener('fetch', (event) => {
     }
 
     // 4. External Vendor CDNs & Google Fonts (.woff2): Cache-First for Instant Speed
+    const shouldIgnoreSearch = !url.includes('fonts.googleapis.com');
     event.respondWith(
-        caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+        caches.match(event.request, { ignoreSearch: shouldIgnoreSearch }).then((cachedResponse) => {
             if (cachedResponse) return cachedResponse;
 
-            return fetchWithTimeout(event.request, 3000).then((networkResponse) => {
+            return fetchWithTimeout(event.request, 8000).then((networkResponse) => {
                 if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
                     const copy = networkResponse.clone();
                     caches.open(CACHE_NAME).then(c => c.put(event.request, copy));

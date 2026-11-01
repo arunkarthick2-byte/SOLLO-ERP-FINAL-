@@ -192,6 +192,8 @@ const Cloud = {
                 if (uploadRes.ok) {
                     localStorage.setItem('sollo_last_backup', now.toString());
                     if (window.Utils) window.Utils.showToast("☁️ Auto-Backup Completed in Background!");
+                } else if (uploadRes.status === 404) {
+                    localStorage.removeItem(`sollo_drive_file_id_${activeFirmId}`);
                 } else if (uploadRes.status === 401) {
                     console.warn("⚠️ Token expired. Attempting silent background renewal...");
                     
@@ -331,6 +333,10 @@ const Cloud = {
                     // 🚨 SOLLO FIX: Upgraded the fading Toast to an unmissable Alert Modal!
                     if (window.Utils) window.Utils.alertModal("Your data has been securely backed up to Google Drive.", "✅ Backup Successful");
                 } else {
+                    if (uploadRes.status === 404) {
+                        localStorage.removeItem(`sollo_drive_file_id_${activeFirmId}`);
+                        return window.Cloud.backup();
+                    }
                     if (uploadRes.status === 401) {
                         gapi.client.setToken(null); // Clear expired token to force re-auth
                         if (window.Utils) window.Utils.alertModal("Cloud session expired. Please click Backup again to re-authenticate.", "Session Expired");
