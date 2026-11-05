@@ -771,26 +771,33 @@ const app = {
                         const dashboardReturnMap = {};
                         sales.forEach(d => {
                             if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                                dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                                dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                             }
                         });
 
                         const paymentMap = {};
                         cashbook.forEach(r => {
-                            if (r.invoiceRef && r.type === 'in') {
+                            if (r.invoiceRef) {
+                                const sign = r.type === 'in' ? 1 : -1;
                                 const refs = String(r.invoiceRef).split(',').map(x => x.trim()).filter(Boolean);
-                                let remainingPayment = parseFloat(r.amount) || 0;
+                                let remainingPayment = Math.abs(parseFloat(r.amount) || 0);
                                 refs.forEach(ref => {
                                     const linkedDoc = sales.find(d => String(d.id) === ref || String(d.invoiceNo) === ref || String(d.orderNo) === ref || String(d.id).endsWith(ref));
                                     const returned = [linkedDoc?.orderNo, linkedDoc?.invoiceNo, linkedDoc?.id, ref].filter(Boolean).reduce((sum, rx) => sum + (dashboardReturnMap[rx] || 0), 0);
-                                    let docTotal = linkedDoc ? Math.max(0, (parseFloat(linkedDoc.grandTotal) || 0) - returned) : (parseFloat(r.amount) / refs.length);
-                                    let applyAmt = Math.min(docTotal, remainingPayment);
+                                    let applyAmt = 0;
+                                    if (r.allocationMap && r.allocationMap[ref] !== undefined) {
+                                        applyAmt = parseFloat(r.allocationMap[ref]) || 0;
+                                        remainingPayment = 0;
+                                    } else {
+                                        let docTotal = linkedDoc ? Math.max(0, Math.abs(parseFloat(linkedDoc.grandTotal) || 0) - returned) : (remainingPayment / (refs.length || 1));
+                                        applyAmt = Math.min(docTotal, remainingPayment);
+                                        if (applyAmt > 0) remainingPayment -= applyAmt;
+                                    }
                                     if (applyAmt > 0) {
-                                        paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + applyAmt;
-                                        remainingPayment -= applyAmt;
+                                        paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + (applyAmt * sign);
                                     }
                                 });
-                                if (remainingPayment > 0.01 && refs[0]) paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`] || 0) + remainingPayment;
+                                if (remainingPayment > 0.01 && refs[0]) paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`] || 0) + (remainingPayment * sign);
                             }
                         });
 
@@ -1685,8 +1692,8 @@ const app = {
             partySales.forEach(s => {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 
-                let rawSubtotal = parseFloat(s.subtotal) || 0;
-                let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                let rawSubtotal = Math.abs(parseFloat(s.subtotal) || 0);
+                let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : Math.abs(parseFloat(s.discount) || 0);
                 if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
                 
                 // True Net Revenue (Excluding GST)
@@ -2329,7 +2336,7 @@ const app = {
         const returnMap = {};
         allDocs.forEach(d => {
             if (d.firmId === activeFirmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
             }
         });
 
@@ -2852,9 +2859,15 @@ const app = {
                     
                     refs.forEach(ref => {
                         const linkedDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
-                        let docTotal = linkedDoc ? (parseFloat(linkedDoc.grandTotal) || 0) : (parseFloat(r.amount) / refs.length);
-                        let applyAmt = Math.min(docTotal, remainingPayment);
-                        if (applyAmt > 0) remainingPayment -= applyAmt;
+                        let applyAmt = 0;
+                        if (r.allocationMap && r.allocationMap[ref] !== undefined) {
+                            applyAmt = parseFloat(r.allocationMap[ref]) || 0;
+                            remainingPayment = 0;
+                        } else {
+                            let docTotal = linkedDoc ? Math.abs(parseFloat(linkedDoc.grandTotal) || 0) : (parseFloat(r.amount) / refs.length);
+                            applyAmt = Math.min(docTotal, remainingPayment);
+                            if (applyAmt > 0) remainingPayment -= applyAmt;
+                        }
                         if (uniqueRefs.includes(ref)) splitAmt += applyAmt; 
                     });
                     if (remainingPayment > 0.01 && refs[0] && uniqueRefs.includes(refs[0])) splitAmt += remainingPayment;
@@ -2869,7 +2882,7 @@ const app = {
                 let totalReturned = 0;
                 allDocs.forEach(d => {
                     if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && uniqueRefs.includes(d.orderNo)) {
-                        const rAmt = parseFloat(d.grandTotal) || 0;
+                        const rAmt = Math.abs(parseFloat(d.grandTotal) || 0);
                         totalReturned += rAmt;
                         linkedReceipts.push({
                             receiptNo: d.orderNo ? 'CN-' + d.orderNo : 'Credit/Debit Note',
@@ -2981,7 +2994,7 @@ const app = {
                     const fastReturnMap = {};
                     allDocs.forEach(d => {
                         if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                            fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                            fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                         }
                     });
 
@@ -4398,7 +4411,7 @@ if (data.id && splitConfirmed) {
                         const paymentReturnMap = {};
                         allDocs.forEach(d => {
                             if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                                paymentReturnMap[d.orderNo] = (paymentReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                                paymentReturnMap[d.orderNo] = (paymentReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                             }
                         });
 
@@ -4438,7 +4451,7 @@ if (data.id && splitConfirmed) {
                                         if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled') {
                                             // Match returns to the original invoice
                                             if (d.orderNo === linkedInvoice.invoiceNo || d.orderNo === linkedInvoice.poNo || d.orderNo === linkedInvoice.orderNo || d.orderNo === linkedInvoice.id) {
-                                                totalReturned += (parseFloat(d.grandTotal) || 0);
+                                                totalReturned += Math.abs(parseFloat(d.grandTotal) || 0);
                                             }
                                         }
                                     });
@@ -4808,7 +4821,7 @@ if (data.id && splitConfirmed) {
         const returnMap = {};
         allDocs.forEach(d => {
             if (d.firmId === app.state.firmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
             }
         });
 
@@ -5444,10 +5457,17 @@ if (data.id && splitConfirmed) {
         // 1. Top Products (Drill to Item Ledger)
         const productSales = {};
         sales.forEach(s => {
+            let rawSub = Math.abs(parseFloat(s.subtotal) || 0);
+            if (!rawSub) (s.items || []).forEach(it => { rawSub += Math.abs(parseFloat(it.qty) || 0) * Math.abs(parseFloat(it.rate) || 0); });
+            let discVal = Math.abs(parseFloat(s.discount) || 0);
+            let discAmt = s.discountType === '%' ? (rawSub * (discVal / 100)) : discVal;
+            if (discAmt > rawSub) discAmt = rawSub;
+            const discRatio = rawSub > 0 ? (discAmt / rawSub) : 0;
             (s.items || []).forEach(item => {
                 const id = item.itemId || item.id || item.name;
-                const qty = parseFloat(item.qty) || 0;
-                const total = qty * (parseFloat(item.rate) || 0);
+                const qty = Math.abs(parseFloat(item.qty) || 0);
+                const grossLine = qty * Math.abs(parseFloat(item.rate) || 0);
+                const total = grossLine * (1 - discRatio);
                 if (!productSales[id]) productSales[id] = { name: item.name, total: 0 };
                 productSales[id].total += (s.documentType === 'return' ? -total : total);
             });
@@ -5464,7 +5484,7 @@ if (data.id && splitConfirmed) {
         const customerSales = {};
         sales.forEach(s => {
             const id = s.customerId || s.customerName;
-            const total = parseFloat(s.grandTotal) || 0;
+            const total = Math.abs(parseFloat(s.grandTotal) || 0);
             if (!customerSales[id]) customerSales[id] = { name: s.customerName, total: 0, docCount: 0 };
             customerSales[id].total += (s.documentType === 'return' ? -total : total);
             // Count the number of invoices/returns for this customer
@@ -5495,7 +5515,7 @@ if (data.id && splitConfirmed) {
         const supplierPurchases = {};
         purchases.forEach(p => {
             const id = p.supplierId || p.supplierName;
-            const total = parseFloat(p.grandTotal) || 0;
+            const total = Math.abs(parseFloat(p.grandTotal) || 0);
             if (!supplierPurchases[id]) supplierPurchases[id] = { name: p.supplierName, total: 0, docCount: 0 };
             supplierPurchases[id].total += (p.documentType === 'return' ? -total : total);
             // Count the number of bills/returns for this supplier
@@ -5668,13 +5688,14 @@ if (data.id && splitConfirmed) {
         allDocs.forEach(d => {
             if (d.firmId === app.state.firmId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled') {
                 if (uniqueRefs.includes(d.orderNo)) {
-                    totalReturned += (parseFloat(d.grandTotal) || 0);
+                    const retAmt = Math.abs(parseFloat(d.grandTotal) || 0);
+                    totalReturned += retAmt;
                     // Push the return into the receipts array so it prints on the PDF as an offset payment!
                     linkedReceipts.push({
                         receiptNo: d.orderNo ? 'CN-' + d.orderNo : 'Credit Note',
                         date: d.date,
                         mode: 'Return / Credit',
-                        amount: parseFloat(d.grandTotal) || 0
+                        amount: retAmt
                     });
                 }
             }
@@ -5702,7 +5723,7 @@ if (data.id && splitConfirmed) {
 
             allDocs.forEach(d => {
                 if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.status !== 'Open' && d.status !== 'Cancelled') {
-                    const amt = parseFloat(d.grandTotal) || 0;
+                    const amt = Math.abs(parseFloat(d.grandTotal) || 0);
                     const impact = (d.documentType === 'return' ? -amt : amt);
                     if (d.invoiceType === 'Non-GST') trueBalNonGST += impact;
                     else trueBalGST += impact;
@@ -5764,7 +5785,7 @@ if (data.id && splitConfirmed) {
             const fastReturnMap = {};
             allDocs.forEach(d => {
                 if (d.firmId === app.state.firmId && d[type === 'sales' ? 'customerId' : 'supplierId'] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                    fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                    fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                 }
             });
 
@@ -6445,7 +6466,7 @@ if (data.id && splitConfirmed) {
         docs.forEach(s => {
             // ENTERPRISE FIX: The Timezone Trap Shield!
             // Direct string comparison natively ignores timezones, preventing missing invoices!
-            if (s.firmId === app.state.firmId && s[partyKey] === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.invoiceType !== 'Non-GST' && s.date >= fromVal && s.date <= toVal) {
+            if (s.firmId === app.state.firmId && s[partyKey] === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const snapshotGst = s.customerGst || s.supplierGst || s.gstin || party.gst || '';
                 const isB2B = String(snapshotGst).trim().length === 15;
@@ -6458,12 +6479,12 @@ if (data.id && splitConfirmed) {
                 const taxable = (rawSubtotal - discountAmt) * mult;
                 const tax = Math.abs(parseFloat(s.totalGst) || 0) * mult;
 
-                if (isB2B) {
+                if (s.invoiceType !== 'Non-GST' && isB2B) {
                     b2bTaxable += taxable;
                     b2bTax += tax;
                 } else {
                     b2cTaxable += taxable;
-                    b2cTax += tax;
+                    b2cTax += (s.invoiceType === 'Non-GST' ? 0 : tax);
                 }
             }
         });
@@ -6613,8 +6634,8 @@ if (data.id && splitConfirmed) {
                 <div style="font-size: 12px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px;">Profit Reconciliation</div>
                 
                 <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 6px; color: var(--md-on-surface);">
-                    <span>Pure Item Margin:</span>
-                    <strong>₹${totalItemProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
+                    <span>Gross Item Margin (Before Discount):</span>
+                    <strong>₹${(totalItemProfit + totalDiscount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 6px; color: var(--md-success);">
                     <span>Add: Freight Collected:</span>
@@ -7174,13 +7195,15 @@ if (data.id && splitConfirmed) {
             if (window.UI && window.UI.state && window.UI.state.rawData) {
                 (window.UI.state.rawData.sales || []).forEach(s => {
                     if (s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled' && balanceCache[s.customerId] !== undefined) {
-                        balanceCache[s.customerId] += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
+                        const amt = Math.abs(parseFloat(s.grandTotal) || 0);
+                        balanceCache[s.customerId] += (s.documentType === 'return' ? -amt : amt);
                     }
                 });
 
                 (window.UI.state.rawData.purchases || []).forEach(p => {
                     if (p.firmId === app.state.firmId && p.status !== 'Open' && p.status !== 'Cancelled' && balanceCache[p.supplierId] !== undefined) {
-                        balanceCache[p.supplierId] += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
+                        const amt = Math.abs(parseFloat(p.grandTotal) || 0);
+                        balanceCache[p.supplierId] += (p.documentType === 'return' ? -amt : amt);
                     }
                 });
 
@@ -7628,13 +7651,17 @@ if (data.id && splitConfirmed) {
             const html = `
             <div id="activity-universal-report" class="activity-screen hidden" style="z-index: 5500;">
                 <style>
-                    .report-table th { padding: 12px; background: var(--md-surface-variant); color: var(--md-on-surface-variant); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-bottom: 1px solid var(--md-outline-variant); text-align: left; }
-                    .report-table td { padding: 12px; border-bottom: 1px solid var(--md-surface-variant); color: var(--md-on-surface); white-space: nowrap; font-size: 13px; }
-                    .report-table .total-row td { background: var(--md-surface-variant); font-weight: 900; font-size: 14px; border-top: 2px solid var(--md-outline-variant); }
-                    .number-col { text-align: right !important; }
-                    .kpi-box { background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); flex: 1; min-width: 130px; }
-                    .kpi-label { font-size: 11px; text-transform: uppercase; color: var(--md-text-muted); font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px; }
-                    .kpi-value { font-size: 20px; font-weight: 900; color: var(--md-primary); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+                    #uni-report-table-card { padding: 0 !important; overflow: hidden !important; contain: none !important; touch-action: pan-x pan-y !important; }
+                    #uni-report-scroll-wrap { overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; touch-action: pan-x pan-y !important; width: 100% !important; }
+                    .report-table { width: 100% !important; min-width: 100% !important; border-collapse: collapse !important; table-layout: auto !important; }
+                    .report-table th { padding: 8px 6px !important; background: var(--md-surface-variant) !important; color: var(--md-on-surface-variant); text-transform: uppercase; font-size: 10px !important; letter-spacing: 0.3px; border-bottom: 1px solid var(--md-outline-variant); text-align: left; white-space: nowrap; position: static !important; box-shadow: none !important; }
+                    .report-table td { padding: 8px 6px !important; border-bottom: 1px solid var(--md-surface-variant); color: var(--md-on-surface); white-space: normal; word-break: break-word; font-size: 11.5px !important; line-height: 1.35; vertical-align: top; }
+                    .report-table td strong { font-size: 11.5px !important; }
+                    .report-table .total-row td { background: var(--md-surface-variant); font-weight: 900; font-size: 12px !important; border-top: 2px solid var(--md-outline-variant); white-space: nowrap; }
+                    .number-col { text-align: right !important; white-space: nowrap !important; font-variant-numeric: tabular-nums !important; }
+                    .kpi-box { background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 12px; padding: 12px !important; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); flex: 1; min-width: 125px; }
+                    .kpi-label { font-size: 10px; text-transform: uppercase; color: var(--md-text-muted); font-weight: 800; letter-spacing: 0.5px; margin-bottom: 4px; }
+                    .kpi-value { font-size: 17px; font-weight: 900; color: var(--md-primary); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
                 </style>
                 <div class="activity-header" style="display: flex; justify-content: space-between; align-items: center; position: relative;">
                     <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; z-index: 2;">
@@ -7673,9 +7700,9 @@ if (data.id && splitConfirmed) {
                     <div id="uni-report-kpis" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;"></div>
 
                     <!-- Data Table -->
-                    <div class="m3-card" style="padding: 0; overflow: hidden;">
-                        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
-                            <table class="report-table" style="width: 100%; min-width: 600px; border-collapse: collapse;">
+                    <div id="uni-report-table-card" class="m3-card" style="padding: 0 !important; overflow: hidden !important;">
+                        <div id="uni-report-scroll-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
+                            <table class="report-table" style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr id="uni-report-thead"></tr>
                                 </thead>
@@ -7750,9 +7777,12 @@ if (data.id && splitConfirmed) {
                 docs.forEach(s => {
                     const mult = s.documentType === 'return' ? -1 : 1;
                     if (mult < 0) cnCount++;
-                    const grand = (parseFloat(s.grandTotal)||0) * mult;
-                    const gst = (parseFloat(s.totalGst)||0) * mult;
-                    const taxable = grand - gst;
+                    const rawSub = Math.abs(parseFloat(s.subtotal) || 0);
+                    let discAmt = s.discountType === '%' ? (rawSub * ((parseFloat(s.discount) || 0) / 100)) : Math.abs(parseFloat(s.discount) || 0);
+                    if (discAmt > rawSub) discAmt = rawSub;
+                    const grand = Math.abs(parseFloat(s.grandTotal) || 0) * mult;
+                    const gst = Math.abs(parseFloat(s.totalGst) || 0) * mult;
+                    const taxable = (rawSub > 0 ? (rawSub - discAmt) : (Math.abs(parseFloat(s.grandTotal) || 0) - Math.abs(parseFloat(s.totalGst) || 0))) * mult;
                     tTaxable += taxable; tGst += gst; tTotal += grand;
                     
                     const docLabel = s.invoiceNo || s.poNo || s.orderNo || String(s.id).substring(0,6).toUpperCase();
@@ -7797,7 +7827,7 @@ if (data.id && splitConfirmed) {
                     const pId = isSale ? s.customerId : s.supplierId;
                     const pName = isSale ? s.customerName : s.supplierName;
                     const mult = s.documentType === 'return' ? -1 : 1;
-                    const grand = (parseFloat(s.grandTotal)||0) * mult;
+                    const grand = Math.abs(parseFloat(s.grandTotal) || 0) * mult;
                     
                     if(!pMap[pId]) pMap[pId] = { name: pName, count: 0, total: 0 };
                     pMap[pId].total += grand;
@@ -7859,6 +7889,39 @@ if (data.id && splitConfirmed) {
                     }
                 });
 
+                const floatingPools = {};
+                (UI.state.rawData.ledgers || []).forEach(l => {
+                    let ob = parseFloat(l.openingBalance) || 0;
+                    const bType = (l.balanceType || '').toLowerCase();
+                    if (isRec && (bType.includes('pay') || bType.includes('credit'))) floatingPools[`${l.id}_Non`] = (floatingPools[`${l.id}_Non`] || 0) + ob;
+                    if (!isRec && (bType.includes('receive') || bType.includes('debit'))) floatingPools[`${l.id}_Non`] = (floatingPools[`${l.id}_Non`] || 0) + ob;
+                });
+                allReceipts.forEach(r => {
+                    if (r.ledgerId && !r.invoiceRef && !r.linkedInvoice) {
+                        let amt = parseFloat(r.amount) || 0;
+                        amt = isRec ? (r.type === 'in' ? amt : -amt) : (r.type === 'out' ? amt : -amt);
+                        const isNon = (!r.taxPool || r.taxPool === 'All' || r.taxPool === 'Non-GST');
+                        const poolKey = isNon ? `${r.ledgerId}_Non` : `${r.ledgerId}_GST`;
+                        floatingPools[poolKey] = (floatingPools[poolKey] || 0) + amt;
+                    }
+                });
+                allDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+                allDocs.forEach(doc => {
+                    const pId = isRec ? doc.customerId : doc.supplierId;
+                    const poolKey = doc.invoiceType === 'Non-GST' ? `${pId}_Non` : `${pId}_GST`;
+                    const avail = floatingPools[poolKey] || 0;
+                    if (avail > 0.01) {
+                        const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
+                        const paid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${pId}_${ref}`] || 0), 0);
+                        const returned = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
+                        const remDebt = Math.max(0, (parseFloat(doc.grandTotal) || 0) - paid - returned);
+                        if (remDebt > 0.01) {
+                            const alloc = Math.min(remDebt, avail);
+                            paymentMap[`${pId}_${doc.id}`] = (paymentMap[`${pId}_${doc.id}`] || 0) + alloc;
+                            floatingPools[poolKey] -= alloc;
+                        }
+                    }
+                });
                 const partyAging = {};
                 const today = new Date();
                 
@@ -7931,8 +7994,13 @@ if (data.id && splitConfirmed) {
                         const id = row.itemId || row.name;
                         if(!itemMap[id]) itemMap[id] = { name: row.name, qty: 0, val: 0, uom: row.uom || 'Unit' };
                         
-                        const q = (parseFloat(row.qty) || 0) * mult;
-                        const v = q * (parseFloat(row.rate) || 0);
+                        const rawSub = Math.abs(parseFloat(p.subtotal) || 0);
+                        let discAmt = p.discountType === '%' ? (rawSub * ((parseFloat(p.discount) || 0) / 100)) : Math.abs(parseFloat(p.discount) || 0);
+                        if (discAmt > rawSub) discAmt = rawSub;
+                        const discRatio = rawSub > 0 ? (discAmt / rawSub) : 0;
+                        const q = Math.abs(parseFloat(row.qty) || 0) * mult;
+                        const effRate = (parseFloat(row.rate) || 0) * (1 - discRatio);
+                        const v = q * effRate;
                         itemMap[id].qty += q;
                         itemMap[id].val += v;
                         tVol += v;
@@ -8000,10 +8068,16 @@ if (data.id && splitConfirmed) {
                 
                 let tTaxable = 0, tCgst = 0, tSgst = 0, tItc = 0;
                 docs.forEach(p => {
+                    const supplierObj = (UI.state.rawData.ledgers || []).find(l => String(l.id) === String(p.supplierId));
+                    const snapshotGst = (p.supplierGst || p.gstin || (supplierObj && supplierObj.gst) || '').trim();
+                    if (snapshotGst.length !== 15) return;
+                    p.supplierGst = snapshotGst;
                     const mult = p.documentType === 'return' ? -1 : 1;
-                    const grand = (parseFloat(p.grandTotal)||0) * mult;
-                    const gst = (parseFloat(p.totalGst)||0) * mult;
-                    const taxable = grand - gst;
+                    const rawSub = Math.abs(parseFloat(p.subtotal) || 0);
+                    let discAmt = p.discountType === '%' ? (rawSub * ((parseFloat(p.discount) || 0) / 100)) : Math.abs(parseFloat(p.discount) || 0);
+                    if (discAmt > rawSub) discAmt = rawSub;
+                    const gst = Math.abs(parseFloat(p.totalGst) || 0) * mult;
+                    const taxable = (rawSub > 0 ? (rawSub - discAmt) : (Math.abs(parseFloat(p.grandTotal) || 0) - Math.abs(parseFloat(p.totalGst) || 0))) * mult;
                     const halfGst = gst / 2;
                     
                     tTaxable += taxable; tCgst += halfGst; tSgst += halfGst; tItc += gst;
@@ -8058,7 +8132,7 @@ if (data.id && splitConfirmed) {
                         <td>${window.Utils.formatDateDisplay(r.date)}</td>
                         <td><strong>${docLabel}</strong></td>
                         <td><strong style="color: var(--md-on-surface);">${r.ledgerName || 'General'}</strong><br><span style="font-size: 10px; color: var(--md-text-muted);">${r.desc || '-'}</span></td>
-                        <td>${r.accountId === 'cash' || !r.accountId ? 'Cash Drawer' : 'Bank / Digital'}</td>
+                        <td>${r.accountId === 'cash' || !r.accountId ? 'Cash Drawer' : (((UI.state.rawData.accounts || []).find(a => a.id === r.accountId) || {}).name || 'Bank / Digital')}</td>
                         <td class="number-col" style="color:var(--md-success); font-weight: bold;">${isIn ? formatMoney(amt) : '-'}</td>
                         <td class="number-col" style="color:var(--md-error); font-weight: bold;">${!isIn ? formatMoney(amt) : '-'}</td>
                     </tr>`;
@@ -8085,7 +8159,90 @@ if (data.id && splitConfirmed) {
             // =====================================
             document.getElementById('uni-report-thead').innerHTML = tableHeaders.map(th => `<th class="${th.includes('₹') || th.includes('Val') || th.includes('Amt') || th.includes('Total') || th.includes('Spend') || th.includes('Volume') || th.includes('CGST') || th.includes('SGST') || th.includes('ITC') || th.includes('Avg') || th.includes('Days') || th.includes('Money') ? 'number-col' : ''}">${th}</th>`).join('');
             document.getElementById('uni-report-tbody').innerHTML = tableRowsHTML || `<tr><td colspan="${tableHeaders.length}" style="text-align:center; padding: 40px; color: var(--md-text-muted); font-weight: 600;">No records found for the selected period.</td></tr>`;
-            document.getElementById('uni-report-kpis').innerHTML = kpiCardsHTML;
+            const kpiContainer = document.getElementById('uni-report-kpis');
+            if (kpiContainer) {
+                kpiContainer.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px;';
+                kpiContainer.innerHTML = kpiCardsHTML;
+                const boxes = kpiContainer.querySelectorAll('.kpi-box');
+                boxes.forEach((b, idx) => {
+                    b.style.cssText = 'background: var(--md-surface); border: 1px solid var(--md-outline-variant) !important; border-radius: 12px; padding: 12px 14px !important; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important; min-width: 0;';
+                    if (boxes.length % 2 === 1 && idx === boxes.length - 1) b.style.gridColumn = 'span 2';
+                });
+            }
+            const tblEl = document.querySelector('#activity-universal-report .report-table');
+            if (tblEl) tblEl.style.display = 'none';
+            const tblCard = document.getElementById('uni-report-table-card') || (tblEl ? tblEl.closest('.m3-card') : null);
+            if (tblCard) {
+                tblCard.style.cssText = 'background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important;';
+                let cardsWrap = document.getElementById('uni-report-cards-list');
+                if (!cardsWrap) {
+                    cardsWrap = document.createElement('div');
+                    cardsWrap.id = 'uni-report-cards-list';
+                    tblCard.appendChild(cardsWrap);
+                }
+                if (!tableRowsHTML) {
+                    cardsWrap.innerHTML = `<div class="m3-card" style="text-align:center; padding: 36px 20px !important; color: var(--md-text-muted); font-weight: 600; border: 1px solid var(--md-outline-variant) !important; border-radius: 12px !important;">No records found for the selected period.</div>`;
+                } else {
+                    const tempTbody = document.createElement('tbody');
+                    tempTbody.innerHTML = tableRowsHTML;
+                    let cardsHTML = '';
+                    Array.from(tempTbody.querySelectorAll('tr')).forEach(tr => {
+                        const tds = Array.from(tr.querySelectorAll('td')).map(td => td.innerHTML.trim());
+                        if (tr.classList.contains('total-row')) return;
+                        let leftTitle = '', rightVal = '', subLine = '', footerItems = [], borderColor = 'var(--md-primary)';
+                        if (reportType === 'sales_register' || reportType === 'purchase_register') {
+                            const isRet = tds[1] && (tds[1].includes('CREDIT NOTE') || tds[1].includes('DEBIT NOTE'));
+                            borderColor = isRet ? 'var(--md-error)' : (reportType === 'sales_register' ? '#0061a4' : '#d84315');
+                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[2]}</strong>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900;">${tds[5]}</span>`;
+                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; color:var(--md-on-surface);">${tds[1].replace('<br>', ' ')}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
+                            footerItems = [`<span>Taxable: <strong style="color:var(--md-on-surface);">${tds[3]}</strong></span>`, `<span>GST: <strong style="color:var(--md-primary);">${tds[4]}</strong></span>`];
+                        } else if (reportType === 'customer_sales' || reportType === 'supplier_purchases') {
+                            borderColor = reportType === 'customer_sales' ? '#146c2e' : '#6a1b9a';
+                            leftTitle = `<div style="display:flex; align-items:center; gap:8px;"><span style="background:rgba(0,97,164,0.1); color:var(--md-primary); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:900;">${tds[0]}</span><strong style="font-size:15px; color:var(--md-on-surface);">${tds[1]}</strong></div>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[3]}</span>`;
+                            footerItems = [`<span>Total Bills: <strong style="color:var(--md-on-surface);">${tds[2]}</strong></span>`, `<span>Share of Volume: ${tds[4]}</span>`];
+                        } else if (reportType === 'receivables_aging' || reportType === 'payables_aging') {
+                            borderColor = 'var(--md-error)';
+                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[0]}</strong>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[4]}</span>`;
+                            footerItems = [`<span>0-30D: <strong style="color:var(--md-success);">${tds[1]}</strong></span>`, `<span>31-60D: <strong style="color:#d97706;">${tds[2]}</strong></span>`, `<span>60+D: <strong style="color:var(--md-error);">${tds[3]}</strong></span>`];
+                        } else if (reportType === 'item_purchases') {
+                            borderColor = '#0061a4';
+                            leftTitle = `<div style="display:flex; align-items:center; gap:8px;"><span style="background:rgba(0,97,164,0.1); color:var(--md-primary); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:900;">${tds[0]}</span><strong style="font-size:15px; color:var(--md-on-surface);">${tds[1]}</strong></div>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[4]}</span>`;
+                            footerItems = [`<span>Qty Bought: <strong style="color:var(--md-on-surface);">${tds[2]}</strong></span>`, `<span>Avg Buy Price: <strong style="color:var(--md-primary);">${tds[3]}</strong></span>`];
+                        } else if (reportType === 'job_costing') {
+                            borderColor = '#6a1b9a';
+                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[2]}</strong>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900;">${tds[4]}</span>`;
+                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">#${tds[1]}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
+                            footerItems = [`<span>Linked Docs: ${tds[3]}</span>`];
+                        } else if (reportType === 'gstr2_purchases') {
+                            borderColor = '#146c2e';
+                            leftTitle = `<div style="font-size:14.5px; color:var(--md-on-surface); font-weight:700;">${tds[2]}</div>`;
+                            rightVal = `<div style="text-align:right;"><small style="font-size:9px; color:var(--md-text-muted); text-transform:uppercase; font-weight:800; display:block;">Total ITC</small><span style="font-size:16px; font-weight:900;">${tds[6]}</span></div>`;
+                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">${tds[1].replace('<br>', ' ')}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
+                            footerItems = [`<span>Taxable: <strong style="color:var(--md-on-surface);">${tds[3]}</strong></span>`, `<span>CGST: <strong style="color:var(--md-primary);">${tds[4]}</strong></span>`, `<span>SGST: <strong style="color:var(--md-primary);">${tds[5]}</strong></span>`];
+                        } else if (reportType === 'cashbook_summary') {
+                            const isIn = tds[4] && tds[4] !== '-';
+                            borderColor = isIn ? 'var(--md-success)' : 'var(--md-error)';
+                            leftTitle = `<div style="font-size:14.5px; color:var(--md-on-surface);">${tds[2]}</div>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900; color:${borderColor};">${isIn ? '+' + tds[4] : '-' + tds[5]}</span>`;
+                            footerItems = [`<span><strong>${tds[1]}</strong> • ${tds[0]}</span>`, `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-weight:700; color:var(--md-on-surface);">${tds[3]}</span>`];
+                        }
+                        cardsHTML += `
+                        <div class="m3-card" style="padding: 14px 16px !important; margin-bottom: 10px !important; border-radius: 12px !important; border: 1px solid var(--md-outline-variant) !important; border-left: 4px solid ${borderColor} !important; box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                                <div style="flex:1; min-width:0;">${leftTitle}${subLine ? `<div style="margin-top:6px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">${subLine}</div>` : ''}</div>
+                                <div style="flex-shrink:0; text-align:right; font-variant-numeric:tabular-nums;">${rightVal}</div>
+                            </div>
+                            ${footerItems.length > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-top:1px dashed var(--md-outline-variant); padding-top:8px; margin-top:10px; font-size:11.5px; color:var(--md-text-muted); font-variant-numeric:tabular-nums;">${footerItems.join('')}</div>` : ''}
+                        </div>`;
+                    });
+                    cardsWrap.innerHTML = cardsHTML;
+                }
+            }
 
             // Save State for PDF Engine
             app.state.currentReportHeaders = tableHeaders;
@@ -8635,7 +8792,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             
             docs.forEach(d => {
                 if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && (String(partyType).toLowerCase() === 'customer' ? d.customerId === partyId : d.supplierId === partyId)) {
-                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                 }
             });
 
@@ -8673,7 +8830,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             let trueBalNonGST = !isAdv ? ob : -ob;
             docs.forEach(d => {
                 if (d.status !== 'Open' && d.status !== 'Cancelled' && (isCust ? d.customerId === partyId : d.supplierId === partyId)) {
-                    const amt = parseFloat(d.grandTotal) || 0;
+                    const amt = Math.abs(parseFloat(d.grandTotal) || 0);
                     const imp = d.documentType === 'return' ? -amt : amt;
                     if (d.invoiceType === 'Non-GST') trueBalNonGST += imp;
                     else trueBalGST += imp;
@@ -8798,10 +8955,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
 window.executeAccountReport = async (accountId) => {
     window.Utils.showToast("Generating Bank Statement... ⏳");
     
-    let account = { name: 'Cash Drawer', openingBalance: 0 };
-    if (accountId !== 'cash') {
-        account = await getRecordById('accounts', accountId) || account;
-    }
+    let account = await getRecordById('accounts', accountId) || { name: 'Cash Drawer', openingBalance: 0 };
 
     const receipts = await getAllRecords('receipts', 'firmId', app.state.firmId);
     const firmId = app.state.firmId;
@@ -9455,7 +9609,7 @@ document.addEventListener('input', (e) => {
                     sales.forEach(s => {
                         // 🚨 FIX 3: Enforce Firm ID and SKIP the currently open invoice so it doesn't double-count!
                         if (s.firmId === activeFirmId && s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.id !== currentEditId) {
-                            cachedTrueBalance += (s.documentType === 'return' ? -parseFloat(s.grandTotal || 0) : parseFloat(s.grandTotal || 0));
+                            cachedTrueBalance += (s.documentType === 'return' ? -Math.abs(parseFloat(s.grandTotal || 0)) : Math.abs(parseFloat(s.grandTotal || 0)));
                             if (s.status !== 'Completed' && s.documentType !== 'return') {
                                 const ageDays = Math.floor((today - window.Utils.safeDate(s.date)) / (1000 * 60 * 60 * 24));
                                 if (ageDays > cachedOldestDueDays) cachedOldestDueDays = ageDays;
@@ -9465,7 +9619,7 @@ document.addEventListener('input', (e) => {
                 } else {
                     purchases.forEach(p => {
                         if (p.firmId === activeFirmId && p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled' && p.id !== currentEditId) {
-                            cachedTrueBalance += (p.documentType === 'return' ? -parseFloat(p.grandTotal || 0) : parseFloat(p.grandTotal || 0));
+                            cachedTrueBalance += (p.documentType === 'return' ? -Math.abs(parseFloat(p.grandTotal || 0)) : Math.abs(parseFloat(p.grandTotal || 0)));
                             if (p.status !== 'Completed' && p.documentType !== 'return') {
                                 const ageDays = Math.floor((today - window.Utils.safeDate(p.date)) / (1000 * 60 * 60 * 24));
                                 if (ageDays > cachedOldestDueDays) cachedOldestDueDays = ageDays;
@@ -9490,7 +9644,7 @@ document.addEventListener('input', (e) => {
 
             // Calculate Projected Balance instantly using the cached math!
             const docTypeEl = document.getElementById(partyType === 'Customer' ? 'sales-doc-type' : 'purchase-doc-type');
-            const isReturn = docTypeEl && docTypeEl.value === 'return';
+            const isReturn = (docTypeEl && docTypeEl.value === 'return') || (window.app && window.app.state && window.app.state.currentDocType === 'return');
             
             let projectedBalance = cachedTrueBalance;
             if (isReturn) {
@@ -10274,6 +10428,60 @@ window.openBalanceSheetPreview = function() {
             }
         });
 
+        cashInHand = 0; bankAccounts = 0;
+        const allFirmAccs = (window.UI.state.rawData.accounts || []).filter(a => !activeFirmId || a.firmId === activeFirmId);
+        if (!allFirmAccs.some(a => a.id === 'cash')) allFirmAccs.unshift({ id: 'cash', name: 'Default Cash Drawer', type: 'Cash', openingBalance: 0 });
+        allFirmAccs.forEach(a => {
+            let bal = parseFloat(a.openingBalance) || 0;
+            (window.UI.state.rawData.cashbook || []).forEach(c => {
+                const cAcc = c.accountId || 'cash';
+                if (cAcc === a.id && c.date <= asOfDate && (!activeFirmId || c.firmId === activeFirmId)) {
+                    bal += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                }
+            });
+            if (Math.abs(bal) > 0.001) {
+                if (a.id === 'cash' || String(a.type).toLowerCase() === 'cash') cashInHand += bal;
+                else bankAccounts += bal;
+            }
+        });
+        sundryDebtors = 0; sundryCreditors = 0; customerAdvances = 0; supplierAdvances = 0;
+        (window.UI.state.rawData.ledgers || []).filter(l => (!activeFirmId || l.firmId === activeFirmId)).forEach(l => {
+            const isCust = String(l.type).toLowerCase() === 'customer';
+            const ob = parseFloat(l.openingBalance) || 0;
+            const bType = String(l.balanceType || '').toLowerCase();
+            const isAdv = isCust ? (bType.includes('pay') || bType.includes('credit')) : (bType.includes('receive') || bType.includes('debit'));
+            let balGST = 0;
+            let balNon = !isAdv ? ob : -ob;
+            const pDocs = isCust ? (window.UI.state.rawData.sales || []) : (window.UI.state.rawData.purchases || []);
+            pDocs.forEach(d => {
+                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (!activeFirmId || d.firmId === activeFirmId) && (isCust ? d.customerId === l.id : d.supplierId === l.id)) {
+                    const amt = parseFloat(d.grandTotal) || 0;
+                    const imp = d.documentType === 'return' ? -amt : amt;
+                    if (d.invoiceType === 'Non-GST') balNon += imp; else balGST += imp;
+                }
+            });
+            (window.UI.state.rawData.cashbook || []).forEach(r => {
+                if (r.ledgerId === l.id && r.date <= asOfDate && (!activeFirmId || r.firmId === activeFirmId)) {
+                    let isNon = r.taxPool === 'Non-GST';
+                    const legacyRef = r.invoiceRef || r.linkedInvoice;
+                    if (!r.taxPool || r.taxPool === 'All') {
+                        isNon = true;
+                        if (legacyRef) {
+                            const firstRef = String(legacyRef).split(',')[0].trim();
+                            const linkedDoc = pDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNon = false;
+                        }
+                    }
+                    const amt = parseFloat(r.amount) || 0;
+                    const imp = isCust ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
+                    if (isNon) balNon += imp; else balGST += imp;
+                }
+            });
+            [balGST, balNon].forEach(val => {
+                if (val > 0.01) { if (isCust) sundryDebtors += val; else sundryCreditors += val; }
+                else if (val < -0.01) { if (isCust) customerAdvances += Math.abs(val); else supplierAdvances += Math.abs(val); }
+            });
+        });
         const currentAssets = closingStockValue + sundryDebtors + cashInHand + bankAccounts + supplierAdvances + netTaxReceivable;
         const currentLiabilities = sundryCreditors + customerAdvances + netTaxLiability;
         const retainedEarnings = currentAssets - currentLiabilities;

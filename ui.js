@@ -1448,8 +1448,8 @@ const UI = {
 
             // ENTERPRISE FIX: We MUST pre-calculate Returns BEFORE processing explicit payments so refund money isn't blackholed!
             const globalReturnMap = {};
-            UI.state.rawData.sales.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) globalReturnMap['sales_' + d.orderNo] = (globalReturnMap['sales_' + d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
-            UI.state.rawData.purchases.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) globalReturnMap['purchases_' + d.orderNo] = (globalReturnMap['purchases_' + d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
+            UI.state.rawData.sales.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) globalReturnMap['sales_' + d.orderNo] = (globalReturnMap['sales_' + d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0); });
+            UI.state.rawData.purchases.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) globalReturnMap['purchases_' + d.orderNo] = (globalReturnMap['purchases_' + d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0); });
 
             // 🚨 ELITE UPGRADE: GLOBAL TAX-AWARE AUTO-FIFO ENGINE
             const floatingPools = {}; 
@@ -1588,7 +1588,7 @@ const UI = {
             const returnMap = {};
             UI.state.rawData.sales.forEach(d => {
                 if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                    returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                    returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                 }
             });
 
@@ -1642,7 +1642,7 @@ const UI = {
                 return matchSearch && matchFilter && matchDate;
             });
 
-            data.forEach(s => sumValue += (s.documentType === 'return' ? -(s.grandTotal || 0) : (s.grandTotal || 0)));
+            data.forEach(s => sumValue += (s.documentType === 'return' ? -Math.abs(parseFloat(s.grandTotal) || 0) : Math.abs(parseFloat(s.grandTotal) || 0)));
             if (document.getElementById('sum-sales')) document.getElementById('sum-sales').innerText = `\u20B9${sumValue.toFixed(2)}`;
 
             // BULLETPROOF SORTING: Prevents WebView crashes!
@@ -1708,6 +1708,10 @@ const UI = {
                             statusColor = '#ba1a1a'; 
                             statusBg = 'rgba(186, 26, 26, 0.1)';
                         }
+                    } else if (isReturn) {
+                        statusText = 'Credit Note';
+                        statusColor = '#7c3aed';
+                        statusBg = 'rgba(124, 58, 237, 0.1)';
                     } else if (s.status === 'Completed' || balance <= 0.01) {
                         statusText = 'Paid';
                         statusColor = '#146c2e';
@@ -1753,7 +1757,7 @@ const UI = {
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; text-align: right;">
-                                <strong style="font-size: 16px; color: ${isReturn ? 'var(--md-error)' : 'var(--md-on-surface)'}; line-height: 1.2; font-variant-numeric: tabular-nums;">${isReturn ? '-' : ''}\u20B9${(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
+                                <strong style="font-size: 16px; color: ${isReturn ? 'var(--md-error)' : 'var(--md-on-surface)'}; line-height: 1.2; font-variant-numeric: tabular-nums;">${isReturn ? '-' : ''}\u20B9${Math.abs(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
                                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                                     <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; display: inline-block; white-space: nowrap;">${statusText}</span>
                                     ${warningHTML}
@@ -1790,7 +1794,7 @@ const UI = {
             const purchaseReturnMap = {};
             UI.state.rawData.purchases.forEach(d => {
                 if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                    purchaseReturnMap[d.orderNo] = (purchaseReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                    purchaseReturnMap[d.orderNo] = (purchaseReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                 }
             });
 
@@ -1828,7 +1832,7 @@ const UI = {
                 return matchSearch && matchFilter && matchDate;
             });
 
-            data.forEach(p => sumValue += (p.documentType === 'return' ? -(p.grandTotal || 0) : (p.grandTotal || 0)));
+            data.forEach(p => sumValue += (p.documentType === 'return' ? -Math.abs(parseFloat(p.grandTotal) || 0) : Math.abs(parseFloat(p.grandTotal) || 0)));
             if (document.getElementById('sum-purchases')) document.getElementById('sum-purchases').innerText = `\u20B9${sumValue.toFixed(2)}`;
 
             // BULLETPROOF SORTING: Prevents WebView crashes!
@@ -1894,6 +1898,10 @@ const UI = {
                             statusColor = '#ba1a1a'; 
                             statusBg = 'rgba(186, 26, 26, 0.1)';
                         }
+                    } else if (isReturn) {
+                        statusText = 'Debit Note';
+                        statusColor = '#7c3aed';
+                        statusBg = 'rgba(124, 58, 237, 0.1)';
                     } else if (p.status === 'Completed' || balance <= 0.01) {
                         statusText = 'Paid';
                         statusColor = '#146c2e';
@@ -1924,7 +1932,7 @@ const UI = {
             </div>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; text-align: right;">
-            <strong style="font-size: 16px; color: ${isReturn ? 'var(--md-success)' : 'var(--md-on-surface)'}; line-height: 1.2; font-variant-numeric: tabular-nums;">${isReturn ? '-' : ''}\u20B9${(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
+            <strong style="font-size: 16px; color: ${isReturn ? 'var(--md-success)' : 'var(--md-on-surface)'}; line-height: 1.2; font-variant-numeric: tabular-nums;">${isReturn ? '-' : ''}\u20B9${Math.abs(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; display: inline-block; white-space: nowrap;">${statusText}</span>
                 ${warningHTML}
@@ -2733,7 +2741,7 @@ const UI = {
                     
                     if (isReportViewer) {
                         const balText = document.getElementById('report-party-balance').innerText || '';
-                        const isAccountLedger = balText.includes('Available Balance');
+                        const isAccountLedger = balText.startsWith('Bal:') || balText.includes('Available Balance');
                         
                         if (isAccountLedger) {
                             // 🏦 ACCOUNT LEDGER RENDER
@@ -2753,8 +2761,10 @@ const UI = {
                                 const type = isPaymentOut ? 'out' : 'in';
                                 clickAction = `onclick="app.openReceipt('${t.id}', '${type}')"`;
                                 
-                                if (t.desc.toLowerCase().includes('expense')) {
-                                    pdfAction = `if(window.Utils) window.Utils.generateExpenseVoucherPDF('${t.id}')`;
+                                if (String(t.id).startsWith('exp-rec-') || (t.desc || '').toLowerCase().includes('expense')) {
+                                    const expId = String(t.id).replace('exp-rec-', '');
+                                    clickAction = `onclick="app.openForm('expense', '${expId}')"`;
+                                    pdfAction = `if(window.Utils) window.Utils.generateExpenseVoucherPDF('${expId}')`;
                                 } else {
                                     pdfAction = `if(window.app) window.app.generateReceiptPDF('${t.id}')`;
                                 }
@@ -2787,11 +2797,17 @@ const UI = {
                             </div>`;
                         } else {
                             // 👤 PARTY LEDGER RENDER
-                            const isPayment = !t.isInvoice && t.id !== 'open-bal';
-                            const icon = t.id === 'open-bal' ? 'account_balance' : (isPayment ? 'payments' : 'receipt_long');
-                            const iconBg = t.id === 'open-bal' ? 'rgba(0, 97, 164, 0.1)' : (isPayment ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)');
-                            const iconColor = t.id === 'open-bal' ? '#0061a4' : (isPayment ? '#2e7d32' : '#ba1a1a');
-                            const amtColor = t.isInvoice ? 'var(--md-error)' : 'var(--md-success)';
+                            const sDoc = UI.state.rawData.sales.find(s => s.id === t.id);
+                            const pDoc = !sDoc ? UI.state.rawData.purchases.find(p => p.id === t.id) : null;
+                            const isDoc = Boolean(sDoc || pDoc);
+                            const isReturnDoc = (sDoc && sDoc.documentType === 'return') || (pDoc && pDoc.documentType === 'return');
+                            const isPayment = !isDoc && t.id !== 'open-bal';
+                            const isSupplierView = (window.currentPartyForStatement && String(window.currentPartyForStatement.type).toLowerCase() === 'supplier') || balText.includes('TO PAY');
+                            const increasesBalance = typeof t.impact === 'number' ? (isSupplierView ? t.impact < 0 : t.impact > 0) : Boolean(t.isInvoice);
+                            const icon = t.id === 'open-bal' ? 'account_balance' : (isReturnDoc ? 'assignment_return' : (isPayment ? 'payments' : 'receipt_long'));
+                            const iconBg = t.id === 'open-bal' ? 'rgba(0, 97, 164, 0.1)' : (increasesBalance ? 'rgba(186, 26, 26, 0.1)' : 'rgba(20, 108, 46, 0.1)');
+                            const iconColor = t.id === 'open-bal' ? '#0061a4' : (increasesBalance ? '#ba1a1a' : '#2e7d32');
+                            const amtColor = t.id === 'open-bal' ? 'var(--md-on-surface)' : (increasesBalance ? 'var(--md-error)' : 'var(--md-success)');
                             
                             let clickAction = '';
                             let tapClass = '';
@@ -2828,8 +2844,8 @@ const UI = {
                                     </div>
                                     <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
                                         <div>
-                                            <strong style="font-size: 14px; color: ${amtColor};">${t.isInvoice ? '+' : '-'}\u20B9${(t.amount || 0).toFixed(2)}</strong><br>
-                                            <small style="color: var(--md-text-muted);">Bal: \u20B9${(t.runningBalance || 0).toFixed(2)}</small>
+                                            <strong style="font-size: 14px; color: ${amtColor};">${t.id === 'open-bal' ? '' : (increasesBalance ? '+' : '-')}\u20B9${Math.abs(parseFloat(t.amount) || 0).toFixed(2)}</strong><br>
+                                            <small style="color: var(--md-text-muted);">Bal: \u20B9${Math.abs(parseFloat(t.runningBalance) || 0).toFixed(2)}${Math.abs(parseFloat(t.runningBalance) || 0) > 0.01 ? ((parseFloat(t.runningBalance) || 0) > 0 ? ' Dr' : ' Cr') : ''}</small>
                                         </div>
                                         ${t.id !== 'open-bal' ? `
                                         <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
@@ -2852,20 +2868,20 @@ const UI = {
                         const iconBg = isMoneyIn ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
                         const iconColor = isMoneyIn ? '#2e7d32' : '#ba1a1a';
                         
-                        const title = t.party ? `${isMoneyIn ? 'Sale' : 'Purchase'} - ${t.party}` : (t.desc || 'Transaction');
+                        const title = t.desc || (t.party ? `${isMoneyIn ? 'Sale' : 'Purchase'} - ${t.party}` : 'Transaction');
                         const qtyText = t.qty ? ` | ${t.qty}` : '';
                         const subtitle1 = window.Utils.formatDateDisplay(t.date);
                         const subtitle2 = t.ref ? `Ref: ${t.ref}${qtyText}` : `Mode: ${t.mode || 'Cash'}${qtyText}`;
                         
                         // 🚨 FIX: ALWAYS show the exact financial amount on the right side!
-                        const safeAmount = parseFloat(t.amount) || parseFloat(t.grandTotal) || 0;
+                        const safeAmount = Math.abs(parseFloat(t.amount) || parseFloat(t.grandTotal) || 0);
                         const rightVal = `${sign}\u20B9${safeAmount.toFixed(2)}`;
 
                         // 🚀 DYNAMIC PDF & CLICK LOGIC (Auto-detects document type)
                         let clickAction = '';
                         let pdfAction = `window.Utils.showToast('PDF not available for this record')`;
                         
-                        if (t.hasOwnProperty('isInvoice')) {
+                        if (t.hasOwnProperty('isInvoice') || UI.state.rawData.sales.some(s => s.id === t.id) || UI.state.rawData.purchases.some(p => p.id === t.id)) {
                             let doc = UI.state.rawData.sales.find(s => s.id === t.id);
                             let formType = 'sales';
                             if (!doc) { doc = UI.state.rawData.purchases.find(p => p.id === t.id); formType = 'purchase'; }
@@ -2971,11 +2987,12 @@ const UI = {
         sales.forEach(d => { dashDocMap[d.id] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
         purchases.forEach(d => { dashDocMap[d.id] = d; if(d.poNo) dashDocMap[d.poNo] = d; if(d.invoiceNo) dashDocMap[d.invoiceNo] = d; if(d.orderNo) dashDocMap[d.orderNo] = d; });
 
-        // 1. Give Opening Balances to the GST Pool by default
+        const dashReturnMap = {};
+        sales.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) dashReturnMap[d.orderNo] = (dashReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0); });
         UI.state.rawData.ledgers.forEach(l => {
             let ob = parseFloat(l.openingBalance) || 0;
             const bType = (l.balanceType || '').toLowerCase();
-            if (bType.includes('pay') || bType.includes('credit')) floatingPools[`${l.id}_GST`] = (floatingPools[`${l.id}_GST`] || 0) + ob;
+            if (String(l.type).toLowerCase() === 'customer' && (bType.includes('pay') || bType.includes('credit'))) floatingPools[`${l.id}_Non`] = (floatingPools[`${l.id}_Non`] || 0) + ob;
         });
 
         // 2. Process Cashbook explicitly, AND collect floating advances
@@ -3045,7 +3062,8 @@ const UI = {
             if (availableMoney > 0.01) {
                 const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.id].filter(Boolean))];
                 const explicitPaid = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${doc.customerId}_${ref}`] || 0), 0);
-                const docTotal = parseFloat(doc.grandTotal) || 0;
+                const returned = uniqueRefs.reduce((sum, ref) => sum + (dashReturnMap[ref] || 0), 0);
+                const docTotal = Math.max(0, (parseFloat(doc.grandTotal) || 0) - returned);
                 
                 const remainingDebt = Math.max(0, docTotal - explicitPaid);
 
@@ -3160,7 +3178,7 @@ const UI = {
             netProfitEl.style.color = trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
         }
         
-        if(document.getElementById('profit-breakdown')) document.getElementById('profit-breakdown').innerText = `Gross: \u20B9${grossMargin.toLocaleString('en-IN', {maximumFractionDigits: 0})} | Exp: \u20B9${totalExpenses.toLocaleString('en-IN', {maximumFractionDigits: 0})}`;
+        if(document.getElementById('profit-breakdown')) document.getElementById('profit-breakdown').innerText = `Gross: \u20B9${grossMargin.toLocaleString('en-IN', {maximumFractionDigits: 0})} | Exp: \u20B9${totalOperatingCosts.toLocaleString('en-IN', {maximumFractionDigits: 0})}`;
         
         // NEW: Operational Order Volume Tracking (Open, Shipped, Completed)
         let openOrders = 0, shippedOrders = 0, completedOrders = 0;
@@ -3223,8 +3241,8 @@ const UI = {
                 
                 sales.forEach(s => {
                     if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date) {
-                        const sDate = new Date(s.date);
-                        if (sDate.getMonth() === prevTargetMonth && sDate.getFullYear() === prevTargetYear) {
+                        const [sY, sM] = String(s.date).split('-');
+                        if ((parseInt(sM, 10) - 1) === prevTargetMonth && parseInt(sY, 10) === prevTargetYear) {
                             prevSales += (s.documentType === 'return' ? -1 : 1) * (parseFloat(s.grandTotal) || 0);
                         }
                     }
@@ -3256,7 +3274,7 @@ const UI = {
         const dashboardReturnMap = {};
         sales.forEach(d => {
             if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
-                dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                dashboardReturnMap[d.orderNo] = (dashboardReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
             }
         });
 
@@ -3621,13 +3639,23 @@ const UI = {
 
         sheet.classList.remove('open');
 
-        // ENTERPRISE FIX: Destroy the custom Haptic Overlay if the Android Back Button kills the menu!
+        // ENTERPRISE FIX: Destroy the custom Haptic, Bank Ledger, & Khata Overlays immediately!
         if (sheetId === 'haptic-menu') {
             const hOverlay = document.getElementById('haptic-overlay');
             if (hOverlay) {
                 hOverlay.classList.remove('open');
                 setTimeout(() => hOverlay.classList.add('hidden'), 300);
             }
+        }
+        if (sheetId === 'sheet-bank-ledger-select') {
+            const bOverlay = document.getElementById('bank-ledger-overlay');
+            if (bOverlay) bOverlay.remove();
+            setTimeout(() => { if (sheet) sheet.remove(); }, 300);
+        }
+        if (sheetId === 'sheet-khata-select') {
+            const kOverlay = document.getElementById('khata-overlay');
+            if (kOverlay) kOverlay.remove();
+            setTimeout(() => { if (sheet) sheet.remove(); }, 300);
         }
 
         // --- ENTERPRISE FIX: MULTI-LAYER OVERLAY PROTECTOR ---
@@ -4475,9 +4503,9 @@ const UI = {
             dailyActivity.push({ time: p.id, type: docLabel, desc: p.supplierName, amount: p.grandTotal, icon: isRet ? 'assignment_returned' : 'local_shipping', color: isRet ? 'var(--md-success)' : 'var(--md-error)', sign: isRet ? '+' : '-' });
         });
         
-        UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === targetDate && !c.isAutoGenerated).forEach(c => {
+        UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === targetDate && (!c.isAutoGenerated || String(c.id).startsWith('split-'))).forEach(c => {
             const isIn = c.type === 'in';
-            dailyActivity.push({ time: c.id, type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: parseFloat(c.amount), icon: isIn ? 'arrow_downward' : 'arrow_upward', color: isIn ? 'var(--md-success)' : 'var(--md-error)', sign: isIn ? '+' : '-' });
+            dailyActivity.push({ time: c.id, type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: Math.abs(parseFloat(c.amount) || 0), icon: isIn ? 'arrow_downward' : 'arrow_upward', color: isIn ? 'var(--md-success)' : 'var(--md-error)', sign: isIn ? '+' : '-' });
         });
         
         UI.state.rawData.expenses.filter(e => (!activeFirmId || e.firmId === activeFirmId) && e.date === targetDate).forEach(e => {
@@ -4507,7 +4535,7 @@ const UI = {
             <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
                 <div class="icon-circle" style="background: var(--md-surface-variant); color: ${t.color}; width: 40px; height: 40px; flex-shrink: 0;"><span class="material-symbols-outlined" style="font-size:20px;">${t.icon}</span></div>
                 <div style="flex: 1;"><strong class="large-text">${t.type}</strong><br><small style="color: var(--md-text-muted);">${t.desc} | ${window.Utils.formatDateDisplay(targetDate)}</small></div>
-                <strong style="font-size: 16px; color: ${t.color};">${t.sign}&#8377;${(t.amount || 0).toFixed(2)}</strong>
+                <strong style="font-size: 16px; color: ${t.color};">${t.sign}&#8377;${Math.abs(parseFloat(t.amount) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
             </div>
         `).join('');
 
@@ -4622,6 +4650,10 @@ const UI = {
                     <strong>Operating Expenses:</strong>
                     <strong>- ₹${totalExpenses.toFixed(2)}</strong>
                 </div>
+                ${indirectExpense > 0 ? `<div style="display: flex; justify-content: space-between; color: var(--md-error); margin-bottom: 4px;">
+                    <strong>Indirect Expenses:</strong>
+                    <strong>- ₹${indirectExpense.toFixed(2)}</strong>
+                </div>` : ''}
                 ${stockLoss > 0 ? `<div style="display: flex; justify-content: space-between; color: var(--md-error);">
                     <strong>Stock Loss:</strong>
                     <strong>- ₹${stockLoss.toFixed(2)}</strong>
@@ -4629,6 +4661,10 @@ const UI = {
                 ${indirectIncome > 0 ? `<div style="display: flex; justify-content: space-between; color: var(--md-success); margin-top: 4px;">
                     <strong>Indirect Income:</strong>
                     <strong>+ ₹${indirectIncome.toFixed(2)}</strong>
+                </div>` : ''}
+                ${stockGain > 0 ? `<div style="display: flex; justify-content: space-between; color: var(--md-success); margin-top: 4px;">
+                    <strong>Stock Gain:</strong>
+                    <strong>+ ₹${stockGain.toFixed(2)}</strong>
                 </div>` : ''}
             </div>
 
@@ -4740,6 +4776,67 @@ const UI = {
             }
         });
 
+        cashInHand = 0; bankAccounts = 0;
+        window.UI.state.bsBreakdown.cash = []; window.UI.state.bsBreakdown.bank = [];
+        const allFirmAccs = (UI.state.rawData.accounts || []).filter(a => !activeFirmId || a.firmId === activeFirmId);
+        if (!allFirmAccs.some(a => a.id === 'cash')) allFirmAccs.unshift({ id: 'cash', name: 'Default Cash Drawer', type: 'Cash', openingBalance: 0 });
+        allFirmAccs.forEach(a => {
+            let bal = parseFloat(a.openingBalance) || 0;
+            (UI.state.rawData.cashbook || []).forEach(c => {
+                const cAcc = c.accountId || 'cash';
+                if (cAcc === a.id && c.date <= asOfDate && (!activeFirmId || c.firmId === activeFirmId)) {
+                    bal += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
+                }
+            });
+            if (Math.abs(bal) > 0.001) {
+                if (a.id === 'cash' || String(a.type).toLowerCase() === 'cash') { cashInHand += bal; window.UI.state.bsBreakdown.cash.push({ name: a.name || 'Cash Drawer', desc: 'Cash Drawer', amount: bal }); }
+                else { bankAccounts += bal; window.UI.state.bsBreakdown.bank.push({ name: a.name, desc: a.accountNumber || 'Bank/Wallet', amount: bal }); }
+            }
+        });
+        sundryDebtors = 0; sundryCreditors = 0; customerAdvances = 0; supplierAdvances = 0;
+        window.UI.state.bsBreakdown.debtors = []; window.UI.state.bsBreakdown.creditors = []; window.UI.state.bsBreakdown.custAdv = []; window.UI.state.bsBreakdown.suppAdv = [];
+        ledgers.forEach(l => {
+            const isCust = String(l.type).toLowerCase() === 'customer';
+            const ob = parseFloat(l.openingBalance) || 0;
+            const bType = String(l.balanceType || '').toLowerCase();
+            const isAdv = isCust ? (bType.includes('pay') || bType.includes('credit')) : (bType.includes('receive') || bType.includes('debit'));
+            let balGST = 0;
+            let balNon = !isAdv ? ob : -ob;
+            const pDocs = isCust ? (UI.state.rawData.sales || []) : (UI.state.rawData.purchases || []);
+            pDocs.forEach(d => {
+                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (!activeFirmId || d.firmId === activeFirmId) && (isCust ? d.customerId === l.id : d.supplierId === l.id)) {
+                    const amt = parseFloat(d.grandTotal) || 0;
+                    const imp = d.documentType === 'return' ? -amt : amt;
+                    if (d.invoiceType === 'Non-GST') balNon += imp; else balGST += imp;
+                }
+            });
+            (UI.state.rawData.cashbook || []).forEach(r => {
+                if (r.ledgerId === l.id && r.date <= asOfDate && (!activeFirmId || r.firmId === activeFirmId)) {
+                    let isNon = r.taxPool === 'Non-GST';
+                    const legacyRef = r.invoiceRef || r.linkedInvoice;
+                    if (!r.taxPool || r.taxPool === 'All') {
+                        isNon = true;
+                        if (legacyRef) {
+                            const firstRef = String(legacyRef).split(',')[0].trim();
+                            const linkedDoc = pDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNon = false;
+                        }
+                    }
+                    const amt = parseFloat(r.amount) || 0;
+                    const imp = isCust ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
+                    if (isNon) balNon += imp; else balGST += imp;
+                }
+            });
+            [[balGST, 'GST'], [balNon, 'Non-GST']].forEach(([val, pool]) => {
+                if (val > 0.01) {
+                    if (isCust) { sundryDebtors += val; window.UI.state.bsBreakdown.debtors.push({ name: `${l.name} (${pool})`, desc: l.phone || 'Customer', amount: val }); }
+                    else { sundryCreditors += val; window.UI.state.bsBreakdown.creditors.push({ name: `${l.name} (${pool})`, desc: l.phone || 'Supplier', amount: val }); }
+                } else if (val < -0.01) {
+                    if (isCust) { customerAdvances += Math.abs(val); window.UI.state.bsBreakdown.custAdv.push({ name: `${l.name} (${pool} Adv)`, desc: l.phone || 'Customer', amount: Math.abs(val) }); }
+                    else { supplierAdvances += Math.abs(val); window.UI.state.bsBreakdown.suppAdv.push({ name: `${l.name} (${pool} Adv)`, desc: l.phone || 'Supplier', amount: Math.abs(val) }); }
+                }
+            });
+        });
         const currentAssets = closingStockValue + sundryDebtors + cashInHand + bankAccounts + supplierAdvances + netTaxReceivable;
         const currentLiabilities = sundryCreditors + customerAdvances + netTaxLiability;
         const retainedEarnings = currentAssets - currentLiabilities;
@@ -4831,9 +4928,9 @@ const UI = {
                 dailyActivity.push({ type: docLabel, desc: p.supplierName, amount: p.grandTotal, sign: isRet ? '+' : '-' });
             });
             
-            UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === dateInput && !c.isAutoGenerated).forEach(c => {
+            UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === dateInput && (!c.isAutoGenerated || String(c.id).startsWith('split-'))).forEach(c => {
                 const isIn = c.type === 'in';
-                dailyActivity.push({ type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: parseFloat(c.amount), sign: isIn ? '+' : '-' });
+                dailyActivity.push({ type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: Math.abs(parseFloat(c.amount) || 0), sign: isIn ? '+' : '-' });
             });
             
             UI.state.rawData.expenses.filter(e => (!activeFirmId || e.firmId === activeFirmId) && e.date === dateInput).forEach(e => {
@@ -4854,7 +4951,7 @@ const UI = {
             let totalIn = 0, totalOut = 0;
 
             dailyActivity.forEach((t, index) => {
-                const amt = parseFloat(t.amount) || 0;
+                const amt = Math.abs(parseFloat(t.amount) || 0);
                 if (t.sign === '+') totalIn += amt; else totalOut += amt;
                 const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
                 const color = t.sign === '+' ? '#16a34a' : '#dc2626';
@@ -5044,20 +5141,20 @@ const UI = {
                 const isRet = s.documentType === 'return';
                 const isNonGST = s.invoiceType === 'Non-GST';
                 const docLabel = isRet ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
-                dailyActivity.push({ time: s.id, type: docLabel, desc: s.customerName, amount: s.grandTotal, sign: isRet ? '-' : '+' });
+                dailyActivity.push({ time: s.id, type: docLabel, desc: s.customerName, amount: Math.abs(parseFloat(s.grandTotal) || 0), sign: isRet ? '-' : '+' });
             });
             UI.state.rawData.purchases.filter(p => (!activeFirmId || p.firmId === activeFirmId) && p.date === dateInput && p.status !== 'Open' && p.status !== 'Cancelled').forEach(p => {
                 const isRet = p.documentType === 'return';
                 const isNonGST = p.invoiceType === 'Non-GST';
                 const docLabel = isRet ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
-                dailyActivity.push({ time: p.id, type: docLabel, desc: p.supplierName, amount: p.grandTotal, sign: isRet ? '+' : '-' });
+                dailyActivity.push({ time: p.id, type: docLabel, desc: p.supplierName, amount: Math.abs(parseFloat(p.grandTotal) || 0), sign: isRet ? '+' : '-' });
             });
-            UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === dateInput && !c.isAutoGenerated).forEach(c => {
+            UI.state.rawData.cashbook.filter(c => (!activeFirmId || c.firmId === activeFirmId) && c.date === dateInput && (!c.isAutoGenerated || String(c.id).startsWith('split-'))).forEach(c => {
                 const isIn = c.type === 'in';
-                dailyActivity.push({ time: c.id, type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: parseFloat(c.amount), sign: isIn ? '+' : '-' });
+                dailyActivity.push({ time: c.id, type: isIn ? 'Money In' : 'Money Out', desc: c.ledgerName, amount: Math.abs(parseFloat(c.amount) || 0), sign: isIn ? '+' : '-' });
             });
             UI.state.rawData.expenses.filter(e => (!activeFirmId || e.firmId === activeFirmId) && e.date === dateInput).forEach(e => {
-                dailyActivity.push({ time: e.id, type: 'Expense', desc: e.category, amount: parseFloat(e.amount), sign: '-' });
+                dailyActivity.push({ time: e.id, type: 'Expense', desc: e.category, amount: Math.abs(parseFloat(e.amount) || 0), sign: '-' });
             });
 
             if (dailyActivity.length === 0) return window.Utils.alertModal("No data to export for this date.");
@@ -5577,10 +5674,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const m = parseInt(today.split('-')[1]) - 1;
             
             if(filter === 'month') { s = `${y}-${String(m+1).padStart(2,'0')}-01`; }
-            else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = new Date(ty, tm+1, 0).toISOString().split('T')[0]; }
+            else if(filter === 'last_month') { let tm = m-1, ty = y; if(tm<0){tm=11; ty--;} s = `${ty}-${String(tm+1).padStart(2,'0')}-01`; e = `${ty}-${String(tm+1).padStart(2,'0')}-${String(new Date(ty, tm+1, 0).getDate()).padStart(2,'0')}`; }
             else if(filter === 'year') { s = `${m<3 ? y-1 : y}-04-01`; }
             else if(filter === 'all') { s = ''; e = ''; }
-            else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = new Date(cy, cm, 0).toISOString().split('T')[0]; } }
+            else if(filter === 'custom') { const cv = document.getElementById('dashboard-custom-month').value; if(cv) { s = `${cv}-01`; const [cy, cm] = cv.split('-'); e = `${cy}-${String(cm).padStart(2,'0')}-${String(new Date(cy, cm, 0).getDate()).padStart(2,'0')}`; } }
             
             return { s, e, filter };
         };
@@ -6463,14 +6560,21 @@ window.openInvoiceOverview = function(type, id) {
 
         // 2. STATUS & BALANCES
         let totalPaid = 0;
-        let lastPaymentDate = null; // 🚨 ENTERPRISE FIX: Track the exact date of final payment
+        let lastPaymentDate = null;
         const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
         (window.UI?.state?.rawData?.cashbook || []).forEach(c => {
+            if (partyId && c.ledgerId && String(c.ledgerId) !== String(partyId)) return;
             const legacyRef = c.invoiceRef || c.linkedInvoice;
             if (legacyRef) {
-                const refs = String(legacyRef).split(',').map(r => r.trim());
+                const refs = String(legacyRef).split(',').map(r => r.trim()).filter(Boolean);
                 if (refs.some(r => uniqueRefs.includes(r))) {
-                    totalPaid += c.allocationMap && c.allocationMap[doc.id] !== undefined ? parseFloat(c.allocationMap[doc.id]) : parseFloat(c.amount) / refs.length;
+                    let allocAmt = 0;
+                    if (c.allocationMap) {
+                        uniqueRefs.forEach(uRef => { if (c.allocationMap[uRef] !== undefined) allocAmt += parseFloat(c.allocationMap[uRef]) || 0; });
+                    }
+                    if (allocAmt === 0) allocAmt = (parseFloat(c.amount) || 0) / (refs.length || 1);
+                    const sign = isSales ? (c.type === 'in' ? 1 : -1) : (c.type === 'out' ? 1 : -1);
+                    totalPaid += (allocAmt * sign);
                     
                     // Log the date of the most recent payment
                     if (c.date) {
@@ -6481,15 +6585,24 @@ window.openInvoiceOverview = function(type, id) {
                 }
             }
         });
-        const grandTotal = parseFloat(doc.grandTotal || doc.amount || 0);
-        const balance = Math.max(0, grandTotal - totalPaid);
+        let returnTotal = 0;
+        (dataList || []).forEach(d => {
+            if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && uniqueRefs.includes(d.orderNo)) {
+                returnTotal += Math.abs(parseFloat(d.grandTotal) || 0);
+            }
+        });
+        const grandTotal = Math.abs(parseFloat(doc.grandTotal || doc.amount || 0));
+        if (doc.status === 'Completed' || doc.status === 'Paid') totalPaid = Math.max(totalPaid + returnTotal, grandTotal);
+        else totalPaid += returnTotal;
+        const balance = doc.documentType === 'return' ? 0 : Math.max(0, grandTotal - totalPaid);
 
         let statusText = doc.status || 'Saved';
         let sColor = '#0061a4', sBg = 'rgba(0, 97, 164, 0.1)';
         
-        if(statusText === 'Completed' || statusText === 'Paid' || balance <= 0.01) { sColor = '#146c2e'; sBg = 'rgba(20, 108, 46, 0.1)'; statusText = 'Paid'; }
-        else if(statusText === 'Overdue' || statusText === 'Cancelled') { sColor = '#ba1a1a'; sBg = 'rgba(186, 26, 26, 0.1)'; }
+        if(statusText === 'Overdue' || statusText === 'Cancelled') { sColor = '#ba1a1a'; sBg = 'rgba(186, 26, 26, 0.1)'; }
         else if(statusText === 'Open') { sColor = '#73777f'; sBg = 'rgba(115, 119, 127, 0.1)'; statusText = isSales ? 'Draft Estimate' : 'Draft PO'; }
+        else if(doc.documentType === 'return') { sColor = '#7c3aed'; sBg = 'rgba(124, 58, 237, 0.1)'; statusText = isSales ? 'Credit Note' : 'Debit Note'; }
+        else if(statusText === 'Completed' || statusText === 'Paid' || balance <= 0.01) { sColor = '#146c2e'; sBg = 'rgba(20, 108, 46, 0.1)'; statusText = 'Paid'; }
         else if(balance < -0.01) { sColor = '#0284c7'; sBg = 'rgba(2, 132, 199, 0.1)'; statusText = 'Advance Paid'; }
         else if(balance > 0.01 && totalPaid > 0) { sColor = '#ea580c'; sBg = 'rgba(234, 88, 12, 0.1)'; statusText = 'Partially Paid'; }
 
@@ -6548,9 +6661,9 @@ window.openInvoiceOverview = function(type, id) {
         let itemsHTML = '';
         if(doc.items && doc.items.length > 0) {
             doc.items.forEach(item => {
-                const qty = parseFloat(item.qty) || 1;
-                let rate = parseFloat(item.rate) || parseFloat(item.price) || parseFloat(item.sellPrice) || parseFloat(item.buyPrice) || 0;
-                let lineTotal = parseFloat(item.total) || (qty * rate);
+                const qty = Math.abs(parseFloat(item.qty) || 1);
+                let rate = Math.abs(parseFloat(item.rate) || parseFloat(item.price) || parseFloat(item.sellPrice) || parseFloat(item.buyPrice) || 0);
+                let lineTotal = Math.abs(parseFloat(item.total) || (qty * rate));
                 itemsHTML += `
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-surface-variant); padding: 12px 16px;">
                     <div style="flex: 1; padding-right: 12px;">
@@ -6565,15 +6678,15 @@ window.openInvoiceOverview = function(type, id) {
         }
 
         // 5. MATH & EXACT BREAKDOWN (Freight, %, GST/IGST)
-        let rawSubtotal = parseFloat(doc.subtotal || doc.amount || 0);
-        let discountVal = parseFloat(doc.discountAmt || doc.discount || 0);
+        let rawSubtotal = Math.abs(parseFloat(doc.subtotal || doc.amount || 0));
+        let discountVal = Math.abs(parseFloat(doc.discountAmt || doc.discount || 0));
         if (doc.discountType === '%' && !doc.discountAmt) {
-            discountVal = rawSubtotal * (parseFloat(doc.discount) / 100);
+            discountVal = rawSubtotal * (Math.abs(parseFloat(doc.discount) || 0) / 100);
         }
-        let freightVal = parseFloat(doc.freightAmount || doc.freight || 0);
+        let freightVal = Math.abs(parseFloat(doc.freightAmount || doc.freight || 0));
         
 
-        const totalGstAmt = parseFloat(doc.gstTotal || doc.totalGst || 0);
+        const totalGstAmt = Math.abs(parseFloat(doc.gstTotal || doc.totalGst || 0));
         const halfGst = (totalGstAmt / 2).toFixed(2);
         let gstBreakdownHTML = '';
 
@@ -6594,6 +6707,7 @@ window.openInvoiceOverview = function(type, id) {
         // 6. DYNAMIC LINKED CARDS (Payments & Expenses)
         let linksHTML = '';
         const linkedReceipts = (window.UI?.state?.rawData?.cashbook || []).filter(c => {
+            if (partyId && c.ledgerId && String(c.ledgerId) !== String(partyId)) return false;
             const refs = String(c.invoiceRef || c.linkedInvoice || '').split(',').map(r => r.trim());
             return refs.some(r => uniqueRefs.includes(r));
         });

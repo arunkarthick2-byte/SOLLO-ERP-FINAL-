@@ -4813,6 +4813,11 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Item Profitability</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
+            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+                <button type="button" onclick="app.setReportDates('today'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
+                <button type="button" onclick="app.setReportDates('month'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Month</button>
+                <button type="button" onclick="app.setReportDates('year'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
+            </div>
             
             <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
                 <div style="display: flex; gap: 12px;">
@@ -5188,12 +5193,12 @@ Data & Security</strong>
             
             if (type === 'month') {
                 s = y + '-' + String(m+1).padStart(2,'0') + '-01';
-                e = new Date(y, m+1, 0).toISOString().split('T')[0];
+                e = y + '-' + String(m+1).padStart(2,'0') + '-' + String(new Date(y, m+1, 0).getDate()).padStart(2,'0');
             } else if (type === 'last_month') {
                 let tm = m - 1; let ty = y;
                 if (tm < 0) { tm = 11; ty--; }
                 s = ty + '-' + String(tm+1).padStart(2,'0') + '-01';
-                e = new Date(ty, tm+1, 0).toISOString().split('T')[0];
+                e = ty + '-' + String(tm+1).padStart(2,'0') + '-' + String(new Date(ty, tm+1, 0).getDate()).padStart(2,'0');
             } else if (type === 'fy') {
                 const fyStart = m >= 3 ? y : y - 1;
                 s = fyStart + '-04-01';

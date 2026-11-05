@@ -1407,8 +1407,8 @@ Please process this accordingly. Thank you!`;
             
             targetDocs.forEach(s => {
                 if (s[partyKey] === safeParty.id && s.status !== 'Cancelled' && s.status !== 'Open' && s.invoiceType === doc.invoiceType) {
-                    if (s.documentType === 'return') tReturns += (parseFloat(s.grandTotal) || 0);
-                    else tDocs += (parseFloat(s.grandTotal) || 0);
+                    if (s.documentType === 'return') tReturns += Math.abs(parseFloat(s.grandTotal) || 0);
+                    else tDocs += Math.abs(parseFloat(s.grandTotal) || 0);
                 }
             });
 
@@ -2267,14 +2267,14 @@ const pdf = window.currentActivePDF;
                     const relatedDocs = party.type === 'Customer' ? (window.UI.state.rawData.sales || []) : (window.UI.state.rawData.purchases || []);
 
                     relatedDocs.forEach(d => {
-                        if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo && (party.type === 'Customer' ? d.customerId === party.id : d.supplierId === party.id)) {
-                            exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                        if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && (party.type === 'Customer' ? d.customerId === party.id : d.supplierId === party.id)) {
+                            exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                         }
                     });
 
                     relatedDocs.forEach(doc => {
                         const partyMatch = party.type === 'Customer' ? doc.customerId === party.id : doc.supplierId === party.id;
-                        if (partyMatch && doc.status !== 'Open' && doc.documentType !== 'return') {
+                        if (partyMatch && doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return') {
                             const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
                             const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
                             const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
@@ -3052,15 +3052,14 @@ const pdf = window.currentActivePDF;
                     
                     // CRITICAL TAX FIX: Match db.js! A valid GSTIN must be exactly 15 characters to enter the B2B Sheet!
                     if (gstin && gstin.trim().length === 15) {
-                        // ENTERPRISE FIX: The Blank B2B Taxable Value Exploit!
-                        let exactTaxable = parseFloat(s.subtotal);
-                        if (isNaN(exactTaxable) || exactTaxable === 0) {
-                            let rawSubtotal = 0;
-                            (s.items || []).forEach(item => { rawSubtotal += (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0); });
-                            let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
-                            if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-                            exactTaxable = rawSubtotal - discountAmt;
+                        // ENTERPRISE FIX: Deduct discount from Gross Subtotal so B2B Excel matches GSTR-1!
+                        let rawSubtotal = Math.abs(parseFloat(s.subtotal) || 0);
+                        if (!rawSubtotal) {
+                            (s.items || []).forEach(item => { rawSubtotal += Math.abs((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0)); });
                         }
+                        let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                        if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                        let exactTaxable = rawSubtotal - discountAmt;
                         
                         // 🚨 ENTERPRISE FIX: The Double-Negative Shield
                         let taxable = Math.abs(exactTaxable) * (s.documentType === 'return' ? -1 : 1);
@@ -3907,14 +3906,14 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             const relatedDocs = party.type === 'Customer' ? (window.UI.state.rawData.sales || []) : (window.UI.state.rawData.purchases || []);
 
             relatedDocs.forEach(d => {
-                if (d.documentType === 'return' && d.status !== 'Open' && d.orderNo && (party.type === 'Customer' ? d.customerId === party.id : d.supplierId === party.id)) {
-                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + (parseFloat(d.grandTotal) || 0);
+                if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && (party.type === 'Customer' ? d.customerId === party.id : d.supplierId === party.id)) {
+                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
                 }
             });
 
             relatedDocs.forEach(doc => {
                 const partyMatch = party.type === 'Customer' ? doc.customerId === party.id : doc.supplierId === party.id;
-                if (partyMatch && doc.status !== 'Open' && doc.documentType !== 'return') {
+                if (partyMatch && doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return') {
                     const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean))];
                     const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
                     const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
