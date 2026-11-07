@@ -8160,330 +8160,91 @@ if (data.id && splitConfirmed) {
             // =====================================
             // INJECT INTO MOBILE SCREEN
             // =====================================
-            const biz = (typeof window.getRecordById === 'function' ? await window.getRecordById('businessProfile', firmId) : null) || {};
-            const reportTitleText = document.getElementById('uni-report-title')?.innerText || app.state.currentReportTitle || 'Statement';
-            const fromDisp = fromDate === '2000-01-01' ? '01-Apr-2020' : window.Utils.formatDateDisplay(fromDate);
-            const toDisp = toDate === '2099-12-31' ? window.Utils.formatDateDisplay(window.Utils.getLocalDate()) : window.Utils.formatDateDisplay(toDate);
-            const periodDisp = `${fromDisp} To ${toDisp}`;
-            const allLedgers = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.ledgers) || (await window.getAllRecords('ledgers', 'firmId', firmId)) || [];
-            const allAccounts = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.accounts) || (await window.getAllRecords('accounts', 'firmId', firmId)) || [];
-            const allItems = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.items) || (await window.getAllRecords('items', 'firmId', firmId)) || [];
-            const allReceipts = (await window.getAllRecords('receipts', 'firmId', firmId)) || [];
-            let sumCol1Extra = '', sumK0 = { val: '0', lbl: 'Vouchers', sub: `As on: ${fromDisp}` }, sumK1 = { val: '₹0.00', lbl: 'Taxable' }, sumK2 = { val: '₹0.00', lbl: 'GST' }, sumK3 = { val: '₹0.00', lbl: 'Net Total', sub: `As on: ${toDisp}` };
-            if (reportType === 'sales_register' || reportType === 'purchase_register') {
-                const isSale = reportType === 'sales_register';
-                tableHeaders = ['No. / Date', isSale ? 'Customer & Particulars' : 'Supplier & Particulars', 'Taxable / GST', 'Bill Total', 'Balance'];
-                const allStoreDocs = (await window.getAllRecords(isSale ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(d => d.status !== 'Open' && d.status !== 'Cancelled');
-                const baseBills = allStoreDocs.filter(d => d.documentType !== 'return');
-                const returnDocs = allStoreDocs.filter(d => d.documentType === 'return');
-                const returnMap = {};
-                returnDocs.forEach(r => { if (r.orderNo) returnMap[r.orderNo] = (returnMap[r.orderNo] || 0) + Math.abs(parseFloat(r.grandTotal) || 0); });
-                const paymentMap = {};
-                allReceipts.forEach(r => {
-                    if (r.invoiceRef && ((isSale && r.type === 'in') || (!isSale && r.type === 'out'))) {
-                        const refs = String(r.invoiceRef).split(',').map(x => x.trim()).filter(Boolean);
-                        let rem = parseFloat(r.amount) || 0;
-                        refs.forEach(ref => {
-                            const innerDoc = baseBills.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref);
-                            const returned = [innerDoc?.orderNo, innerDoc?.invoiceNo, innerDoc?.poNo, innerDoc?.id, ref].filter(Boolean).reduce((s, rx) => s + (returnMap[rx] || 0), 0);
-                            let apply = 0;
-                            if (r.allocationMap && r.allocationMap[ref] !== undefined) {
-                                apply = parseFloat(r.allocationMap[ref]) || 0;
-                                rem -= apply;
-                            } else {
-                                const docTot = innerDoc ? Math.max(0, Math.abs(parseFloat(innerDoc.grandTotal) || 0) - returned) : rem / refs.length;
-                                apply = Math.min(docTot, rem);
-                                if (apply > 0) rem -= apply;
-                            }
-                            if (apply > 0) paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + apply;
-                        });
-                        if (rem > 0.01 && refs[0]) paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`] || 0) + rem;
-                    }
-                });
-                const floatingPools = {};
-                allLedgers.forEach(l => {
-                    const ob = parseFloat(l.openingBalance) || 0;
-                    const bType = (l.balanceType || '').toLowerCase();
-                    if (isSale && (bType.includes('pay') || bType.includes('credit'))) floatingPools[`${l.id}_Non`] = (floatingPools[`${l.id}_Non`] || 0) + ob;
-                    if (!isSale && (bType.includes('receive') || bType.includes('debit'))) floatingPools[`${l.id}_Non`] = (floatingPools[`${l.id}_Non`] || 0) + ob;
-                });
-                allReceipts.forEach(r => {
-                    if (r.ledgerId && !r.invoiceRef && !r.linkedInvoice) {
-                        let amt = parseFloat(r.amount) || 0;
-                        amt = isSale ? (r.type === 'in' ? amt : -amt) : (r.type === 'out' ? amt : -amt);
-                        const isNon = (!r.taxPool || r.taxPool === 'All' || r.taxPool === 'Non-GST');
-                        const poolKey = isNon ? `${r.ledgerId}_Non` : `${r.ledgerId}_GST`;
-                        floatingPools[poolKey] = (floatingPools[poolKey] || 0) + amt;
-                    }
-                });
-                baseBills.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
-                baseBills.forEach(doc => {
-                    const pId = isSale ? doc.customerId : doc.supplierId;
-                    const poolKey = doc.invoiceType === 'Non-GST' ? `${pId}_Non` : `${pId}_GST`;
-                    const avail = floatingPools[poolKey] || 0;
-                    if (avail > 0.01) {
-                        const uRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
-                        const paid = uRefs.reduce((s, ref) => s + (paymentMap[`${pId}_${ref}`] || 0), 0);
-                        const ret = uRefs.reduce((s, ref) => s + (returnMap[ref] || 0), 0);
-                        const remDebt = Math.max(0, Math.abs(parseFloat(doc.grandTotal) || 0) - paid - ret);
-                        if (remDebt > 0.01) {
-                            const alloc = Math.min(remDebt, avail);
-                            paymentMap[`${pId}_${doc.id}`] = (paymentMap[`${pId}_${doc.id}`] || 0) + alloc;
-                            floatingPools[poolKey] -= alloc;
-                        }
-                    }
-                });
-                const docs = allStoreDocs.filter(s => s.date >= fromDate && s.date <= toDate).sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
-                let tTaxable = 0, tGst = 0, tTotal = 0, tPaid = 0, tDue = 0, cnCount = 0, gstBillCount = 0;
-                tableRowsHTML = '';
-                docs.forEach(s => {
-                    const mult = s.documentType === 'return' ? -1 : 1;
-                    const isNonGST = s.invoiceType === 'Non-GST';
-                    if (mult < 0) cnCount++; else if (!isNonGST) gstBillCount++;
-                    const rawSub = Math.abs(parseFloat(s.subtotal) || 0);
-                    let discAmt = s.discountType === '%' ? (rawSub * ((parseFloat(s.discount) || 0) / 100)) : Math.abs(parseFloat(s.discount) || 0);
-                    if (discAmt > rawSub) discAmt = rawSub;
-                    const grand = Math.abs(parseFloat(s.grandTotal) || 0) * mult;
-                    const gst = Math.abs(parseFloat(s.totalGst) || 0) * mult;
-                    const taxable = (rawSub > 0 ? (rawSub - discAmt) : (Math.abs(parseFloat(s.grandTotal) || 0) - Math.abs(parseFloat(s.totalGst) || 0))) * mult;
-                    tTaxable += taxable; tGst += gst; tTotal += grand;
-                    const pId = isSale ? s.customerId : s.supplierId;
-                    let billPaid = 0, billDue = 0;
-                    if (mult > 0) {
-                        const uRefs = [...new Set([s.orderNo, s.invoiceNo, s.poNo, s.id].filter(Boolean).map(String))];
-                        const recPaid = uRefs.reduce((sum, ref) => sum + (paymentMap[`${pId}_${ref}`] || 0), 0);
-                        const retApplied = uRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
-                        billDue = (s.status === 'Completed' || s.status === 'Paid') ? 0 : Math.max(0, Math.abs(grand) - recPaid - retApplied);
-                        billPaid = Math.max(0, Math.abs(grand) - billDue);
-                        tPaid += billPaid; tDue += billDue;
-                    }
-                    const docLabel = s.invoiceNo || s.poNo || s.orderNo || String(s.id).substring(0, 6).toUpperCase();
-                    const lObj = allLedgers.find(l => String(l.id) === String(pId));
-                    const partyName = isSale ? (s.customerName || 'Unknown') : (s.supplierName || 'Unknown');
-                    const partyGst = s.customerGst || s.supplierGst || s.gstin || (lObj && lObj.gst) || '';
-                    const partyPhone = s.customerPhone || s.supplierPhone || (lObj && lObj.phone) || '';
-                    const itemArr = s.items || [];
-                    const totQty = itemArr.reduce((q, it) => q + Math.abs(parseFloat(it.qty) || 0), 0);
-                    const vchTag = mult < 0 ? (isSale ? 'Credit Note' : 'Debit Note') : (isNonGST ? 'Bill of Supply' : (isSale ? 'Tax Invoice' : 'Purchase Bill'));
-                    const vchColor = mult < 0 ? '#dc2626' : (isNonGST ? '#64748b' : '#0061a4');
-                    const balHtml = mult < 0 ? `<span style="color:#dc2626; font-weight:800;">Return</span><br><span style="font-size:9px; color:var(--md-text-muted);">Ref: ${s.orderNo || '-'}</span>` : (billDue > 0.01 ? `<strong style="color:#dc2626;">${formatMoney(billDue)}</strong><br><span style="font-size:9px; color:#dc2626; font-weight:700;">${billPaid > 0.01 ? 'Partial Due' : 'Unpaid'}</span>` : `<strong style="color:#16a34a;">₹0.00</strong><br><span style="font-size:9px; color:#16a34a; font-weight:700;">Settled</span>`);
-                    tableRowsHTML += `<tr onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('${isSale ? 'sales' : 'purchase'}', '${s.id}')" style="cursor:pointer;">
-                        <td><strong style="color:var(--md-on-surface);">${docLabel}</strong><br><span style="font-size:9.5px; color:var(--md-text-muted);">${window.Utils.formatDateDisplay(s.date)}</span><br><span style="font-size:9px; font-weight:700; color:${vchColor};">${vchTag}</span></td>
-                        <td><strong style="color:var(--md-on-surface);">${partyName}</strong>${partyGst ? `<br><span style="font-size:9px; font-family:monospace; color:var(--md-text-muted);">GST: ${partyGst}</span>` : (partyPhone ? `<br><span style="font-size:9px; color:var(--md-text-muted);">Mob: ${partyPhone}</span>` : '')}<br><span style="font-size:9px; color:var(--md-text-muted);">${itemArr.length} Items (${totQty.toFixed(2).replace(/\.00$/, '')} Qty)${s.notes ? ' • ' + s.notes : ''}</span></td>
-                        <td class="number-col"><span style="font-weight:700; color:var(--md-on-surface);">${formatMoney(taxable)}</span><br><span style="font-size:9px; color:${isNonGST ? 'var(--md-text-muted)' : 'var(--md-primary)'};">${isNonGST ? 'Non-GST' : 'GST: ' + formatMoney(gst)}</span>${discAmt > 0.01 ? `<br><span style="font-size:8.5px; color:#16a34a;">Disc: -${formatMoney(discAmt)}</span>` : ''}</td>
-                        <td class="number-col"><strong style="color:${mult < 0 ? '#dc2626' : 'var(--md-on-surface)'};">${formatMoney(grand)}</strong>${mult > 0 ? `<br><span style="font-size:9px; color:#16a34a;">${isSale ? 'Recd' : 'Paid'}: ${formatMoney(billPaid)}</span>` : ''}</td>
-                        <td class="number-col">${balHtml}</td>
-                    </tr>`;
-                });
-                if (docs.length > 0) {
-                    tableRowsHTML += `<tr class="total-row">
-                        <td colspan="2" style="text-align:left;">TOTAL (${docs.length} Docs)</td>
-                        <td class="number-col">${formatMoney(tTaxable)}<br><span style="font-size:9px; color:var(--md-primary);">GST: ${formatMoney(tGst)}</span></td>
-                        <td class="number-col">${formatMoney(tTotal)}<br><span style="font-size:9px; color:#16a34a;">${isSale ? 'Recd' : 'Paid'}: ${formatMoney(tPaid)}</span></td>
-                        <td class="number-col" style="color:${tDue > 0.01 ? '#dc2626' : '#16a34a'};">${formatMoney(tDue)}</td>
-                    </tr>`;
-                }
-                sumCol1Extra = `<div style="margin-top:2px;"><strong>Vouchers:</strong> ${docs.length} (${gstBillCount} GST, ${cnCount} Ret)</div>`;
-                sumK0 = { val: `${formatMoney(tTaxable)}`, lbl: 'Taxable + GST: ' + formatMoney(tGst), sub: `From: ${fromDisp}` };
-                sumK1 = { val: formatMoney(tPaid), lbl: isSale ? 'Settled / Recd' : 'Settled / Paid' };
-                sumK2 = { val: formatMoney(tDue), lbl: isSale ? 'Pending To Receive' : 'Pending To Pay' };
-                sumK3 = { val: formatMoney(tTotal), lbl: 'Net Grand Total', sub: `As on: ${toDisp}` };
-            } else if (reportType === 'customer_sales' || reportType === 'supplier_purchases') {
-                const isSale = reportType === 'customer_sales';
-                tableHeaders = ['Rank', isSale ? 'Customer Details' : 'Supplier Details', 'Taxable / GST', 'Net Turnover', 'Share / Avg'];
-                const docs = (await window.getAllRecords(isSale ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(s => s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromDate && s.date <= toDate);
-                const pMap = {};
-                let globalVol = 0, globalTaxable = 0, globalGst = 0, globalGross = 0, globalRetVal = 0, globalBills = 0, globalRets = 0;
-                docs.forEach(s => {
-                    const pId = isSale ? s.customerId : s.supplierId;
-                    const pName = isSale ? s.customerName : s.supplierName;
-                    const mult = s.documentType === 'return' ? -1 : 1;
-                    const rawSub = Math.abs(parseFloat(s.subtotal) || 0);
-                    let discAmt = s.discountType === '%' ? (rawSub * ((parseFloat(s.discount) || 0) / 100)) : Math.abs(parseFloat(s.discount) || 0);
-                    if (discAmt > rawSub) discAmt = rawSub;
-                    const grand = Math.abs(parseFloat(s.grandTotal) || 0) * mult;
-                    const gst = Math.abs(parseFloat(s.totalGst) || 0) * mult;
-                    const taxable = (rawSub > 0 ? (rawSub - discAmt) : (Math.abs(parseFloat(s.grandTotal) || 0) - Math.abs(parseFloat(s.totalGst) || 0))) * mult;
-                    if (!pMap[pId]) {
-                        const lObj = allLedgers.find(l => String(l.id) === String(pId));
-                        pMap[pId] = { id: pId, name: pName || 'Unknown', gst: (lObj && lObj.gst) || s.customerGst || s.supplierGst || '', phone: (lObj && lObj.phone) || '', count: 0, rets: 0, taxable: 0, gstAmt: 0, total: 0 };
-                    }
-                    pMap[pId].taxable += taxable; pMap[pId].gstAmt += gst; pMap[pId].total += grand;
-                    globalTaxable += taxable; globalGst += gst; globalVol += grand;
-                    if (mult > 0) { pMap[pId].count += 1; globalBills += 1; globalGross += grand; } else { pMap[pId].rets += 1; globalRets += 1; globalRetVal += Math.abs(grand); }
-                });
-                const pArr = Object.values(pMap).filter(p => p.total !== 0 || p.count > 0).sort((a, b) => b.total - a.total);
-                tableRowsHTML = '';
-                pArr.forEach((c, idx) => {
-                    const pct = globalVol > 0 ? ((c.total / globalVol) * 100).toFixed(1) : '0.0';
-                    const avgBill = c.count > 0 ? (c.total / c.count) : 0;
-                    const safePName = String(c.name).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                    tableRowsHTML += `<tr onclick="if(window.app && app.openPartyLedger) app.openPartyLedger('${c.id}', '${isSale ? 'Customer' : 'Supplier'}', '${safePName}')" style="cursor:pointer;">
-                        <td><strong style="color:var(--md-primary);">#${idx + 1}</strong><br><span style="font-size:9px; color:var(--md-text-muted);">${c.count} Bills</span>${c.rets > 0 ? `<br><span style="font-size:8.5px; color:#dc2626; font-weight:700;">${c.rets} Ret</span>` : ''}</td>
-                        <td><strong style="color:var(--md-on-surface);">${c.name}</strong>${c.gst ? `<br><span style="font-size:9px; font-family:monospace; color:var(--md-text-muted);">${c.gst}</span>` : ''}${c.phone ? `<br><span style="font-size:9px; color:var(--md-text-muted);">Mob: ${c.phone}</span>` : ''}</td>
-                        <td class="number-col"><span style="font-weight:700; color:var(--md-on-surface);">${formatMoney(c.taxable)}</span><br><span style="font-size:9px; color:var(--md-primary);">GST: ${formatMoney(c.gstAmt)}</span></td>
-                        <td class="number-col"><strong style="color:var(--md-on-surface);">${formatMoney(c.total)}</strong></td>
-                        <td class="number-col"><strong style="color:#16a34a;">${pct}%</strong><br><span style="font-size:8.5px; color:var(--md-text-muted);">Avg: ${formatMoney(avgBill)}</span></td>
-                    </tr>`;
-                });
-                if (pArr.length > 0) {
-                    tableRowsHTML += `<tr class="total-row">
-                        <td colspan="2" style="text-align:left;">TOTAL (${pArr.length} Parties, ${globalBills} Bills)</td>
-                        <td class="number-col">${formatMoney(globalTaxable)}<br><span style="font-size:9px; color:var(--md-primary);">GST: ${formatMoney(globalGst)}</span></td>
-                        <td class="number-col">${formatMoney(globalVol)}</td>
-                        <td class="number-col">100.0%</td>
-                    </tr>`;
-                }
-                sumCol1Extra = `<div style="margin-top:2px;"><strong>Active Parties:</strong> ${pArr.length} (${globalBills} Bills)</div>`;
-                sumK0 = { val: formatMoney(globalTaxable), lbl: 'Taxable + GST: ' + formatMoney(globalGst), sub: `From: ${fromDisp}` };
-                sumK1 = { val: formatMoney(globalGross), lbl: isSale ? 'Gross Billed' : 'Gross Purchased' };
-                sumK2 = { val: formatMoney(globalRetVal), lbl: `${globalRets} Returns (${isSale ? 'CN' : 'DN'})` };
-                sumK3 = { val: formatMoney(globalVol), lbl: isSale ? 'Net Sales Volume' : 'Net Purchase Spend', sub: `As on: ${toDisp}` };
-            } else if (reportType === 'cashbook_summary') {
-                tableHeaders = ['No. / Date', 'Party & Particulars', 'Money In', 'Money Out', 'Balance'];
-                let openBal = 0;
-                allAccounts.forEach(a => { openBal += (parseFloat(a.openingBalance) || 0); });
-                allReceipts.filter(r => r.date < fromDate).forEach(r => {
-                    const amt = parseFloat(r.amount) || 0;
-                    if (r.type === 'in') openBal += amt; else openBal -= amt;
-                });
-                const receipts = allReceipts.filter(r => r.date >= fromDate && r.date <= toDate).sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
-                let tIn = 0, tOut = 0, runBal = openBal;
-                tableRowsHTML = '';
-                receipts.forEach(r => {
-                    const amt = parseFloat(r.amount) || 0;
-                    const isIn = r.type === 'in';
-                    if (isIn) { tIn += amt; runBal += amt; } else { tOut += amt; runBal -= amt; }
-                    const docLabel = r.receiptNo || String(r.id).slice(-6).toUpperCase();
-                    const vchName = isIn ? 'Receipt' : 'Payment';
-                    const billRef = r.invoiceRef || r.linkedInvoice || '';
-                    const accName = r.accountId === 'cash' || !r.accountId ? 'Cash Drawer' : ((allAccounts.find(a => a.id === r.accountId) || {}).name || 'Bank / Digital');
-                    tableRowsHTML += `<tr onclick="if(window.app && app.openReceipt) app.openReceipt('${r.id}', '${r.type}')" style="cursor:pointer;">
-                        <td><strong style="color:var(--md-on-surface);">${docLabel}</strong><br><span style="font-size:9.5px; color:var(--md-text-muted);">${window.Utils.formatDateDisplay(r.date)}</span><br><span style="font-size:9px; font-weight:700; color:${isIn ? '#16a34a' : '#dc2626'};">${vchName}</span></td>
-                        <td><strong style="color:var(--md-on-surface);">${r.ledgerName || 'General'}</strong><br><span style="font-size:9px; color:var(--md-primary); font-weight:700;">${accName}${billRef ? ' • Bill: ' + billRef : ''}</span>${r.desc ? `<br><span style="font-size:9px; color:var(--md-text-muted);">${r.desc}</span>` : ''}</td>
-                        <td class="number-col" style="color:#16a34a; font-weight:700;">${isIn ? formatMoney(amt) : ''}</td>
-                        <td class="number-col" style="color:#dc2626; font-weight:700;">${!isIn ? formatMoney(amt) : ''}</td>
-                        <td class="number-col"><strong style="color:var(--md-on-surface);">${formatMoney(Math.abs(runBal))}</strong><br><span style="font-size:8.5px; color:${runBal >= 0 ? '#16a34a' : '#dc2626'}; font-weight:700;">${runBal >= 0 ? 'Dr (In Hand)' : 'Cr (OD)'}</span></td>
-                    </tr>`;
-                });
-                if (receipts.length > 0) {
-                    tableRowsHTML += `<tr class="total-row">
-                        <td colspan="2" style="text-align:left;">TOTAL (${receipts.length} Vouchers)</td>
-                        <td class="number-col" style="color:#16a34a;">${formatMoney(tIn)}</td>
-                        <td class="number-col" style="color:#dc2626;">${formatMoney(tOut)}</td>
-                        <td class="number-col" style="color:#2563eb;">${formatMoney(Math.abs(runBal))}</td>
-                    </tr>`;
-                }
-                sumCol1Extra = `<div style="margin-top:2px;"><strong>Vouchers:</strong> ${receipts.length} Entries</div>`;
-                sumK0 = { val: formatMoney(openBal), lbl: 'Opening Balance', sub: `As on: ${fromDisp}` };
-                sumK1 = { val: formatMoney(tIn), lbl: 'Total Money In' };
-                sumK2 = { val: formatMoney(tOut), lbl: 'Total Money Out' };
-                sumK3 = { val: formatMoney(runBal), lbl: 'Closing Balance', sub: `As on: ${toDisp}` };
-            } else {
-                const tempKpi = document.createElement('div');
-                tempKpi.innerHTML = kpiCardsHTML;
-                const parsedKpis = Array.from(tempKpi.querySelectorAll('.kpi-box')).map(b => ({
-                    lbl: (b.querySelector('.kpi-label')?.innerText || '').trim(),
-                    val: (b.querySelector('.kpi-value')?.innerText || '-').trim()
-                }));
-                sumK0 = { val: (parsedKpis[0] || {}).val || '0', lbl: (parsedKpis[0] || {}).lbl || 'Metric 1', sub: `From: ${fromDisp}` };
-                sumK1 = { val: (parsedKpis[1] || {}).val || '₹0.00', lbl: (parsedKpis[1] || {}).lbl || 'Metric 2' };
-                sumK2 = { val: (parsedKpis[2] || {}).val || '-', lbl: (parsedKpis[2] || {}).lbl || 'Metric 3' };
-                sumK3 = { val: (parsedKpis[3] || parsedKpis[parsedKpis.length - 1] || {}).val || '₹0.00', lbl: (parsedKpis[3] || parsedKpis[parsedKpis.length - 1] || {}).lbl || 'Net Total', sub: `As on: ${toDisp}` };
-            }
-            const actScreen = document.getElementById('activity-universal-report');
-            const actContent = actScreen ? actScreen.querySelector('.activity-content') : null;
-            if (actContent) actContent.style.cssText = 'background: var(--md-surface); padding: 0 0 72px 0 !important;';
-            const filterCard = actContent ? actContent.querySelector('.m3-card') : null;
-            if (filterCard && filterCard.id !== 'uni-report-table-card') {
-                filterCard.style.cssText = 'display: none; margin: 0 !important; padding: 12px 14px !important; border-radius: 0 !important; border: none !important; border-bottom: 1px solid var(--md-outline-variant) !important; box-shadow: none !important; background: var(--md-surface-variant) !important;';
-            }
+            document.getElementById('uni-report-thead').innerHTML = tableHeaders.map(th => `<th class="${th.includes('₹') || th.includes('Val') || th.includes('Amt') || th.includes('Total') || th.includes('Spend') || th.includes('Volume') || th.includes('CGST') || th.includes('SGST') || th.includes('ITC') || th.includes('Avg') || th.includes('Days') || th.includes('Money') ? 'number-col' : ''}">${th}</th>`).join('');
+            document.getElementById('uni-report-tbody').innerHTML = tableRowsHTML || `<tr><td colspan="${tableHeaders.length}" style="text-align:center; padding: 40px; color: var(--md-text-muted); font-weight: 600;">No records found for the selected period.</td></tr>`;
             const kpiContainer = document.getElementById('uni-report-kpis');
             if (kpiContainer) {
-                kpiContainer.style.cssText = 'display: block; margin: 0 !important; padding: 0 !important; width: 100%;';
-                kpiContainer.innerHTML = `
-                    <div onclick="const fc=this.parentElement.previousElementSibling; if(fc) fc.style.display = fc.style.display === 'none' ? 'block' : 'none';" style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--md-surface); border-bottom:1px solid var(--md-outline-variant); cursor:pointer;">
-                        <span style="font-size:12px; color:var(--md-on-surface); font-weight:600;">Period: ${periodDisp}</span>
-                        <span style="display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:700; color:var(--md-primary);">${fromDate === '2000-01-01' ? 'All Time' : 'Filter'} <span class="material-symbols-outlined" style="font-size:17px;">calendar_month</span></span>
-                    </div>
-                    <div style="display:grid; grid-template-columns:1.25fr 0.95fr 1.05fr 0.95fr; background:var(--md-surface); padding:10px 8px; border-bottom:5px solid var(--md-surface-variant);">
-                        <div style="padding-right:6px; font-size:9.5px; line-height:1.4; color:var(--md-on-surface); min-width:0; word-break:break-word;">
-                            <div><strong>Report:</strong> ${reportTitleText}</div>
-                            ${sumCol1Extra}
-                            <div style="margin-top:2px;"><strong>Firm:</strong> ${biz.name || 'SOLLO ERP'}</div>
-                            ${biz.gst ? `<div style="margin-top:2px; font-family:monospace; font-size:9px;"><strong>GST:</strong> ${biz.gst}</div>` : ''}
-                        </div>
-                        <div style="padding:0 6px; border-left:1px solid var(--md-outline-variant); display:flex; flex-direction:column; justify-content:space-between; min-width:0;">
-                            <div>
-                                <div style="font-size:10.5px; font-weight:800; color:var(--md-on-surface); font-variant-numeric:tabular-nums; word-break:break-word;">${sumK0.val}</div>
-                                <div style="font-size:9px; font-weight:600; color:var(--md-text-muted); margin-top:2px; line-height:1.2;">${sumK0.lbl}</div>
-                            </div>
-                            <div style="font-size:8.5px; color:var(--md-text-muted); line-height:1.2; margin-top:6px;">${sumK0.sub}</div>
-                        </div>
-                        <div style="padding:0 6px; border-left:1px solid var(--md-outline-variant); display:flex; flex-direction:column; justify-content:space-between; min-width:0;">
-                            <div>
-                                <div style="font-size:10.5px; font-weight:800; color:#16a34a; font-variant-numeric:tabular-nums; word-break:break-word;">${sumK1.val}</div>
-                                <div style="font-size:9px; font-weight:600; color:var(--md-on-surface); margin-top:1px; line-height:1.2;">${sumK1.lbl}</div>
-                            </div>
-                            <div style="border-top:1px solid var(--md-outline-variant); margin:5px 0;"></div>
-                            <div>
-                                <div style="font-size:10.5px; font-weight:800; color:#dc2626; font-variant-numeric:tabular-nums; word-break:break-word;">${sumK2.val}</div>
-                                <div style="font-size:9px; font-weight:600; color:var(--md-on-surface); margin-top:1px; line-height:1.2;">${sumK2.lbl}</div>
-                            </div>
-                        </div>
-                        <div style="padding-left:6px; border-left:1px solid var(--md-outline-variant); display:flex; flex-direction:column; justify-content:space-between; min-width:0;">
-                            <div>
-                                <div style="font-size:10.5px; font-weight:800; color:#2563eb; font-variant-numeric:tabular-nums; word-break:break-word;">${sumK3.val}</div>
-                                <div style="font-size:9px; font-weight:600; color:var(--md-on-surface); margin-top:2px; line-height:1.2;">${sumK3.lbl}</div>
-                            </div>
-                            <div style="font-size:8.5px; color:var(--md-text-muted); line-height:1.2; margin-top:6px;">${sumK3.sub}</div>
-                        </div>
-                    </div>`;
-            }
-            const theadEl = document.getElementById('uni-report-thead');
-            if (theadEl) {
-                theadEl.innerHTML = tableHeaders.map((th, idx) => {
-                    const isNum = idx >= 2 || th.includes('₹') || th.includes('Val') || th.includes('Amt') || th.includes('Total') || th.includes('Spend') || th.includes('Volume') || th.includes('Days') || th.includes('Money') || th.includes('Balance') || th.includes('Share');
-                    return `<th class="${isNum ? 'number-col' : ''}" style="background:var(--md-surface) !important; color:var(--md-on-surface) !important; font-size:10px !important; font-weight:800 !important; text-transform:none !important; padding:8px 6px !important; border-top:1px solid var(--md-outline-variant) !important; border-bottom:1px solid var(--md-outline-variant) !important; white-space:nowrap !important;">${th}</th>`;
-                }).join('');
-            }
-            const tbodyEl = document.getElementById('uni-report-tbody');
-            if (tbodyEl) {
-                tbodyEl.innerHTML = tableRowsHTML || `<tr><td colspan="${tableHeaders.length}" style="text-align:center; padding:40px 16px; color:var(--md-text-muted); font-weight:600;">No records found for the selected period.</td></tr>`;
-                Array.from(tbodyEl.querySelectorAll('tr')).forEach(tr => {
-                    const isTot = tr.classList.contains('total-row');
-                    Array.from(tr.querySelectorAll('td')).forEach((td, cIdx) => {
-                        const isNumCol = td.classList.contains('number-col') || (cIdx >= 2 && !isTot);
-                        td.style.cssText += `; padding: 9px 6px !important; font-size: 10.5px !important; line-height: 1.3 !important; border-bottom: ${isTot ? '2px solid var(--md-outline-variant)' : '1px solid rgba(148,163,184,0.18)'} !important; ${isTot ? 'border-top: 1.5px solid var(--md-outline-variant) !important; background: var(--md-surface-variant) !important; font-weight: 800 !important;' : ''} ${isNumCol || cIdx === 0 ? 'white-space: nowrap !important;' : 'word-break: break-word !important;'} vertical-align: top !important;`;
-                    });
+                kpiContainer.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px;';
+                kpiContainer.innerHTML = kpiCardsHTML;
+                const boxes = kpiContainer.querySelectorAll('.kpi-box');
+                boxes.forEach((b, idx) => {
+                    b.style.cssText = 'background: var(--md-surface); border: 1px solid var(--md-outline-variant) !important; border-radius: 12px; padding: 12px 14px !important; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important; min-width: 0;';
+                    if (boxes.length % 2 === 1 && idx === boxes.length - 1) b.style.gridColumn = 'span 2';
                 });
             }
             const tblEl = document.querySelector('#activity-universal-report .report-table');
-            if (tblEl) tblEl.style.cssText = 'display: table !important; width: 100% !important; border-collapse: collapse !important; background: var(--md-surface) !important;';
+            if (tblEl) tblEl.style.display = 'none';
             const tblCard = document.getElementById('uni-report-table-card') || (tblEl ? tblEl.closest('.m3-card') : null);
             if (tblCard) {
-                tblCard.style.cssText = 'background: var(--md-surface) !important; border: none !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; overflow: visible !important;';
-                const oldCardsWrap = document.getElementById('uni-report-cards-list');
-                if (oldCardsWrap) oldCardsWrap.remove();
-            }
-            if (actScreen && !document.getElementById('uni-report-bottom-dock')) {
-                const dock = document.createElement('div');
-                dock.id = 'uni-report-bottom-dock';
-                dock.style.cssText = 'position:fixed; bottom:0; left:0; right:0; height:56px; background:var(--md-surface); border-top:1px solid var(--md-outline-variant); display:flex; align-items:stretch; z-index:5600; box-shadow:0 -2px 8px rgba(0,0,0,0.04);';
-                dock.innerHTML = `
-                    <div class="tap-target" onclick="if(window.app) window.app.exportUniversalReportPDF()" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; border-right:1px solid var(--md-outline-variant);">
-                        <span class="material-symbols-outlined" style="font-size:19px; color:var(--md-text-muted);">chat</span>
-                        <span style="font-size:10.5px; font-weight:700; color:var(--md-on-surface);">Send</span>
-                    </div>
-                    <div class="tap-target" onclick="if(window.app) window.app.exportUniversalReportPDF()" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; border-right:1px solid var(--md-outline-variant);">
-                        <span class="material-symbols-outlined" style="font-size:19px; color:var(--md-text-muted);">share</span>
-                        <span style="font-size:10.5px; font-weight:700; color:var(--md-on-surface);">Share</span>
-                    </div>
-                    <div class="tap-target" onclick="if(window.app) window.app.exportUniversalReportPDF()" style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer;">
-                        <span class="material-symbols-outlined" style="font-size:19px; color:var(--md-text-muted);">download</span>
-                        <span style="font-size:10.5px; font-weight:700; color:var(--md-on-surface);">Download</span>
-                    </div>`;
-                actScreen.appendChild(dock);
+                tblCard.style.cssText = 'background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important;';
+                let cardsWrap = document.getElementById('uni-report-cards-list');
+                if (!cardsWrap) {
+                    cardsWrap = document.createElement('div');
+                    cardsWrap.id = 'uni-report-cards-list';
+                    tblCard.appendChild(cardsWrap);
+                }
+                if (!tableRowsHTML) {
+                    cardsWrap.innerHTML = `<div class="m3-card" style="text-align:center; padding: 36px 20px !important; color: var(--md-text-muted); font-weight: 600; border: 1px solid var(--md-outline-variant) !important; border-radius: 12px !important;">No records found for the selected period.</div>`;
+                } else {
+                    const tempTbody = document.createElement('tbody');
+                    tempTbody.innerHTML = tableRowsHTML;
+                    let cardsHTML = '';
+                    Array.from(tempTbody.querySelectorAll('tr')).forEach(tr => {
+                        const tds = Array.from(tr.querySelectorAll('td')).map(td => td.innerHTML.trim());
+                        if (tr.classList.contains('total-row')) return;
+                        let leftTitle = '', rightVal = '', subLine = '', footerItems = [], borderColor = 'var(--md-primary)';
+                        if (reportType === 'sales_register' || reportType === 'purchase_register') {
+                            const isRet = tds[1] && (tds[1].includes('CREDIT NOTE') || tds[1].includes('DEBIT NOTE'));
+                            borderColor = isRet ? 'var(--md-error)' : (reportType === 'sales_register' ? '#0061a4' : '#d84315');
+                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[2]}</strong>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900;">${tds[5]}</span>`;
+                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; color:var(--md-on-surface);">${tds[1].replace('<br>', ' ')}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
+                            footerItems = [`<span>Taxable: <strong style="color:var(--md-on-surface);">${tds[3]}</strong></span>`, `<span>GST: <strong style="color:var(--md-primary);">${tds[4]}</strong></span>`];
+                        } else if (reportType === 'customer_sales' || reportType === 'supplier_purchases') {
+                            borderColor = reportType === 'customer_sales' ? '#146c2e' : '#6a1b9a';
+                            leftTitle = `<div style="display:flex; align-items:center; gap:8px;"><span style="background:rgba(0,97,164,0.1); color:var(--md-primary); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:900;">${tds[0]}</span><strong style="font-size:15px; color:var(--md-on-surface);">${tds[1]}</strong></div>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[3]}</span>`;
+                            footerItems = [`<span>Total Bills: <strong style="color:var(--md-on-surface);">${tds[2]}</strong></span>`, `<span>Share of Volume: ${tds[4]}</span>`];
+                        } else if (reportType === 'receivables_aging' || reportType === 'payables_aging') {
+                            borderColor = 'var(--md-error)';
+                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[0]}</strong>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[4]}</span>`;
+                            footerItems = [`<span>0-30D: <strong style="color:var(--md-success);">${tds[1]}</strong></span>`, `<span>31-60D: <strong style="color:#d97706;">${tds[2]}</strong></span>`, `<span>60+D: <strong style="color:var(--md-error);">${tds[3]}</strong></span>`];
+                        } else if (reportType === 'item_purchases') {
+                            borderColor = '#0061a4';
+                            leftTitle = `<div style="display:flex; align-items:center; gap:8px;"><span style="background:rgba(0,97,164,0.1); color:var(--md-primary); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:900;">${tds[0]}</span><strong style="font-size:15px; color:var(--md-on-surface);">${tds[1]}</strong></div>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[4]}</span>`;
+                            footerItems = [`<span>Qty Bought: <strong style="color:var(--md-on-surface);">${tds[2]}</strong></span>`, `<span>Avg Buy Price: <strong style="color:var(--md-primary);">${tds[3]}</strong></span>`];
+                        } else if (reportType === 'job_costing') {
+                            borderColor = '#6a1b9a';
+                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[2]}</strong>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900;">${tds[4]}</span>`;
+                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">#${tds[1]}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
+                            footerItems = [`<span>Linked Docs: ${tds[3]}</span>`];
+                        } else if (reportType === 'gstr2_purchases') {
+                            borderColor = '#146c2e';
+                            leftTitle = `<div style="font-size:14.5px; color:var(--md-on-surface); font-weight:700;">${tds[2]}</div>`;
+                            rightVal = `<div style="text-align:right;"><small style="font-size:9px; color:var(--md-text-muted); text-transform:uppercase; font-weight:800; display:block;">Total ITC</small><span style="font-size:16px; font-weight:900;">${tds[6]}</span></div>`;
+                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">${tds[1].replace('<br>', ' ')}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
+                            footerItems = [`<span>Taxable: <strong style="color:var(--md-on-surface);">${tds[3]}</strong></span>`, `<span>CGST: <strong style="color:var(--md-primary);">${tds[4]}</strong></span>`, `<span>SGST: <strong style="color:var(--md-primary);">${tds[5]}</strong></span>`];
+                        } else if (reportType === 'cashbook_summary') {
+                            const isIn = tds[4] && tds[4] !== '-';
+                            borderColor = isIn ? 'var(--md-success)' : 'var(--md-error)';
+                            leftTitle = `<div style="font-size:14.5px; color:var(--md-on-surface);">${tds[2]}</div>`;
+                            rightVal = `<span style="font-size:16px; font-weight:900; color:${borderColor};">${isIn ? '+' + tds[4] : '-' + tds[5]}</span>`;
+                            footerItems = [`<span><strong>${tds[1]}</strong> • ${tds[0]}</span>`, `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-weight:700; color:var(--md-on-surface);">${tds[3]}</span>`];
+                        }
+                        cardsHTML += `
+                        <div class="m3-card" style="padding: 14px 16px !important; margin-bottom: 10px !important; border-radius: 12px !important; border: 1px solid var(--md-outline-variant) !important; border-left: 4px solid ${borderColor} !important; box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                                <div style="flex:1; min-width:0;">${leftTitle}${subLine ? `<div style="margin-top:6px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">${subLine}</div>` : ''}</div>
+                                <div style="flex-shrink:0; text-align:right; font-variant-numeric:tabular-nums;">${rightVal}</div>
+                            </div>
+                            ${footerItems.length > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-top:1px dashed var(--md-outline-variant); padding-top:8px; margin-top:10px; font-size:11.5px; color:var(--md-text-muted); font-variant-numeric:tabular-nums;">${footerItems.join('')}</div>` : ''}
+                        </div>`;
+                    });
+                    cardsWrap.innerHTML = cardsHTML;
+                }
             }
 
             // Save State for PDF Engine
