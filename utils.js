@@ -627,16 +627,41 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         const docNo = doc.invoiceNo || doc.poNo || doc.orderNo || doc.id.slice(-6).toUpperCase();
         const date = window.Utils.formatDateDisplay(doc.date);
         
-        // Calculate pending balance
+        // Calculate pending balance from live Receipts & Returns
+        const absGrandTotal = Math.abs(parseFloat(doc.grandTotal) || 0);
         let totalPaid = parseFloat(doc.trueTotalPaid) || 0;
-        if (doc.status === 'Completed' || doc.status === 'Paid') totalPaid = parseFloat(doc.grandTotal);
-        const balanceDue = Math.max(0, parseFloat(doc.grandTotal) - totalPaid);
+        if (!totalPaid && doc.documentType !== 'return') {
+            const uniqueRefs = [...new Set([doc.orderNo, doc.invoiceNo, doc.poNo, doc.id].filter(Boolean).map(String))];
+            const allReceipts = (window.UI?.state?.rawData?.cashbook) || (await window.getAllRecords('receipts', 'firmId', doc.firmId).catch(() => [])) || [];
+            allReceipts.forEach(c => {
+                if (partyId && c.ledgerId && String(c.ledgerId) !== String(partyId)) return;
+                const legacyRef = c.invoiceRef || c.linkedInvoice;
+                if (legacyRef) {
+                    const refs = String(legacyRef).split(',').map(r => r.trim()).filter(Boolean);
+                    if (refs.some(r => uniqueRefs.includes(r))) {
+                        let allocAmt = 0;
+                        if (c.allocationMap) uniqueRefs.forEach(uRef => { if (c.allocationMap[uRef] !== undefined) allocAmt += parseFloat(c.allocationMap[uRef]) || 0; });
+                        if (allocAmt === 0) allocAmt = (parseFloat(c.amount) || 0) / (refs.length || 1);
+                        const sign = type === 'sales' ? (c.type === 'in' ? 1 : -1) : (c.type === 'out' ? 1 : -1);
+                        totalPaid += (allocAmt * sign);
+                    }
+                }
+            });
+            const allDocs = (window.UI?.state?.rawData?.[storeName]) || (await window.getAllRecords(storeName, 'firmId', doc.firmId).catch(() => [])) || [];
+            allDocs.forEach(d => {
+                if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && uniqueRefs.includes(String(d.orderNo))) {
+                    totalPaid += Math.abs(parseFloat(d.grandTotal) || 0);
+                }
+            });
+        }
+        if (doc.status === 'Completed' || doc.status === 'Paid') totalPaid = Math.max(totalPaid, absGrandTotal);
+        const balanceDue = doc.documentType === 'return' ? 0 : Math.max(0, absGrandTotal - totalPaid);
         
         // 🚨 ENTERPRISE FIX: Smart Document Name Detection!
         let properDocName = 'Tax Invoice';
         if (doc.documentType === 'return') properDocName = type === 'sales' ? 'Credit Note' : 'Debit Note';
         else if (doc.invoiceType === 'Non-GST') properDocName = 'Bill of Supply';
-        else if (type === 'purchases') properDocName = 'Purchase Bill';
+        else if (type === 'purchases' || type === 'purchase') properDocName = 'Purchase Bill';
         
         let message = '';
         if (type === 'sales') {
@@ -646,9 +671,12 @@ Please find the details for your recent ${properDocName}:
 
 📄 *${properDocName} No:* ${docNo}
 📅 *Date:* ${date}
-💰 *Total Amount:* ₹${parseFloat(doc.grandTotal).toFixed(2)}
+💰 *Total Amount:* ₹${absGrandTotal.toFixed(2)}
 `;
-            if (balanceDue > 0) message += `⏳ *Balance Due:* ₹${balanceDue.toFixed(2)}
+            if (doc.documentType === 'return') message += `🔄 *Status:* Credit Note Adjusted
+
+`;
+            else if (balanceDue > 0.01) message += `⏳ *Balance Due:* ₹${balanceDue.toFixed(2)}
 
 `;
             else message += `✅ *Status:* Fully Paid
@@ -660,9 +688,9 @@ Please find the details for your recent ${properDocName}:
 
 We have generated a Purchase Order / Bill:
 
-📄 *PO No:* ${docNo}
+📄 *${properDocName} No:* ${docNo}
 📅 *Date:* ${date}
-💰 *Total Amount:* ₹${parseFloat(doc.grandTotal).toFixed(2)}
+💰 *Total Amount:* ₹${absGrandTotal.toFixed(2)}
 
 Please process this accordingly. Thank you!`;
         }
@@ -1334,7 +1362,8 @@ Please process this accordingly. Thank you!`;
                 hsnMap[hsnKey].totalTax += gstAmount;
             }
 
-            const tdStyle = { margin: [2, 4], fontSize: 9 };
+            const itemCount = (doc.items || []).length;
+            const tdStyle = itemCount > 12 ? { margin: [2, 1.5], fontSize: 7.5 } : (itemCount > 7 ? { margin: [2, 2.5], fontSize: 8.2 } : { margin: [2, 4], fontSize: 9 });
 
             itemsBody.push([
                 {text: (index + 1).toString(), alignment: 'center', ...tdStyle},
@@ -1348,7 +1377,7 @@ Please process this accordingly. Thank you!`;
         });
 
         // 🚨 TALLY: Add Inline Tax Rows directly below the items
-        const tdStyle = { margin: [2, 4], fontSize: 9 };
+        const tdStyle = (doc.items || []).length > 4 ? { margin: [2, 2], fontSize: 8.5 } : { margin: [2, 3], fontSize: 9 };
         let freightVal = parseFloat(doc.freightAmount || doc.freight || 0);
 
         if (discountAmt > 0) {
@@ -1386,13 +1415,20 @@ Please process this accordingly. Thank you!`;
 
         let termsLines = biz.terms ? String(biz.terms).split('\n').length : 0;
         
-        // INCREASED BASE SPACER: Pushes the footer all the way down to create a strict, uniform A4 size.
-        // It dynamically subtracts height based on how many items/taxes you have so it never spills over to page 2.
-        let dynamicSpacer = 300 - (usedRows * 18);
-        if (!isNonGST) dynamicSpacer -= 65; // Make room for HSN Table
+        // SINGLE-PAGE A4 CALIBRATION: Auto-fit full A4 height (842pt) across GST & Non-GST bills
+        const hsnRowCount = !isNonGST ? Object.keys(hsnMap).length : 0;
+        const extraPaymentRows = displayTotalPaid > 0.01 ? 3 : 1;
+        const nlChar = String.fromCharCode(10);
+        const cleanTermsStr = biz.terms ? String(biz.terms).split(nlChar).map(l => l.trim()).filter(l => l && !/^terms/i.test(l)).join(nlChar) : '';
+        const visualTermsLines = cleanTermsStr ? cleanTermsStr.split(nlChar).reduce((sum, l) => sum + Math.max(1, Math.ceil(l.length / 68)), 0) : 0;
+        const extraItemLines = (doc.items || []).reduce((sum, it) => sum + Math.max(0, Math.ceil(String(it.name || '').length / 36) - 1) + (it.desc ? Math.ceil(String(it.desc).length / 42) : 0), 0);
+        const fixedHeights = 69 + (isNonGST ? 124 : 191) + 59 + (usedRows * 20.5) + (extraItemLines * 11) + 39 + ((!isNonGST && hsnRowCount > 0) ? (68 + (hsnRowCount * 21)) : 0) + (isNonGST ? 27 : 36);
+        const footerHeight = Math.max((cleanTermsStr ? (14 + (visualTermsLines * 9.5)) : 0) + 35, (extraPaymentRows * 18) + (!isNonGST ? (biz.signature ? 95 : 75) : 12));
+        let dynamicSpacer = Math.max(0, Math.round(795 - (fixedHeights + footerHeight)));
+        termsLines = 0;
         dynamicSpacer -= (termsLines * 10); 
         
-        dynamicSpacer = Math.max(20, dynamicSpacer); // Failsafe: NEVER let it go negative
+        dynamicSpacer = Math.max(0, dynamicSpacer); // Failsafe: Drop to 0 when page is full
 
         itemsBody.push([ 
             {text: '\n', margin: [0, dynamicSpacer, 0, 0]}, '', '', '', '', '', '' 
@@ -1439,6 +1475,7 @@ Please process this accordingly. Thank you!`;
             partyBalance = netOb + tDocs - tReturns - tReceipts;
         }
 
+        if (dynamicSpacer <= 0) itemsBody.pop();
         // UPGRADE: Highlighted Grand Total Row
         itemsBody.push([
             {text: 'Total', colSpan: 3, alignment: 'right', bold: true, margin: [4, 4], fillColor: '#e2e8f0'}, '', '',
@@ -1621,12 +1658,12 @@ Please process this accordingly. Thank you!`;
                                         width: '50%',
                                         stack: [
                                             // Bank Details & Remarks have been moved to the Top Header grid!
-                                            biz.terms ? { text: 'Terms & Conditions:\n' + biz.terms, fontSize: 8, margin: [0,0,0,6] } : null,
+                                            biz.terms ? { text: 'Terms & Conditions:\n' + String(biz.terms).replace(/^\s*terms\s*(?:&\s*conditions)?\s*:?\s*/i, '').replace(/\r?\n\s*\r?\n+/g, '\n').trim(), fontSize: 7.5, lineHeight: 1.1, margin: [0, 0, 0, 3] } : null,
                                             
-                                            { text: 'Declaration', italics: true, fontSize: 8, color: '#475569', margin: [0, 0, 0, 2] },
-                                            { text: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.', fontSize: 8 }
+                                            { text: 'Declaration', italics: true, fontSize: 7.5, color: '#475569', margin: [0, 0, 0, 1] },
+                                            { text: 'We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.', fontSize: 7.5, lineHeight: 1.1 }
                                         ].filter(Boolean),
-                                        margin: [4, 6]
+                                        margin: [4, 3]
                                     },
                                     {
                                         width: '50%',
@@ -1653,9 +1690,9 @@ Please process this accordingly. Thank you!`;
                 },
                 
                 // UPGRADE: Professional Customer Service Sign-off
-                { text: thisInvoiceDue <= 0.01 ? 'Payment Received with Thanks!' : 'Thank you for your business!', alignment: 'center', italics: true, bold: true, fontSize: 11, margin: [0, 10, 0, 4], color: '#0f172a' },
-                !isNonGST ? { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 8, margin: [0, 0, 0, 0], color: '#475569' } : { text: '' },
-                { text: 'This is a Computer Generated Document', alignment: 'center', fontSize: 8, margin: [0, 2, 0, 0], color: '#475569' }
+                { text: thisInvoiceDue <= 0.01 ? 'Payment Received with Thanks!' : 'Thank you for your business!', alignment: 'center', italics: true, bold: true, fontSize: 10, margin: [0, 5, 0, 2], color: '#0f172a' },
+                !isNonGST ? { text: 'SUBJECT TO ' + (biz.city ? String(biz.city).toUpperCase() : 'LOCAL') + ' JURISDICTION', alignment: 'center', fontSize: 7.5, margin: [0, 0, 0, 0], color: '#475569' } : { text: '' },
+                { text: 'This is a Computer Generated Document', alignment: 'center', fontSize: 7.5, margin: [0, 1, 0, 0], color: '#475569' }
             ]
         };
 

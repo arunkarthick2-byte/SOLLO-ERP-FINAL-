@@ -6639,25 +6639,33 @@ Data & Security</strong>
                     let totalDebit = 0;
                     let totalCredit = 0;
                     
+                    const balHeaderText = (document.getElementById('report-party-balance')?.innerText || '');
+                    const isBankView = balHeaderText.startsWith('Bal:') || balHeaderText.includes('Available Balance');
                     if (Array.isArray(data)) {
                         data.forEach(t => {
                             if (t.debit) totalDebit += parseFloat(t.debit) || 0;
                             if (t.credit) totalCredit += parseFloat(t.credit) || 0;
                             if (t.impact !== undefined) {
-                                if (parseFloat(t.impact) < 0) totalDebit += Math.abs(parseFloat(t.impact));
-                                if (parseFloat(t.impact) > 0) totalCredit += parseFloat(t.impact);
+                                if (isBankView && t.id === 'open-bal') return;
+                                const imp = parseFloat(t.impact) || 0;
+                                if (isBankView) {
+                                    if (imp < 0) totalDebit += Math.abs(imp);
+                                    if (imp > 0) totalCredit += imp;
+                                } else {
+                                    if (imp > 0) totalDebit += imp;
+                                    if (imp < 0) totalCredit += Math.abs(imp);
+                                }
                             }
                         });
                     }
                     
                     const debitEl = document.getElementById('ledger-total-debit');
                     const creditEl = document.getElementById('ledger-total-credit');
-                    const isStock = data.length > 0 && data[0].impact !== undefined;
-                    const prefix = isStock ? '' : '₹';
-                    const suffix = isStock ? ' Units' : '';
+                    const prefix = '₹';
+                    const suffix = '';
                     
-                    if (debitEl) debitEl.innerText = prefix + totalDebit.toFixed(2) + suffix;
-                    if (creditEl) creditEl.innerText = prefix + totalCredit.toFixed(2) + suffix;
+                    if (debitEl) debitEl.innerText = prefix + totalDebit.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + suffix;
+                    if (creditEl) creditEl.innerText = prefix + totalCredit.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + suffix;
                 }
 
                 // 2. THE CASHBOOK ENGINE

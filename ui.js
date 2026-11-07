@@ -3089,8 +3089,8 @@ const UI = {
                 outputGst += (parseFloat(s.totalGst) || 0) * modifier; 
                 
                 (s.items || []).forEach(item => {
-                    const historicalCost = parseFloat(item.buyPrice) || 0;
-                    cogs += ((parseFloat(item.qty) || 0) * historicalCost) * modifier;
+                    const historicalCost = Math.abs(parseFloat(item.buyPrice) || 0);
+                    cogs += (Math.abs(parseFloat(item.qty) || 0) * historicalCost) * modifier;
                 });
             }
         });        
@@ -4570,15 +4570,15 @@ const UI = {
         (window.UI.state.rawData.sales || []).forEach(s => {
             if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= startDate && s.date <= endDate && s.status !== 'Open' && s.status !== 'Cancelled') {
                 const modifier = s.documentType === 'return' ? -1 : 1;
-                const netSales = (parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0);
+                const netSales = Math.abs(parseFloat(s.grandTotal) || 0) - Math.abs(parseFloat(s.totalGst) || 0);
                 const isGST = (s.invoiceType === 'B2B' || s.invoiceType === 'B2C');
 
                 if (isGST) gstSales += netSales * modifier;
                 else nonGstSales += netSales * modifier;
 
                 (s.items || []).forEach(item => {
-                    const cost = parseFloat(item.buyPrice) || 0;
-                    const lineCOGS = ((parseFloat(item.qty) || 0) * cost) * modifier;
+                    const cost = Math.abs(parseFloat(item.buyPrice) || 0);
+                    const lineCOGS = (Math.abs(parseFloat(item.qty) || 0) * cost) * modifier;
                     if (isGST) gstPurchases += lineCOGS;
                     else nonGstPurchases += lineCOGS;
                 });
@@ -5024,8 +5024,8 @@ const UI = {
             UI.state.rawData.sales.forEach(s => {
                 if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open' && s.status !== 'Cancelled') {
                     const modifier = s.documentType === 'return' ? -1 : 1;
-                    totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
-                    (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
+                    totalRevenue += (Math.abs(parseFloat(s.grandTotal) || 0) - Math.abs(parseFloat(s.totalGst) || 0)) * modifier;
+                    (s.items || []).forEach(item => totalCOGS += (Math.abs(parseFloat(item.qty) || 0) * Math.abs(parseFloat(item.buyPrice) || 0)) * modifier);
                 }
             });
             
@@ -5199,8 +5199,8 @@ const UI = {
             UI.state.rawData.sales.forEach(s => {
                 if ((!activeFirmId || s.firmId === activeFirmId) && s.date >= start && s.date <= end && s.status !== 'Open' && s.status !== 'Cancelled') {
                     const modifier = s.documentType === 'return' ? -1 : 1;
-                    totalRevenue += ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * modifier;
-                    (s.items || []).forEach(item => totalCOGS += ((parseFloat(item.qty) || 0) * (parseFloat(item.buyPrice) || 0)) * modifier);
+                    totalRevenue += (Math.abs(parseFloat(s.grandTotal) || 0) - Math.abs(parseFloat(s.totalGst) || 0)) * modifier;
+                    (s.items || []).forEach(item => totalCOGS += (Math.abs(parseFloat(item.qty) || 0) * Math.abs(parseFloat(item.buyPrice) || 0)) * modifier);
                 }
             });
             
@@ -6592,8 +6592,94 @@ window.openInvoiceOverview = function(type, id) {
             }
         });
         const grandTotal = Math.abs(parseFloat(doc.grandTotal || doc.amount || 0));
-        if (doc.status === 'Completed' || doc.status === 'Paid') totalPaid = Math.max(totalPaid + returnTotal, grandTotal);
-        else totalPaid += returnTotal;
+        totalPaid += returnTotal;
+        let advanceAppliedToThisInvoice = 0;
+        if (doc.documentType !== 'return' && totalPaid < grandTotal - 0.01 && partyId) {
+            const partyObj = (window.UI?.state?.rawData?.ledgers || []).find(l => String(l.id) === String(partyId));
+            const ob = partyObj ? (parseFloat(partyObj.openingBalance) || 0) : 0;
+            const bType = partyObj ? String(partyObj.balanceType || '').toLowerCase() : '';
+            let trueBalance = 0;
+            if (isNonGST) {
+                trueBalance = isSales
+                    ? ((bType.includes('pay') || bType.includes('credit')) ? -ob : ob)
+                    : ((bType.includes('receive') || bType.includes('debit')) ? -ob : ob);
+            }
+            const partyKey = isSales ? 'customerId' : 'supplierId';
+            const fastReturnMap = {};
+            (dataList || []).forEach(d => {
+                if (String(d[partyKey]) === String(partyId) && d.status !== 'Open' && d.status !== 'Cancelled') {
+                    const dAmt = Math.abs(parseFloat(d.grandTotal) || 0);
+                    if ((d.invoiceType === 'Non-GST') === isNonGST) {
+                        trueBalance += (d.documentType === 'return' ? -dAmt : dAmt);
+                    }
+                    if (d.documentType === 'return' && d.orderNo) {
+                        fastReturnMap[d.orderNo] = (fastReturnMap[d.orderNo] || 0) + dAmt;
+                    }
+                }
+            });
+            const fastPaymentMap = {};
+            (window.UI?.state?.rawData?.cashbook || []).forEach(c => {
+                if (String(c.ledgerId) === String(partyId)) {
+                    let isNonRec = c.taxPool === 'Non-GST';
+                    const lRef = c.invoiceRef || c.linkedInvoice;
+                    if (!c.taxPool || c.taxPool === 'All') {
+                        isNonRec = true;
+                        if (lRef) {
+                            const fRef = String(lRef).split(',')[0].trim();
+                            const lDoc = (dataList || []).find(d => d.id === fRef || d.invoiceNo === fRef || d.poNo === fRef || d.orderNo === fRef || String(d.id).endsWith(fRef));
+                            if (lDoc && lDoc.invoiceType !== 'Non-GST') isNonRec = false;
+                        }
+                    }
+                    if (isNonRec === isNonGST) {
+                        const cAmt = Math.abs(parseFloat(c.amount) || 0);
+                        trueBalance += isSales ? (c.type === 'in' ? -cAmt : cAmt) : (c.type === 'in' ? cAmt : -cAmt);
+                        const imp = isSales ? (c.type === 'in' ? cAmt : -cAmt) : (c.type === 'out' ? cAmt : -cAmt);
+                        if (lRef && imp > 0) {
+                            const refs = String(lRef).split(',').map(r => r.trim()).filter(Boolean);
+                            let remPay = imp;
+                            refs.forEach(ref => {
+                                const lDoc = (dataList || []).find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                                let appAmt = 0;
+                                if (c.allocationMap && c.allocationMap[ref] !== undefined) {
+                                    appAmt = parseFloat(c.allocationMap[ref]) || 0;
+                                    remPay = 0;
+                                } else {
+                                    const dTot = lDoc ? Math.abs(parseFloat(lDoc.grandTotal) || 0) : (imp / (refs.length || 1));
+                                    appAmt = Math.min(dTot, remPay);
+                                    if (appAmt > 0) remPay -= appAmt;
+                                }
+                                if (appAmt > 0) fastPaymentMap[ref] = (fastPaymentMap[ref] || 0) + appAmt;
+                            });
+                            if (remPay > 0.01 && refs[0]) fastPaymentMap[refs[0]] = (fastPaymentMap[refs[0]] || 0) + remPay;
+                        }
+                    }
+                }
+            });
+            const pDocs = (dataList || []).filter(d => String(d[partyKey]) === String(partyId) && d.documentType !== 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && (d.invoiceType === 'Non-GST') === isNonGST);
+            pDocs.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+            let totalPendingDebt = 0;
+            const pendingInvoices = [];
+            pDocs.forEach(pDoc => {
+                const uRefs = [...new Set([pDoc.orderNo, pDoc.invoiceNo, pDoc.poNo, pDoc.id].filter(Boolean).map(String))];
+                const expPaid = uRefs.reduce((sum, r) => sum + (fastPaymentMap[r] || 0), 0);
+                const retAmt = uRefs.reduce((sum, r) => sum + (fastReturnMap[r] || 0), 0);
+                const pBal = Math.max(0, Math.abs(parseFloat(pDoc.grandTotal) || 0) - expPaid - retAmt);
+                if (pBal > 0.01) {
+                    totalPendingDebt += pBal;
+                    pendingInvoices.push({ doc: pDoc, balance: pBal });
+                }
+            });
+            let remAdv = Math.max(0, totalPendingDebt - trueBalance);
+            pendingInvoices.forEach(item => {
+                if (remAdv > 0 && item.balance > 0.01) {
+                    const applied = Math.min(remAdv, item.balance);
+                    remAdv -= applied;
+                    if (item.doc.id === doc.id) advanceAppliedToThisInvoice = applied;
+                }
+            });
+        }
+        totalPaid += advanceAppliedToThisInvoice;
+        if (doc.status === 'Completed' || doc.status === 'Paid') totalPaid = Math.max(totalPaid, grandTotal);
         const balance = doc.documentType === 'return' ? 0 : Math.max(0, grandTotal - totalPaid);
 
         let statusText = doc.status || 'Saved';
@@ -6704,16 +6790,32 @@ window.openInvoiceOverview = function(type, id) {
                 <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">${taxSplitHTML}</div>`;
         }
 
-        // 6. DYNAMIC LINKED CARDS (Payments & Expenses)
+        // 6. DYNAMIC LINKED CARDS (Payments, Returns & Expenses)
         let linksHTML = '';
         const linkedReceipts = (window.UI?.state?.rawData?.cashbook || []).filter(c => {
             if (partyId && c.ledgerId && String(c.ledgerId) !== String(partyId)) return false;
             const refs = String(c.invoiceRef || c.linkedInvoice || '').split(',').map(r => r.trim());
             return refs.some(r => uniqueRefs.includes(r));
         });
-        if (linkedReceipts.length > 0) {
+        const linkedReturns = doc.documentType === 'return' ? [] : (dataList || []).filter(d => d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && uniqueRefs.includes(d.orderNo));
+        if (linkedReceipts.length > 0 || linkedReturns.length > 0 || advanceAppliedToThisInvoice > 0.01) {
             linksHTML += `<div style="padding: 0; margin-bottom: 16px;">
-                <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 16px 8px 16px;">Linked Payments</div>`;
+                <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 16px 8px 16px;">Linked Payments & Returns</div>`;
+            if (advanceAppliedToThisInvoice > 0.01) {
+                linksHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface);">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="icon-circle" style="width: 36px; height: 36px; background: rgba(2, 132, 199, 0.1); color: #0284c7; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">account_balance_wallet</span>
+                        </div>
+                        <div>
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block;">ADV-POOL</strong>
+                            <small style="color:var(--md-text-muted);">Auto-Adjusted from Advance Pool</small>
+                        </div>
+                    </div>
+                    <strong style="font-size: 15px; color: #0284c7;">+₹${advanceAppliedToThisInvoice.toFixed(2)}</strong>
+                </div>`;
+            }
             linkedReceipts.forEach(r => {
                 const isMoneyIn = r.type === 'in';
                 const iconBg = isMoneyIn ? 'rgba(20, 108, 46, 0.08)' : 'rgba(186, 26, 26, 0.08)';
@@ -6744,6 +6846,24 @@ window.openInvoiceOverview = function(type, id) {
                         </div>
                     </div>
                     <strong style="font-size: 15px; color: ${isMoneyIn ? 'var(--md-success)' : 'var(--md-error)'};">${isMoneyIn ? '+' : '-'}₹${displayAmt.toFixed(2)}</strong>
+                </div>`;
+            });
+            linkedReturns.forEach(ret => {
+                const retAmt = Math.abs(parseFloat(ret.grandTotal) || 0);
+                const retLabel = isSales ? 'Credit Note' : 'Debit Note';
+                const retNo = ret.invoiceNo || (ret.orderNo ? 'CN-' + ret.orderNo : retLabel);
+                linksHTML += `
+                <div class="tap-target" onclick="window.openInvoiceOverview('${type}', '${ret.id}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); cursor: pointer;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="icon-circle" style="width: 36px; height: 36px; background: rgba(124, 58, 237, 0.1); color: #7c3aed; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">assignment_return</span>
+                        </div>
+                        <div>
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block;">${retNo}</strong>
+                            <small style="color:var(--md-text-muted);">${ret.date ? window.Utils.formatDateDisplay(ret.date) : ''} • ${retLabel}</small>
+                        </div>
+                    </div>
+                    <strong style="font-size: 15px; color: #7c3aed;">-₹${retAmt.toFixed(2)}</strong>
                 </div>`;
             });
             linksHTML += `</div>`;

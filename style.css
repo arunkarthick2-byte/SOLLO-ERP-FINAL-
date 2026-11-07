@@ -7487,9 +7487,9 @@ body.dark-mode .item-entry-card.is-dragging {
    🌙 DARK MODE: THE EDGE CASES
    ========================================== */
 
-/* 1. Auto-Invert Canvas Charts for Dark Mode */
+/* 1. Keep PDF Preview & Chart.js Canvases True-Color in Dark Mode */
 body.dark-mode canvas {
-    filter: invert(0.9) hue-rotate(180deg) brightness(1.3) contrast(1.2) !important;
+    filter: none !important;
 }
 
 /* 2. Glowing White Scrollbar Thumb at Night */
@@ -10208,4 +10208,37 @@ html body.dark-mode #app-shell #tab-dashboard .dash-action-fulfillment.dash-fulf
 html body.dark-mode #app-shell #tab-dashboard .dash-fulfillment-row:last-child,
 html body.dark-mode #app-shell #tab-dashboard .dash-action-fulfillment.dash-fulfillment-row:last-child {
     border-bottom: none !important;
+}
+
+/* Final Polish: Protect inline inputs, small buttons, and bottom sheet corners */
+html body .premium-row input.premium-input,
+html body .premium-row select.premium-input {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+}
+
+html body .doc-format-input-group input.doc-format-text,
+html body .doc-format-input-group input.doc-format-number {
+    margin-bottom: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+
+html body .btn-primary-small {
+    width: auto !important;
+    display: inline-flex !important;
+}
+
+html body .bottom-sheet:not(.centered-modal) {
+    border-radius: 28px 28px 0 0 !important;
+}
+
+html body:has(.bottom-sheet.open) #app-shell {
+    transform: none !important;
+    filter: none !important;
+    border-radius: 0 !important;
 }
