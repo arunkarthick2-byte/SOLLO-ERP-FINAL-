@@ -9162,216 +9162,6 @@ window.executeAccountReport = async (accountId) => {
         window.Utils.showToast("✅ Statement Ready!");
     }, 50);
 };
-
-// ==========================================
-// ENTERPRISE UPGRADE: ITEM LEDGER ENGINE
-// ==========================================
-app.openItemLedger = async (itemId, itemName) => {
-    const container = document.getElementById('item-ledger-list');
-    if(!container) return;
-
-    // Securely lock the ID for the PDF button
-    document.getElementById('item-ledger-hidden-id').value = itemId;
-    document.getElementById('item-ledger-hidden-name').value = itemName;
-    document.getElementById('item-ledger-title').innerText = itemName + ' Movement';
-    
-    container.innerHTML = '<div style="text-align:center; padding: 20px;"><span class="material-symbols-outlined rotating" style="font-size: 32px;">sync</span><p>Calculating Timeline...</p></div>';
-    if (window.UI) window.UI.openActivity('activity-item-ledger');
-
-    const product = await window.getRecordById('items', itemId);
-    const openingStock = product ? (parseFloat(product.openingStock) || 0) : 0;
-    const uom = product ? (product.uom || 'Units') : 'Units';
-
-    let timeline = [];
-    
-    // 1. Scan Sales & Returns
-    const sales = await window.getAllRecords('sales', 'firmId', app.state.firmId);
-    sales.forEach(s => {
-        if(s.status !== 'Open' && s.status !== 'Cancelled') {
-            (s.items || []).forEach(row => {
-                if(row.itemId === itemId) {
-                    const isReturn = s.documentType === 'return';
-                    const qty = parseFloat(row.qty) || 0;
-                    timeline.push({ id: s.id, date: s.date, type: isReturn ? 'Sales Return' : 'Sale', desc: s.customerName || 'Unknown Party', ref: s.invoiceNo || s.orderNo || s.id.slice(-4).toUpperCase(), inQty: isReturn ? qty : 0, outQty: isReturn ? 0 : qty });
-                }
-            });
-        }
-    });
-
-    // 2. Scan Purchases & Returns
-    const purchases = await window.getAllRecords('purchases', 'firmId', app.state.firmId);
-    purchases.forEach(p => {
-        if(p.status !== 'Open' && p.status !== 'Cancelled') {
-            (p.items || []).forEach(row => {
-                if(row.itemId === itemId) {
-                    const isReturn = p.documentType === 'return';
-                    const qty = parseFloat(row.qty) || 0;
-                    timeline.push({ id: p.id, date: p.date, type: isReturn ? 'Purchase Return' : 'Purchase', desc: p.supplierName || 'Unknown Party', ref: p.invoiceNo || p.poNo || p.id.slice(-4).toUpperCase(), inQty: isReturn ? 0 : qty, outQty: isReturn ? qty : 0 });
-                }
-            });
-        }
-    });
-
-    // 3. Scan Manual Adjustments
-    const adjustments = await window.getAllRecords('adjustments', 'firmId', app.state.firmId);
-    adjustments.forEach(a => {
-        if(a.itemId === itemId) {
-            const qty = parseFloat(a.qty) || 0;
-            timeline.push({ id: a.id, date: a.date, type: 'Stock Adjustment', desc: a.notes || 'Manual Entry', ref: 'ADJ-' + a.id.slice(-4).toUpperCase(), inQty: a.type === 'add' ? qty : 0, outQty: a.type === 'reduce' ? qty : 0 });
-        }
-    });
-
-    // ENTERPRISE FIX: 4. Scan Expenses (The Ghost Consumption Leak!)
-    // If raw materials were consumed in an Expense, they MUST appear on the audit trail!
-    const expenses = await window.getAllRecords('expenses', 'firmId', app.state.firmId);
-    expenses.forEach(e => {
-        (e.items || []).forEach(row => {
-            if(row.itemId === itemId) {
-                const qty = parseFloat(row.qty) || 0;
-                timeline.push({ id: e.id, date: e.date, type: 'Internal Expense', desc: e.category || 'Consumed', ref: e.expenseNo || 'EXP-' + e.id.slice(-4).toUpperCase(), inQty: 0, outQty: qty });
-            }
-        });
-    });
-
-    // Sort Chronologically by Date and ID Timestamp
-    timeline.sort((a, b) => {
-        const dateA = window.Utils.safeDate(a.date || 0).getTime();
-        const dateB = window.Utils.safeDate(b.date || 0).getTime();
-        if (dateA !== dateB) return dateA - dateB;
-        const timeA = parseInt(String(a.id || '').split('-').pop()) || 0;
-        const timeB = parseInt(String(b.id || '').split('-').pop()) || 0;
-        return timeA - timeB;
-    });
-
-    // 🟢 ENTERPRISE FIX: Calculate total before rendering to show Current Stock at the top
-    let totalIn = timeline.reduce((sum, t) => sum + t.inQty, 0);
-    let totalOut = timeline.reduce((sum, t) => sum + t.outQty, 0);
-    let currentTotalStock = openingStock + totalIn - totalOut;
-
-    let html = `
-    <div style="background: var(--md-primary-container); color: var(--md-on-primary-container); padding: 12px; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 8px;">
-            <strong style="font-size: 14px;">Current Total Stock</strong>
-            <strong style="font-size: 18px;">${currentTotalStock.toFixed(2)} ${uom}</strong>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; opacity: 0.8;">
-            <span style="font-size: 12px;">Opening Stock</span>
-            <span style="font-size: 12px; font-weight: bold;">${openingStock.toFixed(2)} ${uom}</span>
-        </div>
-    </div>
-    <div style="padding: 0 4px 8px 4px; font-size: 12px; font-weight: bold; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Movement History</div>
-    `;
-
-    let runningStock = openingStock;
-
-    if (timeline.length === 0) {
-        html += `<div class="empty-state">No stock movement recorded yet.</div>`;
-    } else {
-        // 🚨 ENTERPRISE FIX: Inject Opening Stock as the first historical card!
-        html += `
-        <div class="m3-card" style="padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1); background: #f8fafc;">
-            <div style="flex: 1;">
-                <strong style="font-size: 14px; color: #475569;">Opening Stock</strong><br>
-                <small style="color: var(--md-text-muted);">Initial Inventory Balance</small>
-            </div>
-            <div style="text-align: right;">
-                <strong style="color: #0f172a; font-size: 15px;">${openingStock > 0 ? '+' : ''}${openingStock.toFixed(2)}</strong><br>
-                <small>Bal: ${openingStock.toFixed(2)} ${uom}</small>
-            </div>
-        </div>`;
-    }
-
-    timeline.forEach(t => {
-        runningStock += t.inQty;
-        runningStock -= t.outQty;
-        
-        const sign = t.inQty > 0 ? '+' : '-';
-        const qtyVal = t.inQty > 0 ? t.inQty : t.outQty;
-        const color = t.inQty > 0 ? 'var(--md-success)' : 'var(--md-error)';
-
-        html += `
-        <div class="m3-card" style="padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-            <div style="flex: 1;">
-                <strong style="font-size: 14px;">${t.type}</strong><br>
-                <small style="color: var(--md-text-muted);">${t.date} | ${t.desc}</small><br>
-                <small style="color: var(--md-primary); font-size: 10px; font-weight:bold;">Ref: ${t.ref}</small>
-            </div>
-            <div style="text-align: right;">
-                <strong style="color: ${color}; font-size: 15px;">${sign}${qtyVal}</strong><br>
-                <small>Bal: ${runningStock.toFixed(2)} ${uom}</small>
-            </div>
-        </div>`;
-    });
-
-    container.innerHTML = html;
-};
-
-// ==========================================
-// ENTERPRISE UPGRADE: "LAST SOLD AT" MEMORY
-// ==========================================
-new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach(async (node) => {
-            if (node.nodeType === 1 && node.classList && node.classList.contains('item-entry-card')) {
-                // Only trigger if we are inside the Sales Form
-                const isSalesForm = node.closest('#activity-sales-form');
-                if (!isSalesForm) return;
-
-                const customerIdEl = document.getElementById('sales-customer-id');
-                const customerId = customerIdEl ? customerIdEl.value : null;
-                if (!customerId) return; // Customer must be selected first!
-
-                const itemIdEl = node.querySelector('.row-item-id');
-                const itemId = itemIdEl ? itemIdEl.value : null;
-                if (!itemId) return;
-
-                // ENTERPRISE FIX: The "N+1 Database Bomb" RAM Crash Shield!
-                // Fetching the physical disk database inside a loop will crash the phone if an invoice has many items!
-                // We MUST use the lightning-fast RAM Cache instead for O(1) instant memory lookup!
-                const sales = (window.UI && window.UI.state && window.UI.state.rawData && window.UI.state.rawData.sales) || [];
-                const sortedSales = sales.filter(s => 
-                    s.firmId === window.app.state.firmId && 
-                    s.customerId === customerId && 
-                    s.status !== 'Open' &&
-                    s.status !== 'Cancelled' &&
-                    s.documentType !== 'return'
-                ).sort((a, b) => window.Utils.safeDate(b.date) - window.Utils.safeDate(a.date)); // Sort newest first
-
-
-                let lastRate = null;
-                let lastDate = null;
-
-                // Find the exact last time they bought this specific item
-                for (let s of sortedSales) {
-                    const found = (s.items || []).find(i => String(i.itemId) === String(itemId));
-                    if (found) {
-                        lastRate = parseFloat(found.rate) || 0;
-                        lastDate = s.date;
-                        break;
-                    }
-                }
-
-                // If found, dynamically inject clean inline text (no pill box)
-                if (lastRate !== null && !node.querySelector('.last-sold-badge')) {
-                    const d = window.Utils.safeDate(lastDate); // ENTERPRISE FIX: Protect Apple/iOS
-                    const fDate = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-                    
-                    const badge = document.createElement('div');
-                    badge.className = 'last-sold-badge';
-                    badge.style.cssText = 'display: inline-flex; align-items: center; gap: 3px; color: var(--md-primary); font-size: 11px; font-weight: 700; margin-top: 4px; padding: 0; background: transparent; border: none; box-shadow: none;';
-                    badge.innerHTML = `<span class="material-symbols-outlined" style="font-size:13px;">history</span>Last sold: ₹${lastRate} on ${fDate}`;
-                    
-                    const nameEl = node.querySelector('strong');
-                    if (nameEl && nameEl.parentNode) {
-                        nameEl.parentNode.appendChild(badge);
-                    }
-                }
-            }
-        });
-    });
-}).observe(document.body, { childList: true, subtree: true });
-
-
 // --- NEW CODE: Module Initialization ---
 window.app = app; // Explicitly map to window to protect your HTML buttons
 
@@ -9515,217 +9305,9 @@ document.addEventListener('input', (e) => {
         // Cancel the press if they are just scrolling down the list!
         if (isPressing && Math.abs(e.touches[0].clientY - startY) > 15) {
             isPressing = false;
-            clearTimeout(pressTimer); 
+            clearTimeout(pressTimer);
         }
     }, { passive: true });
-
-    // 🚨 ENTERPRISE UPGRADE: THE IDLE-TIME RAM SWEEPER (GARBAGE COLLECTOR)
-    // Silently wipes ghost variables and detached memory leaks only when the phone's CPU is at 0% usage!
-    // This mathematically guarantees iOS Safari will never crash your app from an "Out of Memory" error.
-    if ('requestIdleCallback' in window) {
-        setInterval(() => {
-            requestIdleCallback(() => {
-                // If the user is sitting safely on the Dashboard, wipe all the heavy cached lists!
-                const dash = document.getElementById('activity-dashboard');
-                if (dash && !dash.classList.contains('hidden') && window.AppCache) {
-                    window.AppCache.items = null;
-                    window.AppCache.ledgers = null;
-                    window.AppCache.accounts = null;
-                }
-            }, { timeout: 2000 });
-        }, 15000); // Check for memory leaks every 15 seconds in the background
-    }
-
-})();
-// ==========================================
-// ENTERPRISE UPGRADE: LIVE CUSTOMER INSIGHT & RISK ENGINE (V3 REACTIVE)
-// ==========================================
-(function() {
-    let lastCalculatedHash = ""; 
-    // 🚨 ENTERPRISE CACHE: Store the heavy DB math so it only runs ONCE per customer!
-    let cachedPartyId = null;
-    let cachedTrueBalance = 0;
-    let cachedOldestDueDays = 0;
-
-    setInterval(async () => {
-        const sForm = document.getElementById('activity-sales-form');
-        const pForm = document.getElementById('activity-purchase-form');
-        
-        let form = null;
-        let partyId = null;
-        let partyType = null;
-        let draftTotal = 0; 
-        
-        if (sForm && sForm.classList.contains('open')) {
-            form = sForm;
-            partyId = document.getElementById('sales-customer-id') ? document.getElementById('sales-customer-id').value : null;
-            partyType = 'Customer';
-            const totalEl = document.getElementById('sales-grand-total');
-            if (totalEl) draftTotal = parseFloat(totalEl.innerText.replace(/[^0-9.-]+/g,"")) || 0;
-            
-        } else if (pForm && pForm.classList.contains('open')) {
-            form = pForm;
-            partyId = document.getElementById('purchase-supplier-id') ? document.getElementById('purchase-supplier-id').value : null;
-            partyType = 'Supplier';
-            const totalEl = document.getElementById('purchase-grand-total');
-            if (totalEl) draftTotal = parseFloat(totalEl.innerText.replace(/[^0-9.-]+/g,"")) || 0;
-        }
-        
-        if (!form || !partyId) {
-            const oldBanner = document.getElementById('risk-banner');
-            if (oldBanner) oldBanner.remove();
-            lastCalculatedHash = "";
-            cachedPartyId = null; // Reset cache when form closes
-            return;
-        }
-
-        try {
-            const currentEditId = window.app.state.currentEditId; // 🚨 Fix 1: Track active edits!
-            
-            // 🚨 ENTERPRISE CPU SAVER: Only scan the massive database arrays if the Customer or Edit State changed!
-            if (cachedPartyId !== partyId || window.lastCachedEditId !== currentEditId) {
-                const rawData = window.UI && window.UI.state ? window.UI.state.rawData : null;
-                if (!rawData || !rawData.ledgers) return;
-
-                const party = rawData.ledgers.find(l => l.id === partyId);
-                if (!party) return;
-
-                cachedTrueBalance = 0;
-                cachedOldestDueDays = 0;
-                const today = new Date();
-                const activeFirmId = window.app.state.firmId; // 🚨 Fix 2: Firm Isolation!
-
-                let ob = parseFloat(party.openingBalance) || 0;
-                const balType = (party.balanceType || '').toLowerCase();
-                
-                if (partyType === 'Customer') {
-                    cachedTrueBalance = (balType.includes('pay') || balType.includes('credit')) ? -ob : ob;
-                } else {
-                    cachedTrueBalance = (balType.includes('receive') || balType.includes('debit')) ? -ob : ob;
-                }
-                
-                const sales = rawData.sales || [];
-                const purchases = rawData.purchases || [];
-                const allReceipts = rawData.receipts || rawData.cashbook || [];
-
-                if (partyType === 'Customer') {
-                    sales.forEach(s => {
-                        // 🚨 FIX 3: Enforce Firm ID and SKIP the currently open invoice so it doesn't double-count!
-                        if (s.firmId === activeFirmId && s.customerId === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.id !== currentEditId) {
-                            cachedTrueBalance += (s.documentType === 'return' ? -Math.abs(parseFloat(s.grandTotal || 0)) : Math.abs(parseFloat(s.grandTotal || 0)));
-                            if (s.status !== 'Completed' && s.documentType !== 'return') {
-                                const ageDays = Math.floor((today - window.Utils.safeDate(s.date)) / (1000 * 60 * 60 * 24));
-                                if (ageDays > cachedOldestDueDays) cachedOldestDueDays = ageDays;
-                            }
-                        }
-                    });
-                } else {
-                    purchases.forEach(p => {
-                        if (p.firmId === activeFirmId && p.supplierId === partyId && p.status !== 'Open' && p.status !== 'Cancelled' && p.id !== currentEditId) {
-                            cachedTrueBalance += (p.documentType === 'return' ? -Math.abs(parseFloat(p.grandTotal || 0)) : Math.abs(parseFloat(p.grandTotal || 0)));
-                            if (p.status !== 'Completed' && p.documentType !== 'return') {
-                                const ageDays = Math.floor((today - window.Utils.safeDate(p.date)) / (1000 * 60 * 60 * 24));
-                                if (ageDays > cachedOldestDueDays) cachedOldestDueDays = ageDays;
-                            }
-                        }
-                    });
-                }
-
-                allReceipts.forEach(r => {
-                    if (r.firmId === activeFirmId && (r.ledgerId === partyId || r.accountId === partyId)) {
-                        if (partyType === 'Customer') {
-                            cachedTrueBalance += (r.type === 'in' ? -parseFloat(r.amount || 0) : parseFloat(r.amount || 0));
-                        } else {
-                            cachedTrueBalance += (r.type === 'in' ? parseFloat(r.amount || 0) : -parseFloat(r.amount || 0));
-                        }
-                    }
-                });
-
-                cachedPartyId = partyId; // Lock the cache
-                window.lastCachedEditId = currentEditId; // Lock the edit state
-            }
-
-            // Calculate Projected Balance instantly using the cached math!
-            const docTypeEl = document.getElementById(partyType === 'Customer' ? 'sales-doc-type' : 'purchase-doc-type');
-            const isReturn = (docTypeEl && docTypeEl.value === 'return') || (window.app && window.app.state && window.app.state.currentDocType === 'return');
-            
-            let projectedBalance = cachedTrueBalance;
-            if (isReturn) {
-                projectedBalance -= draftTotal; 
-            } else {
-                projectedBalance += draftTotal;
-            }
-
-            const currentHash = `${partyId}_${cachedTrueBalance}_${projectedBalance}_${cachedOldestDueDays}`;
-            if (lastCalculatedHash === currentHash) return; 
-            lastCalculatedHash = currentHash;
-            
-            const oldBanner = document.getElementById('risk-banner');
-            if (oldBanner) oldBanner.remove();
-            
-            let statusText = 'Clean Account (Safe)';
-            let bgColor = '#e8f5e9';
-            let borderColor = '#bbf7d0';
-            let icon = 'check_circle';
-            let iconColor = '#146c2e';
-            let warningHtml = '';
-
-            if (partyType === 'Customer') {
-                if (cachedTrueBalance > 0.01) {
-                    statusText = 'Previous Dues'; 
-                    bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
-                } else if (cachedTrueBalance < -0.01) {
-                    statusText = 'Advance Available'; 
-                    bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
-                }
-            } else {
-                if (cachedTrueBalance > 0.01) {
-                    statusText = 'Previous Payables'; 
-                    bgColor = '#fff0f2'; borderColor = '#ffdad6'; iconColor = '#ba1a1a'; icon = 'warning';
-                } else if (cachedTrueBalance < -0.01) {
-                    statusText = 'Advance Given'; 
-                    bgColor = '#e3f2fd'; borderColor = '#c2e0ff'; iconColor = '#0061a4'; icon = 'verified_user';
-                }
-            }
-
-            let pulseAnim = '';
-            if (cachedTrueBalance > 0.01 && cachedOldestDueDays >= 45 && partyType === 'Customer') {
-                pulseAnim = 'animation: pulseRisk 2s infinite;';
-                warningHtml = `<div style="font-size: 11px; color: #ba1a1a; font-weight: 800; margin-top: 6px; border-top: 1px dashed #ffdad6; padding-top: 6px;">⚠️ HIGH RISK: Oldest unpaid invoice is ${cachedOldestDueDays} days old!</div>`;
-                if (window.navigator && window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
-            }
-            
-            if (!document.getElementById('risk-styles')) {
-                const style = document.createElement('style');
-                style.id = 'risk-styles';
-                style.innerHTML = `@keyframes pulseRisk { 0% { box-shadow: 0 0 0 0 rgba(186,26,26,0.4); } 70% { box-shadow: 0 0 0 10px rgba(186,26,26,0); } 100% { box-shadow: 0 0 0 0 rgba(186,26,26,0); } }`;
-                document.head.appendChild(style);
-            }
-
-            const banner = document.createElement('div');
-            banner.id = 'risk-banner';
-            banner.style.cssText = `background: ${bgColor}; padding: 14px 16px; margin: 12px 16px 0 16px; border-radius: 8px; border: 1px solid ${borderColor}; display: flex; align-items: flex-start; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); ${pulseAnim}`;
-            
-            banner.innerHTML = `
-                <span class="material-symbols-outlined" style="font-size: 28px; color: ${iconColor}; font-variation-settings: 'FILL' 1; margin-top: 2px;">${icon}</span>
-                <div style="flex: 1;">
-                    <strong style="display: block; font-size: 11px; text-transform: uppercase; color: #475569; letter-spacing: 0.5px;">Live ${partyType} Insight</strong>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px;">
-                        <span style="font-size: 20px; font-weight: 900; color: #0f172a; line-height: 1;">₹${Math.abs(projectedBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                        <span style="font-size: 10px; font-weight: 800; color: ${iconColor}; background: ${iconColor}15; padding: 4px 8px; border-radius: 12px; border: 1px solid ${iconColor}40;">${statusText}</span>
-                    </div>
-                    <div style="font-size: 10px; color: #64748b; margin-top: 6px; font-weight: 600;">
-                        Historical Due: ₹${Math.abs(cachedTrueBalance).toLocaleString('en-IN', {minimumFractionDigits: 2})} | This Bill: ₹${draftTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}
-                    </div>
-                    ${warningHtml}
-                </div>
-            `;
-            
-            const header = form.querySelector('.activity-header');
-            if (header) header.insertAdjacentElement('afterend', banner);
-            
-        } catch(e) { console.error("Insight Engine Failed:", e); }
-    }, 500); 
 })();
 // ==========================================
 // ENTERPRISE UPGRADE: THE LAZY USER BACKUP PROMPT
@@ -9766,149 +9348,29 @@ setInterval(() => {
 // 🚨 ENTERPRISE UPGRADE: BACKGROUND BATTERY HIBERNATION
 // ==========================================
 // Halts all CPU-intensive mathematical loops when the app is minimized, saving massive amounts of battery!
-// ==========================================
-// 🚨 ENTERPRISE SECURITY: LIVE NETWORK RADAR
-// ==========================================
-window.addEventListener('offline', () => {
-    if (window.Utils && window.Utils.showToast) {
-        window.Utils.showToast("📶 You are offline. Don't worry, data will save safely on your device!");
-    }
-});
-
-window.addEventListener('online', () => {
-    if (window.Utils && window.Utils.showToast) {
-        window.Utils.showToast("🟢 Back Online! Cloud sync restored.");
-        // Automatically trigger a background backup to Drive now that internet is back!
-        if (typeof executeBackgroundBackup === 'function') {
-            setTimeout(executeBackgroundBackup, 3000);
-        }
-    }
-});
-// ==========================================
-// 🚨 ENTERPRISE SECURITY: "DIRTY FORM" DATA LOSS SHIELD
-// ==========================================
-window.hasUnsavedData = false;
-
-// Watch for any typing inside forms
-document.addEventListener('input', (e) => {
-    if (e.target.closest('form')) window.hasUnsavedData = true;
-});
-
-// Clear the lock when they successfully hit Save
-document.addEventListener('submit', () => {
-    window.hasUnsavedData = false;
-});
-
-// Intercept the OS window close / back-swipe event!
-window.addEventListener('beforeunload', (e) => {
-    if (window.hasUnsavedData) {
-        e.preventDefault();
-        e.returnValue = "You have unsaved data! Are you sure you want to exit?";
-        return e.returnValue;
-    }
-});
-// ==========================================
 // 🚨 ENTERPRISE SECURITY: INACTIVITY PRIVACY LOCK (FIXED)
 // ==========================================
 let inactivityTimer;
-const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 Minutes of no touching
-
+const IDLE_TIMEOUT = 5 * 60 * 1000;
 const triggerPrivacyLock = () => {
     const lockScreen = document.getElementById('app-lock-screen');
-    // Only auto-lock if the user has a PIN enabled and the lock screen is currently hidden
     if (lockScreen && localStorage.getItem('sollo_app_pin') && lockScreen.style.display === 'none') {
         lockScreen.style.opacity = '1';
         lockScreen.style.display = 'flex';
         if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(50);
     }
 };
-
 const resetInactivityTimer = () => {
     clearTimeout(inactivityTimer);
     const lockScreen = document.getElementById('app-lock-screen');
-    // Only restart the 5-minute countdown if the app isn't currently locked
     if (lockScreen && lockScreen.style.display === 'none') {
         inactivityTimer = setTimeout(triggerPrivacyLock, IDLE_TIMEOUT);
     }
 };
-
-// Listen for physical screen interactions to keep the app awake
 ['touchstart', 'click', 'scroll', 'keypress'].forEach(evt => {
     document.addEventListener(evt, resetInactivityTimer, { passive: true });
 });
-
-resetInactivityTimer(); // Start the engine on boot
-
-// ==========================================
-// 🚨 ENTERPRISE UX: ANDROID "DOUBLE-TAP" EXIT SHIELD
-// ==========================================
-let lastBackPressTime = 0;
-
-// Push a fake invisible history state on boot so the phone has something to intercept!
-if (window.history.length === 1 || window.history.length === 2) {
-    window.history.pushState({ page: 'sollo-dashboard' }, "", "");
-}
-
-window.addEventListener('popstate', (e) => {
-    const currentTime = new Date().getTime();
-    
-    // If they press the hardware back button twice within 2 seconds, let the app close!
-    if (currentTime - lastBackPressTime < 2000) {
-        return; 
-    }
-
-    // 🚨 FIRST SWIPE: Block the exit, show a toast, and push the state forward again!
-    lastBackPressTime = currentTime;
-    window.history.pushState({ page: 'sollo-dashboard' }, "", "");
-    
-    if (window.Utils && window.Utils.showToast) {
-        window.Utils.showToast("Tap BACK again to exit app");
-    }
-});
-// ==========================================
-// 🚨 ENTERPRISE GROWTH: CUSTOM PWA INSTALL ENGINE
-// ==========================================
-window.deferredInstallPrompt = null;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the mini-infobar from appearing on mobile
-    e.preventDefault();
-    // Stash the event so it can be triggered later.
-    window.deferredInstallPrompt = e;
-    
-    // Create a beautiful, native-looking install banner
-    if (!document.getElementById('pwa-install-banner')) {
-        const banner = document.createElement('div');
-        banner.id = 'pwa-install-banner';
-        banner.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:90%; max-width:400px; background:var(--md-primary, #0061a4); color:#fff; padding:16px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.25); display:flex; justify-content:space-between; align-items:center; z-index:999999; font-family:sans-serif;';
-        
-        banner.innerHTML = `
-            <div>
-                <strong style="display:block; font-size:14px; margin-bottom:4px;">Install SOLLO ERP</strong>
-                <span style="font-size:12px; opacity:0.9;">Add to home screen for offline access</span>
-            </div>
-            <div style="display:flex; gap:12px; align-items:center;">
-                <span id="btn-close-install" style="font-size:12px; font-weight:bold; opacity:0.8; cursor:pointer; padding:8px;">Later</span>
-                <button id="btn-trigger-install" style="background:#fff; color:var(--md-primary, #0061a4); border:none; padding:8px 16px; border-radius:20px; font-weight:bold; font-size:12px; cursor:pointer;">Install</button>
-            </div>
-        `;
-        document.body.appendChild(banner);
-
-        document.getElementById('btn-close-install').onclick = () => banner.remove();
-        
-        document.getElementById('btn-trigger-install').onclick = async () => {
-            banner.remove();
-            if (window.deferredInstallPrompt) {
-                window.deferredInstallPrompt.prompt();
-                const { outcome } = await window.deferredInstallPrompt.userChoice;
-                console.log(`User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} the install prompt`);
-                window.deferredInstallPrompt = null;
-            }
-        };
-    }
-});
-
-// If the app is successfully installed, show a success toast!
+resetInactivityTimer();
 window.addEventListener('appinstalled', () => {
     window.deferredInstallPrompt = null;
     if (window.Utils && window.Utils.showToast) {
@@ -9918,42 +9380,13 @@ window.addEventListener('appinstalled', () => {
 // ==========================================
 // 🚨 ENTERPRISE UX: CORRUPT IMAGE AUTO-HEALER
 // ==========================================
-// If a logo or signature gets deleted from the phone's cache, this catches the network failure 
-// and gracefully hides the broken image icon so the UI remains perfectly clean!
 document.addEventListener('error', function(e) {
     if (e.target.tagName && e.target.tagName.toLowerCase() === 'img') {
-        e.target.style.display = 'none'; // Instantly hide the broken element
+        e.target.style.display = 'none';
         console.warn('🛡️ UI Shield: Prevented a broken image from rendering on screen.');
     }
-}, true); // The 'true' capture phase is strictly required to intercept resource loading errors!
+}, true);
 // ==========================================
-// 🚨 SOLLO NATIVE THEME: HARDWARE BACK-BUTTON SHIELD
-// ==========================================
-// This intercepts the physical Android/iOS swipe-back gesture and destroys any 
-// full-screen overlays before the user gets permanently stuck!
-window.addEventListener('popstate', (e) => {
-    
-    // 1. Destroy stuck PDF Spooler Overlays
-    const pdfViewer = document.getElementById('in-app-pdf-viewer');
-    if (pdfViewer) {
-        pdfViewer.remove();
-        document.body.style.overflow = ''; // Release the scroll lock
-        const printArea = document.getElementById('print-area');
-        if (printArea) printArea.innerHTML = '';
-    }
-
-    // 2. Destroy stuck Database Restore Overlays
-    const restoreOverlay = document.getElementById('manual-restore-overlay');
-    if (restoreOverlay) {
-        restoreOverlay.remove();
-        document.body.style.overflow = ''; // Release the scroll lock
-    }
-
-    // 3. Close the custom Numpad if the user swipes back
-    if (window.UI && typeof window.UI.closeNumpad === 'function') {
-        window.UI.closeNumpad();
-    }
-});
 // ==========================================
 // 🚨 SOLLO NATIVE THEME: DATA INTEGRITY MASKS
 // ==========================================
@@ -9980,18 +9413,6 @@ document.addEventListener('input', (e) => {
             target.value = target.value.replace(/[^0-9]/g, '').substring(0, 10);
         }
     }
-});
-// ==========================================
-// 🚨 SOLLO NATIVE THEME: DASHBOARD PARALLAX SCROLLING
-// ==========================================
-// Disabled Parallax to prevent black screen and allow normal scrolling!
-const setupParallax = () => {
-    // Fading effect removed so Order Fulfillment remains completely visible when scrolling down.
-};
-
-// Attach the engine safely after the app boots
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(setupParallax, 500);
 });
 // ==========================================
 // 🚨 SOLLO NATIVE THEME: FLOATING LABEL ENGINE
@@ -10138,51 +9559,18 @@ if (!isLocalDevice) {
 }
 
 // ==========================================
-// 🚨 ENTERPRISE UX: INSTANT EDIT & ANTI-OVERLAY SHIELD
-// ==========================================
-// Auto-selects text AND physically pushes the screen up so the keyboard/dialpad NEVER hides what you are typing!
-document.addEventListener('focusin', (e) => {
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
-        
-        // 1. The Anti-Overlay Shield (Scrolls the input to the safe white center of the screen)
-        // 300ms perfectly waits for the Android/iOS keyboard or Custom Numpad to finish sliding up!
-        setTimeout(() => {
-            try { 
-                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); 
-            } catch(err) {}
-        }, 300);
-
-        // 2. The Auto-Highlight Engine (For quick number replacement)
-        if (e.target.type === 'number' || e.target.inputMode === 'numeric' || e.target.inputMode === 'decimal') {
-            setTimeout(() => {
-                try { e.target.select(); } catch(err) {}
-            }, 50);
-        }
-    }
-});
-
-// ==========================================
 // 🚨 ENTERPRISE UX: SMART AUTO-CAPITALIZATION
 // ==========================================
-// Silently formats ledger names and items into professional Title Case when the user taps away!
 document.addEventListener('focusout', (e) => {
     if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') {
         const id = e.target.id ? e.target.id.toLowerCase() : '';
-        // 🚨 BUG FIX: Added 'search' to the ignore list so search bars don't get Title Cased!
         const isEmailOrGST = id.includes('email') || id.includes('gst') || id.includes('password') || id.includes('search');
-        
-        // If it is a Name, City, or Item field, auto-capitalize the first letter of every word
         if (!isEmailOrGST && e.target.value) {
             e.target.value = e.target.value.replace(/\b\w/g, char => char.toUpperCase());
         }
     }
 });
-
 // ==========================================
-// 🚀 PREMIUM POLISH: MOBILE KEYBOARD AUTO-CENTER
-// ==========================================
-// 🚨 BUG FIX: Legacy auto-scroll has been DELETED to prevent the "Double Scroll Jerk" conflict!
-// The modern Visual Viewport engine in ui.js now handles keyboard scrolling much more smoothly.
 // ==========================================
 // 🚨 SOLLO ERP FIX: THE "GHOST RENDER" SHIELD
 // ==========================================
@@ -10217,136 +9605,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 🚨 ENTERPRISE CA-GRADE BALANCE SHEET PDF
-// ==========================================
-window.exportBalanceSheetPDF = function() {
-    if (!window.UI || !window.UI.state || !window.UI.state.rawData) {
-        if(window.Utils) window.Utils.showToast("Data not ready.");
-        return;
-    }
-
-    const bsDateEl = document.getElementById('report-bs-end') || document.getElementById('report-bs-date');
-    const asOfDate = (bsDateEl && bsDateEl.value) ? bsDateEl.value : (window.Utils ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0]);
-    const profile = window.UI.state.rawData.profile || {};
-    const businessName = profile.name || 'My Business';
-    
-    if(window.Utils) window.Utils.showToast("Generating Balance Sheet PDF...");
-
-    // We scrape the live DOM data to ensure the PDF perfectly matches what the user is looking at
-    const scrapeVal = (label) => {
-        const spans = Array.from(document.querySelectorAll('#bs-container span'));
-        const target = spans.find(s => s.innerText === label);
-        return target ? target.nextElementSibling.innerText : '₹0.00';
-    };
-
-    const docDefinition = {
-        pageSize: 'A4',
-        pageMargins: [40, 40, 40, 40],
-        defaultStyle: { font: 'Roboto', fontSize: 10, color: '#333333' },
-        styles: {
-            header: { fontSize: 20, bold: true, color: '#6a1b9a', alignment: 'center', margin: [0, 0, 0, 4] },
-            subHeader: { fontSize: 12, alignment: 'center', color: '#666666', margin: [0, 0, 0, 20] },
-            tableHeader: { bold: true, fontSize: 11, color: '#ffffff', fillColor: '#6a1b9a', alignment: 'center', margin: [0, 6, 0, 6] },
-            groupTitle: { bold: true, fontSize: 11, color: '#000000', margin: [0, 4, 0, 4], fillColor: '#f1f5f9' },
-            itemRow: { margin: [10, 4, 0, 4] },
-            amtRow: { alignment: 'right', margin: [0, 4, 0, 4], bold: true },
-            totalBlock: { bold: true, fontSize: 12, fillColor: '#f3e8f8', color: '#6a1b9a', margin: [0, 6, 0, 6] },
-            totalAmt: { bold: true, fontSize: 12, alignment: 'right', fillColor: '#f3e8f8', color: '#6a1b9a', margin: [0, 6, 0, 6] }
-        },
-        content: [
-            { text: businessName, style: 'header' },
-            { text: `BALANCE SHEET AS OF ${window.Utils.formatDateDisplay(asOfDate).toUpperCase()}`, style: 'subHeader' },
-            
-            {
-                table: {
-                    headerRows: 1,
-                    widths: ['50%', '50%'],
-                    body: [
-                        // HEADERS
-                        [
-                            { text: 'LIABILITIES', style: 'tableHeader' }, 
-                            { text: 'ASSETS', style: 'tableHeader' }
-                        ],
-                        // BODY
-                        [
-                            // --- LIABILITIES COLUMN ---
-                            {
-                                layout: 'noBorders',
-                                table: {
-                                    widths: ['*', 'auto'],
-                                    body: [
-                                        [{ text: 'Capital Account', style: 'groupTitle', colSpan: 2 }, {}],
-                                        [{ text: 'Retained Earnings / P&L', style: 'itemRow' }, { text: scrapeVal('Retained Earnings / P&L'), style: 'amtRow' }],
-                                        
-                                        [{ text: 'Current Liabilities', style: 'groupTitle', colSpan: 2, margin: [0, 10, 0, 4] }, {}],
-                                        [{ text: 'Sundry Creditors', style: 'itemRow' }, { text: scrapeVal('Sundry Creditors'), style: 'amtRow' }],
-                                        [{ text: 'Advance from Customers', style: 'itemRow' }, { text: scrapeVal('Advance from Customers'), style: 'amtRow' }]
-                                    ]
-                                }
-                            },
-                            // --- ASSETS COLUMN ---
-                            {
-                                layout: 'noBorders',
-                                table: {
-                                    widths: ['*', 'auto'],
-                                    body: [
-                                        [{ text: 'Current Assets', style: 'groupTitle', colSpan: 2 }, {}],
-                                        [{ text: 'Closing Stock', style: 'itemRow' }, { text: scrapeVal('Closing Stock'), style: 'amtRow' }],
-                                        [{ text: 'Sundry Debtors', style: 'itemRow' }, { text: scrapeVal('Sundry Debtors'), style: 'amtRow' }],
-                                        [{ text: 'Advance to Suppliers', style: 'itemRow' }, { text: scrapeVal('Advance to Suppliers'), style: 'amtRow' }],
-                                        
-                                        [{ text: 'Bank & Cash Accounts', style: 'groupTitle', colSpan: 2, margin: [0, 10, 0, 4] }, {}],
-                                        [{ text: 'Bank Accounts', style: 'itemRow' }, { text: scrapeVal('Bank Accounts'), style: 'amtRow' }],
-                                        [{ text: 'Cash-in-Hand', style: 'itemRow' }, { text: scrapeVal('Cash-in-Hand'), style: 'amtRow' }]
-                                    ]
-                                }
-                            }
-                        ],
-                        // TOTALS ROW
-                        [
-                            {
-                                layout: 'noBorders',
-                                table: { widths: ['*', 'auto'], body: [ [ { text: 'TOTAL LIABILITIES', style: 'totalBlock' }, { text: document.querySelectorAll('.m3-card strong:nth-last-child(1)')[0]?.innerText || '₹0.00', style: 'totalAmt' } ] ] }
-                            },
-                            {
-                                layout: 'noBorders',
-                                table: { widths: ['*', 'auto'], body: [ [ { text: 'TOTAL ASSETS', style: 'totalBlock' }, { text: document.querySelectorAll('.m3-card strong:nth-last-child(1)')[1]?.innerText || '₹0.00', style: 'totalAmt' } ] ] }
-                            }
-                        ]
-                    ]
-                },
-                layout: {
-                    hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 0 : 1; },
-                    vLineWidth: function (i, node) { return (i === 0 || i === node.table.widths.length) ? 0 : 1; },
-                    hLineColor: function () { return '#cbd5e1'; },
-                    vLineColor: function () { return '#cbd5e1'; }
-                }
-            },
-            { text: '\n\nGenerated by SOLLO ERP', alignment: 'center', fontSize: 8, color: '#94a3b8' }
-        ]
-    };
-
-    // Make sure fonts are loaded before generating
-    if (!pdfMake.fonts) {
-        pdfMake.fonts = {
-            Roboto: {
-                normal: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf',
-                bold: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf',
-                italics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Italic.ttf',
-                bolditalics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-MediumItalic.ttf'
-            }
-        };
-    }
-
-    try {
-        pdfMake.createPdf(docDefinition).download(`Balance_Sheet_${asOfDate}.pdf`);
-    } catch (err) {
-        console.error(err);
-        if(window.Utils) window.Utils.showToast("Error generating PDF.");
-    }
-};
-
-// ==========================================
 // 🚨 DIRECT PDF PREVIEW ENGINE (BALANCE SHEET)
 // ==========================================
 window.openBalanceSheetPreview = function() {
@@ -10354,29 +9612,11 @@ window.openBalanceSheetPreview = function() {
         const endEl = document.getElementById('report-bs-end');
         if (!endEl) return;
         const asOfDate = endEl.value;
-        
         if (!window.UI || !window.UI.state || !window.UI.state.rawData) {
             if (window.Utils) window.Utils.showToast("Database not ready.");
             return;
         }
-
         const activeFirmId = window.app && window.app.state ? window.app.state.firmId : null;
-
-        // --- 1. CALCULATE ALL BALANCES ---
-        let cashInHand = 0, bankAccounts = 0;
-        (window.UI.state.rawData.accounts || []).forEach(a => {
-            if (activeFirmId && a.firmId !== activeFirmId) return;
-            const ob = parseFloat(a.openingBalance) || 0;
-            if (a.type === 'Cash') cashInHand += ob; else bankAccounts += ob;
-        });
-        (window.UI.state.rawData.cashbook || []).forEach(c => {
-            if ((!activeFirmId || c.firmId === activeFirmId) && c.date <= asOfDate) {
-                const amt = c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
-                const acc = (window.UI.state.rawData.accounts || []).find(a => a.id === c.accountId);
-                if (acc && acc.type === 'Cash') cashInHand += amt; else bankAccounts += amt;
-            }
-        });
-
         let closingStockValue = 0;
         (window.UI.state.rawData.items || []).forEach(i => {
             if (!activeFirmId || i.firmId === activeFirmId) {
@@ -10384,54 +9624,25 @@ window.openBalanceSheetPreview = function() {
                 if (stock > 0) closingStockValue += (stock * (parseFloat(i.buyPrice) || 0));
             }
         });
-
         let outputTax = 0, inputTax = 0;
-        (window.UI.state.rawData.sales || []).forEach(s => { 
+        (window.UI.state.rawData.sales || []).forEach(s => {
             if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const gst = parseFloat(s.totalGst) || ((parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0));
                 outputTax += Math.abs(gst) * mult;
             }
         });
-        (window.UI.state.rawData.purchases || []).forEach(p => { 
+        (window.UI.state.rawData.purchases || []).forEach(p => {
             if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date <= asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
                 const mult = p.documentType === 'return' ? -1 : 1;
                 const gst = parseFloat(p.totalGst) || ((parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0));
                 inputTax += Math.abs(gst) * mult;
             }
         });
-
         let netTaxLiability = 0, netTaxReceivable = 0;
-        if (outputTax > inputTax) netTaxLiability = outputTax - inputTax; 
+        if (outputTax > inputTax) netTaxLiability = outputTax - inputTax;
         else netTaxReceivable = inputTax - outputTax;
-
-        let sundryDebtors = 0, sundryCreditors = 0, customerAdvances = 0, supplierAdvances = 0;
-        (window.UI.state.rawData.ledgers || []).filter(l => (!activeFirmId || l.firmId === activeFirmId)).forEach(l => {
-            const isCustomer = String(l.type).toLowerCase() === 'customer';
-            let partyBal = (parseFloat(l.openingBalance) || 0) * ((isCustomer ? (l.balanceType || '').toLowerCase().includes('pay') : (l.balanceType || '').toLowerCase().includes('receive')) ? -1 : 1);
-            
-            const targetDocs = isCustomer ? (window.UI.state.rawData.sales || []) : (window.UI.state.rawData.purchases || []);
-            targetDocs.forEach(d => { 
-                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
-                    partyBal += (d.documentType === 'return' ? -(parseFloat(d.grandTotal)||0) : (parseFloat(d.grandTotal)||0)); 
-                }
-            });
-            
-            (window.UI.state.rawData.cashbook || []).forEach(c => { 
-                if (c.ledgerId === l.id && c.date <= asOfDate) {
-                    partyBal += isCustomer ? (c.type === 'in' ? -(parseFloat(c.amount)||0) : (parseFloat(c.amount)||0)) : (c.type === 'in' ? (parseFloat(c.amount)||0) : -(parseFloat(c.amount)||0)); 
-                }
-            });
-            
-            if (partyBal > 0.01) { 
-                if(isCustomer) sundryDebtors += partyBal; else sundryCreditors += partyBal; 
-            } 
-            else if (partyBal < -0.01) { 
-                if(isCustomer) customerAdvances += Math.abs(partyBal); else supplierAdvances += Math.abs(partyBal); 
-            }
-        });
-
-        cashInHand = 0; bankAccounts = 0;
+        let cashInHand = 0, bankAccounts = 0;
         const allFirmAccs = (window.UI.state.rawData.accounts || []).filter(a => !activeFirmId || a.firmId === activeFirmId);
         if (!allFirmAccs.some(a => a.id === 'cash')) allFirmAccs.unshift({ id: 'cash', name: 'Default Cash Drawer', type: 'Cash', openingBalance: 0 });
         allFirmAccs.forEach(a => {
@@ -10447,7 +9658,7 @@ window.openBalanceSheetPreview = function() {
                 else bankAccounts += bal;
             }
         });
-        sundryDebtors = 0; sundryCreditors = 0; customerAdvances = 0; supplierAdvances = 0;
+        let sundryDebtors = 0, sundryCreditors = 0, customerAdvances = 0, supplierAdvances = 0;
         (window.UI.state.rawData.ledgers || []).filter(l => (!activeFirmId || l.firmId === activeFirmId)).forEach(l => {
             const isCust = String(l.type).toLowerCase() === 'customer';
             const ob = parseFloat(l.openingBalance) || 0;
@@ -10676,58 +9887,10 @@ window.app.showBSBreakdown = function(type, title, color) {
 
     if(window.UI) window.UI.openBottomSheet('sheet-bs-breakdown');
 };
-// ==========================================
-// 🚀 CORE APP: GLOBAL ANTI-CRASH SHIELD
-// ==========================================
-// Prevents the "White Screen of Death" by intercepting fatal JavaScript errors
-window.addEventListener('error', function (e) {
-    console.error("Intercepted App Crash:", e.message);
-    
-    // Stop the browser from freezing
-    e.preventDefault(); 
-    
-    if (window.Utils && window.Utils.showToast) {
-        window.Utils.showToast('⚠️ Minor glitch intercepted. App is still stable.', 'error');
-    }
-    
-    // Attempt to auto-heal the UI by hiding loading spinners that might be stuck
-    document.querySelectorAll('.loading-spinner, .overlay').forEach(el => {
-        el.style.display = 'none';
-    });
-    
-    return true; 
-});
-// Backup reminder disabled to keep startup clean
-// ==========================================
-// 🚀 NATIVE UX: ANDROID BACK-BUTTON INTERCEPTOR
-// ==========================================
-// Pushes a hidden state to the phone's history so the Back Button doesn't kill the app
-history.pushState(null, null, window.location.href);
-
-window.addEventListener('popstate', (e) => {
-    // 1. Check if any popups, bottom sheets, or modals are currently open
-    const openModals = document.querySelectorAll('.centered-modal.open, .sheet-content[style*="transform: translateY(0"]');
-    
-    if (openModals.length > 0) {
-        // 2. Prevent the app from exiting
-        e.preventDefault();
-        
-        // 3. Find the dark overlay and simulate a "click" to safely close the menu
-        const overlay = document.querySelector('.sub-modal-overlay[style*="display: flex"], .sub-modal-overlay[style*="display: block"]');
-        if (overlay) overlay.click();
-        
-        // 4. Re-push the state so the next back-button press is also protected
-        history.pushState(null, null, window.location.href);
-    }
-});
-// ==========================================
 // 🚀 FINTECH UX: HOME SCREEN APP BADGING
 // ==========================================
-// Allows the app to draw a red notification dot on the phone's home screen icon
 if (!window.AppUtils) window.AppUtils = {};
-
 window.AppUtils.updateAppBadge = async (pendingCount) => {
-    // Check if the user's phone supports the Badging API (Most modern iOS/Androids do)
     if ('setAppBadge' in navigator) {
         try {
             if (pendingCount > 0) {
@@ -10741,30 +9904,6 @@ window.AppUtils.updateAppBadge = async (pendingCount) => {
     }
 };
 // ==========================================
-// 🚀 PWA ENGINE: SMART "INSTALL APP" PROMPT
-// ==========================================
-// Silently catches the Android/iOS install event
-let deferredInstallPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the default browser mini-infobar from appearing
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    
-    // Wait 10 seconds, then subtly remind the business owner to install it
-    setTimeout(() => {
-        const lastNag = localStorage.getItem('sollo_install_nag');
-        const now = Date.now();
-        
-        // Only show this reminder once every 24 hours so it isn't annoying
-        if (!lastNag || (now - parseInt(lastNag)) > 86400000) {
-            if (window.Utils && window.Utils.showToast) {
-                window.Utils.showToast('📲 Tip: Tap your browser menu and select "Add to Home Screen" to install SOLLO!', 'success');
-                localStorage.setItem('sollo_install_nag', now.toString());
-            }
-        }
-    }, 10000);
-});
 // ==========================================
 // 🚨 ENTERPRISE UX: SMART SEARCH BAR FOCUS ENGINE
 // ==========================================

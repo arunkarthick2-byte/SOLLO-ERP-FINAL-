@@ -1384,14 +1384,35 @@ Please process this accordingly. Thank you!`;
             itemsBody.push([ '', {text: 'Less: Discount', alignment: 'right', italics: true, ...tdStyle}, '', '', '', '', {text: '-' + discountAmt.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', ...tdStyle} ]);
         }
         
+        let addedTaxRows = 0;
         if (!isNonGST) {
             const taxPrefix = isSales ? 'Output' : 'Input';
-            if (isIGST && totalIgstAmount > 0) {
-                itemsBody.push([ '', {text: `${taxPrefix} IGST`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalIgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
-            } else {
-                if (totalCgstAmount > 0) itemsBody.push([ '', {text: `${taxPrefix} CGST`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalCgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
-                if (totalSgstAmount > 0) itemsBody.push([ '', {text: `${taxPrefix} SGST`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: totalSgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
-            }
+            const slabMap = {};
+            Object.values(hsnMap).forEach(h => {
+                if (h.taxRate > 0 && h.totalTax > 0) {
+                    if (!slabMap[h.taxRate]) slabMap[h.taxRate] = { rate: h.taxRate, cgst: 0, sgst: 0, igst: 0 };
+                    slabMap[h.taxRate].cgst += h.cgst;
+                    slabMap[h.taxRate].sgst += h.sgst;
+                    slabMap[h.taxRate].igst += h.igst;
+                }
+            });
+            const slabs = Object.values(slabMap).sort((a, b) => a.rate - b.rate);
+            slabs.forEach(s => {
+                if (isIGST && s.igst > 0) {
+                    itemsBody.push([ '', {text: `${taxPrefix} IGST @ ${s.rate}%`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: s.igst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+                    addedTaxRows++;
+                } else {
+                    const halfRate = s.rate / 2;
+                    if (s.cgst > 0) {
+                        itemsBody.push([ '', {text: `${taxPrefix} CGST @ ${halfRate}%`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: s.cgst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+                        addedTaxRows++;
+                    }
+                    if (s.sgst > 0) {
+                        itemsBody.push([ '', {text: `${taxPrefix} SGST @ ${halfRate}%`, alignment: 'right', bold: true, ...tdStyle}, '', '', '', '', {text: s.sgst.toLocaleString('en-IN', {minimumFractionDigits: 2}), alignment: 'right', bold: true, ...tdStyle} ]);
+                        addedTaxRows++;
+                    }
+                }
+            });
         }
 
         if (freightVal > 0) {
@@ -1406,10 +1427,8 @@ Please process this accordingly. Thank you!`;
         }
 
         // 🚨 TALLY FIX: Smart A4 Page Stretch (UPGRADED FOR UNIFORM FULL-PAGE LAYOUT)
-        let usedRows = (doc.items || []).length;
+        let usedRows = (doc.items || []).length + addedTaxRows;
         if (discountAmt > 0) usedRows++;
-        if (!isNonGST && isIGST && totalIgstAmount > 0) usedRows++;
-        else if (!isNonGST && (totalCgstAmount > 0 || totalSgstAmount > 0)) usedRows += 2;
         if (freightVal > 0) usedRows++;
         if (Math.abs(roundOffAmt) > 0.01) usedRows++;
 

@@ -4698,22 +4698,6 @@ const UI = {
         const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
 
         window.UI.state.bsBreakdown = { stock: [], debtors: [], creditors: [], custAdv: [], suppAdv: [], bank: [], cash: [] };
-
-        let cashInHand = 0, bankAccounts = 0;
-        (UI.state.rawData.accounts || []).forEach(a => {
-            if (activeFirmId && a.firmId !== activeFirmId) return;
-            let bal = parseFloat(a.openingBalance) || 0;
-            (UI.state.rawData.cashbook || []).forEach(c => {
-                if (c.accountId === a.id && c.date <= asOfDate && (!activeFirmId || c.firmId === activeFirmId)) {
-                    bal += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
-                }
-            });
-            if (bal !== 0) {
-                if (a.type === 'Cash') { cashInHand += bal; window.UI.state.bsBreakdown.cash.push({ name: a.name || 'Cash', desc: 'Cash Drawer', amount: bal }); } 
-                else { bankAccounts += bal; window.UI.state.bsBreakdown.bank.push({ name: a.name, desc: a.accountNumber || 'Bank/Wallet', amount: bal }); }
-            }
-        });
-
         let closingStockValue = 0;
         (UI.state.rawData.items || []).forEach(i => {
             if (!activeFirmId || i.firmId === activeFirmId) {
@@ -4726,7 +4710,6 @@ const UI = {
                 }
             }
         });
-
         let outputTax = 0; let inputTax = 0;
         (UI.state.rawData.sales || []).forEach(s => {
             if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
@@ -4742,42 +4725,10 @@ const UI = {
                 inputTax += Math.abs(gst) * mult;
             }
         });
-
         let netTaxLiability = 0; let netTaxReceivable = 0;
         if (outputTax > inputTax) netTaxLiability = outputTax - inputTax;
         else netTaxReceivable = inputTax - outputTax;
-
-        let sundryDebtors = 0, sundryCreditors = 0, customerAdvances = 0, supplierAdvances = 0;
-        const ledgers = UI.state.rawData.ledgers.filter(l => (!activeFirmId || l.firmId === activeFirmId));
-        
-        ledgers.forEach(l => {
-            const isCustomer = String(l.type).toLowerCase() === 'customer';
-            let partyBal = (parseFloat(l.openingBalance) || 0) * ((isCustomer ? (l.balanceType || '').toLowerCase().includes('pay') : (l.balanceType || '').toLowerCase().includes('receive')) ? -1 : 1);
-            
-            const targetDocs = isCustomer ? UI.state.rawData.sales : UI.state.rawData.purchases;
-            targetDocs.forEach(d => {
-                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (!activeFirmId || d.firmId === activeFirmId) && (isCustomer ? d.customerId === l.id : d.supplierId === l.id)) {
-                    partyBal += (d.documentType === 'return' ? -(parseFloat(d.grandTotal)||0) : (parseFloat(d.grandTotal)||0));
-                }
-            });
-
-            (UI.state.rawData.cashbook || []).forEach(c => {
-                if (c.ledgerId === l.id && c.date <= asOfDate && (!activeFirmId || c.firmId === activeFirmId)) {
-                    partyBal += isCustomer ? (c.type === 'in' ? -(parseFloat(c.amount)||0) : (parseFloat(c.amount)||0)) : (c.type === 'in' ? (parseFloat(c.amount)||0) : -(parseFloat(c.amount)||0));
-                }
-            });
-
-            if (partyBal > 0.01) {
-                if(isCustomer) { sundryDebtors += partyBal; window.UI.state.bsBreakdown.debtors.push({ name: l.name, desc: l.phone || 'Customer', amount: partyBal }); }
-                else { sundryCreditors += partyBal; window.UI.state.bsBreakdown.creditors.push({ name: l.name, desc: l.phone || 'Supplier', amount: partyBal }); }
-            } else if (partyBal < -0.01) {
-                if(isCustomer) { customerAdvances += Math.abs(partyBal); window.UI.state.bsBreakdown.custAdv.push({ name: l.name, desc: l.phone || 'Customer', amount: Math.abs(partyBal) }); }
-                else { supplierAdvances += Math.abs(partyBal); window.UI.state.bsBreakdown.suppAdv.push({ name: l.name, desc: l.phone || 'Supplier', amount: Math.abs(partyBal) }); }
-            }
-        });
-
-        cashInHand = 0; bankAccounts = 0;
-        window.UI.state.bsBreakdown.cash = []; window.UI.state.bsBreakdown.bank = [];
+        let cashInHand = 0, bankAccounts = 0;
         const allFirmAccs = (UI.state.rawData.accounts || []).filter(a => !activeFirmId || a.firmId === activeFirmId);
         if (!allFirmAccs.some(a => a.id === 'cash')) allFirmAccs.unshift({ id: 'cash', name: 'Default Cash Drawer', type: 'Cash', openingBalance: 0 });
         allFirmAccs.forEach(a => {
@@ -4793,8 +4744,8 @@ const UI = {
                 else { bankAccounts += bal; window.UI.state.bsBreakdown.bank.push({ name: a.name, desc: a.accountNumber || 'Bank/Wallet', amount: bal }); }
             }
         });
-        sundryDebtors = 0; sundryCreditors = 0; customerAdvances = 0; supplierAdvances = 0;
-        window.UI.state.bsBreakdown.debtors = []; window.UI.state.bsBreakdown.creditors = []; window.UI.state.bsBreakdown.custAdv = []; window.UI.state.bsBreakdown.suppAdv = [];
+        let sundryDebtors = 0, sundryCreditors = 0, customerAdvances = 0, supplierAdvances = 0;
+        const ledgers = UI.state.rawData.ledgers.filter(l => (!activeFirmId || l.firmId === activeFirmId));
         ledgers.forEach(l => {
             const isCust = String(l.type).toLowerCase() === 'customer';
             const ob = parseFloat(l.openingBalance) || 0;
@@ -5288,59 +5239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 🟢 ENTERPRISE FIX: Failsafe Search Timer Injector
     // Instantly patches the missing search timer so the Inventory Master search bar NEVER crashes!
     if (!window.Utils) window.Utils = {};
-
-    // 🚀 AUTO-INJECT MISSING INVOICE MENU
-    if (!document.getElementById('sheet-invoice-more-options')) {
-        const optionsMenu = document.createElement('div');
-        optionsMenu.id = 'sheet-invoice-more-options';
-        optionsMenu.className = 'bottom-sheet centered-modal';
-        optionsMenu.setAttribute('data-no-swipe', 'true');
-        optionsMenu.style.cssText = 'display: flex; flex-direction: column; padding: 0;';
-        optionsMenu.innerHTML = `
-            <style>
-                #sheet-invoice-more-options.centered-modal {
-                    top: 50% !important; left: 16px !important; right: 16px !important; bottom: auto !important;
-                    width: auto !important; max-width: 600px !important; margin: 0 auto !important;
-                    height: auto !important; max-height: calc(100vh - 32px) !important;
-                    border-radius: 12px !important; 
-                    transform: translateY(-50%) scale(0.95) !important; opacity: 0 !important;
-                    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-                    box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-                    position: fixed !important;
-                }
-                #sheet-invoice-more-options.centered-modal.open { transform: translateY(-50%) scale(1) !important; opacity: 1 !important; }
-                #sheet-invoice-more-options.centered-modal::before { display: none !important; }
-                body.dark-mode #sheet-invoice-more-options.centered-modal { background: #1e293b !important; border: 1px solid rgba(255,255,255,0.08) !important; }
-            </style>
-            
-            <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); border-radius: 12px 12px 0 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <strong style="font-size: 16px; font-weight: 500; color: var(--md-on-surface, #1e293b); flex: 1;">Document Options</strong>
-                    <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options')">close</span>
-                </div>
-            </div>
-            
-            <div style="padding: 0; flex: 1; overflow-y: auto; overflow-x: hidden;">
-                <div class="sub-radio-row tap-target" style="justify-content: flex-start; gap: 16px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.cancelDocument(isSales ? 'sales' : 'purchase', window.app.state.currentEditId); }, 300);">
-                    <span class="material-symbols-outlined" style="color: #f57f17; font-size: 24px;">block</span>
-                    <div style="display: flex; flex-direction: column;">
-                        <span class="sub-radio-text" style="font-weight: 600;">Cancel Document</span>
-                        <span style="font-size: 12px; color: var(--md-text-muted);">Mark as void & reverse stock</span>
-                    </div>
-                </div>
-
-                <div class="sub-radio-row tap-target" style="justify-content: flex-start; gap: 16px; border-bottom: none;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-invoice-more-options'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.deleteRecord(isSales ? 'sales' : 'purchase'); }, 300);">
-                    <span class="material-symbols-outlined" style="color: #ba1a1a; font-size: 24px;">delete_forever</span>
-                    <div style="display: flex; flex-direction: column;">
-                        <span class="sub-radio-text" style="font-weight: 600;">Delete Permanently</span>
-                        <span style="font-size: 12px; color: var(--md-text-muted);">Move to recycle bin</span>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(optionsMenu);
-    }
-        window.Utils.debounce = window.Utils.debounce || function(func, delay) {
+    window.Utils.debounce = window.Utils.debounce || function(func, delay) {
             let timeout;
             return function(...args) {
                 clearTimeout(timeout);
@@ -6065,30 +5964,53 @@ const closeTopmostView = () => {
     window.isHardwareSwiping = true;
     setTimeout(() => { window.isHardwareSwiping = false; }, 400);
 
+    // 0. Catch In-App PDF Viewer, Restore Overlay, or AI Analytics Modal
+    const pdfViewer = document.getElementById('in-app-pdf-viewer');
+    if (pdfViewer) {
+        const closeBtn = document.getElementById('btn-close-pdf-loaded') || document.getElementById('btn-close-pdf-loading');
+        if (closeBtn) closeBtn.click();
+        else {
+            if (window.currentActivePDF) { window.currentActivePDF.destroy(); window.currentActivePDF = null; }
+            pdfViewer.remove();
+            document.body.style.overflow = '';
+            const printArea = document.getElementById('print-area');
+            if (printArea) printArea.innerHTML = '';
+        }
+        return true;
+    }
+    const restoreOverlay = document.getElementById('manual-restore-overlay');
+    if (restoreOverlay) {
+        restoreOverlay.remove();
+        document.body.style.overflow = '';
+        return true;
+    }
+    const aiModal = document.querySelector('[id^="ai-analytics-modal-"]');
+    if (aiModal) {
+        aiModal.remove();
+        document.body.style.overflow = '';
+        return true;
+    }
     // 1. Catch the custom Numpad
     const activeNumpad = document.getElementById('custom-numpad');
-    if (activeNumpad && activeNumpad.classList.contains('active')) {
+    if (activeNumpad && (activeNumpad.classList.contains('active') || activeNumpad.classList.contains('open'))) {
         if (window.UI) window.UI.closeNumpad();
         return true;
     }
-    
     // 2. Catch Custom Alert/Confirm Modals
     const visibleModals = Array.from(document.querySelectorAll('#enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)'));
     if (visibleModals.length > 0) {
         const topModal = visibleModals[0];
-        const cancelBtn = topModal.querySelector('button'); 
-        if (cancelBtn) cancelBtn.click(); 
+        const cancelBtn = topModal.querySelector('button');
+        if (cancelBtn) cancelBtn.click();
         return true;
     }
-
     // 3. Catch Bottom Sheets
     const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
     if (visibleSheets.length > 0) {
         const topSheet = getTopElement(visibleSheets);
         if (window.UI) window.UI.closeBottomSheet(topSheet.id);
-        return true; 
-    } 
-    
+        return true;
+    }
     // 4. Catch Full-Screen Activities
     const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
     if (visibleScreens.length > 0) {
@@ -6098,39 +6020,32 @@ const closeTopmostView = () => {
             return true;
         }
     }
-
     return false;
 };
-
 // 1. PUSH NATIVE STATE ON CLICK
 document.addEventListener('click', (e) => {
     const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"]');
     if (target) {
         const action = target.getAttribute('onclick') || '';
-        if (action.includes('openBottomSheet') || action.includes('openActivity') || action.includes('openForm') || 
-            action.includes('openNewPayment') || action.includes('openReceipt') || action.includes('openPartyLedger') || 
-            action.includes('openAccountLedger') || action.includes('openSmartSearch') || action.includes('triggerKhataReport') || 
-            action.includes('executeKhataReport') || action.includes('executeAccountReport') || action.includes('openMasterView') || 
-            action.includes('openExpenseReport') || action.includes('openReorderReport') || action.includes('openItemProfitReport') || 
-            action.includes('openPartyTaxReport') || action.includes('openGSTReport') || action.includes('manageSimpleMaster') || 
+        if (action.includes('openBottomSheet') || action.includes('openActivity') || action.includes('openForm') ||
+            action.includes('openNewPayment') || action.includes('openReceipt') || action.includes('openPartyLedger') ||
+            action.includes('openAccountLedger') || action.includes('openSmartSearch') || action.includes('triggerKhataReport') ||
+            action.includes('executeKhataReport') || action.includes('executeAccountReport') || action.includes('openMasterView') ||
+            action.includes('openExpenseReport') || action.includes('openReorderReport') || action.includes('openItemProfitReport') ||
+            action.includes('openPartyTaxReport') || action.includes('openGSTReport') || action.includes('manageSimpleMaster') ||
             action.includes('openAdjustmentSheet')) {
-            
             if (window.isRoutingLocked) return;
             window.isRoutingLocked = true;
             setTimeout(() => { window.isRoutingLocked = false; }, 400);
-
-            // Silent push state (Prevents URL hash collisions with legacy popstate)
             window.history.pushState({ internalRoute: true }, '');
         }
     }
 });
-
 // 2. INTERCEPT HARDWARE BACK BUTTON
 if (window.navigation) {
     window.navigation.addEventListener('navigate', (event) => {
         if (event.navigationType === 'traverse' || event.navigationType === 'back') {
-            const isAnythingOpen = document.querySelectorAll('.bottom-sheet.open, .activity-screen.open, #custom-numpad.active, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden)').length > 0;
-            
+            const isAnythingOpen = document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
             if (isAnythingOpen) {
                 event.intercept({
                     async handler() {
@@ -6141,7 +6056,6 @@ if (window.navigation) {
                 if (!window.exitAppPrompted) {
                     window.exitAppPrompted = true;
                     if (window.Utils) window.Utils.showToast("Press back again to exit");
-                    
                     event.intercept({
                         handler() {
                             window.history.pushState({ internalRoute: true }, '');
@@ -6173,53 +6087,45 @@ if (window.navigation) {
 // 🚨 ENTERPRISE UX: SMART CURRENCY FORMATTER
 // ==========================================
 document.addEventListener('focusout', (e) => {
-    // Check if the input they just left is a number/money field (Excluding Pincodes!)
-    if (e.target.tagName === 'INPUT' && !e.target.id.toLowerCase().includes('pincode') && (e.target.type === 'number' || e.target.classList.contains('currency-input') || e.target.id.includes('amount') || e.target.id.includes('rate') || e.target.id.includes('price'))) {
-        
-        const rawValue = e.target.value;
+    if (!e.target || e.target.tagName !== 'INPUT') return;
+    const id = (e.target.id || '').toLowerCase();
+    if (id.includes('pincode') || id.includes('phone') || id.includes('mobile') || id.includes('pin') || id.includes('qty') || id.includes('gst') || id.includes('stock') || e.target.classList.contains('row-qty') || e.target.classList.contains('row-gst')) return;
+    const isMoneyField = e.target.classList.contains('currency-input') || e.target.classList.contains('row-rate') || e.target.classList.contains('row-item-buyprice') || id.includes('amount') || id.includes('rate') || id.includes('price') || id.includes('freight');
+    if (isMoneyField) {
+        const rawValue = String(e.target.value || '').replace(/,/g, '').trim();
         if (!rawValue || isNaN(rawValue)) return;
-
-        // Force JavaScript to evaluate the exact number, preventing string-math bugs
         const floatValue = parseFloat(rawValue);
-        
-        // Temporarily change it to type="text" so we can insert commas if it's a dedicated currency field
-        if (e.target.type !== 'number' || e.target.classList.contains('allow-commas')) {
-             e.target.type = 'text';
-             e.target.value = new Intl.NumberFormat('en-IN', {
-                 minimumFractionDigits: 2,
-                 maximumFractionDigits: 2
-             }).format(floatValue);
+        if (e.target.classList.contains('allow-commas')) {
+            e.target.type = 'text';
+            e.target.value = new Intl.NumberFormat('en-IN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(floatValue);
         } else {
-             // If it strictly requires a number type for the database, just fix the decimals!
-             e.target.value = floatValue.toFixed(2);
+            e.target.value = floatValue.toFixed(2);
         }
     }
 });
-
 // 🚨 ENTERPRISE UX: NATIVE CURSOR ENGINE
-// Centralized checker to easily grab ALL numeric fields in the entire app!
 const isNumericField = (el) => {
-    if (el.tagName !== 'INPUT') return false;
-    const id = String(el.id).toLowerCase();
-    return el.classList.contains('currency-input') || 
-           el.classList.contains('row-qty') || 
-           el.classList.contains('row-rate') || 
-           el.classList.contains('row-item-buyprice') || 
+    if (!el || el.tagName !== 'INPUT') return false;
+    const id = String(el.id || '').toLowerCase();
+    return el.classList.contains('currency-input') ||
+           el.classList.contains('row-qty') ||
+           el.classList.contains('row-rate') ||
+           el.classList.contains('row-item-buyprice') ||
            el.classList.contains('row-gst') ||
-           id.includes('amount') || 
-           id.includes('rate') || 
-           id.includes('price') || 
-           id.includes('discount') || 
+           id.includes('amount') ||
+           id.includes('rate') ||
+           id.includes('price') ||
+           id.includes('discount') ||
            id.includes('freight');
 };
-
 document.addEventListener('focusin', (e) => {
     if (isNumericField(e.target)) {
         if (e.target.getAttribute('inputmode') !== 'decimal') {
-            e.target.setAttribute('inputmode', 'decimal'); 
+            e.target.setAttribute('inputmode', 'decimal');
         }
-        
-        // 🚨 HIGHLIGHT CANCELLER: If the phone tries to select the whole number, instantly collapse it to a blinking cursor!
         setTimeout(() => {
             try {
                 if (e.target.selectionStart === 0 && e.target.selectionEnd === e.target.value.length) {
@@ -6230,23 +6136,6 @@ document.addEventListener('focusin', (e) => {
         }, 10);
     }
 });
-
-// 🚨 SECONDARY SHIELD: Catch Touch Release
-// DISABLED: This was forcing the cursor to the end of the line when the user lifted their finger.
-/*
-document.addEventListener('pointerup', (e) => {
-    if (isNumericField(e.target)) {
-        setTimeout(() => {
-            try {
-                if (e.target.selectionStart === 0 && e.target.selectionEnd === e.target.value.length && e.target.value.length > 0) {
-                    const len = e.target.value.length;
-                    e.target.setSelectionRange(len, len);
-                }
-            } catch(err) {}
-        }, 10);
-    }
-});
-*/
 
         // ==========================================
         // 🚀 ENTERPRISE UX: PHYSICS-BASED DRAG-TO-DISMISS
@@ -6392,17 +6281,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ==========================================
-// 🚨 EXTREME PERFORMANCE: 120FPS PASSIVE SCROLL ENGINE
-// ==========================================
-// Unlocks the CPU during heavy list scrolling by preventing the browser from waiting for Javascript!
-const passiveConfig = { passive: true, capture: false };
-window.addEventListener('touchstart', function() {}, passiveConfig);
-window.addEventListener('touchmove', function() {}, passiveConfig);
-window.addEventListener('wheel', function() {}, passiveConfig);
-// ==========================================
 // 🚀 ENTERPRISE SAAS: AUDIO & SENSORY ENGINE
 // ==========================================
-
 // 1. Create a professional, synthesized "Success Ding"
 window.playSuccessSound = () => {
     if (localStorage.getItem('sollo_sounds') === 'false') return; // 🚨 KILL SWITCH
@@ -7175,33 +7055,6 @@ window.openInvoiceOverview = function(type, id) {
                 <span class="material-symbols-outlined" style="font-size: 24px;">more_vert</span>
             </div>
         `;
-
-        // 10. More Options Sheet (Removed "Record Payment" as it is now the main button!)
-        const moreSheetContent = document.getElementById('more-actions-container');
-        if (moreSheetContent) {
-            moreSheetContent.innerHTML = `
-                <div class="m3-card tap-target" onclick="if(window.UI) UI.closeBottomSheet('sheet-invoice-more'); if(window.app) window.app.cancelDocument('${type}', '${doc.id}');" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer; box-shadow: none;">
-                    <div style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                        <span class="material-symbols-outlined">block</span>
-                    </div>
-                    <div>
-                        <strong style="display:block; font-size:15px; color: var(--md-on-surface); border:none; margin:0;">Cancel Document</strong>
-                        <small style="color:var(--md-text-muted);">Mark as void / cancelled</small>
-                    </div>
-                </div>
-
-                <div class="m3-card tap-target" onclick="if(window.UI) { UI.closeBottomSheet('sheet-invoice-more'); UI.closeActivity('activity-invoice-overview'); } setTimeout(() => { if(window.app) app.deleteRecord('${isSales ? 'sales' : 'purchase'}'); }, 300);" style="display:flex; align-items:center; gap: 16px; margin-bottom: 0; cursor:pointer; box-shadow: none;">
-                    <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                        <span class="material-symbols-outlined">delete</span>
-                    </div>
-                    <div>
-                        <strong style="display:block; font-size:15px; color: var(--md-on-surface); border:none; margin:0;">Delete Record</strong>
-                        <small style="color:var(--md-text-muted);">Move to recycle bin</small>
-                    </div>
-                </div>
-            `;
-        }
-
         UI.openActivity('activity-invoice-overview');
         
     } catch (error) {
@@ -7336,86 +7189,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('touchcancel', onDragEnd);
 });
 // ==========================================
-// 🚨 ULTIMATE MENU HEALER (GHOST MENU FIX)
-// ==========================================
-
-// 1. Bottom Sheet Healer (Fixes Options Menu & Share Menu)
-const originalOpenSheet = window.UI.openBottomSheet;
-window.UI.openBottomSheet = function(sheetId) {
-    let sheet = document.getElementById(sheetId);
-    
-    if (!sheet) {
-        sheet = document.createElement('div');
-        sheet.id = sheetId;
-        sheet.className = 'bottom-sheet hidden';
-        
-        if (sheetId.includes('invoice') || sheetId.includes('option') || sheetId.includes('more')) {
-            sheet.innerHTML = `
-                <div class="sheet-header">
-                    <span style="font-size: 18px; font-weight: 500;">Document Options</span>
-                    <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('${sheetId}')">close</span>
-                </div>
-                <div style="padding: 16px;">
-                    <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('${sheetId}'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.cancelDocument(isSales ? 'sales' : 'purchase', window.app.state.currentEditId); }, 300);">
-                        <div style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">block</span></div>
-                        <div><strong style="display:block; font-size:16px;">Cancel Document</strong><small style="color:var(--md-text-muted);">Mark as void & reverse stock</small></div>
-                    </div>
-                    <div class="m3-card tap-target" style="display:flex; align-items:center; gap: 16px; margin-bottom: 12px; cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('${sheetId}'); setTimeout(() => { const isSales = window.UI.state.rawData.sales.some(s => s.id === window.app.state.currentEditId); window.app.deleteRecord(isSales ? 'sales' : 'purchase'); }, 300);">
-                        <div style="background: rgba(186, 26, 26, 0.1); color: #ba1a1a; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center;"><span class="material-symbols-outlined">delete_forever</span></div>
-                        <div><strong style="display:block; font-size:16px;">Delete Permanently</strong><small style="color:var(--md-text-muted);">Move to recycle bin</small></div>
-                    </div>
-                </div>
-            `;
-        } else if (sheetId === 'sheet-smart-share') {
-            sheet.innerHTML = `
-                <div class="sheet-header">
-                    <span style="font-size: 18px; font-weight: 500;">Share Document</span>
-                    <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeBottomSheet('${sheetId}')">close</span>
-                </div>
-                <div style="padding: 16px;">
-                    <textarea id="smart-share-msg" rows="6" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-family: inherit; font-size: 14px; margin-bottom: 16px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;"></textarea>
-                    <div style="display: flex; gap: 12px;">
-                        <button class="btn-primary tap-target" onclick="if(window.app) window.app.executeSmartShare('whatsapp')" style="flex: 1; background: #25D366; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37,211,102,0.3);"><span class="material-symbols-outlined">chat</span> WhatsApp</button>
-                        <button class="btn-primary tap-target" onclick="if(window.app) window.app.executeSmartShare('pdf_only')" style="flex: 1; background: var(--md-primary); color: white; display: flex; align-items: center; justify-content: center; gap: 8px;"><span class="material-symbols-outlined">picture_as_pdf</span> PDF Only</button>
-                    </div>
-                </div>
-            `;
-        }
-        document.body.appendChild(sheet);
-    }
-    originalOpenSheet.apply(this, arguments);
-};
-
-// 2. Activity Screen Healer (Fixes Deep Analytics)
-const originalOpenActivity = window.UI.openActivity;
-window.UI.openActivity = function(activityId) {
-    let act = document.getElementById(activityId);
-    
-    if (!act && activityId === 'activity-deep-analytics') {
-        act = document.createElement('div');
-        act.id = activityId;
-        act.className = 'activity-screen hidden';
-        act.innerHTML = `
-            <div class="activity-header" style="justify-content: center; position: relative;">
-                <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
-                <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Deep Analytics</span>
-            </div>
-            <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-                <h3 style="margin-top:0; color: var(--md-primary); font-size: 14px; text-transform: uppercase;">Top Products</h3>
-                <div id="analytics-top-products" class="m3-card" style="margin-bottom: 24px; padding: 16px;"></div>
-
-                <h3 style="margin-top:0; color: var(--md-primary); font-size: 14px; text-transform: uppercase;">Top Customers</h3>
-                <div id="analytics-top-customers" class="m3-card" style="margin-bottom: 24px; padding: 16px;"></div>
-
-                <h3 style="margin-top:0; color: var(--md-error); font-size: 14px; text-transform: uppercase;">Top Expenses</h3>
-                <div id="analytics-top-expenses" class="m3-card" style="margin-bottom: 24px; padding: 16px;"></div>
-            </div>
-        `;
-        document.body.appendChild(act);
-    }
-    originalOpenActivity.apply(this, arguments);
-};
-// ==========================================
 // 🌟 PREMIUM UX: DYNAMIC GLASSMORPHISM HEADERS
 // ==========================================
 document.addEventListener('scroll', (e) => {
@@ -7514,100 +7287,41 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 });
 // ==========================================
-// 🚀 FINTECH UX: SMART KEYBOARD ENGINE
+// 🚀 FINTECH UX: SMART KEYBOARD ENGINE (O(1) DELEGATED)
 // ==========================================
-// Intelligently upgrades text boxes on-the-fly without needing to edit index.html
-document.addEventListener('DOMContentLoaded', () => {
-    const upgradeInputs = () => {
-        document.querySelectorAll('input').forEach(input => {
-            // Skip inputs we already upgraded
-            if (input.dataset.smartKeyboard === 'true') return; 
-            
-            const id = (input.id || '').toLowerCase();
-            const placeholder = (input.placeholder || '').toLowerCase();
-
-            // 1. GSTIN fields automatically force uppercase letters as you type
-            if (id.includes('gst') || placeholder.includes('gstin')) {
-                input.setAttribute('autocapitalize', 'characters');
-                input.addEventListener('input', function() {
-                    this.value = this.value.toUpperCase();
-                });
-            }
-
-            // 2. Phone & PIN fields instantly summon the native mobile dialer pad
-            else if (id.includes('phone') || id.includes('mobile') || id.includes('pin') || placeholder.includes('phone')) {
-                input.setAttribute('type', 'tel'); 
-            }
-
-            // 3. Name fields automatically capitalize the First Letter Of Each Word
-            else if (id.includes('name') || placeholder.includes('name') || id.includes('customer') || id.includes('supplier')) {
-                input.setAttribute('autocapitalize', 'words');
-            }
-
-            // Mark as upgraded so we don't process it twice
-            input.dataset.smartKeyboard = 'true'; 
-        });
-    };
-    
-    // Run once on load, and keep watching in case new menus are opened!
-    upgradeInputs();
-    const observer = new MutationObserver(upgradeInputs);
-    observer.observe(document.body, { childList: true, subtree: true });
-});
+document.addEventListener('focusin', (e) => {
+    const input = e.target;
+    if (!input || input.tagName !== 'INPUT' || input.dataset.smartKeyboard === 'true') return;
+    const id = (input.id || '').toLowerCase();
+    const placeholder = (input.placeholder || '').toLowerCase();
+    if ((id.includes('gst') || placeholder.includes('gstin')) && !input.classList.contains('row-gst') && input.type !== 'month') {
+        input.setAttribute('autocapitalize', 'characters');
+    } else if ((id.includes('phone') || id.includes('mobile') || id.includes('pin') || placeholder.includes('phone')) && input.type !== 'password') {
+        input.setAttribute('type', 'tel');
+    } else if (!id.includes('search') && (id.includes('name') || placeholder.includes('name') || id.includes('customer') || id.includes('supplier') || id.includes('city'))) {
+        input.setAttribute('autocapitalize', 'words');
+    }
+    input.dataset.smartKeyboard = 'true';
+}, true);
 // ==========================================
-// 🚀 SENSORY UX: HAPTICS & RIPPLE ENGINE
+// 🚀 SENSORY UX: VISUAL RIPPLE ENGINE
 // ==========================================
 document.addEventListener('click', (e) => {
-    
-    // 1. VISUAL RIPPLE GENERATOR
     const rippleTarget = e.target.closest('.btn-primary, .nav-item, .sub-radio-row, .dialog-text-btn, .dropdown-btn');
     if (rippleTarget) {
         const rect = rippleTarget.getBoundingClientRect();
         const ripple = document.createElement('div');
-        
-        // Calculate the perfect size based on the button
         const diameter = Math.max(rect.width, rect.height);
         const radius = diameter / 2;
-        
         ripple.style.width = ripple.style.height = `${diameter}px`;
         ripple.style.left = `${e.clientX - rect.left - radius}px`;
         ripple.style.top = `${e.clientY - rect.top - radius}px`;
         ripple.classList.add('premium-ripple');
-        
         rippleTarget.appendChild(ripple);
-        // Clean up the DOM after animation finishes
-        setTimeout(() => ripple.remove(), 500); 
-    }
-
-    // 2. PHYSICAL HAPTIC MOTOR (Vibration)
-    if (navigator.vibrate) {
-        const isMajorAction = e.target.closest('.btn-primary, .thumb-action-bar button, .dropdown-btn');
-        const isMinorAction = e.target.closest('.sub-radio-row, .nav-item, .list-view li, .dialog-text-btn');
-        const isDestructive = e.target.closest('.delete-btn, [style*="color: var(--md-error)"]');
-        
-        if (isDestructive) {
-            navigator.vibrate([15, 40, 15]); // Double warning pulse (Tick... Tick) for deletes/resets
-        } else if (isMajorAction) {
-            navigator.vibrate(20); // Solid "Thud" for saving invoices and primary actions
-        } else if (isMinorAction) {
-            navigator.vibrate(8); // Ultra-light mechanical "Tick" for changing tabs and filters
-        }
+        setTimeout(() => ripple.remove(), 500);
     }
 });
 // ==========================================
-// 🚀 ERP SAFETY: NETWORK CONNECTION MONITOR
-// ==========================================
-window.addEventListener('offline', () => {
-    if (window.Utils && window.Utils.showToast) {
-        window.Utils.showToast('⚠️ Connection lost. Working in Offline Mode.', 'error');
-    }
-});
-
-window.addEventListener('online', () => {
-    if (window.Utils && window.Utils.showToast) {
-        window.Utils.showToast('✅ Back online. Background sync ready.', 'success');
-    }
-});
 // ==========================================
 // 🚀 NATIVE UX: OS SHARE MENU (WHATSAPP/EMAIL)
 // ==========================================

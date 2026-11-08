@@ -140,16 +140,6 @@
         </div>
         
         <!-- Inline Keyframes for Instant Load -->
-        <style>
-            @keyframes m3Pulse {
-                0% { transform: scale(0.8); opacity: 0.4; }
-                50% { transform: scale(1.5); opacity: 0; }
-                100% { transform: scale(0.8); opacity: 0; }
-            }
-            @keyframes spin {
-                to { transform: rotate(360deg); }
-            }
-        </style>
     </div>
     <div id="app-shell">
         <div id="offline-banner" class="offline-banner">
@@ -215,20 +205,6 @@
                         </div>
                         <input type="month" id="dashboard-custom-month" class="dashboard-custom-month-input" style="display: none; width: auto !important; max-width: 165px !important; min-height: 32px !important; padding: 4px 10px !important; margin-bottom: 0 !important; font-size: 12px !important; border-radius: 16px !important;" onchange="UI.renderDashboard()">
                     </div>
-                    <style>
-                        #tab-dashboard.privacy-masked #dash-total-sales,
-                        #tab-dashboard.privacy-masked #dash-net-profit,
-                        #tab-dashboard.privacy-masked #profit-breakdown,
-                        #tab-dashboard.privacy-masked #dash-inventory-value,
-                        #tab-dashboard.privacy-masked #dash-orders-open strong,
-                        #tab-dashboard.privacy-masked #dash-orders-shipped strong,
-                        #tab-dashboard.privacy-masked #dash-orders-completed strong,
-                        #tab-dashboard.privacy-masked #list-overdue .overdue-amt {
-                            filter: blur(8px);
-                            user-select: none;
-                            transition: filter 0.2s ease;
-                        }
-                    </style>
                     <script>
                         window.toggleDashPrivacy = function(initOnly) {
                             const dash = document.getElementById('tab-dashboard');
@@ -1118,23 +1094,6 @@ Data & Security</strong>
 <div id="pin-setup-backdrop" onclick="window.closePinSetupModal()" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); z-index: 999990; opacity: 0; transition: opacity 0.2s ease;"></div>
 
 <div id="sheet-pin-setup" data-no-swipe="true" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -45%) scale(0.95); width: 90%; max-width: 340px; background: var(--md-surface, #ffffff); border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.35); z-index: 999995; flex-direction: column; padding: 0; overflow: hidden; opacity: 0; transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease;">
-    <style>
-        #sheet-pin-setup.pin-modal-open {
-            transform: translate(-50%, -50%) scale(1) !important;
-            opacity: 1 !important;
-        }
-        body.dark-mode #sheet-pin-setup {
-            background: #1e293b !important;
-            border: 1px solid #334155 !important;
-        }
-        .pin-pad-btn {
-            height: 52px; border-radius: 12px; border: 1px solid var(--md-outline-variant, #e2e8f0);
-            background: var(--md-surface-variant, #f1f5f9); color: var(--md-on-surface, #0f172a);
-            font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
-        }
-        .pin-pad-btn:active { background: rgba(0, 97, 164, 0.15); transform: scale(0.96); }
-    </style>
 
     <div style="padding: 20px 24px 12px 24px; border-bottom: 1px solid var(--md-outline-variant); text-align: center; flex-shrink: 0;">
         <span id="pin-modal-title" style="font-size: 18px; font-weight: 800; color: var(--md-on-surface); display: block;">Set Security PIN</span>
@@ -1540,22 +1499,6 @@ Data & Security</strong>
     </div> <!-- 🚨 THIS DIV SAFELY CLOSES THE INVOICE SCREEN -->
 
     <!-- 5. INVOICE "MORE OPTIONS" MENU -->
-    <style id="doc-options-modal-shield">
-        #sheet-invoice-more-options {
-            top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-            width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
-            border-radius: 12px !important; padding: 0 !important;
-            transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-            box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface, #ffffff) !important;
-            position: fixed !important; overflow: hidden !important;
-        }
-        #sheet-invoice-more-options.open {
-            transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important;
-        }
-        #sheet-invoice-more-options::before { display: none !important; }
-        body.dark-mode #sheet-invoice-more-options { background: #1e293b !important; border: 1px solid #334155 !important; }
-    </style>
 
     <div id="sheet-invoice-more-options" class="bottom-sheet centered-modal" data-no-swipe="true" style="display: flex; flex-direction: column; padding: 0;">
         <!-- Flat Header -->
@@ -1656,25 +1599,6 @@ Data & Security</strong>
                 <input type="text" id="smart-search-input" placeholder="Search" autocomplete="off" oninput="if(window.UI) window.UI.executeSmartSearch()" style="width: 100%; padding: 12px; border: none; font-size: 16px; background: transparent; outline: none;">
             </div>
             
-            <style>
-                #smart-search-tabs .smart-tab-btn {
-                    flex: 1;
-                    text-align: center;
-                    padding: 8px;
-                    border-radius: 6px;
-                    font-weight: 800;
-                    font-size: 13px;
-                    background: transparent !important;
-                    color: var(--md-text-muted) !important;
-                    box-shadow: none !important;
-                    transition: all 0.2s ease;
-                }
-                #smart-search-tabs .smart-tab-btn.active-smart-tab {
-                    background: var(--md-primary) !important;
-                    color: #ffffff !important;
-                    box-shadow: 0 2px 6px rgba(0, 97, 164, 0.25) !important;
-                }
-            </style>
             <div id="smart-search-tabs" style="display: none; background: var(--md-surface-variant); padding: 4px; border-radius: 8px; margin-bottom: 12px; flex-shrink: 0; border: 1px solid var(--md-outline-variant);">
                 <div id="smart-tab-customer" class="tap-target smart-tab-btn active-smart-tab" onclick="window.selectSmartPartyTab('customer')">Customers</div>
                 <div id="smart-tab-supplier" class="tap-target smart-tab-btn" onclick="window.selectSmartPartyTab('supplier')">Suppliers</div>
@@ -2805,21 +2729,6 @@ Data & Security</strong>
                 </div>
             </div>
         </div>
-        <style>
-            html body #activity-report-viewer .activity-header {
-                position: sticky !important;
-                height: auto !important;
-                min-height: 64px !important;
-                padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px 16px !important;
-            }
-            html body #activity-report-viewer .activity-content {
-                padding-top: 0 !important;
-                padding-bottom: 100px !important;
-            }
-            html body #activity-report-viewer .search-bar {
-                top: 0 !important;
-            }
-        </style>
         <div class="activity-content" style="background: var(--md-background); padding: 16px;">
             
             <!-- 🚨 ENTERPRISE FIX: Flush search bar and sticky ledger summary -->
@@ -3139,25 +3048,6 @@ Data & Security</strong>
 
     <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR EXPENSES -->
     <div id="sheet-expenses-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
-        
-        <style>
-            /* Modal Centering */
-            #sheet-expenses-filter.centered-modal {
-                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
-                border-radius: 12px !important; 
-                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-                position: fixed !important;
-            }
-            #sheet-expenses-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
-            #sheet-expenses-filter.centered-modal::before { display: none !important; }
-
-            /* Dark Mode Safeties */
-            body.dark-mode #sheet-expenses-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
-        </style>
-
         <!-- Header -->
         <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Expenses By</span>
@@ -3406,87 +3296,6 @@ Data & Security</strong>
 
     <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR MASTERS -->
     <div id="sheet-dynamic-master-sort" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
-        
-        <style>
-            /* 1. Main Modal Centering */
-            #sheet-dynamic-master-sort.centered-modal {
-                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-                width: 86% !important; max-width: 340px !important; min-height: 520px !important;
-                height: auto !important; max-height: 90vh !important;
-                border-radius: 16px !important; 
-                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-                position: fixed !important;
-            }
-            #sheet-dynamic-master-sort.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
-            #sheet-dynamic-master-sort.centered-modal::before { display: none !important; }
-
-            /* 2. Flat Form Elements */
-            #sheet-dynamic-master-sort .erp-section-label { font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; }
-            
-            /* 3. Dropdown Trigger Buttons (Flat Design) */
-            #sheet-dynamic-master-sort .dropdown-btn {
-                width: 100%; display: flex; justify-content: space-between; align-items: center;
-                padding: 12px 16px; font-size: 15px; font-weight: 700; color: var(--md-on-surface);
-                background: var(--md-surface); border: 1px solid var(--md-outline-variant);
-                border-radius: 8px; cursor: pointer; outline: none; transition: border-color 0.2s ease;
-                -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-            }
-            #sheet-dynamic-master-sort .dropdown-btn:active { background: var(--md-surface-variant); }
-
-            /* 4. 🚀 SUB-MODALS (Dynamic Height, Sleek Proportions) */
-            #sheet-dynamic-master-sort .sub-modal-overlay {
-                display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.5); z-index: 1000; border-radius: 16px;
-                align-items: center; justify-content: center; backdrop-filter: blur(2px);
-            }
-            #sheet-dynamic-master-sort .sub-modal-card {
-                background: var(--md-surface); 
-                /* 🔥 SLIMMER WIDTH */
-                width: 82%; max-width: 320px; 
-                /* 🔥 DYNAMIC HEIGHT: Wraps tightly if 2 items, expands up to 95% if 6 items! */
-                height: auto; 
-                max-height: 95%; 
-                border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.4); 
-                display: flex; flex-direction: column; overflow: hidden;
-                animation: popIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-            }
-
-            /* 5. 🚀 STANDARD RADIO ROWS (Matches Transactions Tab) */
-            #sheet-dynamic-master-sort .sub-radio-row {
-                display: flex; align-items: center; justify-content: space-between;
-                /* 🔥 TIGHTENED PADDING: Fits all 6 options perfectly without scrolling */
-                padding: 14px 20px; 
-                cursor: pointer; transition: background 0.2s;
-                border-bottom: 1px solid var(--md-surface-variant);
-            }
-            #sheet-dynamic-master-sort .sub-radio-row:active { background: rgba(0, 97, 164, 0.08); }
-            #sheet-dynamic-master-sort .sub-radio-text { font-size: 16px; color: var(--md-on-surface); }
-            
-            #sheet-dynamic-master-sort .sub-radio-circle {
-                width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--md-outline);
-                position: relative; transition: all 0.2s ease;
-                flex-shrink: 0; /* Prevents circle from squishing */
-            }
-            #sheet-dynamic-master-sort .sub-radio-row.selected .sub-radio-circle { border-color: var(--md-primary); }
-            #sheet-dynamic-master-sort .sub-radio-row.selected .sub-radio-circle::after {
-                content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                width: 10px; height: 10px; border-radius: 50%; background: var(--md-primary);
-            }
-
-            /* Flat Text Buttons */
-            #sheet-dynamic-master-sort .dialog-text-btn { background: transparent; border: none; color: var(--md-primary); font-weight: 700; font-size: 14px; text-transform: uppercase; padding: 10px 16px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
-            #sheet-dynamic-master-sort .dialog-text-btn:active { background: rgba(0, 97, 164, 0.1); }
-
-            /* Dark Mode Safeties */
-            body.dark-mode #sheet-dynamic-master-sort.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
-            body.dark-mode #sheet-dynamic-master-sort .dropdown-btn, body.dark-mode #sheet-dynamic-master-sort .sub-modal-card { background: #1e293b; border-color: #334155; color: #f8fafc; }
-            body.dark-mode #sheet-dynamic-master-sort .sub-radio-row { border-bottom-color: #334155; }
-            body.dark-mode #sheet-dynamic-master-sort .sub-radio-text { color: #f8fafc; }
-            body.dark-mode #sheet-dynamic-master-sort .dialog-text-btn { color: #60a5fa; }
-        </style>
-
         <!-- Header -->
         <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Records By</span>
@@ -3609,25 +3418,6 @@ Data & Security</strong>
 
     <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR CASHBOOK -->
     <div id="sheet-cashbook-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
-        
-        <style>
-            /* Modal Centering */
-            #sheet-cashbook-filter.centered-modal {
-                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
-                border-radius: 12px !important; 
-                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-                position: fixed !important;
-            }
-            #sheet-cashbook-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
-            #sheet-cashbook-filter.centered-modal::before { display: none !important; }
-
-            /* Dark Mode Safeties */
-            body.dark-mode #sheet-cashbook-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
-        </style>
-
         <!-- Header -->
         <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Cashbook By</span>
@@ -3801,91 +3591,6 @@ Data & Security</strong>
 
     <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOGS -->
     <div id="sheet-sales-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
-        
-        <style>
-            /* 1. Main Modal Centering */
-            #sheet-sales-filter.centered-modal {
-                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
-                border-radius: 12px !important; 
-                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-                position: fixed !important;
-            }
-            #sheet-sales-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
-            #sheet-sales-filter.centered-modal::before { display: none !important; }
-
-            /* 2. Flat Form Elements */
-            .erp-section-label { font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px; }
-            .erp-date-input { width: 100%; border: 1px solid var(--md-outline-variant); background: var(--md-surface); padding: 12px; font-size: 14px; font-weight: 600; color: var(--md-on-surface); outline: none; border-radius: 8px; box-sizing: border-box; }
-            .erp-date-input:focus { border-color: var(--md-primary); }
-            
-            /* Segmented Timeframe Buttons */
-            .erp-segmented-track { display: flex; border-radius: 8px; border: 1px solid var(--md-outline-variant); margin-bottom: 16px; overflow: hidden; }
-            .erp-segment-btn { flex: 1; text-align: center; padding: 10px 4px; font-size: 12px; font-weight: 700; color: var(--md-text-muted); cursor: pointer; border-right: 1px solid var(--md-outline-variant); background: var(--md-surface); }
-            .erp-segment-btn:last-child { border-right: none; }
-            .erp-segment-btn.active { color: var(--md-primary); background: rgba(0, 97, 164, 0.08); }
-
-            /* 3. Dropdown Trigger Buttons (Flat Design) */
-            .dropdown-btn {
-                width: 100%; display: flex; justify-content: space-between; align-items: center;
-                padding: 12px 16px; font-size: 15px; font-weight: 700; color: var(--md-on-surface);
-                background: var(--md-surface); border: 1px solid var(--md-outline-variant);
-                border-radius: 8px; cursor: pointer; outline: none; transition: border-color 0.2s ease;
-                -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-            }
-            .dropdown-btn:active { background: var(--md-surface-variant); }
-
-            /* 4. 🚀 THE "SEPARATE SCREEN" SUB-MODALS */
-            .sub-modal-overlay {
-                display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.5); z-index: 1000; border-radius: 12px;
-                align-items: center; justify-content: center; backdrop-filter: blur(2px);
-            }
-            .sub-modal-card {
-                background: var(--md-surface); width: 85%; max-height: 85%; border-radius: 4px;
-                box-shadow: 0 16px 40px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden;
-                animation: popIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-            }
-            @keyframes popIn {
-                from { opacity: 0; transform: scale(0.9); }
-                to { opacity: 1; transform: scale(1); }
-            }
-
-            /* Custom Radio Rows (App Blue) */
-            .sub-radio-row {
-                display: flex; align-items: center; justify-content: space-between;
-                padding: 16px 24px; cursor: pointer; transition: background 0.2s;
-                border-bottom: 1px solid var(--md-surface-variant);
-            }
-            .sub-radio-row:active { background: rgba(0, 97, 164, 0.08); }
-            .sub-radio-text { font-size: 16px; color: var(--md-on-surface); }
-            
-            /* Magic Blue Radio Circle */
-            .sub-radio-circle {
-                width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--md-outline);
-                position: relative; transition: all 0.2s ease;
-            }
-            .sub-radio-row.selected .sub-radio-circle { border-color: var(--md-primary); }
-            .sub-radio-row.selected .sub-radio-circle::after {
-                content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-                width: 10px; height: 10px; border-radius: 50%; background: var(--md-primary);
-            }
-
-            /* Flat Text Buttons */
-            .dialog-text-btn { background: transparent; border: none; color: var(--md-primary); font-weight: 700; font-size: 14px; text-transform: uppercase; padding: 10px 16px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
-            .dialog-text-btn:active { background: rgba(0, 97, 164, 0.1); }
-
-            /* Dark Mode Safeties */
-            body.dark-mode #sheet-sales-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
-            body.dark-mode .dropdown-btn, body.dark-mode .erp-date-input, body.dark-mode .sub-modal-card { background: #1e293b; border-color: #334155; color: #f8fafc; }
-            body.dark-mode .sub-radio-text { color: #f8fafc; }
-            body.dark-mode .sub-radio-row { border-bottom-color: #334155; }
-            body.dark-mode .erp-segment-btn { border-color: #334155; background: #1e293b; }
-            body.dark-mode .dialog-text-btn { color: #60a5fa; }
-        </style>
-
         <!-- Header -->
         <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Ledgers By</span>
@@ -4111,25 +3816,6 @@ Data & Security</strong>
 
     <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR PURCHASES -->
     <div id="sheet-purchases-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
-        
-        <style>
-            /* Modal Centering */
-            #sheet-purchases-filter.centered-modal {
-                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
-                border-radius: 12px !important; 
-                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-                position: fixed !important;
-            }
-            #sheet-purchases-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
-            #sheet-purchases-filter.centered-modal::before { display: none !important; }
-
-            /* Dark Mode Safeties */
-            body.dark-mode #sheet-purchases-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
-        </style>
-
         <!-- Header -->
         <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Bills By</span>
@@ -5025,24 +4711,6 @@ Data & Security</strong>
 
     <!-- 🚀 ENTERPRISE UPGRADE: EXACT MATCH NATIVE POPUP DIALOG FOR TIMELINE / BANK LEDGER -->
     <div id="sheet-timeline-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
-        <style>
-            /* Modal Centering */
-            #sheet-timeline-filter.centered-modal {
-                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
-                border-radius: 12px !important; 
-                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-                position: fixed !important;
-            }
-            #sheet-timeline-filter.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
-            #sheet-timeline-filter.centered-modal::before { display: none !important; }
-
-            /* Dark Mode Safeties */
-            body.dark-mode #sheet-timeline-filter.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
-        </style>
-
         <!-- Header -->
         <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Filter Ledger By</span>
@@ -5235,21 +4903,6 @@ Data & Security</strong>
     </div>
 
     <div id="sheet-master-actions" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
-        <style>
-            #sheet-master-actions.centered-modal {
-                top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
-                width: 90% !important; max-width: 380px !important; height: auto !important; max-height: 90vh !important;
-                border-radius: 12px !important; 
-                transform: translate(-50%, -45%) scale(0.95) !important; opacity: 0 !important;
-                transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease !important;
-                box-shadow: 0 16px 40px rgba(0,0,0,0.3) !important; background: var(--md-surface) !important;
-                position: fixed !important;
-            }
-            #sheet-master-actions.centered-modal.open { transform: translate(-50%, -50%) scale(1) !important; opacity: 1 !important; }
-            #sheet-master-actions.centered-modal::before { display: none !important; }
-            body.dark-mode #sheet-master-actions.centered-modal { background: #1e293b !important; border: 1px solid #334155; }
-        </style>
-
         <!-- Flat Header -->
         <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); flex-shrink: 0;">
             <span style="font-size: 18px; font-weight: 800; color: var(--md-on-surface);">Bulk Data Options</span>
@@ -5403,15 +5056,6 @@ Data & Security</strong>
     </div>
     
         <!-- 🌟 PREMIUM FINTECH UX ENGINE 🌟 -->
-    <style>
-        /* The Frosted Glass Privacy Blur */
-        .privacy-blur-active {
-            filter: blur(12px) grayscale(30%) !important;
-            opacity: 0.8 !important;
-            transition: filter 0.15s ease-out, opacity 0.15s ease-out !important;
-            pointer-events: none !important;
-        }
-    </style>
     <script>
         // 1. App Switcher Privacy Shield
         // Blurs the app when it loses focus to protect financial data
@@ -5420,18 +5064,6 @@ Data & Security</strong>
         });
         window.addEventListener('focus', function() {
             document.getElementById('app-shell').classList.remove('privacy-blur-active');
-        });
-
-        // 2. Universal Taptic Engine
-        // Listens to the whole app and fires a tiny vibration on interactive elements
-        document.body.addEventListener('pointerdown', function(e) {
-            // Check if the user tapped a button, card, or menu item
-            if (e.target.closest('.tap-target, .btn-primary, .btn-primary-small, .nav-item, .m3-card, .list-view li, .chip')) {
-                // Fire a 10ms micro-vibration (Android only, iOS PWA restricts this)
-                if (navigator.vibrate) {
-                    navigator.vibrate(10); 
-                }
-            }
         });
     </script>
 
@@ -5800,98 +5432,7 @@ Data & Security</strong>
                 new MutationObserver(syncStatusBar).observe(document.body, { attributes: true, attributeFilter: ['class'] });
             }
 
-            // ==========================================
-            // ENTERPRISE UPGRADE: SMART KEYBOARD CAPITALIZATION
-            // ==========================================
-            // Forces mobile keyboards to automatically capitalize names, products, and cities!
-            document.querySelectorAll('input[type="text"]').forEach(input => {
-                const id = (input.id || '').toLowerCase();
-                // Exclude fields that should be ALL CAPS (GST) or lowercase (search)
-                if (id.includes('gst')) {
-                    input.setAttribute('autocapitalize', 'characters');
-                } else if (!id.includes('search')) {
-                    input.setAttribute('autocapitalize', 'words');
-                }
-            });
-
-            // ==========================================
-            // RESTORED: UI LOGIC & SWIPE GESTURES
-            // ==========================================
-            ['sales', 'purchases', 'expenses', 'cashbook', 'timeline'].forEach(tab => {
-                const searchInput = document.getElementById(`search-${tab}`);
-                if(searchInput) searchInput.addEventListener('input', window.Utils.debounce(() => UI.applyFilters(tab), 300));
-                const sortSelect = document.getElementById(`sort-${tab}`);
-                if(sortSelect) sortSelect.addEventListener('change', () => UI.applyFilters(tab));
-            });
-            
-            const searchMasterView = document.getElementById('search-master-view');
-            if(searchMasterView) searchMasterView.addEventListener('input', window.Utils.debounce(() => UI.applyFilters('masters'), 300));
-            const filterMasterView = document.getElementById('filter-master-view');
-            if (filterMasterView) filterMasterView.addEventListener('change', () => UI.applyFilters('masters'));
-            const sortMasterView = document.getElementById('sort-master-view');
-            if (sortMasterView) sortMasterView.addEventListener('change', () => UI.applyFilters('masters'));
-
-
-            let touchStartX = 0;
-            let touchStartY = 0;
-            const mainAppShell = document.getElementById('app-shell');
-            if (mainAppShell) {
-                mainAppShell.addEventListener('touchstart', e => {
-                    touchStartX = e.changedTouches[0].screenX;
-                    touchStartY = e.changedTouches[0].screenY;
-                }, { passive: true });
-
-                mainAppShell.addEventListener('touchend', e => {
-                    const touchEndX = e.changedTouches[0].screenX;
-                    const touchEndY = e.changedTouches[0].screenY;
-                    if (document.querySelector('.bottom-sheet.open') || document.querySelector('.activity-screen.open')) return;
-                    if (e.target.closest('table') || e.target.closest('.filter-chips')) return;
-                    const diffX = touchEndX - touchStartX;
-                    const diffY = touchEndY - touchStartY;
-                    if (Math.abs(diffY) > Math.abs(diffX)) return;
-                    if (Math.abs(diffX) < 80) return;
-
-                    const tabs = [
-                        { id: 'tab-dashboard', title: 'Home', navId: 'nav-dash' },
-                        { id: 'tab-reports', title: 'Reports', navId: 'nav-reports' },
-                        { id: 'tab-workspace', title: 'Workspace', navId: 'nav-workspace' },
-                        { id: 'tab-menu', title: 'Settings', navId: 'nav-menu' }
-                    ];
-                    const currentIndex = tabs.findIndex(t => document.getElementById(t.id) && document.getElementById(t.id).classList.contains('active-screen'));
-                    if (currentIndex === -1) return;
-
-                    if (diffX < 0 && currentIndex < tabs.length - 1) {
-                        const nextTab = tabs[currentIndex + 1];
-                        UI.switchTab(nextTab.id, nextTab.title, document.getElementById(nextTab.navId));
-                        if (nextTab.id === 'tab-workspace') { if(typeof switchWorkspaceTab==='function') switchWorkspaceTab('create'); if(window.UI) window.UI.renderBankBalances(); }
-                    } else if (diffX > 0 && currentIndex > 0) {
-                        const prevTab = tabs[currentIndex - 1];
-                        UI.switchTab(prevTab.id, prevTab.title, document.getElementById(prevTab.navId));
-                        if (prevTab.id === 'tab-workspace') { if(typeof switchWorkspaceTab==='function') switchWorkspaceTab('create'); if(window.UI) window.UI.renderBankBalances(); }
-                    }
-                }, { passive: true });
-            }
-
-            // 🚀 ENTERPRISE UX: HARDWARE-ACCELERATED SCROLL MEMORY
-            let lastScrollY = 0;
-            const mainContent = document.querySelector('.main-content');
-            if (mainContent) {
-                mainContent.addEventListener('scroll', () => {
-                    lastScrollY = mainContent.scrollTop;
-                }, {passive: true});
-            }
-            
-            ['customers', 'suppliers', 'products'].forEach(type => {
-                const input = document.getElementById(`search-${type}`);
-                if(input) input.addEventListener('input', window.Utils.debounce((e) => {
-                    const term = (e.target.value || '').toLowerCase();
-                    document.querySelectorAll(`#list-${type} li`).forEach(li => {
-                        li.style.display = window.fuzzyMatch(term, li.innerText) ? '' : 'none';
-                    });
-                }, 300));
-            });
-
-        }); // <-- THIS IS THE END OF YOUR DOMContentLoaded BLOCK
+        });
     </script>
 
     <!-- 🚀 UPGRADED: EXPLICIT ALLOCATION MODAL (ZERO-CORRUPTION UI) -->
@@ -6274,11 +5815,6 @@ Data & Security</strong>
         if (e.target.id === 'pay-out-invoice-ref') updateSettleTotalUI('out');
     });
     </script>
-
-    <script>
-    // (Legacy openMasterSort override removed so app.js native radio-row filter engine runs cleanly)
-    </script>
-
     <script>
     // 🚀 ENTERPRISE UPGRADE: SMART SEARCH OVERRIDE HOOKS
     // We dynamically patch the UI.js Smart Search engine to support our new "Party" and "Item Ledger" filters!
@@ -6806,57 +6342,6 @@ Data & Security</strong>
             </div>
         </div>
     </div>
-        <!-- 🚀 SOLLO ANDROID FIX: HARDWARE BACK BUTTON HIJACK -->
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Push an initial state into the browser history to trap the back button
-        window.history.pushState({ noBackExitsApp: true }, '');
-
-        window.addEventListener('popstate', function (event) {
-            let preventedAction = false;
-
-            // 1. Check if the In-App PDF Viewer is open
-            const pdfViewer = document.getElementById('in-app-pdf-viewer');
-            const numpad = document.getElementById('custom-numpad');
-            const openSheet = document.querySelector('.bottom-sheet.open');
-
-            if (pdfViewer) {
-                const closeBtn = document.getElementById('btn-close-pdf-loaded') || document.getElementById('btn-close-pdf-loading');
-                if (closeBtn) closeBtn.click();
-                else {
-                    if (window.currentActivePDF) { window.currentActivePDF.destroy(); window.currentActivePDF = null; }
-                    pdfViewer.remove();
-                    document.body.style.overflow = '';
-                }
-                preventedAction = true;
-            }
-            // 2. Check if the POS Numpad is open
-            else if (numpad && numpad.classList.contains('open')) {
-                if (window.UI) window.UI.closeNumpad();
-                preventedAction = true;
-            }
-            // 3. Check if a Bottom Sheet is open
-            else if (openSheet) {
-                if (window.UI) window.UI.closeBottomSheet(openSheet.id);
-                preventedAction = true;
-            }
-            // 4. Check if a Full-Screen Form/Activity is open
-            else {
-                const openActivity = document.querySelector('.activity-screen.open');
-                if (openActivity) {
-                    if (window.UI) window.UI.closeActivity(openActivity.id);
-                    preventedAction = true;
-                }
-            }
-
-            // If we closed a menu/form, we must push a new state so the trap stays active for the next swipe!
-            if (preventedAction) {
-                window.history.pushState({ noBackExitsApp: true }, '');
-            }
-        });
-    });
-    </script>
-    
     <!-- 🚀 SOLLO FIX: GLOBAL INVOICE MATH SHIELD & COMMA-PARSING ENGINE -->
     <script>
     document.addEventListener('DOMContentLoaded', () => {
