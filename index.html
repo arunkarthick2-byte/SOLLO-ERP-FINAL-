@@ -898,8 +898,7 @@ Cash Recovery & Aging</strong>
                 <!-- ZONE 2: DOCUMENT STUDIO -->
                 <strong class="report-section-title">
 Document Studio</strong>
-                <div class="m3-card" style="display: flex; flex-direction: column; margin-bottom: 24px; padding: 0; overflow: hidden; border: 1px solid var(--md-outline-variant);">
-                    <div class="tap-target setting-btn" data-action="docformats" style="display: flex; align-items: center; gap: 16px; padding: 16px; border-bottom: 1px solid var(--md-surface-variant); cursor: pointer;">
+                <div class="m3-card tap-target setting-btn" data-action="docformats" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding: 16px; cursor: pointer;">
                         <div class="icon-circle" style="background: rgba(245, 127, 23, 0.1); color: #f57f17; width: 40px; height: 40px; flex-shrink: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">123</span>
                         </div>
@@ -910,17 +909,6 @@ Document Studio</strong>
                         <span class="material-symbols-outlined" style="color: var(--md-outline-variant); flex-shrink: 0;">chevron_right</span>
                     </div>
                     
-                    <div class="tap-target setting-btn" data-action="theme" style="display: flex; align-items: center; gap: 16px; padding: 16px; cursor: pointer;">
-                        <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px; flex-shrink: 0; box-shadow: none; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">palette</span>
-                        </div>
-                        <div style="flex: 1; min-width: 0;">
-                            <strong style="font-size:15px; color: var(--md-on-surface); display: block;">PDF Theme Designer</strong>
-                            <small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Brand Colors & Invoice Typography</small>
-                        </div>
-                        <span class="material-symbols-outlined" style="color: var(--md-outline-variant); flex-shrink: 0;">chevron_right</span>
-                    </div>
-                </div>
                 
 
                 <!-- ZONE: BILLING & TAX RULES -->
@@ -2559,26 +2547,27 @@ Data & Security</strong>
         <div class="activity-content">
             <form id="form-business-profile">
                 <!-- 🚀 NATIVE IMAGE UPLOADERS -->
-                <div style="margin-bottom: 16px;">
-                    <div style="font-size: 13px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Business Logo</div>
-                    <label class="tap-target" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; border: 2px dashed rgba(0, 97, 164, 0.3); border-radius: 12px; background: rgba(0, 97, 164, 0.04); cursor: pointer; transition: all 0.2s ease;">
-                        <span class="material-symbols-outlined" style="font-size: 32px; color: var(--md-primary); margin-bottom: 8px;">add_photo_alternate</span>
-                        <span style="font-size: 14px; font-weight: 700; color: var(--md-primary);">Tap to upload logo</span>
-                        <span style="font-size: 11px; color: var(--md-text-muted); margin-top: 4px;">PNG, JPG up to 5MB</span>
-                        <input type="file" accept="image/*" class="hidden" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-logo-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                    </label>
-                    <img id="profile-logo-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 120px; height: auto; margin-top: 12px; border-radius: 8px; border: 1px solid var(--md-outline-variant); box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: block;">
-                </div>
-                
-                <div style="margin-bottom: 24px;">
-                    <div style="font-size: 13px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Authorized Signature</div>
-                    <label class="tap-target" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; border: 2px dashed rgba(0, 97, 164, 0.3); border-radius: 12px; background: rgba(0, 97, 164, 0.04); cursor: pointer; transition: all 0.2s ease;">
-                        <span class="material-symbols-outlined" style="font-size: 32px; color: var(--md-primary); margin-bottom: 8px;">draw</span>
-                        <span style="font-size: 14px; font-weight: 700; color: var(--md-primary);">Tap to upload signature</span>
-                        <span style="font-size: 11px; color: var(--md-text-muted); margin-top: 4px;">For auto-signing PDFs</span>
-                        <input type="file" accept="image/*" class="hidden" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-signature-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
-                    </label>
-                    <img id="profile-signature-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 120px; height: auto; margin-top: 12px; border-radius: 8px; border: 1px solid var(--md-outline-variant); box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: block;">
+                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                        <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Business Logo</div>
+                        <label class="tap-target" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border: 2px dashed rgba(0, 97, 164, 0.3); border-radius: 12px; background: rgba(0, 97, 164, 0.04); cursor: pointer; text-align: center;">
+                            <span class="material-symbols-outlined" style="font-size: 26px; color: var(--md-primary); margin-bottom: 4px;">add_photo_alternate</span>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--md-primary); line-height: 1.2;">Upload Logo</span>
+                            <span style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">PNG, JPG</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-logo-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
+                        </label>
+                        <img id="profile-logo-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100%; max-height: 50px; object-fit: contain; margin: 8px auto 0 auto; border-radius: 6px; border: 1px solid var(--md-outline-variant); box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: block;">
+                    </div>
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                        <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Authorized Signature</div>
+                        <label class="tap-target" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border: 2px dashed rgba(0, 97, 164, 0.3); border-radius: 12px; background: rgba(0, 97, 164, 0.04); cursor: pointer; text-align: center;">
+                            <span class="material-symbols-outlined" style="font-size: 26px; color: var(--md-primary); margin-bottom: 4px;">draw</span>
+                            <span style="font-size: 12px; font-weight: 700; color: var(--md-primary); line-height: 1.2;">Upload Signature</span>
+                            <span style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">For auto-signing</span>
+                            <input type="file" accept="image/*" class="hidden" onchange="const file = this.files[0]; if(file && window.Utils) { window.Utils.compressImage(file, 600, 0.8).then(compressedStr => { const img = document.getElementById('profile-signature-preview'); img.src = compressedStr; img.classList.remove('hidden'); }); }">
+                        </label>
+                        <img id="profile-signature-preview" class="hidden" loading="lazy" decoding="async" style="max-width: 100%; max-height: 50px; object-fit: contain; margin: 8px auto 0 auto; border-radius: 6px; border: 1px solid var(--md-outline-variant); box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: block;">
+                    </div>
                 </div>
 
                 <div class="input-group-col">
@@ -2602,12 +2591,12 @@ Data & Security</strong>
                 </div>
                 
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">Pincode</label>
                         <!-- 🔥 SOLLO FIX: Forces the clean 0-9 Phone Dialpad on mobile! -->
                         <input type="tel" id="profile-pincode" placeholder="Optional" oninput="this.value = this.value.replace(/[^0-9]/g, ''); if(this.value.length===6) app.fetchPincode(this.value, 'profile');" class="premium-input-box">
                     </div>
-                    <div style="flex: 2; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="flex: 2; min-width: 0; display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">City / District</label>
                         <input type="text" id="profile-city" class="premium-input-box">
                     </div>
@@ -2674,15 +2663,6 @@ Data & Security</strong>
                                 <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Brand Color</label>
                                 <p style="font-size: 10px; color: var(--md-text-muted); margin: 0 0 8px 0;">Replaces default grey headers.</p>
                                 <input type="color" id="profile-brand-color" value="#000000" style="width: 100%; height: 44px; border: 1px solid var(--md-outline-variant); border-radius: 8px; cursor: pointer; background: var(--md-surface); padding: 2px;">
-                            </div>
-                            <div style="flex: 1;">
-                                <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Typography</label>
-                                <p style="font-size: 10px; color: var(--md-text-muted); margin: 0 0 8px 0;">PDF document text style.</p>
-                                <select id="profile-pdf-font" style="width: 100%; padding: 12px 8px; border-radius: 8px; border: 1px solid var(--md-outline-variant); background: var(--md-surface); color: var(--md-on-surface); font-size: 13px; font-weight: 600; outline: none;">
-                                    <option value="inter">Modern (Sans-Serif)</option>
-                                    <option value="serif">Classic (Serif)</option>
-                                    <option value="mono">Typewriter</option>
-                                </select>
                             </div>
                         </div>
                     </div>
@@ -2880,8 +2860,13 @@ Data & Security</strong>
 
     <div id="sheet-contra-transfer" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
         <div style="padding: 20px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
-            <span style="font-size: 16px; font-weight: 800; color: var(--md-on-surface);">Transfer Money</span>
-            <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-contra-transfer')">close</span>
+            <span id="contra-sheet-title" style="font-size: 16px; font-weight: 800; color: var(--md-on-surface);">Transfer Money</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div id="btn-delete-contra" class="icon-circle tap-target hidden" style="width: 34px; height: 34px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); display: none; align-items: center; justify-content: center;">
+                    <span class="material-symbols-outlined" style="font-size: 19px;">delete</span>
+                </div>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-contra-transfer')">close</span>
+            </div>
         </div>
         <div style="padding: 24px; flex: 1; overflow-y: auto; overflow-x: hidden;">
             <form id="form-contra-transfer" onsubmit="event.preventDefault(); if(window.app) window.app.saveContraTransfer();">
@@ -3199,8 +3184,13 @@ Data & Security</strong>
 
     <div id="sheet-stock-adjustment" class="bottom-sheet centered-modal" data-no-swipe="true" style="display: flex; flex-direction: column; padding: 0;">
         <div style="padding: 20px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
-            <span style="font-size: 16px; font-weight: 800; color: var(--md-on-surface);">Adjust Inventory</span>
-            <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-stock-adjustment')">close</span>
+            <span id="adj-sheet-title" style="font-size: 16px; font-weight: 800; color: var(--md-on-surface);">Adjust Inventory</span>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div id="btn-delete-adjustment" class="icon-circle tap-target hidden" style="width: 34px; height: 34px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); display: none; align-items: center; justify-content: center;">
+                    <span class="material-symbols-outlined" style="font-size: 19px;">delete</span>
+                </div>
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-stock-adjustment')">close</span>
+            </div>
         </div>
         <div style="padding: 24px; flex: 1; overflow-y: auto; overflow-x: hidden;">
             <form id="form-stock-adjustment">
@@ -3281,8 +3271,8 @@ Data & Security</strong>
             <strong id="bs-breakdown-title" style="font-size: 16px; font-weight: 600; color: var(--md-on-surface);">Details</strong>
             <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-bs-breakdown')">close</span>
         </div>
-        <div style="padding: 16px; flex: 1 1 auto; overflow-y: auto; background: var(--md-surface-variant);">
-            <div id="bs-breakdown-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        <div style="padding: 0; flex: 1 1 auto; overflow-y: auto; background: var(--md-surface);">
+            <div id="bs-breakdown-list" style="display: flex; flex-direction: column; gap: 0;"></div>
         </div>
         <div style="padding: 16px; background: var(--md-surface); border-top: 1px solid var(--md-outline-variant); flex-shrink: 0;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -4392,6 +4382,7 @@ Data & Security</strong>
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Leakage</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportExpenseReportPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             
@@ -4428,7 +4419,7 @@ Data & Security</strong>
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Auto Reorder List</span>
-            <span class="material-symbols-outlined tap-target" onclick="window.print()" style="position: absolute; right: 16px; color: var(--md-primary);">print</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportReorderReportPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             
@@ -4447,14 +4438,9 @@ Data & Security</strong>
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Dead Stock Scanner</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportDeadStockPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            
-            <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
-                <button class="btn-primary-small tap-target" onclick="if(window.app) window.app.exportDeadStockPDF()" style="display:flex; align-items:center; gap:6px; background: var(--md-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,97,164,0.2);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span> Generate PDF
-                </button>
-            </div>
 
             <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
                 <span style="color: var(--md-error); font-weight: bold;">Total Trapped Capital (90+ Days)</span>
@@ -4472,14 +4458,9 @@ Data & Security</strong>
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Profit Leakage Audit</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportProfitLeakagePDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            
-            <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
-                <button class="btn-primary-small tap-target" onclick="if(window.app) window.app.exportProfitLeakagePDF()" style="display:flex; align-items:center; gap:6px; background: var(--md-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,97,164,0.2);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span> Generate PDF
-                </button>
-            </div>
 
             <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
                 <span style="color: var(--md-error); font-weight: bold;">Total Lost Revenue</span>
@@ -4497,6 +4478,7 @@ Data & Security</strong>
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Item Profitability</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportItemProfitPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
@@ -4534,6 +4516,7 @@ Data & Security</strong>
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Party-Wise Tax Report</span>
+            <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportPartyTaxPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             
@@ -4603,17 +4586,14 @@ Data & Security</strong>
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Monthly GST Report</span>
+            <span id="btn-export-gst" class="material-symbols-outlined tap-target" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            
-            <div class="m3-card" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding: 12px 16px;">
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+            <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
                     <label style="font-weight: 500; color: var(--md-text-muted); font-size: 13px;">Select Month:</label>
-                    <input type="month" id="gst-month-selector" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 15px; font-weight: 600; background: var(--md-surface); color: var(--md-on-surface);" onchange="app.refreshGSTReport()">
+                    <input type="month" id="gst-month-selector" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 15px; font-weight: 600; background: var(--md-surface); color: var(--md-on-surface); box-sizing: border-box;" onchange="app.refreshGSTReport()">
                 </div>
-                <button class="tap-target" id="btn-export-gst" style="display:flex; align-items:center; justify-content:center; gap:6px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); border: 1px solid rgba(0, 97, 164, 0.3); height: 42px; padding: 0 16px; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">download</span> Export CSV
-                </button>
             </div>
 
             <h3 style="margin-top:0; color: var(--md-primary); font-size: 16px; text-transform: uppercase;">GSTR-3B (Net Summary)</h3>
@@ -4647,7 +4627,7 @@ Data & Security</strong>
                 </div>
             </div>
             
-            <p style="text-align:center; font-size:12px; color:var(--md-text-muted); margin-top:10px;">Click 'Export CSV' at the top to send the detailed B2B ledger to your CA.</p>
+            <p style="text-align:center; font-size:12px; color:var(--md-text-muted); margin-top:10px;">Tap 'Generate PDF' at the top to share or download your GSTR-1 & GSTR-3B report.</p>
         </div>
     </div>
 
@@ -4655,6 +4635,7 @@ Data & Security</strong>
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Advanced Reports</span>
+            <span id="btn-export-adv-report" class="material-symbols-outlined tap-target" onclick="if(window.UI && window.UI.exportActiveAdvReport) window.UI.exportActiveAdvReport()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
             
@@ -4688,7 +4669,7 @@ Data & Security</strong>
 
             <div id="view-bs" class="hidden">
                 <div class="m3-card" style="padding: 16px; margin-bottom: 16px; background: var(--md-surface); border: 1px solid var(--md-outline-variant);">
-                    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="display: flex; gap: 12px;">
                         <div style="flex: 1;">
                             <label style="font-weight: 600; font-size: 12px; color: var(--md-text-muted); display: block; margin-bottom: 6px;">From Date</label>
                             <input type="date" id="report-bs-start" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;" onchange="if(window.UI && window.UI.renderBalanceSheet) window.UI.renderBalanceSheet()">
@@ -4698,9 +4679,6 @@ Data & Security</strong>
                             <input type="date" id="report-bs-end" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 14px; background: var(--md-surface-variant); color: var(--md-on-surface); outline: none;" onchange="if(window.UI && window.UI.renderBalanceSheet) window.UI.renderBalanceSheet()">
                         </div>
                     </div>
-                    <button class="btn-primary tap-target" onclick="if(window.openBalanceSheetPreview) window.openBalanceSheetPreview();" style="width: 100%; display:flex; align-items:center; justify-content:center; gap:8px; height: 48px; border-radius: 8px; font-weight: bold; font-size: 15px; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);">
-                        <span class="material-symbols-outlined" style="font-size: 20px;">picture_as_pdf</span> Generate PDF
-                    </button>
                 </div>
                 <!-- ON-SCREEN RENDER CONTAINER -->
                 <div id="bs-container"></div>
@@ -5278,6 +5256,139 @@ Data & Security</strong>
                 });
 
                 // 🚨 UNIVERSAL MOBILE DATE SHIELD: Automatically syncs Flatpickr & mobileInput whenever .value is changed by JS!
+                if (!window.enhanceSolloFlatpickr) {
+                    window.enhanceSolloFlatpickr = function(fp) {
+                        if (!fp || !fp.calendarContainer || fp.calendarContainer.querySelector('.sollo-fp-header')) return;
+                        fp.config.closeOnSelect = false;
+                        const fmtHeader = function(d) {
+                            const dt = d || (fp.selectedDates && fp.selectedDates[0]) || new Date();
+                            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            return days[dt.getDay()] + ', ' + dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+                        };
+                        const header = document.createElement('div');
+                        header.className = 'sollo-fp-header';
+                        header.innerHTML = '<div class="sollo-fp-sub">Select date</div><div class="sollo-fp-title">' + fmtHeader() + '</div>';
+                        fp.calendarContainer.insertBefore(header, fp.calendarContainer.firstChild);
+                        const titleEl = header.querySelector('.sollo-fp-title');
+                        const footer = document.createElement('div');
+                        footer.className = 'sollo-fp-footer';
+                        footer.innerHTML = '<button type="button" class="sollo-fp-btn sollo-fp-cancel">Cancel</button><button type="button" class="sollo-fp-btn sollo-fp-ok">OK</button>';
+                        fp.calendarContainer.appendChild(footer);
+                        const yearInp = fp.calendarContainer.querySelector('input.cur-year');
+                        if (yearInp) {
+                            yearInp.setAttribute('readonly', 'readonly');
+                            yearInp.onclick = function(ev) {
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                if (!window.openSolloSelectModal) return;
+                                const curY = parseInt(yearInp.value, 10) || new Date().getFullYear();
+                                const tempSel = document.createElement('select');
+                                tempSel.id = 'sollo-fp-year-select';
+                                for (let y = curY - 10; y <= curY + 10; y++) {
+                                    const opt = document.createElement('option');
+                                    opt.value = String(y);
+                                    opt.text = String(y);
+                                    if (y === curY) opt.selected = true;
+                                    tempSel.appendChild(opt);
+                                }
+                                tempSel.onchange = function() {
+                                    fp.changeYear(parseInt(this.value, 10));
+                                };
+                                window.openSolloSelectModal(tempSel);
+                            };
+                        }
+                        fp.config.onOpen.push(function(selDates, dStr, inst) {
+                            inst._confirmedByOk = false;
+                            inst._initialValue = inst.input ? inst.input.value : '';
+                            if (titleEl) titleEl.textContent = fmtHeader(selDates[0]);
+                        });
+                        fp.config.onChange.push(function(selDates) {
+                            if (titleEl && selDates[0]) titleEl.textContent = fmtHeader(selDates[0]);
+                        });
+                        fp.config.onValueUpdate.push(function(selDates) {
+                            if (titleEl && selDates[0]) titleEl.textContent = fmtHeader(selDates[0]);
+                        });
+                        footer.querySelector('.sollo-fp-cancel').onclick = function(ev) {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            fp._confirmedByOk = false;
+                            fp.close();
+                        };
+                        footer.querySelector('.sollo-fp-ok').onclick = function(ev) {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            fp._confirmedByOk = true;
+                            if (!fp.selectedDates || !fp.selectedDates.length) {
+                                fp.setDate(new Date(), false);
+                            }
+                            const finalVal = fp.selectedDates[0] ? fp.formatDate(fp.selectedDates[0], 'Y-m-d') : '';
+                            if (fp.input) {
+                                fp.input.value = finalVal;
+                                fp.input.dispatchEvent(new Event('input', { bubbles: true }));
+                                fp.input.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            fp.close();
+                        };
+                        fp.config.onClose.push(function(selDates, dStr, inst) {
+                            if (!inst._confirmedByOk && inst._initialValue !== undefined) {
+                                const orig = inst._initialValue || '';
+                                if (orig) inst.setDate(orig, false);
+                                else inst.clear(false);
+                                if (inst.input && inst.input.value !== orig) {
+                                    inst.input.value = orig;
+                                    inst.input.dispatchEvent(new Event('input', { bubbles: true }));
+                                    inst.input.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            }
+                        });
+                    };
+                    const origFp = window.flatpickr;
+                    if (typeof origFp === 'function' && !origFp._solloWrapped) {
+                        const wrappedFp = function(selector, config) {
+                            const inst = origFp(selector, Object.assign({ disableMobile: true }, config || {}));
+                            if (Array.isArray(inst)) inst.forEach(window.enhanceSolloFlatpickr);
+                            else window.enhanceSolloFlatpickr(inst);
+                            return inst;
+                        };
+                        Object.assign(wrappedFp, origFp);
+                        wrappedFp._solloWrapped = true;
+                        window.flatpickr = wrappedFp;
+                    }
+                    const origSelectModal = window.openSolloSelectModal;
+                    if (typeof origSelectModal === 'function' && !origSelectModal._solloFpWrapped) {
+                        window.openSolloSelectModal = function(sel) {
+                            origSelectModal(sel);
+                            const modal = document.getElementById('ai-analytics-modal-select');
+                            if (modal) {
+                                const hdrSpan = modal.querySelector('.sub-modal-card > div:first-child > span:first-child');
+                                if (hdrSpan && sel) {
+                                    if (sel.classList && sel.classList.contains('flatpickr-monthDropdown-months')) hdrSpan.textContent = 'Select Month';
+                                    else if (sel.id === 'sollo-fp-year-select') hdrSpan.textContent = 'Select Year';
+                                }
+                                ['mousedown', 'touchstart', 'click'].forEach(function(evtName) {
+                                    modal.addEventListener(evtName, function(ev) { ev.stopPropagation(); });
+                                });
+                            }
+                        };
+                        window.openSolloSelectModal._solloFpWrapped = true;
+                    }
+                }
+                if (el._flatpickr) {
+                    const initVal = el.value || null;
+                    if (el._flatpickr.isMobile) {
+                        el._flatpickr.destroy();
+                        flatpickr(el, {
+                            dateFormat: "Y-m-d",
+                            altInput: true,
+                            altFormat: "d/m/Y",
+                            defaultDate: initVal,
+                            disableMobile: true
+                        });
+                    } else {
+                        window.enhanceSolloFlatpickr(el._flatpickr);
+                    }
+                }
                 if (nativeValDesc && nativeValDesc.get && nativeValDesc.set) {
                     Object.defineProperty(el, 'value', {
                         configurable: true,
@@ -5308,6 +5419,60 @@ Data & Security</strong>
                 }
             });
 
+            window.openSolloMonthPicker = function(el) {
+                if (!el) return;
+                const oldModal = document.getElementById('sollo-month-picker-overlay');
+                if (oldModal) oldModal.remove();
+                const monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const now = new Date();
+                let parts = (el.value || '').split('-');
+                let selYear = parseInt(parts[0], 10) || now.getFullYear();
+                let selMonth = (parseInt(parts[1], 10) || (now.getMonth() + 1)) - 1;
+                const overlay = document.createElement('div');
+                overlay.id = 'sollo-month-picker-overlay';
+                overlay.className = 'sollo-mp-overlay';
+                overlay.innerHTML = '<div class="sollo-mp-card" onclick="event.stopPropagation()"><div class="sollo-fp-header"><div class="sollo-fp-sub">Select month</div><div class="sollo-fp-title" id="sollo-mp-title"></div></div><div class="sollo-mp-year-bar"><button type="button" class="sollo-mp-nav" id="sollo-mp-prev">&#10094;</button><span id="sollo-mp-year" class="sollo-mp-year-label"></span><button type="button" class="sollo-mp-nav" id="sollo-mp-next">&#10095;</button></div><div class="sollo-mp-grid" id="sollo-mp-grid"></div><div class="sollo-fp-footer"><button type="button" class="sollo-fp-btn" id="sollo-mp-cancel">Cancel</button><button type="button" class="sollo-fp-btn" id="sollo-mp-ok">OK</button></div></div>';
+                document.body.appendChild(overlay);
+                const renderGrid = function() {
+                    document.getElementById('sollo-mp-title').textContent = monthsFull[selMonth] + ' ' + selYear;
+                    document.getElementById('sollo-mp-year').textContent = String(selYear);
+                    const grid = document.getElementById('sollo-mp-grid');
+                    grid.innerHTML = monthsShort.map(function(mName, idx) {
+                        const cls = idx === selMonth ? 'sollo-mp-cell selected' : 'sollo-mp-cell';
+                        return '<button type="button" class="' + cls + '" data-m="' + idx + '">' + mName + '</button>';
+                    }).join('');
+                    grid.querySelectorAll('.sollo-mp-cell').forEach(function(btn) {
+                        btn.onclick = function() {
+                            selMonth = parseInt(this.getAttribute('data-m'), 10);
+                            renderGrid();
+                        };
+                    });
+                };
+                renderGrid();
+                document.getElementById('sollo-mp-prev').onclick = function() { selYear--; renderGrid(); };
+                document.getElementById('sollo-mp-next').onclick = function() { selYear++; renderGrid(); };
+                document.getElementById('sollo-mp-cancel').onclick = function() { overlay.remove(); };
+                overlay.onclick = function() { overlay.remove(); };
+                document.getElementById('sollo-mp-ok').onclick = function() {
+                    const formatted = selYear + '-' + String(selMonth + 1).padStart(2, '0');
+                    el.value = formatted;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    overlay.remove();
+                };
+            };
+            document.querySelectorAll('input[type="month"]').forEach(function(el) {
+                const initVal = el.value || new Date().toISOString().slice(0, 7);
+                el.type = 'text';
+                el.readOnly = true;
+                el.value = initVal;
+                el.showPicker = function() { window.openSolloMonthPicker(el); };
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    window.openSolloMonthPicker(el);
+                });
+            });
             // UPGRADE 4: Smart Offline / Online Listener
             const banner = document.getElementById('offline-banner');
             window.addEventListener('offline', () => {
@@ -6138,8 +6303,9 @@ Data & Security</strong>
             const iconBg = isPositive ? '#e8f5e9' : '#fff0f2';
             const sign = isPositive ? '+' : '';
             
+            const rowClick = `if(window.app) window.app.openItemMovementRecord('${t.type || ''}', '${(t.ref || '').replace(/'/g, "\\'")}', '${t.date || ''}')`;
             return `
-            <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
+            <div class="m3-card tap-target" onclick="${rowClick}" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer;">
                 <div class="icon-circle" style="background: ${iconBg}; color: ${iconColor}; width: 40px; height: 40px; flex-shrink: 0;">
                     <span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span>
                 </div>
@@ -6256,8 +6422,8 @@ Data & Security</strong>
         </div>
     </div>
         <div id="activity-deep-analytics" class="activity-screen hidden" style="z-index: 5000;">
-        <div class="activity-header" style="justify-content: center; position: relative; background: #6a1b9a; color: white;">
-            <span class="material-symbols-outlined tap-target" onclick="if(window.UI) window.UI.closeActivity('activity-deep-analytics')" style="position: absolute; left: 16px; color: white;">arrow_back</span>
+        <div class="activity-header" style="justify-content: center; position: relative;">
+            <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Deep Analytics</span>
         </div>
         <div class="activity-content" style="background-color: var(--md-surface-variant); padding: 16px; overflow-y: auto;">

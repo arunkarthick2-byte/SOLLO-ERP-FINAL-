@@ -611,7 +611,9 @@ const UI = {
                 const bNav = document.querySelector('.bottom-nav');
                 if (bNav) bNav.classList.remove('nav-hidden');
                 const mainContainer = document.querySelector('.main-content');
-                if (mainContainer) mainContainer.scrollTop = 0;
+                if (mainContainer) {
+                    mainContainer.scrollTop = (tabId === 'tab-dashboard' && typeof window._savedDashScroll === 'number') ? window._savedDashScroll : 0;
+                }
             };
             resetNavState();
 
@@ -636,10 +638,14 @@ const UI = {
                 const bNav = document.querySelector('.bottom-nav');
                 if (bNav) bNav.classList.remove('nav-hidden');
                 const mainContainer = document.querySelector('.main-content');
-                if (mainContainer) mainContainer.scrollTop = 0;
+                if (mainContainer) {
+                    mainContainer.scrollTop = (tabId === 'tab-dashboard' && typeof window._savedDashScroll === 'number') ? window._savedDashScroll : 0;
+                    if (tabId === 'tab-dashboard') window._savedDashScroll = null;
+                }
             });
         } else {
             doSwitch();
+            if (tabId === 'tab-dashboard') window._savedDashScroll = null;
         }
     },
 
@@ -856,7 +862,8 @@ const UI = {
             'sales': 'btn-delete-sales', 'purchase': 'btn-delete-purchase',
             'product': 'btn-delete-product', 'ledger': 'btn-delete-ledger',
             'expense': 'btn-delete-expense', 'receipt-in': 'btn-delete-receipt-in',
-            'receipt-out': 'btn-delete-receipt-out', 'account': 'btn-delete-account'
+            'receipt-out': 'btn-delete-receipt-out', 'account': 'btn-delete-account',
+            'adjustment': 'btn-delete-adjustment', 'contra': 'btn-delete-contra'
         };
         const btnId = btnMap[type];
         if (!btnId) return;
@@ -938,7 +945,7 @@ const UI = {
                 const iconBg = adj.type === 'add' ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
 
                 return `
-                <div class="m3-card" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant);">
+                <div class="m3-card tap-target" onclick="if(window.app) window.app.openAdjustmentSheet('${adj.id}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); cursor: pointer;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
                         <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${iconColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
@@ -2336,6 +2343,51 @@ const UI = {
                     </div>`;
                 }, emptyHTML);
             }
+            else if (activeTab === 'adjustments') {
+                const adjList = (UI.state.rawData.adjustments || []).filter(a => !activeFirmIdForMaster || a.firmId === activeFirmIdForMaster);
+                const products = (UI.state.rawData.items || []).filter(p => !activeFirmIdForMaster || p.firmId === activeFirmIdForMaster);
+                data = adjList.filter(adj => {
+                    const prod = products.find(p => p.id === adj.itemId);
+                    const prodName = (prod ? prod.name : '').toLowerCase();
+                    const notesStr = (adj.notes || '').toLowerCase();
+                    return !searchTerm || prodName.includes(searchTerm) || notesStr.includes(searchTerm);
+                });
+                data.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+                UI.renderVirtualList(container, data, (adj) => {
+                    const prod = products.find(p => p.id === adj.itemId);
+                    const prodName = prod ? prod.name : 'Deleted Product';
+                    const safeProdName = window.Utils.sanitizeHTML(prodName);
+                    const safeNotes = window.Utils.sanitizeHTML(adj.notes || 'No Reason Provided');
+                    const sign = adj.type === 'add' ? '+' : '-';
+                    const color = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
+                    const isGST = adj.pool === 'gst';
+                    const poolBadge = adj.pool ? `<span style="background: ${isGST ? 'rgba(0, 97, 164, 0.08)' : 'rgba(245, 127, 23, 0.08)'}; color: ${isGST ? 'var(--md-primary)' : '#d84315'}; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 800; border: 1px solid ${isGST ? 'rgba(0, 97, 164, 0.2)' : 'rgba(245, 127, 23, 0.2)'}; display: inline-block;">${isGST ? 'GST POOL' : 'NON-GST POOL'}</span>` : '';
+                    const rowIcon = adj.type === 'add' ? 'library_add' : 'remove_circle_outline';
+                    const iconColor = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
+                    const iconBg = adj.type === 'add' ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
+                    return `
+                    <div class="m3-card tap-target" onclick="if(window.app) window.app.openAdjustmentSheet('${adj.id}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                            <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${iconColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
+                            </div>
+                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${safeProdName}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(adj.date)} | ${safeNotes}</small>
+                                ${poolBadge ? `<div style="margin-top: 6px;">${poolBadge}</div>` : ''}
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
+                                <strong style="font-size: 16px; color: ${color}; line-height: 1.2;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
+                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
+                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="width: 34px; height: 34px; border-radius: 50%; color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-outlined" style="font-size: 19px;">history</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                }, emptyHTML);
+            }
         }
 
         // ------------------ EXPENSES ------------------
@@ -2739,9 +2791,9 @@ const UI = {
                     // Check if it's NOT hidden, because .open might not be attached yet during the slide-in animation!
                     const isReportViewer = reportViewer && !reportViewer.classList.contains('hidden');
                     
-                    if (isReportViewer) {
+                    if (isReportViewer || UI.state.ledgerViewMode === 'account' || UI.state.ledgerViewMode === 'party') {
                         const balText = document.getElementById('report-party-balance').innerText || '';
-                        const isAccountLedger = balText.startsWith('Bal:') || balText.includes('Available Balance');
+                        const isAccountLedger = UI.state.ledgerViewMode === 'account' || balText.startsWith('Bal:') || balText.includes('Available Balance');
                         
                         if (isAccountLedger) {
                             // 🏦 ACCOUNT LEDGER RENDER
@@ -3596,12 +3648,11 @@ const UI = {
             UI.renderProductList(UI.state.rawData.items);
         }
         else if (sheetId === 'sheet-stock-adjustment') {
-            // STRICT ERP LOGIC: Let app.js handle the dropdown so the Dual-Stock GST/Non-GST pools aren't erased!
             const dateInput = document.getElementById('adj-date');
-            if(dateInput) {
+            if (dateInput && (!window.app || !window.app.state || !window.app.state.currentAdjustmentId)) {
                 const today = typeof Utils !== 'undefined' && Utils.getLocalDate ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
                 dateInput.value = today;
-                if (dateInput._flatpickr) dateInput._flatpickr.setDate(today); // FIX: Sync Flatpickr
+                if (dateInput._flatpickr) dateInput._flatpickr.setDate(today);
             }
         }
         else if (sheetId === 'sheet-payment-in' || sheetId === 'sheet-payment-out') {
@@ -3694,6 +3745,12 @@ const UI = {
         if ((sheetId === 'sheet-payment-in' || sheetId === 'sheet-payment-out') && typeof app !== 'undefined' && app.state) {
             app.state.currentReceiptId = null;
         }
+        if (sheetId === 'sheet-stock-adjustment' && typeof app !== 'undefined' && app.state) {
+            app.state.currentAdjustmentId = null;
+        }
+        if (sheetId === 'sheet-contra-transfer' && typeof app !== 'undefined' && app.state) {
+            app.state.currentContraId = null;
+        }
         
         // ENTERPRISE FIX: Smart Search does not use history states! 
         // Returning here prevents the search menu from stealing the Cashbook's state and closing the entire form!
@@ -3717,6 +3774,8 @@ const UI = {
         else if (targetType === 'supplier') titleEl.innerText = "Select Supplier";
         else if (targetType === 'item') titleEl.innerText = "Add Product";
         else if (targetType === 'party') titleEl.innerText = "Select Party";
+        else if (targetType === 'item_ledger_report') titleEl.innerText = "Select Product";
+        else if (targetType === 'bank_ledger_report') titleEl.innerText = "Bank & Cash Ledgers";
         
         if (tabsEl) {
             if (targetType === 'party') {
@@ -3743,7 +3802,18 @@ const UI = {
 
         UI.closeBottomSheet('sheet-smart-search');
         
-        if (UI.state.smartSearchTarget === 'item') {
+        if (UI.state.smartSearchTarget === 'bank_ledger_report') {
+            if (window.app) window.app.openForm('account');
+            if (typedText) {
+                setTimeout(() => {
+                    const nameBox = document.querySelector('#form-account input[name="name"]');
+                    if (nameBox) {
+                        nameBox.value = typedText;
+                        nameBox.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }, 250);
+            }
+        } else if (UI.state.smartSearchTarget === 'item' || UI.state.smartSearchTarget === 'item_ledger_report') {
             if(window.app) window.app.openForm('product');
             
             // 2. Auto-fill the Product Name
@@ -3902,6 +3972,24 @@ const UI = {
                     </div>`;
                 }
             }, emptyHTML);
+        } else if (targetType === 'bank_ledger_report') {
+            const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+            const rawAccounts = (UI.state.rawData.accounts || []).filter(a => a.firmId === activeFirmId);
+            const displayAccounts = [...rawAccounts];
+            if (!displayAccounts.some(a => a.id === 'cash')) {
+                displayAccounts.unshift({ id: 'cash', name: 'Cash Drawer', type: 'Cash' });
+            }
+            const filtered = displayAccounts.filter(a => window.fuzzyMatch(query, a.name || '') || window.fuzzyMatch(query, a.type || 'Bank'));
+            let html = '';
+            filtered.forEach(a => {
+                const isCash = a.id === 'cash' || String(a.type || '').toLowerCase() === 'cash';
+                const icon = isCash ? 'payments' : 'account_balance';
+                html += `<div class="tap-target" onclick="UI.closeBottomSheet('sheet-smart-search'); if(window.app) window.app.openAccountLedger('${a.id}');" style="padding: 14px 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 14px; cursor: pointer;"><div class="icon-circle" style="width: 40px; height: 40px; background: rgba(0, 97, 164, 0.1); color: var(--md-primary); box-shadow: none; flex-shrink: 0;"><span class="material-symbols-outlined" style="font-size: 20px;">${icon}</span></div><div style="flex: 1; min-width: 0;"><strong style="display: block; font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${UI.highlightText(a.name || 'Account', query)}</strong><small style="color: var(--md-text-muted);">${a.type || 'Bank'}</small></div><span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span></div>`;
+            });
+            if (filtered.length === 0) {
+                html = `<div style="padding: 32px 16px; text-align: center; color: var(--md-text-muted);">No matching accounts found.</div>`;
+            }
+            resultsContainer.innerHTML = html;
         }
     },
     
@@ -4286,6 +4374,15 @@ const UI = {
 
     toggleProductSelection: (li, id, name, price, gst, uom, hsn, buyPrice) => {
         const cb = li.querySelector('input'); cb.checked = !cb.checked;
+        const circle = li.querySelector('div:last-child');
+        const checkIcon = circle ? circle.querySelector('.material-symbols-outlined') : null;
+        const titleEl = li.querySelector('strong');
+        if (circle) {
+            circle.style.borderColor = cb.checked ? 'var(--md-primary)' : 'var(--md-outline-variant)';
+            circle.style.background = cb.checked ? 'var(--md-primary)' : 'transparent';
+        }
+        if (checkIcon) checkIcon.style.opacity = cb.checked ? '1' : '0';
+        if (titleEl) titleEl.style.color = cb.checked ? 'var(--md-primary)' : 'var(--md-on-surface)';
         if (cb.checked) { 
             UI.state.selectedProducts.push({ id, name, price, gst, uom, hsn, buyPrice }); 
             li.style.background = 'var(--md-surface-variant)'; 
@@ -4451,6 +4548,7 @@ const UI = {
     // ADVANCED REPORTING SUITE
     // ==========================================
     switchReportTab: (tab) => {
+        window.currentAdvReportTab = tab;
         document.getElementById('view-daybook').classList.add('hidden');
         document.getElementById('view-pnl').classList.add('hidden');
         document.getElementById('view-bs').classList.add('hidden');
@@ -4475,6 +4573,13 @@ const UI = {
         if (tab === 'daybook') UI.renderDayBook();
         else if (tab === 'pnl') UI.renderPnL();
         else if (tab === 'bs') UI.renderBalanceSheet();
+    },
+
+    exportActiveAdvReport: () => {
+        const tab = window.currentAdvReportTab || 'daybook';
+        if (tab === 'daybook' && window.UI.exportDaybookPDF) window.UI.exportDaybookPDF();
+        else if (tab === 'pnl' && window.UI.exportPnLPDF) window.UI.exportPnLPDF();
+        else if (tab === 'bs' && window.openBalanceSheetPreview) window.openBalanceSheetPreview();
     },
 
     renderDayBook: () => {
@@ -4523,21 +4628,21 @@ const UI = {
             return timeB - timeA;
         });
 
-        html += `
-            <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
-                <button class="btn-primary-small tap-target" onclick="UI.exportDaybookPDF()" style="display:flex; align-items:center; gap:6px; background: var(--md-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,97,164,0.2);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span> Generate PDF
-                </button>
-            </div>
-        `;
+        html += ``;
 
-        html += dailyActivity.map(t => `
-            <div class="m3-card" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px;">
+        html += dailyActivity.map(t => {
+            let dayClick = '';
+            if (t.type === 'Sales Invoice' || t.type === 'Credit Note' || (t.type === 'Bill of Supply' && t.sign === '+')) dayClick = `window.openInvoiceOverview('sales', '${t.time}')`;
+            else if (t.type === 'Purchase Bill' || t.type === 'Debit Note' || (t.type === 'Bill of Supply' && t.sign === '-')) dayClick = `window.openInvoiceOverview('purchase', '${t.time}')`;
+            else if (t.type === 'Expense') dayClick = `app.openForm('expense', '${t.time}')`;
+            else if (t.type === 'Money In' || t.type === 'Money Out') dayClick = `app.openReceipt('${t.time}', '${t.type === 'Money In' ? 'in' : 'out'}')`;
+            return `
+            <div class="m3-card tap-target" onclick="${dayClick}" style="display:flex; align-items:center; gap: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer;">
                 <div class="icon-circle" style="background: var(--md-surface-variant); color: ${t.color}; width: 40px; height: 40px; flex-shrink: 0;"><span class="material-symbols-outlined" style="font-size:20px;">${t.icon}</span></div>
                 <div style="flex: 1;"><strong class="large-text">${t.type}</strong><br><small style="color: var(--md-text-muted);">${t.desc} | ${window.Utils.formatDateDisplay(targetDate)}</small></div>
                 <strong style="font-size: 16px; color: ${t.color};">${t.sign}&#8377;${Math.abs(parseFloat(t.amount) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong>
             </div>
-        `).join('');
+        `; }).join('');
 
         container.innerHTML = html;
     },
@@ -4623,11 +4728,6 @@ const UI = {
         const trueNetProfit = totalGrossProfit - (totalExpenses + indirectExpense + stockLoss);
 
         container.innerHTML = `
-            <div style="display:flex; justify-content:flex-end; margin-bottom: 12px; padding: 0 4px;">
-                <button class="btn-primary-small tap-target" onclick="UI.exportPnLPDF()" style="display:flex; align-items:center; gap:6px; background: var(--md-primary); color: #ffffff; border: none; padding: 8px 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,97,164,0.2);">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span> Generate PDF
-                </button>
-            </div>
 
             <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #0061a4; background: rgba(0, 97, 164, 0.1); padding: 16px;">
                 <h4 style="margin: 0 0 12px 0; color: #0061a4; font-size: 14px; text-transform: uppercase;">GST Operations (B2B/B2C)</h4>
@@ -4697,11 +4797,43 @@ const UI = {
         if (!window.UI.state.rawData) return;
         const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
 
+        if (startEl && !startEl.dataset.bsInit) {
+            startEl.dataset.bsInit = '1';
+            startEl.value = (asOfDate || today).slice(0, 8) + '01';
+        }
+        const fromDate = (startEl && startEl.value) ? startEl.value : '0000-01-01';
+        const inRange = (dStr) => Boolean(dStr && dStr >= fromDate && dStr <= asOfDate);
         window.UI.state.bsBreakdown = { stock: [], debtors: [], creditors: [], custAdv: [], suppAdv: [], bank: [], cash: [] };
         let closingStockValue = 0;
         (UI.state.rawData.items || []).forEach(i => {
             if (!activeFirmId || i.firmId === activeFirmId) {
-                const stock = parseFloat(i.stock) || 0;
+                let stock = parseFloat(i.stock) || 0;
+                (UI.state.rawData.sales || []).forEach(s => {
+                    if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date > asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
+                        (s.items || []).forEach(it => {
+                            if (it.id === i.id || it.itemId === i.id || it.name === i.name) {
+                                const q = parseFloat(it.qty) || 0;
+                                stock += (s.documentType === 'return' ? -q : q);
+                            }
+                        });
+                    }
+                });
+                (UI.state.rawData.purchases || []).forEach(p => {
+                    if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date > asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
+                        (p.items || []).forEach(it => {
+                            if (it.id === i.id || it.itemId === i.id || it.name === i.name) {
+                                const q = parseFloat(it.qty) || 0;
+                                stock -= (p.documentType === 'return' ? -q : q);
+                            }
+                        });
+                    }
+                });
+                (UI.state.rawData.adjustments || []).forEach(adj => {
+                    if (adj.itemId === i.id && adj.date > asOfDate && (!activeFirmId || adj.firmId === activeFirmId)) {
+                        const q = parseFloat(adj.qty) || 0;
+                        stock += (adj.type === 'reduce' ? q : -q);
+                    }
+                });
                 const buy = parseFloat(i.buyPrice) || 0;
                 if (stock > 0) {
                     const val = stock * buy;
@@ -4712,14 +4844,14 @@ const UI = {
         });
         let outputTax = 0; let inputTax = 0;
         (UI.state.rawData.sales || []).forEach(s => {
-            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
+            if (s.status !== 'Open' && s.status !== 'Cancelled' && inRange(s.date) && (!activeFirmId || s.firmId === activeFirmId)) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const gst = parseFloat(s.totalGst) || ((parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0));
                 outputTax += Math.abs(gst) * mult;
             }
         });
         (UI.state.rawData.purchases || []).forEach(p => {
-            if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date <= asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
+            if (p.status !== 'Open' && p.status !== 'Cancelled' && inRange(p.date) && (!activeFirmId || p.firmId === activeFirmId)) {
                 const mult = p.documentType === 'return' ? -1 : 1;
                 const gst = parseFloat(p.totalGst) || ((parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0));
                 inputTax += Math.abs(gst) * mult;
@@ -4735,7 +4867,7 @@ const UI = {
             let bal = parseFloat(a.openingBalance) || 0;
             (UI.state.rawData.cashbook || []).forEach(c => {
                 const cAcc = c.accountId || 'cash';
-                if (cAcc === a.id && c.date <= asOfDate && (!activeFirmId || c.firmId === activeFirmId)) {
+                if (cAcc === a.id && inRange(c.date) && (!activeFirmId || c.firmId === activeFirmId)) {
                     bal += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
                 }
             });
@@ -4755,14 +4887,14 @@ const UI = {
             let balNon = !isAdv ? ob : -ob;
             const pDocs = isCust ? (UI.state.rawData.sales || []) : (UI.state.rawData.purchases || []);
             pDocs.forEach(d => {
-                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (!activeFirmId || d.firmId === activeFirmId) && (isCust ? d.customerId === l.id : d.supplierId === l.id)) {
+                if (d.status !== 'Open' && d.status !== 'Cancelled' && inRange(d.date) && (!activeFirmId || d.firmId === activeFirmId) && (isCust ? d.customerId === l.id : d.supplierId === l.id)) {
                     const amt = parseFloat(d.grandTotal) || 0;
                     const imp = d.documentType === 'return' ? -amt : amt;
                     if (d.invoiceType === 'Non-GST') balNon += imp; else balGST += imp;
                 }
             });
             (UI.state.rawData.cashbook || []).forEach(r => {
-                if (r.ledgerId === l.id && r.date <= asOfDate && (!activeFirmId || r.firmId === activeFirmId)) {
+                if (r.ledgerId === l.id && inRange(r.date) && (!activeFirmId || r.firmId === activeFirmId)) {
                     let isNon = r.taxPool === 'Non-GST';
                     const legacyRef = r.invoiceRef || r.linkedInvoice;
                     if (!r.taxPool || r.taxPool === 'All') {
@@ -5497,19 +5629,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         break;
                     case 'docformats':
+                        if (window.app && window.app.loadDocumentSettings) window.app.loadDocumentSettings();
                         if (window.UI) window.UI.openBottomSheet('sheet-document-formats');
-                        break;
-                    case 'theme':
-                        if (window.UI) {
-                            window.UI.openActivity('activity-business-profile');
-                            setTimeout(() => {
-                                const details = document.querySelectorAll('details.advanced-options');
-                                if(details.length > 1) {
-                                    details[1].open = true;
-                                    details[1].scrollIntoView({behavior: 'smooth', block: 'center'});
-                                }
-                            }, 350);
-                        }
                         break;
                     case 'backup':
                         if (window.Cloud) window.Cloud.backup();
@@ -5984,10 +6105,23 @@ const closeTopmostView = () => {
         document.body.style.overflow = '';
         return true;
     }
-    const aiModal = document.querySelector('[id^="ai-analytics-modal-"]');
+    const aiModal = document.querySelector('[id^="ai-analytics-modal-"], #sollo-month-picker-overlay');
     if (aiModal) {
         aiModal.remove();
         document.body.style.overflow = '';
+        return true;
+    }
+    const openFp = document.querySelector('.flatpickr-calendar.open');
+    if (openFp) {
+        const cancelBtn = openFp.querySelector('.sollo-fp-cancel');
+        if (cancelBtn) cancelBtn.click();
+        else openFp.classList.remove('open');
+        return true;
+    }
+    const dynViewer = document.querySelector('#activity-khata-viewer.open, #activity-account-viewer.open');
+    if (dynViewer) {
+        dynViewer.classList.remove('open');
+        setTimeout(() => dynViewer.remove(), 350);
         return true;
     }
     // 1. Catch the custom Numpad
@@ -6020,6 +6154,11 @@ const closeTopmostView = () => {
             return true;
         }
     }
+    const dashBanner = document.getElementById('return-to-dash-banner');
+    if (dashBanner && dashBanner.style.display !== 'none' && document.getElementById('tab-workspace') && !document.getElementById('tab-workspace').classList.contains('hidden')) {
+        dashBanner.click();
+        return true;
+    }
     return false;
 };
 // 1. PUSH NATIVE STATE ON CLICK
@@ -6045,7 +6184,9 @@ document.addEventListener('click', (e) => {
 if (window.navigation) {
     window.navigation.addEventListener('navigate', (event) => {
         if (event.navigationType === 'traverse' || event.navigationType === 'back') {
-            const isAnythingOpen = document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
+            const dashBanner = document.getElementById('return-to-dash-banner');
+            const isDashBannerActive = dashBanner && dashBanner.style.display !== 'none' && document.getElementById('tab-workspace') && !document.getElementById('tab-workspace').classList.contains('hidden');
+            const isAnythingOpen = isDashBannerActive || document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #sollo-month-picker-overlay, .flatpickr-calendar.open, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
             if (isAnythingOpen) {
                 event.intercept({
                     async handler() {
@@ -7404,5 +7545,70 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 150); // 150ms delay gives the database engine time to lock in
 });
+window.openSolloSelectModal = function(sel) {
+    if (!sel || !sel.options || sel.options.length === 0) return;
+    const oldEl = document.getElementById('ai-analytics-modal-select');
+    if (oldEl) oldEl.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'ai-analytics-modal-select';
+    overlay.className = 'sub-modal-overlay';
+    overlay.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.55); z-index: 999999; align-items: center; justify-content: center; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);';
+    overlay.onclick = function() { overlay.remove(); };
+    let title = 'Select Option';
+    const row = sel.closest('.premium-row');
+    if (row) {
+        const lbl = row.querySelector('.premium-label');
+        if (lbl) title = (lbl.innerText || '').replace(/\*/g, '').replace(/:$/, '').trim();
+    } else {
+        const parentLbl = (sel.closest('div') ? sel.closest('div').querySelector('label, .erp-section-label') : null) || sel.previousElementSibling;
+        if (parentLbl) title = (parentLbl.innerText || '').replace(/\*/g, '').replace(/:$/, '').trim();
+        else if (sel.id === 'dashboard-date-filter') title = 'Dashboard Period';
+        else if (sel.id === 'adv-item-type') title = 'Filter Movement Type';
+        else if (sel.id && sel.id.includes('discount-type')) title = 'Discount Type';
+    }
+    const optsHtml = Array.from(sel.options).map((opt, idx) => {
+        const isSel = sel.selectedIndex === idx || sel.value === opt.value;
+        const safeText = (opt.text || opt.value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `<div class="sub-radio-row ${isSel ? 'selected' : ''}" data-idx="${idx}" style="padding: 14px 20px;"><span class="sub-radio-text" style="font-size: 15px; font-weight: ${isSel ? '700' : '500'};">${safeText}</span><div class="sub-radio-circle"></div></div>`;
+    }).join('');
+    overlay.innerHTML = `<div class="sub-modal-card" onclick="event.stopPropagation()" style="width: 86%; max-width: 340px; max-height: 75vh; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden;"><div style="padding: 18px 20px; font-size: 17px; font-weight: 800; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center;"><span>${title || 'Select Option'}</span><span class="material-symbols-outlined tap-target" style="font-size: 22px; color: var(--md-text-muted); cursor: pointer;" onclick="const el=document.getElementById('ai-analytics-modal-select'); if(el) el.remove();">close</span></div><div style="flex: 1; overflow-y: auto; padding: 4px 0;">${optsHtml}</div></div>`;
+    overlay.querySelectorAll('.sub-radio-row').forEach(r => {
+        r.onclick = function() {
+            const idx = parseInt(this.getAttribute('data-idx'), 10);
+            if (!isNaN(idx) && sel.options[idx]) {
+                sel.selectedIndex = idx;
+                sel.value = sel.options[idx].value;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                sel.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            overlay.remove();
+        };
+    });
+    document.body.appendChild(overlay);
+};
+document.addEventListener('click', function(e) {
+    if (!e.target || !e.target.closest) return;
+    if (e.target.closest('#sheet-bank-ledger, #sheet-smart-search')) return;
+    const x = e.clientX;
+    const y = e.clientY;
+    if (!x && !y) return;
+    const selects = document.querySelectorAll('select');
+    for (let i = 0; i < selects.length; i++) {
+        const sel = selects[i];
+        if (sel.disabled || sel.multiple) continue;
+        const scope = sel.closest('.premium-row, .premium-select-wrapper') || sel.parentElement;
+        if (!scope || !scope.contains(e.target)) continue;
+        if (sel.closest('.hidden, .bottom-sheet:not(.open), .activity-screen:not(.open), .tab-content:not(.active)')) continue;
+        if (window.getComputedStyle(sel).display === 'none' || window.getComputedStyle(sel).visibility === 'hidden' || !sel.options || sel.options.length === 0) continue;
+        const wrap = sel.closest('.premium-select-wrapper') || sel;
+        const rect = wrap.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0 && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.openSolloSelectModal(sel);
+            return;
+        }
+    }
+}, true);
 
 // (Legacy duplicate PIN vault removed — handled natively by #sheet-pin-setup and #app-lock-screen in index.html)

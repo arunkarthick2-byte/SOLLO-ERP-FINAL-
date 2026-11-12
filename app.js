@@ -348,6 +348,11 @@ const app = {
     // ==========================================
     viewFilteredSales: (status) => {
         if (window.UI && typeof window.UI.switchTab === 'function') {
+            const mc = document.querySelector('.main-content');
+            if (mc && document.getElementById('tab-dashboard') && !document.getElementById('tab-dashboard').classList.contains('hidden')) {
+                window._savedDashScroll = mc.scrollTop;
+            }
+            window.history.pushState({ internalRoute: true }, '');
             const navBtn = document.getElementById('nav-workspace');
             window.UI.switchTab('tab-workspace', 'Workspace', navBtn);
             
@@ -611,8 +616,8 @@ const app = {
             }
             
             // 🟢 ENTERPRISE FIX: Load PDF Theme Settings
-            document.getElementById('profile-brand-color').value = localStorage.getItem('sollo_brand_color') || '#000000';
-            document.getElementById('profile-pdf-font').value = localStorage.getItem('sollo_pdf_font') || 'inter';
+            const brandColorEl = document.getElementById('profile-brand-color');
+            if (brandColorEl) brandColorEl.value = localStorage.getItem('sollo_brand_color') || '#000000';
         }
     },
 
@@ -1140,9 +1145,9 @@ const app = {
     // ==========================================
     // ENTERPRISE UPGRADE: STOCK ADJUSTMENT ENGINE
     // ==========================================
-    openAdjustmentSheet: async () => {
+    openAdjustmentSheet: async (adjId = null) => {
         try {
-            // ENTERPRISE FIX: Scoped database fetch prevents RAM freeze when opening Stock Adjustments!
+            app.state.currentAdjustmentId = adjId || null;
             const items = await getAllRecords('items', 'firmId', app.state.firmId);
             const select = document.getElementById('adj-product-id');
             
@@ -1176,7 +1181,34 @@ const app = {
                 if (dateEl._flatpickr) dateEl._flatpickr.setDate(localDate);
             }
 
-            // Safely open the sheet
+            const titleEl = document.getElementById('adj-sheet-title');
+            if (titleEl) titleEl.innerText = adjId ? 'Edit Stock Adjustment' : 'Adjust Inventory';
+            if (window.UI) window.UI.toggleDeleteButton('adjustment', !!adjId);
+            if (adjId) {
+                const adj = await getRecordById('adjustments', adjId);
+                if (adj) {
+                    const prod = items.find(i => String(i.id) === String(adj.itemId));
+                    if (idEl) idEl.value = adj.itemId || '';
+                    if (displayEl) {
+                        const rawGst = prod ? parseFloat(prod.stockGst) : 0;
+                        const rawNon = prod ? parseFloat(prod.stockNonGst) : 0;
+                        const g = prod ? (isNaN(rawGst) ? (parseFloat(prod.stock) || 0) : rawGst) : 0;
+                        const ng = prod ? (isNaN(rawNon) ? 0 : rawNon) : 0;
+                        displayEl.innerText = prod ? `${prod.name} (GST: ${g} | Non: ${ng})` : 'Deleted Product';
+                        displayEl.style.color = 'var(--md-on-surface)';
+                    }
+                    const poolEl = document.getElementById('adj-pool');
+                    if (poolEl) poolEl.value = adj.pool || 'gst';
+                    const typeEl = document.getElementById('adj-type');
+                    if (typeEl) typeEl.value = adj.type || 'add';
+                    if (qtyEl) qtyEl.value = adj.qty || '';
+                    if (notesEl) notesEl.value = adj.notes || '';
+                    if (dateEl && adj.date) {
+                        dateEl.value = adj.date;
+                        if (dateEl._flatpickr) dateEl._flatpickr.setDate(adj.date);
+                    }
+                }
+            }
             if (window.UI) window.UI.openBottomSheet('sheet-stock-adjustment');
         } catch (error) {
             // LOUD ERROR SCANNER: Forces the app to tell you EXACTLY what crashed!
@@ -1384,11 +1416,6 @@ const app = {
 
         if (window.UI) window.UI.openBottomSheet('sheet-simple-master');
         
-        // Premium Polish: Auto-focus the text box so the mobile keyboard pops up instantly!
-        setTimeout(() => {
-            const input = document.getElementById('simple-master-input');
-            if (input) input.focus();
-        }, 300);
     },
 
     deleteSimpleMaster: async (storeName, id, title) => {
@@ -1601,6 +1628,8 @@ const app = {
     // 3. LEDGER & RETURNS ENGINE
     // ==========================================
     openPartyLedger: async (partyId, partyType, partyName) => {
+        if (window.UI && window.UI.state) window.UI.state.ledgerViewMode = 'party';
+        window._activeLedgerAccountId = null;
         document.getElementById('report-party-name').innerText = partyName;
         const timelineContainer = document.getElementById('timeline-list');
         
@@ -1885,9 +1914,9 @@ const app = {
         }
     },
         openAccountLedger: async (accountId) => {
-        // Fetch Account Details
-        // ENTERPRISE FIX: Query the DB for the Cash Drawer so we don't wipe out the user's true Opening Balance!
-        let account = await getRecordById('accounts', accountId) || { name: 'Cash Drawer', openingBalance: 0 };
+        if (window.UI && window.UI.state) window.UI.state.ledgerViewMode = 'account';
+        window._activeLedgerAccountId = accountId;
+        let account = await getRecordById('accounts', accountId) || { id: 'cash', name: 'Cash Drawer', type: 'Cash', openingBalance: 0 };
 
         document.getElementById('report-party-name').innerText = account.name;
         
@@ -1904,8 +1933,7 @@ const app = {
         const editBtn = document.getElementById('btn-edit-ledger');
         if(editBtn) {
             editBtn.style.display = 'flex';
-            if(accountId === 'cash') {
-                editBtn.onclick = () => window.Utils.showToast('The Default Cash Drawer is a system account and cannot be modified directly.');
+            if(false) {
             } else {
                 editBtn.onclick = () => { 
                     UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
@@ -2491,8 +2519,7 @@ const app = {
                 if (valCard) valCard.classList.add('hidden');
             }
             
-            // 🚨 ENTERPRISE FIX: Hide ALL action buttons (Delete, Share, PDF) for brand new records!
-            UI.toggleDeleteButton(type, !!id);
+            UI.toggleDeleteButton(type, !!id && !(type === 'account' && id === 'cash'));
             
             const shareBtn = document.getElementById(`btn-share-${type}`);
             const pdfBtn = document.getElementById(`btn-pdf-${type}`);
@@ -2701,9 +2728,11 @@ const app = {
     // 5. EDIT MODE HYDRATION
     // ==========================================
     populateEditForm: async (type, id) => {
-        // FIXED: Added 'account': 'accounts' to ensure bank records can be retrieved for editing
         const storeMap = { 'product': 'items', 'ledger': 'ledgers', 'expense': 'expenses', 'sales': 'sales', 'purchase': 'purchases', 'account': 'accounts' };
-        const record = await getRecordById(storeMap[type], id);
+        let record = await getRecordById(storeMap[type], id);
+        if (!record && type === 'account' && id === 'cash') {
+            record = { id: 'cash', firmId: app.state.firmId, name: 'Cash Drawer', type: 'Cash', accountNumber: '', openingBalance: 0 };
+        }
         if (!record) return;
 
         if (type === 'sales' || type === 'purchase') {
@@ -4054,16 +4083,36 @@ if (data.id && splitConfirmed) {
                         }
                     }
                     
+                    const existingAdj = app.state.currentAdjustmentId ? await getRecordById('adjustments', app.state.currentAdjustmentId) : null;
+                    if (existingAdj) {
+                        const oldQty = Math.abs(parseFloat(existingAdj.qty) || 0);
+                        const oldRev = existingAdj.type === 'add' ? -oldQty : oldQty;
+                        if (String(existingAdj.itemId) === String(itemId)) {
+                            if (existingAdj.pool === 'gst') stockGst = safeMoney(stockGst + oldRev);
+                            else stockNonGst = safeMoney(stockNonGst + oldRev);
+                        } else {
+                            const oldItem = await getRecordById('items', existingAdj.itemId);
+                            if (oldItem) {
+                                const oG = isNaN(parseFloat(oldItem.stockGst)) ? (parseFloat(oldItem.stock) || 0) : parseFloat(oldItem.stockGst);
+                                const oN = isNaN(parseFloat(oldItem.stockNonGst)) ? 0 : parseFloat(oldItem.stockNonGst);
+                                if (existingAdj.pool === 'gst') oldItem.stockGst = safeMoney(oG + oldRev);
+                                else oldItem.stockNonGst = safeMoney(oN + oldRev);
+                                oldItem.stock = safeMoney((parseFloat(oldItem.stockGst) || 0) + (parseFloat(oldItem.stockNonGst) || 0));
+                                await saveRecord('items', oldItem);
+                            }
+                        }
+                    }
                     const adjData = {
-                        id: Utils.generateId(),
+                        id: app.state.currentAdjustmentId || Utils.generateId(),
                         firmId: app.state.firmId,
                         itemId: itemId,
-                        pool: pool, // Track which pool was audited
+                        pool: pool,
                         type: type,
                         qty: qty,
                         date: document.getElementById('adj-date').value,
                         notes: document.getElementById('adj-notes').value
                     };
+                    app.state.currentAdjustmentId = null;
                     
                     let impact = type === 'add' ? qty : -qty;
                     if (pool === 'gst') {
@@ -4118,11 +4167,11 @@ if (data.id && splitConfirmed) {
                 const data = {
                     firmId: app.state.firmId,
                     // WE NOW PULL THE SAVED TEXT DIRECTLY FROM THE BRAIN!
-                    name: window.AppState.profileName,
-                    phone: window.AppState.profilePhone,
-                    email: window.AppState.profileEmail,
-                    gst: window.AppState.profileGst,
-                    address: window.AppState.profileAddress,
+                    name: document.getElementById('profile-name') ? document.getElementById('profile-name').value.trim() : window.AppState.profileName,
+                    phone: document.getElementById('profile-phone') ? document.getElementById('profile-phone').value.trim() : window.AppState.profilePhone,
+                    email: document.getElementById('profile-email') ? document.getElementById('profile-email').value.trim() : window.AppState.profileEmail,
+                    gst: document.getElementById('profile-gst') ? document.getElementById('profile-gst').value.trim().toUpperCase() : window.AppState.profileGst,
+                    address: document.getElementById('profile-address') ? document.getElementById('profile-address').value.trim() : window.AppState.profileAddress,
                     // 🚨 ENTERPRISE FIX: Save the missing City field into the database!
                     city: document.getElementById('profile-city') ? document.getElementById('profile-city').value : '',
                     pincode: document.getElementById('profile-pincode') ? document.getElementById('profile-pincode').value : '', // 🚨 ADDED PINCODE SAVE
@@ -4157,9 +4206,7 @@ if (data.id && splitConfirmed) {
                 
                 // 🟢 ENTERPRISE FIX: Save PDF Theme Settings to Local Storage
                 const colorEl = document.getElementById('profile-brand-color');
-                const fontEl = document.getElementById('profile-pdf-font');
                 if (colorEl) localStorage.setItem('sollo_brand_color', colorEl.value);
-                if (fontEl) localStorage.setItem('sollo_pdf_font', fontEl.value);
                 
                 const firmRecord = await getRecordById('firms', app.state.firmId) || { id: app.state.firmId };
                 firmRecord.name = data.name;
@@ -4596,9 +4643,22 @@ if (data.id && splitConfirmed) {
         const record = await getRecordById('receipts', id);
         if (!record) return alert("Receipt not found.");
 
-        // SAFEGUARD: Prevent tampering with invoice-linked auto-receipts
+        if (String(id).startsWith('contra-') || record.ledgerId === 'contra-transfer' || record.mode === 'Contra') {
+            return app.openContraTransfer(id);
+        }
+        if (String(id).startsWith('exp-rec-') || record.ledgerId === 'internal-expense' || record.mode === 'Expense') {
+            const expId = record.invoiceRef || String(id).replace('exp-rec-', '');
+            return app.openForm('expense', expId);
+        }
         if (record.isAutoGenerated) {
-            return alert("This is an auto-generated receipt linked to a document. To modify or delete it, please edit the original invoice or bill.");
+            const linkedRef = String(record.invoiceRef || record.linkedInvoice || '').split(',')[0].trim();
+            if (linkedRef) {
+                const sDoc = (UI.state.rawData.sales || []).find(s => s.id === linkedRef || s.invoiceNo === linkedRef || s.orderNo === linkedRef);
+                if (sDoc && window.openInvoiceOverview) return window.openInvoiceOverview('sales', sDoc.id);
+                const pDoc = (UI.state.rawData.purchases || []).find(p => p.id === linkedRef || p.poNo === linkedRef || p.invoiceNo === linkedRef || p.orderNo === linkedRef);
+                if (pDoc && window.openInvoiceOverview) return window.openInvoiceOverview('purchase', pDoc.id);
+            }
+            return window.Utils ? window.Utils.showToast("Auto-generated receipt linked to a document.") : alert("This is an auto-generated receipt linked to a document.");
         }
 
         app.state.currentReceiptId = id;
@@ -4926,7 +4986,8 @@ if (data.id && splitConfirmed) {
     // ==========================================
     // 🚀 ENTERPRISE UPGRADE: CONTRA TRANSFER ENGINE
     // ==========================================
-    openContraTransfer: async () => {
+    openContraTransfer: async (contraId = null) => {
+        app.state.currentContraId = contraId || null;
         const fromEl = document.getElementById('contra-from-account');
         const toEl = document.getElementById('contra-to-account');
         
@@ -4959,6 +5020,25 @@ if (data.id && splitConfirmed) {
         
         const notesEl = document.getElementById('contra-notes');
         if (notesEl) notesEl.value = '';
+        const titleEl = document.getElementById('contra-sheet-title');
+        if (titleEl) titleEl.innerText = contraId ? 'Edit Transfer' : 'Transfer Money';
+        if (window.UI) window.UI.toggleDeleteButton('contra', !!contraId);
+        if (contraId) {
+            const baseId = String(contraId).replace(/^contra-(in|out)-/, '');
+            const outRec = await getRecordById('receipts', 'contra-out-' + baseId);
+            const inRec = await getRecordById('receipts', 'contra-in-' + baseId);
+            const rec = outRec || inRec;
+            if (rec) {
+                if (fromEl && outRec) fromEl.value = outRec.accountId || 'cash';
+                if (toEl && inRec) toEl.value = inRec.accountId || 'cash';
+                if (amtEl) amtEl.value = rec.amount || '';
+                if (notesEl) notesEl.value = rec.desc || '';
+                if (dateEl && rec.date) {
+                    dateEl.value = rec.date;
+                    if (dateEl._flatpickr) dateEl._flatpickr.setDate(rec.date);
+                }
+            }
+        }
         
         if (window.UI) window.UI.openBottomSheet('sheet-contra-transfer');
     },
@@ -4985,7 +5065,8 @@ if (data.id && splitConfirmed) {
         btn.innerHTML = 'Processing...';
         
         try {
-            const commonId = window.Utils.generateId();
+            const commonId = app.state.currentContraId ? String(app.state.currentContraId).replace(/^contra-(in|out)-/, '') : window.Utils.generateId();
+            app.state.currentContraId = null;
             
             let fromName = 'Cash Drawer';
             if (fromAcc !== 'cash' && window.AppCache.accounts) {
@@ -5033,9 +5114,13 @@ if (data.id && splitConfirmed) {
             
             if (window.Utils) window.Utils.showToast("✅ Transfer Successful!");
             
+            await app.refreshAll();
             if (window.UI) {
                 window.UI.closeBottomSheet('sheet-contra-transfer');
                 window.UI.renderBankBalances();
+                if (window._activeLedgerAccountId && document.getElementById('activity-report-viewer') && !document.getElementById('activity-report-viewer').classList.contains('hidden')) {
+                    await app.openAccountLedger(window._activeLedgerAccountId);
+                }
                 
                 // If they are currently looking at a bank passbook, refresh it!
                 const reportViewer = document.getElementById('activity-report-viewer');
@@ -5127,6 +5212,8 @@ if (data.id && splitConfirmed) {
     deleteRecord: async (type) => {
         let id;
         if (type === 'receipt-in' || type === 'receipt-out') id = app.state.currentReceiptId;
+        else if (type === 'adjustment') id = app.state.currentAdjustmentId;
+        else if (type === 'contra') id = app.state.currentContraId;
         else if (['product', 'ledger', 'expense', 'account'].includes(type)) id = app.state.currentMasterId;
         else id = app.state.currentEditId;
 
@@ -5134,7 +5221,8 @@ if (data.id && splitConfirmed) {
             'sales': 'sales', 'purchase': 'purchases',
             'product': 'items', 'ledger': 'ledgers',
             'expense': 'expenses', 'account': 'accounts',
-            'receipt-in': 'receipts', 'receipt-out': 'receipts'
+            'receipt-in': 'receipts', 'receipt-out': 'receipts',
+            'adjustment': 'adjustments', 'contra': 'receipts'
         };
         const storeName = storeMap[type];
         
@@ -5201,7 +5289,7 @@ if (data.id && splitConfirmed) {
         }
 
         // STRICT ERP LOGIC 1: Revert Invoice Status when Payment is Deleted
-        if (type === 'receipt-in' || type === 'receipt-out') {
+        if (type === 'receipt-in' || type === 'receipt-out' || type === 'contra') {
             // 🚨 ENTERPRISE FIX: The Half-Contra Free Money Shield!
             // If deleting a Bank Transfer, simultaneously delete the paired receipt so money isn't magically created!
             if (String(id).startsWith('contra-')) {
@@ -5309,7 +5397,7 @@ if (data.id && splitConfirmed) {
         }
         
         // ENTERPRISE FIX: Re-run the Advance Payment Waterfall so invoices don't get permanently stuck as "Completed" when their payment is deleted!
-        if (type === 'receipt-in' || type === 'receipt-out') {
+        if (type === 'receipt-in' || type === 'receipt-out' || type === 'contra') {
             if (record.ledgerId && typeof app.autoCompleteInvoices === 'function') {
                 const party = await getRecordById('ledgers', record.ledgerId);
                 const docStore = (party && String(party.type).toLowerCase() === 'customer') ? 'sales' : 'purchases';
@@ -5323,6 +5411,8 @@ if (data.id && splitConfirmed) {
             if (window.currentOverviewId === id) UI.closeActivity('activity-invoice-overview');
         }
         else if (type === 'receipt-in' || type === 'receipt-out') UI.closeActivity(`activity-payment-${type.split('-')[1]}-form`);
+        else if (type === 'adjustment') UI.closeBottomSheet('sheet-stock-adjustment');
+        else if (type === 'contra') UI.closeBottomSheet('sheet-contra-transfer');
         else UI.closeActivity(`activity-${type}-form`);
         
         app.refreshAll().then(() => {
@@ -5330,7 +5420,26 @@ if (data.id && splitConfirmed) {
             if (document.getElementById('activity-invoice-overview') && document.getElementById('activity-invoice-overview').classList.contains('open') && window.currentOverviewId && window.currentOverviewId !== id) {
                 window.openInvoiceOverview(window.currentOverviewType, window.currentOverviewId);
             }
+            if (window._activeLedgerAccountId && document.getElementById('activity-report-viewer') && !document.getElementById('activity-report-viewer').classList.contains('hidden')) {
+                app.openAccountLedger(window._activeLedgerAccountId);
+            }
         });
+    },
+    openItemMovementRecord: (type, ref, date) => {
+        if (type === 'Sale') {
+            const doc = (UI.state.rawData.sales || []).find(s => (s.invoiceNo === ref || s.orderNo === ref) && (!date || s.date === date)) || (UI.state.rawData.sales || []).find(s => s.invoiceNo === ref || s.orderNo === ref);
+            if (doc && window.openInvoiceOverview) window.openInvoiceOverview('sales', doc.id);
+        } else if (type === 'Purchase') {
+            const doc = (UI.state.rawData.purchases || []).find(p => (p.poNo === ref || p.invoiceNo === ref || p.orderNo === ref) && (!date || p.date === date)) || (UI.state.rawData.purchases || []).find(p => p.poNo === ref || p.invoiceNo === ref || p.orderNo === ref);
+            if (doc && window.openInvoiceOverview) window.openInvoiceOverview('purchase', doc.id);
+        } else if (type === 'Adjustment') {
+            const itemId = document.getElementById('item-ledger-hidden-id') ? document.getElementById('item-ledger-hidden-id').value : '';
+            const adj = (UI.state.rawData.adjustments || []).find(a => (!itemId || a.itemId === itemId) && (!date || a.date === date) && ((a.notes || 'Audit') === ref));
+            if (adj) app.openAdjustmentSheet(adj.id);
+        } else if (type === 'Expense') {
+            const exp = (UI.state.rawData.expenses || []).find(e => (e.expenseNo || 'EXP') === ref && (!date || e.date === date));
+            if (exp) app.openForm('expense', exp.id);
+        }
     },
 
     // ==========================================
@@ -6347,14 +6456,8 @@ if (data.id && splitConfirmed) {
             netPayableEl.style.color = report.gstr3b.netPayable > 0 ? '#ba1a1a' : '#146c2e';
         }
 
-        // Bind the Export PDF Button
         const exportBtn = document.getElementById('btn-export-gst');
         if (exportBtn) {
-            exportBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span> Generate PDF';
-            exportBtn.style.background = 'var(--md-primary)';
-            exportBtn.style.color = '#ffffff';
-            exportBtn.style.border = 'none';
-            exportBtn.style.boxShadow = '0 2px 4px rgba(0,97,164,0.2)';
             exportBtn.onclick = () => { if (window.app) window.app.exportGSTPDF(report); };
         }
     },
@@ -6821,6 +6924,313 @@ if (data.id && splitConfirmed) {
 
         document.getElementById('reorder-report-list').innerHTML = html;
         document.getElementById('reorder-report-total').innerHTML = `₹${estimatedCost.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    },
+    exportExpenseReportPDF: async () => {
+        try {
+            const fromVal = document.getElementById('expense-report-from').value;
+            const toVal = document.getElementById('expense-report-to').value;
+            if (!fromVal || !toVal) return alert("Please select a date range first.");
+            const allExpenses = await window.getRecordsByDateRange('expenses', app.state.firmId, fromVal, toVal);
+            const catMap = {};
+            let totalExpenses = 0;
+            allExpenses.forEach(e => {
+                if (e.firmId === app.state.firmId && e.date >= fromVal && e.date <= toVal) {
+                    const cat = e.category || 'Uncategorized';
+                    const amt = parseFloat(e.amount) || 0;
+                    catMap[cat] = (catMap[cat] || 0) + amt;
+                    totalExpenses += amt;
+                }
+            });
+            const rankedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+            if (rankedCats.length === 0) return alert("No expenses found in this date range to export.");
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            const biz = await window.getRecordById('businessProfile', app.state.firmId) || {};
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+            const tableBody = [
+                [{text: 'RANK', style: 'th', alignment: 'center'}, {text: 'EXPENSE CATEGORY', style: 'th'}, {text: '% OF TOTAL', style: 'th', alignment: 'center'}, {text: 'TOTAL AMOUNT', style: 'th', alignment: 'right'}]
+            ];
+            rankedCats.forEach(([cat, amt], idx) => {
+                const pct = totalExpenses > 0 ? ((amt / totalExpenses) * 100).toFixed(1) : '0.0';
+                const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                tableBody.push([
+                    {text: `#${idx + 1}`, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
+                    {text: cat, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
+                    {text: `${pct}%`, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '₹' + amt.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                ]);
+            });
+            tableBody.push([
+                {text: 'TOTAL EXPENSES', colSpan: 3, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+                {}, {}, {text: '₹' + totalExpenses.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+            ]);
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 18, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1 },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
+                            { width: 240, stack: [ { text: 'EXPENSE LEAKAGE', style: 'subHeader' }, { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
+                        ], margin: [0, 0, 0, 32]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto'], body: tableBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                        }
+                    }
+                ]
+            };
+            window.Utils.processVectorPDF(docDefinition, `Expense_Leakage_Report.pdf`, `Here is the Expense Leakage Report.`);
+        } catch (error) { console.error("PDF Error:", error); if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed"); }
+    },
+    exportReorderReportPDF: async () => {
+        try {
+            const firmItems = await window.getAllRecords('items', 'firmId', app.state.firmId);
+            const reorderRows = [];
+            let totalCost = 0;
+            firmItems.forEach(i => {
+                const minStock = parseFloat(i.minStock) || 0;
+                const currentStock = parseFloat(i.stock) || 0;
+                if (minStock > 0 && currentStock < minStock) {
+                    const deficit = minStock - currentStock;
+                    const buyPrice = parseFloat(i.buyPrice) || 0;
+                    const cost = deficit * buyPrice;
+                    totalCost += cost;
+                    reorderRows.push({ name: i.name, stock: currentStock, minStock: minStock, uom: i.uom || '', deficit: deficit, buyPrice: buyPrice, cost: cost });
+                }
+            });
+            if (reorderRows.length === 0) return alert("All items are sufficiently stocked! Nothing to export.");
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            const biz = await window.getRecordById('businessProfile', app.state.firmId) || {};
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+            const tableBody = [
+                [{text: 'ITEM NAME', style: 'th'}, {text: 'CURRENT STOCK', style: 'th', alignment: 'center'}, {text: 'MIN STOCK', style: 'th', alignment: 'center'}, {text: 'ORDER QTY', style: 'th', alignment: 'center'}, {text: 'EST. COST', style: 'th', alignment: 'right'}]
+            ];
+            reorderRows.forEach((r, idx) => {
+                const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                tableBody.push([
+                    {text: r.name, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
+                    {text: `${r.stock} ${r.uom}`.trim(), alignment: 'center', color: '#dc2626', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: `${r.minStock} ${r.uom}`.trim(), alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: `${r.deficit} ${r.uom}`.trim(), alignment: 'center', color: '#d97706', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '₹' + r.cost.toFixed(2), alignment: 'right', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                ]);
+            });
+            tableBody.push([
+                {text: 'ESTIMATED RESTOCK COST', colSpan: 4, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#d97706'},
+                {}, {}, {}, {text: '₹' + totalCost.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#d97706'}
+            ]);
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 18, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1 },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
+                            { width: 220, stack: [ { text: 'AUTO REORDER LIST', style: 'subHeader' }, { text: 'Date Generated: ' + window.Utils.getLocalDate(), alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
+                        ], margin: [0, 0, 0, 32]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                        }
+                    }
+                ]
+            };
+            window.Utils.processVectorPDF(docDefinition, `Auto_Reorder_Report.pdf`, `Here is the Auto Reorder List Report.`);
+        } catch (error) { console.error("PDF Error:", error); if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed"); }
+    },
+    exportItemProfitPDF: async () => {
+        try {
+            const fromVal = document.getElementById('item-profit-from').value;
+            const toVal = document.getElementById('item-profit-to').value;
+            if (!fromVal || !toVal) return alert("Please select a date range first.");
+            const sales = await window.getRecordsByDateRange('sales', app.state.firmId, fromVal, toVal);
+            const itemMap = {};
+            let totalFreight = 0, totalDiscount = 0, totalRoundOff = 0;
+            sales.forEach(s => {
+                if (s.firmId === app.state.firmId && s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromVal && s.date <= toVal) {
+                    const mult = s.documentType === 'return' ? -1 : 1;
+                    let rawSubtotal = 0;
+                    (s.items || []).forEach(item => { rawSubtotal += Math.abs(parseFloat(item.qty) || 0) * Math.abs(parseFloat(item.rate) || 0); });
+                    const freight = parseFloat(s.freight) || parseFloat(s.freightAmount) || 0;
+                    totalFreight += freight * mult;
+                    let discountAmt = s.discountType === '%' ? Math.round((rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) * 100) / 100 : (parseFloat(s.discount) || 0);
+                    if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
+                    if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
+                    totalDiscount += discountAmt * mult;
+                    const totalGst = parseFloat(s.totalGst) || 0;
+                    const grandTotal = parseFloat(s.grandTotal) || 0;
+                    let roundOff = grandTotal - (rawSubtotal + totalGst + freight - discountAmt);
+                    if (Math.abs(roundOff) < 0.01) roundOff = 0;
+                    totalRoundOff += roundOff * mult;
+                    (s.items || []).forEach(item => {
+                        const id = item.itemId || item.name;
+                        if (!itemMap[id]) itemMap[id] = { name: item.name, qty: 0, revenue: 0, cost: 0, profit: 0, uom: item.uom || '' };
+                        const qty = Math.abs(parseFloat(item.qty) || 0);
+                        const rate = Math.abs(parseFloat(item.rate) || 0);
+                        const buyPrice = parseFloat(item.buyPrice) || 0;
+                        const itemGrossRevenue = qty * rate;
+                        const discountRatio = rawSubtotal !== 0 ? (Math.abs(discountAmt) / Math.abs(rawSubtotal)) : 0;
+                        const actualRevenue = itemGrossRevenue - (itemGrossRevenue * discountRatio);
+                        const totalCost = qty * buyPrice;
+                        itemMap[id].qty += (qty * mult);
+                        itemMap[id].revenue += (actualRevenue * mult);
+                        itemMap[id].cost += (totalCost * mult);
+                        itemMap[id].profit += ((actualRevenue - totalCost) * mult);
+                    });
+                }
+            });
+            const rankedItems = Object.values(itemMap).sort((a, b) => b.profit - a.profit);
+            if (rankedItems.length === 0) return alert("No sales found in this date range to export.");
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            const biz = await window.getRecordById('businessProfile', app.state.firmId) || {};
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+            let totalItemProfit = 0;
+            const tableBody = [
+                [{text: 'ITEM NAME', style: 'th'}, {text: 'QTY SOLD', style: 'th', alignment: 'center'}, {text: 'NET REVENUE', style: 'th', alignment: 'right'}, {text: 'TOTAL COST', style: 'th', alignment: 'right'}, {text: 'GROSS PROFIT', style: 'th', alignment: 'right'}]
+            ];
+            rankedItems.forEach((item, idx) => {
+                totalItemProfit += item.profit;
+                const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                const pColor = item.profit < 0 ? '#dc2626' : '#16a34a';
+                tableBody.push([
+                    {text: item.name, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
+                    {text: `${item.qty} ${item.uom}`.trim(), alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '₹' + item.revenue.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '₹' + item.cost.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: (item.profit < 0 ? '-₹' + Math.abs(item.profit).toFixed(2) : '+₹' + item.profit.toFixed(2)), alignment: 'right', color: pColor, bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                ]);
+            });
+            const finalBridgedProfit = totalItemProfit + totalFreight + totalRoundOff;
+            tableBody.push([
+                {text: 'TOTAL ITEM GROSS PROFIT', colSpan: 4, alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor},
+                {}, {}, {}, {text: '₹' + totalItemProfit.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor}
+            ]);
+            tableBody.push([
+                {text: `Sales Gross Profit (incl. Freight ₹${totalFreight.toFixed(2)} & Round-Off ₹${totalRoundOff.toFixed(2)})`, colSpan: 4, alignment: 'right', bold: true, margin: [0, 6, 0, 6], fillColor: '#f1f5f9'},
+                {}, {}, {}, {text: '₹' + finalBridgedProfit.toFixed(2), alignment: 'right', bold: true, color: brandColor, margin: [0, 6, 0, 6], fillColor: '#f1f5f9'}
+            ]);
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 18, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1 },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
+                            { width: 240, stack: [ { text: 'ITEM PROFITABILITY', style: 'subHeader' }, { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
+                        ], margin: [0, 0, 0, 32]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                        }
+                    }
+                ]
+            };
+            window.Utils.processVectorPDF(docDefinition, `Item_Profitability_Report.pdf`, `Here is the Item Profitability Report.`);
+        } catch (error) { console.error("PDF Error:", error); if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed"); }
+    },
+    exportPartyTaxPDF: async () => {
+        try {
+            const partyId = document.getElementById('tax-report-id').value;
+            const fromVal = document.getElementById('tax-report-from').value;
+            const toVal = document.getElementById('tax-report-to').value;
+            if (!partyId) return alert("Please select a party first.");
+            if (!fromVal || !toVal) return alert("Please select a date range first.");
+            const party = await window.getRecordById('ledgers', partyId);
+            if (!party) return alert("Selected party not found.");
+            const isCustomer = party.type === 'Customer';
+            const storeName = isCustomer ? 'sales' : 'purchases';
+            const partyKey = isCustomer ? 'customerId' : 'supplierId';
+            const docs = await window.getAllRecords(storeName, 'firmId', app.state.firmId);
+            let b2bTaxable = 0, b2bTax = 0, b2cTaxable = 0, b2cTax = 0;
+            docs.forEach(s => {
+                if (s.firmId === app.state.firmId && s[partyKey] === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromVal && s.date <= toVal) {
+                    const mult = s.documentType === 'return' ? -1 : 1;
+                    const snapshotGst = s.customerGst || s.supplierGst || s.gstin || party.gst || '';
+                    const isB2B = String(snapshotGst).trim().length === 15;
+                    const rawSubtotal = Math.abs(parseFloat(s.subtotal) || 0);
+                    let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
+                    if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
+                    const taxable = (rawSubtotal - discountAmt) * mult;
+                    const tax = (s.invoiceType === 'Non-GST' ? 0 : Math.abs(parseFloat(s.totalGst) || 0)) * mult;
+                    if (s.invoiceType !== 'Non-GST' && isB2B) { b2bTaxable += taxable; b2bTax += tax; }
+                    else { b2cTaxable += taxable; b2cTax += tax; }
+                }
+            });
+            if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
+            const biz = await window.getRecordById('businessProfile', app.state.firmId) || {};
+            const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+            const summaryBody = [
+                [{text: 'TAX POOL', style: 'th'}, {text: 'TAXABLE VALUE', style: 'th', alignment: 'right'}, {text: 'TAX AMOUNT', style: 'th', alignment: 'right'}, {text: 'TOTAL VALUE', style: 'th', alignment: 'right'}],
+                [{text: 'GST Billed (B2B)', bold: true, margin: [0, 6, 0, 6]}, {text: '₹' + b2bTaxable.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6]}, {text: '₹' + b2bTax.toFixed(2), alignment: 'right', color: '#dc2626', margin: [0, 6, 0, 6]}, {text: '₹' + (b2bTaxable + b2bTax).toFixed(2), alignment: 'right', bold: true, margin: [0, 6, 0, 6]}],
+                [{text: 'Non-GST / B2C', bold: true, margin: [0, 6, 0, 6], fillColor: '#f8fafc'}, {text: '₹' + b2cTaxable.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: '#f8fafc'}, {text: '₹' + b2cTax.toFixed(2), alignment: 'right', color: '#dc2626', margin: [0, 6, 0, 6], fillColor: '#f8fafc'}, {text: '₹' + (b2cTaxable + b2cTax).toFixed(2), alignment: 'right', bold: true, margin: [0, 6, 0, 6], fillColor: '#f8fafc'}],
+                [{text: 'TOTAL', style: 'th'}, {text: '₹' + (b2bTaxable + b2cTaxable).toFixed(2), style: 'th', alignment: 'right'}, {text: '₹' + (b2bTax + b2cTax).toFixed(2), style: 'th', alignment: 'right'}, {text: '₹' + (b2bTaxable + b2cTaxable + b2bTax + b2cTax).toFixed(2), style: 'th', alignment: 'right'}]
+            ];
+            const docDefinition = {
+                pageSize: 'A4',
+                pageMargins: [40, 50, 40, 40],
+                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                styles: {
+                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 18, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1 },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                content: [
+                    {
+                        columns: [
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' }, { text: `Party: ${party.name}${party.gst ? ' (GSTIN: ' + party.gst + ')' : ''}`, fontSize: 12, bold: true, color: '#334155', margin: [0, 6, 0, 0] } ].filter(Boolean) },
+                            { width: 240, stack: [ { text: 'PARTY TAX REPORT', style: 'subHeader' }, { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
+                        ], margin: [0, 0, 0, 24]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: summaryBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                        }
+                    }
+                ]
+            };
+            window.Utils.processVectorPDF(docDefinition, `Party_Tax_Report_${party.name.replace(/\s+/g, '_')}.pdf`, `Here is the Party-Wise Tax Report for ${party.name}.`);
+        } catch (error) { console.error("PDF Error:", error); if (window.Utils) window.Utils.alertModal(error.message, "Engine Failed"); }
     },
 
     // ==========================================
@@ -7672,20 +8082,17 @@ if (data.id && splitConfirmed) {
                         <strong id="uni-report-title" style="font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; position: static !important; transform: none !important; margin: 0 !important;">Financial Report</strong>
                     </div>
                     
-                    <!-- 🚨 UI UPGRADE: Standard Orange PDF Icon -->
-                    <div class="icon-circle tap-target" onclick="if(window.app) window.app.exportUniversalReportPDF()" style="width: 36px; height: 36px; background: rgba(230, 81, 0, 0.1); color: #e65100; box-shadow: 0 1px 3px rgba(0,0,0,0.1); flex-shrink: 0; position: relative; z-index: 2; margin: 0; display: flex; align-items: center; justify-content: center;">
-                        <span class="material-symbols-outlined" style="font-size: 20px; position: static !important; transform: none !important; margin: 0 !important;">picture_as_pdf</span>
-                    </div>
+                    <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportUniversalReportPDF()" style="color: var(--md-primary); padding: 4px; flex-shrink: 0; position: relative; z-index: 2;">picture_as_pdf</span>
                 </div>
                 <div class="activity-content" style="background: var(--md-background); padding: 16px;">
                     
                     <!-- Date Filter Card -->
                     <div class="m3-card" style="margin-bottom: 16px; padding: 16px;">
-                        <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch;">
-                            <button type="button" class="tap-target" onclick="app.setUniversalDates('month'); window.setActiveFilterButton(this);" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 13px; font-weight: 700;">This Month</button>
-                            <button type="button" class="tap-target" onclick="app.setUniversalDates('last_month'); window.setActiveFilterButton(this);" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 13px; font-weight: 700;">Last Month</button>
-                            <button type="button" class="tap-target" onclick="app.setUniversalDates('year'); window.setActiveFilterButton(this);" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 13px; font-weight: 700; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Year</button>
-                            <button type="button" class="tap-target" onclick="app.setUniversalDates('all'); window.setActiveFilterButton(this);" style="flex-shrink: 0; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 13px; font-weight: 700;">All Time</button>
+                        <div id="uni-report-date-btns" style="display: flex; gap: 6px; margin-bottom: 16px; width: 100%;">
+                            <button type="button" class="tap-target" onclick="app.setUniversalDates('month'); window.setActiveFilterButton(this);" style="flex: 1 1 0%; min-width: 0; padding: 9px 4px !important; border-radius: 8px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px !important; font-weight: 700; white-space: nowrap; text-align: center;">This Month</button>
+                            <button type="button" class="tap-target" onclick="app.setUniversalDates('last_month'); window.setActiveFilterButton(this);" style="flex: 1 1 0%; min-width: 0; padding: 9px 4px !important; border-radius: 8px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px !important; font-weight: 700; white-space: nowrap; text-align: center;">Last Month</button>
+                            <button type="button" class="tap-target" onclick="app.setUniversalDates('year'); window.setActiveFilterButton(this);" style="flex: 1 1 0%; min-width: 0; padding: 9px 4px !important; border-radius: 8px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px !important; font-weight: 700; white-space: nowrap; text-align: center; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Year</button>
+                            <button type="button" class="tap-target" onclick="app.setUniversalDates('all'); window.setActiveFilterButton(this);" style="flex: 1 1 0%; min-width: 0; padding: 9px 4px !important; border-radius: 8px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px !important; font-weight: 700; white-space: nowrap; text-align: center;">All Time</button>
                         </div>
                         <div style="display: flex; gap: 12px;">
                             <div style="flex: 1;">
@@ -7716,6 +8123,32 @@ if (data.id && splitConfirmed) {
                 </div>
             </div>`;
             document.body.insertAdjacentHTML('beforeend', html);
+            if (typeof flatpickr !== 'undefined') {
+                const nativeDesc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+                ['uni-report-from', 'uni-report-to'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    flatpickr(el, { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', defaultDate: el.value || null, disableMobile: true });
+                    if (nativeDesc && nativeDesc.get && nativeDesc.set) {
+                        Object.defineProperty(el, 'value', {
+                            configurable: true,
+                            enumerable: true,
+                            get: function() { return nativeDesc.get.call(this); },
+                            set: function(v) {
+                                const s = (v === null || v === undefined) ? '' : String(v);
+                                nativeDesc.set.call(this, s);
+                                if (this._flatpickr && !this._syncingFp) {
+                                    this._syncingFp = true;
+                                    try {
+                                        if (s) this._flatpickr.setDate(s, false); else this._flatpickr.clear(false);
+                                        if (this._flatpickr.mobileInput) nativeDesc.set.call(this._flatpickr.mobileInput, s);
+                                    } finally { this._syncingFp = false; }
+                                }
+                            }
+                        });
+                    }
+                });
+            }
         }
 
         document.getElementById('uni-report-title').innerText = title;
@@ -8164,11 +8597,11 @@ if (data.id && splitConfirmed) {
             document.getElementById('uni-report-tbody').innerHTML = tableRowsHTML || `<tr><td colspan="${tableHeaders.length}" style="text-align:center; padding: 40px; color: var(--md-text-muted); font-weight: 600;">No records found for the selected period.</td></tr>`;
             const kpiContainer = document.getElementById('uni-report-kpis');
             if (kpiContainer) {
-                kpiContainer.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px;';
+                kpiContainer.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; margin-bottom: 12px;';
                 kpiContainer.innerHTML = kpiCardsHTML;
                 const boxes = kpiContainer.querySelectorAll('.kpi-box');
                 boxes.forEach((b, idx) => {
-                    b.style.cssText = 'background: var(--md-surface); border: 1px solid var(--md-outline-variant) !important; border-radius: 12px; padding: 12px 14px !important; display: flex; flex-direction: column; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important; min-width: 0;';
+                    b.style.cssText = 'background: var(--md-surface); padding: 12px 16px; display: flex; flex-direction: column; justify-content: center; min-width: 0;';
                     if (boxes.length % 2 === 1 && idx === boxes.length - 1) b.style.gridColumn = 'span 2';
                 });
             }
@@ -8235,7 +8668,7 @@ if (data.id && splitConfirmed) {
                             footerItems = [`<span><strong>${tds[1]}</strong> • ${tds[0]}</span>`, `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-weight:700; color:var(--md-on-surface);">${tds[3]}</span>`];
                         }
                         cardsHTML += `
-                        <div class="m3-card" style="padding: 14px 16px !important; margin-bottom: 10px !important; border-radius: 12px !important; border: 1px solid var(--md-outline-variant) !important; border-left: 4px solid ${borderColor} !important; box-shadow: 0 2px 6px rgba(0,0,0,0.03) !important;">
+                        <div class="m3-card" style="padding: 14px 16px !important; margin: 0 -16px !important; border-radius: 0 !important; border: none !important; border-bottom: 1px solid var(--md-outline-variant) !important; box-shadow: none !important;">
                             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
                                 <div style="flex:1; min-width:0;">${leftTitle}${subLine ? `<div style="margin-top:6px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">${subLine}</div>` : ''}</div>
                                 <div style="flex-shrink:0; text-align:right; font-variant-numeric:tabular-nums;">${rightVal}</div>
@@ -8289,6 +8722,7 @@ if (data.id && splitConfirmed) {
 
             // Sanitize the HTML slightly so the vector engine can read it perfectly
             let cleanHtml = rawHtmlTable
+                .replace(/font-family\s*:[^;"]+;?/gi, '')
                 .replace(/var\(--md-error\)/g, '#dc2626')
                 .replace(/var\(--md-success\)/g, '#16a34a')
                 .replace(/var\(--md-primary\)/g, '#0061a4')
@@ -8323,7 +8757,7 @@ if (data.id && splitConfirmed) {
                             {
                                 width: '60%',
                                 stack: [
-                                    biz.logo ? { image: biz.logo, fit: [120, 50], margin: [0, 0, 0, 5] } : null,
+                                    (biz.logo && String(biz.logo).startsWith('data:image')) ? { image: biz.logo, fit: [120, 50], margin: [0, 0, 0, 5] } : null,
                                     { text: biz.name || 'Company Name', fontSize: 16, bold: true, color: '#0f172a', textTransform: 'uppercase' },
                                     { text: bizLocationStr, fontSize: 9, color: '#64748b', margin: [0, 2, 0, 0] },
                                     biz.gst ? { text: 'GSTIN: ' + biz.gst, fontSize: 9, bold: true, margin: [0, 2, 0, 0] } : null
@@ -8493,9 +8927,12 @@ if (data.id && splitConfirmed) {
     // ==========================================
     openBankLedgerMenu: async () => {
         try {
+            if (window.UI && typeof window.UI.openSmartSearch === 'function') {
+                window.UI.openSmartSearch('bank_ledger_report', 'bank_ledger_report');
+                return;
+            }
             const activeFirmId = app.state.firmId;
             let allAccounts = [];
-            // 🚨 CRASH FIX: Added safe window fallback for db.js queries!
             if (typeof window.getAllRecords === 'function') {
                 allAccounts = await window.getAllRecords('accounts') || [];
             }
@@ -9564,9 +10001,11 @@ if (!isLocalDevice) {
 document.addEventListener('focusout', (e) => {
     if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') {
         const id = e.target.id ? e.target.id.toLowerCase() : '';
-        const isEmailOrGST = id.includes('email') || id.includes('gst') || id.includes('password') || id.includes('search');
-        if (!isEmailOrGST && e.target.value) {
+        const isSkipped = id.includes('email') || id.includes('gst') || id.includes('upi') || id.includes('format-') || id.includes('password') || id.includes('search');
+        if (!isSkipped && e.target.value) {
             e.target.value = e.target.value.replace(/\b\w/g, char => char.toUpperCase());
+            const bindProp = e.target.getAttribute('data-bind');
+            if (bindProp && window.AppState) window.AppState[bindProp] = e.target.value;
         }
     }
 });
@@ -9609,9 +10048,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 window.openBalanceSheetPreview = function() {
     try {
+        const startEl = document.getElementById('report-bs-start');
         const endEl = document.getElementById('report-bs-end');
         if (!endEl) return;
         const asOfDate = endEl.value;
+        const fromDate = (startEl && startEl.value) ? startEl.value : '0000-01-01';
+        const inRange = (dStr) => Boolean(dStr && dStr >= fromDate && dStr <= asOfDate);
         if (!window.UI || !window.UI.state || !window.UI.state.rawData) {
             if (window.Utils) window.Utils.showToast("Database not ready.");
             return;
@@ -9620,20 +10062,46 @@ window.openBalanceSheetPreview = function() {
         let closingStockValue = 0;
         (window.UI.state.rawData.items || []).forEach(i => {
             if (!activeFirmId || i.firmId === activeFirmId) {
-                const stock = parseFloat(i.stock) || 0;
+                let stock = parseFloat(i.stock) || 0;
+                (window.UI.state.rawData.sales || []).forEach(s => {
+                    if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date > asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
+                        (s.items || []).forEach(it => {
+                            if (it.id === i.id || it.itemId === i.id || it.name === i.name) {
+                                const q = parseFloat(it.qty) || 0;
+                                stock += (s.documentType === 'return' ? -q : q);
+                            }
+                        });
+                    }
+                });
+                (window.UI.state.rawData.purchases || []).forEach(p => {
+                    if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date > asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
+                        (p.items || []).forEach(it => {
+                            if (it.id === i.id || it.itemId === i.id || it.name === i.name) {
+                                const q = parseFloat(it.qty) || 0;
+                                stock -= (p.documentType === 'return' ? -q : q);
+                            }
+                        });
+                    }
+                });
+                (window.UI.state.rawData.adjustments || []).forEach(adj => {
+                    if (adj.itemId === i.id && adj.date > asOfDate && (!activeFirmId || adj.firmId === activeFirmId)) {
+                        const q = parseFloat(adj.qty) || 0;
+                        stock += (adj.type === 'reduce' ? q : -q);
+                    }
+                });
                 if (stock > 0) closingStockValue += (stock * (parseFloat(i.buyPrice) || 0));
             }
         });
         let outputTax = 0, inputTax = 0;
         (window.UI.state.rawData.sales || []).forEach(s => {
-            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date <= asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
+            if (s.status !== 'Open' && s.status !== 'Cancelled' && inRange(s.date) && (!activeFirmId || s.firmId === activeFirmId)) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const gst = parseFloat(s.totalGst) || ((parseFloat(s.cgstTotal) || 0) + (parseFloat(s.sgstTotal) || 0) + (parseFloat(s.igstTotal) || 0));
                 outputTax += Math.abs(gst) * mult;
             }
         });
         (window.UI.state.rawData.purchases || []).forEach(p => {
-            if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date <= asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
+            if (p.status !== 'Open' && p.status !== 'Cancelled' && inRange(p.date) && (!activeFirmId || p.firmId === activeFirmId)) {
                 const mult = p.documentType === 'return' ? -1 : 1;
                 const gst = parseFloat(p.totalGst) || ((parseFloat(p.cgstTotal) || 0) + (parseFloat(p.sgstTotal) || 0) + (parseFloat(p.igstTotal) || 0));
                 inputTax += Math.abs(gst) * mult;
@@ -9649,7 +10117,7 @@ window.openBalanceSheetPreview = function() {
             let bal = parseFloat(a.openingBalance) || 0;
             (window.UI.state.rawData.cashbook || []).forEach(c => {
                 const cAcc = c.accountId || 'cash';
-                if (cAcc === a.id && c.date <= asOfDate && (!activeFirmId || c.firmId === activeFirmId)) {
+                if (cAcc === a.id && inRange(c.date) && (!activeFirmId || c.firmId === activeFirmId)) {
                     bal += c.type === 'in' ? (parseFloat(c.amount) || 0) : -(parseFloat(c.amount) || 0);
                 }
             });
@@ -9668,14 +10136,14 @@ window.openBalanceSheetPreview = function() {
             let balNon = !isAdv ? ob : -ob;
             const pDocs = isCust ? (window.UI.state.rawData.sales || []) : (window.UI.state.rawData.purchases || []);
             pDocs.forEach(d => {
-                if (d.status !== 'Open' && d.status !== 'Cancelled' && d.date <= asOfDate && (!activeFirmId || d.firmId === activeFirmId) && (isCust ? d.customerId === l.id : d.supplierId === l.id)) {
+                if (d.status !== 'Open' && d.status !== 'Cancelled' && inRange(d.date) && (!activeFirmId || d.firmId === activeFirmId) && (isCust ? d.customerId === l.id : d.supplierId === l.id)) {
                     const amt = parseFloat(d.grandTotal) || 0;
                     const imp = d.documentType === 'return' ? -amt : amt;
                     if (d.invoiceType === 'Non-GST') balNon += imp; else balGST += imp;
                 }
             });
             (window.UI.state.rawData.cashbook || []).forEach(r => {
-                if (r.ledgerId === l.id && r.date <= asOfDate && (!activeFirmId || r.firmId === activeFirmId)) {
+                if (r.ledgerId === l.id && inRange(r.date) && (!activeFirmId || r.firmId === activeFirmId)) {
                     let isNon = r.taxPool === 'Non-GST';
                     const legacyRef = r.invoiceRef || r.linkedInvoice;
                     if (!r.taxPool || r.taxPool === 'All') {
@@ -9870,7 +10338,7 @@ window.app.showBSBreakdown = function(type, title, color) {
         data.forEach(item => {
             total += item.amount;
             html += `
-                <div class="m3-card" style="padding: 12px 16px; margin: 0; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid ${color}; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <div class="m3-card" style="padding: 14px 16px; margin: 0; display: flex; justify-content: space-between; align-items: center; border-radius: 0; border: none; border-bottom: 1px solid var(--md-outline-variant); box-shadow: none; background: var(--md-surface);">
                     <div style="flex: 1; min-width: 0; padding-right: 12px;">
                         <strong style="display: block; font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
                         <small style="color: var(--md-text-muted);">${item.desc}</small>
