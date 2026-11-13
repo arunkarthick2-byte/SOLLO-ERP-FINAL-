@@ -2238,21 +2238,19 @@ const app = {
 
             if (maxAllowable > 0) {
                 const tr = document.createElement('div');
-                tr.className = 'item-entry-card m3-card'; /* 🚨 ROOT FIX: Removed 'tap-target' */
-                tr.style.cssText = `padding: 12px; margin-bottom: 8px; border-left: 4px solid var(--md-error);`;
-                
+                tr.className = 'item-entry-card m3-card';
+                tr.style.cssText = `padding: 12px 0; margin-bottom: 0; border: none; border-bottom: 1px solid var(--md-outline-variant); background: transparent;`;
                 tr.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <div style="flex: 1; padding-right: 8px; min-width: 0;">
                             <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name || 'Archived / Unknown Item'}</strong>
                             <small style="color:var(--md-error); font-weight: bold; display: block; margin-bottom: 6px;">Max Return: ${maxAllowable}</small>
-                            <!-- 🚨 ENTERPRISE UPGRADE: POS NUMPAD TRIGGERS -->
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
-                                <input type="text" inputmode="decimal" class="row-qty" value="0" max="${maxAllowable}" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-error); border-radius: 4px; color: var(--md-error); font-size: 14px; background: rgba(186, 26, 26, 0.05);">
+                                <input type="text" inputmode="decimal" class="row-qty" value="0" max="${maxAllowable}" oninput="UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: none; border-bottom: 1px solid var(--md-error); border-radius: 0; color: var(--md-error); font-size: 14px; background: transparent;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
-                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" readonly style="width: 75px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 14px; background: var(--md-surface-variant);">
-                                <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${item.gstPercent || 0}% GST</span>
+                                <input type="text" inputmode="decimal" class="row-rate" value="${item.rate}" readonly style="width: 75px; padding: 6px 4px; border: none; border-bottom: 1px solid var(--md-outline-variant); border-radius: 0; font-size: 14px; background: transparent;">
+                                <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: transparent; padding: 2px 4px; border-radius: 0; font-weight: 800; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${item.gstPercent || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gstPercent || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
                                 <input type="hidden" class="row-item-id" value="${item.itemId}">
@@ -2262,7 +2260,7 @@ const app = {
                             </div>
                         </div>
                         <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
-                            <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="color: var(--md-error); padding: 4px; border-radius: 50%; background: rgba(186, 26, 26, 0.1); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+                            <div class="tap-target" onclick="this.closest('.item-entry-card').remove(); UI.calc${type.charAt(0).toUpperCase() + type.slice(1)}Totals()" style="color: var(--md-error); padding: 4px; border-radius: 50%; background: transparent; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
                                 <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
                             </div>
                             <strong class="row-total" style="font-size: 16px; color: var(--md-error); margin-top: auto; padding-top: 8px;">0.00</strong>
@@ -3576,21 +3574,19 @@ if (type === 'sales' && data.status === 'Completed' && !app.state.currentEditId)
             <!-- Modal Body -->
             <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto;">
                 <div>
-                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--md-text-muted); margin-bottom: 6px; display: block; letter-spacing: 0.5px;">Cash Received (₹)</label>
-                    <input type="number" id="split-cash" inputmode="decimal" placeholder="0.00" step="any" style="width: 100%; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 16px; font-weight: 700; background: var(--md-surface); color: var(--md-on-surface); box-sizing: border-box; outline: none;" oninput="window.calcSplit()">
+                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--md-text-muted); margin-bottom: 4px; display: block; letter-spacing: 0.5px;">Cash Received (₹)</label>
+                    <input type="text" id="split-cash" class="row-qty" inputmode="decimal" placeholder="0.00" style="width: 100% !important; padding: 8px 0 !important; border: none !important; border-bottom: 1px solid var(--md-outline-variant) !important; border-radius: 0 !important; font-size: 16px !important; font-weight: 700 !important; background: transparent !important; color: var(--md-on-surface) !important; box-sizing: border-box !important; outline: none !important; text-align: left !important;" oninput="window.calcSplit()">
                 </div>
-
                 <div>
-                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--md-text-muted); margin-bottom: 6px; display: block; letter-spacing: 0.5px;">Bank / UPI Received (₹)</label>
-                    <div style="display: flex; gap: 8px;">
-                        <input type="number" id="split-bank" inputmode="decimal" placeholder="0.00" step="any" style="flex: 1; min-width: 0; padding: 12px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 16px; font-weight: 700; background: var(--md-surface); color: var(--md-on-surface); box-sizing: border-box; outline: none;" oninput="window.calcSplit()">
-                        <select id="split-bank-account" style="width: 130px; padding: 12px 8px; border: 1px solid var(--md-outline-variant); border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--md-surface-variant); color: var(--md-on-surface); box-sizing: border-box; outline: none;">
+                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--md-text-muted); margin-bottom: 4px; display: block; letter-spacing: 0.5px;">Bank / UPI Received (₹)</label>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <input type="text" id="split-bank" class="row-qty" inputmode="decimal" placeholder="0.00" style="flex: 1; min-width: 0; width: 100% !important; padding: 8px 0 !important; border: none !important; border-bottom: 1px solid var(--md-outline-variant) !important; border-radius: 0 !important; font-size: 16px !important; font-weight: 700 !important; background: transparent !important; color: var(--md-on-surface) !important; box-sizing: border-box !important; outline: none !important; text-align: left !important;" oninput="window.calcSplit()">
+                        <select id="split-bank-account" style="width: 140px !important; padding: 8px 24px 8px 0 !important; border: none !important; border-bottom: 1px solid var(--md-outline-variant) !important; border-radius: 0 !important; font-size: 13px !important; font-weight: 700 !important; background-color: transparent !important; color: var(--md-on-surface) !important; box-sizing: border-box !important; outline: none !important; background-position: right 2px center !important;">
                             ${bankOptions}
                         </select>
                     </div>
                 </div>
-
-                <div style="background: rgba(186, 26, 26, 0.08); padding: 14px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px dashed rgba(186, 26, 26, 0.3);">
+                <div style="background: transparent; padding: 12px 0 0 0; border-top: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: var(--md-error); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Pending Credit</span>
                     <span id="split-credit" style="color: var(--md-error); font-size: 18px; font-weight: 900;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
                 </div>
@@ -3955,19 +3951,14 @@ if (data.id && splitConfirmed) {
                     } 
                     else if (type === 'product') {
                         if (!UI.state.rawData.items) UI.state.rawData.items = [];
-                        UI.state.rawData.items.push(data); // Inject into memory
-                        
-                        const list = document.getElementById('list-products');
-                        if (list) {
-                            const li = document.createElement('li');
-                            li.innerHTML = `
-                                <div><strong>${data.name}</strong><br><small style="color:var(--md-text-muted);">Stock: ${data.stock} ${data.uom} | ₹${data.sellPrice.toFixed(2)}</small></div>
-                                <input type="checkbox" value="${data.id}" style="width: 24px; height: 24px;">
-                            `;
-                            list.insertBefore(li, list.firstChild);
+                        const idx = UI.state.rawData.items.findIndex(i => i.id === data.id);
+                        if (idx > -1) UI.state.rawData.items[idx] = data;
+                        else UI.state.rawData.items.push(data);
+                        if (window.UI && window.UI.addSmartItemRow) {
+                            const itemRate = isSalesFormOpen ? (parseFloat(data.sellPrice) || 0) : (parseFloat(data.buyPrice) || 0);
+                            window.UI.addSmartItemRow(prefix, data.id, data.name, itemRate, data.gst || 0, data.uom || '', data.hsn || '', data.buyPrice || 0, 1, false);
                         }
-                        if (window.Utils) window.Utils.showToast("Product Saved & Added to List! ✅");
-                        setTimeout(() => { if(window.UI) window.UI.openBottomSheet('sheet-products'); }, 300);
+                        if (window.Utils) window.Utils.showToast("Product Saved & Added! ✅");
                     }
                 }
                 // --------------------------------------------------------------

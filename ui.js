@@ -2317,30 +2317,7 @@ const UI = {
                 
                 UI.renderVirtualList(container, data, (t) => {
                     const displayTitle = t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.category || 'Deleted Item';
-                    return `
-                    <div class="m3-card" style="padding: 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; gap: 12px;">
-                        
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-                            <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.1); color: var(--md-error); border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
-                            </div>
-                            <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${UI.highlightText(displayTitle, searchTerm)}</strong>
-                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(t.date) || 'Unknown Date'} | Module: ${String(t._module || '').toUpperCase()}</small>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; justify-content: flex-end; align-items: center; min-height: 36px;">
-                            <div style="display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; margin-top: 4px;">
-                                <div class="tap-target" onclick="app.restoreRecord('${t.id}', '${t._module}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">restore</span>
-                                </div>
-                                <div class="tap-target" onclick="app.permanentlyDeleteRecord('${t.id}')" style="width: 32px; height: 32px; border-radius: 6px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 18px;">delete_forever</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
+                    return `<div class="m3-card" style="padding: 12px 16px !important; margin-bottom: 0 !important; border-radius: 0 !important; background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant) !important; box-shadow: none !important; display: flex; align-items: center; justify-content: space-between; gap: 12px;"><div class="icon-circle" style="width: 40px; height: 40px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;"><span class="material-symbols-outlined" style="font-size: 20px;">delete</span></div><div style="flex: 1; min-width: 0; padding-right: 8px;"><strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; font-weight: 700;">${UI.highlightText(displayTitle, searchTerm)}</strong><small style="color: var(--md-text-muted); display: block; margin-top: 3px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(t.date) || 'Unknown Date'} | ${String(t._module || '').toUpperCase()}</small></div><div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;"><div class="tap-target" onclick="app.restoreRecord('${t.id}', '${t._module}')" style="width: 34px; height: 34px; border-radius: 8px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); display: flex; align-items: center; justify-content: center;"><span class="material-symbols-outlined" style="font-size: 19px;">restore</span></div><div class="tap-target" onclick="app.permanentlyDeleteRecord('${t.id}')" style="width: 34px; height: 34px; border-radius: 8px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); display: flex; align-items: center; justify-content: center;"><span class="material-symbols-outlined" style="font-size: 19px;">delete_forever</span></div></div></div>`;
                 }, emptyHTML);
             }
             else if (activeTab === 'adjustments') {
@@ -4157,7 +4134,7 @@ const UI = {
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
                                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: bold; margin: 0 2px;">×</span>
                                 <input type="text" inputmode="decimal" class="row-rate" value="${item.finalRate}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 85px; padding: 6px 4px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); outline: none;">
-                                <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 6px; border-radius: 4px; font-weight: bold; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${item.gst || 0}% GST</span>
+                                <span style="display: inline-block; font-size: 10px; color: var(--md-text-muted); background: transparent; padding: 2px 4px; border-radius: 0; font-weight: 800; white-space: nowrap; line-height: 1.2; margin-top: 2px;">${item.gst || 0}% GST</span>
                                 <input type="hidden" class="row-gst" value="${item.gst || 0}">
                                 <input type="hidden" class="row-hsn" value="${item.hsn || ''}">
                                 <input type="hidden" class="row-item-id" value="${item.id}">
@@ -4167,7 +4144,7 @@ const UI = {
                             ${prefix === 'sales' ? `
                             <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
                                 <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                                <input type="text" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
+                                <input type="text" inputmode="decimal" class="row-item-buyprice" value="${item.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:none; border-bottom:1px solid var(--md-outline-variant); background:transparent; border-radius:0;">
                                 <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
                             </div>
                             ` : `<input type="hidden" class="row-item-buyprice" value="${item.buyPrice || 0}">`}
@@ -4175,8 +4152,7 @@ const UI = {
                             ${item.conversionHtml}
                         </div>
                         <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; align-self: stretch;">
-                            <!-- The Delete Button -->
-                            <div class="tap-target" onclick="const card = this.closest('.item-entry-card'); const index = Array.from(card.parentNode.children).indexOf(card); window['${prefix}ObservableItems'].splice(index, 1); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-error); background: rgba(186, 26, 26, 0.08); padding: 6px; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                            <div class="tap-target" onclick="const card = this.closest('.item-entry-card'); const index = Array.from(card.parentNode.children).indexOf(card); window['${prefix}ObservableItems'].splice(index, 1); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()" style="color: var(--md-error); background: transparent; padding: 6px; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
                                 <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
                             </div>
                             <strong class="row-total" style="font-size: 16px; color: var(--md-on-surface); margin-top: auto; padding-top: 8px;">0.00</strong>
@@ -4185,24 +4161,20 @@ const UI = {
                 `;
             });
         }
-
-        // 2. Data Logic & Memory Lookups
         const smart = UI.getSmartRate(prefix, id, price);
         const finalRate = forceRate ? price : smart.price;
         const msgHtml = (forceRate && price !== smart.price) ? '' : smart.msg;
-
         const dbItem = (window.UI.state.rawData.items || []).find(i => i.id === id);
         const altUom = dbItem && dbItem.altUom ? dbItem.altUom : '';
         const conv = dbItem && dbItem.conversionFactor ? parseFloat(dbItem.conversionFactor) || 1 : 1;
-
         let conversionHtml = '';
         if (altUom && conv > 1) {
             conversionHtml = `
-            <div style="display:flex; align-items:center; gap:6px; margin-top:12px; background: rgba(0,97,164,0.05); padding: 6px 10px; border-radius: 6px; border: 1px dashed rgba(0,97,164,0.3); width: max-content;">
+            <div style="display:flex; align-items:center; gap:6px; margin-top:10px; background:transparent; padding:4px 0; border:none; width:max-content;">
                 <span style="font-size:11px; color:var(--md-primary); font-weight:800;">Quick Convert:</span>
-                <input type="number" inputmode="decimal" class="row-alt-qty" placeholder="0" style="width:50px; padding:4px; font-size:14px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px; text-align: center; font-weight:bold; color:var(--md-on-surface); outline:none;">
+                <input type="text" inputmode="decimal" class="row-qty row-alt-qty" placeholder="0" style="width:50px !important; min-height:28px !important; height:28px !important; padding:2px 4px !important; font-size:14px !important; border:none !important; border-bottom:1px solid var(--md-outline-variant) !important; background:transparent !important; border-radius:0 !important; text-align:center !important; font-weight:bold; color:var(--md-on-surface); outline:none;">
                 <span style="font-size:11px; color:var(--md-text-muted); font-weight:800;">${altUom}s</span>
-                <span class="material-symbols-outlined tap-target" style="font-size:16px; color:#ffffff; cursor:pointer; background: var(--md-primary); border-radius: 4px; padding: 4px; box-shadow:0 2px 4px rgba(0,97,164,0.2);" title="Convert to Base Units" onclick="const p=this.parentElement; const altQty=parseFloat(p.querySelector('.row-alt-qty').value)||0; const baseQtyEl=this.closest('.item-entry-card').querySelector('.row-qty'); baseQtyEl.value=(altQty * ${conv}); baseQtyEl.dispatchEvent(new Event('input', {bubbles:true})); p.querySelector('.row-alt-qty').value=''; window.Utils.showToast('Converted ${altUom} to ${uom}!');">arrow_forward</span>
+                <span class="material-symbols-outlined tap-target" style="font-size:16px; color:var(--md-primary); cursor:pointer; background:transparent; padding:4px;" title="Convert to Base Units" onclick="const p=this.parentElement; const altQty=parseFloat(p.querySelector('.row-alt-qty').value)||0; const baseQtyEl=this.closest('.item-entry-card').querySelector('.row-qty:not(.row-alt-qty)'); baseQtyEl.value=(altQty * ${conv}); baseQtyEl.dispatchEvent(new Event('input', {bubbles:true})); p.querySelector('.row-alt-qty').value=''; window.Utils.showToast('Converted ${altUom} to ${uom}!');">arrow_forward</span>
             </div>
             `;
         }
@@ -4394,91 +4366,12 @@ const UI = {
 
     confirmProducts: () => {
         const prefix = UI.state.activeActivity;
-        const container = document.getElementById(`${prefix}-items-body`);
-        const emptyState = document.getElementById(`${prefix}-empty-items`);
-        if(!container) return;
-        if(emptyState) emptyState.style.display = 'none';
-        
-        const fragment = document.createDocumentFragment(); // 🚨 PERFORMANCE FIX: Invisible DOM Container
-        
+        if (!prefix) return;
         UI.state.selectedProducts.forEach(p => {
-            // Trigger Smart Pricing Memory
-            const smart = UI.getSmartRate(prefix, p.id, p.price);
-
-            const itemCard = document.createElement('div');
-            itemCard.className = 'item-entry-card';
-            itemCard.style.padding = '14px';
-            itemCard.style.marginBottom = '12px';
-            itemCard.style.borderRadius = '12px';
-            itemCard.style.border = '1px solid var(--md-outline-variant)';
-            itemCard.style.background = 'var(--md-surface)';
-            itemCard.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
-            
-            const hiddenInputs = `
-                <input type="hidden" class="row-item-id" value="${p.id}">
-                <input type="hidden" class="row-item-name" value="${String(p.name || '').replace(/"/g, '&quot;')}">
-                <input type="hidden" class="row-uom" value="${p.uom || ''}">
-            `;
-
-            itemCard.innerHTML = `
-                ${hiddenInputs}
-                
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-                    <div style="font-weight:600; font-size:15px; color:var(--md-on-surface); flex:1; line-height:1.3;">
-                        ${p.name}
-                        <div style="font-size:11px; color:var(--md-text-muted); font-weight:normal; margin-top:2px;">HSN: <input type="text" class="row-hsn" value="${p.hsn || ''}" style="border:none; background:transparent; width:100px; color:inherit;" readonly></div>
-                    </div>
-                    <div class="tap-target" style="color: var(--md-error); background: rgba(186, 26, 26, 0.08); padding: 6px; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;" onclick="this.closest('.item-entry-card').remove(); UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals()">
-                        <span class="material-symbols-outlined" style="font-size: 18px;">delete</span>
-                    </div>
-                </div>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                    <div>
-                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">Qty (${p.uom || 'Unit'})</small>
-                        <input type="text" inputmode="decimal" class="row-qty" value="1" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
-                    </div>
-                    <div>
-                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px; white-space:nowrap;">Rate (₹)</small>
-                        <input type="text" inputmode="decimal" class="row-rate" value="${smart.price}" required oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
-                    </div>
-                    <div>
-                        <small style="color:var(--md-text-muted); font-size:11px; display:block; margin-bottom:4px;">GST %</small>
-                        <input type="text" inputmode="decimal" class="row-gst" value="${p.gst || 0}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width:100%; padding:8px; border:1px solid var(--md-outline-variant); border-radius:6px; background:var(--md-surface); font-size:16px; outline: none;">
-                    </div>
-                </div>
-
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; padding-top:8px; border-top:1px dashed var(--md-surface-variant);">
-                    <div style="display:flex; flex-direction:column; gap:4px;">
-                        ${prefix === 'sales' ? `
-                        <div style="display:flex; align-items:center; gap:4px;">
-                            <span style="font-size:10px; color:var(--md-text-muted);">Buy: ₹</span>
-                            <input type="text" inputmode="decimal" class="row-item-buyprice" value="${p.buyPrice || 0}" step="any" oninput="UI.calcSalesTotals();" style="width:100px; padding:4px 6px; font-size:11px; border:1px solid var(--md-outline-variant); background:var(--md-surface); border-radius:4px;">
-                            <span class="live-margin" style="font-size:10px; font-weight:bold; margin-left:4px;"></span>
-                        </div>
-                        ` : `<input type="hidden" class="row-item-buyprice" value="${p.buyPrice || 0}">`}
-                        ${smart.msg}
-                    </div>
-                    <div style="text-align:right;">
-                        <small style="color:var(--md-text-muted); font-size:11px;">Total (₹)</small><br>
-                        <strong class="row-total" style="font-size:18px; color:var(--md-on-surface);">0.00</strong>
-                    </div>
-                </div>
-            `;
-            fragment.appendChild(itemCard); // Add to invisible container
+            UI.addSmartItemRow(prefix, p.id, p.name, p.price, p.gst, p.uom, p.hsn, p.buyPrice, 1, false);
         });
-
-        container.appendChild(fragment); // 🚨 PERFORMANCE FIX: Render to screen ONLY ONCE!
-        prefix === 'sales' ? UI.calcSalesTotals() : UI.calcPurchaseTotals();
         UI.closeBottomSheet('sheet-products');
-        
-        setTimeout(() => {
-            if (container.lastElementChild) {
-                container.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 200);
-
-        UI.state.selectedProducts = []; 
+        UI.state.selectedProducts = [];
     },
 
     // ==========================================
@@ -6807,11 +6700,9 @@ window.openInvoiceOverview = function(type, id) {
                 ? `<span>IGST: <strong style="color: var(--md-on-surface);">₹${totalGstAmt.toFixed(2)}</strong></span>` 
                 : `<span>CGST: <strong style="color: var(--md-on-surface);">₹${halfGst}</strong></span><span>SGST: <strong style="color: var(--md-on-surface);">₹${halfGst}</strong></span>`;
             gstBreakdownHTML = `
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 13px; color: var(--md-text-muted);"><span>Total GST</span><span style="color: var(--md-on-surface);">+ ₹${totalGstAmt.toFixed(2)}</span></div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11px; color: var(--md-text-muted); background: var(--md-surface-variant); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--md-outline-variant);">${taxSplitHTML}</div>`;
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; color: var(--md-text-muted);"><span>Total GST</span><span style="color: var(--md-on-surface);">+ ₹${totalGstAmt.toFixed(2)}</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11px; color: var(--md-text-muted); padding: 2px 0;">${taxSplitHTML}</div>`;
         }
-
-        // 6. DYNAMIC LINKED CARDS (Payments, Returns & Expenses)
         let linksHTML = '';
         const linkedReceipts = (window.UI?.state?.rawData?.cashbook || []).filter(c => {
             if (partyId && c.ledgerId && String(c.ledgerId) !== String(partyId)) return false;
@@ -6820,11 +6711,11 @@ window.openInvoiceOverview = function(type, id) {
         });
         const linkedReturns = doc.documentType === 'return' ? [] : (dataList || []).filter(d => d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && uniqueRefs.includes(d.orderNo));
         if (linkedReceipts.length > 0 || linkedReturns.length > 0 || advanceAppliedToThisInvoice > 0.01) {
-            linksHTML += `<div style="padding: 0; margin-bottom: 16px;">
-                <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 16px 8px 16px;">Linked Payments & Returns</div>`;
+            linksHTML += `<div style="padding: 0; margin-bottom: 12px;">
+                <div style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px 8px 16px; border-bottom: 1px solid var(--md-outline-variant);">Linked Payments & Returns</div>`;
             if (advanceAppliedToThisInvoice > 0.01) {
                 linksHTML += `
-                <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface);">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: transparent;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div class="icon-circle" style="width: 36px; height: 36px; background: rgba(2, 132, 199, 0.1); color: #0284c7; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                             <span class="material-symbols-outlined" style="font-size: 18px;">account_balance_wallet</span>
@@ -6841,22 +6732,18 @@ window.openInvoiceOverview = function(type, id) {
                 const isMoneyIn = r.type === 'in';
                 const iconBg = isMoneyIn ? 'rgba(20, 108, 46, 0.08)' : 'rgba(186, 26, 26, 0.08)';
                 const iconColor = isMoneyIn ? '#16a34a' : '#ba1a1a';
-                
-                // 🚨 OPTIMIZED MATH: Calculate exact split for Read-Only View!
                 const refs = String(r.invoiceRef || r.linkedInvoice || '').split(',').map(x => x.trim()).filter(Boolean);
                 let displayAmt = 0;
-                
                 if (r.allocationMap) {
                     uniqueRefs.forEach(uRef => {
                         if (r.allocationMap[uRef] !== undefined) displayAmt += parseFloat(r.allocationMap[uRef]);
                     });
-                } 
-                if (displayAmt === 0) {
-                    displayAmt = (parseFloat(r.amount) || 0) / (refs.length || 1); // Legacy Fallback
                 }
-
+                if (displayAmt === 0) {
+                    displayAmt = (parseFloat(r.amount) || 0) / (refs.length || 1);
+                }
                 linksHTML += `
-                <div class="tap-target" onclick="app.openReceipt('${r.id}', '${r.type}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); cursor: pointer;">
+                <div class="tap-target" onclick="app.openReceipt('${r.id}', '${r.type}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: transparent; cursor: pointer;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div class="icon-circle" style="width: 36px; height: 36px; background: ${iconBg}; color: ${iconColor}; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                             <span class="material-symbols-outlined" style="font-size: 18px;">${isMoneyIn ? 'arrow_downward' : 'arrow_upward'}</span>
@@ -6874,7 +6761,7 @@ window.openInvoiceOverview = function(type, id) {
                 const retLabel = isSales ? 'Credit Note' : 'Debit Note';
                 const retNo = ret.invoiceNo || (ret.orderNo ? 'CN-' + ret.orderNo : retLabel);
                 linksHTML += `
-                <div class="tap-target" onclick="window.openInvoiceOverview('${type}', '${ret.id}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); cursor: pointer;">
+                <div class="tap-target" onclick="window.openInvoiceOverview('${type}', '${ret.id}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: transparent; cursor: pointer;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div class="icon-circle" style="width: 36px; height: 36px; background: rgba(124, 58, 237, 0.1); color: #7c3aed; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                             <span class="material-symbols-outlined" style="font-size: 18px;">assignment_return</span>
@@ -6889,17 +6776,16 @@ window.openInvoiceOverview = function(type, id) {
             });
             linksHTML += `</div>`;
         }
-
         const linkedExpenses = (window.UI?.state?.rawData?.expenses || []).filter(e => {
             const refs = String(e.linkedInvoice || '').split(',').map(x => x.trim());
             return refs.some(r => uniqueRefs.includes(r));
         });
         if (linkedExpenses.length > 0) {
-            linksHTML += `<div style="padding: 0; margin-bottom: 16px;">
-                <div style="font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 16px 8px 16px;">Linked Expenses</div>`;
+            linksHTML += `<div style="padding: 0; margin-bottom: 12px;">
+                <div style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px 8px 16px; border-bottom: 1px solid var(--md-outline-variant);">Linked Expenses</div>`;
             linkedExpenses.forEach(e => {
                 linksHTML += `
-                <div class="tap-target" onclick="app.openForm('expense', '${e.id}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface); cursor: pointer;">
+                <div class="tap-target" onclick="app.openForm('expense', '${e.id}')" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: transparent; cursor: pointer;">
                     <div style="display: flex; align-items: center; gap: 12px;">
                         <div class="icon-circle" style="width: 36px; height: 36px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
                             <span class="material-symbols-outlined" style="font-size: 18px;">account_balance_wallet</span>
@@ -6914,14 +6800,11 @@ window.openInvoiceOverview = function(type, id) {
             });
             linksHTML += `</div>`;
         }
-
-        // 6.5. NOTES & TERMS MODULE
         let notesHTML = '';
         const safeNotes = doc.internalNotes ? String(doc.internalNotes).replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
         const safeTerms = doc.terms ? String(doc.terms).replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
-
         if (safeNotes || safeTerms) {
-            notesHTML = `<div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 8px; padding: 16px;">`;
+            notesHTML = `<div style="background: var(--md-surface); border-bottom: 1px solid var(--md-outline-variant); border-top: 1px solid var(--md-outline-variant); margin-bottom: 12px; padding: 16px;">`;
             if (safeNotes) {
                 notesHTML += `
                 <div style="margin-bottom: ${safeTerms ? '16px' : '0'};">
@@ -6938,11 +6821,7 @@ window.openInvoiceOverview = function(type, id) {
             }
             notesHTML += `</div>`;
         }
-
-        // 6.6. PROGRESS BAR, WATERMARK STAMP & LIFECYCLE TIMELINE MATH
         const percentPaid = grandTotal > 0 ? Math.min(100, (totalPaid / grandTotal) * 100) : (balance <= 0.01 && statusText === 'Paid' ? 100 : 0);
-
-        // Status Watermark Stamp & Document Badge
         let stampText = 'UNPAID';
         let stampColor = '#0061a4';
         if (doc.status === 'Cancelled') { stampText = 'CANCELLED'; stampColor = '#dc2626'; }
@@ -6951,118 +6830,97 @@ window.openInvoiceOverview = function(type, id) {
         else if (statusText === 'Partially Paid') { stampText = 'PARTIAL'; stampColor = '#ea580c'; }
         else if (statusText === 'Overdue') { stampText = 'OVERDUE'; stampColor = '#dc2626'; }
         else if (doc.status === 'Open') { stampText = 'DRAFT'; stampColor = '#64748b'; }
-
         const docTypeBadge = doc.documentType === 'return'
             ? (isSales ? 'Credit Note' : 'Debit Note')
             : (doc.status === 'Open' ? (isSales ? 'Draft Estimate' : 'Draft PO') : (isSales ? (isNonGST ? 'Bill of Supply' : 'Tax Invoice') : 'Purchase Bill'));
-
-        // 3-Step Visual Lifecycle Timeline (Created -> Dispatched -> Settled)
         const step1Done = true;
         const step2Done = Boolean(safeShipDate || doc.status === 'Shipped' || doc.status === 'Completed' || statusText === 'Paid');
         const step3Done = Boolean(statusText === 'Paid' || doc.status === 'Completed');
         const step1Sub = safeOrdDate || safeInvDate || 'Saved';
         const step2Sub = safeShipDate || (step2Done ? 'Dispatched' : 'Pending');
         const step3Sub = safePaidDate || safeCompDate || (step3Done ? 'Settled' : (balance > 0.01 ? 'Due' : 'Pending'));
-
-        // 6.7. QUICK ACTION BUTTONS (1-Click Workflow)
         let quickActionHTML = '';
         if (doc.status === 'Open') {
             quickActionHTML = `
-            <div style="padding: 12px 16px; border-bottom: 1px dashed var(--md-outline-variant); background: rgba(0, 97, 164, 0.03); display: flex; gap: 8px;">
-                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: var(--md-primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(0,97,164,0.22);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Unpaid')">
+            <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: transparent; display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: var(--md-primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Unpaid')">
                     <span class="material-symbols-outlined" style="font-size: 19px;">task_alt</span> Finalize Document
                 </button>
             </div>`;
         } else if (doc.status === 'Unpaid' && !safeShipDate && doc.status !== 'Completed' && doc.status !== 'Cancelled') {
             quickActionHTML = `
-            <div style="padding: 12px 16px; border-bottom: 1px dashed var(--md-outline-variant); background: rgba(245, 127, 23, 0.04); display: flex; gap: 8px;">
-                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: #f57f17; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(245,127,23,0.22);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Shipped')">
+            <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: transparent; display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: #f57f17; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Shipped')">
                     <span class="material-symbols-outlined" style="font-size: 19px;">local_shipping</span> Mark as Dispatched
                 </button>
             </div>`;
         } else if ((doc.status === 'Unpaid' || doc.status === 'Shipped') && safeShipDate && !safeCompDate && doc.status !== 'Completed' && doc.status !== 'Cancelled') {
             quickActionHTML = `
-            <div style="padding: 12px 16px; border-bottom: 1px dashed var(--md-outline-variant); background: rgba(22, 163, 74, 0.04); display: flex; gap: 8px;">
-                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: #16a34a; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 3px 10px rgba(22,163,74,0.22);" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Completed')">
+            <div style="padding: 12px 16px; border-bottom: 1px solid var(--md-outline-variant); background: transparent; display: flex; gap: 8px;">
+                <button class="btn-primary tap-target" style="flex: 1; padding: 11px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; background: #16a34a; color: #fff; border: none; display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="if(window.quickUpdateStatus) window.quickUpdateStatus('${storeKey}', '${doc.id}', 'Completed')">
                     <span class="material-symbols-outlined" style="font-size: 19px;">done_all</span> Mark as Completed
                 </button>
             </div>`;
         }
-
-        // 7. ASSEMBLE DIGITAL PAPER RECEIPT CARD HTML
         const contentEl = document.getElementById('overview-main-content');
+        contentEl.style.background = 'var(--md-background)';
         contentEl.innerHTML = `
             <style>
                 #overview-main-content .receipt-aux-wrap > div {
-                    border-radius: 16px !important;
-                    border: 1px solid var(--md-outline-variant) !important;
+                    border-radius: 0 !important;
+                    border: none !important;
+                    border-top: 1px solid var(--md-outline-variant) !important;
+                    border-bottom: 1px solid var(--md-outline-variant) !important;
                     background: var(--md-surface) !important;
                     overflow: hidden !important;
                     margin-bottom: 12px !important;
-                    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+                    box-shadow: none !important;
                 }
-                #overview-main-content .receipt-aux-wrap > div > div:first-child {
-                    padding-top: 12px !important;
+                body.dark-mode #overview-main-content .receipt-aux-wrap > div,
+                body.dark-mode #overview-main-content > .overview-edge-sheet {
+                    background: #121212 !important;
+                    border-color: rgba(255, 255, 255, 0.08) !important;
                 }
                 #overview-main-content .receipt-aux-wrap .tap-target:last-child {
                     border-bottom: none !important;
                 }
             </style>
-
-            <!-- Digital Paper Receipt Card -->
-            <div style="margin: 14px 16px 14px 16px; background: var(--md-surface); border-radius: 20px; border: 1px solid var(--md-outline-variant); box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.03); overflow: hidden; position: relative;">
-                
-                <!-- Top Status Ribbon -->
-                <div style="background: ${sBg}; color: ${sColor}; padding: 9px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
+            <div class="overview-edge-sheet" style="margin: 0 0 12px 0; background: var(--md-surface); border-radius: 0; border-top: none; border-left: none; border-right: none; border-bottom: 1px solid var(--md-outline-variant); box-shadow: none; overflow: hidden; position: relative;">
+                <div style="background: transparent; color: ${sColor}; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;">
                         <span style="width: 7px; height: 7px; border-radius: 50%; background: ${sColor}; display: inline-block;"></span>
                         ${bannerStatusText}
                     </div>
-                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.65); color: ${sColor}; border: 1px solid rgba(0,0,0,0.05);">${docTypeBadge}</span>
+                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: ${sColor};">${docTypeBadge}</span>
                 </div>
-
-                <!-- Receipt Hero Header + Rotated Watermark Stamp -->
-                <div style="padding: 18px 16px 16px 16px; position: relative; overflow: hidden; border-bottom: 1px dashed var(--md-outline-variant);">
-                    
-                    <!-- Ink Watermark Stamp -->
-                    <div style="position: absolute; top: 16px; right: 14px; transform: rotate(-12deg); border: 2.5px solid ${stampColor}; color: ${stampColor}; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.18; pointer-events: none; user-select: none; box-shadow: inset 0 0 0 1px ${stampColor};">
+                <div style="padding: 18px 16px 16px 16px; position: relative; overflow: hidden; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div style="position: absolute; top: 16px; right: 14px; transform: rotate(-12deg); border: 2px solid ${stampColor}; color: ${stampColor}; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.16; pointer-events: none; user-select: none;">
                         ${stampText}
                     </div>
-
                     <div style="text-align: left;">
                         <small style="color: var(--md-text-muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 2px;">Total Invoice Value</small>
                         <h2 style="font-size: 30px; font-weight: 900; margin: 0 0 6px 0; color: var(--md-primary); letter-spacing: -0.6px; font-variant-numeric: tabular-nums;">₹${grandTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</h2>
-                        
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                             <span style="font-size: 12px; color: var(--md-text-muted);">Balance Due: <strong style="color: ${balance > 0.01 ? 'var(--md-error)' : 'var(--md-success)'}; font-variant-numeric: tabular-nums;">₹${balance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></span>
-                            ${grandTotal > 0 ? `<span style="font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: rgba(22, 163, 74, 0.1); color: var(--md-success);">${percentPaid.toFixed(0)}% PAID</span>` : ''}
+                            ${grandTotal > 0 ? `<span style="font-size: 10px; font-weight: 800; color: var(--md-success);">${percentPaid.toFixed(0)}% PAID</span>` : ''}
                         </div>
-
                         ${grandTotal > 0 ? `
-                        <div style="width: 100%; margin: 10px 0 0 0; background: var(--md-surface-variant); border-radius: 999px; height: 6px; overflow: hidden;">
-                            <div style="width: ${percentPaid}%; height: 100%; background: linear-gradient(90deg, #16a34a, #22c55e); border-radius: 999px; transition: width 0.5s ease;"></div>
+                        <div style="width: 100%; margin: 10px 0 0 0; background: var(--md-outline-variant); border-radius: 999px; height: 5px; overflow: hidden;">
+                            <div style="width: ${percentPaid}%; height: 100%; background: var(--md-success); border-radius: 999px; transition: width 0.5s ease;"></div>
                         </div>
                         ` : ''}
                     </div>
-
-                    <!-- Billed To Party Pill & Dates -->
                     <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--md-outline-variant); text-align: left;">
-                        <small style="color: var(--md-text-muted); font-size: 10px; text-transform: uppercase; display: block; margin-bottom: 6px; font-weight: 800; letter-spacing: 0.6px;">${isSales ? 'Billed To Party' : 'Supplier Party'}</small>
-                        <div class="tap-target" 
-                             style="display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 10px; background: rgba(0, 97, 164, 0.07); cursor: pointer; border: 1px solid rgba(0, 97, 164, 0.16); max-width: 100%;" 
-                             onclick="if(window.app) window.app.openPartyLedger('${partyId}', '${isSales ? 'Customer' : 'Supplier'}', '${String(partyName).replace(/'/g, "\\'").replace(/"/g, "&quot;")}')">
-                            <span class="material-symbols-outlined" style="font-size: 17px; color: var(--md-primary);">storefront</span>
-                            <strong style="color: var(--md-primary); font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${partyName}</strong>
-                            <span class="material-symbols-outlined" style="font-size: 15px; color: var(--md-primary);">open_in_new</span>
+                        <small style="color: var(--md-text-muted); font-size: 10px; text-transform: uppercase; display: block; margin-bottom: 4px; font-weight: 800; letter-spacing: 0.6px;">${isSales ? 'Billed To Party' : 'Supplier Party'}</small>
+                        <div class="tap-target" style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; background: transparent; cursor: pointer; border: none; max-width: 100%;" onclick="if(window.app) window.app.openPartyLedger('${partyId}', '${isSales ? 'Customer' : 'Supplier'}', '${String(partyName).replace(/'/g, "\\'").replace(/"/g, "&quot;")}')">
+                            <strong style="color: var(--md-primary); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${partyName}</strong>
+                            <span class="material-symbols-outlined" style="font-size: 16px; color: var(--md-primary);">open_in_new</span>
                         </div>
                         ${dateGridHTML}
                     </div>
                 </div>
-
-                <!-- 3-Step Visual Lifecycle Timeline Strip -->
-                <div style="padding: 12px 16px; background: color-mix(in srgb, var(--md-surface-variant) 45%, transparent); border-bottom: 1px dashed var(--md-outline-variant);">
+                <div style="padding: 12px 16px; background: transparent; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; align-items: center; justify-content: space-between; position: relative;">
-                        <!-- Step 1: Created -->
                         <div style="display: flex; flex-direction: column; align-items: flex-start; z-index: 2; flex: 1;">
                             <div style="display: flex; align-items: center; gap: 5px;">
                                 <span class="material-symbols-outlined" style="font-size: 16px; color: #16a34a; font-variation-settings: 'FILL' 1;">check_circle</span>
@@ -7070,11 +6928,7 @@ window.openInvoiceOverview = function(type, id) {
                             </div>
                             <small style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">${step1Sub}</small>
                         </div>
-
-                        <!-- Connector 1 -> 2 -->
                         <div style="flex: 0.6; height: 2px; background: ${step2Done ? '#16a34a' : 'var(--md-outline-variant)'}; margin: -12px 4px 0 4px; border-radius: 2px;"></div>
-
-                        <!-- Step 2: Dispatched -->
                         <div style="display: flex; flex-direction: column; align-items: center; z-index: 2; flex: 1;">
                             <div style="display: flex; align-items: center; gap: 5px;">
                                 <span class="material-symbols-outlined" style="font-size: 16px; color: ${step2Done ? '#16a34a' : 'var(--md-text-muted)'}; font-variation-settings: 'FILL' ${step2Done ? 1 : 0};">${step2Done ? 'local_shipping' : 'schedule'}</span>
@@ -7082,11 +6936,7 @@ window.openInvoiceOverview = function(type, id) {
                             </div>
                             <small style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">${step2Sub}</small>
                         </div>
-
-                        <!-- Connector 2 -> 3 -->
                         <div style="flex: 0.6; height: 2px; background: ${step3Done ? '#16a34a' : 'var(--md-outline-variant)'}; margin: -12px 4px 0 4px; border-radius: 2px;"></div>
-
-                        <!-- Step 3: Settled -->
                         <div style="display: flex; flex-direction: column; align-items: flex-end; z-index: 2; flex: 1;">
                             <div style="display: flex; align-items: center; gap: 5px;">
                                 <span class="material-symbols-outlined" style="font-size: 16px; color: ${step3Done ? '#16a34a' : 'var(--md-text-muted)'}; font-variation-settings: 'FILL' ${step3Done ? 1 : 0};">${step3Done ? 'verified' : 'pending'}</span>
@@ -7096,27 +6946,15 @@ window.openInvoiceOverview = function(type, id) {
                         </div>
                     </div>
                 </div>
-
                 ${quickActionHTML}
-
-                <!-- Itemized Receipt Rows -->
                 <div>
-                    <div style="padding: 10px 16px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; background: rgba(0, 97, 164, 0.02);">
+                    <div style="padding: 10px 16px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; background: transparent;">
                         <span style="font-size: 11px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.6px;">Items (${doc.items ? doc.items.length : 0})</span>
                         <span style="font-size: 10px; font-weight: 700; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Line Total</span>
                     </div>
                     ${itemsHTML}
                 </div>
-
-                <!-- Tactile Perforated Ticket Cutout Divider -->
-                <div style="position: relative; height: 24px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                    <div style="position: absolute; left: -11px; width: 22px; height: 22px; border-radius: 50%; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);"></div>
-                    <div style="width: 100%; border-top: 1.5px dashed var(--md-outline-variant); margin: 0 16px;"></div>
-                    <div style="position: absolute; right: -11px; width: 22px; height: 22px; border-radius: 50%; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant);"></div>
-                </div>
-
-                <!-- Receipt Breakdown & Grand Total Stub -->
-                <div style="padding: 4px 16px 18px 16px; background: linear-gradient(180deg, transparent 0%, rgba(0, 97, 164, 0.03) 100%);">
+                <div style="padding: 14px 16px 18px 16px; background: transparent;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <span style="font-size: 13px; color: var(--md-text-muted);">Subtotal</span>
                         <strong style="font-size: 14px; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">₹${rawSubtotal.toFixed(2)}</strong>
@@ -7132,8 +6970,7 @@ window.openInvoiceOverview = function(type, id) {
                         <strong style="font-size: 14px; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">+ ₹${freightVal.toFixed(2)}</strong>
                     </div>` : ''}
                     ${gstBreakdownHTML}
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1.5px dashed rgba(0, 97, 164, 0.25);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--md-outline-variant);">
                         <div>
                             <span style="font-size: 13px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.6px; display: block;">Grand Total</span>
                             <small style="font-size: 10px; color: var(--md-text-muted);">${isNonGST ? 'Exempt / Non-GST' : 'Inclusive of Taxes'}</small>
@@ -7142,9 +6979,7 @@ window.openInvoiceOverview = function(type, id) {
                     </div>
                 </div>
             </div>
-
-            <!-- Auxiliary Cards (Notes, Linked Payments, Linked Expenses) with 16px Breathing Space -->
-            <div class="receipt-aux-wrap" style="margin: 0 16px 16px 16px;">
+            <div class="receipt-aux-wrap" style="margin: 0 0 16px 0;">
                 ${notesHTML}
                 ${linksHTML}
             </div>
