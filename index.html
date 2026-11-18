@@ -194,7 +194,7 @@
                             <button id="btn-privacy-toggle" type="button" onclick="window.toggleDashPrivacy()" title="Hide/Show Figures" style="display: flex; align-items: center; justify-content: center; width: 34px; height: 32px; border: none; border-radius: 8px; background: var(--md-surface-variant); color: var(--md-on-surface); cursor: pointer; padding: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex-shrink: 0;">
                                 <span id="privacy-eye-icon" class="material-symbols-outlined" style="font-size: 18px;">visibility</span>
                             </button>
-                            <select id="dashboard-date-filter" class="dashboard-date-select" style="width: auto !important; max-width: 145px !important; margin-bottom: 0 !important;" onchange="const cm = document.getElementById('dashboard-custom-month'); if(this.value==='custom') { if(!cm.value) cm.value = new Date().toISOString().slice(0, 7); cm.style.display='block'; UI.renderDashboard(); cm.showPicker ? cm.showPicker() : cm.focus(); } else { cm.style.display='none'; UI.renderDashboard(); }">
+                            <select id="dashboard-date-filter" class="dashboard-date-select" style="width: auto !important; max-width: 145px !important; margin-bottom: 0 !important;" onchange="const cm = document.getElementById('dashboard-custom-month'); if(this.value==='custom') { if(!cm.value) cm.value = (window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0]).slice(0, 7); cm.style.display='block'; UI.renderDashboard(); cm.showPicker ? cm.showPicker() : cm.focus(); } else { cm.style.display='none'; UI.renderDashboard(); }">
                                 <option value="today">Today</option>
                                 <option value="month" selected>This Month</option>
                                 <option value="last_month">Last Month</option>
@@ -844,9 +844,9 @@ Cash Recovery & Aging</strong>
                 <div style="background: var(--md-surface); margin-left: -16px; margin-right: -16px; margin-bottom: 24px; overflow: hidden; border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
                     
                     <!-- Total Header -->
-                    <div style="background: #fff0f2; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center;">
-                        <strong style="font-size: 15px; color: #0f172a;">Total Receivables</strong>
-                        <strong id="aging-total-due" style="font-size: 18px; color: #0f172a; font-weight: 900;">₹0.00</strong>
+                    <div style="background: var(--md-surface); padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-outline-variant);">
+                        <strong style="font-size: 15px; color: var(--md-text-main);">Total Receivables</strong>
+                        <strong id="aging-total-due" style="font-size: 18px; color: var(--md-text-main); font-weight: 900;">₹0.00</strong>
                     </div>
 
                     <!-- Aging Bars -->
@@ -857,7 +857,7 @@ Cash Recovery & Aging</strong>
                                 <span style="color: var(--md-text-muted); font-weight: 500;">0 - 30 Days (Healthy)</span>
                                 <span id="aging-30-amt" style="font-weight: 700; color: var(--md-text-muted);">₹0.00</span>
                             </div>
-                            <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                            <div style="height: 6px; background: var(--md-outline-variant); border-radius: 3px; overflow: hidden;">
                                 <div id="aging-30-bar" style="height: 100%; width: 0%; background: #16a34a; border-radius: 3px; transition: width 0.8s ease;"></div>
                             </div>
                         </div>
@@ -868,7 +868,7 @@ Cash Recovery & Aging</strong>
                                 <span style="color: var(--md-text-muted); font-weight: 500;">31 - 60 Days (Warning)</span>
                                 <span id="aging-60-amt" style="font-weight: 700; color: var(--md-text-muted);">₹0.00</span>
                             </div>
-                            <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                            <div style="height: 6px; background: var(--md-outline-variant); border-radius: 3px; overflow: hidden;">
                                 <div id="aging-60-bar" style="height: 100%; width: 0%; background: #f59e0b; border-radius: 3px; transition: width 0.8s ease;"></div>
                             </div>
                         </div>
@@ -879,7 +879,7 @@ Cash Recovery & Aging</strong>
                                 <span style="color: var(--md-text-muted); font-weight: 500;">60+ Days (High Risk)</span>
                                 <span id="aging-90-amt" style="font-weight: 700; color: var(--md-text-muted);">₹0.00</span>
                             </div>
-                            <div style="height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden;">
+                            <div style="height: 6px; background: var(--md-outline-variant); border-radius: 3px; overflow: hidden;">
                                 <div id="aging-90-bar" style="height: 100%; width: 0%; background: #fca5a5; border-radius: 3px; transition: width 0.8s ease;"></div>
                             </div>
                         </div>
@@ -887,9 +887,9 @@ Cash Recovery & Aging</strong>
 
                     <!-- View Defaulters Button -->
                     <div style="padding: 0 16px 16px 16px;">
-                        <div class="tap-target setting-btn" data-action="defaulters" style="background: #f8fafc; padding: 14px; text-align: center; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;">
-                            <strong style="color: #1e3a8a; font-size: 14px;">View Defaulters</strong>
-                            <span class="material-symbols-outlined" style="color: #1e3a8a; font-size: 18px;">arrow_forward</span>
+                        <div class="tap-target setting-btn" data-action="defaulters" style="background: rgba(0, 97, 164, 0.08); padding: 14px; text-align: center; border-radius: 8px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px;">
+                            <strong style="color: var(--md-primary); font-size: 14px;">View Defaulters</strong>
+                            <span class="material-symbols-outlined" style="color: var(--md-primary); font-size: 18px;">arrow_forward</span>
                         </div>
                     </div>
                 </div>
@@ -1311,7 +1311,10 @@ Data & Security</strong>
                 renderDots('lock-pin-dots', 0);
                 lockScreen.style.opacity = '0';
                 clearAnyStuckBlur();
-                setTimeout(() => { lockScreen.style.display = 'none'; }, 300);
+                setTimeout(() => {
+                    lockScreen.style.display = 'none';
+                    if (window.UI && window.UI.chartInstance) window.UI.chartInstance.resize();
+                }, 300);
             } else {
                 if (window.Utils) window.Utils.showToast('Incorrect PIN');
                 renderDots('lock-pin-dots', 4, true);
@@ -1329,7 +1332,10 @@ Data & Security</strong>
             if (!savedPin) {
                 lockScreen.style.opacity = '0';
                 clearAnyStuckBlur();
-                setTimeout(() => { lockScreen.style.display = 'none'; }, 300);
+                setTimeout(() => {
+                    lockScreen.style.display = 'none';
+                    if (window.UI && window.UI.chartInstance) window.UI.chartInstance.resize();
+                }, 300);
             } else {
                 window.verifyAppLockPin();
             }
@@ -1582,7 +1588,7 @@ Data & Security</strong>
                 </div>
             </div>
             
-            <div class="search-container" style="position: relative; margin-bottom: 12px; flex-shrink: 0; box-shadow: none !important; border: 1px solid var(--md-outline-variant) !important; border-radius: 8px !important;">
+            <div class="search-container" style="position: relative; margin-bottom: 12px; flex-shrink: 0;">
                 <span class="material-symbols-outlined" style="position: absolute; left: 12px; top: 12px; color: var(--md-outline);">search</span>
                 <input type="text" id="smart-search-input" placeholder="Search" autocomplete="off" oninput="if(window.UI) window.UI.executeSmartSearch()" style="width: 100%; padding: 12px; border: none; font-size: 16px; background: transparent; outline: none;">
             </div>
@@ -1666,7 +1672,7 @@ Data & Security</strong>
 
                 <!-- 🚀 3-PART PARTY INSIGHT CARD (INFINITE DRILL-DOWN) -->
                 <div id="sales-party-insight" class="hidden tap-target" onclick="if(window.app && document.getElementById('sales-customer-id').value) window.app.openPartyLedger(document.getElementById('sales-customer-id').value, 'Customer', document.getElementById('sales-customer-display').innerText)" style="display: none; flex-direction: column; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px 16px; margin-top: -6px; margin-bottom: 16px; animation: fadeSlideDown 0.3s ease forwards; cursor: pointer;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--md-outline-variant); padding-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">Total Balance</span>
                             <span class="material-symbols-outlined" style="font-size: 14px; color: var(--md-primary);">open_in_new</span>
@@ -1735,17 +1741,17 @@ Data & Security</strong>
                     </div>
                     <div id="sales-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Dispatch Date</label>
-                        <input type="date" id="sales-shipped-date" class="compact-input-box">
+                        <input type="date" id="sales-shipped-date" class="compact-input-box" placeholder="Select Date...">
                     </div>
                     <div id="sales-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Completed Date</label>
-                        <input type="date" id="sales-completed-date" class="compact-input-box">
+                        <input type="date" id="sales-completed-date" class="compact-input-box" placeholder="Select Date...">
                     </div>
                 </div>
 
                 <!-- ✨ ENTERPRISE UX: CTA DASHED DROPZONE -->
                 <div class="m3-card" style="margin-bottom: 12px; padding: 8px;">
-                    <div class="tap-target" style="padding: 14px; display: flex; align-items: center; justify-content: center; background: rgba(0, 97, 164, 0.04); border: 2px dashed rgba(0, 97, 164, 0.3); border-radius: 8px; margin-bottom: 8px; transition: all 0.2s ease;" onclick="if(window.UI) UI.openSmartSearch('item', 'sales')">
+                    <div class="tap-target" style="padding: 14px; display: flex; align-items: center; justify-content: center; background: rgba(0, 97, 164, 0.04); border: 1px solid rgba(0, 97, 164, 0.3); border-radius: 8px; margin-bottom: 8px; transition: all 0.2s ease;" onclick="if(window.UI) UI.openSmartSearch('item', 'sales')">
                         <span class="material-symbols-outlined" style="color: var(--md-primary); margin-right: 8px; font-size: 20px;">add_circle</span>
                         <span style="font-size: 15px; color: var(--md-primary); font-weight: 700;">Add Product</span>
                         <span class="material-symbols-outlined" style="color: var(--md-outline); margin-left: auto;" onclick="event.stopPropagation(); if(window.app) window.app.openForm('product')">post_add</span>
@@ -1791,10 +1797,10 @@ Data & Security</strong>
                         <span>Round Off:</span>
                         <strong id="sales-round-off">0.00</strong>
                     </div>
-                    <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
+                    <hr style="border:none; border-top:1px solid var(--md-outline-variant); margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="sales-grand-total">&#8377;0.00</strong></div>
                     
-                    <div id="sales-installment-tracker" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--md-outline-variant);">
+                    <div id="sales-installment-tracker" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--md-outline-variant);">
                         <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px;">
                             <span style="color: var(--md-success);">Total Paid: <span id="sales-tracker-paid">₹0.00</span></span>
                             <span style="color: var(--md-error);">Balance Due: <span id="sales-tracker-due">₹0.00</span></span>
@@ -1822,8 +1828,8 @@ Data & Security</strong>
                         Advanced Options & Notes
                         <span class="material-symbols-outlined" style="margin-left: auto; color: var(--md-outline);">expand_more</span>
                     </summary>
-                    <div style="padding: 0 16px 16px 16px; border-top: 1px dashed var(--md-outline-variant);">
-                        <div id="sales-custom-fields-container" style="display: none; background: rgba(0, 97, 164, 0.03); padding: 16px; border-radius: 8px; margin-top: 16px; border: 1px solid rgba(0, 97, 164, 0.1);">
+                    <div style="padding: 0 16px 16px 16px; border-top: 1px solid var(--md-outline-variant);">
+                        <div id="sales-custom-fields-container" style="display: none; background: transparent; padding: 16px 0 0 0; border-radius: 0; margin-top: 8px; border: none;">
                             
                             <div id="sales-cf1-group" style="display: none; margin-bottom: 12px; flex-direction: column; gap: 6px;">
                                 <div id="sales-cf1-label" style="color: var(--md-primary); font-weight: 700; font-size: 11px; text-transform: uppercase;">Custom 1</div>
@@ -1899,7 +1905,7 @@ Data & Security</strong>
 
                 <!-- 🚀 3-PART PARTY INSIGHT CARD (INFINITE DRILL-DOWN) -->
                 <div id="purchase-party-insight" class="hidden tap-target" onclick="if(window.app && document.getElementById('purchase-supplier-id').value) window.app.openPartyLedger(document.getElementById('purchase-supplier-id').value, 'Supplier', document.getElementById('purchase-supplier-display').innerText)" style="display: none; flex-direction: column; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 8px; padding: 12px 16px; margin-top: -6px; margin-bottom: 16px; animation: fadeSlideDown 0.3s ease forwards; cursor: pointer;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed var(--md-outline-variant); padding-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--md-outline-variant); padding-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <span style="font-size: 11px; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">Total Balance</span>
                             <span class="material-symbols-outlined" style="font-size: 14px; color: #d84315;">open_in_new</span>
@@ -1966,17 +1972,17 @@ Data & Security</strong>
                     </div>
                     <div id="purchase-shipped-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Dispatch Date</label>
-                        <input type="date" id="purchase-shipped-date" class="compact-input-box">
+                        <input type="date" id="purchase-shipped-date" class="compact-input-box" placeholder="Select Date...">
                     </div>
                     <div id="purchase-completed-date-group" class="hidden" style="display: flex; flex-direction: column; gap: 6px;">
                         <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase;">Completed Date</label>
-                        <input type="date" id="purchase-completed-date" class="compact-input-box">
+                        <input type="date" id="purchase-completed-date" class="compact-input-box" placeholder="Select Date...">
                     </div>
                 </div>
 
                 <!-- ✨ ENTERPRISE UX: CTA DASHED DROPZONE -->
                 <div class="m3-card" style="margin-bottom: 12px; padding: 8px;">
-                    <div class="tap-target" style="padding: 14px; display: flex; align-items: center; justify-content: center; background: rgba(245, 127, 23, 0.04); border: 2px dashed rgba(245, 127, 23, 0.3); border-radius: 8px; margin-bottom: 8px; transition: all 0.2s ease;" onclick="if(window.UI) UI.openSmartSearch('item', 'purchase')">
+                    <div class="tap-target" style="padding: 14px; display: flex; align-items: center; justify-content: center; background: rgba(245, 127, 23, 0.04); border: 1px solid rgba(245, 127, 23, 0.3); border-radius: 8px; margin-bottom: 8px; transition: all 0.2s ease;" onclick="if(window.UI) UI.openSmartSearch('item', 'purchase')">
                         <span class="material-symbols-outlined" style="color: #f57f17; margin-right: 8px; font-size: 20px;">add_circle</span>
                         <span style="font-size: 15px; color: #f57f17; font-weight: 700;">Add Product</span>
                         <span class="material-symbols-outlined" style="color: var(--md-outline); margin-left: auto;" onclick="event.stopPropagation(); if(window.app) window.app.openForm('product')">post_add</span>
@@ -2022,10 +2028,10 @@ Data & Security</strong>
                         <span>Round Off:</span>
                         <strong id="purchase-round-off">0.00</strong>
                     </div>
-                    <hr style="border:none; border-top:1px dashed var(--md-outline-variant); margin: 12px 0;">
+                    <hr style="border:none; border-top:1px solid var(--md-outline-variant); margin: 12px 0;">
                     <div style="display: flex; justify-content: space-between; font-size: 18px; color: var(--md-primary);"><strong>Grand Total:</strong><strong id="purchase-grand-total">&#8377;0.00</strong></div>
                     
-                    <div id="purchase-installment-tracker" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--md-outline-variant);">
+                    <div id="purchase-installment-tracker" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--md-outline-variant);">
                         <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 8px;">
                             <span style="color: var(--md-success);">Total Paid: <span id="purchase-tracker-paid">₹0.00</span></span>
                             <span style="color: var(--md-error);">Balance Due: <span id="purchase-tracker-due">₹0.00</span></span>
@@ -2053,7 +2059,7 @@ Data & Security</strong>
                         Advanced Options & Notes
                         <span class="material-symbols-outlined" style="margin-left: auto; color: var(--md-outline);">expand_more</span>
                     </summary>
-                    <div style="padding: 0 16px 16px 16px; border-top: 1px dashed var(--md-outline-variant);">
+                    <div style="padding: 0 16px 16px 16px; border-top: 1px solid var(--md-outline-variant);">
                         <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;">
                             <label style="color: var(--md-text-muted); font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px;">
                                 <span class="material-symbols-outlined" style="font-size: 16px;">note_alt</span> Document Notes / Remarks
@@ -2104,7 +2110,7 @@ Data & Security</strong>
             
             <form id="form-expense">
 
-                <div style="padding: 12px 16px 8px 16px; font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
+                <div style="padding: 12px 16px 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Core Details</div>
                 
                 <div class="premium-form-section">
                     <div class="premium-row">
@@ -2129,7 +2135,7 @@ Data & Security</strong>
                                     <option value="" disabled selected>Select...</option>
                                 </select>
                             </div>
-                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: #e2e8f0; padding: 4px; border-radius: 50%; font-size: 18px;" onclick="app.manageSimpleMaster('expenseCategories', 'Expense Categories')">add</span>
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: rgba(0, 97, 164, 0.12); padding: 4px; border-radius: 50%; font-size: 18px;" onclick="app.manageSimpleMaster('expenseCategories', 'Expense Categories')">add</span>
                         </div>
                     </div>
 
@@ -2153,14 +2159,14 @@ Data & Security</strong>
                     </div>
                 </div>
 
-                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Additional Context</div>
+                <div style="padding: 8px 16px; font-size: 12px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Additional Context</div>
                 
                 <div class="premium-form-section">
                     <div class="premium-row tap-target" style="cursor: pointer;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-linked-docs')">
                         <div class="premium-label">Link Invoice</div>
                         <div class="premium-input-container">
-                            <span id="expense-linked-display" style="font-size: 15px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">General Expense</span>
-                            <span class="material-symbols-outlined" style="color: #94a3b8; font-size: 20px; margin-left: 8px;">chevron_right</span>
+                            <span id="expense-linked-display" style="font-size: 15px; color: var(--md-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">General Expense</span>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline); font-size: 20px; margin-left: 8px;">chevron_right</span>
                             <input type="hidden" id="expense-linked-invoice" name="linkedInvoice">
                         </div>
                     </div>
@@ -2251,7 +2257,7 @@ Data & Security</strong>
                             <div class="premium-select-wrapper" style="flex: 1;">
                                 <select name="uom" id="product-uom-select" required class="premium-input premium-select"></select>
                             </div>
-                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: #e2e8f0; padding: 6px; border-radius: 50%; font-size: 18px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')">edit</span>
+                            <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); background: rgba(0, 97, 164, 0.12); padding: 6px; border-radius: 50%; font-size: 18px;" onclick="app.manageSimpleMaster('units', 'Units of Measure')">edit</span>
                         </div>
                     </div>
                     
@@ -2262,11 +2268,11 @@ Data & Security</strong>
                             <input type="text" name="altUom" id="product-alt-uom" class="premium-input" placeholder="e.g. Box, Carton" style="flex: 1; text-align: left; padding-left: 12px;">
                         </div>
                     </div>
-                    <div class="premium-row" style="background: rgba(0, 97, 164, 0.02); border-bottom: 1px dashed var(--md-outline-variant);">
+                    <div class="premium-row">
                         <div class="premium-label" style="font-size: 11px;">Conversion<br><small style="font-weight: normal; color: var(--md-text-muted);">(1 Alt = ? Base)</small></div>
                         <div class="premium-input-container" style="gap: 8px;">
                             <span style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">1 Alt Unit =</span>
-                            <input type="number" inputmode="decimal" name="conversionFactor" id="product-conversion" class="premium-input" placeholder="e.g. 10" style="flex: 1; text-align: center; border: 1px solid var(--md-outline-variant) !important; background: var(--md-surface) !important; border-radius: 6px;">
+                            <input type="number" inputmode="decimal" name="conversionFactor" id="product-conversion" class="premium-input" placeholder="e.g. 10" style="flex: 1; text-align: right; padding-right: 4px;">
                         </div>
                     </div>
                     <div class="premium-row">
@@ -2293,14 +2299,14 @@ Data & Security</strong>
                     </div>
                 </div>
 
-                <div id="product-ledger-card" style="padding: 0 16px; display: none;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 1px solid #90caf9; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,97,164,0.1);" onclick="const pid = window.app.state.currentMasterId; const pname = document.getElementById('prod-name').value; if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm(pid, pname);">
-                        <span class="material-symbols-outlined" style="color: #0277bd; font-size: 28px;">inventory_2</span>
+                <div id="product-ledger-card" style="padding: 0; display: none;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 14px 16px; margin-bottom: 24px; background: var(--md-surface); border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant); border-left: none; border-right: none; border-radius: 0; box-shadow: none;" onclick="const pid = window.app.state.currentMasterId; const pname = document.getElementById('prod-name').value; if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm(pid, pname);">
+                        <span class="material-symbols-outlined" style="color: var(--md-primary); font-size: 24px;">inventory_2</span>
                         <div style="flex: 1;">
-                            <strong style="font-size:16px; color: #0277bd; display: block;">View Stock Ledger</strong>
-                            <div style="font-size: 12px; color: #01579b;">Track all Purchases & Sales</div>
+                            <strong style="font-size: 15px; color: var(--md-on-surface); display: block;">View Stock Ledger</strong>
+                            <div style="font-size: 12px; color: var(--md-text-muted);">Track all Purchases & Sales</div>
                         </div>
-                        <span class="material-symbols-outlined" style="color: #0277bd;">chevron_right</span>
+                        <span class="material-symbols-outlined" style="color: var(--md-text-muted);">chevron_right</span>
                     </div>
                 </div>
                 <script>
@@ -2426,14 +2432,14 @@ Data & Security</strong>
                     </div>
                 </div>
 
-                <div id="ledger-khata-card" style="padding: 0 16px; display: none;">
-                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 16px; margin-bottom: 24px; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 1px solid #ffe082; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 127, 23, 0.1);" onclick="const pid = window.app.state.currentMasterId; const pname = document.getElementById('ledger-name').value; const ptype = document.querySelector('select[name=\'type\']').value; if(window.app) window.app.openPartyLedger(pid, ptype, pname);">
-                        <span class="material-symbols-outlined" style="color: #f57f17; font-size: 28px;">menu_book</span>
+                <div id="ledger-khata-card" style="padding: 0; display: none;">
+                    <div class="m3-card tap-target" style="display: flex; align-items: center; gap: 16px; padding: 14px 16px; margin-bottom: 24px; background: var(--md-surface); border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant); border-left: none; border-right: none; border-radius: 0; box-shadow: none;" onclick="const pid = window.app.state.currentMasterId; const pname = document.getElementById('ledger-name').value; const ptype = document.querySelector('select[name=\'type\']').value; if(window.app) window.app.openPartyLedger(pid, ptype, pname);">
+                        <span class="material-symbols-outlined" style="color: var(--md-primary); font-size: 24px;">menu_book</span>
                         <div style="flex: 1;">
-                            <strong style="font-size:16px; color: #f57f17; display: block;">View Khata Ledger</strong>
-                            <div style="font-size: 12px; color: #d84315;">Print or PDF Statement</div>
+                            <strong style="font-size: 15px; color: var(--md-on-surface); display: block;">View Khata Ledger</strong>
+                            <div style="font-size: 12px; color: var(--md-text-muted);">Print or PDF Statement</div>
                         </div>
-                        <span class="material-symbols-outlined" style="color: #f57f17;">print</span>
+                        <span class="material-symbols-outlined" style="color: var(--md-text-muted);">chevron_right</span>
                     </div>
                 </div>
                 <script>
@@ -2520,6 +2526,7 @@ Data & Security</strong>
                 <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
                     <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
                     <input type="text" id="search-expenses" placeholder="Search" style="flex: 1; min-width: 0;">
+                    <div id="sum-expenses" style="background: rgba(186, 26, 26, 0.12); color: var(--md-error); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
                     
                     <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
                     
@@ -2532,9 +2539,6 @@ Data & Security</strong>
             
             <input type="hidden" id="sort-expenses" value="date-desc">
             
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px;">
-                <small style="color:var(--md-text-muted);">Total Expenses: <strong id="sum-expenses" style="color:var(--md-error);">&#8377;0.00</strong></small>
-            </div>
             <div id="expense-history-container"></div>
         </div>
     </div>
@@ -2550,7 +2554,7 @@ Data & Security</strong>
                 <div style="display: flex; gap: 12px; margin-bottom: 20px;">
                     <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
                         <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Business Logo</div>
-                        <label class="tap-target" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border: 2px dashed rgba(0, 97, 164, 0.3); border-radius: 12px; background: rgba(0, 97, 164, 0.04); cursor: pointer; text-align: center;">
+                        <label class="tap-target" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border: 1px solid rgba(0, 97, 164, 0.3); border-radius: 12px; background: rgba(0, 97, 164, 0.04); cursor: pointer; text-align: center;">
                             <span class="material-symbols-outlined" style="font-size: 26px; color: var(--md-primary); margin-bottom: 4px;">add_photo_alternate</span>
                             <span style="font-size: 12px; font-weight: 700; color: var(--md-primary); line-height: 1.2;">Upload Logo</span>
                             <span style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">PNG, JPG</span>
@@ -2560,7 +2564,7 @@ Data & Security</strong>
                     </div>
                     <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
                         <div style="font-size: 12px; font-weight: bold; color: var(--md-text-muted); margin-bottom: 6px;">Authorized Signature</div>
-                        <label class="tap-target" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border: 2px dashed rgba(0, 97, 164, 0.3); border-radius: 12px; background: rgba(0, 97, 164, 0.04); cursor: pointer; text-align: center;">
+                        <label class="tap-target" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px 8px; border: 1px solid rgba(0, 97, 164, 0.3); border-radius: 12px; background: rgba(0, 97, 164, 0.04); cursor: pointer; text-align: center;">
                             <span class="material-symbols-outlined" style="font-size: 26px; color: var(--md-primary); margin-bottom: 4px;">draw</span>
                             <span style="font-size: 12px; font-weight: 700; color: var(--md-primary); line-height: 1.2;">Upload Signature</span>
                             <span style="font-size: 10px; color: var(--md-text-muted); margin-top: 2px;">For auto-signing</span>
@@ -2631,7 +2635,7 @@ Data & Security</strong>
                         Invoice Custom Fields
                         <span class="material-symbols-outlined" style="margin-left: auto; color: var(--md-outline);">expand_more</span>
                     </summary>
-                    <div style="padding: 0 16px 16px 16px; border-top: 1px dashed var(--md-outline-variant);">
+                    <div style="padding: 0 16px 16px 16px; border-top: 1px solid var(--md-outline-variant);">
                         <p style="font-size: 12px; color: var(--md-text-muted); margin: 16px 0 12px 0;">Define custom fields (like E-Way Bill, Vehicle No, or Sales Rep) to appear on your sales invoices.</p>
                         
                         <div style="margin-bottom: 12px;">
@@ -2657,7 +2661,7 @@ Data & Security</strong>
                         PDF Theme Designer
                         <span class="material-symbols-outlined" style="margin-left: auto; color: var(--md-outline);">expand_more</span>
                     </summary>
-                    <div style="padding: 16px; border-top: 1px dashed var(--md-outline-variant);">
+                    <div style="padding: 16px; border-top: 1px solid var(--md-outline-variant);">
                         <div style="display: flex; gap: 16px; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; display: block; margin-bottom: 4px;">Brand Color</label>
@@ -3487,6 +3491,10 @@ Data & Security</strong>
                         <span class="sub-radio-text">Expenses</span>
                         <div class="sub-radio-circle"></div>
                     </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('cashbook-filter', 'Unallocated', 'Unallocated / Advance', 'popup-cashbook-status', this)">
+                        <span class="sub-radio-text">Unallocated / Advance</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
                 </div>
 
                 <div style="padding: 8px 16px 16px; text-align: right; border-top: 1px solid var(--md-outline-variant);">
@@ -3652,6 +3660,10 @@ Data & Security</strong>
                     </div>
                     <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'To Receive', 'To Receive (Pending Dues)', 'popup-sales-status', this)">
                         <span class="sub-radio-text">To Receive (Pending Dues)</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'AdvanceSettle', 'Can Settle with Advance', 'popup-sales-status', this)">
+                        <span class="sub-radio-text">Can Settle with Advance</span>
                         <div class="sub-radio-circle"></div>
                     </div>
                     <div class="sub-radio-row" onclick="window.pickSubOption('sales-filter', 'Overdue', 'Overdue', 'popup-sales-status', this)">
@@ -3877,6 +3889,10 @@ Data & Security</strong>
                         <span class="sub-radio-text">To Pay (Pending Dues)</span>
                         <div class="sub-radio-circle"></div>
                     </div>
+                    <div class="sub-radio-row" onclick="window.pickSubOption('purchases-filter', 'AdvanceSettle', 'Can Settle with Advance', 'popup-purchases-status', this)">
+                        <span class="sub-radio-text">Can Settle with Advance</span>
+                        <div class="sub-radio-circle"></div>
+                    </div>
                     <div class="sub-radio-row" onclick="window.pickSubOption('purchases-filter', 'Open', 'Open (Draft PO)', 'popup-purchases-status', this)">
                         <span class="sub-radio-text">Open (Draft PO)</span>
                         <div class="sub-radio-circle"></div>
@@ -4074,7 +4090,7 @@ Data & Security</strong>
                     </div>
 
                     <!-- 🚨 SPLIT PAYMENT DETAILS (HIDDEN BY DEFAULT) -->
-                    <div id="pay-in-split-section" class="hidden" style="border-top: 1px dashed var(--md-outline-variant); background: rgba(0,0,0,0.02);">
+                    <div id="pay-in-split-section" class="hidden" style="border-top: 1px solid var(--md-outline-variant); background: transparent;">
                         <div class="premium-row">
                             <div class="premium-label" style="color: var(--md-primary);">Split Amount (₹)</div>
                             <div class="premium-input-container">
@@ -4218,7 +4234,7 @@ Data & Security</strong>
                     </div>
 
                     <!-- 🚨 SPLIT PAYMENT DETAILS (HIDDEN BY DEFAULT) -->
-                    <div id="pay-out-split-section" class="hidden" style="border-top: 1px dashed var(--md-outline-variant); background: rgba(0,0,0,0.02);">
+                    <div id="pay-out-split-section" class="hidden" style="border-top: 1px solid var(--md-outline-variant); background: transparent;">
                         <div class="premium-row">
                             <div class="premium-label" style="color: var(--md-error);">Split Amount (₹)</div>
                             <div class="premium-input-container">
@@ -4303,7 +4319,7 @@ Data & Security</strong>
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-products')">close</span>
             </div>
             
-            <div class="search-container" style="position: relative; margin-bottom: 12px; flex-shrink: 0; box-shadow: none !important; border: 1px solid var(--md-outline-variant) !important; border-radius: 8px !important;">
+            <div class="search-container" style="position: relative; margin-bottom: 12px; flex-shrink: 0;">
                 <span class="material-symbols-outlined" style="position: absolute; left: 12px; top: 12px; color: var(--md-outline);">search</span>
                 <input type="text" id="search-products" placeholder="Search" autocomplete="off" style="width: 100%; padding: 12px; border: none; font-size: 16px; background: transparent; outline: none;">
             </div>
@@ -4604,7 +4620,7 @@ Data & Security</strong>
                 <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
                     <span style="color: var(--md-text-muted);">Input Tax (Purchases / ITC):</span> <strong style="color:var(--md-success);" id="gst-in-tax">&#8377;0.00</strong>
                 </div>
-                <hr style="border: 0; border-top: 1px dashed var(--md-outline-variant); margin: 12px 0;">
+                <hr style="border: 0; border-top: 1px solid var(--md-outline-variant); margin: 12px 0;">
                 <div style="display:flex; justify-content: space-between; align-items: center;">
                     <strong style="color: var(--md-on-surface);">Net Payable to Govt:</strong> <strong style="font-size: 20px; color:var(--md-primary);" id="gst-net-payable">&#8377;0.00</strong>
                 </div>
@@ -4959,6 +4975,7 @@ Data & Security</strong>
             <!-- RIGHT: Locked Action Icons -->
             <div style="display: flex; gap: 16px; align-items: center; flex-shrink: 0;">
                 
+                <span id="action-edit-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="const id = document.getElementById('item-ledger-hidden-id').value; if (id && window.app) window.app.openForm('product', id);">edit</span>
                 <!-- SHARE ICON (Direct Native Share) -->
                 <span id="action-share-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="
                     const id = document.getElementById('item-ledger-hidden-id').value;
@@ -5025,7 +5042,7 @@ Data & Security</strong>
                     <option value="OUT">Stock OUT Only</option>
                     <option value="Expense">Expense Only</option>
                 </select>
-                <input type="date" id="adv-item-date" onchange="window.applyAdvancedItemFilters()" style="min-width: 120px; padding: 8px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 12px; outline: none;">
+                <input type="date" id="adv-item-date" placeholder="Filter Date..." onchange="window.applyAdvancedItemFilters()" style="min-width: 120px; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 12px; outline: none;">
             </div>
 
             <div id="item-ledger-list">
@@ -5271,9 +5288,10 @@ Data & Security</strong>
                         header.innerHTML = '<div class="sollo-fp-sub">Select date</div><div class="sollo-fp-title">' + fmtHeader() + '</div>';
                         fp.calendarContainer.insertBefore(header, fp.calendarContainer.firstChild);
                         const titleEl = header.querySelector('.sollo-fp-title');
+                        const isClearable = fp.input && (fp.input.id.includes('completed') || fp.input.id.includes('shipped') || fp.input.id === 'adv-item-date');
                         const footer = document.createElement('div');
                         footer.className = 'sollo-fp-footer';
-                        footer.innerHTML = '<button type="button" class="sollo-fp-btn sollo-fp-cancel">Cancel</button><button type="button" class="sollo-fp-btn sollo-fp-ok">OK</button>';
+                        footer.innerHTML = (isClearable ? '<button type="button" class="sollo-fp-btn sollo-fp-clear" style="margin-right:auto; color:var(--md-error, #ba1a1a) !important;">Clear</button>' : '') + '<button type="button" class="sollo-fp-btn sollo-fp-cancel">Cancel</button><button type="button" class="sollo-fp-btn sollo-fp-ok">OK</button>';
                         fp.calendarContainer.appendChild(footer);
                         const yearInp = fp.calendarContainer.querySelector('input.cur-year');
                         if (yearInp) {
@@ -5299,6 +5317,11 @@ Data & Security</strong>
                             };
                         }
                         fp.config.onOpen.push(function(selDates, dStr, inst) {
+                            if (!window.isRoutingLocked) {
+                                window.isRoutingLocked = true;
+                                setTimeout(function() { window.isRoutingLocked = false; }, 400);
+                                window.history.pushState({ internalRoute: true }, '');
+                            }
                             inst._confirmedByOk = false;
                             inst._initialValue = inst.input ? inst.input.value : '';
                             if (titleEl) titleEl.textContent = fmtHeader(selDates[0]);
@@ -5309,6 +5332,21 @@ Data & Security</strong>
                         fp.config.onValueUpdate.push(function(selDates) {
                             if (titleEl && selDates[0]) titleEl.textContent = fmtHeader(selDates[0]);
                         });
+                        const clearBtn = footer.querySelector('.sollo-fp-clear');
+                        if (clearBtn) {
+                            clearBtn.onclick = function(ev) {
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                fp._confirmedByOk = true;
+                                fp.clear(false);
+                                if (fp.input) {
+                                    fp.input.value = '';
+                                    fp.input.dispatchEvent(new Event('input', { bubbles: true }));
+                                    fp.input.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                                fp.close();
+                            };
+                        }
                         footer.querySelector('.sollo-fp-cancel').onclick = function(ev) {
                             ev.preventDefault();
                             ev.stopPropagation();
@@ -5421,6 +5459,11 @@ Data & Security</strong>
 
             window.openSolloMonthPicker = function(el) {
                 if (!el) return;
+                if (!window.isRoutingLocked) {
+                    window.isRoutingLocked = true;
+                    setTimeout(() => { window.isRoutingLocked = false; }, 400);
+                    window.history.pushState({ internalRoute: true }, '');
+                }
                 const oldModal = document.getElementById('sollo-month-picker-overlay');
                 if (oldModal) oldModal.remove();
                 const monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -5457,13 +5500,27 @@ Data & Security</strong>
                 document.getElementById('sollo-mp-ok').onclick = function() {
                     const formatted = selYear + '-' + String(selMonth + 1).padStart(2, '0');
                     el.value = formatted;
+                    if (el.id === 'dashboard-custom-month') {
+                        const df = document.getElementById('dashboard-date-filter');
+                        const customOpt = df ? df.querySelector('option[value="custom"]') : null;
+                        if (customOpt) customOpt.textContent = monthsShort[selMonth] + ' ' + selYear;
+                    }
                     el.dispatchEvent(new Event('input', { bubbles: true }));
                     el.dispatchEvent(new Event('change', { bubbles: true }));
                     overlay.remove();
                 };
             };
+            const dashDateFilter = document.getElementById('dashboard-date-filter');
+            if (dashDateFilter) {
+                dashDateFilter.addEventListener('change', function() {
+                    const customOpt = this.querySelector('option[value="custom"]');
+                    if (this.value !== 'custom' && customOpt) {
+                        customOpt.textContent = 'Specific Month...';
+                    }
+                });
+            }
             document.querySelectorAll('input[type="month"]').forEach(function(el) {
-                const initVal = el.value || new Date().toISOString().slice(0, 7);
+                const initVal = el.value || ((window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0]).slice(0, 7));
                 el.type = 'text';
                 el.readOnly = true;
                 el.value = initVal;
@@ -5562,7 +5619,7 @@ Data & Security</strong>
                     
                     // 1. If a bottom sheet is open, dim the status bar beautifully
                     if (sheetOverlay && !sheetOverlay.classList.contains('hidden')) {
-                        themeMeta.setAttribute('content', isDark ? '#080c17' : '#64748b'); 
+                        themeMeta.setAttribute('content', isDark ? '#000000' : '#64748b');
                         return;
                     }
 
@@ -5581,7 +5638,7 @@ Data & Security</strong>
                     }
 
                     // 3. Default state (Dashboard/Home)
-                    themeMeta.setAttribute('content', isDark ? '#0f172a' : '#ffffff');
+                    themeMeta.setAttribute('content', isDark ? '#121212' : '#ffffff');
                 };
 
                 // Watch for bottom sheets opening/closing
@@ -5629,7 +5686,7 @@ Data & Security</strong>
                 <span style="font-size: 12px; color: var(--md-text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Allocated</span>
                 <strong id="settle-bills-total" style="font-size: 20px; color: var(--md-primary); font-weight: 900;">₹0.00</strong>
             </div>
-            <button class="btn-primary tap-target" style="height: 48px; min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 14px; font-weight: bold; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);" onclick="confirmBillSelection()">Apply Payment</button>
+            <button type="button" class="btn-primary tap-target" style="width: auto !important; height: 48px; min-height: 48px; border-radius: 24px; padding: 0 24px; font-size: 14px; font-weight: bold; margin: 0; box-shadow: 0 4px 12px rgba(0,97,164,0.2);" onclick="confirmBillSelection()">Apply Payment</button>
         </div>
     </div>
 
@@ -5639,6 +5696,8 @@ Data & Security</strong>
 
     window.openSettleSheet = async (type) => {
         currentSettleType = type;
+        const refEl = document.getElementById(`pay-${type}-invoice-ref`);
+        if (!refEl || !Array.from(refEl.options).some(o => o.selected && o.value)) window.isUsingAdvancePool = false;
         const partyId = document.getElementById(`pay-${type}-${type === 'in' ? 'customer' : 'supplier'}-id`).value;
         
         if (!partyId) {
@@ -5709,7 +5768,10 @@ Data & Security</strong>
                     }
                     matchOpt.selected = true;
                     matchOpt.setAttribute('selected', 'selected');
-                    if (savedOpt.allocated) matchOpt.setAttribute('data-allocated', savedOpt.allocated); // Restore their custom math!
+                    if (savedOpt.allocated) {
+                        matchOpt.setAttribute('data-allocated', savedOpt.allocated);
+                        if (!matchOpt.getAttribute('data-bal')) matchOpt.setAttribute('data-bal', savedOpt.allocated);
+                    }
                 });
             }
 
@@ -5733,9 +5795,25 @@ Data & Security</strong>
 
         const options = Array.from(hiddenSelect.options);
 
-        // Empty State
+        // Build Advance Pool & Active Receipt Banner
+        const advGstVal = parseFloat(hiddenSelect.getAttribute('data-adv-gst')) || 0;
+        const advNonGstVal = parseFloat(hiddenSelect.getAttribute('data-adv-nongst')) || 0;
+        let advReceiptsList = [];
+        try { advReceiptsList = JSON.parse(hiddenSelect.getAttribute('data-adv-receipts') || '[]'); } catch (e) { advReceiptsList = []; }
+        if (currentFilter === 'GST') advReceiptsList = advReceiptsList.filter(r => r.pool === 'GST');
+        if (currentFilter === 'Non-GST') advReceiptsList = advReceiptsList.filter(r => r.pool === 'Non-GST');
+        let bannerHTML = '';
+        if (window.app && window.app.state && window.app.state.currentReceiptId) {
+            bannerHTML += `<div id="active-receipt-adv-bar" style="padding: 12px 16px; background: rgba(0, 97, 164, 0.08); border-bottom: 1px solid var(--md-outline-variant); font-size: 12px; font-weight: 700; color: var(--md-on-surface);"></div>`;
+        }
+        if (advGstVal > 0.01 || advNonGstVal > 0.01) {
+            const isAdvOn = !!window.isUsingAdvancePool;
+            const isEditingRec = !!(window.app && window.app.state && window.app.state.currentReceiptId);
+            const btnHtml = !isEditingRec ? `<button type="button" id="btn-toggle-use-advance" class="tap-target" onclick="window.toggleUseAdvancePool()" style="width: auto !important; height: 34px; min-height: 34px; border-radius: 17px; padding: 0 14px; font-size: 12px; font-weight: 800; margin: 0; background: ${isAdvOn ? '#16a34a' : '#0284c7'}; color: #ffffff; border: none; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);"><span class="material-symbols-outlined" style="font-size: 15px;">${isAdvOn ? 'check_circle' : 'account_balance_wallet'}</span><span>${isAdvOn ? 'Using Advance' : 'Use Advance'}</span></button>` : '';
+            bannerHTML += `<div style="padding: 10px 16px; background: ${isAdvOn ? 'rgba(22, 163, 74, 0.08)' : 'rgba(2, 132, 199, 0.06)'}; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; gap: 10px;"><div style="min-width: 0; flex: 1;"><div id="settle-adv-pool-title" style="font-size: 11px; font-weight: 800; color: ${isAdvOn ? '#16a34a' : 'var(--md-text-muted)'}; text-transform: uppercase; letter-spacing: 0.5px;">${isAdvOn ? 'Advance Pool • Active' : 'Advance Pool'}</div><div id="settle-adv-pool-values" style="font-size: 13px; font-weight: 700; color: var(--md-on-surface); margin-top: 2px;">GST: <strong style="color:#0284c7;">₹${advGstVal.toFixed(2)}</strong> &nbsp;•&nbsp; Non-GST: <strong style="color:#ea580c;">₹${advNonGstVal.toFixed(2)}</strong></div></div>${btnHtml}</div>`;
+        }
         if (options.length <= 1) {
-            listContainer.innerHTML = '<div style="padding: 40px 20px; text-align: center; color: var(--md-text-muted); font-size: 14px; font-weight: 500;">No pending bills match this filter.<br><br>Any amount entered will be saved as an Advance.</div>';
+            listContainer.innerHTML = bannerHTML + '<div style="padding: 40px 20px; text-align: center; color: var(--md-text-muted); font-size: 14px; font-weight: 500;">No pending bills match this filter.<br><br>Any amount entered will be saved as an Advance.</div>';
             updateSettleTotalUI(currentSettleType);
             return;
         }
@@ -5743,6 +5821,11 @@ Data & Security</strong>
         listContainer.innerHTML = '';
         let visibleCount = 0;
         const fragment = document.createDocumentFragment(); // 🚨 PERFORMANCE FIX
+        if (bannerHTML) {
+            const bannerWrap = document.createElement('div');
+            bannerWrap.innerHTML = bannerHTML;
+            fragment.appendChild(bannerWrap);
+        }
         
         options.forEach(opt => {
             if (!opt.value) return; 
@@ -5825,7 +5908,7 @@ Data & Security</strong>
                     </div>
                     <div style="flex: 1; min-width: 0;">
                         <strong style="display: block; font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${mainText}</strong>
-                        <small style="color: var(--md-text-muted);">${tagText}</small>
+                        <small style="color: var(--md-text-muted);">${doc && doc.date && window.Utils ? window.Utils.formatDateDisplay(doc.date) + ' • ' : ''}<span style="font-weight:700; color:${isNonGST ? '#ea580c' : 'var(--md-primary)'};">${isNonGST ? 'Non-GST' : 'GST'}</span> • ${tagText}</small>
                     </div>
                     <div style="text-align: right; flex-shrink: 0;">
                         <strong style="font-size: 16px; color: ${isSelected ? themeColor : 'var(--md-text-muted)'};">Due: ₹${maxPending.toFixed(2)}</strong>
@@ -5838,7 +5921,7 @@ Data & Security</strong>
                 htmlContent += `
                 <div style="padding: 0 16px 16px 16px; display: flex; justify-content: flex-end; align-items: center; gap: 12px; animation: fadeSlideDown 0.2s ease forwards;">
                     <span style="font-size: 12px; font-weight: 800; color: ${themeColor}; text-transform: uppercase;">Amount to Pay:</span>
-                    <input type="number" inputmode="decimal" class="allocation-input" value="${currentAllocated.toFixed(2)}" max="${maxPending}" style="width: 130px; padding: 10px 12px; border: 2px solid ${themeColor}; border-radius: 8px; font-size: 16px; font-weight: 900; color: ${themeColor}; text-align: right; background: #ffffff; outline: none; box-shadow: 0 2px 6px rgba(0,0,0,0.05);">
+                    <input type="number" inputmode="decimal" class="allocation-input" value="${currentAllocated.toFixed(2)}" max="${maxPending}" style="width: 130px; padding: 6px 4px; border: none; border-bottom: 2px solid ${themeColor}; border-radius: 0; font-size: 16px; font-weight: 900; color: ${themeColor}; text-align: right; background: transparent; outline: none; box-shadow: none;">
                 </div>
                 `;
             }
@@ -5855,6 +5938,32 @@ Data & Security</strong>
                 } else {
                     opt.removeAttribute('selected');
                     opt.removeAttribute('data-allocated');
+                }
+                if (opt.selected && window.isUsingAdvancePool) {
+                    const poolMax = isNonGST ? advNonGstVal : advGstVal;
+                    let usedInPool = 0;
+                    Array.from(hiddenSelect.options).forEach(o => {
+                        if (o !== opt && o.selected && o.value) {
+                            const oDoc = window.UI?.state?.rawData[store]?.find(d => d.id === o.value || d.invoiceNo === o.value || d.poNo === o.value || d.orderNo === o.value);
+                            const oIsNon = oDoc ? oDoc.invoiceType === 'Non-GST' : false;
+                            if (oIsNon === isNonGST) usedInPool += (parseFloat(o.getAttribute('data-allocated')) || parseFloat(o.getAttribute('data-bal')) || 0);
+                        }
+                    });
+                    const remPool = Math.max(0, poolMax - usedInPool);
+                    if (remPool <= 0.01) {
+                        opt.selected = false;
+                        opt.removeAttribute('selected');
+                        opt.removeAttribute('data-allocated');
+                        if (window.Utils) window.Utils.showToast(`No ${isNonGST ? 'Non-GST' : 'GST'} Advance Pool remaining!`);
+                    } else if (remPool < maxPending) {
+                        opt.setAttribute('data-allocated', remPool.toFixed(2));
+                    }
+                } else if (opt.selected && window.app && window.app.state && window.app.state.currentReceiptId) {
+                    const recAmt = parseFloat(document.getElementById(`pay-${currentSettleType}-amount`)?.value) || 0;
+                    let otherAlloc = 0;
+                    Array.from(hiddenSelect.options).forEach(o => { if (o !== opt && o.selected && o.value) otherAlloc += (parseFloat(o.getAttribute('data-allocated')) || parseFloat(o.getAttribute('data-bal')) || 0); });
+                    const remAdvInRec = Math.max(0, recAmt - otherAlloc);
+                    if (remAdvInRec > 0.01 && remAdvInRec < maxPending) opt.setAttribute('data-allocated', remAdvInRec.toFixed(2));
                 }
                 hiddenSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 renderSettleSheet(); 
@@ -5921,12 +6030,48 @@ Data & Security</strong>
             totalDisplay.innerText = `₹${totalAllocated.toFixed(2)}`;
             totalDisplay.style.color = themeColor;
         }
+        const activeAdvBar = document.getElementById('active-receipt-adv-bar');
+        if (activeAdvBar && currentSettleType === type) {
+            const amtEl = document.getElementById(`pay-${type}-amount`);
+            const recTotal = parseFloat(amtEl ? amtEl.value : 0) || 0;
+            const unlinkedLeft = Math.max(0, recTotal - totalAllocated);
+            activeAdvBar.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"><span>Receipt: <strong>₹${recTotal.toFixed(2)}</strong></span><span>Linked: <strong style="color:var(--md-success);">₹${totalAllocated.toFixed(2)}</strong></span><span>Unlinked Advance: <strong style="color:${unlinkedLeft > 0.01 ? '#ba1a1a' : 'var(--md-success)'};">₹${unlinkedLeft.toFixed(2)}</strong></span></div>`;
+        }
+        if (hiddenSelect && currentSettleType === type) {
+            const advG = parseFloat(hiddenSelect.getAttribute('data-adv-gst')) || 0;
+            const advN = parseFloat(hiddenSelect.getAttribute('data-adv-nongst')) || 0;
+            if (count === 0 && window.isUsingAdvancePool) window.isUsingAdvancePool = false;
+            const store = type === 'in' ? 'sales' : 'purchases';
+            let usedG = 0, usedN = 0;
+            if (window.isUsingAdvancePool) {
+                Array.from(hiddenSelect.options).forEach(o => {
+                    if (o.selected && o.value) {
+                        const a = parseFloat(o.getAttribute('data-allocated')) || parseFloat(o.getAttribute('data-bal')) || 0;
+                        const d = window.UI?.state?.rawData[store]?.find(x => x.id === o.value || x.invoiceNo === o.value || x.poNo === o.value || x.orderNo === o.value);
+                        if (d && d.invoiceType === 'Non-GST') usedN += a;
+                        else usedG += a;
+                    }
+                });
+            }
+            const remG = Math.max(0, advG - usedG);
+            const remN = Math.max(0, advN - usedN);
+            const valEl = document.getElementById('settle-adv-pool-values');
+            if (valEl) valEl.innerHTML = `GST: <strong style="color:#0284c7;">₹${remG.toFixed(2)}</strong> &nbsp;•&nbsp; Non-GST: <strong style="color:#ea580c;">₹${remN.toFixed(2)}</strong>`;
+            const titleEl = document.getElementById('settle-adv-pool-title');
+            if (titleEl) {
+                const totUsed = usedG + usedN;
+                titleEl.style.color = window.isUsingAdvancePool ? '#16a34a' : 'var(--md-text-muted)';
+                titleEl.innerText = (window.isUsingAdvancePool && totUsed > 0.01) ? `Advance Pool • Deducted ₹${totUsed.toFixed(2)}` : (window.isUsingAdvancePool ? 'Advance Pool • Active' : 'Advance Pool');
+            }
+        }
         
         const mainDisplay = document.getElementById(`pay-${type}-bills-display`);
         if (mainDisplay) {
             if (count > 0) {
-                mainDisplay.innerHTML = `<span style="color:${themeColor}">${count} Bill(s) Selected (₹${totalAllocated.toFixed(2)})</span>`;
-            } else if (!mainDisplay.innerHTML.includes('Advance Available')) {
+                const labelTxt = window.isUsingAdvancePool ? `${count} Bill(s) via Advance (₹${totalAllocated.toFixed(2)})` : `${count} Bill(s) Selected (₹${totalAllocated.toFixed(2)})`;
+                const labelCol = window.isUsingAdvancePool ? '#16a34a' : themeColor;
+                mainDisplay.innerHTML = `<span style="color:${labelCol}; font-weight:700;">${labelTxt}</span>`;
+            } else if (!mainDisplay.innerHTML.includes('Advance')) {
                 mainDisplay.innerText = 'Advance / On Account';
                 mainDisplay.style.color = 'var(--md-text-muted)';
             }
@@ -5979,6 +6124,150 @@ Data & Security</strong>
         if (e.target.id === 'pay-in-invoice-ref') updateSettleTotalUI('in');
         if (e.target.id === 'pay-out-invoice-ref') updateSettleTotalUI('out');
     });
+    window.applyAdvancePoolToBill = async (billId, maxDue) => {
+        try {
+            const type = currentSettleType;
+            const partyId = document.getElementById(`pay-${type}-${type === 'in' ? 'customer' : 'supplier'}-id`)?.value;
+            if (!partyId || !window.app) return;
+            const activeFirmId = window.app.state ? window.app.state.firmId : 'firm1';
+            const party = await window.getRecordById('ledgers', partyId);
+            const isCustomer = party ? String(party.type).toLowerCase() === 'customer' : (type === 'in');
+            const storeName = isCustomer ? 'sales' : 'purchases';
+            const partyKey = isCustomer ? 'customerId' : 'supplierId';
+            const allDocs = await window.getAllRecords(storeName, 'firmId', activeFirmId);
+            const targetDoc = allDocs.find(d => d.id === billId || d.invoiceNo === billId || d.poNo === billId || d.orderNo === billId);
+            if (!targetDoc) return;
+            const targetIsNonGST = targetDoc.invoiceType === 'Non-GST';
+            const returnMap = {};
+            allDocs.forEach(d => {
+                if (d.firmId === activeFirmId && d[partyKey] === partyId && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
+                    returnMap[d.orderNo] = (returnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
+                }
+            });
+            const allReceipts = await window.getAllRecords('receipts', 'firmId', activeFirmId);
+            const partyReceipts = allReceipts.filter(c => c.firmId === activeFirmId && c.ledgerId === partyId && !c.isAutoGenerated);
+            partyReceipts.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+            let needToSettle = parseFloat(maxDue) || 0;
+            let totalApplied = 0;
+            for (const c of partyReceipts) {
+                if (needToSettle <= 0.01) break;
+                let amt = parseFloat(c.amount) || 0;
+                let impact = (type === 'in') ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                if (impact <= 0.01) continue;
+                const lRef = c.invoiceRef || c.linkedInvoice;
+                let isNonRec = c.taxPool === 'Non-GST';
+                if (!c.taxPool || c.taxPool === 'All') {
+                    isNonRec = true;
+                    if (lRef) {
+                        const fRef = String(lRef).split(',')[0].trim();
+                        const lDoc = allDocs.find(d => d.id === fRef || d.invoiceNo === fRef || d.poNo === fRef || d.orderNo === fRef || String(d.id).endsWith(fRef));
+                        if (lDoc && lDoc.invoiceType !== 'Non-GST') isNonRec = false;
+                    }
+                }
+                if (isNonRec !== targetIsNonGST) continue;
+                const rawRefs = lRef ? String(lRef).split(',').map(r => r.trim()).filter(Boolean) : [];
+                const oldMap = c.allocationMap || {};
+                const cleanRefs = [];
+                const newAllocMap = {};
+                let rem = impact;
+                rawRefs.forEach(ref => {
+                    const lDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                    const key = lDoc ? String(lDoc.id) : ref;
+                    const retAmt = [lDoc?.orderNo, lDoc?.invoiceNo, lDoc?.poNo, lDoc?.id, ref].filter(Boolean).reduce((sum, r) => sum + (returnMap[r] || 0), 0);
+                    let appAmt = (oldMap[ref] !== undefined) ? (parseFloat(oldMap[ref]) || 0) : ((lDoc && oldMap[lDoc.id] !== undefined) ? (parseFloat(oldMap[lDoc.id]) || 0) : Math.min(lDoc ? Math.max(0, (parseFloat(lDoc.grandTotal) || 0) - retAmt) : (impact / rawRefs.length), rem));
+                    if (!cleanRefs.includes(key)) cleanRefs.push(key);
+                    newAllocMap[key] = (newAllocMap[key] || 0) + appAmt;
+                    if (appAmt > 0) rem -= appAmt;
+                });
+                if (rem > 0.01) {
+                    const take = Math.min(needToSettle, rem);
+                    const docIdStr = String(targetDoc.id);
+                    if (!cleanRefs.includes(docIdStr)) cleanRefs.push(docIdStr);
+                    newAllocMap[docIdStr] = (parseFloat(newAllocMap[docIdStr]) || 0) + take;
+                    c.invoiceRef = cleanRefs.join(', ');
+                    c.allocationMap = newAllocMap;
+                    c.taxPool = targetIsNonGST ? 'Non-GST' : 'GST';
+                    await window.saveRecord('receipts', c);
+                    needToSettle -= take;
+                    totalApplied += take;
+                }
+            }
+            return totalApplied;
+        } catch (err) {
+            console.error(err);
+            return 0;
+        }
+    };
+    window.toggleUseAdvancePool = () => {
+        const type = currentSettleType;
+        const hiddenSelect = document.getElementById(`pay-${type}-invoice-ref`);
+        if (!hiddenSelect) return;
+        const selectedOpts = Array.from(hiddenSelect.options).filter(o => o.selected && o.value);
+        if (!window.isUsingAdvancePool && selectedOpts.length === 0) {
+            if (window.Utils) window.Utils.showToast('Select bill(s) first, then tap Use Advance.');
+            return;
+        }
+        window.isUsingAdvancePool = !window.isUsingAdvancePool;
+        const store = type === 'in' ? 'sales' : 'purchases';
+        let remG = parseFloat(hiddenSelect.getAttribute('data-adv-gst')) || 0;
+        let remN = parseFloat(hiddenSelect.getAttribute('data-adv-nongst')) || 0;
+        if (window.isUsingAdvancePool) {
+            let anyApplied = false;
+            selectedOpts.forEach(o => {
+                const maxB = parseFloat(o.getAttribute('data-bal')) || 0;
+                const curA = parseFloat(o.getAttribute('data-allocated')) || maxB;
+                const d = window.UI?.state?.rawData[store]?.find(x => x.id === o.value || x.invoiceNo === o.value || x.poNo === o.value || x.orderNo === o.value);
+                const isNon = d ? d.invoiceType === 'Non-GST' : false;
+                const avail = isNon ? remN : remG;
+                const alloc = Math.min(curA, avail);
+                if (alloc > 0.01) {
+                    o.setAttribute('data-allocated', alloc.toFixed(2));
+                    if (isNon) remN -= alloc;
+                    else remG -= alloc;
+                    anyApplied = true;
+                } else {
+                    o.selected = false;
+                    o.removeAttribute('selected');
+                    o.removeAttribute('data-allocated');
+                }
+            });
+            if (!anyApplied) {
+                window.isUsingAdvancePool = false;
+                if (window.Utils) window.Utils.showToast('No matching Advance Pool available for selected bill(s).');
+            }
+        }
+        window.renderSettleSheet();
+    };
+    window.settleSelectedWithAdvancePool = async (forcedType) => {
+        const type = forcedType || currentSettleType;
+        const partyId = document.getElementById(`pay-${type}-${type === 'in' ? 'customer' : 'supplier'}-id`)?.value;
+        const hiddenSelect = document.getElementById(`pay-${type}-invoice-ref`);
+        if (!hiddenSelect || !partyId) return;
+        const selectedOpts = Array.from(hiddenSelect.options).filter(o => o.selected && o.value);
+        if (selectedOpts.length === 0) {
+            if (window.Utils) window.Utils.showToast('Please select at least one bill.');
+            return;
+        }
+        let grandSettled = 0;
+        for (const opt of selectedOpts) {
+            const wantAmt = parseFloat(opt.getAttribute('data-allocated')) || parseFloat(opt.getAttribute('data-bal')) || 0;
+            if (wantAmt > 0.01) {
+                grandSettled += (await window.applyAdvancePoolToBill(opt.value, wantAmt)) || 0;
+            }
+        }
+        if (grandSettled > 0.01) {
+            window.isUsingAdvancePool = false;
+            const party = await window.getRecordById('ledgers', partyId);
+            const isCustomer = party ? String(party.type).toLowerCase() === 'customer' : (type === 'in');
+            const storeName = isCustomer ? 'sales' : 'purchases';
+            await window.app.autoCompleteInvoices(partyId, storeName);
+            if (window.app && typeof window.app.refreshAll === 'function') await window.app.refreshAll(true);
+            if (window.Utils) window.Utils.showToast(`₹${grandSettled.toFixed(2)} settled from Advance Pool!`);
+        } else {
+            if (window.Utils) window.Utils.showToast('No matching Advance Receipt found to link.');
+        }
+        return grandSettled;
+    };
     </script>
     <script>
     // 🚀 ENTERPRISE UPGRADE: SMART SEARCH OVERRIDE HOOKS
@@ -6299,8 +6588,8 @@ Data & Security</strong>
         window.UI.renderVirtualList(timelineContainer, filtered, (t) => {
             const isPositive = t.impact > 0;
             const icon = isPositive ? 'add_shopping_cart' : 'remove_shopping_cart';
-            const iconColor = isPositive ? '#146c2e' : '#ba1a1a';
-            const iconBg = isPositive ? '#e8f5e9' : '#fff0f2';
+            const iconColor = isPositive ? 'var(--md-success)' : 'var(--md-error)';
+            const iconBg = isPositive ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
             const sign = isPositive ? '+' : '';
             
             const rowClick = `if(window.app) window.app.openItemMovementRecord('${t.type || ''}', '${(t.ref || '').replace(/'/g, "\\'")}', '${t.date || ''}')`;
@@ -6428,15 +6717,15 @@ Data & Security</strong>
         </div>
         <div class="activity-content" style="background-color: var(--md-surface-variant); padding: 16px; overflow-y: auto;">
             <div class="m3-card" style="margin-bottom: 16px; padding: 16px;">
-                <strong style="color: #0061a4; font-size: 14px; text-transform: uppercase; display: block; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Top 5 Best-Selling Products</strong>
+                <strong style="color: var(--md-primary); font-size: 14px; text-transform: uppercase; display: block; margin-bottom: 12px; border-bottom: 1px solid var(--md-outline-variant); padding-bottom: 8px;">Top 5 Best-Selling Products</strong>
                 <div id="analytics-top-products"></div>
             </div>
             <div class="m3-card" style="margin-bottom: 16px; padding: 16px;">
-                <strong style="color: var(--md-success); font-size: 14px; text-transform: uppercase; display: block; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Most Valuable Customers</strong>
+                <strong style="color: var(--md-success); font-size: 14px; text-transform: uppercase; display: block; margin-bottom: 12px; border-bottom: 1px solid var(--md-outline-variant); padding-bottom: 8px;">Most Valuable Customers</strong>
                 <div id="analytics-top-customers"></div>
             </div>
             <div class="m3-card" style="margin-bottom: 40px; padding: 16px;">
-                <strong style="color: var(--md-error); font-size: 14px; text-transform: uppercase; display: block; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Biggest Expense Categories</strong>
+                <strong style="color: var(--md-error); font-size: 14px; text-transform: uppercase; display: block; margin-bottom: 12px; border-bottom: 1px solid var(--md-outline-variant); padding-bottom: 8px;">Biggest Expense Categories</strong>
                 <div id="analytics-top-expenses"></div>
             </div>
         </div>

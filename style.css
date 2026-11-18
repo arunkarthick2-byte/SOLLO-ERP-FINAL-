@@ -2950,7 +2950,7 @@ select[disabled] {
     background-color: #F3F4F6 !important;
     color: #9CA3AF !important;
     cursor: not-allowed !important;
-    border: 1px dashed #D1D5DB !important;
+    border: 1px solid #D1D5DB !important;
     box-shadow: none !important;
 }
 input[readonly]:focus, input[disabled]:focus {
@@ -3897,25 +3897,25 @@ body.dark-mode #activity-report-viewer .activity-header, body.dark-mode #activit
     padding-right: 16px !important;
 }
 #activity-report-viewer .search-bar, #activity-item-ledger .search-bar {
-    position: sticky !important;
-    top: -1px !important;
-    z-index: 90 !important;
-    margin-top: -2px !important;
+    position: relative !important;
+    top: auto !important;
+    z-index: 10 !important;
+    margin-top: 0 !important;
     margin-left: -16px !important;
     margin-right: -16px !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 0 !important;
     border-radius: 0 !important;
     border-top: none !important;
     border-left: none !important;
     border-right: none !important;
-    box-shadow: 0 -10px 0 var(--md-surface) !important;
-    background: rgba(253, 252, 255, 0.95) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 body.dark-mode #activity-report-viewer .search-bar, body.dark-mode #activity-item-ledger .search-bar {
-    background: rgba(18, 18, 18, 0.95) !important;
-    box-shadow: 0 -10px 0 #121212 !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 /* ==========================================
    🚨 UI POLISH: SPINNING ICONS & STICKY BALANCES
@@ -3929,17 +3929,17 @@ body.dark-mode #activity-report-viewer .search-bar, body.dark-mode #activity-ite
     to { transform: rotate(360deg); }
 }
 #ledger-summary-card {
-    position: sticky !important;
-    top: 52px !important;
-    z-index: 85 !important;
-    background: rgba(253, 252, 255, 0.9) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+    position: relative !important;
+    top: auto !important;
+    z-index: 10 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
 }
 body.dark-mode #ledger-summary-card {
-    background: rgba(15, 23, 42, 0.9) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 /* ==========================================
    🚀 OPTION 3: ACTIVE TAB MICRO-ANIMATIONS & BOUNCE
@@ -5149,11 +5149,11 @@ select {
    🚨 SOLLO FIX: WORKSPACE SEARCH BAR OVERLAP (BULLETPROOF)
    ========================================== */
 #tab-workspace .search-bar {
-    position: sticky !important;
-    top: -1px !important;
-    margin-top: -2px !important;
-    box-shadow: 0 -10px 0 var(--md-background) !important;
-    z-index: 95 !important;
+    position: relative !important;
+    top: auto !important;
+    margin-top: 0 !important;
+    box-shadow: none !important;
+    z-index: 10 !important;
 }
 /* ==========================================
    🚨 SOLLO FIX: MASTER & EXPENSE LEDGER OVERLAP
@@ -5278,9 +5278,9 @@ input[type="search"]::-webkit-search-cancel-button {
     transition: all 0.2s ease !important;
 }
 .search-bar:focus-within {
-    background: var(--md-surface) !important;
+    background: transparent !important;
     border-color: var(--md-primary) !important;
-    box-shadow: 0 4px 12px rgba(0, 97, 164, 0.08) !important;
+    box-shadow: none !important;
 }
 .search-bar input {
     border: none !important;
@@ -5520,22 +5520,25 @@ body.dark-mode #app-shell .bottom-nav, body.dark-mode #app-shell .form-sticky-fo
    🌟 ELITE FUSED HEADER & SEARCH BAR
    ========================================== */
 html body #app-shell div.screen-section .search-bar {
-    border-top: none !important;
+    border-top: 1px solid var(--md-outline-variant) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-left: none !important;
+    border-right: none !important;
     border-radius: 0 !important;
-    margin-top: -2px !important;
+    margin-top: 0 !important;
     margin-bottom: 16px !important;
     margin-left: -16px !important;
     margin-right: -16px !important;
-    background: rgba(255, 255, 255, 0.70) !important;
-    backdrop-filter: blur(24px) saturate(150%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(150%) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05) !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
 }
 body.dark-mode #app-shell div.screen-section .search-bar {
-    background: rgba(18, 18, 18, 0.70) !important;
+    background: transparent !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+    box-shadow: none !important;
 }
 /* --- Settings Hero Header Styles --- */
 .hero-header-container {
@@ -5881,6 +5884,11 @@ body.dark-mode #app-shell div.screen-section .search-bar {
     width: 100%;
     position: relative;
 }
+#dashboard-chart {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+}
 .dash-fulfillment-header {
     padding: 16px;
     border-bottom: 1px solid var(--md-outline-variant);
@@ -5933,7 +5941,7 @@ html body.dark-mode #app-shell #tab-dashboard #list-overdue > div:not(:last-chil
     margin-bottom: 12px;
     cursor: pointer;
     padding-bottom: 12px;
-    border-bottom: 1px dashed rgba(186, 26, 26, 0.2);
+    border-bottom: 1px solid rgba(186, 26, 26, 0.2);
 }
 .dash-overdue-title-group {
     display: flex;
@@ -6169,37 +6177,39 @@ html body #activity-item-ledger .search-bar {
     border-radius: 0 !important;
     margin: 0 -16px 16px -16px !important;
     padding: 12px 16px !important;
-    background: rgba(255, 255, 255, 0.78) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border: none !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    box-shadow: none !important;
 }
 body.dark-mode .search-bar,
 html body.dark-mode #activity-master-view .search-bar,
 html body.dark-mode #activity-expense-ledger .search-bar,
 html body.dark-mode #activity-report-viewer .search-bar,
 html body.dark-mode #activity-item-ledger .search-bar {
-    background: rgba(18, 18, 18, 0.78) !important;
+    background: transparent !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: none !important;
 }
 #sheet-smart-search .search-container,
 #sheet-products .search-container {
-    margin: 0 0 12px 0 !important;
-    padding: 0 12px !important;
-    border-radius: 10px !important;
-    border: 1px solid var(--md-outline-variant) !important;
-    background: var(--md-surface-variant) !important;
+    margin: 0 -16px 12px -16px !important;
+    padding: 0 16px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-top: 1px solid var(--md-outline-variant) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    background: transparent !important;
     box-shadow: none !important;
     display: flex !important;
     align-items: center !important;
 }
 body.dark-mode #sheet-smart-search .search-container,
 body.dark-mode #sheet-products .search-container {
-    background: #1e293b !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: transparent !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
 }
 .search-bar > span.material-symbols-outlined:first-child, .search-container > span.material-symbols-outlined:first-child {
     display: none !important;
@@ -6432,7 +6442,7 @@ html body .activity-screen .item-entry-card input.row-item-buyprice:not(#_) {
 html body .activity-screen .item-entry-card input:focus:not(#_) {
     background: transparent !important;
     border: none !important;
-    border-bottom: 1.5px solid var(--md-primary) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     transform: none !important;
@@ -6876,17 +6886,17 @@ html body.dark-mode .bottom-sheet.centered-modal {
     position: sticky !important;
     top: 0 !important;
     z-index: 105 !important;
-    margin: 0 -16px 12px -16px !important;
-    background: rgba(255, 255, 255, 0.65) !important;
-    backdrop-filter: blur(24px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+    margin: 0 -16px 0 -16px !important;
+    background: var(--md-surface) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    box-shadow: none !important;
 }
 body.dark-mode .sticky-glass-top {
-    background: rgba(18, 18, 18, 0.65) !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+    background: #121212 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: none !important;
 }
 .sticky-glass-top .activity-header,
 .sticky-glass-top .search-bar,
@@ -6902,6 +6912,14 @@ html body #activity-expense-ledger .sticky-glass-top .search-bar {
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
     border: none !important;
+}
+html body #activity-master-view .sticky-glass-top .search-bar,
+html body #activity-expense-ledger .sticky-glass-top .search-bar {
+    border-top: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #activity-master-view .sticky-glass-top .search-bar,
+html body.dark-mode #activity-expense-ledger .sticky-glass-top .search-bar {
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 /* ==========================================
    ✨ OPTION A: EDGE-TO-EDGE WHITE DASHBOARD SECTIONS (NO LEFT/RIGHT BORDERS)
@@ -7688,7 +7706,7 @@ html body #sheet-settle-bills input.allocation-input:not(#_) {
     color: var(--md-on-surface) !important;
 }
 html body.dark-mode #sheet-settle-bills input.allocation-input:not(#_) {
-    background: #1E293B !important;
+    background: transparent !important;
     border-color: #60A5FA !important;
     color: #F8FAFC !important;
 }
@@ -7779,13 +7797,24 @@ html body #app-shell #bank-balances-container > .m3-card:last-child:not(#_) {
 }
 html body #app-shell #tab-menu div[style*="background: #fff0f2"]:not(#_) {
     padding: 14px 16px !important;
+    background: transparent !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
 }
 html body.dark-mode #app-shell #tab-menu div[style*="background: #fff0f2"]:not(#_) {
-    background: rgba(239, 68, 68, 0.14) !important;
-    border-bottom: 1px solid rgba(239, 68, 68, 0.25) !important;
+    background: transparent !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 html body.dark-mode #app-shell #tab-menu div[style*="background: #fff0f2"] strong:not(#_) {
     color: #FCA5A5 !important;
+}
+html body #app-shell #tab-menu select#setting-discount-logic:not(#_) {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    padding: 8px 28px 8px 0 !important;
+    box-shadow: none !important;
 }
 html body.dark-mode #app-shell #tab-menu div[style*="background: #e2e8f0"]:not(#_) {
     background: #27272A !important;
@@ -8010,7 +8039,7 @@ body.dark-mode #item-ledger-list .m3-card strong[style*="#475569"] {
 #analytics-top-customers > .m3-card, #analytics-top-suppliers > .m3-card {
     background: transparent !important;
     border: none !important;
-    border-bottom: 1px dashed var(--md-outline-variant) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     margin: 0 !important;
@@ -8345,22 +8374,96 @@ html body.dark-mode #item-profit-list > .m3-card:last-child:not(#_) {
     border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
-#view-daybook input[type="date"],
-#view-pnl input[type="date"],
-#view-bs input[type="date"] {
-    width: 100% !important;
-    padding: 10px 12px !important;
-    border: 1px solid var(--md-outline-variant) !important;
-    border-radius: 8px !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    background: var(--md-surface-variant) !important;
-    color: var(--md-on-surface) !important;
-    box-sizing: border-box !important;
+html body #activity-gst-report hr:not(#_) {
+    border-top: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #activity-gst-report hr:not(#_) {
+    border-top-color: rgba(255, 255, 255, 0.08) !important;
 }
 #bs-breakdown-list > .m3-card[style*="border-left"] {
-    border-left-width: 4px !important;
-    border-left-style: solid !important;
+    border-left: none !important;
+}
+html body #activity-party-tax-report .activity-content > .m3-card > .m3-card:not(#_) {
+    margin: 0 -16px 12px -16px !important;
+    padding: 12px 16px !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid var(--md-outline-variant) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    background: var(--md-surface) !important;
+}
+html body.dark-mode #activity-party-tax-report .activity-content > .m3-card > .m3-card:not(#_) {
+    background: #121212 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body #sheet-bank-ledger-select:not(#_),
+html body #sheet-khata-select:not(#_),
+html body #sheet-smart-share:not(#_) {
+    top: 50% !important;
+    left: 50% !important;
+    bottom: auto !important;
+    right: auto !important;
+    width: 90% !important;
+    max-width: 380px !important;
+    height: auto !important;
+    max-height: 82vh !important;
+    border-radius: 16px !important;
+    transform: translate(-50%, -45%) scale(0.95) !important;
+    opacity: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--md-surface, #ffffff) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35) !important;
+}
+html body #sheet-bank-ledger-select.open:not(#_),
+html body #sheet-khata-select.open:not(#_),
+html body #sheet-smart-share.open:not(#_) {
+    transform: translate(-50%, -50%) scale(1) !important;
+    opacity: 1 !important;
+}
+html body #sheet-bank-ledger-select::before,
+html body #sheet-khata-select::before,
+html body #sheet-smart-share::before {
+    display: none !important;
+}
+html body #sheet-bank-ledger-select > div:nth-child(2):not(#_),
+html body #sheet-khata-select > div:nth-child(2):not(#_) {
+    padding: 0 !important;
+}
+html body #sheet-bank-ledger-select .m3-card:not(#_),
+html body #sheet-khata-select .m3-card:not(#_) {
+    margin: 0 !important;
+    padding: 14px 20px !important;
+    border-radius: 0 !important;
+    border: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+html body #sheet-smart-share .m3-card:not(#_) {
+    margin: 0 -16px 16px -16px !important;
+    padding: 12px 16px !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid var(--md-outline-variant) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+html body.dark-mode #sheet-bank-ledger-select:not(#_),
+html body.dark-mode #sheet-khata-select:not(#_),
+html body.dark-mode #sheet-smart-share:not(#_) {
+    background: #121212 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+html body.dark-mode #sheet-bank-ledger-select .m3-card:not(#_),
+html body.dark-mode #sheet-khata-select .m3-card:not(#_),
+html body.dark-mode #sheet-smart-share .m3-card:not(#_) {
+    border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html body #activity-report-viewer #ledger-summary-card:not(#_) {
     margin: 0 -16px !important;
@@ -8587,8 +8690,8 @@ body.dark-mode #sheet-sales-filter.centered-modal,
 body.dark-mode #sheet-purchases-filter.centered-modal,
 body.dark-mode #sheet-timeline-filter.centered-modal,
 body.dark-mode #sheet-master-actions.centered-modal {
-  background: #1e293b !important;
-  border: 1px solid #334155 !important;
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 .erp-section-label {
   font-size: 11px;
@@ -8600,10 +8703,14 @@ body.dark-mode #sheet-master-actions.centered-modal {
   margin-bottom: 6px;
 }
 html body input.erp-date-input:not(#_),
+html body input.erp-date-input:focus:not(#_),
 html body input.flatpickr-input.erp-date-input:not(#_),
+html body input.flatpickr-input.erp-date-input:focus:not(#_),
 html body input.flatpickr-mobile.erp-date-input:not(#_),
 html body.dark-mode input.erp-date-input:not(#_),
-html body.dark-mode input.flatpickr-input.erp-date-input:not(#_) {
+html body.dark-mode input.erp-date-input:focus:not(#_),
+html body.dark-mode input.flatpickr-input.erp-date-input:not(#_),
+html body.dark-mode input.flatpickr-input.erp-date-input:focus:not(#_) {
   width: 100% !important;
   border: none !important;
   border-bottom: 1px solid var(--md-outline-variant) !important;
@@ -8755,18 +8862,18 @@ html body.dark-mode .dropdown-btn:not(#_) {
   background: rgba(0, 97, 164, 0.1);
 }
 body.dark-mode .sub-modal-card {
-  background: #1e293b;
-  border-color: #334155;
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
   color: #f8fafc;
 }
 body.dark-mode .sub-radio-text {
   color: #f8fafc;
 }
 body.dark-mode .sub-radio-row {
-  border-bottom-color: #334155;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 body.dark-mode .erp-segment-btn {
-  border-color: #334155;
+  border-color: rgba(255, 255, 255, 0.12);
   background: transparent;
 }
 body.dark-mode .dialog-text-btn {
@@ -8835,23 +8942,23 @@ html body.dark-mode #sheet-document-formats input.doc-format-number:not(#_) {
   pointer-events: none !important;
 }
 html body #activity-item-ledger .activity-content > .m3-card:first-of-type:not(#_) {
-  background: var(--md-surface) !important;
+  background: transparent !important;
   padding: 12px 16px !important;
   border-bottom: 1px solid var(--md-outline-variant) !important;
 }
 html body.dark-mode #activity-item-ledger .activity-content > .m3-card:first-of-type:not(#_) {
-  background: #121212 !important;
+  background: transparent !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 html body #activity-item-ledger .activity-content > div[style*="gap: 8px"]:not(#_) {
   margin: 0 -16px !important;
   padding: 0 !important;
   gap: 0 !important;
-  background: var(--md-surface) !important;
+  background: transparent !important;
   border-bottom: 1px solid var(--md-outline-variant) !important;
 }
 html body.dark-mode #activity-item-ledger .activity-content > div[style*="gap: 8px"]:not(#_) {
-  background: #121212 !important;
+  background: transparent !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 html body #activity-item-ledger .activity-content > div[style*="gap: 8px"] > div:not(#_) {
@@ -8860,17 +8967,23 @@ html body #activity-item-ledger .activity-content > div[style*="gap: 8px"] > div
   border-radius: 0 !important;
   padding: 12px 16px !important;
 }
+html body #activity-item-ledger .activity-content > div[style*="gap: 8px"] > div:first-child:not(#_) {
+  border-right: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #activity-item-ledger .activity-content > div[style*="gap: 8px"] > div:first-child:not(#_) {
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
 html body #activity-item-ledger .activity-content > div[style*="gap: 6px"]:not(#_) {
   margin: 0 -16px !important;
   padding: 10px 16px !important;
   gap: 12px !important;
-  background: var(--md-surface) !important;
+  background: transparent !important;
   border: none !important;
   border-bottom: 1px solid var(--md-outline-variant) !important;
   border-radius: 0 !important;
 }
 html body.dark-mode #activity-item-ledger .activity-content > div[style*="gap: 6px"]:not(#_) {
-  background: #121212 !important;
+  background: transparent !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 html body #activity-item-ledger #adv-item-search:not(#_),
@@ -8896,15 +9009,23 @@ html body #activity-item-ledger #adv-item-type:not(#_) {
   padding-right: 22px !important;
   background-position: right 0 center !important;
 }
+html body #app-shell #tab-workspace .search-bar:not(#_),
+html body #activity-report-viewer .search-bar:not(#_) {
+  margin-bottom: 0 !important;
+}
+html body #activity-report-viewer #ledger-summary-card:not(#_) {
+  border-top: none !important;
+  background: transparent !important;
+}
 html body #cashbook-metrics-card.ws-cashbook-metrics-container:not(#_) {
-  margin: 0 -16px 8px -16px !important;
+  margin: 0 -16px 0 -16px !important;
   gap: 0 !important;
-  background: var(--md-surface) !important;
-  border-top: 1px solid var(--md-outline-variant) !important;
+  background: transparent !important;
+  border-top: none !important;
   border-bottom: 1px solid var(--md-outline-variant) !important;
 }
 html body.dark-mode #cashbook-metrics-card.ws-cashbook-metrics-container:not(#_) {
-  background: #121212 !important;
+  background: transparent !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html body #cashbook-metrics-card .ws-cashbook-metric-box:not(#_) {
@@ -8973,10 +9094,15 @@ html body #uni-report-cards-list > .m3-card:not(#_) {
   border-left: none !important;
   border-right: none !important;
   border-bottom: 1px solid var(--md-outline-variant) !important;
+  background: var(--md-surface) !important;
   box-shadow: none !important;
 }
+html body #uni-report-cards-list > .m3-card:first-child:not(#_) {
+  border-top: 1px solid var(--md-outline-variant) !important;
+}
 html body.dark-mode #uni-report-cards-list > .m3-card:not(#_) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: #121212 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 html body #expense-report-list,
 html body #reorder-report-list,
@@ -9001,7 +9127,37 @@ html body #pnl-container > .m3-card:not(#_) {
   border-left: none !important;
   border-right: none !important;
   border-bottom: 1px solid var(--md-outline-variant) !important;
+  background: var(--md-surface) !important;
   box-shadow: none !important;
+}
+html body #expense-report-list > .m3-card:first-child:not(#_),
+html body #reorder-report-list > .m3-card:first-child:not(#_),
+html body #dead-stock-list > .m3-card:first-child:not(#_),
+html body #profit-leakage-list > .m3-card:first-child:not(#_),
+html body #item-profit-list > .m3-card:first-child:not(#_),
+html body #daybook-container > .m3-card:first-child:not(#_),
+html body #pnl-container > .m3-card:first-child:not(#_) {
+  border-top: 1px solid var(--md-outline-variant) !important;
+}
+html body #item-profit-list > .m3-card[style*="margin-top: 24px"]:not(#_) {
+  margin-top: 16px !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+}
+html body #pnl-container > .m3-card hr:not(#_) {
+  border-top: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #expense-report-list > .m3-card:not(#_),
+html body.dark-mode #reorder-report-list > .m3-card:not(#_),
+html body.dark-mode #dead-stock-list > .m3-card:not(#_),
+html body.dark-mode #profit-leakage-list > .m3-card:not(#_),
+html body.dark-mode #item-profit-list > .m3-card:not(#_),
+html body.dark-mode #daybook-container > .m3-card:not(#_),
+html body.dark-mode #pnl-container > .m3-card:not(#_) {
+  background: #121212 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #pnl-container > .m3-card hr:not(#_) {
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
 }
 html body #bs-container > .m3-card:not(#_) {
   margin-left: -16px !important;
@@ -9045,7 +9201,7 @@ html body #activity-universal-report #uni-report-kpis {
   gap: 0 !important;
   background: var(--md-surface) !important;
   border-top: 1px solid var(--md-outline-variant) !important;
-  border-bottom: 1px solid var(--md-outline-variant) !important;
+  border-bottom: none !important;
 }
 html body #activity-universal-report #uni-report-kpis .kpi-box {
   border-radius: 0 !important;
@@ -9054,6 +9210,10 @@ html body #activity-universal-report #uni-report-kpis .kpi-box {
   border-bottom: 1px solid var(--md-outline-variant) !important;
   box-shadow: none !important;
   padding: 12px 16px !important;
+}
+html body #activity-universal-report #uni-report-kpis .kpi-box:nth-child(even),
+html body #activity-universal-report #uni-report-kpis .kpi-box:last-child {
+  border-right: none !important;
 }
 html body.dark-mode #activity-universal-report #uni-report-kpis {
   background: #121212 !important;
@@ -9078,7 +9238,8 @@ html body #activity-advanced-reports input.flatpickr-mobile:not(#_),
 html body #activity-universal-report input[type="date"]:not(#_),
 html body #activity-universal-report input.flatpickr-input:not(#_),
 html body #activity-universal-report input.flatpickr-mobile:not(#_),
-html body #activity-gst-report #gst-month-selector:not(#_) {
+html body #activity-gst-report #gst-month-selector:not(#_),
+html body.dark-mode #activity-gst-report #gst-month-selector:not(#_) {
   height: 28px !important;
   min-height: 28px !important;
   padding: 0 !important;
@@ -9089,6 +9250,7 @@ html body #activity-gst-report #gst-month-selector:not(#_) {
   background-color: transparent !important;
   box-shadow: none !important;
   color: var(--md-on-surface) !important;
+  cursor: pointer !important;
   font-size: 15px !important;
   font-weight: 700 !important;
   box-sizing: border-box !important;
@@ -9163,4 +9325,92 @@ html body #form-payment-out > div > button[type="submit"]:not(#_) {
   font-size: 16px !important;
   font-weight: 800 !important;
   box-shadow: none !important;
+}
+html body #split-tender-modal input#split-cash:not(#_),
+html body #split-tender-modal input#split-bank:not(#_),
+html body #split-tender-modal select#split-bank-account:not(#_) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  border-radius: 0 !important;
+  padding: 8px 0 !important;
+  box-shadow: none !important;
+}
+html body #split-tender-modal select#split-bank-account:not(#_) {
+  padding-right: 24px !important;
+  background-position: right 2px center !important;
+}
+html body #split-tender-modal div:has(> #split-credit):not(#_) {
+  margin: 0 -24px !important;
+  padding: 12px 24px !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  background: transparent !important;
+}
+html body.dark-mode #split-tender-modal.centered-modal:not(#_),
+html body.dark-mode #sheet-pin-setup:not(#_) {
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+html body .search-bar input:not(#_),
+html body .search-bar input:focus:not(#_),
+html body .search-bar input:focus-visible:not(#_),
+html body .search-container input:not(#_),
+html body .search-container input:focus:not(#_),
+html body .search-container input:focus-visible:not(#_),
+html body.dark-mode .search-bar input:not(#_),
+html body.dark-mode .search-bar input:focus:not(#_),
+html body.dark-mode .search-container input:not(#_),
+html body.dark-mode .search-container input:focus:not(#_) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-radius: 0 !important;
+}
+html body input.allocation-input:not(#_),
+html body input.allocation-input:focus:not(#_),
+html body.dark-mode input.allocation-input:not(#_),
+html body.dark-mode input.allocation-input:focus:not(#_) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-radius: 0 !important;
+}
+html body details.advanced-options input:focus:not(#_),
+html body details.advanced-options textarea:focus:not(#_),
+html body.dark-mode details.advanced-options input:focus:not(#_),
+html body.dark-mode details.advanced-options textarea:focus:not(#_) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+html body #sheet-bank-ledger-select > div:last-child:not(#_),
+html body #sheet-khata-select > div:last-child:not(#_) {
+  padding: 0 !important;
+}
+html body #sheet-bank-ledger-select .m3-card:not(#_),
+html body #sheet-khata-select .m3-card:not(#_) {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+html body.dark-mode #sheet-bank-ledger-select .m3-card:not(#_),
+html body.dark-mode #sheet-khata-select .m3-card:not(#_) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }

@@ -945,8 +945,8 @@ const UI = {
                 const iconBg = adj.type === 'add' ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
 
                 return `
-                <div class="m3-card tap-target" onclick="if(window.app) window.app.openAdjustmentSheet('${adj.id}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); cursor: pointer;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                <div class="m3-card tap-target" onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); cursor: pointer;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                         <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${iconColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                         </div>
@@ -955,13 +955,8 @@ const UI = {
                             <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(adj.date)} | ${safeNotes}</small>
                             ${poolBadge ? `<div style="margin-top: 6px;">${poolBadge}</div>` : ''}
                         </div>
-                        <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
+                        <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
                             <strong style="font-size: 16px; color: ${color}; line-height: 1.2;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
-                            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
-                                <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="width: 34px; height: 34px; border-radius: 50%; color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
-                                    <span class="material-symbols-outlined" style="font-size: 19px;">history</span>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -1444,6 +1439,7 @@ const UI = {
 
         // Cashbook Map logic for True Balances (WITH REFUND & COLLISION FIX)
         const paymentMap = {};
+        const floatingPools = {};
         const ledgerTotalPaid = {}; 
         const ledgerExplicitlyLinked = {}; 
 
@@ -1459,7 +1455,7 @@ const UI = {
             UI.state.rawData.purchases.forEach(d => { if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) globalReturnMap['purchases_' + d.orderNo] = (globalReturnMap['purchases_' + d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0); });
 
             // 🚨 ELITE UPGRADE: GLOBAL TAX-AWARE AUTO-FIFO ENGINE
-            const floatingPools = {}; 
+            // floatingPools initialized above for Sales & Purchases AdvanceSettle filter
 
             // 1. 🚨 LEGACY FIX: Give Opening Balances to the Non-GST Pool by default
             UI.state.rawData.ledgers.forEach(l => {
@@ -1520,7 +1516,7 @@ const UI = {
                             } else if (c.allocationMap && c.allocationMap[doc.invoiceNo || doc.poNo] !== undefined) {
                                 allocation = parseFloat(c.allocationMap[doc.invoiceNo || doc.poNo]) || 0;
                             } else if (remainingAmt > 0) {
-                                allocation = Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
+                                allocation = (index === matchedDocs.length - 1) ? remainingAmt : Math.min(Math.max(0, docTotal - currentPaid), remainingAmt);
                             } else {
                                 allocation = Math.max(-currentPaid, remainingAmt); 
                             }
@@ -1535,10 +1531,8 @@ const UI = {
                 }
             });
 
-            // 3. Auto-FIFO the remaining Floating Advances to the oldest unpaid invoices!
-            // 🚨 BUG FIX: Allow 'Completed' so they get their money, but block 'Cancelled' from stealing advances!
-            const allUnpaidDocs = (tab === 'sales' ? UI.state.rawData.sales : UI.state.rawData.purchases).filter(d => d.status !== 'Open' && d.status !== 'Cancelled' && d.documentType !== 'return');
-            allUnpaidDocs.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+            // 3. Strict Bill-to-Payment Linking (Do not auto-pay unlinked bills from floating advance pool)
+            const allUnpaidDocs = [];
 
             allUnpaidDocs.forEach(doc => {
                 const partyId = tab === 'sales' ? doc.customerId : doc.supplierId;
@@ -1619,10 +1613,11 @@ const UI = {
                 const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - paid - returnTotal);
                 
                 if (activeFilter === 'Open') matchFilter = s.status === 'Open';
-                else if (activeFilter === 'Completed') matchFilter = s.status === 'Completed'; 
+                else if (activeFilter === 'Completed') matchFilter = balance <= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return'; 
                 else if (activeFilter === 'Shipped') matchFilter = s.status === 'Shipped';
                 else if (activeFilter === 'Cancelled') matchFilter = s.status === 'Cancelled';
                 else if (activeFilter === 'To Receive') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return';
+                else if (activeFilter === 'AdvanceSettle') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return' && (floatingPools[s.invoiceType === 'Non-GST' ? `${s.customerId}_Non` : `${s.customerId}_GST`] || 0) > 0.01;
                 else if (activeFilter === 'Overdue') {
                     matchFilter = false;
                     if (balance >= 100 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return') {
@@ -1825,7 +1820,9 @@ const UI = {
 
                 // ENTERPRISE FIX: The "Ghost Penny" Shield for Purchases!
                 if (activeFilter === 'To Pay') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return';
-                else if (activeFilter === 'Completed') matchFilter = p.status === 'Completed'; 
+                else if (activeFilter === 'AdvanceSettle') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return' && (floatingPools[p.invoiceType === 'Non-GST' ? `${p.supplierId}_Non` : `${p.supplierId}_GST`] || 0) > 0.01;
+                else if (activeFilter === 'Open') matchFilter = p.status === 'Open';
+                else if (activeFilter === 'Completed') matchFilter = balance <= 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return'; 
                 else if (activeFilter === 'Cancelled') matchFilter = p.status === 'Cancelled';
                 else if (activeFilter === 'GST') matchFilter = p.invoiceType !== 'Non-GST';
                 else if (activeFilter === 'Non-GST') matchFilter = p.invoiceType === 'Non-GST';
@@ -1973,6 +1970,7 @@ const UI = {
             // 🚀 ENTERPRISE UPGRADE: TRUE LEDGER SIMULATION ENGINE
             // Mirrors the exact, foolproof math used in the Party Ledger PDF!
             const splitBalances = {};
+            const advPoolMap = {};
             const activeFirmIdForMaster = (window.app && window.app.state) ? window.app.state.firmId : null;
 
             UI.state.rawData.ledgers.forEach(l => {
@@ -2019,6 +2017,41 @@ const UI = {
                 });
 
                 const trueBalance = trueBalGST + trueBalNonGST;
+                const pRetMap = {};
+                relatedDocs.forEach(d => {
+                    if ((!activeFirmIdForMaster || d.firmId === activeFirmIdForMaster) && (isCustomer ? d.customerId : d.supplierId) === l.id && d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo) {
+                        pRetMap[d.orderNo] = (pRetMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
+                    }
+                });
+                const pPayMap = {};
+                UI.state.rawData.cashbook.forEach(c => {
+                    if ((!activeFirmIdForMaster || c.firmId === activeFirmIdForMaster) && c.ledgerId === l.id && (c.invoiceRef || c.linkedInvoice)) {
+                        const cAmt = parseFloat(c.amount) || 0;
+                        const imp = isCustomer ? (c.type === 'in' ? cAmt : -cAmt) : (c.type === 'out' ? cAmt : -cAmt);
+                        if (imp > 0) {
+                            const refs = String(c.invoiceRef || c.linkedInvoice).split(',').map(x => x.trim()).filter(Boolean);
+                            let remP = imp;
+                            refs.forEach(ref => {
+                                const lDoc = relatedDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                                const retA = [lDoc?.orderNo, lDoc?.invoiceNo, lDoc?.poNo, lDoc?.id, ref].filter(Boolean).reduce((s, r) => s + (pRetMap[r] || 0), 0);
+                                let appA = (c.allocationMap && c.allocationMap[ref] !== undefined) ? (parseFloat(c.allocationMap[ref]) || 0) : Math.min(lDoc ? Math.max(0, (parseFloat(lDoc.grandTotal) || 0) - retA) : (imp / refs.length), remP);
+                                if (appA > 0) { remP -= appA; pPayMap[ref] = (pPayMap[ref] || 0) + appA; }
+                            });
+                            if (remP > 0.01 && refs[0]) pPayMap[refs[0]] = (pPayMap[refs[0]] || 0) + remP;
+                        }
+                    }
+                });
+                let pDebtG = 0, pDebtN = 0;
+                relatedDocs.forEach(d => {
+                    if ((!activeFirmIdForMaster || d.firmId === activeFirmIdForMaster) && (isCustomer ? d.customerId : d.supplierId) === l.id && d.documentType !== 'return' && d.status !== 'Open' && d.status !== 'Cancelled') {
+                        const uRefs = [...new Set([d.orderNo, d.invoiceNo, d.poNo, d.id].filter(Boolean).map(String))];
+                        const ePaid = uRefs.reduce((s, r) => s + (pPayMap[r] || 0), 0);
+                        const eRet = uRefs.reduce((s, r) => s + (pRetMap[r] || 0), 0);
+                        const dBal = Math.max(0, (parseFloat(d.grandTotal) || 0) - ePaid - eRet);
+                        if (dBal > 0.01) { if (d.invoiceType === 'Non-GST') pDebtN += dBal; else pDebtG += dBal; }
+                    }
+                });
+                advPoolMap[l.id] = Math.max(0, pDebtG - trueBalGST) + Math.max(0, pDebtN - trueBalNonGST);
 
                 splitBalances[l.id] = { 
                     gst: trueBalGST, 
@@ -2056,6 +2089,7 @@ const UI = {
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
+                if(sortOption === 'name-desc') data.sort((a,b) => (b.name || '').localeCompare(a.name || ''));
                 if(sortOption === 'stock-asc' || sortOption === 'stock-desc') {
                     data.sort((a,b) => {
                         const getVal = (item) => {
@@ -2079,7 +2113,7 @@ const UI = {
                     badge.style.display = 'block';
                     badge.innerText = `Value: \u20B9${totalValuation.toFixed(2)}`;
                     badge.style.color = '#f57f17';
-                    badge.style.background = '#fff8e1';
+                    badge.style.background = 'rgba(245, 127, 23, 0.12)';
                 }
 
                 UI.renderVirtualList(container, data, (i) => {
@@ -2105,7 +2139,7 @@ const UI = {
 
                     const safeName = String(i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     return `
-                    <div class="m3-card tap-target" style="padding: 12px 16px; margin-bottom: 10px; border-radius: 12px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); position: relative; overflow: hidden;" onclick="app.openForm('product', '${i.id}')">
+                    <div class="m3-card tap-target" style="padding: 12px 16px; margin-bottom: 10px; border-radius: 12px; background: var(--md-surface); border: 1px solid var(--md-outline-variant); position: relative; overflow: hidden;" onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${i.id}', '${safeName}')">
                         <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
                             <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
                                 <div class="icon-circle" style="width: 42px; height: 42px; background: rgba(0, 97, 164, 0.08); color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
@@ -2121,18 +2155,10 @@ const UI = {
                                 </div>
                             </div>
                             
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 6px; flex-shrink: 0;">
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; flex-shrink: 0;">
                                 <div style="text-align: right;">
                                     <strong style="font-size: 15.5px; color: var(--md-on-surface); display: block; line-height: 1.15; font-variant-numeric: tabular-nums;">₹${(i.sellPrice || 0).toFixed(2)}</strong>
                                     <small style="font-size: 10.5px; color: var(--md-text-muted); font-weight: 600;">Buy: ₹${(i.buyPrice || 0).toFixed(2)}</small>
-                                </div>
-                                <div style="display: inline-flex; align-items: center; gap: 10px;">
-                                    <div class="tap-target" title="Download PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) { window.triggerItemLedgerFromForm('${i.id}', '${safeName}'); setTimeout(() => { if(window.executeItemLedgerReport) { window.executeItemLedgerReport('${i.id}', '${safeName}'); } }, 600); }" style="width: 24px; height: 24px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-end; padding: 0;">
-                                        <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
-                                    </div>
-                                    <div class="tap-target" title="Stock Log" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${i.id}', '${safeName}')" style="width: 24px; height: 24px; background: transparent; color: var(--md-primary); display: inline-flex; align-items: center; justify-content: flex-end; padding: 0;">
-                                        <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2156,7 +2182,9 @@ const UI = {
                     else if (activeMasterFilter === 'To Pay') matchFilter = safeType === 'supplier' && (bal > 0.01 || spFilter.gst > 0.01 || spFilter.non > 0.01);
                     else if (activeMasterFilter === 'Advance') matchFilter = (bal < -0.01 || spFilter.gst < -0.01 || spFilter.non < -0.01);
                     else if (activeMasterFilter === 'Advance') matchFilter = bal < -0.01; 
+                    else if (activeMasterFilter === 'AdvancePool') matchFilter = (advPoolMap[l.id] || 0) > 0.01;
                     else if (activeMasterFilter === 'GST') matchFilter = l.gst && l.gst.trim() !== '';
+                    else if (activeMasterFilter === 'Settled') matchFilter = Math.abs(bal) <= 0.01 && Math.abs(spFilter.gst) <= 0.01 && Math.abs(spFilter.non) <= 0.01;
                     else if (activeMasterFilter === 'Non-GST') matchFilter = !l.gst || l.gst.trim() === '';
                     
                     // 🚀 ENTERPRISE UPGRADE: Context-Aware Address Book Filters
@@ -2167,6 +2195,7 @@ const UI = {
                 });
                 
                 if(sortOption === 'name-asc') data.sort((a,b) => (a.name || '').localeCompare(b.name || ''));
+                if(sortOption === 'name-desc') data.sort((a,b) => (b.name || '').localeCompare(a.name || ''));
                 if(sortOption === 'bal-desc') data.sort((a,b) => getBal(b.id, b.type) - getBal(a.id, a.type));
                 if(sortOption === 'bal-asc') data.sort((a,b) => getBal(a.id, a.type) - getBal(b.id, b.type));
 
@@ -2182,19 +2211,19 @@ const UI = {
                     if (activeTab === 'customers' && activeMasterFilter === 'To Receive') {
                         badge.style.display = 'block';
                         badge.innerText = `Receivables: \u20B9${totalDue.toFixed(2)}`;
-                        badge.style.color = '#ba1a1a';
-                        badge.style.background = '#fff0f2';
+                        badge.style.color = 'var(--md-error)';
+                        badge.style.background = 'rgba(186, 26, 26, 0.12)';
                     } else if (activeTab === 'suppliers' && activeMasterFilter === 'To Pay') {
                         badge.style.display = 'block';
                         badge.innerText = `Payables: \u20B9${totalDue.toFixed(2)}`;
-                        badge.style.color = '#ba1a1a';
-                        badge.style.background = '#fff0f2';
+                        badge.style.color = 'var(--md-error)';
+                        badge.style.background = 'rgba(186, 26, 26, 0.12)';
                     } else if (activeTab === 'contacts') {
                         // 🚀 ENTERPRISE UPGRADE: Dynamic Total Contacts Badge
                         badge.style.display = 'block';
                         badge.innerText = `Total Contacts: ${data.length}`;
-                        badge.style.color = '#0061a4';
-                        badge.style.background = '#e3f2fd';
+                        badge.style.color = 'var(--md-primary)';
+                        badge.style.background = 'rgba(0, 97, 164, 0.12)';
                     } else {
                         badge.style.display = 'none'; // Cleanly hides the badge in normal views
                     }
@@ -2248,6 +2277,10 @@ const UI = {
                     } else if (split.non < -0.01) {
                         badgeParts.push(`<span style="color:var(--md-success); font-size:10px; font-weight:800; background:rgba(20, 108, 46, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">Non-GST Adv: \u20B9${Math.abs(split.non).toFixed(2)}</span>`);
                     }
+                    const advPoolAmt = advPoolMap[l.id] || 0;
+                    if (advPoolAmt > 0.01) {
+                        badgeParts.push(`<span style="color:#0284c7; font-size:10px; font-weight:800; background:rgba(2, 132, 199, 0.1); padding:4px 8px; border-radius:4px; display:inline-block;">Adv Pool: ₹${advPoolAmt.toFixed(2)}</span>`);
+                    }
                     const taxHtml = badgeParts.join(' ');
 
                     // STRICT ERP LOGIC: Compact Single-Row Card with 1-Tap Call, PDF & Ledger!
@@ -2279,9 +2312,6 @@ const UI = {
                                     ${callBtn}
                                     <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-report-viewer'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 28px; height: 28px; color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                         <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
-                                    </div>
-                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')" style="width: 28px; height: 28px; color: var(--md-primary); display: flex; align-items: center; justify-content: center;">
-                                        <span class="material-symbols-outlined" style="font-size: 18px;">menu_book</span>
                                     </div>
                                 </div>
                             </div>
@@ -2343,8 +2373,8 @@ const UI = {
                     const iconColor = adj.type === 'add' ? 'var(--md-success)' : 'var(--md-error)';
                     const iconBg = adj.type === 'add' ? 'rgba(20, 108, 46, 0.1)' : 'rgba(186, 26, 26, 0.1)';
                     return `
-                    <div class="m3-card tap-target" onclick="if(window.app) window.app.openAdjustmentSheet('${adj.id}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); cursor: pointer;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                    <div class="m3-card tap-target" onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="padding: 14px 16px; margin-bottom: 8px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                             <div class="icon-circle" style="width: 40px; height: 40px; background: ${iconBg}; color: ${iconColor}; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                             </div>
@@ -2353,13 +2383,8 @@ const UI = {
                                 <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(adj.date)} | ${safeNotes}</small>
                                 ${poolBadge ? `<div style="margin-top: 6px;">${poolBadge}</div>` : ''}
                             </div>
-                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
+                            <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
                                 <strong style="font-size: 16px; color: ${color}; line-height: 1.2;">${sign}${parseFloat(adj.qty).toFixed(2)}</strong>
-                                <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 4px; margin-right: -6px;">
-                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${adj.itemId}', '${safeProdName.replace(/'/g, "\\'")}')" style="width: 34px; height: 34px; border-radius: 50%; color: var(--md-on-surface-variant); display: flex; align-items: center; justify-content: center;">
-                                        <span class="material-symbols-outlined" style="font-size: 19px;">history</span>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>`;
@@ -2415,7 +2440,7 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: transparent; margin: 16px;">
                     <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(186, 26, 26, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
                         <span class="material-symbols-outlined" style="font-size: 36px; color: var(--md-error);">account_balance_wallet</span>
                     </div>
@@ -2495,6 +2520,25 @@ const UI = {
 
             const cbStart = cbStartEl ? cbStartEl.value : '';
             const cbEnd = cbEndEl ? cbEndEl.value : '';
+            const getUnallocatedAmt = (c) => {
+                const sMode = String(c.mode || '').toLowerCase();
+                const sLed = String(c.ledgerName || '').toLowerCase();
+                if (!c.ledgerId || c.isAutoGenerated || sMode.includes('expense') || sMode.includes('contra') || sLed.includes('expense') || c.ledgerId === 'contra-transfer' || c.ledgerId === 'internal-expense') return 0;
+                const amt = parseFloat(c.amount) || 0;
+                if (amt <= 0.01) return 0;
+                const lRef = c.invoiceRef || c.linkedInvoice;
+                if (!lRef) return amt;
+                const refs = String(lRef).split(',').map(x => x.trim()).filter(Boolean);
+                if (refs.length === 0) return amt;
+                const allDocs = (UI.state.rawData.sales || []).concat(UI.state.rawData.purchases || []);
+                let rem = amt;
+                refs.forEach(ref => {
+                    const lDoc = allDocs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                    let appA = (c.allocationMap && c.allocationMap[ref] !== undefined) ? (parseFloat(c.allocationMap[ref]) || 0) : ((lDoc && c.allocationMap && c.allocationMap[lDoc.id] !== undefined) ? (parseFloat(c.allocationMap[lDoc.id]) || 0) : Math.min(lDoc ? (parseFloat(lDoc.grandTotal) || 0) : (amt / refs.length), rem));
+                    if (appA > 0) rem -= appA;
+                });
+                return Math.max(0, rem);
+            };
 
             data = UI.state.rawData.cashbook.filter(c => {
                 const matchSearch = (c.desc || '').toLowerCase().includes(searchTerm) || 
@@ -2514,6 +2558,8 @@ const UI = {
                     matchFilter = c.type === 'out' && !isExpense;
                 } else if (activeFilter === 'Expense') {
                     matchFilter = isExpense;
+                } else if (activeFilter === 'Unallocated') {
+                    matchFilter = getUnallocatedAmt(c) > 0.01;
                 }
 
                 // 🚨 Strict Date Boundary Checker (Optional)
@@ -2559,8 +2605,8 @@ const UI = {
                 let netSum = totalIn - totalOut;
                 badge.innerText = (activeFilter === 'All' && netSum < 0 ? '-' : '') + `\u20B9${Math.abs(netSum).toFixed(2)}`;
                 if (activeFilter === 'All') {
-                    badge.style.color = netSum >= 0 ? '#146c2e' : '#ba1a1a';
-                    badge.style.background = netSum >= 0 ? '#e8f5e9' : '#fff0f2';
+                    badge.style.color = netSum >= 0 ? 'var(--md-success)' : 'var(--md-error)';
+                    badge.style.background = netSum >= 0 ? 'rgba(20, 108, 46, 0.12)' : 'rgba(186, 26, 26, 0.12)';
                 } else {
                     badge.style.color = 'var(--md-on-surface-variant)';
                     badge.style.background = 'var(--md-surface-variant)';
@@ -2574,7 +2620,7 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: transparent; margin: 16px;">
                     <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(0, 97, 164, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
                         <span class="material-symbols-outlined" style="font-size: 36px; color: var(--md-primary);">account_balance</span>
                     </div>
@@ -2633,6 +2679,8 @@ const UI = {
                         ? '' 
                         : `<small style="display: block; margin-top: 4px; color: var(--md-text-muted); font-size: 12px;">Party: <strong style="color:var(--md-primary)">${t.ledgerName || 'N/A'}</strong> | Mode: ${t.mode || 'Cash'}</small>`;
 
+                    const unallocAmt = getUnallocatedAmt(t);
+                    const unallocBadge = unallocAmt > 0.01 ? `<span style="display:inline-block; margin-top:4px; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:800; background:rgba(2, 132, 199, 0.12); color:#0284c7;">${refData ? 'Excess Adv' : 'Unlinked Adv'}: ₹${unallocAmt.toFixed(2)}</span>` : '';
                     const isMoneyIn = t.type === 'in';
                     const icon = isMoneyIn ? 'arrow_downward' : 'arrow_upward';
                     const rowColor = isMoneyIn ? 'var(--md-success)' : 'var(--md-error)';
@@ -2648,6 +2696,7 @@ const UI = {
                                 <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${t.receiptNo ? t.receiptNo + ' - ' : ''}${t.desc || 'Transaction'}</strong>
                                 <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(t.date)} ${displayLink ? `| <span style="color:var(--md-primary);">🔗 ${displayLink}</span>` : ''}</small>
                                 ${thirdLine}
+                                ${unallocBadge}
                             </div>
                             <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
                                 <strong style="font-size: 16px; color: ${rowColor}; line-height: 1.2;">${isMoneyIn ? '+' : '-'}\u20B9${(parseFloat(t.amount) || 0).toFixed(2)}</strong>
@@ -2740,7 +2789,7 @@ const UI = {
             const container = document.getElementById(containerId);
             if (container) {
                 const emptyHTML = `
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant); margin: 16px;">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; text-align: center; background: transparent; margin: 16px;">
                     <div style="width: 72px; height: 72px; border-radius: 50%; background: rgba(0, 97, 164, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
                         <span class="material-symbols-outlined" style="font-size: 36px; color: var(--md-primary);">history</span>
                     </div>
@@ -3075,10 +3124,8 @@ const UI = {
             }
         });
 
-        // 3. Auto-FIFO the remaining advances to wipe out false "Overdue" records!
-        // 🚨 BUG FIX: Allow 'Completed' so they get their money, but block 'Cancelled' from stealing Dashboard advances!
-        const allUnpaidSales = sales.filter(d => d.status !== 'Open' && d.status !== 'Cancelled' && d.documentType !== 'return');
-        allUnpaidSales.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+        // 3. Strict Bill-to-Payment Linking for Dashboard Overdue
+        const allUnpaidSales = [];
 
         allUnpaidSales.forEach(doc => {
             const isNon = doc.invoiceType === 'Non-GST';
@@ -3199,11 +3246,13 @@ const UI = {
         const trueNetProfit = grossMargin - totalOperatingCosts; 
 
         // UPGRADE 1: Enterprise Live Count-Up Animation Engine
-        window.animateCurrency('dash-total-sales', 0, totalSales, 1000);
-        
+        const salesEl = document.getElementById('dash-total-sales');
+        const curSalesVal = salesEl ? (parseFloat(salesEl.innerText.replace(/[^\d.-]/g, '')) || 0) : 0;
+        window.animateCurrency('dash-total-sales', curSalesVal, totalSales, 1000);
         const netProfitEl = document.getElementById('dash-net-profit');
         if(netProfitEl) {
-            window.animateCurrency('dash-net-profit', 0, trueNetProfit, 1200); // Slightly longer duration so it finishes after sales
+            const curProfitVal = parseFloat(netProfitEl.innerText.replace(/[^\d.-]/g, '')) || 0;
+            window.animateCurrency('dash-net-profit', curProfitVal, trueNetProfit, 1200); // Slightly longer duration so it finishes after sales
             netProfitEl.style.color = trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
         }
         
@@ -3454,11 +3503,23 @@ const UI = {
                 Chart.register(...Chart.registerables);
             }
 
+            const isDarkNow = document.body.classList.contains('dark-mode');
+            if (UI.chartInstance && UI.chartInstance.canvas === canvas && UI._chartDarkMode === isDarkNow) {
+                UI.chartInstance.data.datasets[0].data = [salesAmt, purchaseAmt, expenseAmt];
+                UI.chartInstance.update('none');
+                UI.chartInstance.resize();
+                return;
+            }
             const ctx = canvas.getContext('2d');
-
             if (UI.chartInstance) {
                 UI.chartInstance.destroy();
+                UI.chartInstance = null;
             }
+            UI._chartDarkMode = isDarkNow;
+            canvas.removeAttribute('width');
+            canvas.removeAttribute('height');
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
 
             // 🚨 ENTERPRISE UPGRADE: Detect active theme for the Chart!
             const isDark = document.body.classList.contains('dark-mode');
@@ -3538,6 +3599,12 @@ const UI = {
                     }
                 }
             });
+            requestAnimationFrame(() => {
+                if (UI.chartInstance) UI.chartInstance.resize();
+            });
+            setTimeout(() => {
+                if (UI.chartInstance) UI.chartInstance.resize();
+            }, 250);
         } catch (error) {
             console.error("Chart Rendering Error:", error);
         }
@@ -4239,6 +4306,35 @@ const UI = {
     selectLedger: async (id, name, prefix) => {
         const inputId = document.getElementById(`${prefix}-customer-id`) || document.getElementById(`${prefix}-supplier-id`) || document.getElementById(`${prefix}-customer`) || document.getElementById(`${prefix}-supplier`);
         if (inputId) inputId.value = id;
+        if ((prefix === 'sales' || prefix === 'purchase') && id && window.UI && window.UI.state && window.UI.state.rawData) {
+            const isCust = prefix === 'sales';
+            const docs = (isCust ? window.UI.state.rawData.sales : window.UI.state.rawData.purchases) || [];
+            const cbs = window.UI.state.rawData.cashbook || [];
+            let unallocAdv = 0;
+            cbs.forEach(c => {
+                if (c.ledgerId === id && !c.isAutoGenerated) {
+                    const amt = parseFloat(c.amount) || 0;
+                    const imp = isCust ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
+                    if (imp > 0.01) {
+                        const lRef = c.invoiceRef || c.linkedInvoice;
+                        if (!lRef) { unallocAdv += imp; }
+                        else {
+                            const refs = String(lRef).split(',').map(x => x.trim()).filter(Boolean);
+                            let rem = imp;
+                            refs.forEach(ref => {
+                                const lDoc = docs.find(d => d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref || String(d.id).endsWith(ref));
+                                const appA = (c.allocationMap && c.allocationMap[ref] !== undefined) ? (parseFloat(c.allocationMap[ref]) || 0) : ((lDoc && c.allocationMap && c.allocationMap[lDoc.id] !== undefined) ? (parseFloat(c.allocationMap[lDoc.id]) || 0) : Math.min(lDoc ? (parseFloat(lDoc.grandTotal) || 0) : (imp / refs.length), rem));
+                                if (appA > 0) rem -= appA;
+                            });
+                            if (rem > 0.01) unallocAdv += rem;
+                        }
+                    }
+                }
+            });
+            if (unallocAdv > 0.01 && window.Utils) {
+                setTimeout(() => window.Utils.showToast(`Advance Pool available for ${name}: ₹${unallocAdv.toFixed(2)}`), 350);
+            }
+        }
         
         const display = document.getElementById(`${prefix}-customer-display`) || document.getElementById(`${prefix}-supplier-display`);
         if(display) {
@@ -4379,7 +4475,7 @@ const UI = {
     // ==========================================
     downloadReceivablesReport: async () => {
         // STRICT ERP LOGIC: Use window.Utils to prevent ES6 Module ReferenceError crash!
-        if (!window.Utils || typeof window.Utils.printReceivablesReport !== 'function') return alert("Print engine unavailable.");
+        if (!window.Utils || typeof window.Utils.printReceivablesReport !== 'function') return window.Utils ? window.Utils.showToast("⚠️ Print engine unavailable.") : null;
         
         // ENTERPRISE FIX: Enforce Firm ID isolation so Company B's customers don't leak into Company A's report!
         const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : null;
@@ -4433,7 +4529,7 @@ const UI = {
             if (i % 50 === 0) await new Promise(res => setTimeout(res, 0)); // Yield to UI
         }
         
-        if (reportData.length === 0) return alert("No pending receivables found.");
+        if (reportData.length === 0) return window.Utils ? window.Utils.showToast("✅ No pending receivables found!") : null;
         window.Utils.printReceivablesReport(reportData, grandTotal);
     },
 
@@ -4545,10 +4641,9 @@ const UI = {
         const endEl = document.getElementById('report-pnl-end');
 
         if (!startEl.value || !endEl.value) {
-            const d = new Date();
-            endEl.value = typeof Utils !== 'undefined' ? Utils.getLocalDate() : d.toISOString().split('T')[0];
-            d.setDate(1); 
-            startEl.value = d.toISOString().split('T')[0];
+            const todayLocal = (typeof Utils !== 'undefined' && Utils.getLocalDate) ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
+            endEl.value = todayLocal;
+            startEl.value = todayLocal.slice(0, 8) + '01';
         }
 
         const startDate = startEl.value;
@@ -4622,19 +4717,19 @@ const UI = {
 
         container.innerHTML = `
 
-            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #0061a4; background: rgba(0, 97, 164, 0.1); padding: 16px;">
-                <h4 style="margin: 0 0 12px 0; color: #0061a4; font-size: 14px; text-transform: uppercase;">GST Operations (B2B/B2C)</h4>
+            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #0061a4; background: var(--md-surface); padding: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: var(--md-primary); font-size: 14px; text-transform: uppercase;">GST Operations (B2B/B2C)</h4>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>GST Net Sales:</span> <strong>₹${gstSales.toFixed(2)}</strong></div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--md-error);"><span>GST COGS:</span> <strong>- ₹${gstPurchases.toFixed(2)}</strong></div>
-                <hr style="border:0; border-top: 1px dashed #90caf9; margin: 8px 0;">
-                <div style="display: flex; justify-content: space-between; font-size: 15px; color: #0061a4;"><strong>GST Gross Profit:</strong> <strong>₹${gstGrossProfit.toFixed(2)}</strong></div>
+                <hr style="border:0; border-top: 1px solid var(--md-outline-variant); margin: 8px 0;">
+                <div style="display: flex; justify-content: space-between; font-size: 15px; color: var(--md-primary);"><strong>GST Gross Profit:</strong> <strong>₹${gstGrossProfit.toFixed(2)}</strong></div>
             </div>
 
-            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #f57f17; background: rgba(245, 127, 23, 0.1); padding: 16px;">
+            <div class="m3-card" style="margin-bottom: 16px; border-left: 4px solid #f57f17; background: var(--md-surface); padding: 16px;">
                 <h4 style="margin: 0 0 12px 0; color: #f57f17; font-size: 14px; text-transform: uppercase;">Non-GST Operations</h4>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span>Non-GST Net Sales:</span> <strong>₹${nonGstSales.toFixed(2)}</strong></div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--md-error);"><span>Non-GST COGS:</span> <strong>- ₹${nonGstPurchases.toFixed(2)}</strong></div>
-                <hr style="border:0; border-top: 1px dashed #ffe082; margin: 8px 0;">
+                <hr style="border:0; border-top: 1px solid var(--md-outline-variant); margin: 8px 0;">
                 <div style="display: flex; justify-content: space-between; font-size: 15px; color: #d84315;"><strong>Non-GST Gross Profit:</strong> <strong>₹${nonGstGrossProfit.toFixed(2)}</strong></div>
             </div>
 
@@ -4680,8 +4775,7 @@ const UI = {
         const today = typeof Utils !== 'undefined' ? Utils.getLocalDate() : new Date().toISOString().split('T')[0];
         if (!endEl.value) endEl.value = today;
         if (!startEl.value) {
-            const d = new Date(endEl.value);
-            startEl.value = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+            startEl.value = (endEl.value || today).slice(0, 8) + '01';
         }
         
         const asOfDate = endEl.value;
@@ -4731,7 +4825,7 @@ const UI = {
                 if (stock > 0) {
                     const val = stock * buy;
                     closingStockValue += val;
-                    window.UI.state.bsBreakdown.stock.push({ name: i.name, desc: `${stock} ${i.uom || 'units'} @ ₹${buy}`, amount: val });
+                    window.UI.state.bsBreakdown.stock.push({ id: i.id, rawName: i.name, name: i.name, desc: `${stock} ${i.uom || 'units'} @ ₹${buy}`, amount: val });
                 }
             }
         });
@@ -4765,8 +4859,8 @@ const UI = {
                 }
             });
             if (Math.abs(bal) > 0.001) {
-                if (a.id === 'cash' || String(a.type).toLowerCase() === 'cash') { cashInHand += bal; window.UI.state.bsBreakdown.cash.push({ name: a.name || 'Cash Drawer', desc: 'Cash Drawer', amount: bal }); }
-                else { bankAccounts += bal; window.UI.state.bsBreakdown.bank.push({ name: a.name, desc: a.accountNumber || 'Bank/Wallet', amount: bal }); }
+                if (a.id === 'cash' || String(a.type).toLowerCase() === 'cash') { cashInHand += bal; window.UI.state.bsBreakdown.cash.push({ id: a.id, name: a.name || 'Cash Drawer', desc: 'Cash Drawer', amount: bal }); }
+                else { bankAccounts += bal; window.UI.state.bsBreakdown.bank.push({ id: a.id, name: a.name, desc: a.accountNumber || 'Bank/Wallet', amount: bal }); }
             }
         });
         let sundryDebtors = 0, sundryCreditors = 0, customerAdvances = 0, supplierAdvances = 0;
@@ -4805,11 +4899,11 @@ const UI = {
             });
             [[balGST, 'GST'], [balNon, 'Non-GST']].forEach(([val, pool]) => {
                 if (val > 0.01) {
-                    if (isCust) { sundryDebtors += val; window.UI.state.bsBreakdown.debtors.push({ name: `${l.name} (${pool})`, desc: l.phone || 'Customer', amount: val }); }
-                    else { sundryCreditors += val; window.UI.state.bsBreakdown.creditors.push({ name: `${l.name} (${pool})`, desc: l.phone || 'Supplier', amount: val }); }
+                    if (isCust) { sundryDebtors += val; window.UI.state.bsBreakdown.debtors.push({ id: l.id, partyType: l.type || 'Customer', rawName: l.name, name: `${l.name} (${pool})`, desc: l.phone || 'Customer', amount: val }); }
+                    else { sundryCreditors += val; window.UI.state.bsBreakdown.creditors.push({ id: l.id, partyType: l.type || 'Supplier', rawName: l.name, name: `${l.name} (${pool})`, desc: l.phone || 'Supplier', amount: val }); }
                 } else if (val < -0.01) {
-                    if (isCust) { customerAdvances += Math.abs(val); window.UI.state.bsBreakdown.custAdv.push({ name: `${l.name} (${pool} Adv)`, desc: l.phone || 'Customer', amount: Math.abs(val) }); }
-                    else { supplierAdvances += Math.abs(val); window.UI.state.bsBreakdown.suppAdv.push({ name: `${l.name} (${pool} Adv)`, desc: l.phone || 'Supplier', amount: Math.abs(val) }); }
+                    if (isCust) { customerAdvances += Math.abs(val); window.UI.state.bsBreakdown.custAdv.push({ id: l.id, partyType: l.type || 'Customer', rawName: l.name, name: `${l.name} (${pool} Adv)`, desc: l.phone || 'Customer', amount: Math.abs(val) }); }
+                    else { supplierAdvances += Math.abs(val); window.UI.state.bsBreakdown.suppAdv.push({ id: l.id, partyType: l.type || 'Supplier', rawName: l.name, name: `${l.name} (${pool} Adv)`, desc: l.phone || 'Supplier', amount: Math.abs(val) }); }
                 }
             });
         });
@@ -4823,7 +4917,7 @@ const UI = {
         const groupStyle = `padding: 10px 12px; font-size: 13px; font-weight: 800; color: var(--md-on-surface); border-bottom: 1px solid var(--md-outline-variant); background: var(--md-surface-variant);`;
         
         const getRow = (label, amt, type, color) => `
-            <div class="tap-target" onclick="if(window.app) window.app.showBSBreakdown('${type}', '${label}', '${color}')" style="padding: 10px 12px 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--md-text-muted); border-bottom: 1px dashed var(--md-outline-variant); cursor: pointer;">
+            <div class="tap-target" onclick="if(window.app) window.app.showBSBreakdown('${type}', '${label}', '${color}')" style="padding: 10px 12px 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--md-text-muted); border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;">
                 <span>${label}</span>
                 <div style="display: flex; align-items: center; gap: 4px;">
                     <strong style="color:var(--md-on-surface); font-size: 13px;">${fmt(amt)}</strong>
@@ -4832,7 +4926,7 @@ const UI = {
             </div>
         `;
         const getStaticRow = (label, amt) => `
-            <div style="padding: 10px 12px 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--md-text-muted); border-bottom: 1px dashed var(--md-outline-variant);">
+            <div style="padding: 10px 12px 10px 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--md-text-muted); border-bottom: 1px solid var(--md-outline-variant);">
                 <span>${label}</span><strong style="color:var(--md-on-surface); font-size: 13px;">${fmt(amt)}</strong>
             </div>
         `;
@@ -5336,6 +5430,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.UI.openMasterView(type, title);
                 } else if (action === 'activity' && window.UI) {
                     const target = btn.getAttribute('data-target');
+                    if (target === 'activity-expense-ledger') {
+                        const qEl = document.getElementById('search-expenses');
+                        if (qEl) qEl.value = '';
+                        if (window.resetExpensesFilters) window.resetExpensesFilters();
+                        window.UI.applyFilters('expenses');
+                    }
                     window.UI.openActivity(target);
                 }
             });
@@ -5383,7 +5483,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (window.app) window.app.openProfitLeakageReport();
                         break;
                     case 'activity':
-                        if (window.UI) window.UI.openActivity(btn.getAttribute('data-target'));
+                        if (window.UI) {
+                            const target = btn.getAttribute('data-target');
+                            if (target === 'activity-expense-ledger') {
+                                const qEl = document.getElementById('search-expenses');
+                                if (qEl) qEl.value = '';
+                                if (window.resetExpensesFilters) window.resetExpensesFilters();
+                                window.UI.applyFilters('expenses');
+                            }
+                            window.UI.openActivity(target);
+                        }
                         break;
                     case 'expensereport':
                         if (window.app) window.app.openExpenseReport();
@@ -5493,7 +5602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (recId) {
                             window.app.generateReceiptPDF(recId);
                         } else {
-                            alert('Please save the payment first before printing!');
+                            if (window.Utils) window.Utils.showToast('Please save the payment first!');
                         }
                     }
                 }
@@ -5621,7 +5730,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => { 
                     const range = getDashboardDateRange();
                     document.getElementById('report-pnl-start').value = range.s || '2000-01-01'; // P&L needs a hard start date if 'all'
-                    document.getElementById('report-pnl-end').value = range.e || new Date().toISOString().split('T')[0];
+                    document.getElementById('report-pnl-end').value = range.e || (window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0]);
                     UI.switchReportTab('pnl'); 
                 }, 100);
             });
@@ -5918,7 +6027,7 @@ window.animateCurrency = function(elementId, start, end, duration) {
     if (!obj) return;
     
     // If the number is zero or negative, just show it instantly (don't animate)
-    if (end <= 0) {
+    if (end <= 0 || Math.abs(start - end) < 0.01) {
         obj.innerText = '₹' + end.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return;
     }
@@ -5998,10 +6107,25 @@ const closeTopmostView = () => {
         document.body.style.overflow = '';
         return true;
     }
+    const pinModal = document.querySelector('#sheet-pin-setup.pin-modal-open');
+    if (pinModal && window.closePinSetupModal) {
+        window.closePinSetupModal();
+        return true;
+    }
+    const splitCancel = document.getElementById('split-cancel-btn');
+    if (splitCancel) {
+        splitCancel.click();
+        return true;
+    }
     const aiModal = document.querySelector('[id^="ai-analytics-modal-"], #sollo-month-picker-overlay');
     if (aiModal) {
         aiModal.remove();
         document.body.style.overflow = '';
+        return true;
+    }
+    const openSubPopup = Array.from(document.querySelectorAll('.sub-modal-overlay[id^="popup-"]')).find(el => el.style.display === 'flex');
+    if (openSubPopup) {
+        openSubPopup.style.display = 'none';
         return true;
     }
     const openFp = document.querySelector('.flatpickr-calendar.open');
@@ -6035,7 +6159,14 @@ const closeTopmostView = () => {
     const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
     if (visibleSheets.length > 0) {
         const topSheet = getTopElement(visibleSheets);
-        if (window.UI) window.UI.closeBottomSheet(topSheet.id);
+        if (topSheet.id === 'sheet-bank-ledger-select' || topSheet.id === 'sheet-khata-select') {
+            const ovId = topSheet.id === 'sheet-bank-ledger-select' ? 'bank-ledger-overlay' : 'khata-overlay';
+            const ov = document.getElementById(ovId);
+            if (ov) ov.remove();
+            topSheet.remove();
+        } else if (window.UI) {
+            window.UI.closeBottomSheet(topSheet.id);
+        }
         return true;
     }
     // 4. Catch Full-Screen Activities
@@ -6056,8 +6187,10 @@ const closeTopmostView = () => {
 };
 // 1. PUSH NATIVE STATE ON CLICK
 document.addEventListener('click', (e) => {
-    const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"]');
-    if (target) {
+    const delegated = e.target.closest('.create-action-btn, .master-action-btn, .report-btn, .dropdown-btn, .setting-btn[data-action="profile"], .setting-btn[data-action="defaulters"], .setting-btn[data-action="docformats"], .setting-btn[data-action="trash"], [id^="dash-action-"]');
+    const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"], [onclick*="generate"]');
+    let shouldPush = Boolean(delegated);
+    if (!shouldPush && target) {
         const action = target.getAttribute('onclick') || '';
         if (action.includes('openBottomSheet') || action.includes('openActivity') || action.includes('openForm') ||
             action.includes('openNewPayment') || action.includes('openReceipt') || action.includes('openPartyLedger') ||
@@ -6065,12 +6198,19 @@ document.addEventListener('click', (e) => {
             action.includes('executeKhataReport') || action.includes('executeAccountReport') || action.includes('openMasterView') ||
             action.includes('openExpenseReport') || action.includes('openReorderReport') || action.includes('openItemProfitReport') ||
             action.includes('openPartyTaxReport') || action.includes('openGSTReport') || action.includes('manageSimpleMaster') ||
-            action.includes('openAdjustmentSheet')) {
-            if (window.isRoutingLocked) return;
-            window.isRoutingLocked = true;
-            setTimeout(() => { window.isRoutingLocked = false; }, 400);
-            window.history.pushState({ internalRoute: true }, '');
+            action.includes('openAdjustmentSheet') || action.includes('triggerItemLedgerFromForm') || action.includes('openInvoiceOverview') ||
+            action.includes('openItemMovementRecord') || action.includes('openUniversalReport') || action.includes('openDeadStockReport') ||
+            action.includes('openProfitLeakageReport') || action.includes('openSettleSheet') || action.includes('openContraTransfer') ||
+            action.includes('openMasterSort') || action.includes('openPinSetupModal') || action.includes('openBankLedgerMenu') ||
+            action.includes('generateTimeMachineSnapshot') || action.includes('triggerLedgerQuick')) {
+            shouldPush = true;
         }
+    }
+    if (shouldPush) {
+        if (window.isRoutingLocked) return;
+        window.isRoutingLocked = true;
+        setTimeout(() => { window.isRoutingLocked = false; }, 400);
+        window.history.pushState({ internalRoute: true }, '');
     }
 });
 // 2. INTERCEPT HARDWARE BACK BUTTON
@@ -6079,7 +6219,7 @@ if (window.navigation) {
         if (event.navigationType === 'traverse' || event.navigationType === 'back') {
             const dashBanner = document.getElementById('return-to-dash-banner');
             const isDashBannerActive = dashBanner && dashBanner.style.display !== 'none' && document.getElementById('tab-workspace') && !document.getElementById('tab-workspace').classList.contains('hidden');
-            const isAnythingOpen = isDashBannerActive || document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #sollo-month-picker-overlay, .flatpickr-calendar.open, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
+            const isAnythingOpen = isDashBannerActive || document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #activity-khata-viewer.open, #activity-account-viewer.open, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #sollo-month-picker-overlay, #sheet-pin-setup.pin-modal-open, #split-tender-modal.open, .flatpickr-calendar.open, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
             if (isAnythingOpen) {
                 event.intercept({
                     async handler() {
@@ -6291,11 +6431,14 @@ document.addEventListener('visibilitychange', () => {
         // WAKE UP: Refresh the dashboard in the background
         if (window.UI) {
             window.UI.resetStatusBarColor();
-            
-            // 🚨 STABILITY FIX: Only run heavy math if they are on the Home screen!
             const isDashboardActive = document.getElementById('tab-dashboard')?.classList.contains('active-screen');
             if (isDashboardActive) {
-                window.UI.renderDashboard(); 
+                setTimeout(() => {
+                    window.UI.renderDashboard();
+                }, 150);
+                setTimeout(() => {
+                    if (window.UI.chartInstance) window.UI.chartInstance.resize();
+                }, 450);
             }
         }
         
@@ -6583,17 +6726,8 @@ window.openInvoiceOverview = function(type, id) {
                     pendingInvoices.push({ doc: pDoc, balance: pBal });
                 }
             });
-            let remAdv = Math.max(0, totalPendingDebt - trueBalance);
-            pendingInvoices.forEach(item => {
-                if (remAdv > 0 && item.balance > 0.01) {
-                    const applied = Math.min(remAdv, item.balance);
-                    remAdv -= applied;
-                    if (item.doc.id === doc.id) advanceAppliedToThisInvoice = applied;
-                }
-            });
+            let remAdv = 0;
         }
-        totalPaid += advanceAppliedToThisInvoice;
-        if (doc.status === 'Completed' || doc.status === 'Paid') totalPaid = Math.max(totalPaid, grandTotal);
         const balance = doc.documentType === 'return' ? 0 : Math.max(0, grandTotal - totalPaid);
 
         let statusText = doc.status || 'Saved';
@@ -6602,9 +6736,10 @@ window.openInvoiceOverview = function(type, id) {
         if(statusText === 'Overdue' || statusText === 'Cancelled') { sColor = '#ba1a1a'; sBg = 'rgba(186, 26, 26, 0.1)'; }
         else if(statusText === 'Open') { sColor = '#73777f'; sBg = 'rgba(115, 119, 127, 0.1)'; statusText = isSales ? 'Draft Estimate' : 'Draft PO'; }
         else if(doc.documentType === 'return') { sColor = '#7c3aed'; sBg = 'rgba(124, 58, 237, 0.1)'; statusText = isSales ? 'Credit Note' : 'Debit Note'; }
-        else if(statusText === 'Completed' || statusText === 'Paid' || balance <= 0.01) { sColor = '#146c2e'; sBg = 'rgba(20, 108, 46, 0.1)'; statusText = 'Paid'; }
-        else if(balance < -0.01) { sColor = '#0284c7'; sBg = 'rgba(2, 132, 199, 0.1)'; statusText = 'Advance Paid'; }
-        else if(balance > 0.01 && totalPaid > 0) { sColor = '#ea580c'; sBg = 'rgba(234, 88, 12, 0.1)'; statusText = 'Partially Paid'; }
+        else if((grandTotal - totalPaid) < -0.01) { sColor = '#0284c7'; sBg = 'rgba(2, 132, 199, 0.1)'; statusText = 'Advance Paid'; }
+        else if(balance > 0.01 && totalPaid > 0.01) { sColor = '#ea580c'; sBg = 'rgba(234, 88, 12, 0.1)'; statusText = 'Partially Paid'; }
+        else if(balance > 0.01) { sColor = '#ba1a1a'; sBg = 'rgba(186, 26, 26, 0.1)'; if (statusText === 'Completed' || statusText === 'Paid') statusText = 'Unpaid'; }
+        else if(balance <= 0.01) { sColor = '#146c2e'; sBg = 'rgba(20, 108, 46, 0.1)'; statusText = 'Paid'; }
 
         // 3. LIFECYCLE DATES & SMART BANNER
         const fDate = (d) => d ? window.Utils.formatDateDisplay(d) : '';
@@ -6753,7 +6888,10 @@ window.openInvoiceOverview = function(type, id) {
                             <small style="color:var(--md-text-muted);">${r.date ? window.Utils.formatDateDisplay(r.date) : ''} • ${r.mode}</small>
                         </div>
                     </div>
-                    <strong style="font-size: 15px; color: ${isMoneyIn ? 'var(--md-success)' : 'var(--md-error)'};">${isMoneyIn ? '+' : '-'}₹${displayAmt.toFixed(2)}</strong>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                        <strong style="font-size: 15px; color: ${isMoneyIn ? 'var(--md-success)' : 'var(--md-error)'};">${isMoneyIn ? '+' : '-'}₹${displayAmt.toFixed(2)}</strong>
+                        ${!r.isAutoGenerated ? `<span class="material-symbols-outlined tap-target" title="Unlink from this bill" onclick="event.stopPropagation(); window.unlinkReceiptFromDoc('${r.id}', '${doc.id}', '${type}');" style="font-size: 18px; color: var(--md-text-muted); padding: 4px; border-radius: 50%; background: var(--md-surface-variant);">link_off</span>` : ''}
+                    </div>
                 </div>`;
             });
             linkedReturns.forEach(ret => {
@@ -6835,7 +6973,7 @@ window.openInvoiceOverview = function(type, id) {
             : (doc.status === 'Open' ? (isSales ? 'Draft Estimate' : 'Draft PO') : (isSales ? (isNonGST ? 'Bill of Supply' : 'Tax Invoice') : 'Purchase Bill'));
         const step1Done = true;
         const step2Done = Boolean(safeShipDate || doc.status === 'Shipped' || doc.status === 'Completed' || statusText === 'Paid');
-        const step3Done = Boolean(statusText === 'Paid' || doc.status === 'Completed');
+        const step3Done = Boolean(statusText === 'Paid' || statusText === 'Advance Paid');
         const step1Sub = safeOrdDate || safeInvDate || 'Saved';
         const step2Sub = safeShipDate || (step2Done ? 'Dispatched' : 'Pending');
         const step3Sub = safePaidDate || safeCompDate || (step3Done ? 'Settled' : (balance > 0.01 ? 'Due' : 'Pending'));
@@ -6970,7 +7108,7 @@ window.openInvoiceOverview = function(type, id) {
                         <strong style="font-size: 14px; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">+ ₹${freightVal.toFixed(2)}</strong>
                     </div>` : ''}
                     ${gstBreakdownHTML}
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--md-outline-variant);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--md-outline-variant);">
                         <div>
                             <span style="font-size: 13px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.6px; display: block;">Grand Total</span>
                             <small style="font-size: 10px; color: var(--md-text-muted);">${isNonGST ? 'Exempt / Non-GST' : 'Inclusive of Taxes'}</small>
@@ -7011,12 +7149,12 @@ window.openInvoiceOverview = function(type, id) {
         
         // 🚨 BUG FIX: Removed 'UI.closeActivity' from the payAction! 
         // Now the Payment form opens ON TOP of the preview. When you close the payment form, the preview is still there!
-        const payAction = `if(window.app) { window.app.openNewPayment('${payType}'); setTimeout(() => { if(window.UI) UI.selectLedger('${partyId}', '${safePartyName}', 'pay-${payType}'); }, 400); }`;
+        const payAction = `if(window.app) { window.app.openNewPayment('${payType}'); setTimeout(async () => { if(window.UI) await UI.selectLedger('${partyId}', '${safePartyName}', 'pay-${payType}'); const sel = document.getElementById('pay-${payType}-invoice-ref'); if(sel) { const opt = Array.from(sel.options).find(o => o.value === '${doc.id}'); if(opt) { opt.selected = true; opt.setAttribute('selected', 'selected'); const b = parseFloat(opt.getAttribute('data-bal')) || ${balance.toFixed(2)}; opt.setAttribute('data-allocated', b.toFixed(2)); const amt = document.getElementById('pay-${payType}-amount'); if(amt) amt.value = b.toFixed(2); if(window.updateSettleTotalUI) window.updateSettleTotalUI('${payType}'); } } }, 350); }`;
 
         // 🚨 UX UPGRADE: Professional Dock Styling (Even heights, rounded edges, removed ugly borders!)
         document.getElementById('overview-bottom-bar').innerHTML = `
             <!-- 1. WhatsApp (Quick Send) -->
-            <div class="tap-target" style="width: 52px; height: 52px; border-radius: 14px; background: #eefbf3; color: #25D366; display: flex; justify-content: center; align-items: center; cursor: pointer; flex-shrink: 0;" onclick="if(window.Utils) window.Utils.shareDocumentWhatsApp('${type}', '${doc.id}');">
+            <div class="tap-target" style="width: 52px; height: 52px; border-radius: 14px; background: rgba(37, 211, 102, 0.12); color: #25D366; display: flex; justify-content: center; align-items: center; cursor: pointer; flex-shrink: 0;" onclick="if(window.Utils) window.Utils.shareDocumentWhatsApp('${type}', '${doc.id}');">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
             </div>
             
@@ -7036,6 +7174,35 @@ window.openInvoiceOverview = function(type, id) {
     } catch (error) {
         console.error("Overview Screen Error:", error);
         if(window.app) window.app.openForm(type, id);
+    }
+};
+window.unlinkReceiptFromDoc = async (receiptId, docId, type) => {
+    try {
+        const ok = window.Utils && window.Utils.confirmModal ? await window.Utils.confirmModal("Unlink this payment from this bill? The Cashbook receipt will stay saved in the party's Advance Pool.", "Unlink Payment", true) : confirm("Unlink this payment from this bill?");
+        if (!ok) return;
+        const rec = await window.getRecordById('receipts', receiptId);
+        const storeName = type === 'sales' ? 'sales' : 'purchases';
+        const doc = await window.getRecordById(storeName, docId);
+        if (!rec || !doc) return;
+        const docRefs = [...new Set([doc.id, doc.invoiceNo, doc.poNo, doc.orderNo].filter(Boolean).map(String))];
+        const oldRefs = String(rec.invoiceRef || rec.linkedInvoice || '').split(',').map(x => x.trim()).filter(Boolean);
+        const newRefs = oldRefs.filter(r => !docRefs.includes(String(r)));
+        rec.invoiceRef = newRefs.join(', ');
+        if (rec.linkedInvoice) rec.linkedInvoice = rec.invoiceRef;
+        if (rec.allocationMap) {
+            docRefs.forEach(dr => { delete rec.allocationMap[dr]; });
+            if (newRefs.length === 0) rec.allocationMap = null;
+        }
+        await window.saveRecord('receipts', rec);
+        const partyId = type === 'sales' ? doc.customerId : doc.supplierId;
+        if (window.app && window.app.autoCompleteInvoices && partyId) {
+            await window.app.autoCompleteInvoices(partyId, storeName);
+        }
+        if (window.app && typeof window.app.refreshAll === 'function') await window.app.refreshAll(true);
+        if (window.Utils) window.Utils.showToast('Payment unlinked and moved back to Advance Pool.');
+        window.openInvoiceOverview(type, docId);
+    } catch (err) {
+        console.error(err);
     }
 };
 
@@ -7222,8 +7389,9 @@ document.addEventListener('DOMContentLoaded', () => {
             bottom: 100px; 
             left: 50%;
             transform: translateX(-50%) translateY(50px);
-            background: #1e293b; /* Premium Slate Black */
-            color: #f8fafc;
+            background: #202124;
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.14);
             padding: 12px 20px;
             border-radius: 30px; /* Perfect Pill Shape */
             font-size: 14px;
@@ -7382,6 +7550,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 window.openSolloSelectModal = function(sel) {
     if (!sel || !sel.options || sel.options.length === 0) return;
+    if (!window.isRoutingLocked) {
+        window.isRoutingLocked = true;
+        setTimeout(() => { window.isRoutingLocked = false; }, 400);
+        window.history.pushState({ internalRoute: true }, '');
+    }
     const oldEl = document.getElementById('ai-analytics-modal-select');
     if (oldEl) oldEl.remove();
     const overlay = document.createElement('div');
@@ -7394,12 +7567,21 @@ window.openSolloSelectModal = function(sel) {
     if (row) {
         const lbl = row.querySelector('.premium-label');
         if (lbl) title = (lbl.innerText || '').replace(/\*/g, '').replace(/:$/, '').trim();
+    } else if (sel.id === 'setting-discount-logic') {
+        title = 'Discount Application Logic';
+    } else if (sel.id === 'split-bank-account') {
+        title = 'Select Bank Account';
+    } else if (sel.id === 'pdf-copy-selector') {
+        title = 'Invoice Copy Type';
+    } else if (sel.id === 'dashboard-date-filter') {
+        title = 'Dashboard Period';
+    } else if (sel.id === 'adv-item-type') {
+        title = 'Filter Movement Type';
+    } else if (sel.id && sel.id.includes('discount-type')) {
+        title = 'Discount Type';
     } else {
         const parentLbl = (sel.closest('div') ? sel.closest('div').querySelector('label, .erp-section-label') : null) || sel.previousElementSibling;
         if (parentLbl) title = (parentLbl.innerText || '').replace(/\*/g, '').replace(/:$/, '').trim();
-        else if (sel.id === 'dashboard-date-filter') title = 'Dashboard Period';
-        else if (sel.id === 'adv-item-type') title = 'Filter Movement Type';
-        else if (sel.id && sel.id.includes('discount-type')) title = 'Discount Type';
     }
     const optsHtml = Array.from(sel.options).map((opt, idx) => {
         const isSel = sel.selectedIndex === idx || sel.value === opt.value;
