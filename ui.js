@@ -4288,13 +4288,15 @@ const UI = {
             setTimeout(() => sheet.classList.add('hidden'), 300);
             closedSomething = true;
         });
-        
+
+                document.getElementById('bank-ledger-overlay')?.remove();
+        document.getElementById('khata-overlay')?.remove();
         const overlay = document.getElementById('sheet-overlay');
         if (overlay && overlay.classList.contains('open')) {
             overlay.classList.remove('open');
             setTimeout(() => {
                 // STRICT ERP LOGIC: Re-check dynamically so rapid tapping doesn't break the background!
-                const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
+                const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu):not(#sheet-aging-bucket)').length;
                 if (currentlyOpen === 0) {
                     overlay.classList.add('hidden');
                     document.body.style.overflow = ''; // 🚨 PREMIUM UX: Unlock background scroll
