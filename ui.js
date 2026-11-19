@@ -3773,7 +3773,7 @@ const UI = {
 
         // --- ENTERPRISE FIX: MULTI-LAYER OVERLAY PROTECTOR ---
         // Only close the dark overlay if NO OTHER bottom sheets are currently open
-        const remainingSheets = Array.from(document.querySelectorAll('.bottom-sheet.open')).filter(s => s.id !== sheetId);
+        const remainingSheets = Array.from(document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-bank-ledger-select):not(#sheet-khata-select)')).filter(s => s.id !== sheetId);
         const overlay = document.getElementById('sheet-overlay');
 
         if (remainingSheets.length === 0 && overlay) {
