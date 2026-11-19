@@ -9414,3 +9414,159 @@ html body.dark-mode #sheet-bank-ledger-select .m3-card:not(#_),
 html body.dark-mode #sheet-khata-select .m3-card:not(#_) {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
+html body #sales-history-container .m3-card:not(#_),
+html body #purchase-history-container .m3-card:not(#_),
+html body #cashbook-container .m3-card:not(#_),
+html body #master-list-container .m3-card:not(#_),
+html body #expense-history-container .m3-card:not(#_) {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #sales-history-container .m3-card:not(#_),
+html body.dark-mode #purchase-history-container .m3-card:not(#_),
+html body.dark-mode #cashbook-container .m3-card:not(#_),
+html body.dark-mode #master-list-container .m3-card:not(#_),
+html body.dark-mode #expense-history-container .m3-card:not(#_) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #sales-history-container .m3-card:active:not(#_),
+html body #purchase-history-container .m3-card:active:not(#_),
+html body #cashbook-container .m3-card:active:not(#_),
+html body #master-list-container .m3-card:active:not(#_),
+html body #expense-history-container .m3-card:active:not(#_) {
+  background: rgba(0, 97, 164, 0.06) !important;
+  transform: none !important;
+}
+html body.dark-mode #sales-history-container .m3-card:active:not(#_),
+html body.dark-mode #purchase-history-container .m3-card:active:not(#_),
+html body.dark-mode #cashbook-container .m3-card:active:not(#_),
+html body.dark-mode #master-list-container .m3-card:active:not(#_),
+html body.dark-mode #expense-history-container .m3-card:active:not(#_) {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+html body .activity-screen .activity-header:not(#_) {
+  background: rgba(247, 249, 252, 0.88) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+}
+html body.dark-mode .activity-screen .activity-header:not(#_) {
+  background: rgba(0, 0, 0, 0.86) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #main-bottom-nav.bottom-nav:not(#_) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+}
+html body.dark-mode #main-bottom-nav.bottom-nav:not(#_) {
+  background: rgba(0, 0, 0, 0.9) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body .bottom-sheet:not(#_) {
+  border: 1px solid var(--md-outline-variant) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14) !important;
+}
+html body.dark-mode .bottom-sheet:not(#_) {
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7) !important;
+}
+html body #sheet-overlay.sheet-overlay:not(#_) {
+  background: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+html body.dark-mode #sheet-overlay.sheet-overlay:not(#_) {
+  background: rgba(0, 0, 0, 0.72) !important;
+}
+html body #tab-dashboard .dash-bento-card:not(.dash-royal-hero):not(#_) {
+  border: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #tab-dashboard .dash-bento-card:not(.dash-royal-hero):not(#_) {
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #tab-dashboard .dash-royal-hero:not(#_) {
+  font-variant-numeric: tabular-nums !important;
+  box-shadow: none !important;
+}
+html body .form-sticky-footer:not(#_) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+}
+html body.dark-mode .form-sticky-footer:not(#_) {
+  background: rgba(0, 0, 0, 0.9) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #app-shell #tab-workspace .search-bar:not(#_),
+html body #activity-report-viewer .search-bar:not(#_) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  background: rgba(247, 249, 252, 0.94) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #app-shell #tab-workspace .search-bar:not(#_),
+html body.dark-mode #activity-report-viewer .search-bar:not(#_) {
+  background: rgba(0, 0, 0, 0.92) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #activity-item-ledger .activity-content > div:has(#adv-item-search):not(#_) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+  background: rgba(247, 249, 252, 0.94) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #activity-item-ledger .activity-content > div:has(#adv-item-search):not(#_) {
+  background: rgba(18, 18, 18, 0.94) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #tab-reports .report-btn:not(#_),
+html body #tab-menu .m3-card:not(#_) {
+  box-shadow: none !important;
+  border: 1px solid var(--md-outline-variant) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #tab-reports .report-btn:not(#_),
+html body.dark-mode #tab-menu .m3-card:not(#_) {
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #overview-main-content:not(#_) {
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #overview-main-content:not(#_) {
+  background: #000000 !important;
+}
+html body.dark-mode #overview-main-content .m3-card:not(#_) {
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+html body #overview-bottom-bar:not(#_) {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #overview-bottom-bar:not(#_) {
+  background: rgba(0, 0, 0, 0.9) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}

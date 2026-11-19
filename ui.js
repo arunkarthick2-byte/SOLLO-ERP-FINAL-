@@ -1394,6 +1394,25 @@ const UI = {
         let data = [];
         let containerId = '';
         let sumValue = 0;
+        const chipMap = { sales: 'sales-history-container', purchases: 'purchase-history-container', cashbook: 'cashbook-container', masters: 'master-list-container', expenses: 'expense-history-container' };
+        const chipTarget = chipMap[tab] ? document.getElementById(chipMap[tab]) : null;
+        if (chipTarget && chipTarget.parentNode) {
+            const chipId = `active-filter-chip-${tab}`;
+            let chipWrap = document.getElementById(chipId);
+            if (activeFilter && activeFilter !== 'All') {
+                const labelMap = { AdvanceSettle: 'Can Settle with Advance', AdvancePool: 'Advance Pool', Unallocated: 'Unallocated', Pending: 'Pending', Paid: 'Settled', Open: 'Open / Draft' };
+                const chipLabel = labelMap[activeFilter] || activeFilter;
+                if (!chipWrap) {
+                    chipWrap = document.createElement('div');
+                    chipWrap.id = chipId;
+                    chipWrap.style.cssText = 'display:flex;align-items:center;padding:6px 16px 2px 16px;';
+                    chipTarget.parentNode.insertBefore(chipWrap, chipTarget);
+                }
+                chipWrap.innerHTML = `<span onclick="if('${tab}'==='masters'){const fm=document.getElementById('filter-master-view');if(fm)fm.value='All';}window.UI.state.activeFilters['${tab}']='All';window.UI.applyFilters('${tab}');" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 12px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(0,97,164,0.12);color:var(--md-primary);border:1px solid rgba(0,97,164,0.3);cursor:pointer;">Filter: ${chipLabel} <span class="material-symbols-outlined" style="font-size:15px;line-height:1;">close</span></span>`;
+            } else if (chipWrap) {
+                chipWrap.remove();
+            }
+        }
 
         // 🚨 ENTERPRISE FIX: DASHBOARD DATE PASS-THROUGH ENGINE
         let dashboardDateFilter = 'all';
@@ -7504,7 +7523,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Find the active splash screen
             const splashScreen = document.getElementById('splash-screen') || document.querySelector('.splash-screen');
-            if (!splashScreen) return; // Failsafe: If the screen is already gone, do nothing
+            if (!splashScreen || splashScreen.classList.contains('fade-out') || splashScreen.classList.contains('hidden')) return;
 
             if (typeof window.getRecordById !== 'function') return;
 
