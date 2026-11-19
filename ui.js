@@ -1399,7 +1399,7 @@ const UI = {
         if (chipTarget && chipTarget.parentNode) {
             const chipId = `active-filter-chip-${tab}`;
             let chipWrap = document.getElementById(chipId);
-            if (activeFilter && activeFilter !== 'All') {
+            if (activeFilter && activeFilter !== 'All' && !(tab === 'masters' && window.UI.state.suppressMasterFilterChip)) {
                 const labelMap = { AdvanceSettle: 'Can Settle with Advance', AdvancePool: 'Advance Pool', Unallocated: 'Unallocated', Pending: 'Pending', Paid: 'Settled', Open: 'Open / Draft' };
                 const chipLabel = labelMap[activeFilter] || activeFilter;
                 if (!chipWrap) {
@@ -2200,7 +2200,6 @@ const UI = {
                     if (activeMasterFilter === 'To Receive') matchFilter = safeType === 'customer' && (bal > 0.01 || spFilter.gst > 0.01 || spFilter.non > 0.01);
                     else if (activeMasterFilter === 'To Pay') matchFilter = safeType === 'supplier' && (bal > 0.01 || spFilter.gst > 0.01 || spFilter.non > 0.01);
                     else if (activeMasterFilter === 'Advance') matchFilter = (bal < -0.01 || spFilter.gst < -0.01 || spFilter.non < -0.01);
-                    else if (activeMasterFilter === 'Advance') matchFilter = bal < -0.01; 
                     else if (activeMasterFilter === 'AdvancePool') matchFilter = (advPoolMap[l.id] || 0) > 0.01;
                     else if (activeMasterFilter === 'GST') matchFilter = l.gst && l.gst.trim() !== '';
                     else if (activeMasterFilter === 'Settled') matchFilter = Math.abs(bal) <= 0.01 && Math.abs(spFilter.gst) <= 0.01 && Math.abs(spFilter.non) <= 0.01;
@@ -4284,7 +4283,7 @@ const UI = {
 
     closeAllBottomSheets: () => {
         let closedSomething = false;
-        document.querySelectorAll('.bottom-sheet.open').forEach(sheet => {
+        document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket)').forEach(sheet => {
             sheet.classList.remove('open');
             setTimeout(() => sheet.classList.add('hidden'), 300);
             closedSomething = true;
@@ -5640,13 +5639,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (window.UI) window.UI.openActivity('activity-business-profile');
                         break;
                     case 'defaulters':
-                        if (window.UI) {
-                            window.UI.openMasterView('customers', 'Customer Master');
-                            setTimeout(() => {
-                                const el = document.getElementById('filter-master-view');
-                                if (el) el.value = 'To Receive';
-                                if (window.app) window.app.applySmartMasterFilter();
-                            }, 150);
+                        if (window.app && typeof window.app.openAgingBucketModal === 'function') {
+                            window.app.openAgingBucketModal('all', 'All Defaulters');
                         }
                         break;
                     case 'docformats':
@@ -6174,12 +6168,21 @@ const closeTopmostView = () => {
         if (cancelBtn) cancelBtn.click();
         return true;
     }
-    // 3. Catch Bottom Sheets
+    // 3. Catch Full-Screen Activities sitting above the Aging Sheet
+    const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
     const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
+    if (visibleScreens.length > 0 && visibleSheets.length === 1 && visibleSheets[0].id === 'sheet-aging-bucket') {
+        const topScreen = getTopElement(visibleScreens);
+        if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
+            if (window.UI) window.UI.closeActivity(topScreen.id);
+            return true;
+        }
+    }
+    // 4. Catch Bottom Sheets
     if (visibleSheets.length > 0) {
         const topSheet = getTopElement(visibleSheets);
-        if (topSheet.id === 'sheet-bank-ledger-select' || topSheet.id === 'sheet-khata-select') {
-            const ovId = topSheet.id === 'sheet-bank-ledger-select' ? 'bank-ledger-overlay' : 'khata-overlay';
+        if (topSheet.id === 'sheet-bank-ledger-select' || topSheet.id === 'sheet-khata-select' || topSheet.id === 'sheet-aging-bucket') {
+            const ovId = topSheet.id === 'sheet-bank-ledger-select' ? 'bank-ledger-overlay' : (topSheet.id === 'sheet-khata-select' ? 'khata-overlay' : 'aging-bucket-overlay');
             const ov = document.getElementById(ovId);
             if (ov) ov.remove();
             topSheet.remove();
@@ -6188,8 +6191,7 @@ const closeTopmostView = () => {
         }
         return true;
     }
-    // 4. Catch Full-Screen Activities
-    const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
+    // 5. Catch Full-Screen Activities
     if (visibleScreens.length > 0) {
         const topScreen = getTopElement(visibleScreens);
         if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
@@ -6718,7 +6720,7 @@ window.openInvoiceOverview = function(type, id) {
                                 let appAmt = 0;
                                 if (c.allocationMap && c.allocationMap[ref] !== undefined) {
                                     appAmt = parseFloat(c.allocationMap[ref]) || 0;
-                                    remPay = 0;
+                                    if (appAmt > 0) remPay = Math.max(0, remPay - appAmt);
                                 } else {
                                     const dTot = lDoc ? Math.abs(parseFloat(lDoc.grandTotal) || 0) : (imp / (refs.length || 1));
                                     appAmt = Math.min(dTot, remPay);

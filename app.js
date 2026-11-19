@@ -770,6 +770,7 @@ const app = {
                 setTimeout(() => {
                     try {
                         let bucket30 = 0, bucket60 = 0, bucket90 = 0, totalDue = 0;
+                        window._agingBuckets = { '30': [], '60': [], '90': [] };
                         const today = new Date();
                         const sales = UI.state.rawData.sales || [];
                         const cashbook = UI.state.rawData.cashbook || [];
@@ -793,7 +794,7 @@ const app = {
                                     let applyAmt = 0;
                                     if (r.allocationMap && r.allocationMap[ref] !== undefined) {
                                         applyAmt = parseFloat(r.allocationMap[ref]) || 0;
-                                        remainingPayment = 0;
+                                        if (applyAmt > 0) remainingPayment = Math.max(0, remainingPayment - applyAmt);
                                     } else {
                                         let docTotal = linkedDoc ? Math.max(0, Math.abs(parseFloat(linkedDoc.grandTotal) || 0) - returned) : (remainingPayment / (refs.length || 1));
                                         applyAmt = Math.min(docTotal, remainingPayment);
@@ -825,9 +826,10 @@ const app = {
                                     const diffTime = today - invoiceDate;
                                     if (diffTime >= 0) {
                                         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-                                        if (diffDays <= 30) bucket30 += balance;
-                                        else if (diffDays <= 60) bucket60 += balance;
-                                        else bucket90 += balance;
+                                        const agingEntry = { id: sale.id, invoiceNo: sale.invoiceNo || sale.orderNo || 'Invoice', customerName: sale.customerName || 'Customer', date: baseDate || sale.date || '', days: diffDays, balance };
+                                        if (diffDays <= 30) { bucket30 += balance; window._agingBuckets['30'].push(agingEntry); }
+                                        else if (diffDays <= 60) { bucket60 += balance; window._agingBuckets['60'].push(agingEntry); }
+                                        else { bucket90 += balance; window._agingBuckets['90'].push(agingEntry); }
                                     }
                                 }
                             }
@@ -846,6 +848,65 @@ const app = {
             }
         }
     }, // <--- ADD THIS CLOSING BRACKET AND COMMA!
+    openAgingBucketModal: (bucketKey, title) => {
+        const rawList = bucketKey === 'all'
+            ? [...((window._agingBuckets && window._agingBuckets['90']) || []), ...((window._agingBuckets && window._agingBuckets['60']) || []), ...((window._agingBuckets && window._agingBuckets['30']) || [])]
+            : ((window._agingBuckets && window._agingBuckets[bucketKey]) || []);
+        const list = rawList.slice().sort((a, b) => b.days - a.days || b.balance - a.balance);
+        const existingSheet = document.getElementById('sheet-aging-bucket');
+        const existingOverlay = document.getElementById('aging-bucket-overlay');
+        if (existingSheet) existingSheet.remove();
+        if (existingOverlay) existingOverlay.remove();
+        const total = list.reduce((s, x) => s + (parseFloat(x.balance) || 0), 0);
+        const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const accent = bucketKey === '30' ? '#16a34a' : (bucketKey === '60' ? '#f59e0b' : (bucketKey === '90' ? '#ef4444' : 'var(--md-primary)'));
+        const getRowColor = (days) => days <= 30 ? '#16a34a' : (days <= 60 ? '#f59e0b' : '#ef4444');
+        const getRowTint = (days) => days <= 30 ? 'rgba(22, 163, 74, 0.14)' : (days <= 60 ? 'rgba(245, 158, 11, 0.14)' : 'rgba(239, 68, 68, 0.14)');
+        const renderRows = (items) => items.length === 0
+            ? '<li style="padding: 36px 16px; text-align: center; color: var(--md-text-muted); font-size: 13px;">No pending invoices in this aging bracket.</li>'
+            : items.map(item => `
+                <li class="tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${String(item.id).replace(/'/g, "\\'")}');" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin: 0; border-radius: 0; background: transparent; border: none; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;">
+                    <div style="min-width: 0; padding-right: 12px;">
+                        <div style="font-size: 14px; font-weight: 700; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(item.customerName)}</div>
+                        <div style="font-size: 12px; color: var(--md-text-muted); margin-top: 3px;">${esc(item.invoiceNo)} • ${esc(item.date || '-')}</div>
+                    </div>
+                    <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <div style="font-size: 14px; font-weight: 800; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">${fmt(item.balance)}</div>
+                        <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: ${getRowTint(item.days)}; color: ${getRowColor(item.days)};">${item.days}d overdue</span>
+                    </div>
+                </li>`).join('');
+        window._filterAgingBucketList = (q) => {
+            const ul = document.getElementById('aging-bucket-results');
+            if (!ul) return;
+            const term = String(q || '').trim().toLowerCase();
+            const filtered = !term ? list : list.filter(x => String(x.customerName || '').toLowerCase().includes(term) || String(x.invoiceNo || '').toLowerCase().includes(term));
+            ul.innerHTML = renderRows(filtered);
+        };
+        const html = `<div id="aging-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-aging-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-aging-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+                <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <strong style="font-size: 16px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-aging-bucket')?.remove(); document.getElementById('aging-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
+                        </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; margin: 0 -16px 12px -16px; border-radius: 0; background: var(--md-surface-variant); border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">${list.length} Pending Bill${list.length === 1 ? '' : 's'}</span>
+                        <strong style="font-size: 15px; font-weight: 800; color: ${accent}; font-variant-numeric: tabular-nums;">${fmt(total)}</strong>
+                    </div>
+                    <div class="search-container" style="position: relative; margin-bottom: 12px; flex-shrink: 0;">
+                        <span class="material-symbols-outlined" style="position: absolute; left: 12px; top: 12px; color: var(--md-outline);">search</span>
+                        <input type="text" placeholder="Search party or invoice..." autocomplete="off" oninput="if(window._filterAgingBucketList) window._filterAgingBucketList(this.value)" style="width: 100%; padding: 12px; border: none; font-size: 16px; background: transparent; outline: none;">
+                    </div>
+                </div>
+                <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface); position: relative; padding: 0;">
+                    <ul id="aging-bucket-results" style="margin: 0; padding: 0 0 16px 0; border: none; list-style: none; display: flex; flex-direction: column;">${renderRows(list)}</ul>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
 
     // ==========================================
     // CORE UI REFRESH ENGINE (Restored)
@@ -1425,7 +1486,8 @@ const app = {
         const isConfirmed = await window.Utils.confirmModal("Are you sure you want to delete this?", "Delete", true);
         if (!isConfirmed) return;
         
-        await deleteRecordById(storeName, id);
+        const deleted = await deleteRecordById(storeName, id);
+        if (deleted === false) return;
         window.Utils.showToast("Deleted successfully! 🗑️");
         
         app.manageSimpleMaster(storeName, title);
@@ -2929,7 +2991,7 @@ const app = {
                         let applyAmt = 0;
                         if (r.allocationMap && r.allocationMap[ref] !== undefined) {
                             applyAmt = parseFloat(r.allocationMap[ref]) || 0;
-                            remainingPayment = 0;
+                            if (applyAmt > 0) remainingPayment = Math.max(0, remainingPayment - applyAmt);
                         } else {
                             let docTotal = linkedDoc ? Math.abs(parseFloat(linkedDoc.grandTotal) || 0) : (parseFloat(r.amount) / refs.length);
                             applyAmt = Math.min(docTotal, remainingPayment);
@@ -3421,7 +3483,7 @@ const app = {
                             d.id !== app.state.currentEditId
                         );
                         if (isDuplicate) {
-                            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                            if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-loading"); submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
                             if (window.Utils) await window.Utils.alertModal(`Document number "${proposedDocNo}" already exists! Please use a unique number.`, "Duplicate Found");
                             return;
                         }
@@ -3460,7 +3522,7 @@ const app = {
                                 if (effectiveStock < parseFloat(row.qty)) {
                                     const isConfirmed = await window.Utils.confirmModal(`Warning: You are trying to deduct ${row.qty} of "${row.name}", but your effective ${poolName} stock is only ${effectiveStock}. This will cause negative inventory. Continue anyway?`, "Continue", true);
                                     if (!isConfirmed) {
-                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                                        if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-loading"); submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
                                         return; 
                                     }
                                 }
@@ -4397,7 +4459,7 @@ if (data.id && splitConfirmed) {
                         if (currentBal - attemptAmt < 0) {
                             const isConfirmed = await window.Utils.confirmModal(`Warning: This account only has ₹${currentBal.toFixed(2)} available. This payment will drop the balance below zero. Continue anyway?`, "Continue", true);
                             if (!isConfirmed) {
-                                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerText = originalText; submitBtn.style.opacity = "1"; }
+                                if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-loading"); submitBtn.innerHTML = originalText; submitBtn.style.opacity = "1"; }
                                 return;
                             }
                         }
@@ -5460,7 +5522,8 @@ if (data.id && splitConfirmed) {
 
         // STRICT ERP LOGIC: db.js now automatically routes soft-deletions to the unlimited IndexedDB Trash Vault!
         // Delete from main active database
-        await deleteRecordById(storeName, id);
+        const deleted = await deleteRecordById(storeName, id);
+        if (deleted === false) return;
 
         // ENTERPRISE FIX: Wipe RAM Cache so the deleted item instantly disappears from the UI!
         if (window.AppCache) {
@@ -8463,7 +8526,7 @@ if (data.id && splitConfirmed) {
                             let apply = 0;
                             if (r.allocationMap && r.allocationMap[ref] !== undefined) {
                                 apply = parseFloat(r.allocationMap[ref]) || 0;
-                                rem = 0;
+                                if (apply > 0) rem = Math.max(0, rem - apply);
                             } else {
                                 let docTot = innerDoc ? Math.max(0, Math.abs(parseFloat(innerDoc.grandTotal)||0) - returned) : rem/refs.length;
                                 apply = Math.min(docTot, rem);
@@ -9187,7 +9250,7 @@ window.triggerKhataReport = async () => {
     document.body.insertAdjacentHTML('beforeend', sheetHTML);
 };
 
-window.executeKhataReport = async (partyId, partyName, partyType) => {
+window.executeKhataReportLegacy = async (partyId, partyName, partyType) => {
     window.Utils.showToast("Generating Ledger... ⏳");
     
     // Fetch Ledger math from Database

@@ -14,7 +14,6 @@ const ASSETS_TO_CACHE = [
     './cloud.js',
     './state.js',
     './components.js',
-    './worker.js',
     './icon-192.png',
     './icon-512.png',
     './manifest.json',
@@ -89,11 +88,7 @@ self.addEventListener('fetch', (event) => {
         return; 
     }
 
-    // 2. Prevent 405 Method Not Allowed on static servers when handling CSV Share Target
-    if (event.request.method === 'POST' && url.includes('action=import_csv')) {
-        event.respondWith(Response.redirect('./?action=import_csv', 303));
-        return;
-    }
+    // 2. Skip non-GET and non-HTTP(S) requests
 
     if (event.request.method !== 'GET') return;
     if (url.startsWith('blob:') || url.startsWith('data:')) return;
@@ -116,7 +111,7 @@ self.addEventListener('fetch', (event) => {
                         caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
                     }
                     return networkResponse;
-                }).catch(() => {});
+                }).catch(() => cachedResponse || new Response('', { status: 408, statusText: 'Offline' }));
                 return cachedResponse || networkFetch;
             })
         );

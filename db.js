@@ -335,7 +335,7 @@ const deleteRecordById = async (storeName, id) => {
                             if (r.allocationMap) {
                                 uniqueRefs.forEach(ref => {
                                     if (r.allocationMap[ref]) {
-                                        r.amount = (parseFloat(r.amount) - parseFloat(r.allocationMap[ref])).toFixed(2);
+                                        r.amount = Number(Math.max(0, (parseFloat(r.amount) || 0) - (parseFloat(r.allocationMap[ref]) || 0)).toFixed(2));
                                         delete r.allocationMap[ref];
                                     }
                                 });

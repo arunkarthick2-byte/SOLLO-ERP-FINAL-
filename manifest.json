@@ -84,22 +84,6 @@
       }
     }
   ],
-  "share_target": {
-    "action": "./?action=import_csv",
-    "method": "POST",
-    "enctype": "multipart/form-data",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url",
-      "files": [
-        {
-          "name": "csv_file",
-          "accept": ["text/csv", ".csv"]
-        }
-      ]
-    }
-  },
   "launch_handler": {
     "client_mode": "navigate-existing"
   }

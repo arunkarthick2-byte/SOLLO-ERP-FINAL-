@@ -9570,3 +9570,83 @@ html body.dark-mode #overview-bottom-bar:not(#_) {
   background: rgba(0, 0, 0, 0.9) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
+html body #activity-sales-form .m3-card:not(#_),
+html body #activity-purchase-form .m3-card:not(#_) {
+  box-shadow: none !important;
+  border: 1px solid var(--md-outline-variant) !important;
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #activity-sales-form .m3-card:not(#_),
+html body.dark-mode #activity-purchase-form .m3-card:not(#_) {
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #activity-sales-form .sticky-totals:not(#_),
+html body #activity-purchase-form .sticky-totals:not(#_) {
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #sales-items-body .item-entry-card:not(#_),
+html body.dark-mode #purchase-items-body .item-entry-card:not(#_) {
+  background: #181818 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #activity-payment-in-form .premium-input:not(#_),
+html body #activity-payment-out-form .premium-input:not(#_),
+html body #pay-in-amount:not(#_),
+html body #pay-out-amount:not(#_),
+html body #pay-in-amount-2:not(#_),
+html body #pay-out-amount-2:not(#_) {
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #activity-payment-in-form .activity-content:not(#_),
+html body.dark-mode #activity-payment-out-form .activity-content:not(#_) {
+  background: #000000 !important;
+}
+html body.dark-mode #activity-payment-in-form .m3-card:not(#_),
+html body.dark-mode #activity-payment-out-form .m3-card:not(#_) {
+  background: #121212 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+html body.dark-mode #activity-payment-in-form .premium-row:not(#_),
+html body.dark-mode #activity-payment-out-form .premium-row:not(#_) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body #sheet-settle-bills:not(#_) {
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #sheet-settle-bills:not(#_),
+html body.dark-mode #sheet-settle-bills .sheet-header:not(#_),
+html body.dark-mode #sheet-settle-bills > div:not(#_) {
+  background: #121212 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #settle-bills-list:not(#_) {
+  background: #000000 !important;
+}
+html body #settle-bills-total:not(#_) {
+  font-variant-numeric: tabular-nums !important;
+}
+html body #custom-numpad.pos-numpad-overlay:not(#_) {
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.14) !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #custom-numpad.pos-numpad-overlay:not(#_),
+html body.dark-mode #custom-numpad .numpad-header:not(#_) {
+  background: #000000 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #custom-numpad .numpad-grid:not(#_) {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+html body #custom-numpad .numpad-btn:not(.action-done):not(#_) {
+  background: var(--md-surface) !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+html body.dark-mode #custom-numpad .numpad-btn:not(.action-done):not(#_) {
+  background: #121212 !important;
+  color: #F8FAFC !important;
+  box-shadow: none !important;
+  border: none !important;
+}

@@ -328,6 +328,7 @@ const Cloud = {
                 });
 
                 if (uploadRes.ok) {
+                    Cloud._backup404Retried = false;
                     // NEW: Save the timestamp of this successful backup
                     localStorage.setItem('sollo_last_backup', Date.now().toString());
                     // 🚨 SOLLO FIX: Upgraded the fading Toast to an unmissable Alert Modal!
@@ -335,7 +336,13 @@ const Cloud = {
                 } else {
                     if (uploadRes.status === 404) {
                         localStorage.removeItem(`sollo_drive_file_id_${activeFirmId}`);
-                        return window.Cloud.backup();
+                        if (!Cloud._backup404Retried) {
+                            Cloud._backup404Retried = true;
+                            return window.Cloud.backup();
+                        }
+                        Cloud._backup404Retried = false;
+                        if (window.Utils) window.Utils.alertModal("Google Drive backup file could not be recreated (404). Please try again.", "Backup Failed");
+                        return;
                     }
                     if (uploadRes.status === 401) {
                         gapi.client.setToken(null); // Clear expired token to force re-auth
