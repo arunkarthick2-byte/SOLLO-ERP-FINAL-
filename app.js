@@ -6875,26 +6875,26 @@ if (data.id && splitConfirmed) {
     refreshGSTReport: async () => {
         const monthVal = document.getElementById('gst-month-selector').value;
         if (!monthVal) return;
-
-        // Fetches the raw tax math from your db.js engine
         const report = await window.generateGSTReport(monthVal, app.state.firmId);
-
-        // GSTR-1: Sales Breakdown (Splits GST and Non-GST)
-        document.getElementById('gst-b2b-taxable').innerText = `\u20B9${report.gstr1.b2bTaxable.toFixed(2)}`;
-        document.getElementById('gst-b2b-tax').innerText = `\u20B9${report.gstr1.b2bTax.toFixed(2)}`;
-        document.getElementById('gst-b2c-taxable').innerText = `\u20B9${report.gstr1.b2cTaxable.toFixed(2)}`;
-        document.getElementById('gst-b2c-tax').innerText = `\u20B9${report.gstr1.b2cTax.toFixed(2)}`;
-
-        // GSTR-3B: Net Summary
-        document.getElementById('gst-out-tax').innerText = `\u20B9${report.gstr3b.outputTax.toFixed(2)}`;
-        document.getElementById('gst-in-tax').innerText = `\u20B9${report.gstr3b.inputTax.toFixed(2)}`;
-        
+        const fmt = (n) => `\u20B9${(parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+        setTxt('gst-b2b-taxable', fmt(report.gstr1.b2bTaxable));
+        setTxt('gst-b2b-tax', fmt(report.gstr1.b2bTax));
+        setTxt('gst-b2c-taxable', fmt(report.gstr1.b2cTaxable));
+        setTxt('gst-b2c-tax', fmt(report.gstr1.b2cTax));
+        setTxt('gst-gstr1-nil', fmt(report.gstr1.nilRatedTaxable || 0));
+        setTxt('gst-gstr2-taxable', fmt(report.gstr2 ? report.gstr2.totalTaxable : 0));
+        setTxt('gst-gstr2-tax', fmt(report.gstr2 ? report.gstr2.totalTax : 0));
+        setTxt('gst-gstr2-nil', fmt(report.gstr2 ? (report.gstr2.nilRatedTaxable || 0) : 0));
+        setTxt('gst-out-taxable', fmt(report.gstr1.totalTaxable));
+        setTxt('gst-out-tax', fmt(report.gstr3b.outputTax));
+        setTxt('gst-in-taxable', fmt(report.gstr2 ? report.gstr2.totalTaxable : 0));
+        setTxt('gst-in-tax', fmt(report.gstr3b.inputTax));
         const netPayableEl = document.getElementById('gst-net-payable');
         if (netPayableEl) {
-            netPayableEl.innerText = `\u20B9${report.gstr3b.netPayable.toFixed(2)}`;
-            netPayableEl.style.color = report.gstr3b.netPayable > 0 ? '#ba1a1a' : '#146c2e';
+            netPayableEl.innerText = fmt(report.gstr3b.netPayable);
+            netPayableEl.style.color = report.gstr3b.netPayable > 0 ? 'var(--md-error)' : 'var(--md-success)';
         }
-
         const exportBtn = document.getElementById('btn-export-gst');
         if (exportBtn) {
             exportBtn.onclick = () => { if (window.app) window.app.exportGSTPDF(report); };
@@ -6908,27 +6908,26 @@ if (data.id && splitConfirmed) {
             const biz = await window.getRecordById('businessProfile', activeFirmId) || {};
             const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
 
+            const fmt = (n) => (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             const summaryBody = [
                 [{text: 'GSTR-3B SUMMARY', colSpan: 3, style: 'th', alignment: 'left'}, {}, {}],
                 [{text: 'Description', bold: true, color: '#475569'}, {text: 'Taxable Value (₹)', alignment: 'right', bold: true, color: '#475569'}, {text: 'Tax Amount (₹)', alignment: 'right', bold: true, color: '#475569'}],
-                [{text: 'Total Sales (Output Tax)'}, {text: reportData.gstr1.totalTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr1.totalTax.toFixed(2), alignment: 'right'}],
-                [{text: 'Total Purchases (Input Tax / ITC)'}, {text: reportData.gstr2.totalTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr2.totalTax.toFixed(2), alignment: 'right'}],
-                [{text: 'NET GST PAYABLE TO GOVT', bold: true, color: '#0f172a'}, {text: ''}, {text: reportData.gstr3b.netPayable.toFixed(2), alignment: 'right', bold: true, color: reportData.gstr3b.netPayable > 0 ? '#dc2626' : '#16a34a'}]
+                [{text: 'Total Sales (Output Tax)'}, {text: fmt(reportData.gstr1.totalTaxable), alignment: 'right'}, {text: fmt(reportData.gstr1.totalTax), alignment: 'right'}],
+                [{text: 'Total Purchases (Input Tax / ITC)'}, {text: fmt(reportData.gstr2.totalTaxable), alignment: 'right'}, {text: fmt(reportData.gstr2.totalTax), alignment: 'right'}],
+                [{text: 'NET GST PAYABLE TO GOVT', bold: true, color: '#0f172a'}, {text: ''}, {text: fmt(reportData.gstr3b.netPayable), alignment: 'right', bold: true, color: reportData.gstr3b.netPayable > 0 ? '#dc2626' : '#16a34a'}]
             ];
-
             const gstr1Body = [
                 [{text: 'GSTR-1 (SALES) BREAKDOWN', colSpan: 3, style: 'th', alignment: 'left', fillColor: '#f57f17'}, {}, {}],
                 [{text: 'Category', bold: true, color: '#475569'}, {text: 'Taxable Value (₹)', alignment: 'right', bold: true, color: '#475569'}, {text: 'Tax Amount (₹)', alignment: 'right', bold: true, color: '#475569'}],
-                [{text: 'B2B Sales (Registered)'}, {text: reportData.gstr1.b2bTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr1.b2bTax.toFixed(2), alignment: 'right'}],
-                [{text: 'B2C Sales (Unregistered)'}, {text: reportData.gstr1.b2cTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr1.b2cTax.toFixed(2), alignment: 'right'}],
-                [{text: 'Nil Rated / Exempt / Non-GST Sales'}, {text: (reportData.gstr1.nilRatedTaxable || 0).toFixed(2), alignment: 'right'}, {text: '0.00', alignment: 'right'}]
+                [{text: 'B2B Sales (Registered)'}, {text: fmt(reportData.gstr1.b2bTaxable), alignment: 'right'}, {text: fmt(reportData.gstr1.b2bTax), alignment: 'right'}],
+                [{text: 'B2C Sales (Unregistered)'}, {text: fmt(reportData.gstr1.b2cTaxable), alignment: 'right'}, {text: fmt(reportData.gstr1.b2cTax), alignment: 'right'}],
+                [{text: 'Nil Rated / Exempt / Non-GST Sales'}, {text: fmt(reportData.gstr1.nilRatedTaxable || 0), alignment: 'right'}, {text: '0.00', alignment: 'right'}]
             ];
-
             const gstr2Body = [
                 [{text: 'GSTR-2 (PURCHASES) BREAKDOWN', colSpan: 3, style: 'th', alignment: 'left', fillColor: '#6a1b9a'}, {}, {}],
                 [{text: 'Category', bold: true, color: '#475569'}, {text: 'Taxable Value (₹)', alignment: 'right', bold: true, color: '#475569'}, {text: 'Tax Amount (₹)', alignment: 'right', bold: true, color: '#475569'}],
-                [{text: 'Total GST Purchases (ITC)'}, {text: reportData.gstr2.totalTaxable.toFixed(2), alignment: 'right'}, {text: reportData.gstr2.totalTax.toFixed(2), alignment: 'right'}],
-                [{text: 'Nil Rated / Exempt / Non-GST Purchases'}, {text: (reportData.gstr2.nilRatedTaxable || 0).toFixed(2), alignment: 'right'}, {text: '0.00', alignment: 'right'}]
+                [{text: 'Total GST Purchases (ITC)'}, {text: fmt(reportData.gstr2.totalTaxable), alignment: 'right'}, {text: fmt(reportData.gstr2.totalTax), alignment: 'right'}],
+                [{text: 'Nil Rated / Exempt / Non-GST Purchases'}, {text: fmt(reportData.gstr2.nilRatedTaxable || 0), alignment: 'right'}, {text: '0.00', alignment: 'right'}]
             ];
 
             const docDefinition = {
@@ -6986,63 +6985,93 @@ if (data.id && splitConfirmed) {
         document.getElementById('tax-report-b2c').innerText = '₹0.00';
         document.getElementById('tax-report-b2c-tax').innerText = '₹0.00';
         document.getElementById('tax-report-total').innerText = '₹0.00';
+        const totTaxEl = document.getElementById('tax-report-total-tax');
+        if (totTaxEl) totTaxEl.innerText = '₹0.00';
+        const billsWrap = document.getElementById('party-tax-bills-wrap');
+        if (billsWrap) billsWrap.innerHTML = '<div class="ded-empty-msg">Select a party above to view bill-wise tax details.</div>';
         const taxMoBtn = document.querySelector('#activity-party-tax-report .activity-content > div:first-child button:nth-child(2)');
         if (taxMoBtn && window.setActiveFilterButton) window.setActiveFilterButton(taxMoBtn);
-
         if (window.UI) window.UI.openActivity('activity-party-tax-report');
     },
-
     generatePartyTaxReport: async () => {
         const partyId = document.getElementById('tax-report-id').value;
         const fromVal = document.getElementById('tax-report-from').value;
         const toVal = document.getElementById('tax-report-to').value;
-        
         if (!partyId || !fromVal || !toVal) return;
-
         const party = await window.getRecordById('ledgers', partyId);
         if (!party) return;
-        
         const isCustomer = party.type === 'Customer';
         const storeName = isCustomer ? 'sales' : 'purchases';
         const partyKey = isCustomer ? 'customerId' : 'supplierId';
-
         const docs = await window.getAllRecords(storeName, 'firmId', app.state.firmId);
-        
-        let b2bTaxable = 0, b2bTax = 0, b2cTaxable = 0, b2cTax = 0;
-
+        let b2bTaxable = 0, b2bTax = 0, b2cTaxable = 0, b2cTax = 0, totalGrand = 0;
+        const matched = [];
         docs.forEach(s => {
-            // ENTERPRISE FIX: The Timezone Trap Shield!
-            // Direct string comparison natively ignores timezones, preventing missing invoices!
             if (s.firmId === app.state.firmId && s[partyKey] === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromVal && s.date <= toVal) {
                 const mult = s.documentType === 'return' ? -1 : 1;
                 const snapshotGst = s.customerGst || s.supplierGst || s.gstin || party.gst || '';
                 const isB2B = String(snapshotGst).trim().length === 15;
-                
-                // 🚨 CRITICAL FIX: Deduct the discount to find the true Taxable Value for the Party!
                 let rawSubtotal = Math.abs(parseFloat(s.subtotal) || 0);
                 let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
                 if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
-                
                 const taxable = (rawSubtotal - discountAmt) * mult;
-                const tax = Math.abs(parseFloat(s.totalGst) || 0) * mult;
-
-                if (s.invoiceType !== 'Non-GST' && isB2B) {
+                const tax = (s.invoiceType === 'Non-GST' ? 0 : Math.abs(parseFloat(s.totalGst) || 0)) * mult;
+                const grand = Math.abs(parseFloat(s.grandTotal) || 0) * mult;
+                const isNonGst = s.invoiceType === 'Non-GST';
+                if (!isNonGst && isB2B) {
                     b2bTaxable += taxable;
                     b2bTax += tax;
                 } else {
                     b2cTaxable += taxable;
-                    b2cTax += (s.invoiceType === 'Non-GST' ? 0 : tax);
+                    b2cTax += tax;
                 }
+                totalGrand += grand;
+                matched.push({ s, mult, isB2B, isNonGst, taxable, tax, grand });
             }
         });
-
+        matched.sort((a, b) => window.Utils.safeDate(a.s.date) - window.Utils.safeDate(b.s.date));
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         const totalTaxable = b2bTaxable + b2cTaxable;
-
-        document.getElementById('tax-report-b2b').innerText = `₹${b2bTaxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-        document.getElementById('tax-report-b2b-tax').innerText = `₹${b2bTax.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-        document.getElementById('tax-report-b2c').innerText = `₹${b2cTaxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-        document.getElementById('tax-report-b2c-tax').innerText = `₹${b2cTax.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
-        document.getElementById('tax-report-total').innerText = `₹${totalTaxable.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        const totalTax = b2bTax + b2cTax;
+        document.getElementById('tax-report-b2b').innerText = fmt(b2bTaxable);
+        document.getElementById('tax-report-b2b-tax').innerText = fmt(b2bTax);
+        document.getElementById('tax-report-b2c').innerText = fmt(b2cTaxable);
+        document.getElementById('tax-report-b2c-tax').innerText = fmt(b2cTax);
+        document.getElementById('tax-report-total').innerText = fmt(totalTaxable);
+        const totTaxEl = document.getElementById('tax-report-total-tax');
+        if (totTaxEl) totTaxEl.innerText = fmt(totalTax);
+        const billsWrap = document.getElementById('party-tax-bills-wrap');
+        if (billsWrap) {
+            if (matched.length === 0) {
+                billsWrap.innerHTML = '<div class="ded-empty-msg">No bills found for this party in the selected period.</div>';
+            } else {
+                let rows = '';
+                matched.forEach(({ s, mult, isB2B, isNonGst, taxable, tax, grand }) => {
+                    const billNo = (s.invoiceNo || s.poNo || '').trim();
+                    const refNo = (s.orderNo || '').trim();
+                    const primaryNo = billNo || refNo || String(s.id).substring(0, 6).toUpperCase();
+                    const secondaryLine = (billNo && refNo && billNo !== refNo) ? `<br><span class="ded-sub-ref">${isCustomer ? 'Ord' : 'PO'}: ${refNo}</span>` : '';
+                    const badge = mult < 0
+                        ? `<span class="ded-pill ded-pill-ret">${isCustomer ? 'CR NOTE' : 'DR NOTE'}</span>`
+                        : (isNonGst ? '<span class="ded-pill ded-pill-nongst">NON-GST</span>' : `<span class="ded-pill ded-pill-gst">${isB2B ? 'B2B' : 'B2C'}</span>`);
+                    rows += `<tr>
+                        <td class="ded-date-col">${window.Utils.formatDateDisplay(s.date)}</td>
+                        <td class="ded-doc-col"><strong>${primaryNo}</strong>${secondaryLine}</td>
+                        <td class="ded-cat-col">${badge}</td>
+                        <td class="number-col">${fmt(taxable)}</td>
+                        <td class="number-col" style="color: var(--md-primary);">${fmt(tax)}</td>
+                        <td class="number-col"><strong style="color: ${mult < 0 ? 'var(--md-error)' : 'var(--md-on-surface)'};">${fmt(grand)}</strong></td>
+                    </tr>`;
+                });
+                rows += `<tr class="total-row">
+                    <td colspan="3" style="text-align:right;">TOTAL (${matched.length} ${matched.length === 1 ? 'Bill' : 'Bills'}):</td>
+                    <td class="number-col">${fmt(totalTaxable)}</td>
+                    <td class="number-col" style="color: var(--md-primary);">${fmt(totalTax)}</td>
+                    <td class="number-col">${fmt(totalGrand)}</td>
+                </tr>`;
+                billsWrap.innerHTML = `<div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>Date</th><th>Doc / Order No.</th><th>Type</th><th class="number-col">Taxable Val</th><th class="number-col">GST Amt</th><th class="number-col">Grand Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+            }
+        }
     },
 
     // ==========================================
@@ -7148,66 +7177,50 @@ if (data.id && splitConfirmed) {
 
         const rankedItems = Object.values(itemMap).sort((a, b) => b.profit - a.profit);
         
-        let totalItemProfit = 0;
+        let totalItemProfit = 0, totalRev = 0, totalCostAll = 0;
         let html = '';
-
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         if (rankedItems.length === 0) {
-            html = '<div style="text-align:center; color:var(--md-text-muted); padding:20px;">No sales found in this date range.</div>';
+            html = '<div class="ded-empty-msg">No sales found in this date range.</div>';
         } else {
-            rankedItems.forEach(item => {
+            let rows = '';
+            rankedItems.forEach((item, idx) => {
                 totalItemProfit += item.profit;
+                totalRev += item.revenue;
+                totalCostAll += item.cost;
                 const isLoss = item.profit < 0;
                 const profitColor = isLoss ? 'var(--md-error)' : 'var(--md-success)';
                 const profitSign = isLoss ? '' : '+';
+                const marginPct = item.revenue > 0 ? ((item.profit / item.revenue) * 100).toFixed(1) : '0.0';
                 const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(item.name).replace(/'/g, "\\'") : item.name;
-                
-                html += `
-                <div class="m3-card tap-target" onclick="window.triggerItemLedgerFromForm('${item.id}', '${safeName}')" style="padding: 12px; border-left: 4px solid ${profitColor}; cursor: pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                        <strong style="color: var(--md-on-surface); font-size: 14px;">${item.name}</strong>
-                        <strong style="color: ${profitColor}; font-size: 15px;">${profitSign}₹${item.profit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-size: 11px; color: var(--md-text-muted);">
-                        <span>Qty Sold: <strong>${item.qty} ${item.uom || ''}</strong></span>
-                        <span>Revenue: <strong>₹${item.revenue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></span>
-                        <span>Avg Cost: <strong>₹${item.cost.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong></span>
-                    </div>
-                </div>`;
+                rows += `<tr class="tap-target ded-clickable-row" onclick="window.triggerItemLedgerFromForm('${item.id}', '${safeName}')">
+                    <td class="ded-rank-col">#${idx + 1}</td>
+                    <td class="ded-name-col"><strong>${item.name}</strong></td>
+                    <td class="number-col">${item.qty} <span class="ded-uom">${item.uom || ''}</span></td>
+                    <td class="number-col">${fmt(item.revenue)}</td>
+                    <td class="number-col">${fmt(item.cost)}</td>
+                    <td class="number-col"><strong style="color:${profitColor};">${profitSign}${fmt(item.profit)}</strong><br><span class="ded-pill ${isLoss ? 'ded-pill-ret' : 'ded-pill-paid'}">${marginPct}%</span></td>
+                </tr>`;
             });
-            
-            // The Bridging Reconciliation Block!
+            rows += `<tr class="total-row">
+                <td colspan="3" style="text-align:right;">TOTAL (${rankedItems.length} Items):</td>
+                <td class="number-col">${fmt(totalRev)}</td>
+                <td class="number-col">${fmt(totalCostAll)}</td>
+                <td class="number-col" style="color:${totalItemProfit < 0 ? 'var(--md-error)' : 'var(--md-success)'};">${totalItemProfit >= 0 ? '+' : ''}${fmt(totalItemProfit)}</td>
+            </tr>`;
             const finalBridgedProfit = totalItemProfit + totalFreight + totalRoundOff;
-            
-            html += `
-            <div class="m3-card" style="margin-top: 24px; padding: 16px; background: rgba(0, 97, 164, 0.05); border: 1px solid rgba(0, 97, 164, 0.2);">
-                <div style="font-size: 12px; font-weight: 800; color: var(--md-primary); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px;">Profit Reconciliation</div>
-                
-                <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 6px; color: var(--md-on-surface);">
-                    <span>Gross Item Margin (Before Discount):</span>
-                    <strong>₹${(totalItemProfit + totalDiscount).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 6px; color: var(--md-success);">
-                    <span>Add: Freight Collected:</span>
-                    <strong>+ ₹${totalFreight.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 6px; color: var(--md-error);">
-                    <span>Less: Discounts Given:</span>
-                    <strong>- ₹${totalDiscount.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size: 13px; margin-bottom: 12px; color: var(--md-text-muted);">
-                    <span>Round-Off Adjustments:</span>
-                    <strong>${totalRoundOff >= 0 ? '+' : '-'} ₹${Math.abs(totalRoundOff).toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-                
-                <div style="border-top: 1px solid var(--md-outline-variant); padding-top: 12px; display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="color: var(--md-primary); font-size: 14px;">Sales Gross Profit:</strong>
-                    <strong style="color: var(--md-primary); font-size: 18px;">₹${finalBridgedProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-            </div>`;
+            html = `<div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>#</th><th>Product Name</th><th class="number-col">Qty Sold</th><th class="number-col">Revenue</th><th class="number-col">Cost</th><th class="number-col">Gross Profit</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+            <div class="ded-section-title" style="margin-top:14px;">Profit Reconciliation</div>
+            <div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>Component</th><th class="number-col">Amount</th></tr></thead><tbody>
+                <tr><td>Gross Item Margin (Before Discount)</td><td class="number-col"><strong>${fmt(totalItemProfit + totalDiscount)}</strong></td></tr>
+                <tr><td style="color:var(--md-success);">Add: Freight Collected</td><td class="number-col" style="color:var(--md-success);">+ ${fmt(totalFreight)}</td></tr>
+                <tr><td style="color:var(--md-error);">Less: Discounts Given</td><td class="number-col" style="color:var(--md-error);">- ${fmt(totalDiscount)}</td></tr>
+                <tr><td style="color:var(--md-text-muted);">Round-Off Adjustments</td><td class="number-col">${totalRoundOff >= 0 ? '+' : '-'} ${fmt(Math.abs(totalRoundOff))}</td></tr>
+                <tr class="total-row"><td>SALES GROSS PROFIT</td><td class="number-col" style="color:var(--md-primary);">${fmt(finalBridgedProfit)}</td></tr>
+            </tbody></table></div></div>`;
         }
-
         document.getElementById('item-profit-list').innerHTML = html;
-        document.getElementById('item-profit-total').innerHTML = `₹${totalItemProfit.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('item-profit-total').innerHTML = fmt(totalItemProfit);
     },
 
     // ENTERPRISE UPGRADE: QUICK DATE FILTERS
@@ -7291,31 +7304,30 @@ if (data.id && splitConfirmed) {
         // Sort Highest Expenses First
         const rankedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
         
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         let html = '';
         if (rankedCats.length === 0) {
-            html = '<div style="text-align:center; color:var(--md-text-muted); padding:20px;">No expenses found in this date range.</div>';
+            html = '<div class="ded-empty-msg">No expenses found in this date range.</div>';
         } else {
-            rankedCats.forEach(([cat, amt]) => {
-                const percentage = totalExpenses > 0 ? ((amt / totalExpenses) * 100).toFixed(1) : 0;
+            let rows = '';
+            rankedCats.forEach(([cat, amt], idx) => {
+                const percentage = totalExpenses > 0 ? ((amt / totalExpenses) * 100).toFixed(1) : '0.0';
                 const safeCat = String(cat || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                html += `
-                <div class="m3-card tap-target" onclick="if(window.UI){ const sEl=document.getElementById('expenses-start-date'); const eEl=document.getElementById('expenses-end-date'); const qEl=document.getElementById('search-expenses'); if(sEl){sEl.value='${fromVal}'; sEl.setAttribute('data-fy-set','true');} if(eEl) eEl.value='${toVal}'; if(qEl) qEl.value='${safeCat}'; UI.state.activeFilters['expenses']='All'; UI.applyFilters('expenses'); UI.openActivity('activity-expense-ledger'); }" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
-                        <strong style="color: var(--md-on-surface); font-size: 15px;">${cat}</strong>
-                        <strong style="color: var(--md-error); font-size: 16px;">₹${amt.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                    </div>
-                    <div style="display:flex; align-items:center; gap: 8px;">
-                        <div style="flex:1; height: 6px; background: rgba(186, 26, 26, 0.15); border-radius: 3px; overflow: hidden;">
-                            <div style="width: ${percentage}%; height: 100%; background: var(--md-error);"></div>
-                        </div>
-                        <span style="font-size: 11px; color: var(--md-text-muted); font-weight:bold;">${percentage}%</span>
-                    </div>
-                </div>`;
+                rows += `<tr class="tap-target ded-clickable-row" onclick="if(window.UI){ const sEl=document.getElementById('expenses-start-date'); const eEl=document.getElementById('expenses-end-date'); const qEl=document.getElementById('search-expenses'); if(sEl){sEl.value='${fromVal}'; sEl.setAttribute('data-fy-set','true');} if(eEl) eEl.value='${toVal}'; if(qEl) qEl.value='${safeCat}'; UI.state.activeFilters['expenses']='All'; UI.applyFilters('expenses'); UI.openActivity('activity-expense-ledger'); }">
+                    <td class="ded-rank-col">#${idx + 1}</td>
+                    <td class="ded-name-col"><strong>${cat}</strong></td>
+                    <td class="ded-cat-col"><span class="ded-pill ded-pill-ret">${percentage}%</span></td>
+                    <td class="number-col"><strong style="color: var(--md-error);">${fmt(amt)}</strong></td>
+                </tr>`;
             });
+            rows += `<tr class="total-row">
+                <td colspan="3" style="text-align:right;">TOTAL (${rankedCats.length} Categories):</td>
+                <td class="number-col" style="color: var(--md-error);">${fmt(totalExpenses)}</td>
+            </tr>`;
+            html = `<div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>#</th><th>Expense Category</th><th style="text-align:center;">Share</th><th class="number-col">Total Amount</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
         }
-
         document.getElementById('expense-report-list').innerHTML = html;
-        document.getElementById('expense-report-total').innerHTML = `₹${totalExpenses.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('expense-report-total').innerHTML = fmt(totalExpenses);
     },
 
     openReorderReport: async () => {
@@ -7324,52 +7336,47 @@ if (data.id && splitConfirmed) {
         // ENTERPRISE FIX: Direct O(1) Indexed lookup prevents the Reorder Report from freezing!
         const firmItems = await window.getAllRecords('items', 'firmId', app.state.firmId);
         
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         let estimatedCost = 0;
-        let html = '';
-        let reorderCount = 0;
-
+        const reorderItems = [];
         firmItems.forEach(i => {
             const minStock = parseFloat(i.minStock) || 0;
-            // Only care if they actually set a minimum stock!
             if (minStock > 0) {
                 const currentStock = parseFloat(i.stock) || 0;
-                
-                // ENTERPRISE FIX: Changed <= to < so the app doesn't command users to order "0" items!
                 if (currentStock < minStock) {
-                    reorderCount++;
                     const deficit = minStock - currentStock;
                     const buyPrice = parseFloat(i.buyPrice) || 0;
                     const restockCost = deficit * buyPrice;
                     estimatedCost += restockCost;
-
-                    const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(i.name).replace(/'/g, "\\'") : i.name;
-                    html += `
-                    <div class="m3-card tap-target" onclick="window.triggerItemLedgerFromForm('${i.id}', '${safeName}')" style="padding: 12px; border-left: 4px solid #f59e0b; cursor: pointer;">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
-                            <div>
-                                <strong style="color: var(--md-on-surface); font-size: 15px; display:block;">${i.name}</strong>
-                                <small style="color: var(--md-error); font-weight:bold;">Current Stock: ${currentStock} ${i.uom || ''}</small>
-                            </div>
-                            <div style="text-align:right;">
-                                <small style="color: var(--md-text-muted); display:block;">Order Qty</small>
-                                <strong style="color: #d97706; font-size: 18px;">${deficit}</strong>
-                            </div>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 4px;">
-                            <span style="font-size: 11px; color: var(--md-text-muted);">Est. Buy Price: ₹${buyPrice.toFixed(2)}</span>
-                            <span style="font-size: 12px; font-weight:bold; color: #b45309;">Cost: ₹${restockCost.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>
-                        </div>
-                    </div>`;
+                    reorderItems.push({ id: i.id, name: i.name, currentStock, minStock, uom: i.uom || '', deficit, buyPrice, restockCost });
                 }
             }
         });
-
-        if (reorderCount === 0) {
-            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">check_circle</span>All items are sufficiently stocked!</div>';
+        reorderItems.sort((a, b) => b.restockCost - a.restockCost);
+        let html = '';
+        if (reorderItems.length === 0) {
+            html = '<div class="ded-empty-msg" style="color:var(--md-success);"><span class="material-symbols-outlined" style="font-size: 36px; display:block; margin-bottom:8px;">check_circle</span>All items are sufficiently stocked!</div>';
+        } else {
+            let rows = '';
+            reorderItems.forEach((item, idx) => {
+                const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(item.name).replace(/'/g, "\\'") : item.name;
+                rows += `<tr class="tap-target ded-clickable-row" onclick="window.triggerItemLedgerFromForm('${item.id}', '${safeName}')">
+                    <td class="ded-rank-col">#${idx + 1}</td>
+                    <td class="ded-name-col"><strong>${item.name}</strong><br><span class="ded-sub-ref">Buy: ${fmt(item.buyPrice)}</span></td>
+                    <td class="number-col" style="color: var(--md-error);">${item.currentStock} <span class="ded-uom">${item.uom}</span></td>
+                    <td class="number-col">${item.minStock} <span class="ded-uom">${item.uom}</span></td>
+                    <td class="number-col"><strong style="color: #d97706;">${item.deficit}</strong> <span class="ded-uom">${item.uom}</span></td>
+                    <td class="number-col"><strong>${fmt(item.restockCost)}</strong></td>
+                </tr>`;
+            });
+            rows += `<tr class="total-row">
+                <td colspan="5" style="text-align:right;">TOTAL (${reorderItems.length} Items):</td>
+                <td class="number-col" style="color: #d97706;">${fmt(estimatedCost)}</td>
+            </tr>`;
+            html = `<div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>#</th><th>Item Name</th><th class="number-col">Stock</th><th class="number-col">Min</th><th class="number-col">Order Qty</th><th class="number-col">Est. Cost</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
         }
-
         document.getElementById('reorder-report-list').innerHTML = html;
-        document.getElementById('reorder-report-total').innerHTML = `₹${estimatedCost.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('reorder-report-total').innerHTML = fmt(estimatedCost);
     },
     exportExpenseReportPDF: async () => {
         try {
@@ -7395,6 +7402,7 @@ if (data.id && splitConfirmed) {
             const tableBody = [
                 [{text: 'RANK', style: 'th', alignment: 'center'}, {text: 'EXPENSE CATEGORY', style: 'th'}, {text: '% OF TOTAL', style: 'th', alignment: 'center'}, {text: 'TOTAL AMOUNT', style: 'th', alignment: 'right'}]
             ];
+            const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             rankedCats.forEach(([cat, amt], idx) => {
                 const pct = totalExpenses > 0 ? ((amt / totalExpenses) * 100).toFixed(1) : '0.0';
                 const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
@@ -7402,12 +7410,12 @@ if (data.id && splitConfirmed) {
                     {text: `#${idx + 1}`, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
                     {text: cat, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
                     {text: `${pct}%`, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: '₹' + amt.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                    {text: fmt(amt), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
                 ]);
             });
             tableBody.push([
                 {text: 'TOTAL EXPENSES', colSpan: 3, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
-                {}, {}, {text: '₹' + totalExpenses.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+                {}, {}, {text: fmt(totalExpenses), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
             ]);
             const docDefinition = {
                 pageSize: 'A4',
@@ -7463,6 +7471,7 @@ if (data.id && splitConfirmed) {
             const tableBody = [
                 [{text: 'ITEM NAME', style: 'th'}, {text: 'CURRENT STOCK', style: 'th', alignment: 'center'}, {text: 'MIN STOCK', style: 'th', alignment: 'center'}, {text: 'ORDER QTY', style: 'th', alignment: 'center'}, {text: 'EST. COST', style: 'th', alignment: 'right'}]
             ];
+            const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             reorderRows.forEach((r, idx) => {
                 const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
                 tableBody.push([
@@ -7470,12 +7479,12 @@ if (data.id && splitConfirmed) {
                     {text: `${r.stock} ${r.uom}`.trim(), alignment: 'center', color: '#dc2626', margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: `${r.minStock} ${r.uom}`.trim(), alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: `${r.deficit} ${r.uom}`.trim(), alignment: 'center', color: '#d97706', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: '₹' + r.cost.toFixed(2), alignment: 'right', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                    {text: fmt(r.cost), alignment: 'right', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
                 ]);
             });
             tableBody.push([
                 {text: 'ESTIMATED RESTOCK COST', colSpan: 4, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#d97706'},
-                {}, {}, {}, {text: '₹' + totalCost.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#d97706'}
+                {}, {}, {}, {text: fmt(totalCost), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#d97706'}
             ]);
             const docDefinition = {
                 pageSize: 'A4',
@@ -7554,56 +7563,74 @@ if (data.id && splitConfirmed) {
             if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
             const biz = await window.getRecordById('businessProfile', app.state.firmId) || {};
             const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
-            let totalItemProfit = 0;
+            const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            let totalItemProfit = 0, totalRev = 0, totalCostAll = 0;
             const tableBody = [
-                [{text: 'ITEM NAME', style: 'th'}, {text: 'QTY SOLD', style: 'th', alignment: 'center'}, {text: 'NET REVENUE', style: 'th', alignment: 'right'}, {text: 'TOTAL COST', style: 'th', alignment: 'right'}, {text: 'GROSS PROFIT', style: 'th', alignment: 'right'}]
+                [{text: 'ITEM NAME', style: 'th'}, {text: 'QTY SOLD', style: 'th', alignment: 'center'}, {text: 'REVENUE', style: 'th', alignment: 'right'}, {text: 'COST', style: 'th', alignment: 'right'}, {text: 'GROSS PROFIT', style: 'th', alignment: 'right'}, {text: 'MARGIN', style: 'th', alignment: 'right'}]
             ];
             rankedItems.forEach((item, idx) => {
                 totalItemProfit += item.profit;
+                totalRev += item.revenue;
+                totalCostAll += item.cost;
                 const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
                 const pColor = item.profit < 0 ? '#dc2626' : '#16a34a';
+                const marginPct = item.revenue > 0 ? ((item.profit / item.revenue) * 100).toFixed(1) + '%' : '0.0%';
                 tableBody.push([
-                    {text: item.name, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
-                    {text: `${item.qty} ${item.uom}`.trim(), alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: '₹' + item.revenue.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: '₹' + item.cost.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: (item.profit < 0 ? '-₹' + Math.abs(item.profit).toFixed(2) : '+₹' + item.profit.toFixed(2)), alignment: 'right', color: pColor, bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                    {text: item.name, margin: [0, 5, 0, 5], fillColor: rowBg, bold: true},
+                    {text: `${item.qty} ${item.uom}`.trim(), alignment: 'center', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: fmt(item.revenue), alignment: 'right', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: fmt(item.cost), alignment: 'right', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: (item.profit < 0 ? '-' + fmt(Math.abs(item.profit)) : '+' + fmt(item.profit)), alignment: 'right', color: pColor, bold: true, margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: marginPct, alignment: 'right', color: pColor, bold: true, margin: [0, 5, 0, 5], fillColor: rowBg}
                 ]);
             });
             const finalBridgedProfit = totalItemProfit + totalFreight + totalRoundOff;
             tableBody.push([
-                {text: 'TOTAL ITEM GROSS PROFIT', colSpan: 4, alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor},
-                {}, {}, {}, {text: '₹' + totalItemProfit.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor}
+                {text: `TOTAL (${rankedItems.length} Items)`, colSpan: 2, alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor},
+                {},
+                {text: fmt(totalRev), alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor},
+                {text: fmt(totalCostAll), alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor},
+                {text: (totalItemProfit < 0 ? '-' + fmt(Math.abs(totalItemProfit)) : '+' + fmt(totalItemProfit)), alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor},
+                {text: totalRev > 0 ? ((totalItemProfit / totalRev) * 100).toFixed(1) + '%' : '0.0%', alignment: 'right', style: 'th', color: '#ffffff', fillColor: brandColor}
             ]);
-            tableBody.push([
-                {text: `Sales Gross Profit (incl. Freight ₹${totalFreight.toFixed(2)} & Round-Off ₹${totalRoundOff.toFixed(2)})`, colSpan: 4, alignment: 'right', bold: true, margin: [0, 6, 0, 6], fillColor: '#f1f5f9'},
-                {}, {}, {}, {text: '₹' + finalBridgedProfit.toFixed(2), alignment: 'right', bold: true, color: brandColor, margin: [0, 6, 0, 6], fillColor: '#f1f5f9'}
-            ]);
+            const reconBody = [
+                [{text: 'PROFIT RECONCILIATION', colSpan: 2, style: 'th', alignment: 'left'}, {}],
+                [{text: 'Gross Item Margin (Before Discount)', margin: [0, 5, 0, 5]}, {text: fmt(totalItemProfit + totalDiscount), alignment: 'right', bold: true, margin: [0, 5, 0, 5]}],
+                [{text: 'Add: Freight Collected', color: '#16a34a', margin: [0, 5, 0, 5]}, {text: '+ ' + fmt(totalFreight), alignment: 'right', color: '#16a34a', bold: true, margin: [0, 5, 0, 5]}],
+                [{text: 'Less: Discounts Given', color: '#dc2626', margin: [0, 5, 0, 5]}, {text: '- ' + fmt(totalDiscount), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 5, 0, 5]}],
+                [{text: 'Round-Off Adjustments', color: '#64748b', margin: [0, 5, 0, 5]}, {text: (totalRoundOff >= 0 ? '+ ' : '- ') + fmt(Math.abs(totalRoundOff)), alignment: 'right', margin: [0, 5, 0, 5]}],
+                [{text: 'SALES GROSS PROFIT', bold: true, color: brandColor, fillColor: '#f1f5f9', margin: [0, 6, 0, 6]}, {text: fmt(finalBridgedProfit), alignment: 'right', bold: true, color: brandColor, fillColor: '#f1f5f9', margin: [0, 6, 0, 6]}]
+            ];
             const docDefinition = {
                 pageSize: 'A4',
-                pageMargins: [40, 50, 40, 40],
-                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                pageMargins: [36, 48, 36, 36],
+                defaultStyle: { font: 'Roboto', fontSize: 9.5, color: '#1e293b' },
                 styles: {
-                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
-                    subHeader: { fontSize: 18, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1 },
-                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                    header: { fontSize: 22, bold: true, color: '#0f172a', letterSpacing: 1 },
+                    subHeader: { fontSize: 17, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1 },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6], fontSize: 9 }
                 },
                 background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
                 content: [
                     {
                         columns: [
-                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
-                            { width: 240, stack: [ { text: 'ITEM PROFITABILITY', style: 'subHeader' }, { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
-                        ], margin: [0, 0, 0, 32]
+                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 10] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
+                            { width: 220, stack: [ { text: 'ITEM PROFITABILITY', style: 'subHeader' }, { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 12] } ] }
+                        ], margin: [0, 0, 0, 22]
                     },
                     {
-                        table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
+                        table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'], body: tableBody },
                         layout: {
                             hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
                             vLineWidth: function () { return 0; },
                             hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
-                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
-                        }
+                            paddingLeft: function() { return 6; }, paddingRight: function() { return 6; }
+                        },
+                        margin: [0, 0, 0, 20]
+                    },
+                    {
+                        table: { headerRows: 1, widths: ['*', 'auto'], body: reconBody },
+                        layout: 'lightHorizontalLines'
                     }
                 ]
             };
@@ -7623,7 +7650,8 @@ if (data.id && splitConfirmed) {
             const storeName = isCustomer ? 'sales' : 'purchases';
             const partyKey = isCustomer ? 'customerId' : 'supplierId';
             const docs = await window.getAllRecords(storeName, 'firmId', app.state.firmId);
-            let b2bTaxable = 0, b2bTax = 0, b2cTaxable = 0, b2cTax = 0;
+            let b2bTaxable = 0, b2bTax = 0, b2cTaxable = 0, b2cTax = 0, totalCgst = 0, totalSgst = 0, totalIgst = 0, totalGrand = 0;
+            const matched = [];
             docs.forEach(s => {
                 if (s.firmId === app.state.firmId && s[partyKey] === partyId && s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromVal && s.date <= toVal) {
                     const mult = s.documentType === 'return' ? -1 : 1;
@@ -7633,46 +7661,146 @@ if (data.id && splitConfirmed) {
                     let discountAmt = s.discountType === '%' ? (rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) : (parseFloat(s.discount) || 0);
                     if (discountAmt > rawSubtotal) discountAmt = rawSubtotal;
                     const taxable = (rawSubtotal - discountAmt) * mult;
-                    const tax = (s.invoiceType === 'Non-GST' ? 0 : Math.abs(parseFloat(s.totalGst) || 0)) * mult;
-                    if (s.invoiceType !== 'Non-GST' && isB2B) { b2bTaxable += taxable; b2bTax += tax; }
+                    const isNonGst = s.invoiceType === 'Non-GST';
+                    const tax = (isNonGst ? 0 : Math.abs(parseFloat(s.totalGst) || 0)) * mult;
+                    const hasSplit = (parseFloat(s.cgstTotal) || 0) > 0 || (parseFloat(s.sgstTotal) || 0) > 0 || (parseFloat(s.igstTotal) || 0) > 0;
+                    const cgst = isNonGst ? 0 : (hasSplit ? Math.abs(parseFloat(s.cgstTotal) || 0) * mult : (s.isIGST ? 0 : tax / 2));
+                    const sgst = isNonGst ? 0 : (hasSplit ? Math.abs(parseFloat(s.sgstTotal) || 0) * mult : (s.isIGST ? 0 : tax / 2));
+                    const igst = isNonGst ? 0 : (hasSplit ? Math.abs(parseFloat(s.igstTotal) || 0) * mult : (s.isIGST ? tax : 0));
+                    const grand = Math.abs(parseFloat(s.grandTotal) || 0) * mult;
+                    if (!isNonGst && isB2B) { b2bTaxable += taxable; b2bTax += tax; }
                     else { b2cTaxable += taxable; b2cTax += tax; }
+                    totalCgst += cgst; totalSgst += sgst; totalIgst += igst; totalGrand += grand;
+                    matched.push({ s, mult, isB2B, isNonGst, taxable, cgst, sgst, igst, tax, grand });
                 }
             });
+            matched.sort((a, b) => window.Utils.safeDate(a.s.date) - window.Utils.safeDate(b.s.date));
             if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
             const biz = await window.getRecordById('businessProfile', app.state.firmId) || {};
             const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+            const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            const bizLoc = [biz.address, biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
             const summaryBody = [
                 [{text: 'TAX POOL', style: 'th'}, {text: 'TAXABLE VALUE', style: 'th', alignment: 'right'}, {text: 'TAX AMOUNT', style: 'th', alignment: 'right'}, {text: 'TOTAL VALUE', style: 'th', alignment: 'right'}],
-                [{text: 'GST Billed (B2B)', bold: true, margin: [0, 6, 0, 6]}, {text: '₹' + b2bTaxable.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6]}, {text: '₹' + b2bTax.toFixed(2), alignment: 'right', color: '#dc2626', margin: [0, 6, 0, 6]}, {text: '₹' + (b2bTaxable + b2bTax).toFixed(2), alignment: 'right', bold: true, margin: [0, 6, 0, 6]}],
-                [{text: 'Non-GST / B2C', bold: true, margin: [0, 6, 0, 6], fillColor: '#f8fafc'}, {text: '₹' + b2cTaxable.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: '#f8fafc'}, {text: '₹' + b2cTax.toFixed(2), alignment: 'right', color: '#dc2626', margin: [0, 6, 0, 6], fillColor: '#f8fafc'}, {text: '₹' + (b2cTaxable + b2cTax).toFixed(2), alignment: 'right', bold: true, margin: [0, 6, 0, 6], fillColor: '#f8fafc'}],
-                [{text: 'TOTAL', style: 'th'}, {text: '₹' + (b2bTaxable + b2cTaxable).toFixed(2), style: 'th', alignment: 'right'}, {text: '₹' + (b2bTax + b2cTax).toFixed(2), style: 'th', alignment: 'right'}, {text: '₹' + (b2bTaxable + b2cTaxable + b2bTax + b2cTax).toFixed(2), style: 'th', alignment: 'right'}]
+                [{text: 'GST Billed (B2B)', bold: true, margin: [0, 5, 0, 5]}, {text: fmt(b2bTaxable), alignment: 'right', margin: [0, 5, 0, 5]}, {text: fmt(b2bTax), alignment: 'right', color: '#0061a4', margin: [0, 5, 0, 5]}, {text: fmt(b2bTaxable + b2bTax), alignment: 'right', bold: true, margin: [0, 5, 0, 5]}],
+                [{text: 'Non-GST / B2C', bold: true, margin: [0, 5, 0, 5], fillColor: '#f8fafc'}, {text: fmt(b2cTaxable), alignment: 'right', margin: [0, 5, 0, 5], fillColor: '#f8fafc'}, {text: fmt(b2cTax), alignment: 'right', color: '#0061a4', margin: [0, 5, 0, 5], fillColor: '#f8fafc'}, {text: fmt(b2cTaxable + b2cTax), alignment: 'right', bold: true, margin: [0, 5, 0, 5], fillColor: '#f8fafc'}],
+                [{text: 'TOTAL', style: 'th'}, {text: fmt(b2bTaxable + b2cTaxable), style: 'th', alignment: 'right'}, {text: fmt(b2bTax + b2cTax), style: 'th', alignment: 'right'}, {text: fmt(b2bTaxable + b2cTaxable + b2bTax + b2cTax), style: 'th', alignment: 'right'}]
             ];
+            const billsBody = [
+                [{text: 'DATE', style: 'th'}, {text: 'DOC / ORDER NO.', style: 'th'}, {text: 'TYPE', style: 'th', alignment: 'center'}, {text: 'TAXABLE VAL', style: 'th', alignment: 'right'}, {text: 'CGST', style: 'th', alignment: 'right'}, {text: 'SGST', style: 'th', alignment: 'right'}, {text: 'IGST', style: 'th', alignment: 'right'}, {text: 'GRAND TOTAL', style: 'th', alignment: 'right'}]
+            ];
+            matched.forEach(({ s, mult, isB2B, isNonGst, taxable, cgst, sgst, igst, grand }, idx) => {
+                const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                const billNo = (s.invoiceNo || s.poNo || '').trim();
+                const refNo = (s.orderNo || '').trim();
+                const primaryNo = billNo || refNo || String(s.id).substring(0, 6).toUpperCase();
+                const docCell = (billNo && refNo && billNo !== refNo)
+                    ? { stack: [{ text: primaryNo, bold: true, color: '#0f172a' }, { text: `${isCustomer ? 'Ord' : 'PO'}: ${refNo}`, fontSize: 8, color: '#64748b', margin: [0, 1, 0, 0] }], margin: [0, 4, 0, 4], fillColor: rowBg }
+                    : { text: primaryNo, bold: true, color: '#0f172a', margin: [0, 5, 0, 5], fillColor: rowBg };
+                const typeLabel = mult < 0 ? (isCustomer ? 'CR NOTE' : 'DR NOTE') : (isNonGst ? 'NON-GST' : (isB2B ? 'B2B' : 'B2C'));
+                billsBody.push([
+                    {text: window.Utils.formatDateDisplay(s.date), margin: [0, 5, 0, 5], fillColor: rowBg, color: '#475569'},
+                    docCell,
+                    {text: typeLabel, alignment: 'center', bold: true, fontSize: 8, color: mult < 0 ? '#dc2626' : (isNonGst ? '#64748b' : '#0061a4'), margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: fmt(taxable), alignment: 'right', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: fmt(cgst), alignment: 'right', color: '#0061a4', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: fmt(sgst), alignment: 'right', color: '#0061a4', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: fmt(igst), alignment: 'right', color: '#0061a4', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: fmt(grand), alignment: 'right', bold: true, color: mult < 0 ? '#dc2626' : '#0f172a', margin: [0, 5, 0, 5], fillColor: rowBg}
+                ]);
+            });
+            if (matched.length > 0) {
+                billsBody.push([
+                    {text: `TOTAL (${matched.length} ${matched.length === 1 ? 'Bill' : 'Bills'})`, colSpan: 3, alignment: 'right', style: 'th'},
+                    {}, {},
+                    {text: fmt(b2bTaxable + b2cTaxable), style: 'th', alignment: 'right'},
+                    {text: fmt(totalCgst), style: 'th', alignment: 'right'},
+                    {text: fmt(totalSgst), style: 'th', alignment: 'right'},
+                    {text: fmt(totalIgst), style: 'th', alignment: 'right'},
+                    {text: fmt(totalGrand), style: 'th', alignment: 'right'}
+                ]);
+            }
             const docDefinition = {
                 pageSize: 'A4',
-                pageMargins: [40, 50, 40, 40],
-                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                pageOrientation: 'landscape',
+                pageMargins: [32, 40, 32, 36],
+                defaultStyle: { font: 'Roboto', fontSize: 9, color: '#1e293b' },
                 styles: {
-                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
-                    subHeader: { fontSize: 18, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1 },
-                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                    header: { fontSize: 18, bold: true, color: '#0f172a', letterSpacing: 0.5 },
+                    subHeader: { fontSize: 15, bold: true, color: brandColor, alignment: 'right', letterSpacing: 0.8 },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 5, 0, 5], fontSize: 8.5 }
                 },
-                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 841.89, h: 7, color: brandColor } ] }; },
+                footer: function (currentPage, pageCount) {
+                    return {
+                        columns: [
+                            { text: `Generated on ${window.Utils.formatDateDisplay(new Date().toISOString().split('T')[0])} • SOLLO ERP`, fontSize: 8, color: '#94a3b8' },
+                            { text: `Page ${currentPage} of ${pageCount}`, alignment: 'right', fontSize: 8, bold: true, color: '#64748b' }
+                        ],
+                        margin: [32, 10, 32, 0]
+                    };
+                },
                 content: [
                     {
                         columns: [
-                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' }, { text: `Party: ${party.name}${party.gst ? ' (GSTIN: ' + party.gst + ')' : ''}`, fontSize: 12, bold: true, color: '#334155', margin: [0, 6, 0, 0] } ].filter(Boolean) },
-                            { width: 240, stack: [ { text: 'PARTY TAX REPORT', style: 'subHeader' }, { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
-                        ], margin: [0, 0, 0, 24]
+                            {
+                                width: '*',
+                                stack: [
+                                    (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [120, 44], margin: [0, 0, 0, 6] } : null,
+                                    { text: biz.name || 'Company Name', style: 'header' },
+                                    bizLoc ? { text: bizLoc, fontSize: 8.5, color: '#64748b', margin: [0, 2, 0, 0] } : null,
+                                    biz.gst ? { text: 'GSTIN: ' + biz.gst, fontSize: 8.5, bold: true, color: '#334155', margin: [0, 2, 0, 0] } : null
+                                ].filter(Boolean)
+                            },
+                            {
+                                width: 260,
+                                stack: [
+                                    { text: 'PARTY-WISE TAX STATEMENT', style: 'subHeader' },
+                                    { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 9.5, bold: true, color: '#475569', margin: [0, 3, 0, 0] },
+                                    { text: `Account Type: ${isCustomer ? 'Customer (Sales)' : 'Supplier (Purchases)'}`, alignment: 'right', fontSize: 8.5, color: '#64748b', margin: [0, 2, 0, 0] }
+                                ]
+                            }
+                        ],
+                        margin: [0, 0, 0, 14]
+                    },
+                    {
+                        table: {
+                            widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+                            body: [[
+                                { stack: [{ text: 'PARTY DETAILS', fontSize: 7.5, bold: true, color: '#64748b' }, { text: party.name || 'Unknown', fontSize: 11, bold: true, color: '#0f172a', margin: [0, 2, 0, 0] }, party.gst ? { text: 'GSTIN: ' + party.gst, fontSize: 8.5, color: '#334155', margin: [0, 1, 0, 0] } : null].filter(Boolean), fillColor: '#f8fafc', margin: [4, 6, 4, 6] },
+                                { stack: [{ text: 'TOTAL BILLS', fontSize: 7.5, bold: true, color: '#64748b', alignment: 'right' }, { text: String(matched.length), fontSize: 12, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 2, 0, 0] }], fillColor: '#f8fafc', margin: [8, 6, 8, 6] },
+                                { stack: [{ text: 'TOTAL TAXABLE', fontSize: 7.5, bold: true, color: '#64748b', alignment: 'right' }, { text: fmt(b2bTaxable + b2cTaxable), fontSize: 12, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 2, 0, 0] }], fillColor: '#f8fafc', margin: [8, 6, 8, 6] },
+                                { stack: [{ text: 'TOTAL GST', fontSize: 7.5, bold: true, color: brandColor, alignment: 'right' }, { text: fmt(b2bTax + b2cTax), fontSize: 12, bold: true, color: brandColor, alignment: 'right', margin: [0, 2, 0, 0] }], fillColor: '#f8fafc', margin: [8, 6, 8, 6] },
+                                { stack: [{ text: 'NET GRAND TOTAL', fontSize: 7.5, bold: true, color: brandColor, alignment: 'right' }, { text: fmt(totalGrand), fontSize: 12, bold: true, color: brandColor, alignment: 'right', margin: [0, 2, 0, 0] }], fillColor: '#eef4fa', margin: [8, 6, 8, 6] }
+                            ]]
+                        },
+                        layout: { hLineWidth: () => 0.75, vLineWidth: () => 0.5, hLineColor: () => '#cbd5e1', vLineColor: () => '#e2e8f0' },
+                        margin: [0, 0, 0, 14]
                     },
                     {
                         table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto'], body: summaryBody },
                         layout: {
-                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
-                            vLineWidth: function () { return 0; },
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.2 : 0.5; },
+                            vLineWidth: () => 0.5,
                             hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
-                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                            vLineColor: () => '#e2e8f0',
+                            paddingLeft: () => 6, paddingRight: () => 6
+                        },
+                        margin: [0, 0, 0, 16]
+                    },
+                    ...(matched.length > 0 ? [
+                        { text: 'BILL-WISE TAX LEDGER (CGST / SGST / IGST BREAKDOWN)', fontSize: 10, bold: true, color: brandColor, margin: [0, 0, 0, 6] },
+                        {
+                            table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'], body: billsBody },
+                            layout: {
+                                hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.2 : 0.5; },
+                                vLineWidth: () => 0.5,
+                                hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                                vLineColor: () => '#e2e8f0',
+                                paddingLeft: () => 6, paddingRight: () => 6
+                            }
                         }
-                    }
+                    ] : [])
                 ]
             };
             window.Utils.processVectorPDF(docDefinition, `Party_Tax_Report_${party.name.replace(/\s+/g, '_')}.pdf`, `Here is the Party-Wise Tax Report for ${party.name}.`);
@@ -7697,21 +7825,21 @@ if (data.id && splitConfirmed) {
                 [{text: 'ITEM NAME', style: 'th'}, {text: 'QTY IN STOCK', style: 'th', alignment: 'center'}, {text: 'BUY PRICE', style: 'th', alignment: 'right'}, {text: 'LAST SOLD', style: 'th', alignment: 'center'}, {text: 'TRAPPED CAPITAL', style: 'th', alignment: 'right'}]
             ];
 
+            const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             data.forEach((row, index) => {
                 totalTrapped += row.trappedValue;
                 const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
                 tableBody.push([
                     {text: row.name, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
                     {text: row.stock + ' ' + row.uom, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: '₹' + row.buyPrice.toFixed(2), alignment: 'right', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: fmt(row.buyPrice), alignment: 'right', margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: row.lastSoldText || row.lastSold || 'Never Sold', alignment: 'center', color: '#dc2626', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: '₹' + row.trappedValue.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                    {text: fmt(row.trappedValue), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
                 ]);
             });
-
             tableBody.push([
                 {text: 'TOTAL TRAPPED CAPITAL', colSpan: 4, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
-                {}, {}, {}, {text: '₹' + totalTrapped.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+                {}, {}, {}, {text: fmt(totalTrapped), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
             ]);
 
             const docDefinition = {
@@ -7765,6 +7893,7 @@ if (data.id && splitConfirmed) {
                 [{text: 'INVOICE & DATE', style: 'th'}, {text: 'CUSTOMER', style: 'th'}, {text: 'ITEM', style: 'th'}, {text: 'COST / SELL', style: 'th', alignment: 'center'}, {text: 'TOTAL LOSS', style: 'th', alignment: 'right'}]
             ];
 
+            const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             data.forEach((row, index) => {
                 const rowLoss = row.loss !== undefined ? row.loss : (row.totalLoss || 0);
                 const rowSell = row.sellPrice !== undefined ? row.sellPrice : (row.effectiveRate || 0);
@@ -7775,14 +7904,13 @@ if (data.id && splitConfirmed) {
                     {stack: [{text: row.invoiceNo, bold: true, color: '#0f172a'}, {text: row.date, fontSize: 8, color: '#64748b'}], margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: rowCust, margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: row.itemName + ` (x${row.qty})`, margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {stack: [{text: 'Buy: ₹' + row.buyPrice.toFixed(2), color: '#64748b'}, {text: 'Sell: ₹' + rowSell.toFixed(2), color: '#0f172a', bold: true}], alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: '- ₹' + rowLoss.toFixed(2), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                    {stack: [{text: 'Buy: ' + fmt(row.buyPrice), color: '#64748b'}, {text: 'Sell: ' + fmt(rowSell), color: '#0f172a', bold: true}], alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {text: '- ' + fmt(rowLoss), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
                 ]);
             });
-
             tableBody.push([
                 {text: 'TOTAL REVENUE LOST', colSpan: 4, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
-                {}, {}, {}, {text: '- ₹' + totalLoss.toFixed(2), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+                {}, {}, {}, {text: '- ' + fmt(totalLoss), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
             ]);
 
             const docDefinition = {
@@ -7953,8 +8081,8 @@ if (data.id && splitConfirmed) {
     // DOCUMENT SETTINGS ENGINE
     // ==========================================
     loadDocumentSettings: () => {
-        const savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}');
-        
+        let savedFormats = {};
+        try { savedFormats = JSON.parse(localStorage.getItem('sollo_doc_formats') || '{}') || {}; } catch (e) { savedFormats = {}; }
         const applyToUI = (key, defaultFormat, idPrefix) => {
             const template = savedFormats[key] || defaultFormat;
             const parts = template.split('{NUM}');
@@ -8339,35 +8467,30 @@ if (data.id && splitConfirmed) {
         app.state.lastDeadStockData = deadItems;
         app.state.lastDeadStockTotal = deadStockCapital;
 
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         let html = '';
         if (deadItems.length === 0) {
-            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">check_circle</span>No dead stock found! Inventory is moving well.</div>';
+            html = '<div class="ded-empty-msg" style="color:var(--md-success);"><span class="material-symbols-outlined" style="font-size: 36px; display:block; margin-bottom:8px;">check_circle</span>No dead stock found! Inventory is moving well.</div>';
         } else {
-            html = deadItems.map(item => {
+            let rows = '';
+            deadItems.forEach((item, idx) => {
                 const safeName = window.Utils.sanitizeHTML ? window.Utils.sanitizeHTML(item.name).replace(/'/g, "\\'") : item.name;
-                return `
-                <div class="m3-card tap-target" onclick="window.triggerItemLedgerFromForm('${item.id}', '${safeName}')" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
-                        <div style="flex:1; min-width:0; padding-right:8px;">
-                            <strong style="color: var(--md-on-surface); font-size: 15px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</strong>
-                            <small style="color: var(--md-error); font-weight:bold;">Stock: ${item.stock} ${item.uom}</small>
-                        </div>
-                        <div style="text-align:right; flex-shrink:0;">
-                            <small style="color: var(--md-text-muted); display:block;">Trapped Value</small>
-                            <strong style="color: var(--md-error); font-size: 16px;">₹${item.trappedValue.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 4px;">
-                        <span style="font-size: 11px; color: var(--md-text-muted);">Avg Buy: ₹${item.buyPrice.toFixed(2)}</span>
-                        <span style="font-size: 11px; font-weight:bold; color: var(--md-secondary);">Last Sold: ${item.lastSold}</span>
-                    </div>
-                </div>
-                `;
-            }).join('');
+                rows += `<tr class="tap-target ded-clickable-row" onclick="window.triggerItemLedgerFromForm('${item.id}', '${safeName}')">
+                    <td class="ded-rank-col">#${idx + 1}</td>
+                    <td class="ded-name-col"><strong>${item.name}</strong><br><span class="ded-sub-ref">Avg Buy: ${fmt(item.buyPrice)}</span></td>
+                    <td class="number-col">${item.stock} <span class="ded-uom">${item.uom}</span></td>
+                    <td class="ded-cat-col"><span class="ded-pill ded-pill-ret">${item.lastSold}</span></td>
+                    <td class="number-col"><strong style="color: var(--md-error);">${fmt(item.trappedValue)}</strong></td>
+                </tr>`;
+            });
+            rows += `<tr class="total-row">
+                <td colspan="4" style="text-align:right;">TOTAL (${deadItems.length} Items):</td>
+                <td class="number-col" style="color: var(--md-error);">${fmt(deadStockCapital)}</td>
+            </tr>`;
+            html = `<div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>#</th><th>Item Name</th><th class="number-col">Stock</th><th style="text-align:center;">Last Sold</th><th class="number-col">Trapped Capital</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
         }
-
         document.getElementById('dead-stock-list').innerHTML = html;
-        document.getElementById('dead-stock-total').innerHTML = `₹${deadStockCapital.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('dead-stock-total').innerHTML = fmt(deadStockCapital);
     },
 
     exportDeadStockCSV: async () => {
@@ -8466,32 +8589,30 @@ if (data.id && splitConfirmed) {
         app.state.lastProfitLeakageData = leakageItems;
         app.state.lastProfitLeakageTotal = totalLostRevenue;
 
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         let html = '';
         if (leakageItems.length === 0) {
-            html = '<div style="text-align:center; color:var(--md-success); padding:30px; font-weight:bold;"><span class="material-symbols-outlined" style="font-size: 48px; display:block; margin-bottom:10px;">check_circle</span>All sales are mathematically profitable!<br><br>Perfect! No issues found.</div>';
+            html = '<div class="ded-empty-msg" style="color:var(--md-success);"><span class="material-symbols-outlined" style="font-size: 36px; display:block; margin-bottom:8px;">check_circle</span>All sales are mathematically profitable! No leakage found.</div>';
         } else {
-            html = leakageItems.map(item => `
-                <div class="m3-card tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${item.id}', '${item.docType}'); else app.openForm('sales', '${item.id}', '${item.docType}');" style="padding: 12px; border-left: 4px solid var(--md-error); cursor: pointer;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
-                        <div style="flex:1; min-width:0; padding-right:8px;">
-                            <strong style="color: var(--md-on-surface); font-size: 15px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.itemName}</strong>
-                            <small style="color: var(--md-primary); font-weight:bold;">${item.invoiceNo} | ${item.customerName}</small>
-                        </div>
-                        <div style="text-align:right; flex-shrink:0;">
-                            <small style="color: var(--md-text-muted); display:block;">Total Loss</small>
-                            <strong style="color: var(--md-error); font-size: 16px;">-₹${item.totalLoss.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 4px;">
-                        <span style="font-size: 11px; color: var(--md-text-muted);">Buy: ₹${item.buyPrice.toFixed(2)} | Sold: ₹${item.effectiveRate.toFixed(2)}</span>
-                        <span style="font-size: 11px; font-weight:bold; color: var(--md-secondary);">Qty: ${item.qty} ${item.uom}</span>
-                    </div>
-                </div>
-            `).join('');
+            let rows = '';
+            leakageItems.forEach((item) => {
+                rows += `<tr class="tap-target ded-clickable-row" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${item.id}', '${item.docType}'); else app.openForm('sales', '${item.id}', '${item.docType}');">
+                    <td class="ded-date-col">${item.date}</td>
+                    <td class="ded-doc-col"><strong>${item.invoiceNo}</strong><br><span class="ded-sub-ref">${item.customerName}</span></td>
+                    <td class="ded-name-col"><strong>${item.itemName}</strong></td>
+                    <td class="number-col">${item.qty} <span class="ded-uom">${item.uom}</span></td>
+                    <td class="number-col"><span class="ded-sub-ref">Buy: ${fmt(item.buyPrice)}</span><br><strong>Sold: ${fmt(item.effectiveRate)}</strong></td>
+                    <td class="number-col"><strong style="color: var(--md-error);">- ${fmt(item.totalLoss)}</strong></td>
+                </tr>`;
+            });
+            rows += `<tr class="total-row">
+                <td colspan="5" style="text-align:right;">TOTAL LOSS (${leakageItems.length} Entries):</td>
+                <td class="number-col" style="color: var(--md-error);">- ${fmt(totalLostRevenue)}</td>
+            </tr>`;
+            html = `<div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>Date</th><th>Invoice / Customer</th><th>Item</th><th class="number-col">Qty</th><th class="number-col">Buy / Sold</th><th class="number-col">Total Loss</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
         }
-
         document.getElementById('profit-leakage-list').innerHTML = html;
-        document.getElementById('profit-leakage-total').innerHTML = `₹${totalLostRevenue.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+        document.getElementById('profit-leakage-total').innerHTML = fmt(totalLostRevenue);
     },
 
     exportProfitLeakageCSV: async () => {
@@ -8597,7 +8718,7 @@ if (data.id && splitConfirmed) {
                             </div>
                             <div class="uni-search-wrap">
                                 <span class="material-symbols-outlined">search</span>
-                                <input type="search" id="uni-report-search" placeholder="Search Bill No, Order No, Party or GSTIN..." oninput="app.renderUniversalReport()">
+                                <input type="search" id="uni-report-search" placeholder="Search Bill No, Order No, Party or GSTIN..." oninput="app.scheduleUniversalReportRender()">
                             </div>
                         </div>
                     </div>
@@ -8667,6 +8788,10 @@ if (data.id && splitConfirmed) {
         if (btn) btn.classList.add('active');
         app.renderUniversalReport();
     },
+    scheduleUniversalReportRender: () => {
+        clearTimeout(app.state._uniSearchTimer);
+        app.state._uniSearchTimer = setTimeout(() => app.renderUniversalReport(), 180);
+    },
 
     setUniversalDates: (range) => {
         const d = new Date();
@@ -8700,13 +8825,13 @@ if (data.id && splitConfirmed) {
     },
 
     renderUniversalReport: async () => {
+        const renderSeq = (app.state._uniRenderSeq = (app.state._uniRenderSeq || 0) + 1);
         try {
             const reportType = app.state.currentUniversalReport;
             const fromDate = document.getElementById('uni-report-from').value;
             const toDate = document.getElementById('uni-report-to').value;
             const firmId = app.state.firmId;
-            
-            document.getElementById('uni-report-tbody').innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--md-text-muted);">Fetching Data...</td></tr>`;
+            document.getElementById('uni-report-tbody').innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 40px; color: var(--md-text-muted);">Fetching Data...</td></tr>`;
 
             let tableHeaders = [];
             let tableRowsHTML = "";
@@ -8746,8 +8871,8 @@ if (data.id && splitConfirmed) {
                     const gst = Math.abs(parseFloat(s.totalGst) || 0) * mult;
                     const taxable = (rawSub > 0 ? (rawSub - discAmt) : (Math.abs(parseFloat(s.grandTotal) || 0) - Math.abs(parseFloat(s.totalGst) || 0))) * mult;
                     tTaxable += taxable; tGst += gst; tTotal += grand;
-                    const billNo = (s.invoiceNo || '').trim();
-                    const refNo = (isSale ? (s.orderNo || '') : (s.poNo || s.orderNo || '')).trim();
+                    const billNo = (s.invoiceNo || s.poNo || '').trim();
+                    const refNo = (s.orderNo || '').trim();
                     const primaryNo = billNo || refNo || String(s.id).substring(0,6).toUpperCase();
                     const secondaryLine = (billNo && refNo && billNo !== refNo) ? `<br><span class="uni-sub-ref" style="color:var(--md-text-muted); font-size:10px;">${isSale ? 'Ord' : 'PO'}: ${refNo}</span>` : '';
                     const isNonGst = s.invoiceType === 'Non-GST';
@@ -9055,8 +9180,8 @@ if (data.id && splitConfirmed) {
                     
                     tTaxable += taxable; tCgst += halfGst; tSgst += halfGst; tItc += gst;
                     
-                    const billNo = (p.invoiceNo || '').trim();
-                    const refNo = (p.poNo || p.orderNo || '').trim();
+                    const billNo = (p.invoiceNo || p.poNo || '').trim();
+                    const refNo = (p.orderNo || '').trim();
                     const docLabel = billNo || refNo || String(p.id).substring(0,6).toUpperCase();
                     const refSub = (billNo && refNo && billNo !== refNo) ? `<br><span class="uni-sub-ref" style="color:var(--md-text-muted); font-size:10px;">PO: ${refNo}</span>` : '';
                     tableRowsHTML += `
@@ -9132,6 +9257,7 @@ if (data.id && splitConfirmed) {
             // =====================================
             // INJECT INTO MOBILE SCREEN
             // =====================================
+            if (renderSeq !== app.state._uniRenderSeq) return;
             document.getElementById('uni-report-thead').innerHTML = tableHeaders.map(th => `<th class="${th.includes('₹') || th.includes('Val') || th.includes('Amt') || th.includes('Total') || th.includes('Spend') || th.includes('Volume') || th.includes('CGST') || th.includes('SGST') || th.includes('ITC') || th.includes('Avg') || th.includes('Days') || th.includes('Money') ? 'number-col' : ''}">${th}</th>`).join('');
             document.getElementById('uni-report-tbody').innerHTML = tableRowsHTML || `<tr><td colspan="${tableHeaders.length}" style="text-align:center; padding: 40px; color: var(--md-text-muted); font-weight: 600;">No records found for the selected period.</td></tr>`;
             const kpiContainer = document.getElementById('uni-report-kpis');

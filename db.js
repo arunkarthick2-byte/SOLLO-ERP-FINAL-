@@ -662,13 +662,13 @@ const getKhataStatement = async (partyId, partyType) => {
             const isReturn = s.documentType === 'return';
             const isNonGST = s.invoiceType === 'Non-GST';
             const docLabel = isReturn ? 'Credit Note' : (isNonGST ? 'Bill of Supply' : 'Sales Invoice');
-            const docNo = s.invoiceNo || s.orderNo || String(s.id).slice(-4).toUpperCase();
-            
-            // STRICT ERP LOGIC: Enforce absolute value to prevent negative embezzlement hacks!
+            const billNo = (s.invoiceNo || '').trim();
+            const refNo = (s.orderNo || '').trim();
+            const primaryNo = billNo || refNo || String(s.id).slice(-4).toUpperCase();
+            const docNo = (billNo && refNo && billNo !== refNo) ? `${primaryNo} | Ord: ${refNo}` : primaryNo;
             const safeAmount = Math.abs(parseFloat(s.grandTotal) || 0);
-            
             timeline.push({
-                id: s.id, date: s.date, desc: `${docLabel} (${docNo})`, 
+                id: s.id, date: s.date, desc: `${docLabel} (${docNo})`,
                 amount: safeAmount, isInvoice: !isReturn, impact: isReturn ? -safeAmount : safeAmount
             });
         }
@@ -683,14 +683,13 @@ const getKhataStatement = async (partyId, partyType) => {
             const isReturn = p.documentType === 'return';
             const isNonGST = p.invoiceType === 'Non-GST';
             const docLabel = isReturn ? 'Debit Note' : (isNonGST ? 'Bill of Supply' : 'Purchase Bill');
-            const docNo = p.poNo || p.invoiceNo || p.orderNo || String(p.id).slice(-4).toUpperCase();
-            
+            const billNo = (p.invoiceNo || p.poNo || '').trim();
+            const refNo = (p.orderNo || '').trim();
+            const primaryNo = billNo || refNo || String(p.id).slice(-4).toUpperCase();
+            const docNo = (billNo && refNo && billNo !== refNo) ? `${primaryNo} | PO: ${refNo}` : primaryNo;
             const safeAmount = Math.abs(parseFloat(p.grandTotal) || 0);
-            
-            // ENTERPRISE FIX: The Inverted Payables Trap!
-            // Purchases create LIABILITY (Negative). Returns (Debit Notes) reduce liability (Positive)!
             timeline.push({
-                id: p.id, date: p.date, desc: `${docLabel} (${docNo})`, 
+                id: p.id, date: p.date, desc: `${docLabel} (${docNo})`,
                 amount: safeAmount, isInvoice: !isReturn, impact: isReturn ? safeAmount : -safeAmount
             });
         }
@@ -951,9 +950,8 @@ const importDatabase = async (parsedData) => {
             }
             resolve();
         };
-        
         transaction.onerror = () => reject(transaction.error);
-
+        transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaction aborted'));
         validStores.forEach(storeName => {
             const store = transaction.objectStore(storeName);
             const request = store.getAll();
@@ -1167,8 +1165,8 @@ const executeColdStorageArchive = async () => {
                     }
                 };
             });
-            
             tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
         } catch (e) {
             reject(e);
         }
@@ -1230,6 +1228,7 @@ window.executeAtomicBatch = (puts, deletes) => {
             resolve();
         };
         transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error || new Error('IndexedDB transaction aborted'));
     });
 };
 

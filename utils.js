@@ -2256,8 +2256,19 @@ const pdf = window.currentActivePDF;
                 if (inv) {
                     const gstAmt = parseFloat(inv.totalGst) || 0;
                     const baseAmt = (parseFloat(inv.grandTotal) || 0) - gstAmt;
+                    const fmtAmt = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     if (gstAmt > 0) {
-                        particularsStack.push({ text: `Base: ₹${baseAmt.toFixed(2)} | GST: ₹${gstAmt.toFixed(2)}`, fontSize: 8, color: '#0369a1', margin: [0, 2, 0, 0] });
+                        let cgstAmt = parseFloat(inv.cgstTotal) || 0;
+                        let sgstAmt = parseFloat(inv.sgstTotal) || 0;
+                        let igstAmt = parseFloat(inv.igstTotal) || 0;
+                        if (cgstAmt === 0 && sgstAmt === 0 && igstAmt === 0) {
+                            if (inv.isIGST || inv.gstType === 'IGST') { igstAmt = gstAmt; }
+                            else { cgstAmt = gstAmt / 2; sgstAmt = gstAmt / 2; }
+                        }
+                        const taxDetail = igstAmt > 0
+                            ? `Base: ₹${fmtAmt(baseAmt)} | IGST: ₹${fmtAmt(igstAmt)}`
+                            : `Base: ₹${fmtAmt(baseAmt)} | CGST: ₹${fmtAmt(cgstAmt)} | SGST: ₹${fmtAmt(sgstAmt)}`;
+                        particularsStack.push({ text: taxDetail, fontSize: 7.5, color: '#0369a1', margin: [0, 2, 0, 0] });
                     } else if (inv.invoiceType === 'Non-GST') {
                         particularsStack.push({ text: `Non-GST Bill`, fontSize: 8, color: '#b45309', margin: [0, 2, 0, 0] });
                     }
@@ -2443,7 +2454,7 @@ const pdf = window.currentActivePDF;
                                 { text: isAccount ? 'ACCOUNT STATEMENT' : 'LEDGER STATEMENT', style: 'title' },
                                 { text: 'DATE: ' + window.Utils.formatDateDisplay(safeDocNo), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
                                 { text: 'Closing Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 2] },
-                                { text: '₹' + Math.abs(finalBal).toFixed(2), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
+                                { text: '₹' + Math.abs(finalBal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
                                 { text: balSuffix, alignment: 'right', fontSize: 10, bold: true, color: Math.abs(finalBal) < 0.01 ? '#64748b' : (finalBal > 0 ? '#16a34a' : '#ef4444'), margin: [0, 2, 0, 5] },
                                 splitStack.length > 0 ? { stack: splitStack, alignment: 'right', margin: [0, 5, 0, 0] } : null
                             ].filter(Boolean)
@@ -2462,7 +2473,7 @@ const pdf = window.currentActivePDF;
                     margin: [0, 0, 0, 15]
                 },
                 {
-                    table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                    table: { headerRows: 1, dontBreakRows: true, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
                     layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
                     margin: [0, 0, 0, 20]
                 },
@@ -2668,12 +2679,14 @@ const pdf = window.currentActivePDF;
                     if(row.itemId === itemId) {
                         const isReturn = s.documentType === 'return';
                         const qty = parseFloat(row.qty) || 0;
-                        timeline.push({ id: s.id, date: s.date, type: isReturn ? 'Sales Return' : 'Sale', desc: s.customerName || 'Unknown Party', ref: s.invoiceNo || s.orderNo || s.id.slice(-4).toUpperCase(), inQty: isReturn ? qty : 0, outQty: isReturn ? 0 : qty });
+                        const sBill = (s.invoiceNo || '').trim();
+                        const sOrd = (s.orderNo || '').trim();
+                        const sRef = (sBill && sOrd && sBill !== sOrd) ? `${sBill} | Ord: ${sOrd}` : (sBill || sOrd || s.id.slice(-4).toUpperCase());
+                        timeline.push({ id: s.id, date: s.date, type: isReturn ? 'Sales Return' : 'Sale', desc: s.customerName || 'Unknown Party', ref: sRef, inQty: isReturn ? qty : 0, outQty: isReturn ? 0 : qty });
                     }
                 });
             }
         });
-
         const purchases = await window.getAllRecords('purchases', 'firmId', activeFirmId);
         purchases.forEach(p => {
             if(p.status !== 'Open' && p.status !== 'Cancelled' && p.firmId === activeFirmId && (!partyId || p.supplierId === partyId)) {
@@ -2681,7 +2694,10 @@ const pdf = window.currentActivePDF;
                     if(row.itemId === itemId) {
                         const isReturn = p.documentType === 'return';
                         const qty = parseFloat(row.qty) || 0;
-                        timeline.push({ id: p.id, date: p.date, type: isReturn ? 'Purchase Return' : 'Purchase', desc: p.supplierName || 'Unknown Party', ref: p.invoiceNo || p.poNo || p.id.slice(-4).toUpperCase(), inQty: isReturn ? 0 : qty, outQty: isReturn ? qty : 0 });
+                        const pBill = (p.invoiceNo || p.poNo || '').trim();
+                        const pOrd = (p.orderNo || '').trim();
+                        const pRef = (pBill && pOrd && pBill !== pOrd) ? `${pBill} | PO: ${pOrd}` : (pBill || pOrd || p.id.slice(-4).toUpperCase());
+                        timeline.push({ id: p.id, date: p.date, type: isReturn ? 'Purchase Return' : 'Purchase', desc: p.supplierName || 'Unknown Party', ref: pRef, inQty: isReturn ? 0 : qty, outQty: isReturn ? qty : 0 });
                     }
                 });
             }
@@ -3759,22 +3775,21 @@ const pdf = window.currentActivePDF;
                 try {
                     const loadingTask = pdfjsLib.getDocument(blobUrl);
                     const pdfDoc = await loadingTask.promise;
-                    const page = await pdfDoc.getPage(1); 
-                    
-                    const viewport = page.getViewport({ scale: 1.5 });
-                    
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    canvas.style.cssText = 'max-width: 100%; height: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border-radius: 4px;';
-                    
-                    await page.render({ canvasContext: context, viewport: viewport }).promise;
-                    
                     const previewContainer = document.getElementById('pdf-preview-content');
                     if (previewContainer) {
-                        previewContainer.innerHTML = ''; 
-                        previewContainer.appendChild(canvas); 
+                        previewContainer.innerHTML = '';
+                        for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                            if (!document.getElementById('in-app-pdf-viewer')) break;
+                            const page = await pdfDoc.getPage(pageNum);
+                            const viewport = page.getViewport({ scale: 1.5 });
+                            const canvas = document.createElement('canvas');
+                            const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
+                            canvas.height = viewport.height;
+                            canvas.width = viewport.width;
+                            canvas.style.cssText = 'max-width: 100%; height: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.15); border-radius: 4px; margin-bottom: 16px; flex-shrink: 0;';
+                            await page.render({ canvasContext: context, viewport: viewport }).promise;
+                            previewContainer.appendChild(canvas);
+                        }
                     }
                 } catch (renderErr) {
                     console.warn("PDF.js preview render failed, showing fallback UI.", renderErr);
@@ -3894,10 +3909,16 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
             else if (party.type === 'Supplier' && window.UI.state.rawData.purchases) inv = window.UI.state.rawData.purchases.find(p => p.id === t.id);
 
             if (inv) {
-                const gstAmt = parseFloat(inv.totalGst) || 0;
-                const baseAmt = (parseFloat(inv.grandTotal) || 0) - gstAmt;
+                const gstAmt = Math.abs(parseFloat(inv.totalGst) || 0);
+                const baseAmt = Math.abs(parseFloat(inv.grandTotal) || 0) - gstAmt;
+                const fmtK = (n) => (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 if (gstAmt > 0) {
-                    particularsStack.push({ text: `Base: ₹${baseAmt.toFixed(2)} | GST: ₹${gstAmt.toFixed(2)}`, fontSize: 8, color: '#0369a1', margin: [0, 2, 0, 0] });
+                    const hasSplit = (parseFloat(inv.cgstTotal) || 0) > 0 || (parseFloat(inv.sgstTotal) || 0) > 0 || (parseFloat(inv.igstTotal) || 0) > 0;
+                    const igstAmt = hasSplit ? Math.abs(parseFloat(inv.igstTotal) || 0) : (inv.isIGST ? gstAmt : 0);
+                    const cgstAmt = hasSplit ? Math.abs(parseFloat(inv.cgstTotal) || 0) : (inv.isIGST ? 0 : gstAmt / 2);
+                    const sgstAmt = hasSplit ? Math.abs(parseFloat(inv.sgstTotal) || 0) : (inv.isIGST ? 0 : gstAmt / 2);
+                    const taxStr = igstAmt > 0.005 ? `IGST: ₹${fmtK(igstAmt)}` : `CGST: ₹${fmtK(cgstAmt)} | SGST: ₹${fmtK(sgstAmt)}`;
+                    particularsStack.push({ text: `Base: ₹${fmtK(baseAmt)} | ${taxStr}`, fontSize: 8, color: '#0369a1', margin: [0, 2, 0, 0] });
                 } else if (inv.invoiceType === 'Non-GST') {
                     particularsStack.push({ text: `Non-GST Bill`, fontSize: 8, color: '#b45309', margin: [0, 2, 0, 0] });
                 }
@@ -4078,7 +4099,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                             { text: 'LEDGER STATEMENT', style: 'title' },
                             { text: 'DATE: ' + window.Utils.formatDateDisplay(safeDocNo), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
                             { text: 'Closing Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 2] },
-                            { text: '₹' + Math.abs(finalBal).toFixed(2), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
+                            { text: '₹' + Math.abs(finalBal).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
                             { text: balSuffix, alignment: 'right', fontSize: 10, bold: true, color: Math.abs(finalBal) < 0.01 ? '#64748b' : (finalBal > 0 ? '#16a34a' : '#ef4444'), margin: [0, 2, 0, 5] },
                             splitStack.length > 0 ? { stack: splitStack, alignment: 'right', margin: [0, 5, 0, 0] } : null
                         ].filter(Boolean)
@@ -4097,7 +4118,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                 margin: [0, 0, 0, 15]
             },
             {
-                table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                table: { headerRows: 1, dontBreakRows: true, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
                 layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
                 margin: [0, 0, 0, 20]
             },

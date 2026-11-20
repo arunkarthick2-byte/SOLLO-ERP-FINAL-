@@ -9,6 +9,20 @@ const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/res
 let tokenClient;
 let gapiInited = false;
 let gisInited = false;
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 25000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } catch (err) {
+        if (err && err.name === 'AbortError') {
+            throw new Error('Cloud request timed out. Check your internet connection and try again.');
+        }
+        throw err;
+    } finally {
+        clearTimeout(timer);
+    }
+};
 
 // 1. Initialize Google API Client
 window.gapiLoaded = () => {
@@ -164,29 +178,27 @@ const Cloud = {
                         }
                     } else {
                         // Create new file shell
-                        const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                        const metaRes = await fetchWithTimeout('https://www.googleapis.com/drive/v3/files', {
                             method: 'POST',
-                            headers: new Headers({ 
+                            headers: new Headers({
                                 'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
                                 'Content-Type': 'application/json'
                             }),
                             body: JSON.stringify(metadata)
                         });
+                        if (!metaRes.ok) throw new Error('Drive file creation failed (' + metaRes.status + ')');
                         const metaData = await metaRes.json();
                         finalFileId = metaData.id;
                         localStorage.setItem(`sollo_drive_file_id_${activeFirmId}`, finalFileId);
                     }
                 }
-
-                // 🚨 ENTERPRISE FIX: Corrected Google Drive API Upload Strategy!
-                // Google Drive rejects standard 'multipart/form-data'. Since we already created the file shell, we must patch the raw media directly!
-                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
+                let uploadRes = await fetchWithTimeout(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
                     method: 'PATCH',
-                    headers: new Headers({ 
+                    headers: new Headers({
                         'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
                         'Content-Type': 'application/json'
                     }),
-                    body: file // Inject the raw JSON database blob directly into the shell
+                    body: file
                 });
 
                 if (uploadRes.ok) {
@@ -301,30 +313,27 @@ const Cloud = {
                         }
                     } else {
                         // Create new file shell
-                        const metaRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                        const metaRes = await fetchWithTimeout('https://www.googleapis.com/drive/v3/files', {
                             method: 'POST',
-                            headers: new Headers({ 
+                            headers: new Headers({
                                 'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
                                 'Content-Type': 'application/json'
                             }),
                             body: JSON.stringify(metadata)
                         });
+                        if (!metaRes.ok) throw new Error('Drive file creation failed (' + metaRes.status + ')');
                         const metaData = await metaRes.json();
                         finalFileId = metaData.id;
                         localStorage.setItem(`sollo_drive_file_id_${activeFirmId}`, finalFileId);
                     }
                 }
-
-                // Step 2: Inject the raw JSON database directly into that file shell
-                // 🚨 ENTERPRISE FIX: Corrected Google Drive API Upload Strategy!
-                // Google Drive rejects standard 'multipart/form-data'. Since we already created the file shell, we must patch the raw media directly!
-                let uploadRes = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
+                let uploadRes = await fetchWithTimeout(`https://www.googleapis.com/upload/drive/v3/files/${finalFileId}?uploadType=media`, {
                     method: 'PATCH',
-                    headers: new Headers({ 
+                    headers: new Headers({
                         'Authorization': 'Bearer ' + gapi.client.getToken().access_token,
                         'Content-Type': 'application/json'
                     }),
-                    body: file // Inject the raw JSON database blob directly into the shell
+                    body: file
                 });
 
                 if (uploadRes.ok) {
@@ -470,9 +479,9 @@ const Cloud = {
 
                 window.Utils.showToast("Downloading Backup...");
 
-                let fileRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                let fileRes = await fetchWithTimeout(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
                     headers: new Headers({ 'Authorization': 'Bearer ' + gapi.client.getToken().access_token }),
-                });
+                }, 35000);
 
                 if (fileRes.ok) {
                     let jsonData = await fileRes.json();

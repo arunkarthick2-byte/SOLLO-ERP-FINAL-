@@ -1,8 +1,7 @@
 // ==========================================
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.5 Auto-Fresh)
 // ==========================================
-const CACHE_NAME = 'sollo-erp-evergreen-offline';
-
+const CACHE_NAME = 'sollo-erp-v7-0';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -14,8 +13,10 @@ const ASSETS_TO_CACHE = [
     './cloud.js',
     './state.js',
     './components.js',
+    './worker.js',
     './icon-192.png',
     './icon-512.png',
+    './apple-touch-icon.png',
     './manifest.json',
     'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',

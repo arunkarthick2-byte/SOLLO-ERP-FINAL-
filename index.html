@@ -4483,154 +4483,207 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Item Profitability</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportItemProfitPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+        <div class="activity-content ded-report-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
+            <div class="ded-quick-btns" style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;">
                 <button type="button" onclick="app.setReportDates('today'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
                 <button type="button" onclick="app.setReportDates('month'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Month</button>
                 <button type="button" onclick="app.setReportDates('year'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
             </div>
-            
-            <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
-                <div style="display: flex; gap: 12px;">
-                    <div style="flex: 1;">
-                        <label style="font-weight: 500; color: var(--md-on-surface); display: block; margin-bottom: 8px;">From Date:</label>
-                        <input type="date" id="item-profit-from" onchange="app.generateItemProfitReport()" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+            <div class="m3-card ded-filter-bar">
+                <div class="ded-date-row">
+                    <div class="ded-date-field">
+                        <label for="item-profit-from">From</label>
+                        <input type="date" id="item-profit-from" onchange="app.generateItemProfitReport()">
                     </div>
-                    <div style="flex: 1;">
-                        <label style="font-weight: 500; color: var(--md-on-surface); display: block; margin-bottom: 8px;">To Date:</label>
-                        <input type="date" id="item-profit-to" onchange="app.generateItemProfitReport()" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    <span class="ded-date-sep">to</span>
+                    <div class="ded-date-field">
+                        <label for="item-profit-to">To</label>
+                        <input type="date" id="item-profit-to" onchange="app.generateItemProfitReport()">
                     </div>
                 </div>
             </div>
-
-            <div class="m3-card" style="background: rgba(20, 108, 46, 0.05); border: 1px solid rgba(20, 108, 46, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
-                <span style="color: var(--md-success); font-weight: bold;">Total Gross Profit (Selected Date Range)</span>
-                <div id="item-profit-total" style="font-size: 24px; font-weight: 900; color: var(--md-success); margin-top: 4px;">&#8377;0.00</div>
-            </div>
-
-            <h3 style="margin-top:0; color: var(--md-primary); font-size: 14px; text-transform: uppercase;">Product Ranking (Highest Profit First)</h3>
-            <div id="item-profit-list" style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 40px;">
+            <div class="ded-kpi-strip">
+                <div class="ded-kpi-cell">
+                    <div class="ded-kpi-label">Item Gross Profit (Selected Period)</div>
+                    <div id="item-profit-total" class="ded-kpi-val" style="color: var(--md-success);">&#8377;0.00</div>
                 </div>
-
+            </div>
+            <div class="ded-section-title">Product Ranking (Tap Row for Item Ledger)</div>
+            <div id="item-profit-list" class="ded-ledger-host"></div>
         </div>
     </div>
-
     <div id="activity-party-tax-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Party-Wise Tax Report</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportPartyTaxPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            
-            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
+        <div class="activity-content ded-report-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
+            <div class="ded-quick-btns" style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;">
                 <button type="button" onclick="app.setReportDates('today'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
                 <button type="button" onclick="app.setReportDates('month'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Month</button>
                 <button type="button" onclick="app.setReportDates('year'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
             </div>
-
-            <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
-                
-                <div class="m3-card tap-target" style="margin-bottom: 16px; margin-top: 0; background: var(--md-surface-variant); display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--md-outline-variant); box-shadow: none;" onclick="if(window.UI) UI.openSmartSearch('party', 'tax-report')">
+            <div class="m3-card ded-filter-bar">
+                <div class="ded-party-picker tap-target" onclick="if(window.UI) UI.openSmartSearch('party', 'tax-report')">
                     <div>
-                        <small style="color: var(--md-text-muted); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">Select Party</small>
+                        <small>Select Party</small>
                         <div id="tax-report-display" class="large-text" style="color: var(--md-text-muted);">Select Party</div>
                         <input type="hidden" id="tax-report-id">
                     </div>
                     <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
                 </div>
-                
-                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-                    <div style="flex: 1;">
-                        <label style="font-weight: 500; color: var(--md-on-surface); display: block; margin-bottom: 8px;">From Date:</label>
-                        <input type="date" id="tax-report-from" onchange="app.generatePartyTaxReport()" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                <div class="ded-date-row">
+                    <div class="ded-date-field">
+                        <label for="tax-report-from">From</label>
+                        <input type="date" id="tax-report-from" onchange="app.generatePartyTaxReport()">
                     </div>
-                    <div style="flex: 1;">
-                        <label style="font-weight: 500; color: var(--md-on-surface); display: block; margin-bottom: 8px;">To Date:</label>
-                        <input type="date" id="tax-report-to" onchange="app.generatePartyTaxReport()" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
+                    <span class="ded-date-sep">to</span>
+                    <div class="ded-date-field">
+                        <label for="tax-report-to">To</label>
+                        <input type="date" id="tax-report-to" onchange="app.generatePartyTaxReport()">
                     </div>
                 </div>
             </div>
-
-            <h3 style="margin-top:0; color: var(--md-primary); font-size: 16px; text-transform: uppercase;">Tax Breakdown</h3>
-            <div class="m3-card" style="margin-bottom: 16px; padding: 16px; border-left: 4px solid var(--md-primary);">
-                <div style="display:flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span style="color: var(--md-on-surface); font-weight: bold;">GST Billed (B2B)</span>
-                </div>
-                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--md-text-muted);">Taxable:</span> <strong id="tax-report-b2b" style="color: var(--md-on-surface);">&#8377;0.00</strong>
-                </div>
-                <div style="display:flex; justify-content: space-between;">
-                    <span style="color: var(--md-text-muted);">Tax:</span> <strong id="tax-report-b2b-tax" style="color: var(--md-error);">&#8377;0.00</strong>
+            <div class="ded-section-title">Tax Summary</div>
+            <div class="ded-table-card">
+                <div class="ded-scroll-wrap">
+                    <table class="ded-ledger-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="number-col">Taxable Value</th>
+                                <th class="number-col">Tax Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>GST Billed (B2B)</strong></td>
+                                <td class="number-col" id="tax-report-b2b">&#8377;0.00</td>
+                                <td class="number-col" id="tax-report-b2b-tax" style="color: var(--md-primary);">&#8377;0.00</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Non-GST / B2C</strong></td>
+                                <td class="number-col" id="tax-report-b2c">&#8377;0.00</td>
+                                <td class="number-col" id="tax-report-b2c-tax" style="color: var(--md-primary);">&#8377;0.00</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td>TOTAL TAXABLE</td>
+                                <td class="number-col" id="tax-report-total">&#8377;0.00</td>
+                                <td class="number-col" id="tax-report-total-tax">&#8377;0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-
-            <div class="m3-card" style="margin-bottom: 16px; padding: 16px; border-left: 4px solid #f57f17;">
-                <div style="display:flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span style="color: var(--md-on-surface); font-weight: bold;">Non-GST (B2C)</span>
-                </div>
-                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--md-text-muted);">Taxable:</span> <strong id="tax-report-b2c" style="color: var(--md-on-surface);">&#8377;0.00</strong>
-                </div>
-                <div style="display:flex; justify-content: space-between;">
-                    <span style="color: var(--md-text-muted);">Tax:</span> <strong id="tax-report-b2c-tax" style="color: var(--md-error);">&#8377;0.00</strong>
-                </div>
+            <div class="ded-section-title">Bill-Wise Tax Ledger</div>
+            <div id="party-tax-bills-wrap" class="ded-ledger-host">
+                <div class="ded-empty-msg">Select a party above to view bill-wise tax details.</div>
             </div>
-            
-            <div class="m3-card" style="background: rgba(0, 97, 164, 0.05); border: 1px solid rgba(0, 97, 164, 0.2); padding: 16px; text-align: center;">
-                <span style="color: var(--md-primary); font-weight: bold;">Total Taxable Value</span>
-                <div id="tax-report-total" style="font-size: 24px; font-weight: 900; color: var(--md-primary); margin-top: 4px;">&#8377;0.00</div>
-            </div>
-
         </div>
     </div>
-
     <div id="activity-gst-report" class="activity-screen hidden">
         <div class="activity-header" style="justify-content: center; position: relative;">
             <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Monthly GST Report</span>
             <span id="btn-export-gst" class="material-symbols-outlined tap-target" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
-                <div style="display: flex; flex-direction: column; gap: 6px;">
-                    <label style="font-weight: 500; color: var(--md-text-muted); font-size: 13px;">Select Month:</label>
-                    <input type="month" id="gst-month-selector" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 15px; font-weight: 600; background: var(--md-surface); color: var(--md-on-surface); box-sizing: border-box;" onchange="app.refreshGSTReport()">
+        <div class="activity-content ded-report-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
+            <div class="m3-card ded-filter-bar">
+                <div class="ded-date-row">
+                    <div class="ded-date-field">
+                        <label for="gst-month-selector">Month</label>
+                        <input type="month" id="gst-month-selector" onchange="app.refreshGSTReport()">
+                    </div>
                 </div>
             </div>
-
-            <h3 style="margin-top:0; color: var(--md-primary); font-size: 16px; text-transform: uppercase;">GSTR-3B (Net Summary)</h3>
-            <div class="m3-card" style="margin-bottom: 24px; padding: 16px;">
-                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--md-text-muted);">Output Tax (Total Sales):</span> <strong style="color:var(--md-error);" id="gst-out-tax">&#8377;0.00</strong>
-                </div>
-                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--md-text-muted);">Input Tax (Purchases / ITC):</span> <strong style="color:var(--md-success);" id="gst-in-tax">&#8377;0.00</strong>
-                </div>
-                <hr style="border: 0; border-top: 1px solid var(--md-outline-variant); margin: 12px 0;">
-                <div style="display:flex; justify-content: space-between; align-items: center;">
-                    <strong style="color: var(--md-on-surface);">Net Payable to Govt:</strong> <strong style="font-size: 20px; color:var(--md-primary);" id="gst-net-payable">&#8377;0.00</strong>
+            <div class="ded-section-title">GSTR-3B — Net Tax Liability</div>
+            <div class="ded-table-card">
+                <div class="ded-scroll-wrap">
+                    <table class="ded-ledger-table">
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th class="number-col">Taxable Value</th>
+                                <th class="number-col">Tax Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Output Tax (Sales)</strong></td>
+                                <td class="number-col" id="gst-out-taxable">&#8377;0.00</td>
+                                <td class="number-col" id="gst-out-tax" style="color: var(--md-error);">&#8377;0.00</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Input Tax (Purchases / ITC)</strong></td>
+                                <td class="number-col" id="gst-in-taxable">&#8377;0.00</td>
+                                <td class="number-col" id="gst-in-tax" style="color: var(--md-success);">&#8377;0.00</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td colspan="2">NET PAYABLE TO GOVT</td>
+                                <td class="number-col" id="gst-net-payable">&#8377;0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-
-            <h3 style="margin-top:0; color: var(--md-primary); font-size: 16px; text-transform: uppercase;">GSTR-1 (Sales Breakdown)</h3>
-            <div class="m3-card" style="margin-bottom: 24px; padding: 16px;">
-                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--md-text-muted);">B2B Taxable Value:</span> <strong id="gst-b2b-taxable" style="color: var(--md-on-surface);">&#8377;0.00</strong>
-                </div>
-                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--md-text-muted);">B2B Tax Collected:</span> <strong id="gst-b2b-tax" style="color: var(--md-on-surface);">&#8377;0.00</strong>
-                </div>
-                <hr style="border: 0; border-top: 1px solid var(--md-outline-variant); margin: 12px 0;">
-                <div style="display:flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: var(--md-text-muted);">B2C Taxable Value:</span> <strong id="gst-b2c-taxable" style="color: var(--md-on-surface);">&#8377;0.00</strong>
-                </div>
-                <div style="display:flex; justify-content: space-between;">
-                    <span style="color: var(--md-text-muted);">B2C Tax Collected:</span> <strong id="gst-b2c-tax" style="color: var(--md-on-surface);">&#8377;0.00</strong>
+            <div class="ded-section-title">GSTR-1 — Sales Breakdown</div>
+            <div class="ded-table-card">
+                <div class="ded-scroll-wrap">
+                    <table class="ded-ledger-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="number-col">Taxable Value</th>
+                                <th class="number-col">Tax Collected</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>B2B Sales (Registered)</strong></td>
+                                <td class="number-col" id="gst-b2b-taxable">&#8377;0.00</td>
+                                <td class="number-col" id="gst-b2b-tax">&#8377;0.00</td>
+                            </tr>
+                            <tr>
+                                <td><strong>B2C Sales (Unregistered)</strong></td>
+                                <td class="number-col" id="gst-b2c-taxable">&#8377;0.00</td>
+                                <td class="number-col" id="gst-b2c-tax">&#8377;0.00</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Nil / Exempt / Non-GST</strong></td>
+                                <td class="number-col" id="gst-gstr1-nil">&#8377;0.00</td>
+                                <td class="number-col">&#8377;0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            
-            <p style="text-align:center; font-size:12px; color:var(--md-text-muted); margin-top:10px;">Tap 'Generate PDF' at the top to share or download your GSTR-1 & GSTR-3B report.</p>
+            <div class="ded-section-title">GSTR-2 — Purchases &amp; ITC Breakdown</div>
+            <div class="ded-table-card">
+                <div class="ded-scroll-wrap">
+                    <table class="ded-ledger-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="number-col">Taxable Value</th>
+                                <th class="number-col">ITC Claimable</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>GST Purchases (Eligible ITC)</strong></td>
+                                <td class="number-col" id="gst-gstr2-taxable">&#8377;0.00</td>
+                                <td class="number-col" id="gst-gstr2-tax" style="color: var(--md-success);">&#8377;0.00</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Nil / Exempt / Non-GST</strong></td>
+                                <td class="number-col" id="gst-gstr2-nil">&#8377;0.00</td>
+                                <td class="number-col">&#8377;0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
