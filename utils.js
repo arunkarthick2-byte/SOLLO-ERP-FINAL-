@@ -598,7 +598,7 @@ const Utils = {
         // 🚨 CRITICAL FIX: Passed through safeNumber() so "1,500.00" doesn't parse as "1.00"!
         const message = encodeURIComponent(`Hello ${customerName || 'Customer'},
 
-A payment of ₹${Utils.safeNumber(balanceAmount).toFixed(2)} is currently pending for Document No: ${invoiceNo || 'N/A'}.
+A payment of ₹${Utils.safeNumber(balanceAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} is currently pending for Document No: ${invoiceNo || 'N/A'}.
 
 Please arrange the payment at your earliest convenience. Thank you!`);
         const whatsappUrl = `https://wa.me/${cleanPhone}?text=${message}`;
@@ -624,7 +624,7 @@ Please arrange the payment at your earliest convenience. Thank you!`);
         }
 
         const cleanPhone = window.Utils.formatWhatsAppNumber(phone);
-        const docNo = doc.invoiceNo || doc.poNo || doc.orderNo || doc.id.slice(-6).toUpperCase();
+        const docNo = (doc.invoiceType === 'Non-GST' ? (doc.orderNo || doc.poNo || doc.invoiceNo) : (doc.invoiceNo || doc.poNo || doc.orderNo)) || doc.id.slice(-6).toUpperCase();
         const date = window.Utils.formatDateDisplay(doc.date);
         
         // Calculate pending balance from live Receipts & Returns
@@ -1231,7 +1231,7 @@ Please process this accordingly. Thank you!`;
                         widths: ['50%', '50%'],
                         body: [
                             [
-                                { stack: [{ text: 'Invoice No.', fontSize: 7, color: '#475569' }, { text: safeDocNo, bold: true, fontSize: 9 }], padding: [4, 4] },
+                                { stack: [{ text: 'Invoice No.', fontSize: 7, color: '#475569' }, { text: isNonGST ? (doc.invoiceNo || '-') : safeDocNo, bold: true, fontSize: 9 }], padding: [4, 4] },
                                 { stack: [{ text: 'Dated', fontSize: 7, color: '#475569' }, { text: window.Utils.formatDateDisplay(doc.date) || '-', bold: true, fontSize: 9 }], padding: [4, 4] }
                             ],
                             [
@@ -1612,7 +1612,7 @@ Please process this accordingly. Thank you!`;
             defaultStyle: { font: 'Roboto', fontSize: 9, color: '#000000' }, 
             content: [
                 // 1. Tally Header Title (Original for Recipient)
-                { text: isSales ? (window.solloCurrentCopyType || 'ORIGINAL FOR RECIPIENT') : '', alignment: 'right', fontSize: 7, bold: true, color: '#475569', margin: [0, -10, 0, 5] },
+                { text: (isSales && !isNonGST) ? (window.solloCurrentCopyType || 'ORIGINAL FOR RECIPIENT') : '', alignment: 'right', fontSize: 7, bold: true, color: '#475569', margin: [0, -10, 0, 5] },
                 // UPGRADE: Premium Document Title
                 { text: title, alignment: 'center', fontSize: 16, bold: true, color: headerTitleColor, characterSpacing: 2, margin: [0, 0, 0, 5] },
 
@@ -1728,7 +1728,7 @@ Please process this accordingly. Thank you!`;
                     <div style="font-size:11px; color:#16a34a; font-weight:700; margin-top:2px;" id="pdf-status-text">Rendering Native Tally Format...</div>
                 </div>
                 <div style="display: flex; gap: 12px; align-items: center;">
-                    ${isSales ? `<select id="pdf-copy-selector" style="padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px; font-weight: bold; color: #0f172a; outline: none; cursor: pointer;">
+                    ${(isSales && !isNonGST) ? `<select id="pdf-copy-selector" style="padding: 6px 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #f8fafc; font-size: 11px; font-weight: bold; color: #0f172a; outline: none; cursor: pointer;">
                         <option value="ORIGINAL FOR RECIPIENT">Original</option>
                         <option value="DUPLICATE FOR TRANSPORTER">Duplicate</option>
                         <option value="TRIPLICATE FOR SUPPLIER">Triplicate</option>

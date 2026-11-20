@@ -8570,33 +8570,43 @@ if (data.id && splitConfirmed) {
                 </div>
                 <div class="activity-content" style="background: var(--md-background); padding: 16px;">
                     
-                    <!-- Date Filter Card -->
-                    <div class="m3-card" style="margin-bottom: 16px; padding: 16px;">
-                        <div id="uni-report-date-btns" style="display: flex; gap: 6px; margin-bottom: 16px; width: 100%;">
-                            <button type="button" class="tap-target" onclick="app.setUniversalDates('month'); window.setActiveFilterButton(this);" style="flex: 1 1 0%; min-width: 0; padding: 9px 4px !important; border-radius: 8px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px !important; font-weight: 700; white-space: nowrap; text-align: center;">This Month</button>
-                            <button type="button" class="tap-target" onclick="app.setUniversalDates('last_month'); window.setActiveFilterButton(this);" style="flex: 1 1 0%; min-width: 0; padding: 9px 4px !important; border-radius: 8px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px !important; font-weight: 700; white-space: nowrap; text-align: center;">Last Month</button>
-                            <button type="button" class="tap-target" onclick="app.setUniversalDates('year'); window.setActiveFilterButton(this);" style="flex: 1 1 0%; min-width: 0; padding: 9px 4px !important; border-radius: 8px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px !important; font-weight: 700; white-space: nowrap; text-align: center; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Year</button>
-                            <button type="button" class="tap-target" onclick="app.setUniversalDates('all'); window.setActiveFilterButton(this);" style="flex: 1 1 0%; min-width: 0; padding: 9px 4px !important; border-radius: 8px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px !important; font-weight: 700; white-space: nowrap; text-align: center;">All Time</button>
+                    <!-- Compact Edge-to-Edge Report Toolbar -->
+                    <div id="uni-report-toolbar" class="m3-card">
+                        <div id="uni-report-date-btns">
+                            <button type="button" class="tap-target uni-seg-btn" data-range="month" onclick="app.selectUniversalDateBtn('month', this)">This Month</button>
+                            <button type="button" class="tap-target uni-seg-btn" data-range="last_month" onclick="app.selectUniversalDateBtn('last_month', this)">Last Month</button>
+                            <button type="button" class="tap-target uni-seg-btn active" data-range="year" onclick="app.selectUniversalDateBtn('year', this)">This Year</button>
+                            <button type="button" class="tap-target uni-seg-btn" data-range="all" onclick="app.selectUniversalDateBtn('all', this)">All Time</button>
                         </div>
-                        <div style="display: flex; gap: 12px;">
-                            <div style="flex: 1;">
-                                <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">From Date</label>
-                                <input type="date" id="uni-report-from" onchange="app.renderUniversalReport()" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface); font-size: 14px; font-weight: bold; outline: none; box-sizing: border-box;">
+                        <div class="uni-date-row">
+                            <div class="uni-date-field">
+                                <label for="uni-report-from">From</label>
+                                <input type="date" id="uni-report-from" onchange="app.renderUniversalReport()">
                             </div>
-                            <div style="flex: 1;">
-                                <label style="font-size: 11px; font-weight: 800; color: var(--md-text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">To Date</label>
-                                <input type="date" id="uni-report-to" onchange="app.renderUniversalReport()" style="width: 100%; padding: 10px; border: 1px solid var(--md-outline-variant); border-radius: 8px; background: var(--md-surface); font-size: 14px; font-weight: bold; outline: none; box-sizing: border-box;">
+                            <span class="uni-date-sep">to</span>
+                            <div class="uni-date-field">
+                                <label for="uni-report-to">To</label>
+                                <input type="date" id="uni-report-to" onchange="app.renderUniversalReport()">
+                            </div>
+                        </div>
+                        <div id="uni-report-register-controls" class="hidden">
+                            <div id="uni-tax-filter-btns" class="uni-tax-pills">
+                                <button type="button" class="tap-target uni-tax-btn active" data-tax="all" onclick="app.setUniversalTaxFilter('all', this)">All Bills</button>
+                                <button type="button" class="tap-target uni-tax-btn" data-tax="gst" onclick="app.setUniversalTaxFilter('gst', this)">GST Only</button>
+                                <button type="button" class="tap-target uni-tax-btn" data-tax="nongst" onclick="app.setUniversalTaxFilter('nongst', this)">Non-GST</button>
+                            </div>
+                            <div class="uni-search-wrap">
+                                <span class="material-symbols-outlined">search</span>
+                                <input type="search" id="uni-report-search" placeholder="Search Bill No, Order No, Party or GSTIN..." oninput="app.renderUniversalReport()">
                             </div>
                         </div>
                     </div>
-
                     <!-- KPIs -->
-                    <div id="uni-report-kpis" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;"></div>
-
+                    <div id="uni-report-kpis"></div>
                     <!-- Data Table -->
-                    <div id="uni-report-table-card" class="m3-card" style="padding: 0 !important; overflow: hidden !important;">
-                        <div id="uni-report-scroll-wrap" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%;">
-                            <table class="report-table" style="width: 100%; border-collapse: collapse;">
+                    <div id="uni-report-table-card" class="m3-card">
+                        <div id="uni-report-scroll-wrap">
+                            <table class="report-table">
                                 <thead>
                                     <tr id="uni-report-thead"></tr>
                                 </thead>
@@ -8635,12 +8645,27 @@ if (data.id && splitConfirmed) {
                 });
             }
         }
-
+        app.state.uniTaxFilter = 'all';
+        const regCtrl = document.getElementById('uni-report-register-controls');
+        if (regCtrl) regCtrl.classList.toggle('hidden', reportType !== 'sales_register' && reportType !== 'purchase_register');
+        document.querySelectorAll('#uni-tax-filter-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.tax === 'all'));
+        const uniSearch = document.getElementById('uni-report-search');
+        if (uniSearch) uniSearch.value = '';
         document.getElementById('uni-report-title').innerText = title;
-        const uniYrBtn = document.querySelector('#uni-report-date-btns button:nth-child(3)');
-        if (uniYrBtn && window.setActiveFilterButton) window.setActiveFilterButton(uniYrBtn);
-        app.setUniversalDates('year'); 
+        document.querySelectorAll('#uni-report-date-btns .uni-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.range === 'year'));
+        app.setUniversalDates('year');
         if(window.UI) UI.openActivity('activity-universal-report');
+    },
+    selectUniversalDateBtn: (range, btn) => {
+        document.querySelectorAll('#uni-report-date-btns .uni-seg-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        app.setUniversalDates(range);
+    },
+    setUniversalTaxFilter: (mode, btn) => {
+        app.state.uniTaxFilter = mode || 'all';
+        document.querySelectorAll('#uni-tax-filter-btns .uni-tax-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        app.renderUniversalReport();
     },
 
     setUniversalDates: (range) => {
@@ -8691,11 +8716,25 @@ if (data.id && splitConfirmed) {
             
             if (reportType === 'sales_register' || reportType === 'purchase_register') {
                 const isSale = reportType === 'sales_register';
-                tableHeaders = ['Date', 'Document No.', isSale ? 'Customer Name' : 'Supplier Name', 'Taxable Val', 'Tax Amt', 'Grand Total'];
-                
-                const docs = (await window.getAllRecords(isSale ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(s => s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromDate && s.date <= toDate);
+                tableHeaders = ['Date', 'Doc / Order No.', isSale ? 'Customer' : 'Supplier', 'Status', 'Taxable Val', 'GST Amt', 'Grand Total'];
+                const taxFilter = app.state.uniTaxFilter || 'all';
+                const searchQ = (document.getElementById('uni-report-search')?.value || '').trim().toLowerCase();
+                const allLedgers = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.ledgers) || [];
+                const docs = (await window.getAllRecords(isSale ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(s => {
+                    if (s.status === 'Open' || s.status === 'Cancelled' || s.date < fromDate || s.date > toDate) return false;
+                    const isNonGst = s.invoiceType === 'Non-GST';
+                    if (taxFilter === 'gst' && isNonGst) return false;
+                    if (taxFilter === 'nongst' && !isNonGst) return false;
+                    if (searchQ) {
+                        const pName = (isSale ? s.customerName : s.supplierName) || '';
+                        const pObj = allLedgers.find(l => String(l.id) === String(isSale ? s.customerId : s.supplierId));
+                        const gstStr = s.customerGst || s.supplierGst || s.gstin || (pObj && pObj.gst) || '';
+                        const hay = `${s.invoiceNo || ''} ${s.orderNo || ''} ${s.poNo || ''} ${pName} ${gstStr} ${s.status || ''}`.toLowerCase();
+                        if (!hay.includes(searchQ)) return false;
+                    }
+                    return true;
+                });
                 docs.sort((a,b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
-                
                 let tTaxable = 0, tGst = 0, tTotal = 0, cnCount = 0;
                 docs.forEach(s => {
                     const mult = s.documentType === 'return' ? -1 : 1;
@@ -8707,33 +8746,44 @@ if (data.id && splitConfirmed) {
                     const gst = Math.abs(parseFloat(s.totalGst) || 0) * mult;
                     const taxable = (rawSub > 0 ? (rawSub - discAmt) : (Math.abs(parseFloat(s.grandTotal) || 0) - Math.abs(parseFloat(s.totalGst) || 0))) * mult;
                     tTaxable += taxable; tGst += gst; tTotal += grand;
-                    
-                    const docLabel = s.invoiceNo || s.poNo || s.orderNo || String(s.id).substring(0,6).toUpperCase();
+                    const billNo = (s.invoiceNo || '').trim();
+                    const refNo = (isSale ? (s.orderNo || '') : (s.poNo || s.orderNo || '')).trim();
+                    const primaryNo = billNo || refNo || String(s.id).substring(0,6).toUpperCase();
+                    const secondaryLine = (billNo && refNo && billNo !== refNo) ? `<br><span class="uni-sub-ref" style="color:var(--md-text-muted); font-size:10px;">${isSale ? 'Ord' : 'PO'}: ${refNo}</span>` : '';
+                    const isNonGst = s.invoiceType === 'Non-GST';
+                    const typePill = mult < 0
+                        ? `<span class="uni-pill uni-pill-ret" style="color:var(--md-error); font-size:9px; font-weight:800;">${isSale ? 'CR NOTE' : 'DR NOTE'}</span>`
+                        : (isNonGst ? `<span class="uni-pill uni-pill-nongst" style="color:var(--md-text-muted); font-size:9px; font-weight:800;">NON-GST</span>` : `<span class="uni-pill uni-pill-gst" style="color:var(--md-primary); font-size:9px; font-weight:800;">GST</span>`);
                     const partyName = isSale ? (s.customerName || 'Unknown') : (s.supplierName || 'Unknown');
-                    
+                    const pObj = allLedgers.find(l => String(l.id) === String(isSale ? s.customerId : s.supplierId));
+                    const partyGst = (s.customerGst || s.supplierGst || s.gstin || (pObj && pObj.gst) || '').trim();
+                    const gstLine = partyGst ? `<br><span class="uni-gstin" style="color:var(--md-text-muted); font-size:10px;">${partyGst}</span>` : '';
+                    const rawStatus = mult < 0 ? 'Returned' : (s.status || 'Unpaid');
+                    const stLower = rawStatus.toLowerCase();
+                    const stClass = mult < 0 ? 'uni-pill-ret' : (stLower === 'paid' || stLower === 'settled' ? 'uni-pill-paid' : (stLower === 'partial' ? 'uni-pill-partial' : 'uni-pill-unpaid'));
+                    const stColor = mult < 0 ? 'var(--md-error)' : (stLower === 'paid' || stLower === 'settled' ? 'var(--md-success)' : (stLower === 'partial' ? '#b45309' : 'var(--md-text-muted)'));
                     tableRowsHTML += `
                     <tr>
-                        <td>${window.Utils.formatDateDisplay(s.date)}</td>
-                        <td><strong>${docLabel}</strong> ${mult < 0 ? `<br><span style="color:var(--md-error); font-size:9px; font-weight:800; letter-spacing:0.5px;">${isSale ? 'CREDIT NOTE' : 'DEBIT NOTE'}</span>` : ''}</td>
-                        <td>${partyName}</td>
+                        <td class="uni-date-col">${window.Utils.formatDateDisplay(s.date)}</td>
+                        <td class="uni-doc-col"><strong>${primaryNo}</strong> ${typePill}${secondaryLine}</td>
+                        <td class="uni-party-col"><strong>${partyName}</strong>${gstLine}</td>
+                        <td class="uni-status-col"><span class="uni-pill ${stClass}" style="color:${stColor}; font-size:10px; font-weight:700;">${rawStatus}</span></td>
                         <td class="number-col">${formatMoney(taxable)}</td>
-                        <td class="number-col">${formatMoney(gst)}</td>
+                        <td class="number-col" style="color: var(--md-primary);">${formatMoney(gst)}</td>
                         <td class="number-col"><strong style="color: ${mult < 0 ? 'var(--md-error)' : 'var(--md-on-surface)'};">${formatMoney(grand)}</strong></td>
                     </tr>`;
                 });
-
                 kpiCardsHTML = `
-                    <div class="kpi-box"><div class="kpi-label">Total Documents</div><div class="kpi-value">${docs.length} <span style="font-size: 11px; color: var(--md-error); font-weight: 600;">(${cnCount} Returns)</span></div></div>
-                    <div class="kpi-box"><div class="kpi-label">Total Taxable</div><div class="kpi-value">${formatMoney(tTaxable)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Documents</div><div class="kpi-value">${docs.length}${cnCount > 0 ? ` <span class="uni-kpi-sub" style="color: var(--md-error);">(${cnCount} Ret)</span>` : ''}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Taxable Value</div><div class="kpi-value">${formatMoney(tTaxable)}</div></div>
                     <div class="kpi-box"><div class="kpi-label">Total GST</div><div class="kpi-value" style="color: var(--md-primary);">${formatMoney(tGst)}</div></div>
                     <div class="kpi-box"><div class="kpi-label" style="color: var(--md-primary);">Net Grand Total</div><div class="kpi-value" style="color: var(--md-primary);">${formatMoney(tTotal)}</div></div>
                 `;
-                
                 if(docs.length > 0) {
                     tableRowsHTML += `<tr class="total-row">
-                        <td colspan="3" style="text-align:right;">TOTAL:</td>
+                        <td colspan="4" style="text-align:right;">TOTAL (${docs.length} ${docs.length === 1 ? 'Bill' : 'Bills'}):</td>
                         <td class="number-col">${formatMoney(tTaxable)}</td>
-                        <td class="number-col">${formatMoney(tGst)}</td>
+                        <td class="number-col" style="color: var(--md-primary);">${formatMoney(tGst)}</td>
                         <td class="number-col" style="color: var(--md-on-surface);">${formatMoney(tTotal)}</td>
                     </tr>`;
                 }
@@ -9005,12 +9055,14 @@ if (data.id && splitConfirmed) {
                     
                     tTaxable += taxable; tCgst += halfGst; tSgst += halfGst; tItc += gst;
                     
-                    const docLabel = p.poNo || p.invoiceNo || p.orderNo || String(p.id).substring(0,6).toUpperCase();
-                    
+                    const billNo = (p.invoiceNo || '').trim();
+                    const refNo = (p.poNo || p.orderNo || '').trim();
+                    const docLabel = billNo || refNo || String(p.id).substring(0,6).toUpperCase();
+                    const refSub = (billNo && refNo && billNo !== refNo) ? `<br><span class="uni-sub-ref" style="color:var(--md-text-muted); font-size:10px;">PO: ${refNo}</span>` : '';
                     tableRowsHTML += `
                     <tr>
-                        <td>${window.Utils.formatDateDisplay(p.date)}</td>
-                        <td><strong>${docLabel}</strong> ${mult < 0 ? `<br><span style="color:var(--md-error); font-size:9px; font-weight:800;">(DEBIT NOTE)</span>` : ''}</td>
+                        <td class="uni-date-col">${window.Utils.formatDateDisplay(p.date)}</td>
+                        <td class="uni-doc-col"><strong>${docLabel}</strong> ${mult < 0 ? `<span class="uni-pill uni-pill-ret" style="color:var(--md-error); font-size:9px; font-weight:800;">DR NOTE</span>` : ''}${refSub}</td>
                         <td>${p.supplierName} <br><span style="font-size:10px; color:var(--md-text-muted); font-family: monospace;">${p.supplierGst || 'UNREGISTERED'}</span></td>
                         <td class="number-col">${formatMoney(taxable)}</td>
                         <td class="number-col" style="color:var(--md-primary);">${formatMoney(halfGst)}</td>
@@ -9092,80 +9144,17 @@ if (data.id && splitConfirmed) {
                     if (boxes.length % 2 === 1 && idx === boxes.length - 1) b.style.gridColumn = 'span 2';
                 });
             }
+            const oldCardsWrap = document.getElementById('uni-report-cards-list');
+            if (oldCardsWrap) oldCardsWrap.remove();
             const tblEl = document.querySelector('#activity-universal-report .report-table');
-            if (tblEl) tblEl.style.display = 'none';
+            if (tblEl) tblEl.style.display = 'table';
             const tblCard = document.getElementById('uni-report-table-card') || (tblEl ? tblEl.closest('.m3-card') : null);
             if (tblCard) {
-                tblCard.style.cssText = 'background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; overflow: visible !important;';
-                let cardsWrap = document.getElementById('uni-report-cards-list');
-                if (!cardsWrap) {
-                    cardsWrap = document.createElement('div');
-                    cardsWrap.id = 'uni-report-cards-list';
-                    tblCard.appendChild(cardsWrap);
-                }
-                if (!tableRowsHTML) {
-                    cardsWrap.innerHTML = `<div class="m3-card" style="text-align:center; padding: 36px 20px !important; color: var(--md-text-muted); font-weight: 600; border: 1px solid var(--md-outline-variant) !important; border-radius: 12px !important;">No records found for the selected period.</div>`;
-                } else {
-                    const tempTbody = document.createElement('tbody');
-                    tempTbody.innerHTML = tableRowsHTML;
-                    let cardsHTML = '';
-                    Array.from(tempTbody.querySelectorAll('tr')).forEach(tr => {
-                        const tds = Array.from(tr.querySelectorAll('td')).map(td => td.innerHTML.trim());
-                        if (tr.classList.contains('total-row')) return;
-                        let leftTitle = '', rightVal = '', subLine = '', footerItems = [], borderColor = 'var(--md-primary)';
-                        if (reportType === 'sales_register' || reportType === 'purchase_register') {
-                            const isRet = tds[1] && (tds[1].includes('CREDIT NOTE') || tds[1].includes('DEBIT NOTE'));
-                            borderColor = isRet ? 'var(--md-error)' : (reportType === 'sales_register' ? '#0061a4' : '#d84315');
-                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[2]}</strong>`;
-                            rightVal = `<span style="font-size:16px; font-weight:900;">${tds[5]}</span>`;
-                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; color:var(--md-on-surface);">${tds[1].replace('<br>', ' ')}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
-                            footerItems = [`<span>Taxable: <strong style="color:var(--md-on-surface);">${tds[3]}</strong></span>`, `<span>GST: <strong style="color:var(--md-primary);">${tds[4]}</strong></span>`];
-                        } else if (reportType === 'customer_sales' || reportType === 'supplier_purchases') {
-                            borderColor = reportType === 'customer_sales' ? '#146c2e' : '#6a1b9a';
-                            leftTitle = `<div style="display:flex; align-items:center; gap:8px;"><span style="background:rgba(0,97,164,0.1); color:var(--md-primary); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:900;">${tds[0]}</span><strong style="font-size:15px; color:var(--md-on-surface);">${tds[1]}</strong></div>`;
-                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[3]}</span>`;
-                            footerItems = [`<span>Total Bills: <strong style="color:var(--md-on-surface);">${tds[2]}</strong></span>`, `<span>Share of Volume: ${tds[4]}</span>`];
-                        } else if (reportType === 'receivables_aging' || reportType === 'payables_aging') {
-                            borderColor = 'var(--md-error)';
-                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[0]}</strong>`;
-                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[4]}</span>`;
-                            footerItems = [`<span>0-30D: <strong style="color:var(--md-success);">${tds[1]}</strong></span>`, `<span>31-60D: <strong style="color:#d97706;">${tds[2]}</strong></span>`, `<span>60+D: <strong style="color:var(--md-error);">${tds[3]}</strong></span>`];
-                        } else if (reportType === 'item_purchases') {
-                            borderColor = '#0061a4';
-                            leftTitle = `<div style="display:flex; align-items:center; gap:8px;"><span style="background:rgba(0,97,164,0.1); color:var(--md-primary); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:900;">${tds[0]}</span><strong style="font-size:15px; color:var(--md-on-surface);">${tds[1]}</strong></div>`;
-                            rightVal = `<span style="font-size:16px; font-weight:900; color:var(--md-on-surface);">${tds[4]}</span>`;
-                            footerItems = [`<span>Qty Bought: <strong style="color:var(--md-on-surface);">${tds[2]}</strong></span>`, `<span>Avg Buy Price: <strong style="color:var(--md-primary);">${tds[3]}</strong></span>`];
-                        } else if (reportType === 'job_costing') {
-                            borderColor = '#6a1b9a';
-                            leftTitle = `<strong style="font-size:15px; color:var(--md-on-surface);">${tds[2]}</strong>`;
-                            rightVal = `<span style="font-size:16px; font-weight:900;">${tds[4]}</span>`;
-                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">#${tds[1]}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
-                            footerItems = [`<span>Linked Docs: ${tds[3]}</span>`];
-                        } else if (reportType === 'gstr2_purchases') {
-                            borderColor = '#146c2e';
-                            leftTitle = `<div style="font-size:14.5px; color:var(--md-on-surface); font-weight:700;">${tds[2]}</div>`;
-                            rightVal = `<div style="text-align:right;"><small style="font-size:9px; color:var(--md-text-muted); text-transform:uppercase; font-weight:800; display:block;">Total ITC</small><span style="font-size:16px; font-weight:900;">${tds[6]}</span></div>`;
-                            subLine = `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">${tds[1].replace('<br>', ' ')}</span> <span style="font-size:11px; color:var(--md-text-muted); font-weight:600;">• ${tds[0]}</span>`;
-                            footerItems = [`<span>Taxable: <strong style="color:var(--md-on-surface);">${tds[3]}</strong></span>`, `<span>CGST: <strong style="color:var(--md-primary);">${tds[4]}</strong></span>`, `<span>SGST: <strong style="color:var(--md-primary);">${tds[5]}</strong></span>`];
-                        } else if (reportType === 'cashbook_summary') {
-                            const isIn = tds[4] && tds[4] !== '-';
-                            borderColor = isIn ? 'var(--md-success)' : 'var(--md-error)';
-                            leftTitle = `<div style="font-size:14.5px; color:var(--md-on-surface);">${tds[2]}</div>`;
-                            rightVal = `<span style="font-size:16px; font-weight:900; color:${borderColor};">${isIn ? '+' + tds[4] : '-' + tds[5]}</span>`;
-                            footerItems = [`<span><strong>${tds[1]}</strong> • ${tds[0]}</span>`, `<span style="background:var(--md-surface-variant); padding:2px 8px; border-radius:6px; font-weight:700; color:var(--md-on-surface);">${tds[3]}</span>`];
-                        }
-                        cardsHTML += `
-                        <div class="m3-card" style="padding: 14px 16px !important; margin: 0 -16px !important; border-radius: 0 !important; border: none !important; border-bottom: 1px solid var(--md-outline-variant) !important; box-shadow: none !important;">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                                <div style="flex:1; min-width:0;">${leftTitle}${subLine ? `<div style="margin-top:6px; display:flex; align-items:center; flex-wrap:wrap; gap:6px;">${subLine}</div>` : ''}</div>
-                                <div style="flex-shrink:0; text-align:right; font-variant-numeric:tabular-nums;">${rightVal}</div>
-                            </div>
-                            ${footerItems.length > 0 ? `<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:6px; font-size:11.5px; color:var(--md-text-muted); font-variant-numeric:tabular-nums;">${footerItems.join('')}</div>` : ''}
-                        </div>`;
-                    });
-                    cardsWrap.innerHTML = cardsHTML;
-                }
+                tblCard.style.cssText = '';
+                tblCard.dataset.reportType = reportType;
             }
+            const scrollWrap = document.getElementById('uni-report-scroll-wrap');
+            if (scrollWrap) scrollWrap.scrollLeft = 0;
 
             // Save State for PDF Engine
             app.state.currentReportHeaders = tableHeaders;
