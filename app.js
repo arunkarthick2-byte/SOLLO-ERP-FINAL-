@@ -743,16 +743,30 @@ const app = {
                         }
                     });
 
+                    window._warehouseCapitalList = [];
                     (UI.state.rawData.items || []).forEach(i => {
                         const rawGst = parseFloat(i.stockGst);
                         const rawNon = parseFloat(i.stockNonGst);
-                        const totalStock = (isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst) + (isNaN(rawNon) ? 0 : rawNon);
-
+                        const gstStock = isNaN(rawGst) ? (parseFloat(i.stock) || 0) : rawGst;
+                        const nonGstStock = isNaN(rawNon) ? 0 : rawNon;
+                        const totalStock = gstStock + nonGstStock;
                         const pData = purchaseMap[String(i.id)] || { qty: 0, val: 0 };
                         let trueCost = parseFloat(i.buyPrice) || 0;
                         if (pData.qty > 0) trueCost = pData.val / pData.qty;
-
-                        totalValuation += (totalStock * trueCost);
+                        const valuation = totalStock * trueCost;
+                        totalValuation += valuation;
+                        if (totalStock > 0) {
+                            window._warehouseCapitalList.push({
+                                id: i.id,
+                                name: i.name || 'Unnamed Item',
+                                uom: i.uom || i.unit || '',
+                                gstStock,
+                                nonGstStock,
+                                totalStock,
+                                trueCost,
+                                valuation
+                            });
+                        }
                     });
 
                     if (valEl) valEl.innerText = '₹' + totalValuation.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -903,6 +917,266 @@ const app = {
                 </div>
                 <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface); position: relative; padding: 0;">
                     <ul id="aging-bucket-results" style="margin: 0; padding: 0 0 16px 0; border: none; list-style: none; display: flex; flex-direction: column;">${renderRows(list)}</ul>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+    openFulfillmentBucketModal: (statusKey, title) => {
+        const buckets = window._fulfillmentBuckets || { Open: [], Shipped: [], Completed: [] };
+        const rawList = statusKey === 'Revenue'
+            ? (Array.isArray(window._revenueBucketList) ? window._revenueBucketList : [])
+            : (statusKey === 'All'
+                ? [...(buckets.Open || []), ...(buckets.Shipped || []), ...(buckets.Completed || [])]
+                : (buckets[statusKey] || []));
+        const list = rawList.slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (parseFloat(b.grandTotal) || 0) - (parseFloat(a.grandTotal) || 0));
+        const existingSheet = document.getElementById('sheet-fulfillment-bucket');
+        const existingOverlay = document.getElementById('fulfillment-bucket-overlay');
+        if (existingSheet) existingSheet.remove();
+        if (existingOverlay) existingOverlay.remove();
+        const total = list.reduce((sum, s) => sum + ((parseFloat(s.grandTotal) || 0) * (s.documentType === 'return' ? -1 : 1)), 0);
+        const orderCount = list.filter(s => s.documentType !== 'return').length;
+        const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const getColor = (st) => st === 'Open' ? 'var(--md-error)' : (st === 'Shipped' ? '#f57f17' : (st === 'Completed' ? 'var(--md-success)' : 'var(--md-primary)'));
+        const getTint = (st) => st === 'Open' ? 'rgba(186, 26, 26, 0.12)' : (st === 'Shipped' ? 'rgba(245, 127, 23, 0.14)' : (st === 'Completed' ? 'rgba(20, 108, 46, 0.12)' : 'rgba(0, 97, 164, 0.12)'));
+        const accent = getColor(statusKey);
+        const renderRows = (items) => items.length === 0
+            ? '<li style="padding: 36px 16px; text-align: center; color: var(--md-text-muted); font-size: 13px;">No orders in this fulfillment stage.</li>'
+            : items.map(item => {
+                const isRet = item.documentType === 'return';
+                const amt = (parseFloat(item.grandTotal) || 0) * (isRet ? -1 : 1);
+                const partyName = item.customerName || item.partyName || 'Walk-in Customer';
+                const invNo = item.orderNo || item.invoiceNo || 'Draft';
+                const st = item.status || 'Open';
+                const badgeText = isRet ? 'Return' : st;
+                return `
+                <li class="tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${String(item.id).replace(/'/g, "\\'")}');" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin: 0; border-radius: 0; background: transparent; border: none; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;">
+                    <div style="min-width: 0; padding-right: 12px;">
+                        <div style="font-size: 14px; font-weight: 700; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(partyName)}</div>
+                        <div style="font-size: 12px; color: var(--md-text-muted); margin-top: 3px;">${esc(invNo)} • ${esc(item.date || '-')}</div>
+                    </div>
+                    <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <div style="font-size: 14px; font-weight: 800; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">${fmt(amt)}</div>
+                        <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: ${getTint(st)}; color: ${getColor(st)};">${esc(badgeText)}</span>
+                    </div>
+                </li>`;
+            }).join('');
+        window._filterFulfillmentBucketList = (q) => {
+            const ul = document.getElementById('fulfillment-bucket-results');
+            if (!ul) return;
+            const term = String(q || '').trim().toLowerCase();
+            const filtered = !term ? list : list.filter(x => String(x.customerName || x.partyName || '').toLowerCase().includes(term) || String(x.orderNo || '').toLowerCase().includes(term) || String(x.invoiceNo || '').toLowerCase().includes(term));
+            ul.innerHTML = renderRows(filtered);
+        };
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+                <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
+                        </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; margin: 0 -16px 12px -16px; border-radius: 0; background: var(--md-surface-variant); border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">${orderCount} ${statusKey === 'Revenue' ? 'Invoice' : 'Order'}${orderCount === 1 ? '' : 's'}</span>
+                        <strong style="font-size: 15px; font-weight: 800; color: ${accent}; font-variant-numeric: tabular-nums;">${fmt(total)}</strong>
+                    </div>
+                    <div class="search-container" style="position: relative; margin-bottom: 0; flex-shrink: 0;">
+                        <span class="material-symbols-outlined" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--md-outline);">search</span>
+                        <input type="text" placeholder="Search party or invoice..." autocomplete="off" oninput="if(window._filterFulfillmentBucketList) window._filterFulfillmentBucketList(this.value)" style="width: 100%; border: none; font-size: 15.5px; background: transparent; outline: none;">
+                    </div>
+                </div>
+                <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface); position: relative; padding: 0;">
+                    <ul id="fulfillment-bucket-results" style="margin: 0; padding: 0 0 16px 0; border: none; list-style: none; display: flex; flex-direction: column;">${renderRows(list)}</ul>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+    openOverdueBucketModal: (title = 'Overdue Collections') => {
+        const rawList = Array.isArray(window._overdueBucketList) ? window._overdueBucketList : [];
+        const list = rawList.slice().sort((a, b) => (b.diffDays || 0) - (a.diffDays || 0) || (b.balance || 0) - (a.balance || 0));
+        const existingSheet = document.getElementById('sheet-overdue-bucket');
+        const existingOverlay = document.getElementById('overdue-bucket-overlay');
+        if (existingSheet) existingSheet.remove();
+        if (existingOverlay) existingOverlay.remove();
+        const total = list.reduce((sum, x) => sum + (parseFloat(x.balance) || 0), 0);
+        const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const renderRows = (items) => items.length === 0
+            ? '<li style="padding: 36px 16px; text-align: center; color: var(--md-text-muted); font-size: 13px;">No overdue invoices found.</li>'
+            : items.map(item => {
+                const safeId = String(item.id || '').replace(/'/g, "\\'");
+                const safeName = String(item.customerName || 'Unknown Party').replace(/'/g, "\\'");
+                const safePhone = String(item.phone || '').replace(/'/g, "\\'");
+                const safeDocNo = String(item.docNo || '').replace(/'/g, "\\'");
+                return `
+                <li class="tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${safeId}');" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin: 0; border-radius: 0; background: transparent; border: none; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer; gap: 12px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 14.5px; font-weight: 700; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(item.customerName || 'Unknown Party')}</div>
+                        <div style="font-size: 12px; color: var(--md-text-muted); font-weight: 600; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(item.docNo || 'Draft')} • ${esc(item.dateDisplay || item.date || '-')}</div>
+                    </div>
+                    <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+                        <div style="font-size: 14.5px; font-weight: 800; color: var(--md-error); font-variant-numeric: tabular-nums;">${fmt(item.balance)}</div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="background: rgba(186, 26, 26, 0.12); color: var(--md-error); padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 800; white-space: nowrap;">${item.diffDays || 0}d overdue</span>
+                            <div class="tap-target" title="WhatsApp Reminder" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareOverdueReminder('${safePhone}', '${safeName}', ${parseFloat(item.balance) || 0}, '${safeDocNo}');" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(22, 163, 74, 0.12); color: #16a34a; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                            </div>
+                            <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${safeId}'; window.app.generatePDF('sales'); }" style="width: 28px; height: 28px; border-radius: 50%; background: rgba(186, 26, 26, 0.1); color: var(--md-error); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;">
+                                <span class="material-symbols-outlined" style="font-size: 17px;">picture_as_pdf</span>
+                            </div>
+                        </div>
+                    </div>
+                </li>`;
+            }).join('');
+        window._filterOverdueBucketList = (q) => {
+            const ul = document.getElementById('overdue-bucket-results');
+            if (!ul) return;
+            const term = String(q || '').trim().toLowerCase();
+            const filtered = !term ? list : list.filter(x => String(x.customerName || '').toLowerCase().includes(term) || String(x.docNo || '').toLowerCase().includes(term));
+            ul.innerHTML = renderRows(filtered);
+        };
+        const html = `<div id="overdue-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-overdue-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-overdue-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+                <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-overdue-bucket')?.remove(); document.getElementById('overdue-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
+                        </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; margin: 0 -16px 12px -16px; border-radius: 0; background: var(--md-surface-variant); border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">${list.length} Overdue Bill${list.length === 1 ? '' : 's'}</span>
+                        <strong style="font-size: 15px; font-weight: 800; color: var(--md-error); font-variant-numeric: tabular-nums;">${fmt(total)}</strong>
+                    </div>
+                    <div class="search-container" style="position: relative; margin-bottom: 0; flex-shrink: 0;">
+                        <span class="material-symbols-outlined" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--md-outline);">search</span>
+                        <input type="text" placeholder="Search party or invoice..." autocomplete="off" oninput="if(window._filterOverdueBucketList) window._filterOverdueBucketList(this.value)" style="width: 100%; border: none; font-size: 15.5px; background: transparent; outline: none;">
+                    </div>
+                </div>
+                <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface); position: relative; padding: 0;">
+                    <ul id="overdue-bucket-results" style="margin: 0; padding: 0 0 16px 0; border: none; list-style: none; display: flex; flex-direction: column;">${renderRows(list)}</ul>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+    openWarehouseCapitalModal: (title = 'Warehouse Capital') => {
+        const rawList = Array.isArray(window._warehouseCapitalList) ? window._warehouseCapitalList : [];
+        const list = rawList.slice().sort((a, b) => (b.valuation || 0) - (a.valuation || 0));
+        const existingSheet = document.getElementById('sheet-fulfillment-bucket');
+        const existingOverlay = document.getElementById('fulfillment-bucket-overlay');
+        if (existingSheet) existingSheet.remove();
+        if (existingOverlay) existingOverlay.remove();
+        const total = list.reduce((sum, x) => sum + (parseFloat(x.valuation) || 0), 0);
+        const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const renderRows = (items) => items.length === 0
+            ? '<li style="padding: 36px 16px; text-align: center; color: var(--md-text-muted); font-size: 13px;">No items in stock.</li>'
+            : items.map(item => {
+                const safeId = String(item.id || '').replace(/'/g, "\\'");
+                const safeName = String(item.name || 'Unnamed Item').replace(/'/g, "\\'");
+                const fmtQty = (q) => Number.isInteger(q) ? String(q) : (parseFloat(q) || 0).toFixed(2);
+                const uomLabel = item.uom ? ' ' + item.uom : '';
+                const costUnit = item.uom ? ' / ' + item.uom : '';
+                return `
+                <li class="tap-target" onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${safeId}', '${safeName}');" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin: 0; border-radius: 0; background: transparent; border: none; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer; gap: 12px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 14.5px; font-weight: 700; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(item.name)}</div>
+                        <div style="font-size: 12px; color: var(--md-text-muted); font-weight: 600; margin-top: 3px;">GST: ${esc(fmtQty(item.gstStock))} • Non-GST: ${esc(fmtQty(item.nonGstStock))}</div>
+                        <div style="font-size: 11.5px; color: var(--md-text-muted); margin-top: 2px;">Avg Cost: ${fmt(item.trueCost)}${esc(costUnit)}</div>
+                    </div>
+                    <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <div style="font-size: 14.5px; font-weight: 800; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">${fmt(item.valuation)}</div>
+                        <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(0, 97, 164, 0.12); color: var(--md-primary);">${esc(fmtQty(item.totalStock))}${esc(uomLabel)}</span>
+                    </div>
+                </li>`;
+            }).join('');
+        window._filterWarehouseCapitalList = (q) => {
+            const ul = document.getElementById('warehouse-capital-results');
+            if (!ul) return;
+            const term = String(q || '').trim().toLowerCase();
+            const filtered = !term ? list : list.filter(x => String(x.name || '').toLowerCase().includes(term));
+            ul.innerHTML = renderRows(filtered);
+        };
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+                <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
+                        </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; margin: 0 -16px 12px -16px; border-radius: 0; background: var(--md-surface-variant); border-top: 1px solid var(--md-outline-variant); border-bottom: 1px solid var(--md-outline-variant);">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--md-text-muted);">${list.length} Item${list.length === 1 ? '' : 's'} in Stock</span>
+                        <strong style="font-size: 15px; font-weight: 800; color: var(--md-primary); font-variant-numeric: tabular-nums;">${fmt(total)}</strong>
+                    </div>
+                    <div class="search-container" style="position: relative; margin-bottom: 0; flex-shrink: 0;">
+                        <span class="material-symbols-outlined" style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--md-outline);">search</span>
+                        <input type="text" placeholder="Search product..." autocomplete="off" oninput="if(window._filterWarehouseCapitalList) window._filterWarehouseCapitalList(this.value)" style="width: 100%; border: none; font-size: 15.5px; background: transparent; outline: none;">
+                    </div>
+                </div>
+                <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface); position: relative; padding: 0;">
+                    <ul id="warehouse-capital-results" style="margin: 0; padding: 0 0 16px 0; border: none; list-style: none; display: flex; flex-direction: column;">${renderRows(list)}</ul>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+    openNetProfitModal: (title = 'True Net Profit') => {
+        const d = window._netProfitBreakdown || { totalSales: 0, outputGst: 0, indirectIncome: 0, netRevenue: 0, cogs: 0, stockGain: 0, grossMargin: 0, totalExpenses: 0, indirectExpense: 0, stockLoss: 0, totalOperatingCosts: 0, trueNetProfit: 0 };
+        const existingSheet = document.getElementById('sheet-fulfillment-bucket');
+        const existingOverlay = document.getElementById('fulfillment-bucket-overlay');
+        if (existingSheet) existingSheet.remove();
+        if (existingOverlay) existingOverlay.remove();
+        const fmt = (n) => {
+            const v = parseFloat(n) || 0;
+            return (v < 0 ? '-₹' : '₹') + Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const marginPct = d.netRevenue > 0 ? ((d.trueNetProfit / d.netRevenue) * 100).toFixed(1) + '% Net Margin' : '0.0% Net Margin';
+        const profitColor = d.trueNetProfit >= 0 ? 'var(--md-success)' : 'var(--md-error)';
+        const row = (label, val, opts = {}) => {
+            const bg = opts.highlight ? 'var(--md-surface-variant)' : 'transparent';
+            const fw = opts.bold ? '800' : '600';
+            const col = opts.color || 'var(--md-on-surface)';
+            return `<li style="display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; margin: 0; background: ${bg}; border-bottom: 1px solid var(--md-outline-variant);">
+                <span style="font-size: 13.5px; font-weight: ${fw}; color: ${opts.bold ? 'var(--md-on-surface)' : 'var(--md-text-muted)'};">${esc(label)}</span>
+                <strong style="font-size: 14px; font-weight: ${fw}; color: ${col}; font-variant-numeric: tabular-nums;">${opts.prefix || ''}${fmt(val)}</strong>
+            </li>`;
+        };
+        let rowsHtml = '';
+        rowsHtml += row('Gross Sales (incl. GST)', d.totalSales);
+        if (d.outputGst) rowsHtml += row('Less: Output GST', -Math.abs(d.outputGst), { color: 'var(--md-text-muted)' });
+        if (d.indirectIncome) rowsHtml += row('Add: Indirect Income', d.indirectIncome, { color: 'var(--md-success)' });
+        rowsHtml += row('Net Revenue', d.netRevenue, { bold: true, highlight: true });
+        rowsHtml += row('Less: Cost of Goods Sold (COGS)', -Math.abs(d.cogs), { color: 'var(--md-error)' });
+        if (d.stockGain) rowsHtml += row('Add: Stock Gains', d.stockGain, { color: 'var(--md-success)' });
+        rowsHtml += row('Gross Margin', d.grossMargin, { bold: true, highlight: true });
+        rowsHtml += row('Less: Direct Expenses', -Math.abs(d.totalExpenses), { color: 'var(--md-error)' });
+        if (d.indirectExpense) rowsHtml += row('Less: Indirect Expenses', -Math.abs(d.indirectExpense), { color: 'var(--md-error)' });
+        if (d.stockLoss) rowsHtml += row('Less: Stock Loss', -Math.abs(d.stockLoss), { color: 'var(--md-error)' });
+        rowsHtml += row('True Net Profit', d.trueNetProfit, { bold: true, highlight: true, color: profitColor });
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+                <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                            <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
+                        </button>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; margin: 0 -16px; border-radius: 0; background: var(--md-surface-variant); border-top: 1px solid var(--md-outline-variant);">
+                        <span style="font-size: 12px; font-weight: 700; color: var(--md-text-muted);">${esc(marginPct)}</span>
+                        <strong style="font-size: 15px; font-weight: 800; color: ${profitColor}; font-variant-numeric: tabular-nums;">${fmt(d.trueNetProfit)}</strong>
+                    </div>
+                </div>
+                <div style="flex: 1 1 auto; overflow-y: auto; background: var(--md-surface); padding: 0;">
+                    <ul style="margin: 0; padding: 0; border: none; list-style: none;">${rowsHtml}</ul>
+                </div>
+                <div style="padding: 12px 16px; border-top: 1px solid var(--md-outline-variant); background: var(--md-surface); flex-shrink: 0;">
+                    <button type="button" class="btn-primary tap-target" onclick="if(window._openFullPnLFromModal) window._openFullPnLFromModal();" style="width: 100%; height: 44px; border-radius: 10px; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                        <span class="material-symbols-outlined" style="font-size: 19px;">monitoring</span> Open Full P&amp;L Report
+                    </button>
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);

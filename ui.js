@@ -1758,7 +1758,7 @@ const UI = {
                     }
                     const attentionClass = isOverdue ? 'requires-attention' : '';
                     
-                    const warningHTML = isOverdue ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:3px 7px; border-radius:5px; display:inline-block;">⚠️ OVERDUE: ${exactDays}D</span>` : '';
+                    const warningHTML = isOverdue ? `<span style="color:var(--md-error); font-size:10.5px; font-weight:700; background:rgba(186, 26, 26, 0.1); padding:2px 8px; border-radius:999px; line-height:1.35; display:inline-flex; align-items:center; white-space:nowrap;">${exactDays}d overdue</span>` : '';
                     
                     return `
                     <div class="m3-card tap-target list-card ${attentionClass}" style="padding: 13px 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="window.openInvoiceOverview('sales', '${s.id}')">
@@ -1780,7 +1780,7 @@ const UI = {
                             <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; text-align: right;">
                                 <strong style="font-size: 16px; color: ${isReturn ? 'var(--md-error)' : 'var(--md-on-surface)'}; line-height: 1.2; font-variant-numeric: tabular-nums;">${isReturn ? '-' : ''}\u20B9${Math.abs(parseFloat(s.grandTotal) || parseFloat(s.amount) || 0).toFixed(2)}</strong>
                                 <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                                    <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; display: inline-block; white-space: nowrap;">${statusText}</span>
+                                    <span style="background: ${statusBg}; color: ${statusColor}; padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; line-height: 1.35; display: inline-flex; align-items: center; white-space: nowrap;">${statusText}</span>
                                     ${warningHTML}
                                 </div>
                             </div>
@@ -1935,7 +1935,7 @@ const UI = {
                             const attentionClass = (p.status === 'Open') ? 'requires-attention' : '';
                             
                             // 🚨 ENTERPRISE UX: Fixed-height structural grid for perfect uniformity!
-                            const warningHTML = (p.status === 'Open') ? `<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:3px 7px; border-radius:5px; display:inline-block;">⚠️ DRAFT PO</span>` : '';
+                            const warningHTML = '';
                             
                             return `
 <div class="m3-card tap-target list-card ${attentionClass}" style="padding: 13px 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); border: 1px solid var(--md-outline-variant); ${isReturn ? 'border-left: 4px solid var(--md-error);' : ''}" onclick="window.openInvoiceOverview('purchase', '${p.id}')">
@@ -1957,7 +1957,7 @@ const UI = {
         <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; text-align: right;">
             <strong style="font-size: 16px; color: ${isReturn ? 'var(--md-success)' : 'var(--md-on-surface)'}; line-height: 1.2; font-variant-numeric: tabular-nums;">${isReturn ? '-' : ''}\u20B9${Math.abs(parseFloat(p.grandTotal) || parseFloat(p.amount) || 0).toFixed(2)}</strong>
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                <span style="background: ${statusBg}; color: ${statusColor}; border: 1px solid ${statusColor}40; padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; display: inline-block; white-space: nowrap;">${statusText}</span>
+                <span style="background: ${statusBg}; color: ${statusColor}; padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; line-height: 1.35; display: inline-flex; align-items: center; white-space: nowrap;">${statusText}</span>
                 ${warningHTML}
             </div>
         </div>
@@ -2168,7 +2168,7 @@ const UI = {
                                 <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
                                     <strong style="font-size: 15px; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin-bottom: 4px;">${UI.highlightText(i.name || 'Unnamed Product', searchTerm)}</strong>
                                     <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                        <span style="font-size: 11px; font-weight: 800; color: ${isLowStock ? 'var(--md-error)' : 'var(--md-text-muted)'}; background: ${isLowStock ? 'rgba(186, 26, 26, 0.08)' : 'var(--md-surface-variant)'}; padding: 2px 6px; border-radius: 4px;">Tot: ${currentStock} ${i.uom || ''}</span>
+                                        <span style="font-size: 11px; font-weight: 700; color: ${isLowStock ? 'var(--md-error)' : 'var(--md-primary)'}; background: ${isLowStock ? 'rgba(186, 26, 26, 0.1)' : 'rgba(0, 97, 164, 0.1)'}; padding: 2px 8px; border-radius: 999px; line-height: 1.3; display: inline-flex; align-items: center;">Tot: ${currentStock} ${i.uom || ''}</span>
                                         <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 600;">GST: ${gstStock} | Non: ${nonGstStock}</span>
                                     </div>
                                 </div>
@@ -2259,49 +2259,28 @@ const UI = {
 
                     // 🚨 ENTERPRISE FIX: Uniform Layout Engine
                     // Moves tax breakdown to the left column to prevent right-side vertical expansion
-                    if (bal > 0.01) { 
-                        balText = `\u20B9${bal.toFixed(2)}`; 
-                        balColor = 'var(--md-error)'; 
-                        statusBadge = `<span style="background:#dc2626; color:#ffffff; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; letter-spacing:0.5px; margin-top:4px; display:inline-block; box-shadow:0 2px 4px rgba(220,38,38,0.3);">TO ${isCustomer ? 'RECEIVE' : 'PAY'}</span>`;
-                        
-                        // Keep tax info neatly on one line to preserve row height
-                        if (split.gst > 0.01 && split.non > 0.01) taxInfo = `GST: \u20B9${split.gst.toFixed(0)} | Non: \u20B9${split.non.toFixed(0)}`;
-                        else if (split.gst > 0.01) taxInfo = `GST: \u20B9${split.gst.toFixed(2)}`;
-                        else if (split.non > 0.01) taxInfo = `Non: \u20B9${split.non.toFixed(2)}`;
+                    const fmtIn = (v) => '\u20B9' + Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const fmtShort = (v) => '\u20B9' + Math.abs(v).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+                    if (bal > 0.01) {
+                        balText = fmtIn(bal);
+                        balColor = 'var(--md-error)';
+                        statusBadge = `<span style="background:rgba(186, 26, 26, 0.12); color:var(--md-error); padding:1px 7px; border-radius:999px; font-size:10px; font-weight:700; line-height:1.35; display:inline-flex; align-items:center; white-space:nowrap;">To ${isCustomer ? 'Receive' : 'Pay'}</span>`;
                     }
-                    else if (bal < -0.01) { 
-                        balText = `\u20B9${Math.abs(bal).toFixed(2)}`; 
-                        balColor = 'var(--md-success)'; 
-                        statusBadge = `<span style="background:#16a34a; color:#ffffff; padding:2px 6px; border-radius:4px; font-size:9px; font-weight:900; letter-spacing:0.5px; margin-top:4px; display:inline-block; box-shadow:0 2px 4px rgba(22,163,74,0.3);">ADVANCE</span>`;
-                        
-                        // 🚨 NEW: Explicitly label which pool the advance belongs to!
-                        if (split.gst < -0.01 && split.non < -0.01) taxInfo = `GST Adv: \u20B9${Math.abs(split.gst).toFixed(0)} | Non Adv: \u20B9${Math.abs(split.non).toFixed(0)}`;
-                        else if (split.gst < -0.01) taxInfo = `GST Advance: \u20B9${Math.abs(split.gst).toFixed(2)}`;
-                        else if (split.non < -0.01) taxInfo = `Non-GST Advance: \u20B9${Math.abs(split.non).toFixed(2)}`;
+                    else if (bal < -0.01) {
+                        balText = fmtIn(bal);
+                        balColor = 'var(--md-success)';
+                        statusBadge = `<span style="background:rgba(20, 108, 46, 0.12); color:var(--md-success); padding:1px 7px; border-radius:999px; font-size:10px; font-weight:700; line-height:1.35; display:inline-flex; align-items:center; white-space:nowrap;">Advance</span>`;
                     }
-                    
                     const rowIcon = isCustomer ? 'person' : 'storefront';
                     const rowColor = isCustomer ? '#0061a4' : '#ba1a1a';
-                    
-                    // 🚨 DYNAMIC COLOR: Exact Balance + Separate Red/Green Badges for Due & Advance
-                    const badgeParts = [];
-                    if (split.gst > 0.01) {
-                        badgeParts.push(`<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">GST: \u20B9${split.gst.toFixed(2)}</span>`);
-                    } else if (split.gst < -0.01) {
-                        badgeParts.push(`<span style="color:var(--md-success); font-size:10px; font-weight:800; background:rgba(20, 108, 46, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">GST Adv: \u20B9${Math.abs(split.gst).toFixed(2)}</span>`);
-                    }
-                    if (split.non > 0.01) {
-                        badgeParts.push(`<span style="color:var(--md-error); font-size:10px; font-weight:800; background:rgba(186, 26, 26, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">Non: \u20B9${split.non.toFixed(2)}</span>`);
-                    } else if (split.non < -0.01) {
-                        badgeParts.push(`<span style="color:var(--md-success); font-size:10px; font-weight:800; background:rgba(20, 108, 46, 0.08); padding:4px 8px; border-radius:4px; display:inline-block;">Non-GST Adv: \u20B9${Math.abs(split.non).toFixed(2)}</span>`);
-                    }
+                    const splitParts = [];
+                    if (split.gst > 0.01) splitParts.push(`<span style="color:var(--md-error);">GST ${fmtShort(split.gst)}</span>`);
+                    else if (split.gst < -0.01) splitParts.push(`<span style="color:var(--md-success);">GST Adv ${fmtShort(split.gst)}</span>`);
+                    if (split.non > 0.01) splitParts.push(`<span style="color:var(--md-error);">Non-GST ${fmtShort(split.non)}</span>`);
+                    else if (split.non < -0.01) splitParts.push(`<span style="color:var(--md-success);">Non-GST Adv ${fmtShort(split.non)}</span>`);
                     const advPoolAmt = advPoolMap[l.id] || 0;
-                    if (advPoolAmt > 0.01) {
-                        badgeParts.push(`<span style="color:#0284c7; font-size:10px; font-weight:800; background:rgba(2, 132, 199, 0.1); padding:4px 8px; border-radius:4px; display:inline-block;">Adv Pool: ₹${advPoolAmt.toFixed(2)}</span>`);
-                    }
-                    const taxHtml = badgeParts.join(' ');
-
-                    // STRICT ERP LOGIC: Compact Single-Row Card with 1-Tap Call, PDF & Ledger!
+                    if (advPoolAmt > 0.01) splitParts.push(`<span style="color:#0284c7;">Adv Pool ${fmtShort(advPoolAmt)}</span>`);
+                    const taxHtml = splitParts.join(' <span style="color:var(--md-outline);">•</span> ');
                     const safeName = String(l.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     const cleanPhone = String(l.phone || '').replace(/[^0-9+]/g, '');
                     const callBtn = cleanPhone ? `
@@ -2309,19 +2288,18 @@ const UI = {
                             <span class="material-symbols-outlined" style="font-size: 18px;">call</span>
                         </a>` : '';
                     return `
-                    <div class="m3-card tap-target" style="padding: 10px 16px !important; margin-bottom: 0 !important; border-radius: 0 !important; background: var(--md-surface); border-bottom: 1px solid rgba(148, 163, 184, 0.16) !important; position: relative; overflow: hidden;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
+                    <div class="m3-card tap-target" style="position: relative; overflow: hidden;" onclick="app.openPartyLedger('${l.id}', '${l.type}', '${safeName}')">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(0, 97, 164, 0.08); color: ${rowColor}; border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; box-shadow: none;">
                                 <span class="material-symbols-outlined" style="font-size: 20px;">${rowIcon}</span>
                             </div>
-                            
                             <div style="flex: 1; min-width: 0; padding-right: 6px; display: flex; flex-direction: column; justify-content: center;">
                                 <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; font-weight: 700; margin-bottom: 3px;">${UI.highlightText(l.name || 'Unnamed Party', searchTerm)}</strong>
-                                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                                    <small style="color: var(--md-text-muted); font-size: 12px; font-weight: 600;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
-                                    ${statusBadge ? statusBadge.replace('margin-top:4px;', 'margin-top:0;') : ''}
-                                    ${taxHtml ? taxHtml : ''}
+                                <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                                    <small style="color: var(--md-text-muted); font-size: 12px; font-weight: 600; white-space: nowrap;">${UI.highlightText(l.phone || 'No Phone', searchTerm)}</small>
+                                    ${statusBadge}
                                 </div>
+                                ${taxHtml ? `<div style="font-size: 11px; font-weight: 700; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums;">${taxHtml}</div>` : ''}
                             </div>
                             
                             <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px;">
@@ -3172,9 +3150,11 @@ const UI = {
             }
         });
 
-        sales.forEach(s => { 
+        window._revenueBucketList = [];
+        sales.forEach(s => {
             // 🚨 ENTERPRISE FIX: Block Cancelled Invoices from artificially inflating the Dashboard!
-            if(s.status !== 'Open' && s.status !== 'Cancelled' && isDateInRange(s.date)) { 
+            if(s.status !== 'Open' && s.status !== 'Cancelled' && isDateInRange(s.date)) {
+                window._revenueBucketList.push(s);
                 const isReturn = s.documentType === 'return';
                 const modifier = isReturn ? -1 : 1;
 
@@ -3261,7 +3241,8 @@ const UI = {
         
         // True Net Profit = Gross Margin minus Expenses and Stock Losses
         const totalOperatingCosts = totalExpenses + indirectExpense + stockLoss;
-        const trueNetProfit = grossMargin - totalOperatingCosts; 
+        const trueNetProfit = grossMargin - totalOperatingCosts;
+        window._netProfitBreakdown = { totalSales, outputGst, indirectIncome, netRevenue, cogs, stockGain, grossMargin, totalExpenses, indirectExpense, stockLoss, totalOperatingCosts, trueNetProfit };
 
         // UPGRADE 1: Enterprise Live Count-Up Animation Engine
         const salesEl = document.getElementById('dash-total-sales');
@@ -3279,23 +3260,25 @@ const UI = {
         // NEW: Operational Order Volume Tracking (Open, Shipped, Completed)
         let openOrders = 0, shippedOrders = 0, completedOrders = 0;
         let openCount = 0, shippedCount = 0, completedCount = 0;
-
+        window._fulfillmentBuckets = { Open: [], Shipped: [], Completed: [] };
         sales.forEach(s => {
             // Apply the global dashboard date filter to the pipeline
             if (isDateInRange(s.date) && s.status !== 'Cancelled') {
                 const isReturn = s.documentType === 'return';
                 const modifier = isReturn ? -1 : 1;
                 const val = (parseFloat(s.grandTotal) || 0) * modifier;
-                
                 if (s.status === 'Open') {
                     openOrders += val;
                     if (!isReturn) openCount++;
+                    window._fulfillmentBuckets.Open.push(s);
                 } else if (s.status === 'Shipped') {
                     shippedOrders += val;
                     if (!isReturn) shippedCount++;
+                    window._fulfillmentBuckets.Shipped.push(s);
                 } else if (s.status === 'Completed') {
                     completedOrders += val;
                     if (!isReturn) completedCount++;
+                    window._fulfillmentBuckets.Completed.push(s);
                 }
             }
         });
@@ -3431,55 +3414,53 @@ const UI = {
         }
 
         const overdueContainer = document.getElementById('overdue-reminders-container');
+        window._overdueBucketList = [];
         if (overdueContainer) {
             if (overdueSales.length > 0) {
                 overdueContainer.classList.remove('hidden');
-                document.getElementById('overdue-text').innerText = `${overdueSales.length} invoices pending over 15 days.`;
-                
-                document.getElementById('list-overdue').innerHTML = overdueSales.map(s => {
-                    // FIX: Update the dashboard display to match the new cross-linked math (including returns)!
+                const overdueItems = overdueSales.map(s => {
                     const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean))];
                     const totalReceived = uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${s.customerId}_${ref}`] || 0), 0);
                     const returnTotal = uniqueRefs.reduce((sum, ref) => sum + (dashboardReturnMap[ref] || 0), 0);
                     const balance = Math.max(0, (parseFloat(s.grandTotal) || 0) - totalReceived - returnTotal);
-                    
-                    // 🚨 ENTERPRISE UPGRADE: Exact Days Overdue Calculator!
                     const baseDate = s.shippedDate ? s.shippedDate : s.date;
-                    const parts = baseDate.split('-'); 
-                    const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]); 
+                    const parts = baseDate.split('-');
+                    const invoiceDate = new Date(parts[0], parts[1] - 1, parts[2]);
                     const tParts = todayStr.split('-');
                     const todayDate = new Date(tParts[0], tParts[1] - 1, tParts[2]);
                     const diffDays = Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24));
-
-                    // Find the customer's phone number from the loaded memory
                     const customer = window.UI.state.rawData.ledgers.find(l => l.id === s.customerId);
                     const phone = customer ? customer.phone : '';
-
-                    return `
-                    <div class="tap-target" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); cursor: pointer; gap: 12px;" onclick="window.openInvoiceOverview('sales', '${s.id}')">
-                        <div class="icon-circle" style="width: 38px; height: 38px; background: rgba(186, 26, 26, 0.08); color: var(--md-error); border-radius: 10px; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">warning</span>
-                        </div>
-                        <div style="flex: 1; min-width: 0; padding-right: 6px;">
-                            <strong class="large-text" style="color: var(--md-on-surface); font-size: 14.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25;">${s.customerName || 'Unknown Party'}</strong>
-                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 3px;">
-                                <small class="color-primary" style="font-size: 12px; font-weight: 600;">${s.orderNo || s.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</small>
-                                <span style="background: rgba(186, 26, 26, 0.08); color: var(--md-error); padding: 1px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 800; text-transform: uppercase;">${diffDays}D Overdue</span>
-                            </div>
-                        </div>
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; flex-shrink: 0;">
-                            <strong class="overdue-amt" style="font-size: 15px; color: var(--md-error); line-height: 1.1; font-variant-numeric: tabular-nums;">\u20B9${balance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px;">
-                                <div class="tap-target" title="WhatsApp Reminder" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); window.Utils.shareOverdueReminder('${phone}', '${String(s.customerName || '').replace(/'/g, "\\'")}', ${balance}, '${s.invoiceNo || ''}')" style="width: 24px; height: 24px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
-                                </div>
-                                <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 24px; height: 24px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: center; padding: 0;">
-                                    <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
-                                </div>
-                            </div>
-                        </div>
+                    return {
+                        id: s.id,
+                        customerName: s.customerName || 'Unknown Party',
+                        docNo: s.orderNo || s.invoiceNo || 'Draft',
+                        date: s.date || '',
+                        dateDisplay: (window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(s.date) : s.date) || 'Unknown Date',
+                        diffDays,
+                        balance,
+                        phone
+                    };
+                });
+                window._overdueBucketList = overdueItems;
+                const totalOverdueAmt = overdueItems.reduce((sum, x) => sum + x.balance, 0);
+                const overdueTextEl = document.getElementById('overdue-text');
+                if (overdueTextEl) overdueTextEl.innerText = `${overdueItems.length} invoice${overdueItems.length === 1 ? '' : 's'} pending over 15 days.`;
+                document.getElementById('list-overdue').innerHTML = `
+                    <div class="tap-target dash-fulfillment-row" onclick="if(window.app && window.app.openOverdueBucketModal) window.app.openOverdueBucketModal('Overdue Collections');" style="padding: 12px 16px; border-bottom: none !important; cursor: pointer;">
+                        <span class="dash-fulfillment-label" style="gap: 12px;">
+                            <span class="dash-stage-badge" style="background: rgba(186, 26, 26, 0.08); color: var(--md-error);">
+                                <span class="material-symbols-outlined" style="font-size: 19px;">schedule</span>
+                            </span>
+                            <span style="font-weight: 700; font-size: 14.5px; color: var(--md-on-surface);">Pending &gt; 15 Days</span>
+                        </span>
+                        <span class="dash-fulfillment-value">
+                            <span style="display: inline-flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 11px; color: var(--md-error); background: rgba(186, 26, 26, 0.08); padding: 2px 8px; border-radius: 999px; font-weight: 800;">${overdueItems.length} Overdue</span>
+                                <strong style="font-size: 15px; color: var(--md-error); font-weight: 800; font-variant-numeric: tabular-nums;">₹${totalOverdueAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                            </span>
+                        </span>
                     </div>`;
-                }).join('');
             } else {
                 overdueContainer.classList.add('hidden');
             }
@@ -3770,10 +3751,24 @@ const UI = {
             if (kOverlay) kOverlay.remove();
             setTimeout(() => { if (sheet) sheet.remove(); }, 300);
         }
-
+        if (sheetId === 'sheet-aging-bucket') {
+            const aOverlay = document.getElementById('aging-bucket-overlay');
+            if (aOverlay) aOverlay.remove();
+            setTimeout(() => { if (sheet) sheet.remove(); }, 300);
+        }
+        if (sheetId === 'sheet-fulfillment-bucket') {
+            const fOverlay = document.getElementById('fulfillment-bucket-overlay');
+            if (fOverlay) fOverlay.remove();
+            setTimeout(() => { if (sheet) sheet.remove(); }, 300);
+        }
+        if (sheetId === 'sheet-overdue-bucket') {
+            const oOverlay = document.getElementById('overdue-bucket-overlay');
+            if (oOverlay) oOverlay.remove();
+            setTimeout(() => { if (sheet) sheet.remove(); }, 300);
+        }
         // --- ENTERPRISE FIX: MULTI-LAYER OVERLAY PROTECTOR ---
         // Only close the dark overlay if NO OTHER bottom sheets are currently open
-        const remainingSheets = Array.from(document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-bank-ledger-select):not(#sheet-khata-select)')).filter(s => s.id !== sheetId);
+        const remainingSheets = Array.from(document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket):not(#sheet-bank-ledger-select):not(#sheet-khata-select)')).filter(s => s.id !== sheetId);
         const overlay = document.getElementById('sheet-overlay');
 
         if (remainingSheets.length === 0 && overlay) {
@@ -4283,20 +4278,19 @@ const UI = {
 
     closeAllBottomSheets: () => {
         let closedSomething = false;
-        document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket)').forEach(sheet => {
+        document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket)').forEach(sheet => {
             sheet.classList.remove('open');
             setTimeout(() => sheet.classList.add('hidden'), 300);
             closedSomething = true;
         });
-
-                document.getElementById('bank-ledger-overlay')?.remove();
+        document.getElementById('bank-ledger-overlay')?.remove();
         document.getElementById('khata-overlay')?.remove();
         const overlay = document.getElementById('sheet-overlay');
         if (overlay && overlay.classList.contains('open')) {
             overlay.classList.remove('open');
             setTimeout(() => {
                 // STRICT ERP LOGIC: Re-check dynamically so rapid tapping doesn't break the background!
-                const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu):not(#sheet-aging-bucket)').length;
+                const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu):not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket)').length;
                 if (currentlyOpen === 0) {
                     overlay.classList.add('hidden');
                     document.body.style.overflow = ''; // 🚨 PREMIUM UX: Unlock background scroll
@@ -5722,32 +5716,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const dashSalesCard = document.getElementById('dash-action-sales');
         if (dashSalesCard) {
             dashSalesCard.addEventListener('click', () => {
-                if(window.app && typeof window.app.viewFilteredSales === 'function') {
+                if (window.app && typeof window.app.openFulfillmentBucketModal === 'function') {
+                    window.app.openFulfillmentBucketModal('Revenue', 'Total Revenue');
+                } else if (window.app && typeof window.app.viewFilteredSales === 'function') {
                     window.app.viewFilteredSales('All');
-                    setTimeout(() => {
-                        const range = getDashboardDateRange();
-                        document.getElementById('sales-start-date').value = range.s;
-                        document.getElementById('sales-end-date').value = range.e;
-                        
-                        const fText = document.getElementById('return-dash-filter-text');
-                        if (fText) fText.innerText = range.filter === 'all' ? 'All Sales' : 'Filtered: Date Range';
-                        
-                        if(window.UI) window.UI.applyFilters('sales');
-                    }, 200);
                 }
             });
         }
 
+        window._openFullPnLFromModal = () => {
+            if (window.UI && window.UI.state) {
+                window.UI.state.lastClickedCard = null;
+                window.UI.state.lastOpenedCard = null;
+            }
+            UI.openActivity('activity-advanced-reports');
+            setTimeout(() => {
+                const range = getDashboardDateRange();
+                document.getElementById('report-pnl-start').value = range.s || '2000-01-01';
+                document.getElementById('report-pnl-end').value = range.e || (window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0]);
+                UI.switchReportTab('pnl');
+            }, 100);
+        };
         const dashProfitCard = document.getElementById('dash-action-profit');
         if (dashProfitCard) {
             dashProfitCard.addEventListener('click', () => {
-                UI.openActivity('activity-advanced-reports'); 
-                setTimeout(() => { 
-                    const range = getDashboardDateRange();
-                    document.getElementById('report-pnl-start').value = range.s || '2000-01-01'; // P&L needs a hard start date if 'all'
-                    document.getElementById('report-pnl-end').value = range.e || (window.Utils && window.Utils.getLocalDate ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0]);
-                    UI.switchReportTab('pnl'); 
-                }, 100);
+                if (window.app && typeof window.app.openNetProfitModal === 'function') {
+                    window.app.openNetProfitModal('True Net Profit');
+                } else {
+                    window._openFullPnLFromModal();
+                }
             });
         }
 
@@ -5755,12 +5752,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const dashWarehouseCard = document.getElementById('dash-action-warehouse');
         if (dashWarehouseCard) {
             dashWarehouseCard.addEventListener('click', () => {
-                if(window.UI) { 
-                    UI.openMasterView('products', 'Inventory Master'); 
-                    setTimeout(() => { 
-                        document.getElementById('filter-master-view').value = 'In Stock'; 
-                        window.UI.setFilter('masters', 'In Stock', null); 
-                    }, 150); 
+                if (window.app && typeof window.app.openWarehouseCapitalModal === 'function') {
+                    window.app.openWarehouseCapitalModal('Warehouse Capital');
+                } else if (window.UI) {
+                    UI.openMasterView('products', 'Inventory Master');
                 }
             });
         }
@@ -5775,13 +5770,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const dashOverdueBtn = document.getElementById('dash-action-overdue');
         if (dashOverdueBtn) {
             dashOverdueBtn.addEventListener('click', () => {
-                if (window.app) window.app.viewFilteredSales('Overdue');
+                if (window.app && typeof window.app.openOverdueBucketModal === 'function') {
+                    window.app.openOverdueBucketModal('Overdue Collections');
+                } else if (window.app) {
+                    window.app.viewFilteredSales('Overdue');
+                }
             });
         }
 
         document.querySelectorAll('.dash-action-fulfillment').forEach(btn => {
             btn.addEventListener('click', () => {
-                if (window.app) window.app.viewFilteredSales(btn.getAttribute('data-status'));
+                const st = btn.getAttribute('data-status') || 'All';
+                const labelMap = { Open: 'Open Orders', Shipped: 'Shipped / In Transit', Completed: 'Completed Orders', All: 'All Orders' };
+                if (window.app && typeof window.app.openFulfillmentBucketModal === 'function') {
+                    window.app.openFulfillmentBucketModal(st, labelMap[st] || st);
+                } else if (window.app) {
+                    window.app.viewFilteredSales(st);
+                }
             });
         });
 
@@ -6173,7 +6178,7 @@ const closeTopmostView = () => {
     // 3. Catch Full-Screen Activities sitting above the Aging Sheet
     const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
     const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
-    if (visibleScreens.length > 0 && visibleSheets.length === 1 && visibleSheets[0].id === 'sheet-aging-bucket') {
+    if (visibleScreens.length > 0 && visibleSheets.length === 1 && (visibleSheets[0].id === 'sheet-aging-bucket' || visibleSheets[0].id === 'sheet-fulfillment-bucket' || visibleSheets[0].id === 'sheet-overdue-bucket')) {
         const topScreen = getTopElement(visibleScreens);
         if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
             if (window.UI) window.UI.closeActivity(topScreen.id);
@@ -6183,8 +6188,8 @@ const closeTopmostView = () => {
     // 4. Catch Bottom Sheets
     if (visibleSheets.length > 0) {
         const topSheet = getTopElement(visibleSheets);
-        if (topSheet.id === 'sheet-bank-ledger-select' || topSheet.id === 'sheet-khata-select' || topSheet.id === 'sheet-aging-bucket') {
-            const ovId = topSheet.id === 'sheet-bank-ledger-select' ? 'bank-ledger-overlay' : (topSheet.id === 'sheet-khata-select' ? 'khata-overlay' : 'aging-bucket-overlay');
+        if (topSheet.id === 'sheet-bank-ledger-select' || topSheet.id === 'sheet-khata-select' || topSheet.id === 'sheet-aging-bucket' || topSheet.id === 'sheet-fulfillment-bucket' || topSheet.id === 'sheet-overdue-bucket') {
+            const ovId = topSheet.id === 'sheet-bank-ledger-select' ? 'bank-ledger-overlay' : (topSheet.id === 'sheet-khata-select' ? 'khata-overlay' : (topSheet.id === 'sheet-aging-bucket' ? 'aging-bucket-overlay' : (topSheet.id === 'sheet-fulfillment-bucket' ? 'fulfillment-bucket-overlay' : 'overdue-bucket-overlay')));
             const ov = document.getElementById(ovId);
             if (ov) ov.remove();
             topSheet.remove();
@@ -6625,18 +6630,17 @@ window.openInvoiceOverview = function(type, id) {
         const invNo = doc.invoiceNo || '';
         const ordPoNo = doc.orderNo || doc.poNo || '';
 
+        const escH = (v) => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         if (isNonGST || !invNo) {
-            docNumberStr = ordPoNo || ('DOC-' + String(doc.id).slice(-4).toUpperCase());
+            docNumberStr = escH(ordPoNo || ('DOC-' + String(doc.id).slice(-4).toUpperCase()));
+        } else if (ordPoNo && invNo !== ordPoNo) {
+            docNumberStr = `<div style="display: flex; flex-direction: column; justify-content: center; min-width: 0; line-height: 1.2;"><span style="font-size: 16.5px; font-weight: 700; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escH(invNo)}</span><span style="font-size: 11.5px; font-weight: 600; color: var(--md-text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Order: ${escH(ordPoNo)}</span></div>`;
         } else {
-            if (ordPoNo && invNo !== ordPoNo) {
-                docNumberStr = `${invNo} <span style="color:var(--md-text-muted); font-weight:normal;">| ${ordPoNo}</span>`;
-            } else {
-                docNumberStr = invNo;
-            }
+            docNumberStr = escH(invNo);
         }
         const headerTitleEl = document.getElementById('overview-invoice-no');
         headerTitleEl.innerHTML = docNumberStr;
-        headerTitleEl.style.fontSize = docNumberStr.includes('|') ? '15px' : '18px';
+        headerTitleEl.style.fontSize = '17.5px';
 
         // 2. STATUS & BALANCES
         let totalPaid = 0;

@@ -324,11 +324,11 @@
 
                 <!-- 4. ORDER FULFILLMENT PIPELINE CARD -->
                 <div class="dash-bento-card" style="padding: 0; overflow: hidden; margin-bottom: 20px; border-radius: 18px;">
-                    <div class="dash-fulfillment-header" style="padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; background: transparent;">
+                    <div class="tap-target dash-action-fulfillment dash-fulfillment-header" data-status="All" style="padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; background: transparent; cursor: pointer;">
                         <strong class="dash-section-title" style="margin: 0;">
                             <span class="material-symbols-outlined dash-section-icon">local_shipping</span> Order Fulfillment
                         </strong>
-                        <span style="font-size: 11px; font-weight: 700; color: var(--md-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Live Pipeline</span>
+                        <span style="font-size: 11px; font-weight: 700; color: var(--md-primary); text-transform: uppercase; letter-spacing: 0.5px;">View All ▸</span>
                     </div>
                     
                     <div class="tap-target dash-action-fulfillment dash-fulfillment-row" data-status="Open" style="padding: 12px 16px;">
@@ -369,21 +369,15 @@
                 </div>
 
 
-                <div id="overdue-reminders-container" class="m3-card hidden dash-overdue-card">
-                    
-                    <!-- 🚨 THE HEADER: Clickable "View All" (Filters the Documents Tab for Overdue) -->
-                    <div id="dash-action-overdue" class="tap-target dash-overdue-header">
-                        <div class="dash-overdue-title-group">
-                            <span class="material-symbols-outlined">warning</span>
-                            <strong>Overdue Collections</strong>
-                        </div>
-                        <span class="material-symbols-outlined dash-overdue-arrow">arrow_forward</span>
+                <div id="overdue-reminders-container" class="dash-bento-card hidden" style="padding: 0; overflow: hidden; margin-bottom: 20px; border-radius: 18px;">
+                    <div id="dash-action-overdue" class="tap-target dash-fulfillment-header" style="padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; background: transparent; cursor: pointer;">
+                        <strong class="dash-section-title" style="margin: 0; color: var(--md-error);">
+                            <span class="material-symbols-outlined dash-section-icon" style="color: var(--md-error);">warning</span> Overdue Collections
+                        </strong>
+                        <span style="font-size: 11px; font-weight: 700; color: var(--md-error); text-transform: uppercase; letter-spacing: 0.5px;">View All ▸</span>
                     </div>
-                    
-                    <p id="overdue-text" class="dash-overdue-text"></p>
-                    
-                    <!-- 🚨 THE LIST: Clickable Individual Records -->
-                    <div id="list-overdue" class="dash-overdue-list"></div>
+                    <p id="overdue-text" class="hidden"></p>
+                    <div id="list-overdue"></div>
                 </div>
             </div>
 

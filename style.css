@@ -9650,3 +9650,722 @@ html body.dark-mode #custom-numpad .numpad-btn:not(.action-done):not(#_) {
   box-shadow: none !important;
   border: none !important;
 }
+/* ==========================================
+   UI STRUCTURE UPGRADE 1: UNIFIED SETTINGS TAB
+   ========================================== */
+html body #tab-menu .report-section-title:not(#_) {
+  display: block !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: var(--md-text-muted) !important;
+  margin: 22px 0 8px 0 !important;
+  padding: 0 !important;
+}
+html body #tab-menu > .m3-card:not(#_),
+html body #tab-menu > .report-section-list:not(#_) {
+  margin-left: -16px !important;
+  margin-right: -16px !important;
+  margin-bottom: 0 !important;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  background: var(--md-surface) !important;
+  overflow: hidden !important;
+}
+html body #tab-menu > .m3-card:not(#_) {
+  padding: 14px 16px !important;
+}
+html body #tab-menu > .report-section-list > .m3-card:not(#_) {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+html body #tab-menu > .report-section-list > .m3-card:last-child:not(#_) {
+  border-bottom: none !important;
+}
+html body #tab-menu .icon-circle:not(.hero-icon):not(#_) {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+html body.dark-mode #tab-menu > .m3-card:not(#_),
+html body.dark-mode #tab-menu > .report-section-list:not(#_) {
+  background: #121212 !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #tab-menu > .report-section-list > .m3-card:not(#_) {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 2: COMPACT WORKSPACE BAR
+   ========================================== */
+html body #tab-workspace > div:first-child:not(#_) {
+  padding: 3px !important;
+  margin-bottom: 10px !important;
+  border-radius: 10px !important;
+}
+html body #tab-workspace #ws-btn-create:not(#_),
+html body #tab-workspace #ws-btn-trans:not(#_),
+html body #tab-workspace #ws-btn-master:not(#_) {
+  padding: 7px 6px !important;
+  font-size: 13px !important;
+}
+html body #tab-workspace .ws-trans-tabs-container:not(#_) {
+  gap: 6px !important;
+  margin-bottom: 8px !important;
+}
+html body #tab-workspace .ws-trans-pill:not(#_) {
+  padding: 7px 10px !important;
+  font-size: 12.5px !important;
+  min-height: 34px !important;
+  border-radius: 8px !important;
+}
+html body #tab-workspace .ws-trans-search-bar:not(#_) {
+  min-height: 40px !important;
+  height: 40px !important;
+  padding: 0 8px 0 12px !important;
+  margin-bottom: 8px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+}
+html body #tab-workspace .ws-trans-sum-badge:not(#_) {
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  font-variant-numeric: tabular-nums !important;
+  padding: 3px 8px !important;
+}
+html body #tab-workspace .ws-cashbook-metrics-container:not(#_) {
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+}
+html body #tab-workspace .ws-cashbook-metric-box:not(#_) {
+  padding: 10px 12px !important;
+  border-radius: 10px !important;
+}
+html body #tab-workspace .ws-cashbook-metric-value:not(#_) {
+  font-variant-numeric: tabular-nums !important;
+}
+html body.dark-mode #tab-workspace .ws-trans-search-bar:not(#_) {
+  background: #121212 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 3: STANDARDIZED EDGE-TO-EDGE HEADERS (ALL SCREENS + MAIN TABS)
+   ========================================== */
+html body .activity-screen .activity-header:not(#_):not(#__):not(#___) {
+  min-height: 56px !important;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  background: var(--md-surface) !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+}
+html body .activity-screen .sticky-glass-top .activity-header:not(#_):not(#__):not(#___) {
+  border-bottom: none !important;
+}
+html body .activity-screen .activity-header h2:not(#_):not(#__):not(#___),
+html body .activity-screen .activity-header h3:not(#_):not(#__):not(#___),
+html body .activity-screen .activity-header .activity-title:not(#_):not(#__):not(#___),
+html body .activity-screen .activity-header > span:not(.material-symbols-outlined):not(.tap-target):not(.badge):not(#_):not(#__):not(#___),
+html body .activity-screen .activity-header > div > span:not(.material-symbols-outlined):not(.tap-target):not(.badge):not(#_):not(#__):not(#___),
+html body #report-party-name:not(#_):not(#__):not(#___) {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+html body .activity-screen .activity-header .icon-btn:not(#_):not(#__):not(#___),
+html body .activity-screen .activity-header > .material-symbols-outlined.tap-target:not(#_):not(#__):not(#___) {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+}
+html body .dashboard-top-bar:not(#_):not(#__):not(#___),
+html body .report-main-header:not(#_):not(#__):not(#___) {
+  width: calc(100% + 32px) !important;
+  margin-left: -16px !important;
+  margin-right: -16px !important;
+  margin-top: 0 !important;
+  margin-bottom: 12px !important;
+  min-height: 56px !important;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px 16px !important;
+  background: var(--md-surface) !important;
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+}
+html body .report-main-header:not(#_):not(#__):not(#___) {
+  margin-bottom: 0 !important;
+  border-bottom: none !important;
+}
+html body .dashboard-top-bar .greeting-title:not(#_):not(#__):not(#___),
+html body .dashboard-top-bar #greeting-text:not(#_):not(#__):not(#___),
+html body .report-main-header .report-main-title:not(#_):not(#__):not(#___) {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em !important;
+  line-height: 1.25 !important;
+}
+html body.dark-mode .activity-screen .activity-header:not(#_):not(#__):not(#___),
+html body.dark-mode .dashboard-top-bar:not(#_):not(#__):not(#___),
+html body.dark-mode .report-main-header:not(#_):not(#__):not(#___) {
+  background: #121212 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+html body.dark-mode .activity-screen .sticky-glass-top .activity-header:not(#_):not(#__):not(#___),
+html body.dark-mode .report-main-header:not(#_):not(#__):not(#___) {
+  border-bottom: none !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 4: UNIFIED GLOBAL SEARCH BARS (EDGE-TO-EDGE)
+   ========================================== */
+html body .search-bar:not(#_):not(#__):not(#___),
+html body .search-container:not(#_):not(#__):not(#___) {
+  min-height: 52px !important;
+  height: 52px !important;
+  width: calc(100% + 32px) !important;
+  margin-left: -16px !important;
+  margin-right: -16px !important;
+  border-radius: 0 !important;
+  background: var(--md-surface) !important;
+  border: none !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transition: background-color 0.18s ease !important;
+}
+html body .sticky-glass-top .search-bar:not(#_):not(#__):not(#___),
+html body .sticky-glass-top .search-bar:focus-within:not(#_):not(#__):not(#___) {
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: none !important;
+}
+html body .search-bar:not(#_):not(#__):not(#___) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 0 12px 0 16px !important;
+}
+html body .search-container:not(#_):not(#__):not(#___) {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+html body .search-bar:focus-within:not(#_):not(#__):not(#___),
+html body .search-container:focus-within:not(#_):not(#__):not(#___) {
+  background: var(--md-surface) !important;
+  border: none !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+html body .search-bar input:not(#_):not(#__):not(#___) {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  padding: 0 4px !important;
+  margin: 0 !important;
+  font-size: 15.5px !important;
+  font-weight: 500 !important;
+  color: var(--md-on-surface) !important;
+}
+html body .search-container input:not(#_):not(#__):not(#___) {
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 16px 0 46px !important;
+  margin: 0 !important;
+  font-size: 15.5px !important;
+  font-weight: 500 !important;
+  color: var(--md-on-surface) !important;
+}
+html body .search-bar input:not(#_):not(#__):not(#___),
+html body .search-bar input:focus:not(#_):not(#__):not(#___),
+html body .search-bar input:focus-visible:not(#_):not(#__):not(#___),
+html body .search-container input:not(#_):not(#__):not(#___),
+html body .search-container input:focus:not(#_):not(#__):not(#___),
+html body .search-container input:focus-visible:not(#_):not(#__):not(#___) {
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+html body .search-container > .material-symbols-outlined:not(#_):not(#__):not(#___) {
+  position: absolute !important;
+  left: 16px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-size: 22px !important;
+  color: var(--md-text-muted) !important;
+  pointer-events: none !important;
+}
+html body .search-bar > .material-symbols-outlined:first-child:not(#_):not(#__):not(#___) {
+  font-size: 22px !important;
+  color: var(--md-text-muted) !important;
+  flex-shrink: 0 !important;
+}
+html body .search-bar input::placeholder,
+html body .search-container input::placeholder {
+  color: var(--md-text-muted) !important;
+  opacity: 0.78 !important;
+}
+html body.dark-mode .search-bar:not(#_):not(#__):not(#___),
+html body.dark-mode .search-container:not(#_):not(#__):not(#___),
+html body.dark-mode .search-bar:focus-within:not(#_):not(#__):not(#___),
+html body.dark-mode .search-container:focus-within:not(#_):not(#__):not(#___) {
+  background: #121212 !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+html body.dark-mode .sticky-glass-top .search-bar:not(#_):not(#__):not(#___),
+html body.dark-mode .sticky-glass-top .search-bar:focus-within:not(#_):not(#__):not(#___) {
+  border-bottom: none !important;
+}
+html body #tab-dashboard #overdue-reminders-container:not(#_):not(#__):not(#___) {
+  padding: 0 !important;
+  margin: 0 -16px 12px -16px !important;
+}
+html body #tab-dashboard #dash-action-overdue:not(#_):not(#__):not(#___) {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border-top: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #tab-dashboard #dash-action-overdue:not(#_):not(#__):not(#___) {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body #tab-dashboard #dash-action-overdue .dash-section-title:not(#_):not(#__):not(#___) {
+  color: var(--md-error) !important;
+}
+html body #tab-dashboard #list-overdue:not(#_):not(#__):not(#___) {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+html body #tab-dashboard #list-overdue > .tap-target:not(#_):not(#__):not(#___) {
+  margin: 0 !important;
+  padding: 12px 16px !important;
+  border: none !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 5: BOTTOM NAVIGATION BAR POLISH
+   ========================================== */
+html body #main-bottom-nav.bottom-nav:not(#_):not(#__):not(#___) {
+  min-height: 60px !important;
+  height: auto !important;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px)) 8px !important;
+  background: var(--md-surface) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-around !important;
+}
+html body #main-bottom-nav .nav-item:not(#_):not(#__):not(#___) {
+  flex: 1 1 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  padding: 4px 0 !important;
+  color: var(--md-text-muted) !important;
+  background: transparent !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+html body #main-bottom-nav .nav-item > .material-symbols-outlined:not(#_):not(#__):not(#___) {
+  font-size: 22px !important;
+  padding: 3px 16px !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  transition: background-color 0.18s ease, color 0.18s ease !important;
+}
+html body #main-bottom-nav .nav-item > span:last-child:not(#_):not(#__):not(#___) {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.01em !important;
+}
+html body #main-bottom-nav .nav-item.active:not(#_):not(#__):not(#___) {
+  color: var(--md-primary) !important;
+}
+html body #main-bottom-nav .nav-item.active > .material-symbols-outlined:not(#_):not(#__):not(#___) {
+  background: rgba(0, 97, 164, 0.12) !important;
+  color: var(--md-primary) !important;
+  font-variation-settings: 'FILL' 1, 'wght' 600, 'GRAD' 0, 'opsz' 24 !important;
+}
+html body #main-bottom-nav .nav-item.active > span:last-child:not(#_):not(#__):not(#___) {
+  font-weight: 700 !important;
+  color: var(--md-primary) !important;
+}
+html body.dark-mode #main-bottom-nav.bottom-nav:not(#_):not(#__):not(#___) {
+  background: #000000 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+html body.dark-mode #main-bottom-nav .nav-item.active:not(#_):not(#__):not(#___),
+html body.dark-mode #main-bottom-nav .nav-item.active > span:last-child:not(#_):not(#__):not(#___) {
+  color: #60A5FA !important;
+}
+html body.dark-mode #main-bottom-nav .nav-item.active > .material-symbols-outlined:not(#_):not(#__):not(#___) {
+  background: rgba(96, 165, 250, 0.18) !important;
+  color: #60A5FA !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 6: WORKSPACE TRANSACTION ROWS (EDGE-TO-EDGE)
+   ========================================== */
+html body #tab-workspace #sales-history-container:not(#_):not(#__):not(#___),
+html body #tab-workspace #purchase-history-container:not(#_):not(#__):not(#___),
+html body #tab-workspace #cashbook-container:not(#_):not(#__):not(#___),
+html body #tab-workspace #timeline-list:not(#_):not(#__):not(#___) {
+  width: calc(100% + 32px) !important;
+  margin-left: -16px !important;
+  margin-right: -16px !important;
+  padding: 0 !important;
+  background: var(--md-surface) !important;
+}
+html body #tab-workspace #sales-history-container > .m3-card:not(#_):not(#__):not(#___),
+html body #tab-workspace #purchase-history-container > .m3-card:not(#_):not(#__):not(#___),
+html body #tab-workspace #cashbook-container > .m3-card:not(#_):not(#__):not(#___),
+html body #tab-workspace #timeline-list > .m3-card:not(#_):not(#__):not(#___) {
+  margin: 0 !important;
+  padding: 13px 16px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  font-variant-numeric: tabular-nums !important;
+}
+html body #tab-workspace #sales-history-container > .m3-card:active:not(#_):not(#__):not(#___),
+html body #tab-workspace #purchase-history-container > .m3-card:active:not(#_):not(#__):not(#___),
+html body #tab-workspace #cashbook-container > .m3-card:active:not(#_):not(#__):not(#___),
+html body #tab-workspace #timeline-list > .m3-card:active:not(#_):not(#__):not(#___) {
+  background: rgba(0, 97, 164, 0.06) !important;
+  transform: none !important;
+}
+html body.dark-mode #tab-workspace #sales-history-container:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #purchase-history-container:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #cashbook-container:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #timeline-list:not(#_):not(#__):not(#___) {
+  background: #121212 !important;
+}
+html body.dark-mode #tab-workspace #sales-history-container > .m3-card:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #purchase-history-container > .m3-card:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #cashbook-container > .m3-card:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #timeline-list > .m3-card:not(#_):not(#__):not(#___) {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #tab-workspace #sales-history-container > .m3-card:active:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #purchase-history-container > .m3-card:active:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #cashbook-container > .m3-card:active:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-workspace #timeline-list > .m3-card:active:not(#_):not(#__):not(#___) {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 7: REPORTS TAB EDGE-TO-EDGE LIST STRUCTURE
+   ========================================== */
+html body #tab-reports .report-section-title:not(#_):not(#__):not(#___) {
+  display: block !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--md-text-muted) !important;
+  margin: 18px 0 8px 0 !important;
+  padding: 0 !important;
+}
+html body #tab-reports .report-section-list:not(#_):not(#__):not(#___) {
+  width: calc(100% + 32px) !important;
+  margin: 0 -16px 4px -16px !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  background: var(--md-surface) !important;
+  box-shadow: none !important;
+  gap: 0 !important;
+}
+html body #tab-reports .report-section-list > .report-btn:not(#_):not(#__):not(#___),
+html body #tab-reports .report-section-list > sollo-nav-card:not(#_):not(#__):not(#___),
+html body #tab-reports .report-section-list > sollo-nav-card > .m3-card:not(#_):not(#__):not(#___) {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+html body #tab-reports .report-section-list > .m3-card.report-btn:not(#_):not(#__):not(#___),
+html body #tab-reports .report-section-list > sollo-nav-card > .m3-card:not(#_):not(#__):not(#___) {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+html body #tab-reports .report-section-list > .m3-card.report-btn:last-child:not(#_):not(#__):not(#___),
+html body #tab-reports .report-section-list > sollo-nav-card:last-child > .m3-card:not(#_):not(#__):not(#___) {
+  border-bottom: none !important;
+}
+html body #tab-reports .report-section-list .icon-circle:not(#_):not(#__):not(#___) {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+html body #tab-reports .report-section-list > .m3-card.report-btn:active:not(#_):not(#__):not(#___),
+html body #tab-reports .report-section-list > sollo-nav-card > .m3-card:active:not(#_):not(#__):not(#___) {
+  background: rgba(0, 97, 164, 0.06) !important;
+  transform: none !important;
+}
+html body.dark-mode #tab-reports .report-section-list:not(#_):not(#__):not(#___) {
+  background: #121212 !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #tab-reports .report-section-list > .m3-card.report-btn:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-reports .report-section-list > sollo-nav-card > .m3-card:not(#_):not(#__):not(#___) {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #tab-reports .report-section-list > .m3-card.report-btn:active:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-reports .report-section-list > sollo-nav-card > .m3-card:active:not(#_):not(#__):not(#___) {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 8: UNIFIED HEADER BACK ARROW & INVOICE OVERVIEW HEADER
+   ========================================== */
+html body .activity-screen .activity-header[style*="justify-content: center"]:not(#_):not(#__):not(#___) {
+  justify-content: space-between !important;
+}
+html body .activity-screen .activity-header > .material-symbols-outlined.tap-target:first-child:not(#_):not(#__):not(#___),
+html body .activity-screen .activity-header > div:first-child > .material-symbols-outlined.tap-target:first-child:not(#_):not(#__):not(#___) {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  margin: 0 0 0 -6px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  border-radius: 50% !important;
+  z-index: 5 !important;
+}
+html body .activity-screen .activity-header[style*="justify-content: center"] > span:not(.material-symbols-outlined):not(.tap-target):not(#_):not(#__):not(#___) {
+  position: absolute !important;
+  left: 52px !important;
+  right: 52px !important;
+  width: auto !important;
+  text-align: center !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
+}
+html body .activity-screen .activity-header[style*="justify-content: center"] > .material-symbols-outlined.tap-target:last-child:not(:first-child):not(#_):not(#__):not(#___) {
+  position: relative !important;
+  right: auto !important;
+  left: auto !important;
+  margin: 0 -6px 0 auto !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  z-index: 5 !important;
+}
+html body #activity-invoice-overview .activity-header > div:first-child:not(#_):not(#__):not(#___) {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  gap: 10px !important;
+  padding-right: 8px !important;
+}
+html body #activity-invoice-overview #overview-invoice-no:not(#_):not(#__):not(#___) {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  width: auto !important;
+  text-align: left !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  pointer-events: auto !important;
+  overflow: hidden !important;
+}
+html body #activity-invoice-overview #overview-top-actions:not(#_):not(#__):not(#___) {
+  flex-shrink: 0 !important;
+  gap: 12px !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 9: MASTERS & EXPENSE LEDGER EDGE-TO-EDGE ROWS
+   ========================================== */
+html body #activity-master-view #master-list-container:not(#_):not(#__):not(#___),
+html body #activity-expense-ledger #expense-history-container:not(#_):not(#__):not(#___) {
+  width: calc(100% + 32px) !important;
+  margin-left: -16px !important;
+  margin-right: -16px !important;
+  padding: 0 !important;
+  background: var(--md-surface) !important;
+}
+html body #activity-master-view #master-list-container > .m3-card:not(#_):not(#__):not(#___),
+html body #activity-expense-ledger #expense-history-container > .m3-card:not(#_):not(#__):not(#___) {
+  margin: 0 !important;
+  padding: 13px 16px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: 1px solid var(--md-outline-variant) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  font-variant-numeric: tabular-nums !important;
+}
+html body #activity-master-view #master-list-container > .m3-card:active:not(#_):not(#__):not(#___),
+html body #activity-expense-ledger #expense-history-container > .m3-card:active:not(#_):not(#__):not(#___) {
+  background: rgba(0, 97, 164, 0.06) !important;
+  transform: none !important;
+}
+html body.dark-mode #activity-master-view #master-list-container:not(#_):not(#__):not(#___),
+html body.dark-mode #activity-expense-ledger #expense-history-container:not(#_):not(#__):not(#___) {
+  background: #121212 !important;
+}
+html body.dark-mode #activity-master-view #master-list-container > .m3-card:not(#_):not(#__):not(#___),
+html body.dark-mode #activity-expense-ledger #expense-history-container > .m3-card:not(#_):not(#__):not(#___) {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #activity-master-view #master-list-container > .m3-card:active:not(#_):not(#__):not(#___),
+html body.dark-mode #activity-expense-ledger #expense-history-container > .m3-card:active:not(#_):not(#__):not(#___) {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 10: HOME TOP BAR CONTROLS POLISH
+   ========================================== */
+html body #tab-dashboard .dashboard-filter-group:not(#_):not(#__):not(#___) {
+  gap: 6px !important;
+}
+html body #tab-dashboard #btn-privacy-toggle:not(#_):not(#__):not(#___) {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--md-outline-variant) !important;
+  background: var(--md-surface-variant) !important;
+  color: var(--md-on-surface) !important;
+  box-shadow: none !important;
+}
+html body #tab-dashboard #dashboard-date-filter:not(#_):not(#__):not(#___) {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 28px 0 12px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--md-outline-variant) !important;
+  background-color: var(--md-surface-variant) !important;
+  color: var(--md-on-surface) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+html body #tab-dashboard #dashboard-custom-month:not(#_):not(#__):not(#___) {
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--md-outline-variant) !important;
+  background: var(--md-surface-variant) !important;
+  color: var(--md-on-surface) !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html body.dark-mode #tab-dashboard #btn-privacy-toggle:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-dashboard #dashboard-date-filter:not(#_):not(#__):not(#___),
+html body.dark-mode #tab-dashboard #dashboard-custom-month:not(#_):not(#__):not(#___) {
+  background-color: #1c1c1e !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+/* ==========================================
+   UI STRUCTURE UPGRADE 11: AMOLED DARK MODE POLISH (FLOATING SHEETS & SUB-SCREENS)
+   ========================================== */
+html body.dark-mode #sheet-aging-bucket:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-fulfillment-bucket:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-overdue-bucket:not(#_):not(#__):not(#___) {
+  background: #121212 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.78) !important;
+}
+html body.dark-mode #sheet-aging-bucket > div:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-fulfillment-bucket > div:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-overdue-bucket > div:not(#_):not(#__):not(#___) {
+  background: #121212 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #sheet-aging-bucket button[aria-label="Close"]:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-fulfillment-bucket button[aria-label="Close"]:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-overdue-bucket button[aria-label="Close"]:not(#_):not(#__):not(#___) {
+  background: rgba(96, 165, 250, 0.16) !important;
+  border-color: rgba(96, 165, 250, 0.3) !important;
+  color: #60A5FA !important;
+}
+html body.dark-mode #sheet-aging-bucket li:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-fulfillment-bucket li:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-overdue-bucket li:not(#_):not(#__):not(#___) {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+html body.dark-mode #sheet-aging-bucket li.tap-target:active:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-fulfillment-bucket li.tap-target:active:not(#_):not(#__):not(#___),
+html body.dark-mode #sheet-overdue-bucket li.tap-target:active:not(#_):not(#__):not(#___) {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+html body.dark-mode #activity-business-profile .activity-content:not(#_):not(#__):not(#___),
+html body.dark-mode #activity-advanced-reports .activity-content:not(#_):not(#__):not(#___),
+html body.dark-mode #activity-deep-analytics .activity-content:not(#_):not(#__):not(#___) {
+  background: #000000 !important;
+}
