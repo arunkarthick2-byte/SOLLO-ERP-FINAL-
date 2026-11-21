@@ -6818,7 +6818,7 @@ if (data.id && splitConfirmed) {
                 const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 const page = await pdf.getPage(1);
                 
-                const viewport = page.getViewport({ scale: 1.5 });
+                const viewport = page.getViewport({ scale: (typeof pdf !== 'undefined' && pdf && pdf.numPages > 12) ? 2.5 : ((typeof pdf !== 'undefined' && pdf && pdf.numPages > 5) ? 3.2 : 4.5) });
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 canvas.height = viewport.height;
@@ -6895,6 +6895,45 @@ if (data.id && splitConfirmed) {
             netPayableEl.innerText = fmt(report.gstr3b.netPayable);
             netPayableEl.style.color = report.gstr3b.netPayable > 0 ? 'var(--md-error)' : 'var(--md-success)';
         }
+        const gstScreen = document.getElementById('activity-gst-report');
+        const gstBody = gstScreen ? gstScreen.querySelector('.activity-content') : null;
+        if (gstBody) {
+            let hsnWrap = document.getElementById('gst-hsn-section');
+            if (!hsnWrap) {
+                hsnWrap = document.createElement('div');
+                hsnWrap.id = 'gst-hsn-section';
+                hsnWrap.style.marginTop = '16px';
+                gstBody.appendChild(hsnWrap);
+            }
+            const rows = report.hsnSummary || [];
+            const tot = report.hsnTotals || { qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, totalTax: 0 };
+            const numFmt = (n) => (parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const qtyFmt = (n) => Number((parseFloat(n) || 0).toFixed(2)).toLocaleString('en-IN');
+            const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const bodyHtml = rows.length === 0
+                ? `<tr><td colspan="4" style="text-align:center;color:var(--md-text-muted);padding:16px;">No GST sales recorded for ${esc(monthVal)}</td></tr>`
+                : rows.map(r => {
+                    const splitTxt = Math.abs(r.igst) > 0.009
+                        ? `IGST: ₹${numFmt(r.igst)}`
+                        : `C: ₹${numFmt(r.cgst)} | S: ₹${numFmt(r.sgst)}`;
+                    return `<tr>
+                        <td class="col-name"><strong>${esc(r.hsn)}</strong><div class="sub">${r.gstRate}% GST &middot; ${esc(r.uqc)}</div></td>
+                        <td class="num">${qtyFmt(r.qty)}</td>
+                        <td class="num">₹${numFmt(r.taxable)}</td>
+                        <td class="num"><strong>₹${numFmt(r.totalTax)}</strong><div class="sub">${splitTxt}</div></td>
+                    </tr>`;
+                }).join('') + `<tr style="font-weight:700;background:rgba(148,163,184,0.08);">
+                    <td class="col-name"><strong>TOTAL (${rows.length} HSN)</strong></td>
+                    <td class="num"><strong>${qtyFmt(tot.qty)}</strong></td>
+                    <td class="num"><strong>₹${numFmt(tot.taxable)}</strong></td>
+                    <td class="num"><strong>₹${numFmt(tot.totalTax)}</strong><div class="sub">C:₹${numFmt(tot.cgst)} S:₹${numFmt(tot.sgst)} I:₹${numFmt(tot.igst)}</div></td>
+                </tr>`;
+            hsnWrap.innerHTML = `<div class="ded-section-hdr" style="padding:10px 14px 6px;font-size:11px;font-weight:800;letter-spacing:0.6px;text-transform:uppercase;color:var(--md-primary);">GSTR-1 Table 12 — HSN-Wise Summary</div>
+                <div class="ded-table-wrap"><table class="ded-ledger-table">
+                    <thead><tr><th>HSN / Rate</th><th class="num">Qty</th><th class="num">Taxable</th><th class="num">GST Split</th></tr></thead>
+                    <tbody>${bodyHtml}</tbody>
+                </table></div>`;
+        }
         const exportBtn = document.getElementById('btn-export-gst');
         if (exportBtn) {
             exportBtn.onclick = () => { if (window.app) window.app.exportGSTPDF(report); };
@@ -6929,7 +6968,43 @@ if (data.id && splitConfirmed) {
                 [{text: 'Total GST Purchases (ITC)'}, {text: fmt(reportData.gstr2.totalTaxable), alignment: 'right'}, {text: fmt(reportData.gstr2.totalTax), alignment: 'right'}],
                 [{text: 'Nil Rated / Exempt / Non-GST Purchases'}, {text: fmt(reportData.gstr2.nilRatedTaxable || 0), alignment: 'right'}, {text: '0.00', alignment: 'right'}]
             ];
-
+            const hsnRows = reportData.hsnSummary || [];
+            const hsnTot = reportData.hsnTotals || { qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, totalTax: 0 };
+            const qtyFmt = (n) => Number((parseFloat(n) || 0).toFixed(2)).toLocaleString('en-IN');
+            const hsnBody = [
+                [{text: 'GSTR-1 TABLE 12 — HSN-WISE SUMMARY', colSpan: 7, style: 'th', alignment: 'left', fillColor: '#0f766e'}, {}, {}, {}, {}, {}, {}],
+                [
+                    {text: 'HSN', bold: true, fontSize: 9, color: '#475569'},
+                    {text: 'UQC', bold: true, fontSize: 9, color: '#475569', alignment: 'center'},
+                    {text: 'Rate', bold: true, fontSize: 9, color: '#475569', alignment: 'right'},
+                    {text: 'Qty', bold: true, fontSize: 9, color: '#475569', alignment: 'right'},
+                    {text: 'Taxable (₹)', bold: true, fontSize: 9, color: '#475569', alignment: 'right'},
+                    {text: 'CGST / SGST (₹)', bold: true, fontSize: 9, color: '#475569', alignment: 'right'},
+                    {text: 'IGST (₹)', bold: true, fontSize: 9, color: '#475569', alignment: 'right'}
+                ]
+            ];
+            if (hsnRows.length === 0) {
+                hsnBody.push([{text: 'No GST sales recorded for this month.', colSpan: 7, alignment: 'center', fontSize: 9, color: '#64748b', margin: [0, 6, 0, 6]}, {}, {}, {}, {}, {}, {}]);
+            } else {
+                hsnRows.forEach(r => {
+                    hsnBody.push([
+                        {text: String(r.hsn || 'N/A'), bold: true, fontSize: 9},
+                        {text: String(r.uqc || 'NOS'), fontSize: 9, alignment: 'center'},
+                        {text: `${r.gstRate}%`, fontSize: 9, alignment: 'right'},
+                        {text: qtyFmt(r.qty), fontSize: 9, alignment: 'right'},
+                        {text: fmt(r.taxable), fontSize: 9, alignment: 'right'},
+                        {text: `${fmt(r.cgst)} / ${fmt(r.sgst)}`, fontSize: 8.5, alignment: 'right'},
+                        {text: fmt(r.igst), fontSize: 9, alignment: 'right'}
+                    ]);
+                });
+                hsnBody.push([
+                    {text: `TOTAL (${hsnRows.length} HSN)`, colSpan: 3, bold: true, fontSize: 9, color: '#0f172a'}, {}, {},
+                    {text: qtyFmt(hsnTot.qty), bold: true, fontSize: 9, alignment: 'right'},
+                    {text: fmt(hsnTot.taxable), bold: true, fontSize: 9, alignment: 'right'},
+                    {text: `${fmt(hsnTot.cgst)} / ${fmt(hsnTot.sgst)}`, bold: true, fontSize: 8.5, alignment: 'right'},
+                    {text: fmt(hsnTot.igst), bold: true, fontSize: 9, alignment: 'right'}
+                ]);
+            }
             const docDefinition = {
                 pageSize: 'A4',
                 pageMargins: [40, 50, 40, 40],
@@ -6947,9 +7022,10 @@ if (data.id && splitConfirmed) {
                             { width: 220, stack: [ { text: 'MONTHLY GST REPORT', style: 'subHeader' }, { text: 'Month: ' + reportData.month, alignment: 'right', fontSize: 12, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
                         ], margin: [0, 0, 0, 32]
                     },
-                    { table: { headerRows: 1, widths: ['*', 'auto', 'auto'], body: summaryBody }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] },
-                    { table: { headerRows: 1, widths: ['*', 'auto', 'auto'], body: gstr1Body }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] },
-                    { table: { headerRows: 1, widths: ['*', 'auto', 'auto'], body: gstr2Body }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] }
+                    { table: { headerRows: 1, dontBreakRows: true, widths: ['*', 'auto', 'auto'], body: summaryBody }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] },
+                    { table: { headerRows: 1, dontBreakRows: true, widths: ['*', 'auto', 'auto'], body: gstr1Body }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] },
+                    { table: { headerRows: 1, dontBreakRows: true, widths: ['*', 'auto', 'auto'], body: gstr2Body }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 24] },
+                    { table: { headerRows: 2, dontBreakRows: true, widths: ['auto', 'auto', 'auto', 'auto', '*', '*', 'auto'], body: hsnBody }, layout: 'lightHorizontalLines', margin: [0, 0, 0, 16] }
                 ]
             };
 
@@ -9482,7 +9558,7 @@ if (data.id && splitConfirmed) {
                     // Render all pages in the preview
                     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                         const page = await pdf.getPage(pageNum);
-                        const viewport = page.getViewport({ scale: 1.5 });
+                        const viewport = page.getViewport({ scale: (typeof pdf !== 'undefined' && pdf && pdf.numPages > 12) ? 2.5 : ((typeof pdf !== 'undefined' && pdf && pdf.numPages > 5) ? 3.2 : 4.5) });
                         const canvas = document.createElement('canvas');
                         const context = canvas.getContext('2d');
                         canvas.height = viewport.height;

@@ -985,6 +985,10 @@ async function generateGSTReport(yearMonth, firmId) {
     const sales = (await getAllRecords('sales', 'firmId', firmId).catch(() => [])) || [];
     const purchases = (await getAllRecords('purchases', 'firmId', firmId).catch(() => [])) || [];
     const ledgers = (await getAllRecords('ledgers', 'firmId', firmId).catch(() => [])) || [];
+    const itemsMaster = (await getAllRecords('items', 'firmId', firmId).catch(() => [])) || [];
+    const itemById = {};
+    itemsMaster.forEach(it => { if (it && it.id !== undefined) itemById[String(it.id)] = it; });
+    const hsnMap = {};
 
     // Filter specific month, and EXCLUDE DRAFTS (With Blank-Date Crash Protection)
     // ENTERPRISE FIX: Strip Cancelled orders so they don't artificially inflate CA Tax filings!
@@ -1048,6 +1052,27 @@ async function generateGSTReport(yearMonth, firmId) {
             gstr1.b2cTaxable += taxable;
             gstr1.b2cTax += tax;
         }
+        const discRatio = rawSubtotal > 0 ? ((rawSubtotal - discountAmt) / rawSubtotal) : 1;
+        const isIgstBill = !!(s.isIGST || s.gstType === 'IGST' || ((parseFloat(s.igstTotal) || 0) > 0 && !(parseFloat(s.cgstTotal) || 0)));
+        (s.items || []).forEach(row => {
+            const master = itemById[String(row.itemId)] || {};
+            const hsnCode = String(row.hsn || master.hsn || 'N/A').trim() || 'N/A';
+            const uqc = String(row.uom || row.unit || master.uom || 'NOS').trim().toUpperCase() || 'NOS';
+            const gstRate = parseFloat(row.gst !== undefined && row.gst !== '' ? row.gst : (row.gstRate !== undefined ? row.gstRate : (row.taxRate !== undefined ? row.taxRate : (master.gst || 0)))) || 0;
+            const qty = (parseFloat(row.qty) || 0) * mult;
+            const rate = parseFloat(row.rate) || 0;
+            const lineTaxable = (Math.abs(qty) * rate * discRatio) * mult;
+            const lineTax = lineTaxable * (gstRate / 100);
+            const key = `${hsnCode}|${gstRate}|${uqc}`;
+            if (!hsnMap[key]) {
+                hsnMap[key] = { hsn: hsnCode, uqc, gstRate, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, totalTax: 0 };
+            }
+            hsnMap[key].qty += qty;
+            hsnMap[key].taxable += lineTaxable;
+            if (isIgstBill) { hsnMap[key].igst += lineTax; }
+            else { hsnMap[key].cgst += (lineTax / 2); hsnMap[key].sgst += (lineTax / 2); }
+            hsnMap[key].totalTax += lineTax;
+        });
     });
 
     // Calculate GSTR-2 (Inward Supplies / Purchases / ITC)
@@ -1108,7 +1133,17 @@ async function generateGSTReport(yearMonth, firmId) {
         netPayable: gstr1.totalTax - gstr2.totalTax
     };
 
-    return { month: yearMonth, gstr1, gstr2, gstr3b, rawSales: monthSales, rawPurchases: monthPurchases };
+    const hsnSummary = Object.values(hsnMap).sort((a, b) => String(a.hsn).localeCompare(String(b.hsn)) || (a.gstRate - b.gstRate));
+    const hsnTotals = hsnSummary.reduce((acc, r) => {
+        acc.qty += r.qty;
+        acc.taxable += r.taxable;
+        acc.cgst += r.cgst;
+        acc.sgst += r.sgst;
+        acc.igst += r.igst;
+        acc.totalTax += r.totalTax;
+        return acc;
+    }, { qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, totalTax: 0 });
+    return { month: yearMonth, gstr1, gstr2, gstr3b, hsnSummary, hsnTotals, rawSales: monthSales, rawPurchases: monthPurchases };
 }
 // ==========================================
 // ENTERPRISE UPGRADE: COLD STORAGE ARCHIVE ENGINE

@@ -2687,8 +2687,8 @@ Data & Security</strong>
                     <span class="material-symbols-outlined" style="font-size: 18px;">call</span>
                 </a>
 
-                <a id="btn-wa-ledger" href="#" target="_blank" class="icon-circle tap-target" style="display: none; width: 36px; height: 36px; background: rgba(37, 211, 102, 0.12); color: #16a34a; box-shadow: none; text-decoration: none; align-items: center; justify-content: center;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">chat</span>
+                <a id="btn-wa-ledger" href="#" target="_blank" class="icon-circle tap-target" style="display: none; width: 36px; height: 36px; background: rgba(37, 211, 102, 0.12); color: inherit; box-shadow: none; text-decoration: none; align-items: center; justify-content: center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
                 </a>
 
                 <div id="btn-edit-ledger" class="icon-circle tap-target" style="width: 36px; height: 36px; background: rgba(0, 97, 164, 0.08); color: var(--md-primary); box-shadow: none;">
@@ -2778,7 +2778,117 @@ Data & Security</strong>
                             waBtn.style.display = cleanPhone ? 'flex' : 'none';
                             if (cleanPhone) {
                                 const waPhone = cleanPhone.length === 10 ? ('91' + cleanPhone) : cleanPhone;
-                                waBtn.href = `https://wa.me/${waPhone}?text=${encodeURIComponent('Hello ' + (partyName || '') + ', sharing an update regarding your account.')}`;
+                                waBtn.href = `https://wa.me/${waPhone}`;
+                                waBtn.onclick = async function(ev) {
+                                    ev.preventDefault();
+                                    try {
+                                        const fmt = (n) => Number(Math.abs(parseFloat(n) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                        const fmtDate = (d) => (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(d) : (d || '');
+                                        const firmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+                                        const biz = (window.getRecordById ? await window.getRecordById('businessProfile', firmId) : null) || {};
+                                        const firmName = (biz.name || 'SOLLO ENTERPRISES').trim();
+                                        const stmt = window.getKhataStatement ? await window.getKhataStatement(partyId, partyType) : { finalBalance: 0 };
+                                        const finalBal = parseFloat(stmt.finalBalance) || 0;
+                                        const raw = (window.UI && window.UI.state && window.UI.state.rawData) ? window.UI.state.rawData : {};
+                                        const allDocs = (isCust ? (raw.sales || []) : (raw.purchases || [])).filter(d => d.status !== 'Open' && d.status !== 'Cancelled' && (!firmId || !d.firmId || d.firmId === firmId) && String(isCust ? d.customerId : d.supplierId) === String(partyId));
+                                        const ob = partyObj ? Math.abs(parseFloat(partyObj.openingBalance) || 0) : 0;
+                                        const bType = partyObj ? String(partyObj.balanceType || '').toLowerCase() : '';
+                                        const isAdv = isCust ? (bType.includes('pay') || bType.includes('credit')) : (bType.includes('receive') || bType.includes('debit'));
+                                        let paidGST = 0;
+                                        let paidNonGST = isAdv ? ob : -ob;
+                                        allDocs.filter(d => d.documentType === 'return').forEach(d => {
+                                            const amt = Math.abs(parseFloat(d.grandTotal) || 0);
+                                            if (d.invoiceType === 'Non-GST') paidNonGST += amt;
+                                            else paidGST += amt;
+                                        });
+                                        (raw.cashbook || []).forEach(r => {
+                                            if ((!firmId || !r.firmId || r.firmId === firmId) && String(r.ledgerId) === String(partyId)) {
+                                                let isNonGstRec = r.taxPool === 'Non-GST';
+                                                const legacyRef = r.invoiceRef || r.linkedInvoice;
+                                                if (!r.taxPool || r.taxPool === 'All') {
+                                                    isNonGstRec = true;
+                                                    if (legacyRef) {
+                                                        const firstRef = String(legacyRef).split(',')[0].trim();
+                                                        const linkedDoc = allDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                                                        if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstRec = false;
+                                                    }
+                                                }
+                                                const amt = parseFloat(r.amount) || 0;
+                                                const creditImp = isCust ? (r.type === 'in' ? amt : -amt) : (r.type === 'out' ? amt : -amt);
+                                                if (isNonGstRec) paidNonGST += creditImp;
+                                                else paidGST += creditImp;
+                                            }
+                                        });
+                                        const runFifo = (docsList, creditPool) => {
+                                            let avail = creditPool;
+                                            let settled = 0;
+                                            const unpaid = [];
+                                            docsList.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || String(a.id || '').localeCompare(String(b.id || ''))).forEach(d => {
+                                                const amt = Math.abs(parseFloat(d.grandTotal) || 0);
+                                                if (amt <= 0.01) return;
+                                                if (avail >= amt - 0.5) {
+                                                    avail -= amt;
+                                                    settled++;
+                                                } else if (avail > 0.5) {
+                                                    unpaid.push({ doc: d, pending: amt - avail, partial: true });
+                                                    avail = 0;
+                                                } else {
+                                                    unpaid.push({ doc: d, pending: amt, partial: false });
+                                                }
+                                            });
+                                            return { unpaid, settled, poolDue: unpaid.reduce((s, x) => s + x.pending, 0) + (avail < -0.5 ? Math.abs(avail) : 0) };
+                                        };
+                                        const regularBills = allDocs.filter(d => d.documentType !== 'return');
+                                        const gstRes = runFifo(regularBills.filter(d => d.invoiceType !== 'Non-GST'), paidGST);
+                                        const nonGstRes = runFifo(regularBills.filter(d => d.invoiceType === 'Non-GST'), paidNonGST);
+                                        const pendingList = [...gstRes.unpaid, ...nonGstRes.unpaid].sort((a, b) => String(a.doc.date || '').localeCompare(String(b.doc.date || '')));
+                                        const settledCount = gstRes.settled + nonGstRes.settled;
+                                        const isDue = isCust ? (finalBal > 0.5) : (finalBal < -0.5);
+                                        const lines = [];
+                                        lines.push(`Hello *${partyName || 'Sir/Madam'}*,`);
+                                        lines.push(`Greetings from *${firmName}*.`);
+                                        lines.push('');
+                                        if (isDue) {
+                                            lines.push(isCust ? `*Payment Reminder*` : `*Account Statement Update*`);
+                                            lines.push(isCust ? `Total Outstanding Due: *₹${fmt(finalBal)}*` : `Total Balance Payable: *₹${fmt(finalBal)}*`);
+                                            if (gstRes.poolDue > 0.5 && nonGstRes.poolDue > 0.5) {
+                                                lines.push(`• GST: ₹${fmt(gstRes.poolDue)} | Non-GST: ₹${fmt(nonGstRes.poolDue)}`);
+                                            }
+                                            if (pendingList.length > 0) {
+                                                lines.push(`*Pending Bill${pendingList.length > 1 ? 's' : ''} (${pendingList.length}):*`);
+                                                pendingList.slice(0, 8).forEach(item => {
+                                                    const d = item.doc;
+                                                    const billNo = (d.invoiceNo || d.poNo || '').trim();
+                                                    const ordNo = (d.orderNo || '').trim();
+                                                    const lbl = isCust ? 'Ord' : 'PO';
+                                                    const refStr = (billNo && ordNo && billNo !== ordNo) ? `${billNo} (${lbl}: ${ordNo})` : (billNo || ordNo || 'Bill');
+                                                    const partTag = item.partial ? ' (Part Bal)' : '';
+                                                    lines.push(`• *${refStr}* | ${fmtDate(d.date)} — *₹${fmt(item.pending)}*${partTag}`);
+                                                });
+                                                if (pendingList.length > 8) lines.push(`...and ${pendingList.length - 8} more pending bill(s).`);
+                                            }
+                                            if (settledCount > 0) {
+                                                lines.push(`Earlier Bills: ${settledCount} Settled ✅`);
+                                            }
+                                        } else if (Math.abs(finalBal) <= 0.5) {
+                                            lines.push(`*Account Update:* Your ledger balance is *₹0.00 (All Settled ✅)*.`);
+                                            if (settledCount > 0) lines.push(`Total Bills Settled: ${settledCount} ✅`);
+                                        } else {
+                                            lines.push(`*Account Update:* Current Advance Balance is *₹${fmt(finalBal)}*.`);
+                                            if (settledCount > 0) lines.push(`Earlier Bills: ${settledCount} Settled ✅`);
+                                        }
+                                        lines.push('');
+                                        if (isCust && isDue) {
+                                            lines.push(`Kindly arrange the payment at your earliest convenience. Please ignore if already paid.`);
+                                        }
+                                        lines.push(`Thank you,\n*${firmName}*`);
+                                        const url = `https://wa.me/${waPhone}?text=${encodeURIComponent(lines.join('\n'))}`;
+                                        const win = window.open(url, '_blank');
+                                        if (!win) window.location.href = url;
+                                    } catch (err) {
+                                        window.location.href = `https://wa.me/${waPhone}?text=${encodeURIComponent('Hello ' + (partyName || '') + ', sharing an update regarding your account.')}`;
+                                    }
+                                };
                             }
                         }
 

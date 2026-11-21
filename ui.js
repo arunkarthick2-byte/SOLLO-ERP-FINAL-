@@ -2306,7 +2306,7 @@ const UI = {
                                 <strong style="font-size: 15px; color: ${balColor}; line-height: 1.1;">${balText}</strong>
                                 <div style="display: flex; gap: 10px; align-items: center;">
                                     ${callBtn}
-                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app) { window.app.openPartyLedger('${l.id}', '${l.type}', '${safeName}'); setTimeout(() => { if(window.Utils && window.Utils.downloadStatementPDF) { window.Utils.downloadStatementPDF(); } setTimeout(() => { let ledger = document.getElementById('activity-report-viewer'); if(ledger) { ledger.classList.remove('open'); ledger.classList.add('hidden'); ledger.style.zIndex=''; } }, 100); }, 600); }" style="width: 28px; height: 28px; color: var(--md-error); display: flex; align-items: center; justify-content: center;">
+                                    <div class="tap-target" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.executeKhataReport) { window.executeKhataReport('${l.id}', '${safeName}', '${l.type}'); }" style="width: 28px; height: 28px; color: var(--md-error); display: flex; align-items: center; justify-content: center;">
                                         <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
                                     </div>
                                 </div>

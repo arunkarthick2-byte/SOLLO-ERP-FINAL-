@@ -1854,12 +1854,11 @@ Please process this accordingly. Thank you!`;
                     if (!document.getElementById('in-app-pdf-viewer')) break; 
                     const page = await pdf.getPage(pageNum);
                     
-                    // 🚨 OPTIMIZATION: Dynamic Retina Scaling
+                    // 🚨 OPTIMIZATION: High-DPI Sharpness Scaling
                     const unscaledViewport = page.getViewport({ scale: 1.0 });
-                    const baseScale = Math.min(screenWidth / unscaledViewport.width, 1.5); 
-                    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x to save RAM
-                    
-                    const viewport = page.getViewport({ scale: baseScale * pixelRatio });
+                    const baseScale = Math.min(screenWidth / unscaledViewport.width, 1.5);
+                    const renderScale = pdf.numPages > 12 ? 2.5 : (pdf.numPages > 5 ? 3.2 : 4.5);
+                    const viewport = page.getViewport({ scale: renderScale });
                     const canvas = document.createElement('canvas');
                     
                     // 🚨 OPTIMIZATION: Force Opaque GPU Rendering
@@ -2128,7 +2127,7 @@ const pdf = window.currentActivePDF;
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                     if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
-                    const viewport = page.getViewport({ scale: 1.5 });
+                    const viewport = page.getViewport({ scale: (((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 12) ? 2.5 : ((((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 5) ? 3.2 : 4.5) });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
@@ -2162,15 +2161,173 @@ const pdf = window.currentActivePDF;
         });
     },
 
+    pickPdfDateRange: (title = 'Select Statement Period') => {
+        return new Promise((resolve) => {
+            const existing = document.getElementById('sollo-pdf-date-modal');
+            if (existing) existing.remove();
+            const isDark = document.body.classList.contains('dark-mode');
+            const bgSurface = isDark ? '#121212' : '#ffffff';
+            const bgVariant = isDark ? '#1e1e1e' : '#f1f5f9';
+            const bgInput = isDark ? '#181818' : '#f8fafc';
+            const fgMain = isDark ? '#f8fafc' : '#0f172a';
+            const fgMuted = isDark ? '#94a3b8' : '#64748b';
+            const borderCol = isDark ? '#262626' : '#e2e8f0';
+            const primaryCol = isDark ? '#38bdf8' : 'var(--md-primary, #0061a4)';
+            const primaryText = isDark ? '#000000' : '#ffffff';
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+            const presets = {
+                all: { from: '', to: '' },
+                fy: { from: `${fyStartYear}-04-01`, to: `${fyStartYear + 1}-03-31` },
+                month: { from: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, to: iso(now) },
+                lastMonth: { from: iso(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: iso(new Date(now.getFullYear(), now.getMonth(), 0)) }
+            };
+            const overlay = document.createElement('div');
+            overlay.id = 'sollo-pdf-date-modal';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,0.58);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+            overlay.innerHTML = `
+                <div style="width:100%;max-width:440px;background:${bgSurface};color:${fgMain};border:1px solid ${borderCol};border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.35);overflow:hidden;box-sizing:border-box;font-family:inherit;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid ${borderCol};">
+                        <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+                            <span class="material-symbols-outlined" style="font-size:20px;color:${primaryCol};flex-shrink:0;">calendar_month</span>
+                            <strong style="font-size:15px;font-weight:600;color:${fgMain};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${String(title).replace(/</g,'&lt;')}</strong>
+                        </div>
+                        <span id="pdf-dr-close" class="material-symbols-outlined tap-target" style="color:${fgMuted};font-size:22px;cursor:pointer;padding:2px;flex-shrink:0;">close</span>
+                    </div>
+                    <div style="padding:14px 16px 16px;">
+                        <div id="pdf-dr-chips" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:${bgVariant};padding:4px;border-radius:8px;border:1px solid ${borderCol};margin-bottom:14px;">
+                            <button type="button" data-p="all" style="padding:8px 4px;border-radius:6px;border:none;background:${primaryCol};color:${primaryText};font-size:11px;font-weight:700;cursor:pointer;">All Time</button>
+                            <button type="button" data-p="fy" style="padding:8px 4px;border-radius:6px;border:none;background:transparent;color:${fgMuted};font-size:11px;font-weight:600;cursor:pointer;">This FY</button>
+                            <button type="button" data-p="month" style="padding:8px 4px;border-radius:6px;border:none;background:transparent;color:${fgMuted};font-size:11px;font-weight:600;cursor:pointer;">This Month</button>
+                            <button type="button" data-p="lastMonth" style="padding:8px 4px;border-radius:6px;border:none;background:transparent;color:${fgMuted};font-size:11px;font-weight:600;cursor:pointer;">Last Month</button>
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                            <div>
+                                <label style="display:block;font-size:11px;font-weight:600;color:${fgMuted};margin-bottom:5px;text-transform:uppercase;letter-spacing:0.3px;">From Date</label>
+                                <input type="text" id="pdf-dr-from" placeholder="DD/MM/YYYY" readonly style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid ${borderCol};background:${bgInput};color:${fgMain};font-size:13px;outline:none;cursor:pointer;">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:11px;font-weight:600;color:${fgMuted};margin-bottom:5px;text-transform:uppercase;letter-spacing:0.3px;">To Date</label>
+                                <input type="text" id="pdf-dr-to" placeholder="DD/MM/YYYY" readonly style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid ${borderCol};background:${bgInput};color:${fgMain};font-size:13px;outline:none;cursor:pointer;">
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:10px;">
+                            <button type="button" id="pdf-dr-cancel" style="flex:1;padding:11px;border-radius:8px;border:1px solid ${borderCol};background:transparent;color:${fgMain};font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+                            <button type="button" id="pdf-dr-go" style="flex:2;padding:11px;border-radius:8px;border:none;background:${primaryCol};color:${primaryText};font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-symbols-outlined" style="font-size:17px;">picture_as_pdf</span>Generate PDF</button>
+                        </div>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            const fromEl = overlay.querySelector('#pdf-dr-from');
+            const toEl = overlay.querySelector('#pdf-dr-to');
+            const chips = overlay.querySelectorAll('#pdf-dr-chips button');
+            const setActive = (key) => {
+                chips.forEach((b) => {
+                    const active = b.getAttribute('data-p') === key;
+                    b.style.background = active ? primaryCol : 'transparent';
+                    b.style.color = active ? primaryText : fgMuted;
+                    b.style.fontWeight = active ? '700' : '600';
+                });
+            };
+            let fpFrom = null;
+            let fpTo = null;
+            if (typeof window.flatpickr === 'function') {
+                const fpCfg = { dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', disableMobile: true, allowInput: false };
+                fpFrom = window.flatpickr(fromEl, fpCfg);
+                fpTo = window.flatpickr(toEl, fpCfg);
+                [fpFrom, fpTo].forEach((fp) => {
+                    if (fp && fp.altInput) {
+                        fp.altInput.placeholder = 'DD/MM/YYYY';
+                        fp.altInput.style.cssText = `width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid ${borderCol};background:${bgInput};color:${fgMain};font-size:13px;outline:none;cursor:pointer;`;
+                    }
+                    if (window.enhanceSolloFlatpickr && fp) window.enhanceSolloFlatpickr(fp);
+                });
+            }
+            chips.forEach((b) => {
+                b.onclick = () => {
+                    const k = b.getAttribute('data-p');
+                    if (fpFrom) { presets[k].from ? fpFrom.setDate(presets[k].from, false) : fpFrom.clear(false); }
+                    else { fromEl.value = presets[k].from; }
+                    if (fpTo) { presets[k].to ? fpTo.setDate(presets[k].to, false) : fpTo.clear(false); }
+                    else { toEl.value = presets[k].to; }
+                    setActive(k);
+                };
+            });
+            fromEl.oninput = () => setActive('');
+            toEl.oninput = () => setActive('');
+            fromEl.onchange = () => setActive('');
+            toEl.onchange = () => setActive('');
+            const finish = (val) => {
+                if (fpFrom) fpFrom.destroy();
+                if (fpTo) fpTo.destroy();
+                overlay.remove();
+                resolve(val);
+            };
+            overlay.querySelector('#pdf-dr-close').onclick = () => finish(null);
+            overlay.querySelector('#pdf-dr-cancel').onclick = () => finish(null);
+            overlay.onclick = (e) => { if (e.target === overlay) finish(null); };
+            overlay.querySelector('#pdf-dr-go').onclick = () => {
+                const from = (fromEl.value || '').trim();
+                const to = (toEl.value || '').trim();
+                if (from && to && from > to) {
+                    if (window.Utils && window.Utils.showToast) window.Utils.showToast("From Date cannot be after To Date");
+                    return;
+                }
+                finish({ from, to });
+            };
+        });
+    },
+    filterTimelineByDateRange: (rawTimeline, range) => {
+        const list = Array.isArray(rawTimeline) ? rawTimeline : [];
+        const from = range && range.from ? range.from : '';
+        const to = range && range.to ? range.to : '';
+        if (!from && !to) {
+            const lastBal = list.length > 0 ? (list[list.length - 1].runningBalance || 0) : 0;
+            return { timeline: list, finalBal: lastBal, periodText: null };
+        }
+        let bfBal = 0;
+        let hasPrior = false;
+        const filtered = [];
+        list.forEach((t) => {
+            const d = String(t.date || '').slice(0, 10);
+            if (t.id === 'open-bal') {
+                bfBal = parseFloat(t.runningBalance) || 0;
+                hasPrior = true;
+                return;
+            }
+            if (from && d && d < from) {
+                bfBal = parseFloat(t.runningBalance) || 0;
+                hasPrior = true;
+                return;
+            }
+            if (to && d && d > to) return;
+            filtered.push(t);
+        });
+        if (from && (hasPrior || Math.abs(bfBal) > 0.009)) {
+            filtered.unshift({
+                id: 'open-bal',
+                date: from,
+                type: 'Opening Balance (B/F)',
+                amount: Math.abs(bfBal),
+                impact: bfBal,
+                runningBalance: bfBal,
+                isInvoice: false
+            });
+        }
+        const finalBal = filtered.length > 0 ? (parseFloat(filtered[filtered.length - 1].runningBalance) || 0) : bfBal;
+        const fmt = (isoDate) => window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(isoDate) : isoDate;
+        const periodText = (from && to) ? `${fmt(from)} to ${fmt(to)}` : (from ? `From ${fmt(from)}` : `Up to ${fmt(to)}`);
+        return { timeline: filtered, finalBal, periodText };
+    },
     downloadStatementPDF: async () => {
         if (typeof pdfMake === 'undefined') {
             if (window.Utils) window.Utils.showToast("⏳ Loading Vector Engine...");
             return;
         }
-
         const nameEl = document.getElementById('report-party-name');
         if (!nameEl) return alert("Report data not found.");
-
         const partyName = nameEl.innerText.trim();
         let isAccount = false;
         
@@ -2196,13 +2353,15 @@ const pdf = window.currentActivePDF;
         
         if (!party) return alert("Could not identify details for: " + partyName);
 
+        const dateRange = await window.Utils.pickPdfDateRange(`Statement Period — ${party.name}`);
+        if (!dateRange) return;
         if (window.Utils) window.Utils.showToast("⚡ Generating Vector Statement PDF...");
-
         const biz = (party.firmId) ? await window.getRecordById('businessProfile', party.firmId) || {} : {};
-        const timeline = window.UI.state.rawData.timeline || [];
-        
-        let finalBal = 0;
-        if (timeline.length > 0) finalBal = timeline[timeline.length - 1].runningBalance || 0;
+        const rawTimeline = window.UI.state.rawData.timeline || [];
+        const sliced = window.Utils.filterTimelineByDateRange(rawTimeline, dateRange);
+        const timeline = sliced.timeline;
+        let finalBal = sliced.finalBal;
+        const pdfPeriodText = sliced.periodText;
 
         const itemsBody = [
             [
@@ -2452,7 +2611,7 @@ const pdf = window.currentActivePDF;
                             width: '50%',
                             stack: [
                                 { text: isAccount ? 'ACCOUNT STATEMENT' : 'LEDGER STATEMENT', style: 'title' },
-                                { text: 'DATE: ' + window.Utils.formatDateDisplay(safeDocNo), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
+                                { text: pdfPeriodText ? ('PERIOD: ' + pdfPeriodText) : ('DATE: ' + window.Utils.formatDateDisplay(safeDocNo)), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
                                 { text: 'Closing Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 2] },
                                 { text: '₹' + Math.abs(finalBal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
                                 { text: balSuffix, alignment: 'right', fontSize: 10, bold: true, color: Math.abs(finalBal) < 0.01 ? '#64748b' : (finalBal > 0 ? '#16a34a' : '#ef4444'), margin: [0, 2, 0, 5] },
@@ -2612,7 +2771,7 @@ const pdf = window.currentActivePDF;
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
                     if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
-                    const viewport = page.getViewport({ scale: 1.5 });
+                    const viewport = page.getViewport({ scale: (((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 12) ? 2.5 : ((((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 5) ? 3.2 : 4.5) });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
@@ -2661,6 +2820,11 @@ const pdf = window.currentActivePDF;
             return;
         }
 
+        let stockDateRange = null;
+        if (!dateFilter && window.Utils && window.Utils.pickPdfDateRange) {
+            stockDateRange = await window.Utils.pickPdfDateRange(`Stock Ledger Period — ${itemName || 'Item'}`);
+            if (!stockDateRange) return;
+        }
         if (window.Utils) window.Utils.showToast("⚡ Generating Premium Stock Ledger...");
         
         const activeFirmId = (typeof app !== 'undefined' && app.state) ? app.state.firmId : 'firm1';
@@ -2742,7 +2906,15 @@ const pdf = window.currentActivePDF;
         });
 
         const trueFinalStock = runningStock;
-
+        const drFrom = stockDateRange && stockDateRange.from ? stockDateRange.from : '';
+        const drTo = stockDateRange && stockDateRange.to ? stockDateRange.to : '';
+        let bfStock = openingStock;
+        if (drFrom) {
+            timeline.forEach(t => {
+                const d = String(t.date || '').slice(0, 10);
+                if (d && d < drFrom) bfStock = t.trueRunningBalance;
+            });
+        }
         timeline = timeline.filter(t => {
             if (searchText && !String(t.ref || '').toLowerCase().includes(searchText) && !String(t.type || '').toLowerCase().includes(searchText)) return false;
             const impact = (t.inQty || 0) - (t.outQty || 0);
@@ -2750,12 +2922,13 @@ const pdf = window.currentActivePDF;
             if (typeFilter === 'OUT' && impact >= 0) return false;
             if (typeFilter === 'Expense' && t.type !== 'Expense') return false;
             if (dateFilter && t.date !== dateFilter) return false;
+            const d = String(t.date || '').slice(0, 10);
+            if (drFrom && d && d < drFrom) return false;
+            if (drTo && d && d > drTo) return false;
             return true;
         });
-
         let totalIn = 0;
         let totalOut = 0;
-        
         const itemsBody = [
             [
                 { text: 'Date', style: 'th', alignment: 'center' },
@@ -2766,22 +2939,22 @@ const pdf = window.currentActivePDF;
                 { text: 'Running Bal', style: 'th', alignment: 'right' }
             ]
         ];
-
         if (!partyId && !dateFilter) {
+            const openVal = drFrom ? bfStock : openingStock;
+            const openDateText = drFrom ? window.Utils.formatDateDisplay(drFrom) : 'Opening';
+            const openDescText = drFrom ? 'Stock Carried Forward (B/F)' : 'Initial Inventory Balance';
             itemsBody.push([
-                { text: 'Opening', style: 'td', color: '#475569', alignment: 'center' },
-                { text: 'Opening Stock', style: 'td', bold: true },
-                { text: 'Initial Inventory Balance', style: 'td' },
-                { text: openingStock > 0 ? openingStock.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
-                { text: openingStock < 0 ? Math.abs(openingStock).toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
-                { text: openingStock.toFixed(2), style: 'td', alignment: 'right', bold: true }
+                { text: openDateText, style: 'td', color: '#475569', alignment: 'center' },
+                { text: drFrom ? 'Opening (B/F)' : 'Opening Stock', style: 'td', bold: true },
+                { text: openDescText, style: 'td' },
+                { text: openVal > 0 ? openVal.toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#16a34a' },
+                { text: openVal < 0 ? Math.abs(openVal).toFixed(2) : '', style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
+                { text: openVal.toFixed(2), style: 'td', alignment: 'right', bold: true }
             ]);
         }
-
         timeline.forEach(t => {
             totalIn += t.inQty;
             totalOut += t.outQty;
-            
             itemsBody.push([
                 { text: window.Utils.formatDateDisplay(t.date), style: 'td', alignment: 'center', color: '#475569' },
                 { text: t.type, style: 'td', bold: true },
@@ -2791,9 +2964,7 @@ const pdf = window.currentActivePDF;
                 { text: t.trueRunningBalance.toFixed(2), style: 'td', alignment: 'right', bold: true }
             ]);
         });
-
-        const finalDisplayBalance = trueFinalStock;
-
+        const finalDisplayBalance = (drFrom || drTo) ? (timeline.length > 0 ? timeline[timeline.length - 1].trueRunningBalance : bfStock) : trueFinalStock;
         itemsBody.push([
             { text: 'Total Volume Summary', style: 'td', colSpan: 3, alignment: 'right', bold: true, color: '#0f172a' },
             {}, {},
@@ -2801,8 +2972,9 @@ const pdf = window.currentActivePDF;
             { text: totalOut.toFixed(2), style: 'td', alignment: 'center', bold: true, color: '#dc2626' },
             { text: finalDisplayBalance.toFixed(2), style: 'td', alignment: 'right', bold: true, color: '#0f172a' }
         ]);
-
-        const reportSubtitle = partyId ? `Filtered By Party: ${partyName}` : (dateFilter ? `Filtered By Date: ${dateFilter}` : 'Global Stock Movement');
+        const stockPeriodLabel = (drFrom && drTo) ? `Period: ${window.Utils.formatDateDisplay(drFrom)} to ${window.Utils.formatDateDisplay(drTo)}` : (drFrom ? `From: ${window.Utils.formatDateDisplay(drFrom)}` : (drTo ? `Up to: ${window.Utils.formatDateDisplay(drTo)}` : ''));
+        const baseSubtitle = partyId ? `Filtered By Party: ${partyName}` : (dateFilter ? `Filtered By Date: ${dateFilter}` : 'Global Stock Movement');
+        const reportSubtitle = stockPeriodLabel ? `${baseSubtitle} | ${stockPeriodLabel}` : baseSubtitle;
 
         const docDefinition = {
             pageSize: 'A4',
@@ -2861,7 +3033,7 @@ const pdf = window.currentActivePDF;
                     margin: [0, 0, 0, 15]
                 },
                 {
-                    table: { headerRows: 1, widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                    table: { headerRows: 1, dontBreakRows: true, widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
                     layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#cbd5e1', vLineColor: () => '#cbd5e1' },
                     margin: [0, 0, 0, 20]
                 },
@@ -3029,7 +3201,7 @@ const pdf = window.currentActivePDF;
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
                     if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
-                    const viewport = page.getViewport({ scale: 1.5 });
+                    const viewport = page.getViewport({ scale: (((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 12) ? 2.5 : ((((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 5) ? 3.2 : 4.5) });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
@@ -3481,7 +3653,7 @@ const pdf = window.currentActivePDF;
 
                 // Items Table
                 {
-                    table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
+                    table: { headerRows: 1, dontBreakRows: true, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: itemsBody },
                     layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#0f172a', vLineColor: () => '#0f172a' },
                     margin: [0, 0, 0, 20]
                 },
@@ -3666,7 +3838,7 @@ const pdf = window.currentActivePDF;
 
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) { // Keeps all pages loading for these reports
                     if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
-                    const viewport = page.getViewport({ scale: 1.5 });
+                    const viewport = page.getViewport({ scale: (((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 12) ? 2.5 : ((((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 5) ? 3.2 : 4.5) });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                     canvas.height = viewport.height;
@@ -3781,7 +3953,7 @@ const pdf = window.currentActivePDF;
                         for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
                             if (!document.getElementById('in-app-pdf-viewer')) break;
                             const page = await pdfDoc.getPage(pageNum);
-                            const viewport = page.getViewport({ scale: 1.5 });
+                            const viewport = page.getViewport({ scale: (((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 12) ? 2.5 : ((((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 5) ? 3.2 : 4.5) });
                             const canvas = document.createElement('canvas');
                             const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                             canvas.height = viewport.height;
@@ -3850,18 +4022,18 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
         return;
     }
 
-    if (window.Utils) window.Utils.showToast("⚡ Generating Master Statement PDF...");
-
     const party = await window.getRecordById('ledgers', partyId);
     if (!party) return alert("Party not found in database.");
-
+    const dateRange = window.Utils && window.Utils.pickPdfDateRange ? await window.Utils.pickPdfDateRange(`Statement Period — ${party.name || partyName || 'Party'}`) : { from: '', to: '' };
+    if (!dateRange) return;
+    if (window.Utils) window.Utils.showToast("⚡ Generating Master Statement PDF...");
     const firmId = typeof app !== 'undefined' && app.state ? app.state.firmId : 'firm1';
     const biz = await window.getRecordById('businessProfile', firmId) || {};
-    
-    // Fetch the mathematically perfect timeline direct from the database engine!
     const statement = await window.getKhataStatement(partyId, partyType);
-    const timeline = statement.timeline || [];
-    const finalBal = statement.finalBalance || 0;
+    const sliced = window.Utils && window.Utils.filterTimelineByDateRange ? window.Utils.filterTimelineByDateRange(statement.timeline || [], dateRange) : { timeline: statement.timeline || [], finalBal: statement.finalBalance || 0, periodText: null };
+    const timeline = sliced.timeline;
+    const finalBal = sliced.finalBal;
+    const pdfPeriodText = sliced.periodText;
 
     const itemsBody = [
         [
@@ -4097,7 +4269,7 @@ window.executeKhataReport = async (partyId, partyName, partyType) => {
                         width: '50%',
                         stack: [
                             { text: 'LEDGER STATEMENT', style: 'title' },
-                            { text: 'DATE: ' + window.Utils.formatDateDisplay(safeDocNo), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
+                            { text: pdfPeriodText ? ('PERIOD: ' + pdfPeriodText) : ('DATE: ' + window.Utils.formatDateDisplay(safeDocNo)), alignment: 'right', fontSize: 9, bold: true, color: '#475569', margin: [0, -5, 0, 10] },
                             { text: 'Closing Balance', alignment: 'right', fontSize: 9, color: '#64748b', margin: [0, 10, 0, 2] },
                             { text: '₹' + Math.abs(finalBal).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}), alignment: 'right', fontSize: 20, bold: true, color: '#0f172a' },
                             { text: balSuffix, alignment: 'right', fontSize: 10, bold: true, color: Math.abs(finalBal) < 0.01 ? '#64748b' : (finalBal > 0 ? '#16a34a' : '#ef4444'), margin: [0, 2, 0, 5] },
@@ -4255,7 +4427,7 @@ const pdf = window.currentActivePDF;
 
             for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                 if (!document.getElementById('in-app-pdf-viewer')) break; const page = await pdf.getPage(pageNum);
-                const viewport = page.getViewport({ scale: 1.5 });
+                const viewport = page.getViewport({ scale: (((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 12) ? 2.5 : ((((typeof pdf !== 'undefined' && pdf && pdf.numPages) ? pdf.numPages : ((typeof pdfDoc !== 'undefined' && pdfDoc && pdfDoc.numPages) ? pdfDoc.numPages : 1)) > 5) ? 3.2 : 4.5) });
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d', { alpha: false, willReadFrequently: false });
                 canvas.height = viewport.height;
