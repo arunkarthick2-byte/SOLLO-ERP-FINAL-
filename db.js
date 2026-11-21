@@ -760,18 +760,23 @@ const getGlobalTimeline = async (firmId) => {
         if (s.firmId === firmId && s.status !== 'Open' && s.status !== 'Cancelled') {
             const isReturn = s.documentType === 'return';
             // ENTERPRISE FIX: Sales bring money IN. Refunds send money OUT.
-            timeline.push({ id: s.id, date: s.date, type: isReturn ? 'OUT' : 'IN', isInvoice: !isReturn, party: s.customerName, ref: s.invoiceNo || s.orderNo, qty: `${isReturn ? '+' : ''}${(s.items || []).length} items`, amount: Math.abs(parseFloat(s.grandTotal) || 0), mode: 'Credit', desc: `${isReturn ? 'Return from' : 'Sale to'} ${s.customerName}` });
+            const sBill = (s.invoiceNo || '').trim();
+            const sOrd = (s.orderNo || '').trim();
+            const sRef = (sBill && sOrd && sBill !== sOrd) ? `${sBill} | Ord: ${sOrd}` : (sBill || sOrd || '');
+            timeline.push({ id: s.id, date: s.date, type: isReturn ? 'OUT' : 'IN', isInvoice: !isReturn, party: s.customerName, ref: sRef, qty: `${isReturn ? '+' : ''}${(s.items || []).length} items`, amount: Math.abs(parseFloat(s.grandTotal) || 0), mode: 'Credit', desc: `${isReturn ? 'Return from' : 'Sale to'} ${s.customerName}` });
         }
     });
     rawSales.length = 0;
-
     // 2. Process Purchases & Wipe RAM
     const rawPurchases = (await getAllRecords('purchases', 'firmId', firmId).catch(() => [])) || [];
     rawPurchases.forEach(p => {
         if (p.firmId === firmId && p.status !== 'Open' && p.status !== 'Cancelled') {
             const isReturn = p.documentType === 'return';
             // ENTERPRISE FIX: Purchases send money OUT. Refunds bring money IN.
-            timeline.push({ id: p.id, date: p.date, type: isReturn ? 'IN' : 'OUT', isInvoice: !isReturn, party: p.supplierName, ref: p.poNo || p.invoiceNo || p.orderNo, qty: `${isReturn ? '-' : ''}${(p.items || []).length} items`, amount: Math.abs(parseFloat(p.grandTotal) || 0), mode: 'Credit', desc: `${isReturn ? 'Return to' : 'Purchase from'} ${p.supplierName}` });
+            const pBill = (p.invoiceNo || p.poNo || '').trim();
+            const pOrd = (p.orderNo || '').trim();
+            const pRef = (pBill && pOrd && pBill !== pOrd) ? `${pBill} | PO: ${pOrd}` : (pBill || pOrd || '');
+            timeline.push({ id: p.id, date: p.date, type: isReturn ? 'IN' : 'OUT', isInvoice: !isReturn, party: p.supplierName, ref: pRef, qty: `${isReturn ? '-' : ''}${(p.items || []).length} items`, amount: Math.abs(parseFloat(p.grandTotal) || 0), mode: 'Credit', desc: `${isReturn ? 'Return to' : 'Purchase from'} ${p.supplierName}` });
         }
     });
     rawPurchases.length = 0;
@@ -1273,6 +1278,7 @@ window.executeAtomicBatch = (puts, deletes) => {
 // Checks if the phone is running out of space to prevent silent data loss
 if (navigator.storage && navigator.storage.estimate) {
     setInterval(async () => {
+        if (document.hidden) return;
         try {
             const estimate = await navigator.storage.estimate();
             const usagePercent = estimate.quota > 0 ? (estimate.usage / estimate.quota) * 100 : 0;

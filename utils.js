@@ -1443,14 +1443,10 @@ Please process this accordingly. Thank you!`;
         const extraItemLines = (doc.items || []).reduce((sum, it) => sum + Math.max(0, Math.ceil(String(it.name || '').length / 36) - 1) + (it.desc ? Math.ceil(String(it.desc).length / 42) : 0), 0);
         const fixedHeights = 69 + (isNonGST ? 124 : 191) + 59 + (usedRows * 20.5) + (extraItemLines * 11) + 39 + ((!isNonGST && hsnRowCount > 0) ? (68 + (hsnRowCount * 21)) : 0) + (isNonGST ? 27 : 36);
         const footerHeight = Math.max((cleanTermsStr ? (14 + (visualTermsLines * 9.5)) : 0) + 35, (extraPaymentRows * 18) + (!isNonGST ? (biz.signature ? 95 : 75) : 12));
-        let dynamicSpacer = Math.max(0, Math.round(795 - (fixedHeights + footerHeight)));
-        termsLines = 0;
-        dynamicSpacer -= (termsLines * 10); 
-        
+        let dynamicSpacer = Math.max(0, Math.round(745 - (fixedHeights + footerHeight)));
         dynamicSpacer = Math.max(0, dynamicSpacer); // Failsafe: Drop to 0 when page is full
-
-        itemsBody.push([ 
-            {text: '\n', margin: [0, dynamicSpacer, 0, 0]}, '', '', '', '', '', '' 
+        itemsBody.push([
+            {text: ' ', fontSize: 1, margin: [0, dynamicSpacer, 0, 0]}, '', '', '', '', '', ''
         ]);
 
         // Debt tracking was moved to the top of the function to support dynamic dates!
@@ -3578,77 +3574,98 @@ const pdf = window.currentActivePDF;
             ]
         ];
 
+        const fmtIn = (n) => (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         let totalAmt = 0;
         itemsToProcess.forEach((item, index) => {
             const qty = parseFloat(item.qty) || 1;
             const rate = parseFloat(item.rate) || 0;
             const total = qty * rate;
             totalAmt += total;
-
             itemsBody.push([
                 {text: String(index + 1), style: 'td', alignment: 'center'},
                 {text: String(item.name || 'Expense Item'), style: 'td', bold: true},
-                {text: String(`${qty} ${item.uom || ''}`), style: 'td', alignment: 'center'},
-                {text: String(rate.toFixed(2)), style: 'td', alignment: 'right'},
-                {text: String(total.toFixed(2)), style: 'td', alignment: 'right', bold: true}
+                {text: String(`${qty} ${item.uom || ''}`).trim(), style: 'td', alignment: 'center'},
+                {text: fmtIn(rate), style: 'td', alignment: 'right'},
+                {text: fmtIn(total), style: 'td', alignment: 'right', bold: true}
             ]);
         });
-
         const finalTotalAmt = totalAmt > 0 ? totalAmt : (parseFloat(expense.amount) || 0);
         const amountInWords = window.Utils.numberToWords(finalTotalAmt);
-
-        // 🚨 STRICT SHIELD: Forces everything into a string so the database can't crash the engine
         const safeExpenseNo = String(expense.expenseNo || 'EXP-AUTO');
         const safePartyName = String(expense.partyName || expense.vendorName || expense.category || 'General');
         const safePayMode = String(payAccount.name + (expense.refNo ? ` (${expense.refNo})` : ''));
-
+        let linkedDocsStr = '';
+        if (expense.linkedInvoice) {
+            const allSales = (await window.getAllRecords('sales', 'firmId', activeFirmId).catch(() => [])) || [];
+            const allPurch = (await window.getAllRecords('purchases', 'firmId', activeFirmId).catch(() => [])) || [];
+            const links = String(expense.linkedInvoice).split(',').map(x => x.trim()).filter(Boolean);
+            const labels = links.map(link => {
+                const sDoc = allSales.find(s => s.id === link || s.invoiceNo === link || s.orderNo === link || (s.id && s.id.endsWith(link)));
+                if (sDoc) {
+                    const b = (sDoc.invoiceNo || '').trim();
+                    const o = (sDoc.orderNo || '').trim();
+                    return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || String(sDoc.id).slice(-4).toUpperCase());
+                }
+                const pDoc = allPurch.find(p => p.id === link || p.poNo === link || p.invoiceNo === link || p.orderNo === link || (p.id && p.id.endsWith(link)));
+                if (pDoc) {
+                    const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                    const o = (pDoc.orderNo || '').trim();
+                    return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || String(pDoc.id).slice(-4).toUpperCase());
+                }
+                return link.startsWith('sollo-') ? link.slice(-4).toUpperCase() : link;
+            });
+            linkedDocsStr = [...new Set(labels)].join(', ');
+        }
+        const metaRows = [
+            [{text: 'Voucher No:', fillColor: '#f1f5f9', bold: true, fontSize: 8.5}, {text: safeExpenseNo, alignment: 'right', bold: true, fontSize: 9.5}],
+            [{text: 'Date:', fillColor: '#f1f5f9', bold: true, fontSize: 8.5}, {text: String(safeDate), alignment: 'right', bold: true, fontSize: 9.5}],
+            [{text: 'Category / Party:', fillColor: '#f1f5f9', bold: true, fontSize: 8.5}, {text: safePartyName, alignment: 'right', bold: true, fontSize: 9.5}],
+            [{text: 'Paid From:', fillColor: '#f1f5f9', bold: true, fontSize: 8.5}, {text: safePayMode, alignment: 'right', bold: true, fontSize: 9.5}]
+        ];
+        if (linkedDocsStr) {
+            metaRows.push([{text: 'Linked Doc:', fillColor: '#f1f5f9', bold: true, fontSize: 8.5}, {text: linkedDocsStr, alignment: 'right', bold: true, fontSize: 8.5, color: '#0061a4'}]);
+        }
         const docDefinition = {
-            pageSize: { width: 595.28, height: 'auto' }, // 🚨 FIX: Forces continuous Single-Page PDF!
-            pageMargins: [30, 30, 30, 30],
-            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+            pageSize: 'A4',
+            pageMargins: [24, 20, 24, 20],
+            defaultStyle: { font: 'Roboto', fontSize: 9.5, color: '#0f172a' },
             styles: {
-                h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
-                title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
-                sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
-                subBold: { fontSize: 9, bold: true, color: '#0f172a' },
-                sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
-                th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
-                td: { fontSize: 9, margin: [2, 4] }
+                h1: { fontSize: 16, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
+                title: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 6], alignment: 'right' },
+                sub: { fontSize: 8.5, color: '#334155', lineHeight: 1.25 },
+                subBold: { fontSize: 8.5, bold: true, color: '#0f172a' },
+                sectionTitle: { fontSize: 9.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 4], decoration: 'underline' },
+                th: { fillColor: '#f1f5f9', bold: true, fontSize: 8.5, color: '#0f172a', margin: [2, 3] },
+                td: { fontSize: 8.5, margin: [2, 3] }
             },
             content: [
-                // Header
                 {
                     columns: [
                         {
-                            width: '60%',
+                            width: '58%',
                             stack: [
-                                (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [150, 60], margin: [0, 0, 0, 10] } : null,
+                                (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [130, 50], margin: [0, 0, 0, 8] } : null,
                                 { text: String(biz.name || 'Company Name'), style: 'h1' },
                                 { text: String((biz.address ? biz.address + '\n' : '') + bizLocationStr), style: 'sub' },
                                 { text: String('Ph: ' + (biz.phone || '') + (biz.email ? ' | Email: ' + biz.email : '')), style: 'sub' }
                             ].filter(Boolean)
                         },
                         {
-                            width: '40%',
+                            width: '42%',
                             stack: [
-                                { text: 'PAYMENT VOUCHER', style: 'title' },
-                                { text: 'INTERNAL EXPENSE RECORD', alignment: 'right', fontSize: 9, bold: true, color: '#64748b', margin: [0, -5, 0, 10] },
+                                { text: 'EXPENSE VOUCHER', style: 'title' },
+                                { text: 'INTERNAL EXPENSE RECORD', alignment: 'right', fontSize: 8.5, bold: true, color: '#64748b', margin: [0, -3, 0, 8] },
                                 {
                                     table: {
-                                        widths: ['*', 'auto'],
-                                        body: [
-                                            [{text: 'Voucher No:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: safeExpenseNo, alignment: 'right', bold: true, fontSize: 10}],
-                                            [{text: 'Date:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: String(safeDate), alignment: 'right', bold: true, fontSize: 10}],
-                                            [{text: 'Paid To / Party:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: safePartyName, alignment: 'right', bold: true, fontSize: 10}],
-                                            [{text: 'Payment Mode:', fillColor: '#f1f5f9', bold: true, fontSize: 9}, {text: safePayMode, alignment: 'right', bold: true, fontSize: 10}]
-                                        ]
+                                        widths: ['auto', '*'],
+                                        body: metaRows
                                     },
                                     layout: 'lightHorizontalLines'
                                 }
                             ]
                         }
                     ],
-                    margin: [0, 0, 0, 20]
+                    margin: [0, 0, 0, 14]
                 },
 
                 // Items Table
@@ -3680,7 +3697,7 @@ const pdf = window.currentActivePDF;
                                     table: {
                                         widths: ['*', 'auto'],
                                         body: [
-                                            [{ text: 'TOTAL PAID', bold: true, fillColor: '#0f172a', color: '#ffffff', margin: [4, 8] }, { text: String('₹' + finalTotalAmt.toFixed(2)), bold: true, fillColor: '#0f172a', color: '#ffffff', alignment: 'right', fontSize: 12, margin: [4, 8] }]
+                                            [{ text: 'TOTAL PAID', bold: true, fillColor: '#0f172a', color: '#ffffff', margin: [4, 7] }, { text: '₹' + fmtIn(finalTotalAmt), bold: true, fillColor: '#0f172a', color: '#ffffff', alignment: 'right', fontSize: 12, margin: [4, 7] }]
                                         ]
                                     },
                                     layout: 'noBorders'
@@ -3689,29 +3706,28 @@ const pdf = window.currentActivePDF;
                         }
                     ]
                 },
-
-                // Signatures
                 {
+                    unbreakable: true,
                     columns: [
                         {
-                            width: 200, // 🚨 CRITICAL MATH FIX: Changed from string '200' to number 200
+                            width: 200,
                             stack: [
-                                { text: '\n\n\n', margin: [0, 20, 0, 5] },
-                                { text: "Receiver's Signature", style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] },
+                                { text: '\n\n', margin: [0, 12, 0, 4] },
+                                { text: "Receiver's Signature", style: 'subBold', alignment: 'center', margin: [0, 4, 0, 0] },
                                 { text: '(Sign to confirm cash received)', style: 'sub', alignment: 'center', fontSize: 8 }
                             ]
                         },
-                        { width: '*', text: '' }, // Spacer
+                        { width: '*', text: '' },
                         {
-                            width: 200, // 🚨 CRITICAL MATH FIX: Changed from string '200' to number 200
+                            width: 200,
                             stack: [
-                                biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
-                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] },
+                                biz.signature ? { image: biz.signature, fit: [140, 44], alignment: 'center', margin: [0, 12, 0, 4] } : { text: '\n\n', margin: [0, 12, 0, 4] },
+                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 4, 0, 0] },
                                 { text: String('For ' + (biz.name || 'Company Name')), style: 'sub', alignment: 'center' }
                             ]
                         }
                     ],
-                    margin: [0, 30, 0, 0]
+                    margin: [0, 16, 0, 0]
                 }
             ]
         };
@@ -4514,11 +4530,174 @@ if (!window.Utils) window.Utils = {};
 window.Utils.formatMoney = (amount) => {
     const num = parseFloat(amount);
     if (isNaN(num)) return '₹ 0.00';
-    
-    // Forces exactly 2 decimal places and the South Asian comma placement
     return '₹ ' + num.toLocaleString('en-IN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
 };
-
+window.executeExpenseLedgerPDF = async () => {
+    try {
+        let range = { from: '', to: '', label: 'All Time' };
+        if (window.Utils && typeof window.Utils.pickPdfDateRange === 'function') {
+            const picked = await window.Utils.pickPdfDateRange('Expense Ledger Statement');
+            if (!picked) return;
+            range = picked;
+        }
+        const firmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+        const allExpenses = (await window.getAllRecords('expenses', 'firmId', firmId).catch(() => [])) || [];
+        const filtered = allExpenses.filter(e => {
+            if (firmId && e.firmId && e.firmId !== firmId) return false;
+            if (range.from && (!e.date || e.date < range.from)) return false;
+            if (range.to && (!e.date || e.date > range.to)) return false;
+            return true;
+        });
+        if (filtered.length === 0) {
+            if (window.Utils) window.Utils.showToast('⚠️ No expenses found for the selected period.');
+            return;
+        }
+        if (window.Utils) window.Utils.showToast('⚡ Generating Expense Ledger PDF...');
+        filtered.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+        const biz = await window.getRecordById('businessProfile', firmId) || {};
+        const allAccounts = (await window.getAllRecords('accounts').catch(() => [])) || [];
+        const allSales = (await window.getAllRecords('sales', 'firmId', firmId).catch(() => [])) || [];
+        const allPurch = (await window.getAllRecords('purchases', 'firmId', firmId).catch(() => [])) || [];
+        const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
+        const bizLoc = [biz.address, biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
+        const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        const resolveLinked = (rawRef) => {
+            if (!rawRef) return '-';
+            const links = String(rawRef).split(',').map(x => x.trim()).filter(Boolean);
+            const labels = links.map(link => {
+                const sDoc = allSales.find(s => s.id === link || s.invoiceNo === link || s.orderNo === link || (s.id && s.id.endsWith(link)));
+                if (sDoc) {
+                    const b = (sDoc.invoiceNo || '').trim();
+                    const o = (sDoc.orderNo || '').trim();
+                    return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || String(sDoc.id).slice(-4).toUpperCase());
+                }
+                const pDoc = allPurch.find(p => p.id === link || p.poNo === link || p.invoiceNo === link || p.orderNo === link || (p.id && p.id.endsWith(link)));
+                if (pDoc) {
+                    const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                    const o = (pDoc.orderNo || '').trim();
+                    return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || String(pDoc.id).slice(-4).toUpperCase());
+                }
+                return link.startsWith('sollo-') ? link.slice(-4).toUpperCase() : link;
+            });
+            return [...new Set(labels)].join(', ');
+        };
+        const catMap = {};
+        let totalAmt = 0;
+        const regBody = [
+            [{text: 'DATE', style: 'th'}, {text: 'VOUCHER NO.', style: 'th'}, {text: 'CATEGORY & NOTES', style: 'th'}, {text: 'PAID FROM', style: 'th'}, {text: 'LINKED DOC', style: 'th'}, {text: 'AMOUNT', style: 'th', alignment: 'right'}]
+        ];
+        filtered.forEach((e, idx) => {
+            const amt = parseFloat(e.amount) || 0;
+            totalAmt += amt;
+            const cat = e.category || 'Uncategorized';
+            if (!catMap[cat]) catMap[cat] = { amt: 0, count: 0 };
+            catMap[cat].amt += amt;
+            catMap[cat].count += 1;
+            const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+            const accObj = allAccounts.find(a => a.id === e.accountId);
+            const accName = (!e.accountId || e.accountId === 'cash') ? 'Cash Drawer' : (accObj ? accObj.name : 'Bank');
+            const catStack = [{text: cat, bold: true, fontSize: 8.5, color: '#0f172a'}];
+            if (e.notes) catStack.push({text: String(e.notes), fontSize: 7.5, color: '#64748b', margin: [0, 1, 0, 0]});
+            regBody.push([
+                {text: window.Utils.formatDateDisplay(e.date), fontSize: 8.5, margin: [0, 4, 0, 4], fillColor: rowBg, color: '#475569'},
+                {text: e.expenseNo || String(e.id).slice(-6).toUpperCase(), fontSize: 8.5, bold: true, margin: [0, 4, 0, 4], fillColor: rowBg},
+                {stack: catStack, margin: [0, 4, 0, 4], fillColor: rowBg},
+                {text: accName, fontSize: 8.5, margin: [0, 4, 0, 4], fillColor: rowBg, color: '#334155'},
+                {text: resolveLinked(e.linkedInvoice), fontSize: 8, margin: [0, 4, 0, 4], fillColor: rowBg, color: '#0061a4'},
+                {text: fmt(amt), fontSize: 8.5, alignment: 'right', color: '#dc2626', bold: true, margin: [0, 4, 0, 4], fillColor: rowBg}
+            ]);
+        });
+        regBody.push([
+            {text: `TOTAL (${filtered.length} Entries)`, colSpan: 5, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+            {}, {}, {}, {},
+            {text: fmt(totalAmt), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+        ]);
+        const rankedCats = Object.entries(catMap).sort((a, b) => b[1].amt - a[1].amt);
+        const catBody = [
+            [{text: 'CATEGORY', style: 'th'}, {text: 'ENTRIES', style: 'th', alignment: 'center'}, {text: '% SHARE', style: 'th', alignment: 'center'}, {text: 'AMOUNT', style: 'th', alignment: 'right'}]
+        ];
+        rankedCats.forEach(([cat, info], idx) => {
+            const pct = totalAmt > 0 ? ((info.amt / totalAmt) * 100).toFixed(1) : '0.0';
+            const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+            catBody.push([
+                {text: cat, fontSize: 8.5, bold: true, margin: [0, 4, 0, 4], fillColor: rowBg},
+                {text: String(info.count), fontSize: 8.5, alignment: 'center', margin: [0, 4, 0, 4], fillColor: rowBg},
+                {text: `${pct}%`, fontSize: 8.5, alignment: 'center', margin: [0, 4, 0, 4], fillColor: rowBg},
+                {text: fmt(info.amt), fontSize: 8.5, alignment: 'right', color: '#dc2626', bold: true, margin: [0, 4, 0, 4], fillColor: rowBg}
+            ]);
+        });
+        const periodLabel = range.label || (range.from || range.to ? `${range.from ? window.Utils.formatDateDisplay(range.from) : 'Start'} to ${range.to ? window.Utils.formatDateDisplay(range.to) : 'Present'}` : 'All Time');
+        const docDefinition = {
+            pageSize: 'A4',
+            pageMargins: [32, 42, 32, 36],
+            defaultStyle: { font: 'Roboto', fontSize: 9.5, color: '#1e293b' },
+            styles: {
+                header: { fontSize: 20, bold: true, color: '#0f172a', letterSpacing: 0.5 },
+                subHeader: { fontSize: 16, bold: true, color: brandColor, alignment: 'right', letterSpacing: 0.8 },
+                th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 5, 0, 5], fontSize: 8.5 }
+            },
+            background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 7, color: brandColor } ] }; },
+            footer: function (currentPage, pageCount) {
+                return {
+                    columns: [
+                        { text: `Generated on ${window.Utils.formatDateDisplay(window.Utils.getLocalDate())} • SOLLO ERP`, fontSize: 8, color: '#94a3b8' },
+                        { text: `Page ${currentPage} of ${pageCount}`, alignment: 'right', fontSize: 8, bold: true, color: '#64748b' }
+                    ],
+                    margin: [32, 10, 32, 0]
+                };
+            },
+            content: [
+                {
+                    columns: [
+                        {
+                            width: '*',
+                            stack: [
+                                (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [120, 48], margin: [0, 0, 0, 8] } : null,
+                                { text: biz.name || 'Company Name', style: 'header' },
+                                bizLoc ? { text: bizLoc, fontSize: 8.5, color: '#64748b', margin: [0, 2, 0, 0] } : null,
+                                biz.gst ? { text: 'GSTIN: ' + biz.gst, fontSize: 8.5, bold: true, color: '#334155', margin: [0, 2, 0, 0] } : null
+                            ].filter(Boolean)
+                        },
+                        {
+                            width: 220,
+                            stack: [
+                                { text: 'EXPENSE LEDGER', style: 'subHeader' },
+                                { text: `Period: ${periodLabel}`, alignment: 'right', fontSize: 9.5, bold: true, color: '#475569', margin: [0, 3, 0, 0] },
+                                { text: `${filtered.length} Entries • Total: ${fmt(totalAmt)}`, alignment: 'right', fontSize: 8.5, bold: true, color: '#dc2626', margin: [0, 2, 0, 0] }
+                            ]
+                        }
+                    ],
+                    margin: [0, 0, 0, 18]
+                },
+                { text: 'EXPENSE REGISTER', fontSize: 10, bold: true, color: brandColor, margin: [0, 0, 0, 6] },
+                {
+                    table: { headerRows: 1, dontBreakRows: true, widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto'], body: regBody },
+                    layout: {
+                        hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.2 : 0.5; },
+                        vLineWidth: function () { return 0; },
+                        hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                        paddingLeft: function() { return 5; }, paddingRight: function() { return 5; }
+                    },
+                    margin: [0, 0, 0, 18]
+                },
+                { text: 'CATEGORY-WISE BREAKDOWN', fontSize: 10, bold: true, color: brandColor, margin: [0, 0, 0, 6] },
+                {
+                    table: { headerRows: 1, dontBreakRows: true, widths: ['*', 'auto', 'auto', 'auto'], body: catBody },
+                    layout: {
+                        hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length) ? 1.2 : 0.5; },
+                        vLineWidth: function () { return 0; },
+                        hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                        paddingLeft: function() { return 6; }, paddingRight: function() { return 6; }
+                    }
+                }
+            ]
+        };
+        window.Utils.processVectorPDF(docDefinition, `Expense_Ledger_${window.Utils.getLocalDate()}.pdf`, `Here is the Expense Ledger Statement (${periodLabel}).`);
+    } catch (error) {
+        console.error('Expense Ledger PDF Error:', error);
+        if (window.Utils) window.Utils.alertModal(error.message, 'Engine Failed');
+    }
+};

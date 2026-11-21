@@ -2,9 +2,10 @@
 // Converts floats to exact exponential rounding to eliminate Javascript floating-point bugs
 const safeMoney = (amount) => {
     const num = parseFloat(amount);
-    if (isNaN(num)) return 0;
-    // 🚨 BUG FIX: Upgraded to Exponential Math to match our new Utils.roundFinancial engine
-    return Number(Math.round(num + 'e2') + 'e-2');
+    if (!isFinite(num)) return 0;
+    const sign = num < 0 ? -1 : 1;
+    const rounded = Math.round((Math.abs(num) * 100) + 1e-9) / 100;
+    return rounded === 0 ? 0 : sign * rounded;
 };
 
 // --- BACKGROUND WORKER ENGINE ---
@@ -840,7 +841,11 @@ const app = {
                                     const diffTime = today - invoiceDate;
                                     if (diffTime >= 0) {
                                         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
-                                        const agingEntry = { id: sale.id, invoiceNo: sale.invoiceNo || sale.orderNo || 'Invoice', customerName: sale.customerName || 'Customer', date: baseDate || sale.date || '', days: diffDays, balance };
+                                        const sBill = (sale.invoiceNo || '').trim();
+                                        const sOrd = (sale.orderNo || '').trim();
+                                        const smartOrd = /^ord\b/i.test(sOrd) ? sOrd : (sOrd ? `Ord: ${sOrd}` : '');
+                                        const agingDocLabel = (sBill && sOrd && sBill !== sOrd) ? `${sBill} • ${smartOrd}` : (sBill || sOrd || 'Invoice');
+                                        const agingEntry = { id: sale.id, invoiceNo: agingDocLabel, customerName: sale.customerName || 'Customer', date: baseDate || sale.date || '', days: diffDays, balance };
                                         if (diffDays <= 30) { bucket30 += balance; window._agingBuckets['30'].push(agingEntry); }
                                         else if (diffDays <= 60) { bucket60 += balance; window._agingBuckets['60'].push(agingEntry); }
                                         else { bucket90 += balance; window._agingBuckets['90'].push(agingEntry); }
@@ -883,7 +888,16 @@ const app = {
                 <li class="tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${String(item.id).replace(/'/g, "\\'")}');" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin: 0; border-radius: 0; background: transparent; border: none; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;">
                     <div style="min-width: 0; padding-right: 12px;">
                         <div style="font-size: 14px; font-weight: 700; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(item.customerName)}</div>
-                        <div style="font-size: 12px; color: var(--md-text-muted); margin-top: 3px;">${esc(item.invoiceNo)} • ${esc(item.date || '-')}</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--md-text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(item.invoiceNo)}</div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
+                            <div class="tap-target" title="Share on WhatsApp" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('sales', '${String(item.id).replace(/'/g, "\\'")}')" style="width: 22px; height: 22px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                            </div>
+                            <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${String(item.id).replace(/'/g, "\\'")}'; window.app.generatePDF('sales'); }" style="width: 22px; height: 22px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--md-text-muted); opacity: 0.85; white-space: nowrap;">• ${esc((window.Utils && window.Utils.formatDateDisplay && item.date) ? window.Utils.formatDateDisplay(item.date) : (item.date || '-'))}</span>
+                        </div>
                     </div>
                     <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                         <div style="font-size: 14px; font-weight: 800; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">${fmt(item.balance)}</div>
@@ -921,6 +935,209 @@ const app = {
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
     },
+    openPartyDueAgingModal: async (mode = 'receivables') => {
+        const isRec = mode === 'receivables';
+        const title = isRec ? 'Receivables Aging' : 'Payables Aging';
+        const docStore = isRec ? 'sales' : 'purchases';
+        const waStore = isRec ? 'sales' : 'purchases';
+        const pdfFormType = isRec ? 'sales' : 'purchase';
+        const activeFirmId = (window.app && window.app.state) ? window.app.state.firmId : 'firm1';
+        const existingSheet = document.getElementById('sheet-party-due-aging');
+        const existingOverlay = document.getElementById('party-due-aging-overlay');
+        if (existingSheet) existingSheet.remove();
+        if (existingOverlay) existingOverlay.remove();
+        const raw = (window.UI && window.UI.state && window.UI.state.rawData) ? window.UI.state.rawData : {};
+        const allDocs = (raw[docStore] && raw[docStore].length ? raw[docStore] : await window.getAllRecords(docStore, 'firmId', activeFirmId).catch(() => [])) || [];
+        const allLedgers = (raw.ledgers && raw.ledgers.length ? raw.ledgers : await window.getAllRecords('ledgers', 'firmId', activeFirmId).catch(() => [])) || [];
+        const allReceipts = (raw.cashbook && raw.cashbook.length ? raw.cashbook : await window.getAllRecords('receipts', 'firmId', activeFirmId).catch(() => [])) || [];
+        const partyDocsMap = {};
+        allDocs.forEach(d => {
+            if (d.status === 'Open' || d.status === 'Cancelled' || (activeFirmId && d.firmId && d.firmId !== activeFirmId)) return;
+            const pid = String(isRec ? (d.customerId || '') : (d.supplierId || ''));
+            if (!pid) return;
+            if (!partyDocsMap[pid]) partyDocsMap[pid] = [];
+            partyDocsMap[pid].push(d);
+        });
+        const partyRecMap = {};
+        allReceipts.forEach(r => {
+            if (activeFirmId && r.firmId && r.firmId !== activeFirmId) return;
+            const pid = String(r.ledgerId || '');
+            if (!pid) return;
+            if (!partyRecMap[pid]) partyRecMap[pid] = [];
+            partyRecMap[pid].push(r);
+        });
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const pendingEntries = [];
+        Object.keys(partyDocsMap).forEach(pid => {
+            const pDocs = partyDocsMap[pid];
+            const pRecs = partyRecMap[pid] || [];
+            const partyObj = allLedgers.find(l => String(l.id) === pid) || null;
+            const ob = partyObj ? Math.abs(parseFloat(partyObj.openingBalance) || 0) : 0;
+            const bType = partyObj ? String(partyObj.balanceType || '').toLowerCase() : '';
+            const isAdv = isRec ? (bType.includes('pay') || bType.includes('credit')) : (bType.includes('receive') || bType.includes('debit'));
+            let paidGST = 0;
+            let paidNonGST = isAdv ? ob : -ob;
+            pDocs.filter(d => d.documentType === 'return').forEach(d => {
+                const amt = Math.abs(parseFloat(d.grandTotal) || 0);
+                if (d.invoiceType === 'Non-GST') paidNonGST += amt;
+                else paidGST += amt;
+            });
+            pRecs.forEach(r => {
+                let isNonGstRec = r.taxPool === 'Non-GST';
+                const legacyRef = r.invoiceRef || r.linkedInvoice;
+                if (!r.taxPool || r.taxPool === 'All') {
+                    isNonGstRec = true;
+                    if (legacyRef) {
+                        const firstRef = String(legacyRef).split(',')[0].trim();
+                        const linkedDoc = pDocs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
+                        if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstRec = false;
+                    }
+                }
+                const amt = parseFloat(r.amount) || 0;
+                const creditImp = isRec ? (r.type === 'in' ? amt : -amt) : (r.type === 'out' ? amt : -amt);
+                if (isNonGstRec) paidNonGST += creditImp;
+                else paidGST += creditImp;
+            });
+            const applyFifo = (bills, pool) => {
+                let avail = pool;
+                bills.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || String(a.id || '').localeCompare(String(b.id || ''))).forEach(d => {
+                    const amt = Math.abs(parseFloat(d.grandTotal) || 0);
+                    if (amt <= 0.01) return;
+                    let bal = amt;
+                    if (avail >= amt - 0.5) { avail -= amt; bal = 0; }
+                    else if (avail > 0.5) { bal = amt - avail; avail = 0; }
+                    if (bal > 0.5) {
+                        const baseDate = d.shippedDate || d.date || '';
+                        const parts = String(baseDate).split('-');
+                        const dt = parts.length === 3 ? new Date(parts[0], parts[1] - 1, parts[2]) : new Date(baseDate);
+                        const days = isNaN(dt.getTime()) ? 0 : Math.max(0, Math.floor((today - dt) / 86400000));
+                        const bStr = (d.invoiceNo || d.poNo || '').trim();
+                        const oStr = (d.orderNo || '').trim();
+                        const smartOrd = isRec ? (/^ord\b/i.test(oStr) ? oStr : (oStr ? `Ord: ${oStr}` : '')) : (/^po\b/i.test(oStr) ? oStr : (oStr ? `PO: ${oStr}` : ''));
+                        const label = (bStr && oStr && bStr !== oStr) ? `${bStr} • ${smartOrd}` : (bStr || oStr || 'Bill');
+                        pendingEntries.push({
+                            id: d.id,
+                            partyName: (isRec ? d.customerName : d.supplierName) || (partyObj ? partyObj.name : 'Unknown Party'),
+                            docLabel: label,
+                            date: d.date || baseDate,
+                            days,
+                            balance: bal
+                        });
+                    }
+                });
+            };
+            const regularBills = pDocs.filter(d => d.documentType !== 'return');
+            applyFifo(regularBills.filter(d => d.invoiceType !== 'Non-GST'), paidGST);
+            applyFifo(regularBills.filter(d => d.invoiceType === 'Non-GST'), paidNonGST);
+        });
+        pendingEntries.sort((a, b) => b.days - a.days || b.balance - a.balance);
+        const isDark = document.body.classList.contains('dark-mode');
+        const bgSurf = isDark ? '#121212' : '#ffffff';
+        const bgVar = isDark ? '#1e1e1e' : '#f1f5f9';
+        const fgMain = isDark ? '#f8fafc' : '#0f172a';
+        const fgMuted = isDark ? '#94a3b8' : '#64748b';
+        const borderCol = isDark ? '#262626' : '#e2e8f0';
+        const primaryCol = isDark ? '#38bdf8' : 'var(--md-primary, #0061a4)';
+        const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const getColor = (d) => d <= 30 ? '#16a34a' : (d <= 60 ? '#f59e0b' : '#ef4444');
+        const getTint = (d) => d <= 30 ? 'rgba(22, 163, 74, 0.14)' : (d <= 60 ? 'rgba(245, 158, 11, 0.14)' : 'rgba(239, 68, 68, 0.14)');
+        let activeBucket = 'all';
+        let activeTerm = '';
+        const filterEntries = () => {
+            return pendingEntries.filter(x => {
+                if (activeBucket === '30' && x.days > 30) return false;
+                if (activeBucket === '60' && (x.days <= 30 || x.days > 60)) return false;
+                if (activeBucket === '90' && x.days <= 60) return false;
+                if (activeTerm) {
+                    const q = activeTerm.toLowerCase();
+                    return String(x.partyName || '').toLowerCase().includes(q) || String(x.docLabel || '').toLowerCase().includes(q);
+                }
+                return true;
+            });
+        };
+        const renderRows = (rows) => {
+            if (!rows.length) return `<li style="padding: 36px 16px; text-align: center; color: ${fgMuted}; font-size: 13px;">No pending ${isRec ? 'receivable' : 'payable'} bills found.</li>`;
+            return rows.map(item => {
+                const safeId = String(item.id).replace(/'/g, "\\'");
+                const fmtDate = (window.Utils && window.Utils.formatDateDisplay && item.date) ? window.Utils.formatDateDisplay(item.date) : (item.date || '-');
+                return `
+                <li class="tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('${pdfFormType}', '${safeId}');" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin: 0; border-radius: 0; background: transparent; border: none; border-bottom: 1px solid ${borderCol}; cursor: pointer;">
+                    <div style="min-width: 0; flex: 1; padding-right: 12px;">
+                        <div style="font-size: 14px; font-weight: 700; color: ${fgMain}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(item.partyName)}</div>
+                        <div style="font-size: 12px; font-weight: 600; color: ${fgMuted}; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(item.docLabel)}</div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
+                            <div class="tap-target" title="Share on WhatsApp" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('${waStore}', '${safeId}')" style="width: 22px; height: 22px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                            </div>
+                            <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${safeId}'; window.app.generatePDF('${pdfFormType}'); }" style="width: 22px; height: 22px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: ${fgMuted}; opacity: 0.85; white-space: nowrap;">• ${esc(fmtDate)}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <div style="font-size: 14px; font-weight: 800; color: ${fgMain}; font-variant-numeric: tabular-nums;">${fmt(item.balance)}</div>
+                        <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: ${getTint(item.days)}; color: ${getColor(item.days)};">${item.days}d</span>
+                    </div>
+                </li>`;
+            }).join('');
+        };
+        const refreshUI = () => {
+            const rows = filterEntries();
+            const sum = rows.reduce((s, x) => s + x.balance, 0);
+            const ul = document.getElementById('party-due-aging-results');
+            const cntEl = document.getElementById('party-due-aging-count');
+            const totEl = document.getElementById('party-due-aging-total');
+            if (ul) ul.innerHTML = renderRows(rows);
+            if (cntEl) cntEl.textContent = `${rows.length} Pending Bill${rows.length === 1 ? '' : 's'}`;
+            if (totEl) totEl.textContent = fmt(sum);
+            document.querySelectorAll('#party-due-aging-tabs button').forEach(b => {
+                const act = b.getAttribute('data-b') === activeBucket;
+                b.style.background = act ? primaryCol : 'transparent';
+                b.style.color = act ? (isDark ? '#000000' : '#ffffff') : fgMuted;
+                b.style.fontWeight = act ? '700' : '600';
+            });
+        };
+        window._closePartyDueAging = () => {
+            const s = document.getElementById('sheet-party-due-aging');
+            const o = document.getElementById('party-due-aging-overlay');
+            if (s) s.remove();
+            if (o) o.remove();
+        };
+        window._setPartyDueBucket = (b) => { activeBucket = b; refreshUI(); };
+        window._filterPartyDueAging = (val) => { activeTerm = String(val || '').trim(); refreshUI(); };
+        const initTotal = pendingEntries.reduce((s, x) => s + x.balance, 0);
+        const html = `
+            <div id="party-due-aging-overlay" onclick="if(window._closePartyDueAging) window._closePartyDueAging()" style="position:fixed;inset:0;background:rgba(0,0,0,0.58);z-index:3000;"></div>
+            <div id="sheet-party-due-aging" style="position:fixed;top:16px;bottom:16px;left:16px;right:16px;max-width:520px;margin:0 auto;border-radius:12px;border:1px solid ${borderCol};display:flex;flex-direction:column;padding:0;z-index:3005;box-shadow:0 12px 40px rgba(0,0,0,0.35);background:${bgSurf};color:${fgMain};overflow:hidden;">
+                <div style="background:${bgSurf};flex-shrink:0;padding:14px 16px 12px 16px;border-bottom:1px solid ${borderCol};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <strong style="font-size:16px;font-weight:700;color:${fgMain};flex:1;">${esc(title)}</strong>
+                        <span class="material-symbols-outlined tap-target" onclick="if(window._closePartyDueAging) window._closePartyDueAging()" style="color:${fgMuted};font-size:22px;cursor:pointer;padding:2px;">close</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <span id="party-due-aging-count" style="font-size:12px;font-weight:600;color:${fgMuted};">${pendingEntries.length} Pending Bill${pendingEntries.length === 1 ? '' : 's'}</span>
+                        <strong id="party-due-aging-total" style="font-size:15px;font-weight:800;color:${isRec ? '#ef4444' : '#f59e0b'};font-variant-numeric:tabular-nums;">${fmt(initTotal)}</strong>
+                    </div>
+                    <div id="party-due-aging-tabs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:${bgVar};padding:4px;border-radius:8px;border:1px solid ${borderCol};margin-bottom:10px;">
+                        <button type="button" data-b="all" onclick="window._setPartyDueBucket('all')" style="padding:7px 4px;border-radius:6px;border:none;background:${primaryCol};color:${isDark ? '#000000' : '#ffffff'};font-size:11px;font-weight:700;cursor:pointer;">All</button>
+                        <button type="button" data-b="30" onclick="window._setPartyDueBucket('30')" style="padding:7px 4px;border-radius:6px;border:none;background:transparent;color:${fgMuted};font-size:11px;font-weight:600;cursor:pointer;">0–30d</button>
+                        <button type="button" data-b="60" onclick="window._setPartyDueBucket('60')" style="padding:7px 4px;border-radius:6px;border:none;background:transparent;color:${fgMuted};font-size:11px;font-weight:600;cursor:pointer;">31–60d</button>
+                        <button type="button" data-b="90" onclick="window._setPartyDueBucket('90')" style="padding:7px 4px;border-radius:6px;border:none;background:transparent;color:${fgMuted};font-size:11px;font-weight:600;cursor:pointer;">60+d</button>
+                    </div>
+                    <div style="position:relative;display:flex;align-items:center;background:${bgVar};border:1px solid ${borderCol};border-radius:8px;padding:0 10px;">
+                        <span class="material-symbols-outlined" style="font-size:19px;color:${fgMuted};">search</span>
+                        <input type="text" placeholder="Search party, bill or order no..." autocomplete="off" oninput="if(window._filterPartyDueAging) window._filterPartyDueAging(this.value)" style="width:100%;padding:9px 8px;border:none;font-size:14px;background:transparent;color:${fgMain};outline:none;">
+                    </div>
+                </div>
+                <div style="flex:1 1 auto;overflow-y:auto;background:${bgSurf};position:relative;padding:0;">
+                    <ul id="party-due-aging-results" style="margin:0;padding:0 0 16px 0;border:none;list-style:none;display:flex;flex-direction:column;">${renderRows(pendingEntries)}</ul>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
     openFulfillmentBucketModal: (statusKey, title) => {
         const buckets = window._fulfillmentBuckets || { Open: [], Shipped: [], Completed: [] };
         const rawList = statusKey === 'Revenue'
@@ -946,14 +1163,27 @@ const app = {
                 const isRet = item.documentType === 'return';
                 const amt = (parseFloat(item.grandTotal) || 0) * (isRet ? -1 : 1);
                 const partyName = item.customerName || item.partyName || 'Walk-in Customer';
-                const invNo = item.orderNo || item.invoiceNo || 'Draft';
+                const sBill = (item.invoiceNo || '').trim();
+                const sOrd = (item.orderNo || '').trim();
+                const smartOrd = /^ord\b/i.test(sOrd) ? sOrd : (sOrd ? `Ord: ${sOrd}` : '');
+                const invNo = (sBill && sOrd && sBill !== sOrd) ? `${sBill} • ${smartOrd}` : (sBill || sOrd || 'Draft');
                 const st = item.status || 'Open';
                 const badgeText = isRet ? 'Return' : st;
+                const fmtDate = (window.Utils && window.Utils.formatDateDisplay && item.date) ? window.Utils.formatDateDisplay(item.date) : (item.date || '-');
                 return `
                 <li class="tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${String(item.id).replace(/'/g, "\\'")}');" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin: 0; border-radius: 0; background: transparent; border: none; border-bottom: 1px solid var(--md-outline-variant); cursor: pointer;">
                     <div style="min-width: 0; padding-right: 12px;">
                         <div style="font-size: 14px; font-weight: 700; color: var(--md-on-surface); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(partyName)}</div>
-                        <div style="font-size: 12px; color: var(--md-text-muted); margin-top: 3px;">${esc(invNo)} • ${esc(item.date || '-')}</div>
+                        <div style="font-size: 12px; font-weight: 600; color: var(--md-text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${esc(invNo)}</div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
+                            <div class="tap-target" title="Share on WhatsApp" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('sales', '${String(item.id).replace(/'/g, "\\'")}')" style="width: 22px; height: 22px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
+                            </div>
+                            <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${String(item.id).replace(/'/g, "\\'")}'; window.app.generatePDF('sales'); }" style="width: 22px; height: 22px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
+                                <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
+                            </div>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--md-text-muted); opacity: 0.85; white-space: nowrap;">• ${esc(fmtDate)}</span>
+                        </div>
                     </div>
                     <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                         <div style="font-size: 14px; font-weight: 800; color: var(--md-on-surface); font-variant-numeric: tabular-nums;">${fmt(amt)}</div>
@@ -1980,8 +2210,7 @@ const app = {
         if(editBtn) {
             editBtn.style.display = 'flex';
             editBtn.onclick = () => { 
-                UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
-                setTimeout(() => app.openForm('ledger', partyId), 150); // Open the form smoothly
+                app.openForm('ledger', partyId);
             };
         }
         
@@ -2275,8 +2504,7 @@ const app = {
             if(false) {
             } else {
                 editBtn.onclick = () => { 
-                    UI.closeActivity('activity-report-viewer'); // FIX: Slide down the ledger statement first
-                    setTimeout(() => app.openForm('account', accountId), 150); // Open the form smoothly
+                    app.openForm('account', accountId);
                 };
             }
         }
@@ -2538,9 +2766,13 @@ const app = {
 
         const selectEl = document.getElementById(`${type}-original-ref`);
         if (selectEl) {
-            const options = validInvoices.map(doc => 
-                `<option value="${doc.id}">${doc.invoiceNo || doc.poNo} (${doc.date}) - \u20B9${doc.grandTotal}</option>`
-            ).join('');
+            const refLbl = type === 'sales' ? 'Ord' : 'PO';
+            const options = validInvoices.map(doc => {
+                const b = (doc.invoiceNo || doc.poNo || '').trim();
+                const o = (doc.orderNo || '').trim();
+                const lbl = (b && o && b !== o) ? `${b} | ${refLbl}: ${o}` : (b || o || String(doc.id).slice(-4).toUpperCase());
+                return `<option value="${doc.id}">${lbl} (${doc.date}) - \u20B9${doc.grandTotal}</option>`;
+            }).join('');
             selectEl.innerHTML = options ? `<option value="">Select Original Document...</option>` + options : `<option value="">No valid invoices found.</option>`;
         }
     },
@@ -2817,9 +3049,11 @@ const app = {
                 if (billFilter === 'GST' && doc.invoiceType === 'Non-GST') continue;
                 if (billFilter === 'Non-GST' && doc.invoiceType !== 'Non-GST') continue;
                 let docNo = doc.id;
-                let displayNo = doc.orderNo || String(doc.id).slice(-4).toUpperCase();
-                let invoiceSuffix = doc.invoiceNo ? ` | Inv: ${doc.invoiceNo}` : '';
-                options.push(`<option value="${docNo}" data-bal="${finalBal.toFixed(2)}">${displayNo}${invoiceSuffix} (Due: \u20B9${finalBal.toFixed(2)})</option>`);
+                const billStr = (doc.invoiceNo || doc.poNo || '').trim();
+                const ordStr = (doc.orderNo || '').trim();
+                const refLbl = isMoneyIn ? 'Ord' : 'PO';
+                const displayNo = (billStr && ordStr && billStr !== ordStr) ? `${billStr} | ${refLbl}: ${ordStr}` : (billStr || ordStr || String(doc.id).slice(-4).toUpperCase());
+                options.push(`<option value="${docNo}" data-bal="${finalBal.toFixed(2)}">${displayNo} (Due: \u20B9${finalBal.toFixed(2)})</option>`);
             }
         }
 
@@ -3583,8 +3817,16 @@ const app = {
                         const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || (s.id && s.id.endsWith(linkId)));
                         const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || (p.id && p.id.endsWith(linkId)));
                         
-                        if (sDoc) return sDoc.orderNo || sDoc.invoiceNo || sDoc.id.slice(-4).toUpperCase();
-                        if (pDoc) return pDoc.orderNo || pDoc.poNo || pDoc.invoiceNo || pDoc.id.slice(-4).toUpperCase();
+                        if (sDoc) {
+                            const b = (sDoc.invoiceNo || '').trim();
+                            const o = (sDoc.orderNo || '').trim();
+                            return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || sDoc.id.slice(-4).toUpperCase());
+                        }
+                        if (pDoc) {
+                            const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                            const o = (pDoc.orderNo || '').trim();
+                            return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || pDoc.id.slice(-4).toUpperCase());
+                        }
                         
                         return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : linkId;
                     });
@@ -4116,6 +4358,9 @@ if (data.id && splitConfirmed) {
                         if (document.getElementById('activity-invoice-overview') && document.getElementById('activity-invoice-overview').classList.contains('open') && window.currentOverviewId) {
                             window.openInvoiceOverview(window.currentOverviewType, window.currentOverviewId);
                         }
+                        if (document.getElementById('activity-report-viewer') && document.getElementById('activity-report-viewer').classList.contains('open') && window._activeLedgerParty) {
+                            app.openPartyLedger(window._activeLedgerParty.id, window._activeLedgerParty.type, window._activeLedgerParty.name);
+                        }
                     } catch (error) {
                         console.error("Save failed:", error);
                         // Prevent the annoying "Double Alert" if validation already warned the user
@@ -4381,6 +4626,9 @@ if (data.id && splitConfirmed) {
                         const pname = document.getElementById('ledger-name').value;
                         const ptype = document.querySelector('select[name="type"]').value;
                         app.openPartyLedger(data.id, ptype, pname);
+                    }
+                    if (type === 'account' && document.getElementById('activity-report-viewer') && document.getElementById('activity-report-viewer').classList.contains('open')) {
+                        app.openAccountLedger(data.id);
                     }
                     if (type === 'product' && document.getElementById('activity-item-ledger') && document.getElementById('activity-item-ledger').classList.contains('open')) {
                         if (window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm(data.id, data.name);
@@ -4928,6 +5176,10 @@ if (data.id && splitConfirmed) {
                         if (document.getElementById('activity-invoice-overview') && document.getElementById('activity-invoice-overview').classList.contains('open') && window.currentOverviewId) {
                             window.openInvoiceOverview(window.currentOverviewType, window.currentOverviewId);
                         }
+                        if (document.getElementById('activity-report-viewer') && document.getElementById('activity-report-viewer').classList.contains('open')) {
+                            if (window._activeLedgerAccountId) app.openAccountLedger(window._activeLedgerAccountId);
+                            else if (window._activeLedgerParty) app.openPartyLedger(window._activeLedgerParty.id, window._activeLedgerParty.type, window._activeLedgerParty.name);
+                        }
                     } catch (error) {
             console.error("Payment save failed:", error);
             if (window.Utils) await window.Utils.alertModal("An error occurred. Please try again.", "Payment Error");
@@ -5145,9 +5397,10 @@ if (data.id && splitConfirmed) {
                             // Inject missing/fully paid invoice back into the dropdown so it isn't lost!
                             let displayRef = ref;
                             if (linkedDoc) {
-                                let baseDisplay = linkedDoc.orderNo || String(linkedDoc.id).slice(-4).toUpperCase();
-                                let suffix = linkedDoc.invoiceNo ? ` | Inv: ${linkedDoc.invoiceNo}` : '';
-                                displayRef = baseDisplay + suffix;
+                                const billStr = (linkedDoc.invoiceNo || linkedDoc.poNo || '').trim();
+                                const ordStr = (linkedDoc.orderNo || '').trim();
+                                const refLbl = (record.type === 'in') ? 'Ord' : 'PO';
+                                displayRef = (billStr && ordStr && billStr !== ordStr) ? `${billStr} | ${refLbl}: ${ordStr}` : (billStr || ordStr || String(linkedDoc.id).slice(-4).toUpperCase());
                             }
                             
                             const newOption = document.createElement('option');
@@ -6451,7 +6704,10 @@ if (data.id && splitConfirmed) {
             refs.forEach((ref, index) => {
                 const doc = allDocs.find(d => d.firmId === receipt.firmId && (d.id === ref || d.invoiceNo === ref || d.poNo === ref || d.orderNo === ref));
                 if (doc) {
-                    const docNo = isMoneyIn ? (doc.invoiceNo || doc.orderNo || 'Bill of Supply') : (doc.poNo || doc.invoiceNo || doc.orderNo || 'Bill of Supply');
+                    const billNo = (doc.invoiceNo || doc.poNo || '').trim();
+                    const ordNo = (doc.orderNo || '').trim();
+                    const refLbl = store === 'sales' ? 'Ord' : 'PO';
+                    const docNo = (billNo && ordNo && billNo !== ordNo) ? `${billNo} | ${refLbl}: ${ordNo}` : (billNo || ordNo || 'Bill of Supply');
                     const docDate = window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(doc.date) : doc.date;
                     const docTotal = parseFloat(doc.grandTotal) || 0;
 
@@ -6565,19 +6821,19 @@ if (data.id && splitConfirmed) {
         const amountInWords = window.Utils && window.Utils.numberToWords ? window.Utils.numberToWords(receiptAmt) : "Rupees " + receiptAmt.toFixed(2);
 
         const docDefinition = {
-            pageSize: { width: 595.28, height: 'auto' }, // 🚨 FIX: Forces continuous Single-Page PDF!
-            pageMargins: [30, 30, 30, 30],
-            defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0f172a' },
+            pageSize: 'A4',
+            pageMargins: [24, 20, 24, 20],
+            defaultStyle: { font: 'Roboto', fontSize: 9.5, color: '#0f172a' },
             styles: {
-                h1: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 4] },
-                title: { fontSize: 20, bold: true, color: '#0f172a', margin: [0, 0, 0, 10], alignment: 'right' },
-                sub: { fontSize: 9, color: '#334155', lineHeight: 1.3 },
-                subBold: { fontSize: 9, bold: true, color: '#0f172a' },
-                sectionTitle: { fontSize: 10, bold: true, color: '#0f172a', margin: [0, 0, 0, 5], decoration: 'underline' },
-                th: { fillColor: '#f1f5f9', bold: true, fontSize: 9, color: '#0f172a', margin: [2, 4] },
-                td: { fontSize: 9, margin: [2, 4] },
-                totLabel: { fontSize: 9, color: '#475569', bold: true },
-                totVal: { fontSize: 10, bold: true, alignment: 'right' }
+                h1: { fontSize: 16, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
+                title: { fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 6], alignment: 'right' },
+                sub: { fontSize: 8.5, color: '#334155', lineHeight: 1.25 },
+                subBold: { fontSize: 8.5, bold: true, color: '#0f172a' },
+                sectionTitle: { fontSize: 9.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 4], decoration: 'underline' },
+                th: { fillColor: '#f1f5f9', bold: true, fontSize: 8.5, color: '#0f172a', margin: [2, 3] },
+                td: { fontSize: 8.5, margin: [2, 2.5] },
+                totLabel: { fontSize: 8.5, color: '#475569', bold: true },
+                totVal: { fontSize: 9.5, bold: true, alignment: 'right' }
             },
             content: [
                 // Header
@@ -6612,26 +6868,24 @@ if (data.id && splitConfirmed) {
                             ]
                         }
                     ],
-                    margin: [0, 0, 0, 20]
+                    margin: [0, 0, 0, 12]
                 },
-                
                 // Party Info
                 {
                     stack: [
                         { text: isMoneyIn ? 'RECEIVED FROM' : 'PAID TO', style: 'sectionTitle' },
-                        { text: receipt.ledgerName, bold: true, fontSize: 11, margin: [0, 0, 0, 4] },
+                        { text: receipt.ledgerName, bold: true, fontSize: 10.5, margin: [0, 0, 0, 3] },
                         { text: (party && party.address ? party.address + '\n' : '') + partyLocationStr + (party && party.phone ? '\nPh: ' + party.phone : ''), style: 'sub' }
                     ],
-                    margin: [0, 0, 0, 20]
+                    margin: [0, 0, 0, 12]
                 },
-                
                 // Linked Docs Table (if any)
                 ...(linkedDocsBody.length > 0 ? [
                     { text: 'LINKED DOCUMENTS SETTLED', style: 'sectionTitle' },
                     {
-                        table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: linkedDocsBody },
+                        table: { headerRows: 1, dontBreakRows: true, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: linkedDocsBody },
                         layout: { hLineWidth: () => 1, vLineWidth: () => 1, hLineColor: () => '#0f172a', vLineColor: () => '#0f172a' },
-                        margin: [0, 0, 0, 20]
+                        margin: [0, 0, 0, 12]
                     }
                 ] : []),
                 
@@ -6697,13 +6951,13 @@ if (data.id && splitConfirmed) {
                         {
                             width: 200,
                             stack: [
-                                biz.signature ? { image: biz.signature, fit: [150, 50], alignment: 'center', margin: [0, 20, 0, 5] } : { text: '\n\n\n', margin: [0, 20, 0, 5] },
-                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 5, 0, 0] },
+                                biz.signature ? { image: biz.signature, fit: [140, 44], alignment: 'center', margin: [0, 10, 0, 4] } : { text: '\n\n', margin: [0, 10, 0, 4] },
+                                { text: 'Authorized Signatory', style: 'subBold', alignment: 'center', margin: [0, 4, 0, 0] },
                                 { text: 'For ' + (biz.name || 'Company Name'), style: 'sub', alignment: 'center' }
                             ]
                         }
                     ],
-                    margin: [0, 20, 0, 0]
+                    margin: [0, 10, 0, 0]
                 }
             ]
         };
@@ -6816,24 +7070,27 @@ if (data.id && splitConfirmed) {
                 });
 
                 const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                const page = await pdf.getPage(1);
-                
-                const viewport = page.getViewport({ scale: (typeof pdf !== 'undefined' && pdf && pdf.numPages > 12) ? 2.5 : ((typeof pdf !== 'undefined' && pdf && pdf.numPages > 5) ? 3.2 : 4.5) });
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                
-                canvas.style.maxWidth = '100%';
-                canvas.style.height = 'auto';
-                canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-                canvas.style.borderRadius = '4px';
-
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
-
                 const previewContent = document.getElementById('pdf-preview-content');
-                previewContent.innerHTML = ''; 
-                previewContent.appendChild(canvas);
+                previewContent.innerHTML = '';
+                previewContent.style.flexDirection = 'column';
+                previewContent.style.alignItems = 'center';
+                previewContent.style.justifyContent = 'flex-start';
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: (typeof pdf !== 'undefined' && pdf && pdf.numPages > 12) ? 2.5 : ((typeof pdf !== 'undefined' && pdf && pdf.numPages > 5) ? 3.2 : 4.5) });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    canvas.style.borderRadius = '4px';
+                    canvas.style.marginBottom = '16px';
+                    canvas.style.flexShrink = '0';
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+                    previewContent.appendChild(canvas);
+                }
 
                 document.getElementById('pdf-status-text').innerText = "Share PDF or Download";
                 document.getElementById('pdf-status-text').style.color = '#64748b';
@@ -7363,44 +7620,44 @@ if (data.id && splitConfirmed) {
         
         const catMap = {};
         let totalExpenses = 0;
-
+        let totalEntries = 0;
         allExpenses.forEach(e => {
-            // ENTERPRISE FIX: The Timezone Trap Shield!
-            // Direct string comparison natively ignores timezones, preventing missing expenses!
             if (e.firmId === app.state.firmId && e.date >= fromVal && e.date <= toVal) {
                 const cat = e.category || 'Uncategorized';
                 const amt = parseFloat(e.amount) || 0;
-                
-                if (!catMap[cat]) catMap[cat] = 0;
-                catMap[cat] += amt;
+                if (!catMap[cat]) catMap[cat] = { amt: 0, count: 0 };
+                catMap[cat].amt += amt;
+                catMap[cat].count += 1;
                 totalExpenses += amt;
+                totalEntries += 1;
             }
         });
-
-        // Sort Highest Expenses First
-        const rankedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
-        
+        const rankedCats = Object.entries(catMap).sort((a, b) => b[1].amt - a[1].amt);
         const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         let html = '';
         if (rankedCats.length === 0) {
             html = '<div class="ded-empty-msg">No expenses found in this date range.</div>';
         } else {
             let rows = '';
-            rankedCats.forEach(([cat, amt], idx) => {
+            rankedCats.forEach(([cat, info], idx) => {
+                const amt = info.amt;
                 const percentage = totalExpenses > 0 ? ((amt / totalExpenses) * 100).toFixed(1) : '0.0';
                 const safeCat = String(cat || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 rows += `<tr class="tap-target ded-clickable-row" onclick="if(window.UI){ const sEl=document.getElementById('expenses-start-date'); const eEl=document.getElementById('expenses-end-date'); const qEl=document.getElementById('search-expenses'); if(sEl){sEl.value='${fromVal}'; sEl.setAttribute('data-fy-set','true');} if(eEl) eEl.value='${toVal}'; if(qEl) qEl.value='${safeCat}'; UI.state.activeFilters['expenses']='All'; UI.applyFilters('expenses'); UI.openActivity('activity-expense-ledger'); }">
                     <td class="ded-rank-col">#${idx + 1}</td>
-                    <td class="ded-name-col"><strong>${cat}</strong></td>
+                    <td class="ded-name-col"><strong>${window.escHtml ? window.escHtml(cat) : cat}</strong></td>
+                    <td style="text-align:center; font-variant-numeric:tabular-nums;">${info.count}</td>
                     <td class="ded-cat-col"><span class="ded-pill ded-pill-ret">${percentage}%</span></td>
                     <td class="number-col"><strong style="color: var(--md-error);">${fmt(amt)}</strong></td>
                 </tr>`;
             });
             rows += `<tr class="total-row">
-                <td colspan="3" style="text-align:right;">TOTAL (${rankedCats.length} Categories):</td>
+                <td colspan="2" style="text-align:right;">TOTAL (${rankedCats.length} Categories):</td>
+                <td style="text-align:center; font-variant-numeric:tabular-nums;">${totalEntries}</td>
+                <td></td>
                 <td class="number-col" style="color: var(--md-error);">${fmt(totalExpenses)}</td>
             </tr>`;
-            html = `<div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>#</th><th>Expense Category</th><th style="text-align:center;">Share</th><th class="number-col">Total Amount</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+            html = `<div class="ded-table-card"><div class="ded-scroll-wrap"><table class="ded-ledger-table"><thead><tr><th>#</th><th>Expense Category</th><th style="text-align:center;">Entries</th><th style="text-align:center;">Share</th><th class="number-col">Total Amount</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
         }
         document.getElementById('expense-report-list').innerHTML = html;
         document.getElementById('expense-report-total').innerHTML = fmt(totalExpenses);
@@ -7461,62 +7718,154 @@ if (data.id && splitConfirmed) {
             if (!fromVal || !toVal) return window.Utils ? window.Utils.showToast("⚠️ Please select a date range first.") : null;
             const allExpenses = await window.getRecordsByDateRange('expenses', app.state.firmId, fromVal, toVal);
             const catMap = {};
+            const filteredExpenses = [];
             let totalExpenses = 0;
             allExpenses.forEach(e => {
                 if (e.firmId === app.state.firmId && e.date >= fromVal && e.date <= toVal) {
                     const cat = e.category || 'Uncategorized';
                     const amt = parseFloat(e.amount) || 0;
-                    catMap[cat] = (catMap[cat] || 0) + amt;
+                    if (!catMap[cat]) catMap[cat] = { amt: 0, count: 0 };
+                    catMap[cat].amt += amt;
+                    catMap[cat].count += 1;
                     totalExpenses += amt;
+                    filteredExpenses.push(e);
                 }
             });
-            const rankedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+            const rankedCats = Object.entries(catMap).sort((a, b) => b[1].amt - a[1].amt);
             if (rankedCats.length === 0) return window.Utils ? window.Utils.showToast("⚠️ No expenses found in this date range.") : null;
             if (window.Utils) window.Utils.showToast("Generating Document Preview... ⏳");
             const biz = await window.getRecordById('businessProfile', app.state.firmId) || {};
+            const allAccounts = (await window.getAllRecords('accounts').catch(() => [])) || [];
+            const allSales = (await window.getAllRecords('sales', 'firmId', app.state.firmId).catch(() => [])) || [];
+            const allPurchases = (await window.getAllRecords('purchases', 'firmId', app.state.firmId).catch(() => [])) || [];
             const brandColor = localStorage.getItem('sollo_brand_color') && localStorage.getItem('sollo_brand_color') !== '#000000' ? localStorage.getItem('sollo_brand_color') : '#0061a4';
-            const tableBody = [
-                [{text: 'RANK', style: 'th', alignment: 'center'}, {text: 'EXPENSE CATEGORY', style: 'th'}, {text: '% OF TOTAL', style: 'th', alignment: 'center'}, {text: 'TOTAL AMOUNT', style: 'th', alignment: 'right'}]
-            ];
+            const bizLoc = [biz.address, biz.city, biz.state].filter(Boolean).join(', ') + (biz.pincode ? ' - ' + biz.pincode : '');
             const fmt = (n) => '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            rankedCats.forEach(([cat, amt], idx) => {
-                const pct = totalExpenses > 0 ? ((amt / totalExpenses) * 100).toFixed(1) : '0.0';
+            const resolveLinked = (rawRef) => {
+                if (!rawRef) return '-';
+                const links = String(rawRef).split(',').map(x => x.trim()).filter(Boolean);
+                const labels = links.map(link => {
+                    const sDoc = allSales.find(s => s.id === link || s.invoiceNo === link || s.orderNo === link || (s.id && s.id.endsWith(link)));
+                    if (sDoc) {
+                        const b = (sDoc.invoiceNo || '').trim();
+                        const o = (sDoc.orderNo || '').trim();
+                        return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || String(sDoc.id).slice(-4).toUpperCase());
+                    }
+                    const pDoc = allPurchases.find(p => p.id === link || p.poNo === link || p.invoiceNo === link || p.orderNo === link || (p.id && p.id.endsWith(link)));
+                    if (pDoc) {
+                        const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                        const o = (pDoc.orderNo || '').trim();
+                        return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || String(pDoc.id).slice(-4).toUpperCase());
+                    }
+                    return link.startsWith('sollo-') ? link.slice(-4).toUpperCase() : link;
+                });
+                return [...new Set(labels)].join(', ');
+            };
+            const tableBody = [
+                [{text: 'RANK', style: 'th', alignment: 'center'}, {text: 'EXPENSE CATEGORY', style: 'th'}, {text: 'ENTRIES', style: 'th', alignment: 'center'}, {text: '% SHARE', style: 'th', alignment: 'center'}, {text: 'TOTAL AMOUNT', style: 'th', alignment: 'right'}]
+            ];
+            rankedCats.forEach(([cat, info], idx) => {
+                const pct = totalExpenses > 0 ? ((info.amt / totalExpenses) * 100).toFixed(1) : '0.0';
                 const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
                 tableBody.push([
-                    {text: `#${idx + 1}`, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
-                    {text: cat, margin: [0, 6, 0, 6], fillColor: rowBg, bold: true},
-                    {text: `${pct}%`, alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
-                    {text: fmt(amt), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 6, 0, 6], fillColor: rowBg}
+                    {text: `#${idx + 1}`, alignment: 'center', margin: [0, 5, 0, 5], fillColor: rowBg, bold: true},
+                    {text: cat, margin: [0, 5, 0, 5], fillColor: rowBg, bold: true},
+                    {text: String(info.count), alignment: 'center', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: `${pct}%`, alignment: 'center', margin: [0, 5, 0, 5], fillColor: rowBg},
+                    {text: fmt(info.amt), alignment: 'right', color: '#dc2626', bold: true, margin: [0, 5, 0, 5], fillColor: rowBg}
                 ]);
             });
             tableBody.push([
-                {text: 'TOTAL EXPENSES', colSpan: 3, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
-                {}, {}, {text: fmt(totalExpenses), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+                {text: `TOTAL (${rankedCats.length} Categories)`, colSpan: 2, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+                {},
+                {text: String(filteredExpenses.length), alignment: 'center', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+                {text: '100%', alignment: 'center', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+                {text: fmt(totalExpenses), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
+            ]);
+            filteredExpenses.sort((a, b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
+            const detailBody = [
+                [{text: 'DATE', style: 'th'}, {text: 'VOUCHER NO.', style: 'th'}, {text: 'CATEGORY & NOTES', style: 'th'}, {text: 'PAID FROM', style: 'th'}, {text: 'LINKED DOC', style: 'th'}, {text: 'AMOUNT', style: 'th', alignment: 'right'}]
+            ];
+            filteredExpenses.forEach((e, idx) => {
+                const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+                const accObj = allAccounts.find(a => a.id === e.accountId);
+                const accName = (!e.accountId || e.accountId === 'cash') ? 'Cash Drawer' : (accObj ? accObj.name : 'Bank');
+                const catStack = [{text: e.category || 'Uncategorized', bold: true, fontSize: 8.5, color: '#0f172a'}];
+                if (e.notes) catStack.push({text: String(e.notes), fontSize: 7.5, color: '#64748b', margin: [0, 1, 0, 0]});
+                detailBody.push([
+                    {text: window.Utils.formatDateDisplay(e.date), fontSize: 8.5, margin: [0, 4, 0, 4], fillColor: rowBg, color: '#475569'},
+                    {text: e.expenseNo || String(e.id).slice(-6).toUpperCase(), fontSize: 8.5, bold: true, margin: [0, 4, 0, 4], fillColor: rowBg},
+                    {stack: catStack, margin: [0, 4, 0, 4], fillColor: rowBg},
+                    {text: accName, fontSize: 8.5, margin: [0, 4, 0, 4], fillColor: rowBg, color: '#334155'},
+                    {text: resolveLinked(e.linkedInvoice), fontSize: 8, margin: [0, 4, 0, 4], fillColor: rowBg, color: '#0061a4'},
+                    {text: fmt(e.amount), fontSize: 8.5, alignment: 'right', color: '#dc2626', bold: true, margin: [0, 4, 0, 4], fillColor: rowBg}
+                ]);
+            });
+            detailBody.push([
+                {text: `TOTAL (${filteredExpenses.length} Entries)`, colSpan: 5, alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'},
+                {}, {}, {}, {},
+                {text: fmt(totalExpenses), alignment: 'right', style: 'th', color: '#ffffff', fillColor: '#dc2626'}
             ]);
             const docDefinition = {
                 pageSize: 'A4',
-                pageMargins: [40, 50, 40, 40],
-                defaultStyle: { font: 'Roboto', fontSize: 10, color: '#1e293b' },
+                pageMargins: [32, 42, 32, 36],
+                defaultStyle: { font: 'Roboto', fontSize: 9.5, color: '#1e293b' },
                 styles: {
-                    header: { fontSize: 24, bold: true, color: '#0f172a', letterSpacing: 1 },
-                    subHeader: { fontSize: 18, bold: true, color: brandColor, alignment: 'right', letterSpacing: 1 },
-                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 6, 0, 6] }
+                    header: { fontSize: 20, bold: true, color: '#0f172a', letterSpacing: 0.5 },
+                    subHeader: { fontSize: 16, bold: true, color: brandColor, alignment: 'right', letterSpacing: 0.8 },
+                    th: { bold: true, fillColor: brandColor, color: '#ffffff', margin: [0, 5, 0, 5], fontSize: 8.5 }
                 },
-                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 8, color: brandColor } ] }; },
+                background: function () { return { canvas: [ { type: 'rect', x: 0, y: 0, w: 595.28, h: 7, color: brandColor } ] }; },
+                footer: function (currentPage, pageCount) {
+                    return {
+                        columns: [
+                            { text: `Generated on ${window.Utils.formatDateDisplay(window.Utils.getLocalDate())} • SOLLO ERP`, fontSize: 8, color: '#94a3b8' },
+                            { text: `Page ${currentPage} of ${pageCount}`, alignment: 'right', fontSize: 8, bold: true, color: '#64748b' }
+                        ],
+                        margin: [32, 10, 32, 0]
+                    };
+                },
                 content: [
                     {
                         columns: [
-                            { width: '*', stack: [ (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [140, 60], margin: [0, 0, 0, 12] } : null, { text: biz.name || 'Company Name', style: 'header' } ].filter(Boolean) },
-                            { width: 240, stack: [ { text: 'EXPENSE LEAKAGE', style: 'subHeader' }, { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 10, bold: true, color: '#64748b', margin: [0, 2, 0, 16] } ] }
-                        ], margin: [0, 0, 0, 32]
+                            {
+                                width: '*',
+                                stack: [
+                                    (biz.logo && biz.logo.startsWith('data:image')) ? { image: biz.logo, fit: [120, 48], margin: [0, 0, 0, 8] } : null,
+                                    { text: biz.name || 'Company Name', style: 'header' },
+                                    bizLoc ? { text: bizLoc, fontSize: 8.5, color: '#64748b', margin: [0, 2, 0, 0] } : null,
+                                    biz.gst ? { text: 'GSTIN: ' + biz.gst, fontSize: 8.5, bold: true, color: '#334155', margin: [0, 2, 0, 0] } : null
+                                ].filter(Boolean)
+                            },
+                            {
+                                width: 220,
+                                stack: [
+                                    { text: 'EXPENSE REPORT', style: 'subHeader' },
+                                    { text: `Period: ${window.Utils.formatDateDisplay(fromVal)} to ${window.Utils.formatDateDisplay(toVal)}`, alignment: 'right', fontSize: 9.5, bold: true, color: '#475569', margin: [0, 3, 0, 0] },
+                                    { text: `${filteredExpenses.length} Entries • ${rankedCats.length} Categories`, alignment: 'right', fontSize: 8.5, color: '#64748b', margin: [0, 2, 0, 0] }
+                                ]
+                            }
+                        ], margin: [0, 0, 0, 20]
                     },
+                    { text: 'CATEGORY-WISE SUMMARY', fontSize: 10, bold: true, color: brandColor, margin: [0, 0, 0, 6] },
                     {
-                        table: { headerRows: 1, widths: ['auto', '*', 'auto', 'auto'], body: tableBody },
+                        table: { headerRows: 1, dontBreakRows: true, widths: ['auto', '*', 'auto', 'auto', 'auto'], body: tableBody },
                         layout: {
-                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.5 : 0.5; },
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.2 : 0.5; },
                             vLineWidth: function () { return 0; },
                             hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
-                            paddingLeft: function() { return 8; }, paddingRight: function() { return 8; }
+                            paddingLeft: function() { return 6; }, paddingRight: function() { return 6; }
+                        },
+                        margin: [0, 0, 0, 20]
+                    },
+                    { text: 'ITEMIZED EXPENSE REGISTER', fontSize: 10, bold: true, color: brandColor, margin: [0, 0, 0, 6] },
+                    {
+                        table: { headerRows: 1, dontBreakRows: true, widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto'], body: detailBody },
+                        layout: {
+                            hLineWidth: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? 1.2 : 0.5; },
+                            vLineWidth: function () { return 0; },
+                            hLineColor: function (i, node) { return (i === 0 || i === 1 || i === node.table.body.length - 1 || i === node.table.body.length) ? brandColor : '#cbd5e1'; },
+                            paddingLeft: function() { return 5; }, paddingRight: function() { return 5; }
                         }
                     }
                 ]
@@ -8105,20 +8454,19 @@ if (data.id && splitConfirmed) {
         // 1. Filter and Virtual-Render Sales
         const allSales = window.UI.state.expenseLinkedSales || [];
         const filteredSales = allSales.filter(s => {
-            const searchStr = (s.orderNo || s.invoiceNo || s.id || '') + ' ' + (s.customerName || '');
+            const searchStr = [s.invoiceNo, s.orderNo, s.id, s.customerName].filter(Boolean).join(' ');
             return window.fuzzyMatch(term, searchStr);
         });
-
         window.UI.renderVirtualList(listSales, filteredSales, (s) => {
             const docNo = s.orderNo || s.invoiceNo || s.id;
-            const displayNo = s.orderNo || s.invoiceNo || s.id.slice(-4).toUpperCase();
-            
+            const sBill = (s.invoiceNo || '').trim();
+            const sOrd = (s.orderNo || '').trim();
+            const displayNo = (sBill && sOrd && sBill !== sOrd) ? `${sBill} | Ord: ${sOrd}` : (sBill || sOrd || s.id.slice(-4).toUpperCase());
+            const safeDisplay = displayNo.replace(/'/g, "\\'");
             const liveSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
             const isSelected = liveSelected.includes(docNo);
-            
             const checked = isSelected ? 'checked' : '';
-
-            return `<li style="background: ${isSelected ? 'var(--md-surface-variant)' : 'transparent'} !important; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${displayNo}', this)">
+            return `<li style="background: ${isSelected ? 'var(--md-surface-variant)' : 'transparent'} !important; cursor: pointer; border-bottom: 1px solid var(--md-outline-variant); padding: 12px 16px; display: flex; align-items: center;" class="tap-target" onclick="app.selectLinkedDoc('${docNo}', '${safeDisplay}', this)">
                 <div style="flex:1; min-width:0;">
                     <strong style="color:var(--md-on-surface); display:block; font-size:15px;">${displayNo}</strong>
                     <small style="color:var(--md-text-muted); display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${s.customerName}</small>
@@ -8126,17 +8474,17 @@ if (data.id && splitConfirmed) {
                 <input type="checkbox" ${checked} style="width: 20px; height: 20px; pointer-events: none; flex-shrink: 0;">
             </li>`;
         }, emptySalesHTML);
-
         // 2. Filter and Virtual-Render Purchases (Duplicate block removed)
         const allPurch = window.UI.state.expenseLinkedPurchases || [];
         const filteredPurch = allPurch.filter(p => {
-            const searchStr = (p.orderNo || p.poNo || p.invoiceNo || p.id || '') + ' ' + (p.supplierName || '');
+            const searchStr = [p.invoiceNo, p.poNo, p.orderNo, p.id, p.supplierName].filter(Boolean).join(' ');
             return window.fuzzyMatch(term, searchStr);
         });
-
         window.UI.renderVirtualList(listPurch, filteredPurch, (p) => {
             const docNo = p.orderNo || p.poNo || p.invoiceNo || p.id;
-            const displayNo = p.orderNo || p.poNo || p.invoiceNo || p.id.slice(-4).toUpperCase();
+            const pBill = (p.invoiceNo || p.poNo || '').trim();
+            const pOrd = (p.orderNo || '').trim();
+            const displayNo = (pBill && pOrd && pBill !== pOrd) ? `${pBill} | PO: ${pOrd}` : (pBill || pOrd || p.id.slice(-4).toUpperCase());
             
             const liveSelected = (document.getElementById('expense-linked-invoice').value || '').split(',');
             const isSelected = liveSelected.includes(docNo);
@@ -9206,19 +9554,34 @@ if (data.id && splitConfirmed) {
                 tableHeaders = ['Date', 'Expense No.', 'Category', 'Linked Sale / Job', 'Expense Amount'];
                 
                 const expenses = (await window.getAllRecords('expenses', 'firmId', firmId) || []).filter(e => e.date >= fromDate && e.date <= toDate && e.linkedInvoice && e.linkedInvoice.trim() !== '');
+                const jcSales = (await window.getAllRecords('sales', 'firmId', firmId).catch(() => [])) || [];
+                const jcPurch = (await window.getAllRecords('purchases', 'firmId', firmId).catch(() => [])) || [];
                 expenses.sort((a,b) => window.Utils.safeDate(a.date) - window.Utils.safeDate(b.date));
-                
                 let tExp = 0;
                 expenses.forEach(e => {
                     const amt = parseFloat(e.amount) || 0;
                     tExp += amt;
-                    
                     const links = String(e.linkedInvoice || '').split(',').map(x => x.trim()).filter(Boolean);
                     const displayLinks = links.map(link => {
+                        const sDoc = jcSales.find(s => s.id === link || s.invoiceNo === link || s.orderNo === link || (s.id && s.id.endsWith(link)));
+                        if (sDoc) {
+                            const b = (sDoc.invoiceNo || '').trim();
+                            const o = (sDoc.orderNo || '').trim();
+                            const lbl = (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || String(sDoc.id).slice(-4).toUpperCase());
+                            const pName = sDoc.customerName ? ` (${sDoc.customerName})` : '';
+                            return `<span style="display:inline-block; background: var(--md-surface-variant); color: var(--md-primary); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; margin: 1px 4px 1px 0;">🔗 ${lbl}${pName}</span>`;
+                        }
+                        const pDoc = jcPurch.find(p => p.id === link || p.poNo === link || p.invoiceNo === link || p.orderNo === link || (p.id && p.id.endsWith(link)));
+                        if (pDoc) {
+                            const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                            const o = (pDoc.orderNo || '').trim();
+                            const lbl = (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || String(pDoc.id).slice(-4).toUpperCase());
+                            const pName = pDoc.supplierName ? ` (${pDoc.supplierName})` : '';
+                            return `<span style="display:inline-block; background: var(--md-surface-variant); color: var(--md-primary); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; margin: 1px 4px 1px 0;">🔗 ${lbl}${pName}</span>`;
+                        }
                         const cleanLink = link.startsWith('sollo-') ? link.slice(-4).toUpperCase() : link;
-                        return `<span style="background: var(--md-surface-variant); color: var(--md-primary); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; margin-right: 4px;">🔗 ${cleanLink}</span>`;
+                        return `<span style="display:inline-block; background: var(--md-surface-variant); color: var(--md-primary); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; margin: 1px 4px 1px 0;">🔗 ${cleanLink}</span>`;
                     }).join('');
-
                     tableRowsHTML += `
                     <tr>
                         <td>${window.Utils.formatDateDisplay(e.date)}</td>
@@ -9228,7 +9591,12 @@ if (data.id && splitConfirmed) {
                         <td class="number-col"><strong style="color: var(--md-error);">${formatMoney(amt)}</strong></td>
                     </tr>`;
                 });
-
+                if (expenses.length > 0) {
+                    tableRowsHTML += `<tr class="total-row">
+                        <td colspan="4" style="text-align:right;">TOTAL (${expenses.length} Linked Expenses):</td>
+                        <td class="number-col" style="color: var(--md-error);">${formatMoney(tExp)}</td>
+                    </tr>`;
+                }
                 kpiCardsHTML = `
                     <div class="kpi-box"><div class="kpi-label">Jobs/Sales Linked</div><div class="kpi-value">${expenses.length}</div></div>
                     <div class="kpi-box"><div class="kpi-label" style="color: var(--md-error);">Total Linked Expenses</div><div class="kpi-value" style="color: var(--md-error);">${formatMoney(tExp)}</div></div>
@@ -9715,357 +10083,6 @@ window.triggerKhataReport = async () => {
     document.body.insertAdjacentHTML('beforeend', sheetHTML);
 };
 
-window.executeKhataReportLegacy = async (partyId, partyName, partyType) => {
-    window.Utils.showToast("Generating Ledger... ⏳");
-    
-    // Fetch Ledger math from Database
-    const statementData = await window.getKhataStatement(partyId, partyType);
-    
-    // FIX: Safely extract the timeline array from the object!
-    if (!statementData || !statementData.timeline || statementData.timeline.length === 0) {
-        return window.Utils.showToast("No transactions found for " + partyName);
-    }
-
-    const statement = statementData.timeline;
-    
-    // ==========================================
-    // ENTERPRISE UPGRADE: PDF SUMMARY MATH ENGINE
-    // ==========================================
-    let totalDebit = 0;
-    let totalCredit = 0;
-    
-    statement.forEach(row => {
-        let isDebit = false;
-        if (String(partyType).toLowerCase() === 'customer') {
-            isDebit = row.impact > 0;
-        } else {
-            isDebit = row.impact < 0;
-        }
-
-        // Handle the opening balance row specifically
-        if (row.id === 'open-bal') {
-             if (String(partyType).toLowerCase() === 'customer') {
-                 isDebit = row.impact > 0; 
-             } else {
-                 isDebit = row.impact < 0; 
-             }
-        }
-        
-        if (isDebit) {
-            totalDebit += Math.abs(row.impact || 0);
-        } else {
-            totalCredit += Math.abs(row.impact || 0);
-        }
-    });
-
-    // Build Professional A4 Print Template (Now perfectly mobile responsive!)
-    let html = `
-    <style>
-        @media print {
-            @page { margin: 15mm 10mm; }
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .a4-document { width: 100% !important; padding: 0 !important; }
-            thead { display: table-header-group; }
-            tr { page-break-inside: avoid; }
-            /* Auto-inject page numbers at bottom center */
-            @page {
-                @bottom-center {
-                    content: "Page " counter(page);
-                    font-family: 'Inter', sans-serif;
-                    font-size: 10px;
-                    color: #94a3b8;
-                }
-            }
-        }
-    </style>
-    <div class="a4-document" style="font-family: 'Inter', sans-serif; color: #333; background: #fff; width: 800px; max-width: none; padding: 40px; box-sizing: border-box;">
-        
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; gap: 10px;">
-            <div style="max-width: 65%; min-width: 0;">
-                <h2 style="margin: 0; font-size: 22px; color: #0f172a; font-weight: 800; letter-spacing: 0.5px; word-wrap: break-word;">LEDGER STATEMENT</h2>
-                <h3 style="margin: 6px 0 0 0; color: #0061a4; font-size: 16px; font-weight: 700; word-wrap: break-word;">${partyName}</h3>
-            </div>
-            <div style="text-align: right; flex-shrink: 0; max-width: 30%;">
-                <p style="margin: 0; font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Generated On</p>
-                <p style="margin: 2px 0 0 0; font-size: 12px; color: #0f172a; font-weight: 700;">${new Date().toLocaleDateString('en-IN')}</p>
-            </div>
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 20px; table-layout: auto;">
-            <thead>
-                <tr style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 2px solid #cbd5e1; color: #475569;">
-                    <th style="padding: 8px 4px; text-align: left; white-space: nowrap; font-weight: 600;">Date</th>
-                    <th style="padding: 8px 4px; text-align: left; width: 100%; font-weight: 600;">Particulars</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Debit</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Credit</th>
-                    <th style="padding: 8px 4px; text-align: right; white-space: nowrap; font-weight: 600;">Balance</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    let runBal = 0;
-    statement.forEach(row => {
-        runBal += row.impact;
-        
-        // PERFECT ACCOUNTING MATH
-        let isDebit = false;
-        if (String(partyType).toLowerCase() === 'customer') {
-            isDebit = row.impact > 0;
-        } else {
-            // 🚨 CRITICAL FIX: Supplier math has negative impact for Purchases (Liability increases), but Purchases are CREDITS! 
-            // Payments to suppliers have positive impact (Liability decreases), which are DEBITS!
-            isDebit = row.impact > 0; 
-        }
-
-        if (row.id === 'open-bal') {
-             if (String(partyType).toLowerCase() === 'customer') {
-                 isDebit = runBal > 0;
-             } else {
-                 // 🚨 CRITICAL FIX: A negative Opening Balance for a Supplier means we OWE them (Liability = Credit)!
-                 isDebit = runBal > 0; 
-             }
-        }
-        
-        const amtStr = Math.abs(row.impact || 0).toLocaleString('en-IN', {minimumFractionDigits: 2});
-        const drText = isDebit ? amtStr : '';
-        const crText = !isDebit ? amtStr : '';
-        
-        let balText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
-        if (String(partyType).toLowerCase() === 'customer') {
-            balText += (runBal >= 0 ? ' Dr' : ' Cr');
-        } else {
-            balText += (runBal >= 0 ? ' Cr' : ' Dr');
-        }
-
-        // STRICT ERP LOGIC: Reduced vertical padding to 5px to remove the empty gap between rows!
-        
-        // ENTERPRISE UI: Smart Date Wrapper (Forces DD MMM 'YY so month and year never truncate on mobile)
-        let displayDate = row.date;
-        if (displayDate && displayDate !== 'Opening') {
-            const d = window.Utils.safeDate(displayDate); // ENTERPRISE FIX: Protect Apple/iOS
-            const day = String(d.getDate()).padStart(2, '0');
-            const month = d.toLocaleString('en-IN', { month: 'short' });
-            const year = String(d.getFullYear()).slice(-2);
-            displayDate = `${day} ${month} '${year}`;
-        }
-
-        html += `
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 5px 4px; white-space: nowrap; vertical-align: top; color: #64748b;">${displayDate}</td>
-                    <td style="padding: 5px 4px; word-break: break-word; vertical-align: top; color: #1e293b; line-height: 1.4;">${row.desc || row.particulars || 'Opening Balance'}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #e11d48; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${drText}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #16a34a; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; font-weight: 500;">${crText}</td>
-                    <td style="padding: 5px 4px; text-align: right; color: #0f172a; font-weight: 700; white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums;">${balText}</td>
-                </tr>
-        `;
-    });
-
-    const finalBalText = Math.abs(runBal).toLocaleString('en-IN', {minimumFractionDigits: 2});
-    
-    // STRICT ERP LOGIC: Professional Status Pill Generator
-    let finalBalStatus = 'Settled';
-    let statusBg = 'rgba(100, 116, 139, 0.1)'; // Transparent Gray
-    let statusColor = 'var(--md-text-muted)'; // Dark Gray
-
-    if (String(partyType).toLowerCase() === 'customer') {
-        if (runBal > 0.01) { finalBalStatus = 'Due to Receive (Dr)'; statusBg = 'rgba(186, 26, 26, 0.1)'; statusColor = 'var(--md-error)'; }
-        else if (runBal < -0.01) { finalBalStatus = 'Advance Received (Cr)'; statusBg = 'rgba(0, 97, 164, 0.1)'; statusColor = 'var(--md-primary)'; }
-    } else {
-        // 🚨 ENTERPRISE FIX: Supplier debt is a Liability (Negative). We must invert the math!
-        if (runBal < -0.01) { finalBalStatus = 'Due to Pay (Cr)'; statusBg = 'rgba(186, 26, 26, 0.1)'; statusColor = 'var(--md-error)'; }
-        else if (runBal > 0.01) { finalBalStatus = 'Advance Paid (Dr)'; statusBg = 'rgba(0, 97, 164, 0.1)'; statusColor = 'var(--md-primary)'; }
-    }
-
-        // 🚀 ENTERPRISE GST SPLIT ENGINE FOR KHATA STATEMENT PDF
-        let splitHtml = '';
-        if (Math.abs(runBal) > 0.01 || true) {
-            const party = await getRecordById('ledgers', partyId) || { openingBalance: 0, balanceType: '' };
-            let ob = parseFloat(party.openingBalance) || 0;
-            let isAdv = String(partyType).toLowerCase() === 'customer' ? ((party.balanceType || '').toLowerCase().includes('pay') || (party.balanceType || '').toLowerCase().includes('credit')) : ((party.balanceType || '').toLowerCase().includes('receive') || (party.balanceType || '').toLowerCase().includes('debit'));
-            
-            let debitsGst = !isAdv ? ob : 0;
-            let debitsNon = 0;
-            
-            const exactPaymentMap = {};
-            const exactReturnMap = {};
-
-            const allReceipts = await getAllRecords('receipts', 'firmId', window.app.state.firmId);
-            allReceipts.forEach(c => {
-                if (c.ledgerId === partyId && c.invoiceRef) {
-                    let amt = parseFloat(c.amount) || 0;
-                    let impact = String(partyType).toLowerCase() === 'customer' ? (c.type === 'in' ? amt : -amt) : (c.type === 'out' ? amt : -amt);
-                    if (impact <= 0) return;
-                    const refs = String(c.invoiceRef).split(',').map(r => r.trim()).filter(Boolean);
-                    refs.forEach(ref => {
-                        const allocated = (c.allocationMap && c.allocationMap[ref] !== undefined)
-                            ? (parseFloat(c.allocationMap[ref]) || 0)
-                            : (impact / refs.length);
-                        exactPaymentMap[ref] = (exactPaymentMap[ref] || 0) + allocated;
-                    });
-                }
-            });
-
-            const docs = String(partyType).toLowerCase() === 'customer' ? await getAllRecords('sales', 'firmId', window.app.state.firmId) : await getAllRecords('purchases', 'firmId', window.app.state.firmId);
-            
-            docs.forEach(d => {
-                if (d.documentType === 'return' && d.status !== 'Open' && d.status !== 'Cancelled' && d.orderNo && (String(partyType).toLowerCase() === 'customer' ? d.customerId === partyId : d.supplierId === partyId)) {
-                    exactReturnMap[d.orderNo] = (exactReturnMap[d.orderNo] || 0) + Math.abs(parseFloat(d.grandTotal) || 0);
-                }
-            });
-
-            docs.forEach(doc => {
-                if (doc.status !== 'Open' && doc.status !== 'Cancelled' && doc.documentType !== 'return' && (String(partyType).toLowerCase() === 'customer' ? doc.customerId === partyId : doc.supplierId === partyId)) {
-                    const uniqueRefs = [...new Set([doc.orderNo, doc.poNo, doc.invoiceNo, doc.id].filter(Boolean))];
-                    const paid = uniqueRefs.reduce((sum, ref) => sum + (exactPaymentMap[ref] || 0), 0);
-                    const returned = uniqueRefs.reduce((sum, ref) => sum + (exactReturnMap[ref] || 0), 0);
-                    
-                    const docTotal = parseFloat(doc.grandTotal) || 0;
-                    const finalUnpaid = Math.max(0, docTotal - paid - returned);
-                    
-                    if (finalUnpaid > 0.01) {
-                        if (doc.invoiceType === 'Non-GST') debitsNon += finalUnpaid;
-                        else debitsGst += finalUnpaid;
-                    }
-                }
-            });
-
-            const trueBalance = Math.abs(runBal); 
-            const trackedDebt = debitsGst + debitsNon;
-            if (trueBalance < trackedDebt) {
-                const excessCredit = trackedDebt - trueBalance;
-                if (excessCredit >= debitsGst) {
-                    let remaining = excessCredit - debitsGst;
-                    debitsGst = 0;
-                    debitsNon = Math.max(0, debitsNon - remaining);
-                } else {
-                    debitsGst -= excessCredit;
-                }
-            }
-
-            const isCust = String(partyType).toLowerCase() === 'customer';
-            let trueBalGST = 0;
-            let trueBalNonGST = !isAdv ? ob : -ob;
-            docs.forEach(d => {
-                if (d.status !== 'Open' && d.status !== 'Cancelled' && (isCust ? d.customerId === partyId : d.supplierId === partyId)) {
-                    const amt = Math.abs(parseFloat(d.grandTotal) || 0);
-                    const imp = d.documentType === 'return' ? -amt : amt;
-                    if (d.invoiceType === 'Non-GST') trueBalNonGST += imp;
-                    else trueBalGST += imp;
-                }
-            });
-            allReceipts.forEach(r => {
-                if (r.ledgerId === partyId) {
-                    let isNonGstReceipt = r.taxPool === 'Non-GST';
-                    const legacyRef = r.invoiceRef || r.linkedInvoice;
-                    if (!r.taxPool || r.taxPool === 'All') {
-                        isNonGstReceipt = true;
-                        if (legacyRef) {
-                            const firstRef = String(legacyRef).split(',')[0].trim();
-                            const linkedDoc = docs.find(d => d.id === firstRef || d.invoiceNo === firstRef || d.poNo === firstRef || d.orderNo === firstRef || String(d.id).endsWith(firstRef));
-                            if (linkedDoc && linkedDoc.invoiceType !== 'Non-GST') isNonGstReceipt = false;
-                        }
-                    }
-                    const amt = parseFloat(r.amount) || 0;
-                    const imp = isCust ? (r.type === 'in' ? -amt : amt) : (r.type === 'in' ? amt : -amt);
-                    if (isNonGstReceipt) trueBalNonGST += imp;
-                    else trueBalGST += imp;
-                }
-            });
-            const dueLabel = isCust ? 'Due' : 'To Pay';
-            const fmtK = (v) => Math.abs(v).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            if (Math.abs(trueBalGST) > 0.01 || Math.abs(trueBalNonGST) > 0.01) {
-                splitHtml = `<div style="margin-top: 12px; background: #f1f5f9; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; width: 100%; display: flex; flex-direction: column; gap: 4px; box-sizing: border-box;">`;
-                if (trueBalGST > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #dc2626; font-weight: 800;"><span>GST ${dueLabel}:</span><span>₹${fmtK(trueBalGST)}</span></div>`;
-                else if (trueBalGST < -0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #16a34a; font-weight: 800;"><span>GST Adv:</span><span>₹${fmtK(trueBalGST)}</span></div>`;
-                if (trueBalNonGST > 0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #dc2626; font-weight: 800;"><span>Non-GST ${dueLabel}:</span><span>₹${fmtK(trueBalNonGST)}</span></div>`;
-                else if (trueBalNonGST < -0.01) splitHtml += `<div style="display: flex; justify-content: space-between; font-size: 11px; color: #16a34a; font-weight: 800;"><span>Non-GST Adv:</span><span>₹${fmtK(trueBalNonGST)}</span></div>`;
-                splitHtml += `</div>`;
-            }
-        }
-
-    html += `
-            </tbody>
-        </table>
-        
-        <div class="avoid-break" style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 15px; gap: 15px; page-break-inside: avoid;">
-            
-            <div style="flex: 1; background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: block; margin-bottom: 10px;">Transaction Summary</span>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; align-items: center;">
-                    <span style="font-size: 12px; color: #475569; font-weight: 600;">Total Debit (Dr)</span>
-                    <strong style="font-size: 13px; color: #e11d48;">₹ ${totalDebit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 12px; color: #475569; font-weight: 600;">Total Credit (Cr)</span>
-                    <strong style="font-size: 13px; color: #16a34a;">₹ ${totalCredit.toLocaleString('en-IN', {minimumFractionDigits: 2})}</strong>
-                </div>
-            </div>
-
-            <div style="background: #f8fafc; padding: 14px 20px; border-radius: 8px; border: 1px solid #e2e8f0; border-left: 4px solid ${statusColor}; display: flex; flex-direction: column; align-items: flex-end; box-shadow: 0 1px 3px rgba(0,0,0,0.05); flex-shrink: 0; min-width: 200px;">
-                <span style="font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; text-align: right;">Closing Balance</span>
-                <strong style="font-size: 20px; color: #0f172a; display: block; margin-top: 4px; margin-bottom: 8px; word-wrap: break-word; text-align: right;">₹ ${finalBalText}</strong>
-                <span style="background: ${statusBg}; color: ${statusColor}; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; border: 1px solid ${statusColor}40; display: inline-block; text-align: right; line-height: 1.2;">${finalBalStatus}</span>
-                ${splitHtml}
-            </div>
-        </div>
-        
-        <div class="avoid-break" style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #cbd5e1; page-break-inside: avoid;">
-            <span style="font-size: 11px; font-weight: 900; color: #94a3b8; letter-spacing: 3px; text-transform: uppercase;">*** End of Statement ***</span>
-            <div style="font-size: 9px; color: #cbd5e1; margin-top: 6px;">Generated securely via SOLLO ERP</div>
-        </div>
-    </div>`;
-
-    // Inject into hidden print area for the actual printer
-    let printDiv = document.getElementById('print-area');
-    if (!printDiv) {
-        printDiv = document.createElement('div');
-        printDiv.id = 'print-area';
-        printDiv.className = 'print-only';
-        document.body.appendChild(printDiv);
-    }
-    printDiv.innerHTML = html;
-    
-    // NEW: Build a beautiful On-Screen Viewer!
-    let oldViewer = document.getElementById('activity-khata-viewer');
-    if (oldViewer) oldViewer.remove();
-
-    // ENTERPRISE FIX: Aggressive Regex strips slashes from "M/S" names to prevent OS truncation!
-    const safeFilename = `Ledger_Statement_${partyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
-
-    let viewerHTML = `
-    <div id="activity-khata-viewer" class="activity-screen" style="z-index: 5500; display: flex; flex-direction: column;">
-        <div class="activity-header">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-khata-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-khata-viewer').remove(), 350);">arrow_back</span>
-                <strong style="font-size: 18px;">Ledger Statement</strong>
-            </div>
-            
-            <!-- 🚨 SOLLO FIX: Unified PDF button to show EXACT Document Preview -->
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <div class="tap-target" onclick="if(window.Utils) window.Utils.processPDFExport('khata-render-target', '${safeFilename}')" style="width: 36px; height: 36px; border-radius: 50%; background: rgba(186, 26, 26, 0.1); color: var(--md-error); display: flex; align-items: center; justify-content: center; box-shadow: none;">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">picture_as_pdf</span>
-                </div>
-            </div>
-        </div>
-        <div class="activity-content" style="flex: 1; padding: 12px; background: var(--md-background); overflow-y: auto;">
-            <div style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); background: white; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-                <div id="khata-render-target" style="width: 100%; background: white; padding: 12px; box-sizing: border-box;">
-                    ${html}
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', viewerHTML);
-    
-    // Trigger the smooth slide-in animation
-    setTimeout(() => {
-        document.getElementById('activity-khata-viewer').classList.add('open');
-        window.Utils.showToast("✅ Ledger Ready!");
-    }, 50);
-};
 
 // ==========================================
 // NEW: BANK & CASH STATEMENT PDF ENGINE
@@ -10448,6 +10465,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // In Single Page Applications (SPAs), temporary modals and overlays often get disconnected but stay in the device's RAM forever.
 // This engine silently sweeps the background every 60 seconds and destroys "zombie" nodes so the app never crashes from Memory Bloat!
 setInterval(() => {
+    if (document.hidden) return;
     try {
         const zombies = document.querySelectorAll('#split-overlay, #manual-restore-overlay, #in-app-pdf-viewer, #split-tender-modal');
         zombies.forEach(el => {
@@ -11018,11 +11036,11 @@ window.app.showBSBreakdown = function(type, title, color) {
             const safeRaw = String(item.rawName || item.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             let rowClick = '';
             if (type === 'stock' && item.id) {
-                rowClick = `onclick="if(window.UI) window.UI.closeBottomSheet('sheet-bs-breakdown'); setTimeout(() => { if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${item.id}', '${safeRaw}'); }, 150);"`;
+                rowClick = `onclick="if(window.triggerItemLedgerFromForm) window.triggerItemLedgerFromForm('${item.id}', '${safeRaw}');"`;
             } else if ((type === 'bank' || type === 'cash') && item.id) {
-                rowClick = `onclick="if(window.UI) window.UI.closeBottomSheet('sheet-bs-breakdown'); setTimeout(() => { if(window.app) window.app.openAccountLedger('${item.id}'); }, 150);"`;
+                rowClick = `onclick="if(window.app) window.app.openAccountLedger('${item.id}');"`;
             } else if (item.id && item.partyType) {
-                rowClick = `onclick="if(window.UI) window.UI.closeBottomSheet('sheet-bs-breakdown'); setTimeout(() => { if(window.app) window.app.openPartyLedger('${item.id}', '${item.partyType}', '${safeRaw}'); }, 150);"`;
+                rowClick = `onclick="if(window.app) window.app.openPartyLedger('${item.id}', '${item.partyType}', '${safeRaw}');"`;
             }
             html += `
                 <div class="m3-card ${rowClick ? 'tap-target' : ''}" ${rowClick} style="padding: 14px 16px; margin: 0; display: flex; justify-content: space-between; align-items: center; border-radius: 0; border: none; border-bottom: 1px solid var(--md-outline-variant); box-shadow: none; background: var(--md-surface); ${rowClick ? 'cursor: pointer;' : ''}">

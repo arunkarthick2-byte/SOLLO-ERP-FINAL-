@@ -1237,7 +1237,27 @@ Data & Security</strong>
             }
         };
 
-        window.saveOrDisablePin = () => {
+        const hashPin = async (pin) => {
+            const salted = 'SOLLO_PIN_V1:' + String(pin);
+            if (window.crypto && window.crypto.subtle) {
+                const buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(salted));
+                return 'sha256:' + Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            let h = 2166136261;
+            for (let i = 0; i < salted.length; i++) {
+                h ^= salted.charCodeAt(i);
+                h = Math.imul(h, 16777619);
+            }
+            return 'fnv:' + (h >>> 0).toString(16);
+        };
+        const verifyPinMatch = async (entered, saved) => {
+            if (!saved) return false;
+            if (saved.startsWith('sha256:') || saved.startsWith('fnv:')) {
+                return (await hashPin(entered)) === saved;
+            }
+            return String(entered) === String(saved);
+        };
+        window.saveOrDisablePin = async () => {
             const val = setupPinBuffer;
             const savedPin = localStorage.getItem('sollo_app_pin');
 
@@ -1247,7 +1267,7 @@ Data & Security</strong>
             }
 
             if (savedPin) {
-                if (val === savedPin) {
+                if (await verifyPinMatch(val, savedPin)) {
                     localStorage.removeItem('sollo_app_pin');
                     if (window.Utils) window.Utils.showToast('Security PIN Disabled');
                     window.closePinSetupModal();
@@ -1264,7 +1284,8 @@ Data & Security</strong>
                     }, 400);
                 }
             } else {
-                localStorage.setItem('sollo_app_pin', val);
+                const hashedPin = await hashPin(val);
+                localStorage.setItem('sollo_app_pin', hashedPin);
                 if (window.Utils) window.Utils.showToast('Security PIN Enabled 🔒');
                 window.closePinSetupModal();
                 setupPinBuffer = '';
@@ -1288,12 +1309,15 @@ Data & Security</strong>
             }
         };
 
-        window.verifyAppLockPin = () => {
+        window.verifyAppLockPin = async () => {
             const savedPin = localStorage.getItem('sollo_app_pin');
             const lockScreen = document.getElementById('app-lock-screen');
             if (!savedPin || !lockScreen) return;
 
-            if (lockPinBuffer === savedPin) {
+            if (await verifyPinMatch(lockPinBuffer, savedPin)) {
+                if (!savedPin.startsWith('sha256:') && !savedPin.startsWith('fnv:')) {
+                    localStorage.setItem('sollo_app_pin', await hashPin(lockPinBuffer));
+                }
                 lockPinBuffer = '';
                 renderDots('lock-pin-dots', 0);
                 lockScreen.style.opacity = '0';
@@ -2509,6 +2533,7 @@ Data & Security</strong>
                 <div class="activity-header" style="justify-content: center; position: relative; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 8px 16px; border-bottom: none !important;">
                     <span class="material-symbols-outlined tap-target" style="position: absolute; left: 16px;">arrow_back</span>
                     <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Ledger</span>
+                    <span class="material-symbols-outlined tap-target" title="Export Expense Ledger PDF" onclick="if(window.executeExpenseLedgerPDF) window.executeExpenseLedgerPDF()" style="position: absolute; right: 16px; color: var(--md-primary); cursor: pointer;">picture_as_pdf</span>
                 </div>
                 <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
                     <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
@@ -2916,18 +2941,15 @@ Data & Security</strong>
                 const isCust = String(p.type).toLowerCase() === 'customer';
                 const payType = isCust ? 'in' : 'out';
                 const partyKey = isCust ? 'customer' : 'supplier';
-                if (window.UI) window.UI.closeActivity('activity-report-viewer');
-                setTimeout(async () => {
-                    await window.app.openNewPayment(payType);
-                    const idEl = document.getElementById(`pay-${payType}-${partyKey}-id`);
-                    const dispEl = document.getElementById(`pay-${payType}-${partyKey}-display`);
-                    if (idEl) idEl.value = p.id;
-                    if (dispEl) {
-                        dispEl.innerText = p.name;
-                        dispEl.style.color = 'var(--md-on-surface)';
-                    }
-                    if (window.app.loadPendingInvoices) await window.app.loadPendingInvoices(p.id, payType);
-                }, 150);
+                await window.app.openNewPayment(payType);
+                const idEl = document.getElementById(`pay-${payType}-${partyKey}-id`);
+                const dispEl = document.getElementById(`pay-${payType}-${partyKey}-display`);
+                if (idEl) idEl.value = p.id;
+                if (dispEl) {
+                    dispEl.innerText = p.name;
+                    dispEl.style.color = 'var(--md-on-surface)';
+                }
+                if (window.app.loadPendingInvoices) await window.app.loadPendingInvoices(p.id, payType);
             };
 
             window.triggerLedgerQuickBill = async function() {
@@ -2936,22 +2958,19 @@ Data & Security</strong>
                 const isCust = String(p.type).toLowerCase() === 'customer';
                 const formType = isCust ? 'sales' : 'purchase';
                 const partyKey = isCust ? 'customer' : 'supplier';
-                if (window.UI) window.UI.closeActivity('activity-report-viewer');
-                setTimeout(async () => {
-                    await window.app.openForm(formType, null, 'invoice');
-                    const idEl = document.getElementById(`${formType}-${partyKey}-id`);
-                    const dispEl = document.getElementById(`${formType}-${partyKey}-display`);
-                    if (idEl) idEl.value = p.id;
-                    if (dispEl) {
-                        dispEl.innerText = p.name;
-                        dispEl.style.color = 'var(--md-on-surface)';
-                    }
-                    const step2 = document.getElementById(`${formType}-step-2`);
-                    const footer = document.getElementById(`${formType}-sticky-footer`);
-                    if (step2) step2.classList.remove('hidden', 'animate-step');
-                    if (footer) footer.classList.remove('hidden');
-                    if (window.app.updateInlineInsights) window.app.updateInlineInsights(p.id, formType);
-                }, 150);
+                await window.app.openForm(formType, null, 'invoice');
+                const idEl = document.getElementById(`${formType}-${partyKey}-id`);
+                const dispEl = document.getElementById(`${formType}-${partyKey}-display`);
+                if (idEl) idEl.value = p.id;
+                if (dispEl) {
+                    dispEl.innerText = p.name;
+                    dispEl.style.color = 'var(--md-on-surface)';
+                }
+                const step2 = document.getElementById(`${formType}-step-2`);
+                const footer = document.getElementById(`${formType}-sticky-footer`);
+                if (step2) step2.classList.remove('hidden', 'animate-step');
+                if (footer) footer.classList.remove('hidden');
+                if (window.app.updateInlineInsights) window.app.updateInlineInsights(p.id, formType);
             };
         </script>
     </div>
@@ -3367,7 +3386,7 @@ Data & Security</strong>
     </div>
     
         <!-- 🚀 BALANCE SHEET DRILL-DOWN MENU -->
-    <div id="sheet-bs-breakdown" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 6000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff); overflow: hidden;">
+    <div id="sheet-bs-breakdown" class="bottom-sheet" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 12px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 12px 40px rgba(0,0,0,0.3); background: var(--md-surface, #ffffff); overflow: hidden;">
         <div style="background: var(--md-surface, #ffffff); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px; border-bottom: 1px solid var(--md-outline-variant, #e2e8f0); display: flex; justify-content: space-between; align-items: center;">
             <strong id="bs-breakdown-title" style="font-size: 16px; font-weight: 600; color: var(--md-on-surface);">Details</strong>
             <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-bs-breakdown')">close</span>
@@ -5126,19 +5145,6 @@ Data & Security</strong>
             <div style="display: flex; gap: 16px; align-items: center; flex-shrink: 0;">
                 
                 <span id="action-edit-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="const id = document.getElementById('item-ledger-hidden-id').value; if (id && window.app) window.app.openForm('product', id);">edit</span>
-                <!-- SHARE ICON (Direct Native Share) -->
-                <span id="action-share-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="
-                    const id = document.getElementById('item-ledger-hidden-id').value;
-                    const name = document.getElementById('item-ledger-hidden-name').value;
-                    const partyId = document.getElementById('item-ledger-party-id').value;
-                    const partyName = document.getElementById('item-ledger-party-display').innerText;
-                    const search = document.getElementById('adv-item-search').value;
-                    const type = document.getElementById('adv-item-type').value;
-                    const date = document.getElementById('adv-item-date').value;
-                    if (id && window.executeItemLedgerReport) {
-                        window.executeItemLedgerReport(id, name, partyId, partyName, search, type, date, 'share');
-                    }
-                ">share</span>
                 
                 <!-- PDF ICON (Document Preview) -->
                 <span id="action-pdf-item-ledger" class="material-symbols-outlined tap-target" style="padding: 4px;" onclick="
@@ -5273,6 +5279,7 @@ Data & Security</strong>
                     });
 
                     setInterval(() => {
+                        if (document.hidden || !navigator.onLine) return;
                         try { reg.update(); } catch(e) {}
                     }, 3600000);
                 });
@@ -5717,9 +5724,9 @@ Data & Security</strong>
             }
 
             // ==========================================
-            // ENTERPRISE UPGRADE: CUSTOM ALERT OVERRIDE
+            // ENTERPRISE UPGRADE: CUSTOM ALERT OVERRIDE (DISABLED TO PREVENT RACE CONDITIONS)
             // ==========================================
-            window.alert = function(message) {
+            window._legacyCustomAlert = function(message) {
                 const dialog = document.getElementById('enterprise-dialog');
                 const msgEl = document.getElementById('enterprise-dialog-msg');
                 const iconEl = document.getElementById('enterprise-dialog-icon');
@@ -6992,7 +6999,9 @@ Data & Security</strong>
         // 3. CORE MATH OVERRIDE: Destroys commas so parseFloat() doesn't fail
         const originalParseFloat = window.parseFloat;
         window.parseFloat = function(val) {
-            if (typeof val === 'string') val = val.replace(/,/g, '');
+            if (typeof val === 'string' && /^\s*[+-]?\d+(,\d+)+(\.\d+)?\s*$/.test(val)) {
+                val = val.replace(/,/g, '');
+            }
             return originalParseFloat(val);
         };
 

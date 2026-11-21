@@ -8912,6 +8912,16 @@ html body #sheet-stock-adjustment select:not(#_) {
 }
 html body #sheet-document-formats .doc-format-card:not(#_) {
   background: var(--md-surface) !important;
+  padding: 10px 16px !important;
+}
+html body #sheet-document-formats .doc-format-header:not(#_) {
+  gap: 10px !important;
+  margin-bottom: 4px !important;
+}
+html body #sheet-document-formats .icon-circle:not(#_) {
+  width: 28px !important;
+  height: 28px !important;
+  box-shadow: none !important;
 }
 html body.dark-mode #sheet-document-formats .doc-format-card:not(#_),
 html body.dark-mode #sheet-document-formats > div:nth-child(2):not(#_) {
@@ -8921,9 +8931,11 @@ html body.dark-mode #sheet-document-formats > div:nth-child(2):not(#_) {
 html body #sheet-document-formats .doc-format-input-group:not(#_) {
   background: transparent !important;
   border: none !important;
-  border-bottom: 1px solid var(--md-outline-variant) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+html body #sheet-document-formats .doc-format-divider:not(#_) {
+  height: 18px !important;
 }
 html body #sheet-document-formats input.doc-format-text:not(#_),
 html body #sheet-document-formats input.doc-format-number:not(#_),
@@ -8933,7 +8945,12 @@ html body.dark-mode #sheet-document-formats input.doc-format-number:not(#_) {
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  padding: 8px 4px !important;
+  padding: 6px 4px !important;
+  font-size: 14px !important;
+  text-align: center !important;
+}
+html body #sheet-document-formats > div:last-child:not(#_) {
+  padding: 10px 16px !important;
 }
 .privacy-blur-active {
   filter: blur(12px) grayscale(30%) !important;
@@ -11387,4 +11404,74 @@ html body.dark-mode .ded-ledger-table .ded-pill-paid:not(#_):not(#__):not(#___) 
     padding: 2px 6px !important;
     margin-left: 0 !important;
   }
+}
+html body li.tap-target:not(#_):not(#__):not(#___):has(.tap-target:active):active,
+html body.dark-mode li.tap-target:not(#_):not(#__):not(#___):has(.tap-target:active):active {
+    background: transparent !important;
+    background-color: transparent !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+html body li.tap-target:not(#_):not(#__):not(#___):has(.tap-target:active):active::after,
+html body.dark-mode li.tap-target:not(#_):not(#__):not(#___):has(.tap-target:active):active::after {
+    opacity: 0 !important;
+    background: transparent !important;
+}
+html body #sheet-contra-transfer > div:first-child:not(#_) {
+    padding: 14px 16px !important;
+}
+html body #sheet-contra-transfer > div:nth-child(2):not(#_) {
+    padding: 16px !important;
+}
+html body #sheet-contra-transfer .icon-circle:not(#_) {
+    box-shadow: none !important;
+}
+html body #sheet-contra-transfer .m3-card:not(#_) {
+    padding: 0 !important;
+    margin: 0 0 14px 0 !important;
+    border: none !important;
+    border-left: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    gap: 12px !important;
+}
+html body #sheet-contra-transfer input:not(#_),
+html body #sheet-contra-transfer select:not(#_) {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    padding: 8px 0 !important;
+    box-shadow: none !important;
+}
+html body #sheet-simple-master > div:nth-child(2):not(#_) {
+    padding: 0 !important;
+}
+html body #sheet-simple-master h4:not(#_) {
+    margin: 0 !important;
+    padding: 12px 16px 6px 16px !important;
+}
+html body #sheet-simple-master #list-simple-master li:not(#_) {
+    margin: 0 !important;
+    padding: 12px 16px !important;
+    border: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+html body #sheet-smart-share .m3-card:not(#_) {
+    padding: 0 !important;
+    margin: 0 0 14px 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+html body #sheet-smart-share #smart-share-msg:not(#_) {
+    background: var(--md-surface-variant) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    border-radius: 8px !important;
+    padding: 10px 12px !important;
 }

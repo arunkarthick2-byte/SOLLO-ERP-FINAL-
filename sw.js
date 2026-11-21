@@ -13,7 +13,6 @@ const ASSETS_TO_CACHE = [
     './cloud.js',
     './state.js',
     './components.js',
-    './worker.js',
     './icon-192.png',
     './icon-512.png',
     './apple-touch-icon.png',

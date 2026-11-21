@@ -1,6 +1,7 @@
 // ==========================================
 // SOLLO ERP - UI & ANIMATION CONTROLLER (v6.1 Enterprise)
 // ==========================================
+window.escHtml = (str) => String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 const UI = {
     
@@ -661,7 +662,7 @@ const UI = {
 
         const applyOpen = () => {
             let highestZ = 4000;
-            document.querySelectorAll('.activity-screen.open').forEach(el => {
+            document.querySelectorAll('.activity-screen.open, .bottom-sheet.open').forEach(el => {
                 const z = parseInt(window.getComputedStyle(el).zIndex, 10);
                 if (!isNaN(z) && z > highestZ) highestZ = z;
             });
@@ -705,7 +706,7 @@ const UI = {
                 
                 // 3. Instantly snap the screen open for the "After" snapshot
                 let highestZ = 4000;
-                document.querySelectorAll('.activity-screen.open').forEach(el => {
+                document.querySelectorAll('.activity-screen.open, .bottom-sheet.open').forEach(el => {
                     const z = parseInt(window.getComputedStyle(el).zIndex, 10);
                     if (!isNaN(z) && z > highestZ) highestZ = z;
                 });
@@ -1765,16 +1766,17 @@ const UI = {
                         <div style="display: flex; justify-content: space-between; align-items: stretch; gap: 12px;">
                             <div style="flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
                                 <div>
-                                    <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700; line-height: 1.25;">${s.customerName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(CR)</span>' : ''}</strong>
-                                    <span style="display: block; color: var(--md-text-muted); margin-top: 3px; font-size: 12px; font-weight: 600;">${s.orderNo || s.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</span>
+                                    <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700; line-height: 1.25;">${window.escHtml(s.customerName || 'Unknown Party')} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(CR)</span>' : ''}</strong>
+                                    <span style="display: block; color: var(--md-text-muted); margin-top: 3px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${((s.invoiceNo || '').trim() && (s.orderNo || '').trim() && (s.invoiceNo || '').trim() !== (s.orderNo || '').trim()) ? `${(s.invoiceNo || '').trim()} • ${/^ord\b/i.test((s.orderNo || '').trim()) ? (s.orderNo || '').trim() : 'Ord: ' + (s.orderNo || '').trim()}` : ((s.invoiceNo || s.orderNo || '').trim() || 'Draft')}</span>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
                                     <div class="tap-target" title="Share on WhatsApp" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('sales', '${s.id}')" style="width: 24px; height: 24px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
                                     </div>
                                     <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${s.id}'; window.app.generatePDF('sales'); }" style="width: 24px; height: 24px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
                                         <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
                                     </div>
+                                    <span style="font-size: 11px; font-weight: 600; color: var(--md-text-muted); opacity: 0.85; white-space: nowrap;">• ${window.Utils.formatDateDisplay(s.date) || 'Unknown Date'}</span>
                                 </div>
                             </div>
                             <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; text-align: right;">
@@ -1943,15 +1945,16 @@ const UI = {
         <div style="flex: 1; min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;">
             <div>
                 <strong style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--md-on-surface); font-size: 15px; font-weight: 700; line-height: 1.25;">${p.supplierName || 'Unknown Party'} ${isReturn ? '<span style="color:var(--md-error); font-size:12px; font-weight:bold;">(DR)</span>' : ''}</strong>
-                <span style="display: block; color: var(--md-text-muted); margin-top: 3px; font-size: 12px; font-weight: 600;">${p.orderNo || p.poNo || p.invoiceNo || 'Draft'} • ${window.Utils.formatDateDisplay(p.date) || 'Unknown Date'}</span>
+                <span style="display: block; color: var(--md-text-muted); margin-top: 3px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${(((p.invoiceNo || p.poNo || '').trim()) && (p.orderNo || '').trim() && ((p.invoiceNo || p.poNo || '').trim()) !== (p.orderNo || '').trim()) ? `${(p.invoiceNo || p.poNo || '').trim()} • ${/^po\b/i.test((p.orderNo || '').trim()) ? (p.orderNo || '').trim() : 'PO: ' + (p.orderNo || '').trim()}` : (((p.invoiceNo || p.poNo || p.orderNo || '').trim()) || 'Draft')}</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 12px; margin-top: 6px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 6px;">
                 <div class="tap-target" title="Share on WhatsApp" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.Utils) window.Utils.shareDocumentWhatsApp('purchases', '${p.id}')" style="width: 24px; height: 24px; background: transparent; color: #16a34a; display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c-.003 1.396.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c.003-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.626-2.957 6.584-6.592 6.584z"/><path d="M11.606 10.605c-.204-.582-1.083-1.235-1.229-1.235-.145 0-.348-.09-.504.145-.157.235-.582.726-.708.871-.126.145-.252.181-.456.091-.204-.09-.769-.283-1.464-.897-.542-.48-1.033-1.15-1.161-1.396-.126-.246.046-.33.155-.429.098-.088.204-.236.31-.354.105-.118.156-.199.251-.336.096-.135.048-.255 0-.344-.047-.09-.456-1.102-.624-1.51-.164-.396-.328-.344-.456-.344-.127 0-.274-.004-.421-.004-.147 0-.387.054-.591.29-.204.236-.779.761-.779 1.854 0 1.094.799 2.15 1.954 3.69 1.405 2.016 3.42 2.825 5.568 3.518.528.17 1.05.295 1.488.375.52.096 1.007.069 1.391-.019.43-.097 1.229-.502 1.401-.987.172-.485.172-.897.121-.987-.05-.09-.176-.145-.38-.235z"/></svg>
                 </div>
                 <div class="tap-target" title="Generate PDF" onpointerdown="event.stopPropagation();" onclick="event.stopPropagation(); if(window.app){ window.app.state.currentEditId = '${p.id}'; window.app.generatePDF('purchase'); }" style="width: 24px; height: 24px; background: transparent; color: var(--md-error); display: inline-flex; align-items: center; justify-content: flex-start; padding: 0;">
                     <span class="material-symbols-outlined" style="font-size: 19px;">picture_as_pdf</span>
                 </div>
+                <span style="font-size: 11px; font-weight: 600; color: var(--md-text-muted); opacity: 0.85; white-space: nowrap;">• ${window.Utils.formatDateDisplay(p.date) || 'Unknown Date'}</span>
             </div>
         </div>
         <div style="display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; flex-shrink: 0; text-align: right;">
@@ -2454,8 +2457,16 @@ const UI = {
                         const displayNames = links.map(linkId => {
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
-                            if (sDoc) return sDoc.orderNo || sDoc.invoiceNo || sDoc.id.slice(-4).toUpperCase();
-                            if (pDoc) return pDoc.orderNo || pDoc.poNo || pDoc.invoiceNo || pDoc.id.slice(-4).toUpperCase();
+                            if (sDoc) {
+                                const b = (sDoc.invoiceNo || '').trim();
+                                const o = (sDoc.orderNo || '').trim();
+                                return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || sDoc.id.slice(-4).toUpperCase());
+                            }
+                            if (pDoc) {
+                                const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                                const o = (pDoc.orderNo || '').trim();
+                                return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || pDoc.id.slice(-4).toUpperCase());
+                            }
                             return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : linkId;
                         });
                         displayLink = [...new Set(displayNames)].join(', ');
@@ -2468,9 +2479,9 @@ const UI = {
                                 <span class="material-symbols-outlined" style="font-size: 20px;">account_balance_wallet</span>
                             </div>
                             <div style="flex: 1; min-width: 0; padding-right: 8px;">
-                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${e.expenseNo ? e.expenseNo + ' - ' : ''}${e.category || 'General Expense'}</strong>
-                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(e.date) || ''} ${displayLink ? `| <span style="color:var(--md-primary);">🔗 ${displayLink}</span>` : ''}</small>
-                                ${e.notes ? `<small style="display: block; margin-top: 4px; color: var(--md-text-muted); font-size: 12px;">${e.notes}</small>` : ''}
+                                <strong style="font-size: 15px; color: var(--md-on-surface); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; font-weight: 700;">${e.expenseNo ? window.escHtml(e.expenseNo) + ' - ' : ''}${window.escHtml(e.category || 'General Expense')}</strong>
+                                <small style="color: var(--md-text-muted); display: block; margin-top: 4px; font-size: 12px; font-weight: 600;">${window.Utils.formatDateDisplay(e.date) || ''} ${displayLink ? `| <span style="color:var(--md-primary);">🔗 ${window.escHtml(displayLink)}</span>` : ''}</small>
+                                ${e.notes ? `<small style="display: block; margin-top: 4px; color: var(--md-text-muted); font-size: 12px;">${window.escHtml(e.notes)}</small>` : ''}
                             </div>
                             <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;">
                                 <strong style="font-size: 16px; color: var(--md-error); line-height: 1.2;">-\u20B9${(parseFloat(e.amount) || 0).toFixed(2)}</strong>
@@ -2627,13 +2638,17 @@ const UI = {
                 // 🚨 O(1) ENGINE: Pre-build an ultra-fast hash map of all documents BEFORE looping through receipts!
                 const fastDocMap = {};
                 UI.state.rawData.sales.forEach(s => {
-                    const label = s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
+                    const b = (s.invoiceNo || '').trim();
+                    const o = (s.orderNo || '').trim();
+                    const label = (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || String(s.id).slice(-4).toUpperCase());
                     fastDocMap[s.id] = label;
                     if(s.invoiceNo) fastDocMap[s.invoiceNo] = label;
                     if(s.orderNo) fastDocMap[s.orderNo] = label;
                 });
                 UI.state.rawData.purchases.forEach(p => {
-                    const label = p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
+                    const b = (p.invoiceNo || p.poNo || '').trim();
+                    const o = (p.orderNo || '').trim();
+                    const label = (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || String(p.id).slice(-4).toUpperCase());
                     fastDocMap[p.id] = label;
                     if(p.poNo) fastDocMap[p.poNo] = label;
                     if(p.invoiceNo) fastDocMap[p.invoiceNo] = label;
@@ -2801,8 +2816,16 @@ const UI = {
                         const displayNames = links.map(linkId => {
                             const sDoc = UI.state.rawData.sales.find(s => s.id === linkId || s.invoiceNo === linkId || s.orderNo === linkId || s.id.endsWith(linkId));
                             const pDoc = UI.state.rawData.purchases.find(p => p.id === linkId || p.poNo === linkId || p.invoiceNo === linkId || p.orderNo === linkId || p.id.endsWith(linkId));
-                            if (sDoc) return sDoc.orderNo || sDoc.invoiceNo || sDoc.id.slice(-4).toUpperCase();
-                            if (pDoc) return pDoc.orderNo || pDoc.poNo || pDoc.invoiceNo || pDoc.id.slice(-4).toUpperCase();
+                            if (sDoc) {
+                                const b = (sDoc.invoiceNo || '').trim();
+                                const o = (sDoc.orderNo || '').trim();
+                                return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || sDoc.id.slice(-4).toUpperCase());
+                            }
+                            if (pDoc) {
+                                const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                                const o = (pDoc.orderNo || '').trim();
+                                return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || pDoc.id.slice(-4).toUpperCase());
+                            }
                             return linkId.startsWith('sollo-') ? linkId.slice(-4).toUpperCase() : linkId;
                         });
                         displayLink = [...new Set(displayNames)].join(', ');
@@ -4208,7 +4231,7 @@ const UI = {
                     
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                         <div style="flex: 1; padding-right: 8px; min-width: 0;">
-                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.name}</strong>
+                            <strong style="font-size: 14px; color: var(--md-on-surface); display: block; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${window.escHtml(item.name)}</strong>
                             <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
                                 <input type="text" inputmode="decimal" class="row-qty" value="${item.customQty}" oninput="UI.calc${prefix.charAt(0).toUpperCase() + prefix.slice(1)}Totals();" style="width: 65px; padding: 6px 4px; text-align: center; font-weight: bold; border: 1px solid var(--md-primary); border-radius: 4px; color: var(--md-primary); font-size: 16px; background: var(--md-surface); outline: none;">
                                 <span style="font-size: 11px; color: var(--md-text-muted); font-weight: 700;">${item.uom || 'Unit'}</span>
@@ -5512,26 +5535,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (window.app) window.app.openExpenseReport();
                         break;
                     case 'receivables':
-                        if (window.UI) {
-                            window.UI.openMasterView('customers', 'Customer Master');
-                            setTimeout(() => {
-                                window.UI.state.activeFilters['masters'] = 'To Receive';
-                                const el = document.getElementById('filter-master-view');
-                                if (el) el.value = 'To Receive';
-                                if (window.app) window.app.applySmartMasterFilter();
-                            }, 150);
-                        }
+                        if (window.app && window.app.openPartyDueAgingModal) window.app.openPartyDueAgingModal('receivables');
                         break;
                     case 'payables':
-                        if (window.UI) {
-                            window.UI.openMasterView('suppliers', 'Supplier Master');
-                            setTimeout(() => {
-                                window.UI.state.activeFilters['masters'] = 'To Pay';
-                                const el = document.getElementById('filter-master-view');
-                                if (el) el.value = 'To Pay';
-                                if (window.app) window.app.applySmartMasterFilter();
-                            }, 150);
-                        }
+                        if (window.app && window.app.openPartyDueAgingModal) window.app.openPartyDueAgingModal('payables');
                         break;
                     case 'fyclose':
                         if (window.app) window.app.closeFinancialYear();
@@ -6155,6 +6162,13 @@ const closeTopmostView = () => {
         else openFp.classList.remove('open');
         return true;
     }
+    const pdfDateModal = document.getElementById('sollo-pdf-date-modal');
+    if (pdfDateModal) {
+        const closeBtn = pdfDateModal.querySelector('#pdf-dr-cancel, #pdf-dr-close');
+        if (closeBtn) closeBtn.click();
+        else pdfDateModal.remove();
+        return true;
+    }
     const dynViewer = document.querySelector('#activity-khata-viewer.open, #activity-account-viewer.open');
     if (dynViewer) {
         dynViewer.classList.remove('open');
@@ -6178,7 +6192,7 @@ const closeTopmostView = () => {
     // 3. Catch Full-Screen Activities sitting above the Aging Sheet
     const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
     const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
-    if (visibleScreens.length > 0 && visibleSheets.length === 1 && (visibleSheets[0].id === 'sheet-aging-bucket' || visibleSheets[0].id === 'sheet-fulfillment-bucket' || visibleSheets[0].id === 'sheet-overdue-bucket')) {
+    if (visibleScreens.length > 0 && visibleSheets.length === 1 && (visibleSheets[0].id === 'sheet-aging-bucket' || visibleSheets[0].id === 'sheet-fulfillment-bucket' || visibleSheets[0].id === 'sheet-overdue-bucket' || visibleSheets[0].id === 'sheet-bs-breakdown')) {
         const topScreen = getTopElement(visibleScreens);
         if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
             if (window.UI) window.UI.closeActivity(topScreen.id);
@@ -6206,6 +6220,16 @@ const closeTopmostView = () => {
             return true;
         }
     }
+    const partyDueAging = document.getElementById('sheet-party-due-aging');
+    if (partyDueAging) {
+        if (window._closePartyDueAging) window._closePartyDueAging();
+        else {
+            partyDueAging.remove();
+            const ov = document.getElementById('party-due-aging-overlay');
+            if (ov) ov.remove();
+        }
+        return true;
+    }
     const dashBanner = document.getElementById('return-to-dash-banner');
     if (dashBanner && dashBanner.style.display !== 'none' && document.getElementById('tab-workspace') && !document.getElementById('tab-workspace').classList.contains('hidden')) {
         dashBanner.click();
@@ -6215,8 +6239,8 @@ const closeTopmostView = () => {
 };
 // 1. PUSH NATIVE STATE ON CLICK
 document.addEventListener('click', (e) => {
-    const delegated = e.target.closest('.create-action-btn, .master-action-btn, .report-btn, .dropdown-btn, .setting-btn[data-action="profile"], .setting-btn[data-action="defaulters"], .setting-btn[data-action="docformats"], .setting-btn[data-action="trash"], [id^="dash-action-"]');
-    const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"], [onclick*="generate"]');
+    const delegated = e.target.closest('.create-action-btn, .master-action-btn, .report-btn, .dropdown-btn, .setting-btn[data-action="profile"], .setting-btn[data-action="defaulters"], .setting-btn[data-action="docformats"], .setting-btn[data-action="trash"], [id^="dash-action-"], #btn-edit-ledger');
+    const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"], [onclick*="generate"], [onclick*="show"]');
     let shouldPush = Boolean(delegated);
     if (!shouldPush && target) {
         const action = target.getAttribute('onclick') || '';
@@ -6230,7 +6254,8 @@ document.addEventListener('click', (e) => {
             action.includes('openItemMovementRecord') || action.includes('openUniversalReport') || action.includes('openDeadStockReport') ||
             action.includes('openProfitLeakageReport') || action.includes('openSettleSheet') || action.includes('openContraTransfer') ||
             action.includes('openMasterSort') || action.includes('openPinSetupModal') || action.includes('openBankLedgerMenu') ||
-            action.includes('generateTimeMachineSnapshot') || action.includes('triggerLedgerQuick')) {
+            action.includes('generateTimeMachineSnapshot') || action.includes('triggerLedgerQuick') ||
+            action.includes('openAgingBucketModal') || action.includes('openOverdueBucketModal') || action.includes('showBSBreakdown')) {
             shouldPush = true;
         }
     }
@@ -6247,7 +6272,7 @@ if (window.navigation) {
         if (event.navigationType === 'traverse' || event.navigationType === 'back') {
             const dashBanner = document.getElementById('return-to-dash-banner');
             const isDashBannerActive = dashBanner && dashBanner.style.display !== 'none' && document.getElementById('tab-workspace') && !document.getElementById('tab-workspace').classList.contains('hidden');
-            const isAnythingOpen = isDashBannerActive || document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #activity-khata-viewer.open, #activity-account-viewer.open, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #sollo-month-picker-overlay, #sheet-pin-setup.pin-modal-open, #split-tender-modal.open, .flatpickr-calendar.open, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
+            const isAnythingOpen = isDashBannerActive || document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #activity-khata-viewer.open, #activity-account-viewer.open, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #sollo-month-picker-overlay, #sollo-pdf-date-modal, #sheet-party-due-aging, #sheet-pin-setup.pin-modal-open, #split-tender-modal.open, .flatpickr-calendar.open, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
             if (isAnythingOpen) {
                 event.intercept({
                     async handler() {
@@ -6829,7 +6854,7 @@ window.openInvoiceOverview = function(type, id) {
                 itemsHTML += `
                 <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--md-surface-variant); padding: 12px 16px;">
                     <div style="flex: 1; padding-right: 12px;">
-                        <strong style="display: block; font-size: 14px; color: var(--md-on-surface);">${item.name || 'Item'}</strong>
+                        <strong style="display: block; font-size: 14px; color: var(--md-on-surface);">${window.escHtml(item.name || 'Item')}</strong>
                         <small style="color: var(--md-text-muted);">${qty} ${item.uom || 'pcs'} × ₹${rate.toFixed(2)}</small>
                     </div>
                     <strong style="font-size: 15px; color: var(--md-on-surface);">₹${lineTotal.toFixed(2)}</strong>
