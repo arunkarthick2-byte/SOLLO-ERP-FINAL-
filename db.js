@@ -1239,7 +1239,7 @@ window.generateGSTReport = generateGSTReport;
 // ==========================================
 // ENTERPRISE FIX: ATOMIC BATCH TRANSACTION
 // ==========================================
-window.executeAtomicBatch = (puts, deletes) => {
+window.executeAtomicBatch = (puts, deletes, preserveTimestamps = false) => {
     return new Promise((resolve, reject) => {
         const storeNames = [...new Set([...puts.map(p => p.store), ...deletes.map(d => d.store), 'trash'])];
         if (storeNames.length <= 1 && !puts.length && !deletes.length) return resolve();
@@ -1248,7 +1248,7 @@ window.executeAtomicBatch = (puts, deletes) => {
         
         puts.forEach(p => {
             const store = transaction.objectStore(p.store);
-            p.data._lastModified = new Date().toISOString();
+            if (!preserveTimestamps || !p.data._lastModified) p.data._lastModified = new Date().toISOString();
             store.put(p.data);
         });
         

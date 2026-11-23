@@ -11475,3 +11475,379 @@ html body #sheet-smart-share #smart-share-msg:not(#_) {
     border-radius: 8px !important;
     padding: 10px 12px !important;
 }
+html body #sheet-stock-adjustment > div:first-child:not(#_) {
+    padding: 14px 16px !important;
+}
+html body #sheet-stock-adjustment > div:nth-child(2):not(#_) {
+    padding: 16px !important;
+}
+html body #sheet-stock-adjustment .icon-circle:not(#_) {
+    box-shadow: none !important;
+}
+html body #sheet-stock-adjustment .m3-card:not(#_) {
+    padding: 0 0 12px 0 !important;
+    margin: 0 0 14px 0 !important;
+    border: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+html body #sheet-stock-adjustment input:not([type="hidden"]):not(#_),
+html body #sheet-stock-adjustment select:not(#_) {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    padding: 8px 0 !important;
+    box-shadow: none !important;
+}
+html body #sheet-settle-bills:not(#_),
+html body #sheet-bs-breakdown:not(#_) {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+html body #sheet-settle-bills .sheet-header:not(#_),
+html body #sheet-bs-breakdown > div:first-child:not(#_) {
+    padding: 14px 16px !important;
+}
+html body #sheet-settle-bills > div:last-child:not(#_),
+html body #sheet-bs-breakdown > div:last-child:not(#_) {
+    padding: 12px 16px !important;
+}
+html body #sheet-settle-bills .btn-primary:not(#_) {
+    box-shadow: none !important;
+    border-radius: 10px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+}
+html body #sheet-install-app .sheet-content:not(#_) {
+    padding: 20px 16px 16px 16px !important;
+}
+html body #sheet-install-app .btn-primary:not(#_),
+html body #sheet-install-app .btn-secondary:not(#_) {
+    border-radius: 10px !important;
+    padding: 12px 16px !important;
+    font-size: 15px !important;
+    box-shadow: none !important;
+}
+html body #sheet-sales-filter > div:first-child:not(#_),
+html body #sheet-purchases-filter > div:first-child:not(#_),
+html body #sheet-expenses-filter > div:first-child:not(#_),
+html body #sheet-cashbook-filter > div:first-child:not(#_),
+html body #sheet-timeline-filter > div:first-child:not(#_) {
+    padding: 14px 16px !important;
+}
+html body #sheet-sales-filter > div:nth-child(2):not(#_),
+html body #sheet-purchases-filter > div:nth-child(2):not(#_),
+html body #sheet-expenses-filter > div:nth-child(2):not(#_),
+html body #sheet-cashbook-filter > div:nth-child(2):not(#_),
+html body #sheet-timeline-filter > div:nth-child(2):not(#_) {
+    padding: 0 16px 16px 16px !important;
+}
+html body #sheet-sales-filter .erp-date-input:not(#_),
+html body #sheet-purchases-filter .erp-date-input:not(#_),
+html body #sheet-expenses-filter .erp-date-input:not(#_),
+html body #sheet-cashbook-filter .erp-date-input:not(#_),
+html body #sheet-timeline-filter .erp-date-input:not(#_),
+html body #sheet-sales-filter .dropdown-btn:not(#_),
+html body #sheet-purchases-filter .dropdown-btn:not(#_),
+html body #sheet-expenses-filter .dropdown-btn:not(#_),
+html body #sheet-cashbook-filter .dropdown-btn:not(#_),
+html body #sheet-timeline-filter .dropdown-btn:not(#_) {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    padding: 8px 0 !important;
+    box-shadow: none !important;
+}
+html body.dark-mode #sheet-settle-bills:not(#_),
+html body.dark-mode #sheet-bs-breakdown:not(#_),
+html body.dark-mode #sheet-stock-adjustment:not(#_),
+html body.dark-mode #sheet-install-app:not(#_),
+html body.dark-mode #sheet-pin-setup:not(#_),
+html body.dark-mode #sheet-linked-docs:not(#_),
+html body.dark-mode #sheet-products:not(#_),
+html body.dark-mode #sheet-smart-search:not(#_) {
+    box-shadow: none !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+html body #sheet-pin-setup:not(#_),
+html body #sheet-linked-docs:not(#_),
+html body #sheet-products:not(#_),
+html body #sheet-smart-search:not(#_) {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+    border: 1px solid var(--md-outline-variant) !important;
+}
+html body #sheet-pin-setup > div:first-child:not(#_),
+html body #sheet-invoice-more-options > div:first-child:not(#_),
+html body #sheet-master-actions > div:first-child:not(#_),
+html body #sheet-dynamic-master-sort > div:first-child:not(#_) {
+    padding: 14px 16px !important;
+}
+html body #sheet-dynamic-master-sort > div:nth-child(2):not(#_) {
+    padding: 0 16px 16px 16px !important;
+}
+html body #sheet-dynamic-master-sort .dropdown-btn:not(#_),
+html body #sales-original-ref:not(#_),
+html body #purchase-original-ref:not(#_),
+html body #sales-cf1-val:not(#_) {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    border-radius: 0 !important;
+    padding: 8px 0 !important;
+    box-shadow: none !important;
+}
+html body #sheet-document-formats input:focus:not(#_),
+html body #sheet-contra-transfer input:focus:not(#_),
+html body #sheet-contra-transfer select:focus:not(#_),
+html body #sheet-stock-adjustment input:focus:not(#_),
+html body #sheet-stock-adjustment select:focus:not(#_),
+html body #sheet-sales-filter .erp-date-input:focus:not(#_),
+html body #sheet-purchases-filter .erp-date-input:focus:not(#_),
+html body #sheet-expenses-filter .erp-date-input:focus:not(#_),
+html body #sheet-cashbook-filter .erp-date-input:focus:not(#_),
+html body #sheet-timeline-filter .erp-date-input:focus:not(#_),
+html body #sales-original-ref:focus:not(#_),
+html body #purchase-original-ref:focus:not(#_),
+html body #sales-cf1-val:focus:not(#_) {
+    border-bottom-color: var(--md-primary) !important;
+    box-shadow: 0 1px 0 0 var(--md-primary) !important;
+    outline: none !important;
+}
+html body #enterprise-dialog-card:not(#_),
+html body #enterprise-confirm-card:not(#_),
+html body #enterprise-swipe-card:not(#_) {
+    border-radius: 16px !important;
+    padding: 20px 18px !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18) !important;
+}
+html body.dark-mode #enterprise-dialog-card:not(#_),
+html body.dark-mode #enterprise-confirm-card:not(#_),
+html body.dark-mode #enterprise-swipe-card:not(#_) {
+    background: #121212 !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    box-shadow: none !important;
+}
+html body #enterprise-dialog-icon-bg:not(#_),
+html body #enterprise-confirm-icon-bg:not(#_) {
+    width: 48px !important;
+    height: 48px !important;
+    margin-bottom: 14px !important;
+    box-shadow: none !important;
+}
+html body #enterprise-dialog-icon:not(#_),
+html body #enterprise-confirm-icon:not(#_) {
+    font-size: 24px !important;
+}
+html body #enterprise-dialog-title:not(#_),
+html body #enterprise-confirm-title:not(#_),
+html body #enterprise-swipe-card h3:not(#_) {
+    font-size: 18px !important;
+    margin-bottom: 8px !important;
+}
+html body #enterprise-dialog-msg:not(#_),
+html body #enterprise-confirm-msg:not(#_),
+html body #enterprise-swipe-msg:not(#_) {
+    font-size: 14px !important;
+    margin-bottom: 20px !important;
+}
+html body #enterprise-dialog-card .btn-primary:not(#_),
+html body #enterprise-confirm-yes:not(#_),
+html body #enterprise-confirm-no:not(#_) {
+    padding: 12px 16px !important;
+    min-height: 44px !important;
+    border-radius: 10px !important;
+    font-size: 14.5px !important;
+    box-shadow: none !important;
+}
+html body #enterprise-confirm-no:not(#_) {
+    border: 1px solid var(--md-outline-variant) !important;
+}
+html body #swipe-track:not(#_) {
+    height: 54px !important;
+    border-radius: 12px !important;
+}
+html body #swipe-thumb:not(#_) {
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+}
+html body #enterprise-swipe-cancel:not(#_) {
+    margin-top: 14px !important;
+    padding: 10px !important;
+    font-size: 14.5px !important;
+}
+html body #toast-container:not(#_) {
+    padding-top: 4px !important;
+    min-width: 0 !important;
+    max-width: 92% !important;
+}
+html body #toast-container .toast:not(#_),
+html body #toast-container .toast.show:not(#_) {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    padding: 10px 18px !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    animation: none !important;
+}
+html body #toast-container .toast[style*="var(--md-success)"]:not(#_) {
+    background: var(--md-success) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
+}
+html body #toast-container .toast[style*="var(--md-error)"]:not(#_) {
+    background: var(--md-error) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
+}
+html body.dark-mode #toast-container .toast:not(#_),
+html body.dark-mode #toast-container .toast.show:not(#_) {
+    background: #18181b !important;
+    color: #f8fafc !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    box-shadow: none !important;
+}
+html body.dark-mode #toast-container .toast[style*="var(--md-success)"]:not(#_) {
+    background: #14532d !important;
+    color: #dcfce7 !important;
+    border: 1px solid rgba(74, 222, 128, 0.3) !important;
+    box-shadow: none !important;
+}
+html body.dark-mode #toast-container .toast[style*="var(--md-error)"]:not(#_) {
+    background: #7f1d1d !important;
+    color: #fee2e2 !important;
+    border: 1px solid rgba(248, 113, 113, 0.3) !important;
+    box-shadow: none !important;
+}
+html body #sollo-premium-toast:not(#_) {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    padding: 10px 18px !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16) !important;
+}
+html body.dark-mode #sollo-premium-toast:not(#_) {
+    background: #18181b !important;
+    color: #f8fafc !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    box-shadow: none !important;
+}
+html body #split-tender-modal.centered-modal:not(#_),
+html body #sheet-aging-bucket:not(#_),
+html body #sheet-fulfillment-bucket:not(#_),
+html body #sheet-overdue-bucket:not(#_),
+html body [id^="ai-analytics-modal-"] > div:not(#_) {
+    border: 1px solid var(--md-outline-variant) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14) !important;
+}
+html body.dark-mode #split-tender-modal.centered-modal:not(#_),
+html body.dark-mode #sheet-aging-bucket:not(#_),
+html body.dark-mode #sheet-fulfillment-bucket:not(#_),
+html body.dark-mode #sheet-overdue-bucket:not(#_),
+html body.dark-mode [id^="ai-analytics-modal-"] > div:not(#_) {
+    background: #121212 !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    box-shadow: none !important;
+}
+html body .offline-banner:not(#_) {
+    background: transparent !important;
+    color: #b91c1c !important;
+    border: 1px solid #b91c1c !important;
+    text-shadow: 0 1px 2px #ffffff !important;
+    padding: 8px 18px !important;
+    border-radius: 999px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+    box-shadow: none !important;
+}
+html body .offline-banner.online:not(#_) {
+    background: transparent !important;
+    color: #15803d !important;
+    border: 1px solid #15803d !important;
+    text-shadow: 0 1px 2px #ffffff !important;
+}
+html body.dark-mode .offline-banner:not(#_) {
+    background: transparent !important;
+    color: #fca5a5 !important;
+    border: 1px solid #fca5a5 !important;
+    text-shadow: 0 1px 2px #000000 !important;
+    box-shadow: none !important;
+}
+html body.dark-mode .offline-banner.online:not(#_) {
+    background: transparent !important;
+    color: #86efac !important;
+    border: 1px solid #86efac !important;
+    text-shadow: 0 1px 2px #000000 !important;
+    box-shadow: none !important;
+}
+html body .btn-primary:not(#_) {
+    background: var(--md-primary) !important;
+    box-shadow: none !important;
+}
+html body .splash-logo-box:not(#_) {
+    box-shadow: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+}
+html body .lock-unlock-btn:not(#_),
+html body.dark-mode .lock-unlock-btn:not(#_),
+html body.dark-mode .capsule-btn-primary:not(#_),
+html body.dark-mode #toggle-pin-btn:not(#_) {
+    box-shadow: none !important;
+}
+html body #sollo-pdf-date-modal:not(#_) {
+    z-index: 999990 !important;
+}
+html body header:not(#_),
+html body .activity-screen .activity-header:not(#_):not(#__),
+html body .form-sticky-footer:not(#_):not(#__),
+html body #activity-master-view .search-bar:not(#_):not(#__),
+html body #activity-expense-ledger .search-bar:not(#_):not(#__),
+html body #activity-report-viewer .search-bar:not(#_):not(#__) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--md-surface, #F7F9FC) !important;
+}
+html body.dark-mode header:not(#_),
+html body.dark-mode .activity-screen .activity-header:not(#_):not(#__),
+html body.dark-mode .form-sticky-footer:not(#_):not(#__),
+html body.dark-mode #activity-master-view .search-bar:not(#_):not(#__),
+html body.dark-mode #activity-expense-ledger .search-bar:not(#_):not(#__),
+html body.dark-mode #activity-report-viewer .search-bar:not(#_):not(#__) {
+    background: #000000 !important;
+}
+html body #form-expense > div:has(> button[type="submit"]),
+html body #form-product > div:has(> button[type="submit"]),
+html body #form-ledger > div:has(> button[type="submit"]),
+html body #form-account > div:has(> button[type="submit"]),
+html body #form-payment-in > div:has(> button[type="submit"]),
+html body #form-payment-out > div:has(> button[type="submit"]) {
+    background: var(--md-surface, #F7F9FC) !important;
+}
+html body.dark-mode #form-expense > div:has(> button[type="submit"]),
+html body.dark-mode #form-product > div:has(> button[type="submit"]),
+html body.dark-mode #form-ledger > div:has(> button[type="submit"]),
+html body.dark-mode #form-account > div:has(> button[type="submit"]),
+html body.dark-mode #form-payment-in > div:has(> button[type="submit"]),
+html body.dark-mode #form-payment-out > div:has(> button[type="submit"]) {
+    background: #000000 !important;
+}

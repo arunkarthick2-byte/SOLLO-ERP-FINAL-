@@ -1,7 +1,7 @@
 // ==========================================
 // SOLLO ERP - SMART OFFLINE ENGINE (v6.5 Auto-Fresh)
 // ==========================================
-const CACHE_NAME = 'sollo-erp-v7-0';
+const CACHE_NAME = 'sollo-erp-v7-2';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -118,24 +118,30 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 3. All Local App Files (HTML, CSS, JS): Network-First (cache: 'no-cache') with Offline Fallback
+    // 3. All Local App Files (HTML, CSS, JS): Instant Cache-First with Background Refresh (Stale-While-Revalidate)
     if (event.request.mode === 'navigate' || isLocalAsset) {
         event.respondWith(
-            fetchWithTimeout(event.request, 1500, { cache: 'no-cache' })
-                .then(networkResponse => {
-                    if (networkResponse && networkResponse.status === 200) {
-                        const copy = networkResponse.clone();
-                        caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+            caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+                const fallbackPromise = cachedResponse
+                    ? Promise.resolve(cachedResponse)
+                    : (event.request.mode === 'navigate' ? caches.match('./index.html') : Promise.resolve(null));
+                const networkFetch = fetchWithTimeout(event.request, 4000, { cache: 'no-cache' })
+                    .then(networkResponse => {
+                        if (networkResponse && networkResponse.status === 200) {
+                            const copy = networkResponse.clone();
+                            caches.open(CACHE_NAME).then(c => c.put(event.request, copy));
+                        }
+                        return networkResponse;
+                    })
+                    .catch(() => null);
+                return fallbackPromise.then(cached => {
+                    if (cached) {
+                        event.waitUntil(networkFetch);
+                        return cached;
                     }
-                    return networkResponse;
-                })
-                .catch(() => {
-                    return caches.match(event.request, { ignoreSearch: true }).then(cached => {
-                        if (cached) return cached;
-                        if (event.request.mode === 'navigate') return caches.match('./index.html');
-                        return new Response('', { status: 408, statusText: 'Offline' });
-                    });
-                })
+                    return networkFetch.then(res => res || new Response('', { status: 408, statusText: 'Offline' }));
+                });
+            })
         );
         return;
     }

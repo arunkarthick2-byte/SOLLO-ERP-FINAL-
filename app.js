@@ -549,6 +549,25 @@ const app = {
             // ENTERPRISE FIX: Wipe the URL parameter so waking up the app doesn't force-open the sales form and delete unsaved work!
             if (action && window.history.replaceState) {
                 window.history.replaceState({}, document.title, window.location.pathname);
+            } else if (!action) {
+                try {
+                    const savedRaw = localStorage.getItem('sollo_last_tab');
+                    if (savedRaw) {
+                        const saved = JSON.parse(savedRaw);
+                        if (saved && saved.tabId && saved.tabId !== 'tab-dashboard' && (!saved.ts || (Date.now() - saved.ts) < 43200000)) {
+                            const navEl = saved.navId ? document.getElementById(saved.navId) : null;
+                            if (window.UI && typeof window.UI.switchTab === 'function') {
+                                window.UI.switchTab(saved.tabId, saved.title || 'SOLLO ERP', navEl);
+                            }
+                            if (saved.tabId === 'tab-workspace') {
+                                const savedWs = localStorage.getItem('sollo_last_ws_tab');
+                                if (savedWs && typeof window.switchWorkspaceTab === 'function') window.switchWorkspaceTab(savedWs);
+                                const savedTrans = localStorage.getItem('sollo_last_trans_view');
+                                if (savedWs === 'trans' && savedTrans && typeof window.switchTransView === 'function') window.switchTransView(savedTrans);
+                            }
+                        }
+                    }
+                } catch (e) {}
             }
 
         } catch (e) { 
@@ -911,8 +930,9 @@ const app = {
             const filtered = !term ? list : list.filter(x => String(x.customerName || '').toLowerCase().includes(term) || String(x.invoiceNo || '').toLowerCase().includes(term));
             ul.innerHTML = renderRows(filtered);
         };
-        const html = `<div id="aging-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-aging-bucket')?.remove(); this.remove();"></div>
-            <div id="sheet-aging-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+        const _z = window._getTopZ ? window._getTopZ() : 5200;
+        const html = `<div id="aging-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-aging-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-aging-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 16px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
@@ -1109,9 +1129,10 @@ const app = {
         window._setPartyDueBucket = (b) => { activeBucket = b; refreshUI(); };
         window._filterPartyDueAging = (val) => { activeTerm = String(val || '').trim(); refreshUI(); };
         const initTotal = pendingEntries.reduce((s, x) => s + x.balance, 0);
+        const _z = window._getTopZ ? window._getTopZ() : 5200;
         const html = `
-            <div id="party-due-aging-overlay" onclick="if(window._closePartyDueAging) window._closePartyDueAging()" style="position:fixed;inset:0;background:rgba(0,0,0,0.58);z-index:3000;"></div>
-            <div id="sheet-party-due-aging" style="position:fixed;top:16px;bottom:16px;left:16px;right:16px;max-width:520px;margin:0 auto;border-radius:12px;border:1px solid ${borderCol};display:flex;flex-direction:column;padding:0;z-index:3005;box-shadow:0 12px 40px rgba(0,0,0,0.35);background:${bgSurf};color:${fgMain};overflow:hidden;">
+            <div id="party-due-aging-overlay" onclick="if(window._closePartyDueAging) window._closePartyDueAging()" style="position:fixed;inset:0;background:rgba(0,0,0,0.58);z-index:${_z - 5};"></div>
+            <div id="sheet-party-due-aging" style="position:fixed;top:16px;bottom:16px;left:16px;right:16px;max-width:520px;margin:0 auto;border-radius:12px;border:1px solid ${borderCol};display:flex;flex-direction:column;padding:0;z-index:${_z};box-shadow:0 12px 40px rgba(0,0,0,0.35);background:${bgSurf};color:${fgMain};overflow:hidden;">
                 <div style="background:${bgSurf};flex-shrink:0;padding:14px 16px 12px 16px;border-bottom:1px solid ${borderCol};">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                         <strong style="font-size:16px;font-weight:700;color:${fgMain};flex:1;">${esc(title)}</strong>
@@ -1198,8 +1219,9 @@ const app = {
             const filtered = !term ? list : list.filter(x => String(x.customerName || x.partyName || '').toLowerCase().includes(term) || String(x.orderNo || '').toLowerCase().includes(term) || String(x.invoiceNo || '').toLowerCase().includes(term));
             ul.innerHTML = renderRows(filtered);
         };
-        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
-            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+        const _z = window._getTopZ ? window._getTopZ() : 5200;
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
@@ -1266,8 +1288,9 @@ const app = {
             const filtered = !term ? list : list.filter(x => String(x.customerName || '').toLowerCase().includes(term) || String(x.docNo || '').toLowerCase().includes(term));
             ul.innerHTML = renderRows(filtered);
         };
-        const html = `<div id="overdue-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-overdue-bucket')?.remove(); this.remove();"></div>
-            <div id="sheet-overdue-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+        const _z = window._getTopZ ? window._getTopZ() : 5200;
+        const html = `<div id="overdue-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-overdue-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-overdue-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
@@ -1328,8 +1351,9 @@ const app = {
             const filtered = !term ? list : list.filter(x => String(x.name || '').toLowerCase().includes(term));
             ul.innerHTML = renderRows(filtered);
         };
-        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
-            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+        const _z = window._getTopZ ? window._getTopZ() : 5200;
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
@@ -1386,8 +1410,9 @@ const app = {
         if (d.indirectExpense) rowsHtml += row('Less: Indirect Expenses', -Math.abs(d.indirectExpense), { color: 'var(--md-error)' });
         if (d.stockLoss) rowsHtml += row('Less: Stock Loss', -Math.abs(d.stockLoss), { color: 'var(--md-error)' });
         rowsHtml += row('True Net Profit', d.trueNetProfit, { bold: true, highlight: true, color: profitColor });
-        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: 2500;" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
-            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: 3000; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
+        const _z = window._getTopZ ? window._getTopZ() : 5200;
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+            <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
@@ -3882,6 +3907,8 @@ const app = {
             if (form) {
                 form.addEventListener('submit', async (e) => {
                     e.preventDefault();
+                    if (form.dataset.submitting === '1') return;
+                    form.dataset.submitting = '1';
                     
                     // NEW: Lock the submit button to prevent duplicate entries
                     const submitBtn = document.getElementById(`btn-save-${type}`);
@@ -4372,6 +4399,7 @@ if (data.id && splitConfirmed) {
                             if (window.Utils) await window.Utils.alertModal("An error occurred while saving. Please try again.", "Save Error");
                         }
                     } finally {
+                        delete form.dataset.submitting;
                         // STRICT ERP LOGIC 3: THE ANIMATION SHIELD
                         if (submitBtn) {
                             setTimeout(() => {
@@ -4397,6 +4425,8 @@ if (data.id && splitConfirmed) {
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                if (form.dataset.submitting === '1') return;
+                form.dataset.submitting = '1';
                 
                 const submitBtn = form.querySelector('button[type="submit"]');
                 const originalText = submitBtn ? submitBtn.innerHTML : 'Save';
@@ -4639,6 +4669,7 @@ if (data.id && splitConfirmed) {
                     console.error("Save failed:", error);
                     if (window.Utils) await window.Utils.alertModal("An error occurred while saving. Please try again.", "Save Error");
                 } finally {
+                    delete form.dataset.submitting;
                                         if (submitBtn) {
                         setTimeout(() => {
                             submitBtn.disabled = false;
@@ -4660,6 +4691,8 @@ if (data.id && splitConfirmed) {
         if (adjForm) {
             adjForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                if (adjForm.dataset.submitting === '1') return;
+                adjForm.dataset.submitting = '1';
 
                 // FIXED: Button locking implemented to prevent duplicate stock adjustments
                 const submitBtn = adjForm.querySelector('button[type="submit"]');
@@ -4768,6 +4801,7 @@ if (data.id && splitConfirmed) {
                 } catch (error) {
                     if (window.Utils) await window.Utils.alertModal(error.message || "An error occurred while saving.", "Save Error");
                 } finally {
+                    delete adjForm.dataset.submitting;
                                         if (submitBtn) {
                         setTimeout(() => {
                             submitBtn.disabled = false;
@@ -4789,6 +4823,9 @@ if (data.id && splitConfirmed) {
         if (profileForm) {
             profileForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                if (profileForm.dataset.submitting === '1') return;
+                profileForm.dataset.submitting = '1';
+                try {
                 const data = {
                     firmId: app.state.firmId,
                     // WE NOW PULL THE SAVED TEXT DIRECTLY FROM THE BRAIN!
@@ -4847,6 +4884,9 @@ if (data.id && splitConfirmed) {
 
                 if (window.Utils) window.Utils.showToast("✅ Business Profile Saved Successfully!");
                 UI.closeActivity('activity-business-profile');
+                } finally {
+                    delete profileForm.dataset.submitting;
+                }
             });
         }
 
@@ -7037,7 +7077,6 @@ if (data.id && splitConfirmed) {
             };
             
             btnPrint.onclick = () => {
-                // 🚨 FIX: Opens the actual PDF in a native viewer so the printer doesn't capture the app background!
                 const blobUrl = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = blobUrl;
@@ -7045,6 +7084,7 @@ if (data.id && splitConfirmed) {
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
             };
 
             // PDF.js Preview Rendering Engine
@@ -10262,8 +10302,9 @@ window.executeAccountReport = async (accountId) => {
     // ENTERPRISE FIX: Aggressive Regex strips slashes from bank names to prevent OS truncation!
     const safeFilename = `Account_Statement_${account.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
 
+    const _z = window._getTopZ ? window._getTopZ() : 5600;
     let viewerHTML = `
-    <div id="activity-account-viewer" class="activity-screen" style="z-index: 5600; display: flex; flex-direction: column;">
+    <div id="activity-account-viewer" class="activity-screen" style="z-index: ${_z}; display: flex; flex-direction: column;">
         <div class="activity-header">
             <div style="display: flex; align-items: center; gap: 16px;">
                 <span class="material-symbols-outlined tap-target" onclick="document.getElementById('activity-account-viewer').classList.remove('open'); setTimeout(() => document.getElementById('activity-account-viewer').remove(), 350);">arrow_back</span>

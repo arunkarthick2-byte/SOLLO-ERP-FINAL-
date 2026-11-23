@@ -4,7 +4,7 @@
     <meta name="google" content="notranslate">
     <meta name="color-scheme" content="light dark">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover, interactive-widget=resizes-content">
         <!-- 🚀 NATIVE UX: Colors the phone's top hardware status bar to match the app -->
     <meta name="theme-color" content="#F7F9FC" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
@@ -14,6 +14,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SOLLO ERP">
     <meta name="theme-color" id="meta-theme-color" content="#F7F9FC">
+    <script>if(localStorage.getItem('sollo_theme_preference')==='dark'||(!localStorage.getItem('sollo_theme_preference')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.getElementById('meta-theme-color').setAttribute('content','#000000');}</script>
     
     <title>SOLLO ERP</title>
 
@@ -392,7 +393,7 @@
 
                 <div class="search-bar">
                     <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
-                    <input type="text" id="search-reports-input" placeholder="Search reports (e.g. GST, Stock, P&L)..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="window.filterReportsList(this.value)" style="flex: 1; min-width: 0;">
+                    <input type="text" id="search-reports-input" placeholder="Search reports (e.g. GST, Stock, P&L)..." enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" oninput="window.filterReportsList(this.value)" style="flex: 1; min-width: 0;">
                     <span id="clear-reports-search" class="material-symbols-outlined" onclick="const inp=document.getElementById('search-reports-input'); inp.value=''; window.filterReportsList('');" style="display: none; color: var(--md-text-muted); font-size: 20px; cursor: pointer; padding: 4px;">close</span>
                 </div>
                 <script>
@@ -642,7 +643,7 @@
                     <div id="doc-sales-view" style="padding-bottom: 40px;">
                         <div class="search-bar ws-trans-search-bar">
                             <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
-                            <input type="text" id="search-sales" placeholder="Search" autocomplete="off" autocorrect="off" spellcheck="false">
+                            <input type="text" id="search-sales" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false">
                             <div id="sum-sales" class="ws-trans-sum-badge">&#8377;0.00</div>
                             <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-sales-filter')">tune</span>
                         </div>
@@ -653,7 +654,7 @@
                     <div id="doc-purchase-view" class="hidden" style="padding-bottom: 40px;">
                         <div class="search-bar ws-trans-search-bar">
                             <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
-                            <input type="text" id="search-purchases" placeholder="Search" autocomplete="off" autocorrect="off" spellcheck="false">
+                            <input type="text" id="search-purchases" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false">
                             <div id="sum-purchases" class="ws-trans-sum-badge">&#8377;0.00</div>
                             <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-purchases-filter')">tune</span>
                         </div>
@@ -664,7 +665,7 @@
                     <div id="doc-cashbook-view" class="hidden" style="padding-bottom: 40px;">
                         <div class="search-bar ws-trans-search-bar">
                             <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
-                            <input type="text" id="search-cashbook" placeholder="Search" autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0;">
+                            <input type="text" id="search-cashbook" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0;">
                             <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
                             <span class="material-symbols-outlined tap-target" style="color: var(--md-primary); padding: 6px; border-radius: 50%;" onclick="if(window.UI) window.UI.openBottomSheet('sheet-cashbook-filter')">tune</span>
                         </div>
@@ -1451,7 +1452,7 @@ Data & Security</strong>
 
                 <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
                     <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                    <input type="text" id="search-master-view" placeholder="Search" style="flex: 1; min-width: 0;">
+                    <input type="text" id="search-master-view" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0;">
                     
                     <div id="sum-masters" style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px; display: none;">&#8377;0.00</div>
                     
@@ -1601,7 +1602,7 @@ Data & Security</strong>
             
             <div class="search-container" style="position: relative; margin-bottom: 12px; flex-shrink: 0;">
                 <span class="material-symbols-outlined" style="position: absolute; left: 12px; top: 12px; color: var(--md-outline);">search</span>
-                <input type="text" id="smart-search-input" placeholder="Search" autocomplete="off" oninput="if(window.UI) window.UI.executeSmartSearch()" style="width: 100%; padding: 12px; border: none; font-size: 16px; background: transparent; outline: none;">
+                <input type="text" id="smart-search-input" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" oninput="if(window.UI) window.UI.executeSmartSearch()" style="width: 100%; padding: 12px; border: none; font-size: 16px; background: transparent; outline: none;">
             </div>
             
             <div id="smart-search-tabs" style="display: none; background: var(--md-surface-variant); padding: 4px; border-radius: 8px; margin-bottom: 12px; flex-shrink: 0; border: 1px solid var(--md-outline-variant);">
@@ -2305,7 +2306,7 @@ Data & Security</strong>
                     <div class="premium-row">
                         <div class="premium-label">HSN/SAC Code</div>
                         <div class="premium-input-container">
-                            <input type="text" name="hsn" class="premium-input" placeholder="Optional">
+                            <input type="text" name="hsn" inputmode="numeric" autocomplete="off" spellcheck="false" class="premium-input" placeholder="Optional">
                         </div>
                     </div>
                 </div>
@@ -2388,7 +2389,7 @@ Data & Security</strong>
                     <div class="premium-row">
                         <div class="premium-label">GSTIN</div>
                         <div class="premium-input-container" style="gap: 12px;">
-                            <input type="text" name="gst" id="ledger-gst" class="premium-input" placeholder="Optional" style="text-transform: uppercase; flex: 1;">
+                            <input type="text" name="gst" id="ledger-gst" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" class="premium-input" placeholder="Optional" style="text-transform: uppercase; flex: 1;">
                             <button type="button" id="btn-verify-gst" onclick="window.verifyGSTIN()" style="background: var(--md-primary-container); color: var(--md-primary); border: none; border-radius: 8px; padding: 6px 12px; font-weight: bold; cursor: pointer; font-size: 12px;">Verify</button>
                         </div>
                     </div>
@@ -2537,7 +2538,7 @@ Data & Security</strong>
                 </div>
                 <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
                     <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                    <input type="text" id="search-expenses" placeholder="Search" style="flex: 1; min-width: 0;">
+                    <input type="text" id="search-expenses" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0;">
                     <div id="sum-expenses" style="background: rgba(186, 26, 26, 0.12); color: var(--md-error); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; white-space: nowrap; margin-right: 4px;">&#8377;0.00</div>
                     
                     <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
@@ -2603,7 +2604,7 @@ Data & Security</strong>
 
                 <div class="input-group-col">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">GSTIN</label>
-                    <input type="text" id="profile-gst" data-bind="profileGst" style="text-transform: uppercase; box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
+                    <input type="text" id="profile-gst" data-bind="profileGst" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false" style="text-transform: uppercase; box-sizing: border-box; width:100%; padding:12px; border:1px solid var(--md-outline-variant); border-radius:8px; outline:none; background: var(--md-surface); color: var(--md-on-surface);">
                 </div>
                 
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
@@ -2634,7 +2635,7 @@ Data & Security</strong>
 
                 <div class="input-group-col">
                     <label style="font-size: 12px; font-weight: bold; color: var(--md-text-muted);">UPI ID (For Smart QR Code)</label>
-                    <input type="text" id="profile-upi" class="premium-input-box">
+                    <input type="text" id="profile-upi" autocomplete="off" autocorrect="off" spellcheck="false" class="premium-input-box">
                 </div>
 
                 <div class="input-group-col">
@@ -2730,7 +2731,7 @@ Data & Security</strong>
             <!-- 🚨 ENTERPRISE FIX: Flush search bar and sticky ledger summary -->
             <div class="search-bar" style="margin-bottom: 0; padding-right: 8px;">
                 <span class="material-symbols-outlined" style="color: var(--md-outline);">search</span>
-                <input type="text" id="search-timeline" placeholder="Search" style="flex: 1; min-width: 0;">
+                <input type="text" id="search-timeline" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" style="flex: 1; min-width: 0;">
                 
                 <div style="width: 1px; height: 20px; background: var(--md-outline-variant); margin: 0 4px;"></div>
                 
@@ -2976,7 +2977,7 @@ Data & Security</strong>
     </div>
 
 
-    <div id="sheet-overlay" class="sheet-overlay hidden" onclick="const sheets = Array.from(document.querySelectorAll('.bottom-sheet.open')).sort((a,b) => (parseInt(window.getComputedStyle(b).zIndex)||0) - (parseInt(window.getComputedStyle(a).zIndex)||0)); if(sheets.length > 0 && window.UI) window.UI.closeBottomSheet(sheets[0].id);"></div>
+    <div id="sheet-overlay" class="sheet-overlay hidden" onclick="const sheets = Array.from(document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket):not(#sheet-bank-ledger-select):not(#sheet-khata-select)')).sort((a,b) => (parseInt(window.getComputedStyle(b).zIndex)||0) - (parseInt(window.getComputedStyle(a).zIndex)||0)); if(sheets.length > 0 && window.UI) window.UI.closeBottomSheet(sheets[0].id);"></div>
 
     <div id="sheet-contra-transfer" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
         <div style="padding: 20px 24px 16px 24px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
@@ -4437,7 +4438,7 @@ Data & Security</strong>
             
             <div class="search-container" style="position: relative; margin-bottom: 12px; flex-shrink: 0;">
                 <span class="material-symbols-outlined" style="position: absolute; left: 12px; top: 12px; color: var(--md-outline);">search</span>
-                <input type="text" id="search-products" placeholder="Search" autocomplete="off" style="width: 100%; padding: 12px; border: none; font-size: 16px; background: transparent; outline: none;">
+                <input type="text" id="search-products" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" style="width: 100%; padding: 12px; border: none; font-size: 16px; background: transparent; outline: none;">
             </div>
         </div>
 
@@ -4464,7 +4465,7 @@ Data & Security</strong>
                 <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-linked-docs')">close</span>
             </div>
         </div>
-        <input type="text" id="search-linked-docs" placeholder="Search" autocomplete="off" oninput="if(window.app) window.app.filterLinkedDocs(this.value)" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: transparent; padding: 12px; border-radius: 8px; font-size: 16px; color: var(--md-on-surface, #1e293b); outline: none; margin-bottom: 12px; box-sizing: border-box;">
+        <input type="text" id="search-linked-docs" placeholder="Search" enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" oninput="if(window.app) window.app.filterLinkedDocs(this.value)" style="width: 100%; border: 1px solid var(--md-outline-variant, #e2e8f0); background: transparent; padding: 12px; border-radius: 8px; font-size: 16px; color: var(--md-on-surface, #1e293b); outline: none; margin-bottom: 12px; box-sizing: border-box;">
 
         <!-- 🚀 ENTERPRISE UX: SMART TAB SWITCHER -->
         <div style="display: flex; background: var(--md-surface-variant); padding: 4px; border-radius: 8px; margin-bottom: 12px;">
@@ -5191,7 +5192,7 @@ Data & Security</strong>
             </div>
 
             <div style="display: flex; gap: 6px; margin-bottom: 16px; align-items: center; background: var(--md-surface-variant); padding: 8px; border-radius: 8px; border: 1px solid var(--md-outline-variant); overflow-x: auto;">
-                <input type="text" id="adv-item-search" placeholder="Search Ref..." oninput="window.applyAdvancedItemFilters()" style="min-width: 100px; flex: 1; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 12px; outline: none; background: var(--md-surface); color: var(--md-on-surface);">
+                <input type="text" id="adv-item-search" placeholder="Search Ref..." enterkeyhint="search" autocomplete="off" autocorrect="off" spellcheck="false" oninput="window.applyAdvancedItemFilters()" style="min-width: 100px; flex: 1; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 12px; outline: none; background: var(--md-surface); color: var(--md-on-surface);">
                 <select id="adv-item-type" onchange="window.applyAdvancedItemFilters()" style="min-width: 100px; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 6px; font-size: 12px; outline: none; background: var(--md-surface); color: var(--md-on-surface);">
                     <option value="ALL">All Types</option>
                     <option value="IN">Stock IN Only</option>
@@ -5210,11 +5211,19 @@ Data & Security</strong>
     <script>
         // 1. App Switcher Privacy Shield
         // Blurs the app when it loses focus to protect financial data
+        const clearPrivacyBlur = function() {
+            const shell = document.getElementById('app-shell');
+            if (shell) shell.classList.remove('privacy-blur-active');
+        };
         window.addEventListener('blur', function() {
-            document.getElementById('app-shell').classList.add('privacy-blur-active');
+            const shell = document.getElementById('app-shell');
+            if (shell) shell.classList.add('privacy-blur-active');
         });
-        window.addEventListener('focus', function() {
-            document.getElementById('app-shell').classList.remove('privacy-blur-active');
+        window.addEventListener('focus', clearPrivacyBlur);
+        window.addEventListener('pageshow', clearPrivacyBlur);
+        window.addEventListener('pointerdown', clearPrivacyBlur, true);
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') clearPrivacyBlur();
         });
     </script>
 
@@ -7026,6 +7035,7 @@ Data & Security</strong>
         const originalWorkspaceSwitch = window.switchWorkspaceTab;
         if (originalWorkspaceSwitch) {
             window.switchWorkspaceTab = function(tab) {
+                try { localStorage.setItem('sollo_last_ws_tab', tab); } catch (e) {}
                 if (document.startViewTransition) {
                     document.startViewTransition(() => originalWorkspaceSwitch(tab));
                 } else {
@@ -7038,6 +7048,7 @@ Data & Security</strong>
         const originalTransSwitch = window.switchTransView;
         if (originalTransSwitch) {
             window.switchTransView = function(type) {
+                try { localStorage.setItem('sollo_last_trans_view', type); } catch (e) {}
                 if (document.startViewTransition) {
                     document.startViewTransition(() => originalTransSwitch(type));
                 } else {

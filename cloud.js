@@ -386,13 +386,17 @@ const Cloud = {
         // 🚨 CRITICAL BUG FIX: The "Zombie Data" Shield!
         // Process the Cloud's Recycle Bin first. If an item was deleted on another device, 
         // we must explicitly delete it from THIS device, otherwise it resurrects!
+        const trashedKeys = new Set();
+        try {
+            const localTrash = window.getAllRecords ? await window.getAllRecords('trash') : [];
+            localTrash.forEach(tr => { if (tr._module && tr.id) trashedKeys.add(`${tr._module}:${tr.id}`); });
+        } catch (e) { console.warn('Could not read local trash'); }
         if (cloudData.trash && Array.isArray(cloudData.trash)) {
             for (let t = 0; t < cloudData.trash.length; t++) {
                 const trashedRecord = cloudData.trash[t];
                 if (trashedRecord._module) {
-                    // Tell the local database to kill the active record!
+                    trashedKeys.add(`${trashedRecord._module}:${trashedRecord.id}`);
                     deletes.push({ store: trashedRecord._module, id: trashedRecord.id });
-                    // Store the tombstone locally so it stays dead
                     puts.push({ store: 'trash', data: trashedRecord });
                 }
             }
@@ -421,7 +425,7 @@ const Cloud = {
             for (let j = 0; j < cloudRecords.length; j++) {
                 const cloudRecord = cloudRecords[j];
                 const key = cloudRecord.id || cloudRecord.firmId;
-                if (!key) continue;
+                if (!key || trashedKeys.has(`${storeName}:${key}`)) continue;
                 
                 const localRecord = localMap[key];
                 
@@ -444,7 +448,7 @@ const Cloud = {
         // Execute the atomic batch save!
         if ((puts.length > 0 || deletes.length > 0) && window.executeAtomicBatch) {
             console.log(`Merging ${puts.length} updates and ${deletes.length} deletions from the cloud...`);
-            await window.executeAtomicBatch(puts, deletes); // Pass the deletes array into the engine!
+            await window.executeAtomicBatch(puts, deletes, true);
         } else {
             console.log("Local database is already perfectly up to date!");
         }
@@ -592,9 +596,6 @@ window.Cloud.safeAutoSync = () => {
     if (window.Cloud.syncDebounceTimer) clearTimeout(window.Cloud.syncDebounceTimer);
     
     window.Cloud.syncDebounceTimer = setTimeout(() => {
-        // 🚨 CRITICAL FIX: Point to the correct autoBackup function!
-        if (typeof window.Cloud.autoBackup === 'function') {
-            window.Cloud.autoBackup();
-        }
+        executeBackgroundBackup();
     }, 3000); 
 };

@@ -599,6 +599,9 @@ const UI = {
             if(target) {
                 target.classList.remove('hidden');
                 target.classList.add('active-screen');
+                try {
+                    localStorage.setItem('sollo_last_tab', JSON.stringify({ tabId: tabId, title: title || '', navId: navElement && navElement.id ? navElement.id : '', ts: Date.now() }));
+                } catch (e) {}
             }
 
             if (navElement) {
@@ -1636,8 +1639,8 @@ const UI = {
                 else if (activeFilter === 'Completed') matchFilter = balance <= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return'; 
                 else if (activeFilter === 'Shipped') matchFilter = s.status === 'Shipped';
                 else if (activeFilter === 'Cancelled') matchFilter = s.status === 'Cancelled';
-                else if (activeFilter === 'To Receive') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return';
-                else if (activeFilter === 'AdvanceSettle') matchFilter = balance >= 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return' && (floatingPools[s.invoiceType === 'Non-GST' ? `${s.customerId}_Non` : `${s.customerId}_GST`] || 0) > 0.01;
+                else if (activeFilter === 'To Receive') matchFilter = balance > 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return';
+                else if (activeFilter === 'AdvanceSettle') matchFilter = balance > 0.01 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return' && (floatingPools[s.invoiceType === 'Non-GST' ? `${s.customerId}_Non` : `${s.customerId}_GST`] || 0) > 0.01;
                 else if (activeFilter === 'Overdue') {
                     matchFilter = false;
                     if (balance >= 100 && s.status !== 'Open' && s.status !== 'Cancelled' && s.documentType !== 'return') {
@@ -1701,7 +1704,7 @@ const UI = {
                     // 🚨 NEW: Calculate the raw balance to detect Overpayments / Advances!
                     const rawBalance = (parseFloat(s.grandTotal) || 0) - paid;
                     const balance = Math.max(0, rawBalance);
-                    const isDue = balance >= 0.01 && !isReturn;
+                    const isDue = balance > 0.01 && !isReturn;
                     
                     let statusText = 'Paid';
                     let statusColor = '#146c2e'; // Green
@@ -1840,8 +1843,8 @@ const UI = {
                 const balance = Math.max(0, (parseFloat(p.grandTotal) || 0) - paid - returnTotal);
 
                 // ENTERPRISE FIX: The "Ghost Penny" Shield for Purchases!
-                if (activeFilter === 'To Pay') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return';
-                else if (activeFilter === 'AdvanceSettle') matchFilter = balance >= 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return' && (floatingPools[p.invoiceType === 'Non-GST' ? `${p.supplierId}_Non` : `${p.supplierId}_GST`] || 0) > 0.01;
+                if (activeFilter === 'To Pay') matchFilter = balance > 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return';
+                else if (activeFilter === 'AdvanceSettle') matchFilter = balance > 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return' && (floatingPools[p.invoiceType === 'Non-GST' ? `${p.supplierId}_Non` : `${p.supplierId}_GST`] || 0) > 0.01;
                 else if (activeFilter === 'Open') matchFilter = p.status === 'Open';
                 else if (activeFilter === 'Completed') matchFilter = balance <= 0.01 && p.status !== 'Open' && p.status !== 'Cancelled' && p.documentType !== 'return'; 
                 else if (activeFilter === 'Cancelled') matchFilter = p.status === 'Cancelled';
@@ -1894,7 +1897,7 @@ const UI = {
                     // 🚨 NEW: Calculate the raw balance to detect Overpayments / Advances!
                     const rawBalance = (parseFloat(p.grandTotal) || 0) - paid;
                     const balance = Math.max(0, rawBalance);
-                    const isDue = balance >= 0.01 && !isReturn;
+                    const isDue = balance > 0.01 && !isReturn;
                     
                     let statusText = 'Paid';
                     let statusColor = '#146c2e'; // Green
@@ -3649,7 +3652,7 @@ const UI = {
         if (sheet) {
             // ENTERPRISE UPGRADE: Z-Index Auto-Incrementer for Stacked Sheets!
             let highestZ = 5100; // Base sheet level
-            document.querySelectorAll('.bottom-sheet.open').forEach(el => {
+            document.querySelectorAll('.bottom-sheet.open, .activity-screen.open').forEach(el => {
                 const z = parseInt(window.getComputedStyle(el).zIndex, 10);
                 if (!isNaN(z) && z > highestZ) highestZ = z;
             });
@@ -3813,10 +3816,10 @@ const UI = {
                 sheet.classList.add('hidden');
                 sheet.style.zIndex = ''; 
             }
-            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu)').length;
+            const currentlyOpen = document.querySelectorAll('.bottom-sheet.open:not(#haptic-menu):not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket):not(#sheet-bank-ledger-select):not(#sheet-khata-select)').length;
             if (currentlyOpen === 0 && overlay) {
                 overlay.classList.add('hidden');
-                document.body.style.overflow = ''; // 🚨 PREMIUM UX: Unlock background scroll
+                document.body.style.overflow = '';
             }
             window.softwareBackLock = false;
         });
@@ -4011,8 +4014,8 @@ const UI = {
             UI.renderVirtualList(resultsContainer, results, (i) => {
                 const safeName = String(i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 const price = isSales ? (parseFloat(i.sellPrice) || 0) : (parseFloat(i.buyPrice) || 0);
-                const safeUom = String(i.uom || '').replace(/'/g, "\\'");
-                const safeHsn = String(i.hsn || '').replace(/'/g, "\\'");
+                const safeUom = String(i.uom || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const safeHsn = String(i.hsn || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
                 
                 if (prefix === 'adj') {
                     // Stock Adjustment View
@@ -4172,7 +4175,7 @@ const UI = {
 
         if (lastRate !== null && lastRate !== parseFloat(defaultPrice)) {
             const itemObj = (UI.state.rawData.items || []).find(i => i.id === itemId);
-            const itemName = itemObj ? String(itemObj.name || 'Item History').replace(/'/g, "\\'") : 'Item History';
+            const itemName = itemObj ? String(itemObj.name || 'Item History').replace(/'/g, "\\'").replace(/"/g, "&quot;") : 'Item History';
             const dateObj = new Date(lastDate);
             const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
@@ -4301,7 +4304,7 @@ const UI = {
 
     closeAllBottomSheets: () => {
         let closedSomething = false;
-        document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket)').forEach(sheet => {
+        document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket):not(#sheet-bs-breakdown)').forEach(sheet => {
             sheet.classList.remove('open');
             setTimeout(() => sheet.classList.add('hidden'), 300);
             closedSomething = true;
@@ -4309,7 +4312,8 @@ const UI = {
         document.getElementById('bank-ledger-overlay')?.remove();
         document.getElementById('khata-overlay')?.remove();
         const overlay = document.getElementById('sheet-overlay');
-        if (overlay && overlay.classList.contains('open')) {
+        const bsOpen = document.querySelector('#sheet-bs-breakdown.open');
+        if (overlay && overlay.classList.contains('open') && !bsOpen) {
             overlay.classList.remove('open');
             setTimeout(() => {
                 // STRICT ERP LOGIC: Re-check dynamically so rapid tapping doesn't break the background!
@@ -4320,6 +4324,9 @@ const UI = {
                 }
             }, 300);
             closedSomething = true;
+        } else if (overlay && bsOpen) {
+            const bsZ = parseInt(window.getComputedStyle(bsOpen).zIndex, 10) || 5110;
+            overlay.style.zIndex = bsZ - 5;
         }
         
         // ENTERPRISE FIX: Removed manual history pop! index.html handles this automatically.
@@ -4722,11 +4729,13 @@ const UI = {
         });
 
         let indirectExpense = 0;
+        const partyIdSet = new Set();
+        (UI.state.rawData.ledgers || []).forEach(l => { if (l.id) partyIdSet.add(l.id); });
+        (UI.state.rawData.sales || []).forEach(s => { if (s.customerId) partyIdSet.add(s.customerId); });
+        (UI.state.rawData.purchases || []).forEach(p => { if (p.supplierId) partyIdSet.add(p.supplierId); });
         (window.UI.state.rawData.cashbook || []).forEach(c => {
             if ((!activeFirmId || c.firmId === activeFirmId) && c.date >= startDate && c.date <= endDate && !c.invoiceRef && !c.linkedInvoice) {
-                const isCustomerOrSupplier = UI.state.rawData.ledgers.some(l => l.id === c.ledgerId) ||
-                                             UI.state.rawData.sales.some(s => s.customerId === c.ledgerId) ||
-                                             UI.state.rawData.purchases.some(p => p.supplierId === c.ledgerId);
+                const isCustomerOrSupplier = c.ledgerId && partyIdSet.has(c.ledgerId);
                 const ledgerName = (c.ledgerName || '').toLowerCase();
                 if (!isCustomerOrSupplier && !ledgerName.includes('cash drawer') && !ledgerName.includes('advance')) {
                     if (c.type === 'in') indirectIncome += parseFloat(c.amount) || 0;
@@ -4829,35 +4838,37 @@ const UI = {
         const inRange = (dStr) => Boolean(dStr && dStr >= fromDate && dStr <= asOfDate);
         window.UI.state.bsBreakdown = { stock: [], debtors: [], creditors: [], custAdv: [], suppAdv: [], bank: [], cash: [] };
         let closingStockValue = 0;
+        const deltaById = new Map();
+        const deltaByName = new Map();
+        const addDelta = (idKey, nameKey, delta) => {
+            if (idKey) deltaById.set(idKey, (deltaById.get(idKey) || 0) + delta);
+            else if (nameKey) deltaByName.set(nameKey, (deltaByName.get(nameKey) || 0) + delta);
+        };
+        (UI.state.rawData.sales || []).forEach(s => {
+            if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date > asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
+                (s.items || []).forEach(it => {
+                    const q = parseFloat(it.qty) || 0;
+                    addDelta(it.id || it.itemId, it.name, s.documentType === 'return' ? -q : q);
+                });
+            }
+        });
+        (UI.state.rawData.purchases || []).forEach(p => {
+            if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date > asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
+                (p.items || []).forEach(it => {
+                    const q = parseFloat(it.qty) || 0;
+                    addDelta(it.id || it.itemId, it.name, p.documentType === 'return' ? q : -q);
+                });
+            }
+        });
+        (UI.state.rawData.adjustments || []).forEach(adj => {
+            if (adj.itemId && adj.date > asOfDate && (!activeFirmId || adj.firmId === activeFirmId)) {
+                const q = parseFloat(adj.qty) || 0;
+                addDelta(adj.itemId, null, adj.type === 'reduce' ? q : -q);
+            }
+        });
         (UI.state.rawData.items || []).forEach(i => {
             if (!activeFirmId || i.firmId === activeFirmId) {
-                let stock = parseFloat(i.stock) || 0;
-                (UI.state.rawData.sales || []).forEach(s => {
-                    if (s.status !== 'Open' && s.status !== 'Cancelled' && s.date > asOfDate && (!activeFirmId || s.firmId === activeFirmId)) {
-                        (s.items || []).forEach(it => {
-                            if (it.id === i.id || it.itemId === i.id || it.name === i.name) {
-                                const q = parseFloat(it.qty) || 0;
-                                stock += (s.documentType === 'return' ? -q : q);
-                            }
-                        });
-                    }
-                });
-                (UI.state.rawData.purchases || []).forEach(p => {
-                    if (p.status !== 'Open' && p.status !== 'Cancelled' && p.date > asOfDate && (!activeFirmId || p.firmId === activeFirmId)) {
-                        (p.items || []).forEach(it => {
-                            if (it.id === i.id || it.itemId === i.id || it.name === i.name) {
-                                const q = parseFloat(it.qty) || 0;
-                                stock -= (p.documentType === 'return' ? -q : q);
-                            }
-                        });
-                    }
-                });
-                (UI.state.rawData.adjustments || []).forEach(adj => {
-                    if (adj.itemId === i.id && adj.date > asOfDate && (!activeFirmId || adj.firmId === activeFirmId)) {
-                        const q = parseFloat(adj.qty) || 0;
-                        stock += (adj.type === 'reduce' ? q : -q);
-                    }
-                });
+                const stock = (parseFloat(i.stock) || 0) + (deltaById.get(i.id) || 0) + (i.name ? (deltaByName.get(i.name) || 0) : 0);
                 const buy = parseFloat(i.buyPrice) || 0;
                 if (stock > 0) {
                     const val = stock * buy;
@@ -6099,6 +6110,14 @@ document.addEventListener('DOMContentLoaded', UI.initPremiumUX);
 // Hooks into the hardware edge-swipe and back buttons natively, paving the way 
 // for Android 14+ Predictive Back Gestures.
 
+window._getTopZ = () => {
+    let highestZ = 5100;
+    document.querySelectorAll('.activity-screen.open, .activity-screen.active, .bottom-sheet.open, .bottom-sheet.active, #sheet-party-due-aging').forEach(el => {
+        const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+        if (!isNaN(z) && z > highestZ) highestZ = z;
+    });
+    return highestZ + 10;
+};
 const closeTopmostView = () => {
     if (window.softwareBackLock) return false;
 
@@ -6169,12 +6188,6 @@ const closeTopmostView = () => {
         else pdfDateModal.remove();
         return true;
     }
-    const dynViewer = document.querySelector('#activity-khata-viewer.open, #activity-account-viewer.open');
-    if (dynViewer) {
-        dynViewer.classList.remove('open');
-        setTimeout(() => dynViewer.remove(), 350);
-        return true;
-    }
     // 1. Catch the custom Numpad
     const activeNumpad = document.getElementById('custom-numpad');
     if (activeNumpad && (activeNumpad.classList.contains('active') || activeNumpad.classList.contains('open'))) {
@@ -6189,45 +6202,36 @@ const closeTopmostView = () => {
         if (cancelBtn) cancelBtn.click();
         return true;
     }
-    // 3. Catch Full-Screen Activities sitting above the Aging Sheet
-    const visibleScreens = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active'));
-    const visibleSheets = Array.from(document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active'));
-    if (visibleScreens.length > 0 && visibleSheets.length === 1 && (visibleSheets[0].id === 'sheet-aging-bucket' || visibleSheets[0].id === 'sheet-fulfillment-bucket' || visibleSheets[0].id === 'sheet-overdue-bucket' || visibleSheets[0].id === 'sheet-bs-breakdown')) {
-        const topScreen = getTopElement(visibleScreens);
-        if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
-            if (window.UI) window.UI.closeActivity(topScreen.id);
+    // 3. Unified Z-Index Drill-Down Stack (Unlimited Depth)
+    const allLayers = Array.from(document.querySelectorAll('.activity-screen.open, .activity-screen.active, .bottom-sheet.open, .bottom-sheet.active, #sheet-party-due-aging')).filter(el => el.id && el.id !== 'activity-dashboard' && el.id !== 'dashboard');
+    if (allLayers.length > 0) {
+        const topLayer = getTopElement(allLayers);
+        if (topLayer.id === 'sheet-party-due-aging') {
+            if (window._closePartyDueAging) window._closePartyDueAging();
+            else {
+                topLayer.remove();
+                const ov = document.getElementById('party-due-aging-overlay');
+                if (ov) ov.remove();
+            }
             return true;
         }
-    }
-    // 4. Catch Bottom Sheets
-    if (visibleSheets.length > 0) {
-        const topSheet = getTopElement(visibleSheets);
-        if (topSheet.id === 'sheet-bank-ledger-select' || topSheet.id === 'sheet-khata-select' || topSheet.id === 'sheet-aging-bucket' || topSheet.id === 'sheet-fulfillment-bucket' || topSheet.id === 'sheet-overdue-bucket') {
-            const ovId = topSheet.id === 'sheet-bank-ledger-select' ? 'bank-ledger-overlay' : (topSheet.id === 'sheet-khata-select' ? 'khata-overlay' : (topSheet.id === 'sheet-aging-bucket' ? 'aging-bucket-overlay' : (topSheet.id === 'sheet-fulfillment-bucket' ? 'fulfillment-bucket-overlay' : 'overdue-bucket-overlay')));
-            const ov = document.getElementById(ovId);
-            if (ov) ov.remove();
-            topSheet.remove();
-        } else if (window.UI) {
-            window.UI.closeBottomSheet(topSheet.id);
-        }
-        return true;
-    }
-    // 5. Catch Full-Screen Activities
-    if (visibleScreens.length > 0) {
-        const topScreen = getTopElement(visibleScreens);
-        if (topScreen.id !== 'activity-dashboard' && topScreen.id !== 'dashboard' && topScreen.id !== '') {
-            if (window.UI) window.UI.closeActivity(topScreen.id);
+        if (topLayer.id === 'activity-khata-viewer' || topLayer.id === 'activity-account-viewer') {
+            topLayer.classList.remove('open');
+            setTimeout(() => topLayer.remove(), 350);
             return true;
         }
-    }
-    const partyDueAging = document.getElementById('sheet-party-due-aging');
-    if (partyDueAging) {
-        if (window._closePartyDueAging) window._closePartyDueAging();
-        else {
-            partyDueAging.remove();
-            const ov = document.getElementById('party-due-aging-overlay');
-            if (ov) ov.remove();
+        if (topLayer.classList.contains('bottom-sheet')) {
+            if (topLayer.id === 'sheet-bank-ledger-select' || topLayer.id === 'sheet-khata-select' || topLayer.id === 'sheet-aging-bucket' || topLayer.id === 'sheet-fulfillment-bucket' || topLayer.id === 'sheet-overdue-bucket') {
+                const ovId = topLayer.id === 'sheet-bank-ledger-select' ? 'bank-ledger-overlay' : (topLayer.id === 'sheet-khata-select' ? 'khata-overlay' : (topLayer.id === 'sheet-aging-bucket' ? 'aging-bucket-overlay' : (topLayer.id === 'sheet-fulfillment-bucket' ? 'fulfillment-bucket-overlay' : 'overdue-bucket-overlay')));
+                const ov = document.getElementById(ovId);
+                if (ov) ov.remove();
+                topLayer.remove();
+            } else if (window.UI) {
+                window.UI.closeBottomSheet(topLayer.id);
+            }
+            return true;
         }
+        if (window.UI) window.UI.closeActivity(topLayer.id);
         return true;
     }
     const dashBanner = document.getElementById('return-to-dash-banner');
@@ -6239,8 +6243,8 @@ const closeTopmostView = () => {
 };
 // 1. PUSH NATIVE STATE ON CLICK
 document.addEventListener('click', (e) => {
-    const delegated = e.target.closest('.create-action-btn, .master-action-btn, .report-btn, .dropdown-btn, .setting-btn[data-action="profile"], .setting-btn[data-action="defaulters"], .setting-btn[data-action="docformats"], .setting-btn[data-action="trash"], [id^="dash-action-"], #btn-edit-ledger');
-    const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"], [onclick*="generate"], [onclick*="show"]');
+    const delegated = e.target.closest('.create-action-btn, .master-action-btn, .report-btn, .dropdown-btn, .setting-btn[data-action="profile"], .setting-btn[data-action="defaulters"], .setting-btn[data-action="docformats"], .setting-btn[data-action="trash"], [id^="dash-action-"], #btn-edit-ledger, #btn-export-adv-report');
+    const target = e.target.closest('[onclick*="open"], [onclick*="trigger"], [onclick*="execute"], [onclick*="manage"], [onclick*="generate"], [onclick*="show"], [onclick*="download"], [onclick*="export"], [onclick*="processPDF"]');
     let shouldPush = Boolean(delegated);
     if (!shouldPush && target) {
         const action = target.getAttribute('onclick') || '';
@@ -6255,7 +6259,12 @@ document.addEventListener('click', (e) => {
             action.includes('openProfitLeakageReport') || action.includes('openSettleSheet') || action.includes('openContraTransfer') ||
             action.includes('openMasterSort') || action.includes('openPinSetupModal') || action.includes('openBankLedgerMenu') ||
             action.includes('generateTimeMachineSnapshot') || action.includes('triggerLedgerQuick') ||
-            action.includes('openAgingBucketModal') || action.includes('openOverdueBucketModal') || action.includes('showBSBreakdown')) {
+            action.includes('openAgingBucketModal') || action.includes('openOverdueBucketModal') || action.includes('showBSBreakdown') ||
+            action.includes('_openFullPnLFromModal') || action.includes('openFulfillmentBucketModal') || action.includes('openWarehouseCapitalModal') ||
+            action.includes('openNetProfitModal') || action.includes('openPartyDueAgingModal') || action.includes('downloadStatementPDF') ||
+            action.includes('generatePDF') || action.includes('generateReceiptPDF') || action.includes('generateExpenseVoucherPDF') ||
+            action.includes('executeExpenseLedgerPDF') || action.includes('executeItemLedgerReport') || action.includes('exportUniversalReportPDF') ||
+            action.includes('processPDFExport')) {
             shouldPush = true;
         }
     }
@@ -6272,7 +6281,7 @@ if (window.navigation) {
         if (event.navigationType === 'traverse' || event.navigationType === 'back') {
             const dashBanner = document.getElementById('return-to-dash-banner');
             const isDashBannerActive = dashBanner && dashBanner.style.display !== 'none' && document.getElementById('tab-workspace') && !document.getElementById('tab-workspace').classList.contains('hidden');
-            const isAnythingOpen = isDashBannerActive || document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #activity-khata-viewer.open, #activity-account-viewer.open, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #sollo-month-picker-overlay, #sollo-pdf-date-modal, #sheet-party-due-aging, #sheet-pin-setup.pin-modal-open, #split-tender-modal.open, .flatpickr-calendar.open, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
+            const isAnythingOpen = isDashBannerActive || Array.from(document.querySelectorAll('.sub-modal-overlay[id^="popup-"]')).some(el => el.style.display === 'flex') || document.querySelectorAll('.bottom-sheet.open, .bottom-sheet.active, .activity-screen.open, .activity-screen.active, #activity-khata-viewer.open, #activity-account-viewer.open, #custom-numpad.active, #custom-numpad.open, #in-app-pdf-viewer, #manual-restore-overlay, [id^="ai-analytics-modal-"], #sollo-month-picker-overlay, #sollo-pdf-date-modal, #sheet-party-due-aging, #sheet-pin-setup.pin-modal-open, #split-tender-modal.open, .flatpickr-calendar.open, #enterprise-dialog:not(.hidden), #enterprise-confirm:not(.hidden), #enterprise-swipe:not(.hidden)').length > 0;
             if (isAnythingOpen) {
                 event.intercept({
                     async handler() {
