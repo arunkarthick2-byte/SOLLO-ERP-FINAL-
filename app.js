@@ -927,16 +927,16 @@ const app = {
             const ul = document.getElementById('aging-bucket-results');
             if (!ul) return;
             const term = String(q || '').trim().toLowerCase();
-            const filtered = !term ? list : list.filter(x => String(x.customerName || '').toLowerCase().includes(term) || String(x.invoiceNo || '').toLowerCase().includes(term));
+            const filtered = !term ? list : list.filter(x => window.fuzzyMatch(term, `${x.customerName || ''} ${x.invoiceNo || ''}`));
             ul.innerHTML = renderRows(filtered);
         };
         const _z = window._getTopZ ? window._getTopZ() : 5200;
-        const html = `<div id="aging-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-aging-bucket')?.remove(); this.remove();"></div>
+        const html = `<div id="aging-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-aging-bucket')?.remove(); this.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';"></div>
             <div id="sheet-aging-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 16px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
-                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-aging-bucket')?.remove(); document.getElementById('aging-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-aging-bucket')?.remove(); document.getElementById('aging-bucket-overlay')?.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
                         </button>
                     </div>
@@ -954,6 +954,7 @@ const app = {
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
+        document.body.style.overflow = 'hidden';
     },
     openPartyDueAgingModal: async (mode = 'receivables') => {
         const isRec = mode === 'receivables';
@@ -1071,8 +1072,7 @@ const app = {
                 if (activeBucket === '60' && (x.days <= 30 || x.days > 60)) return false;
                 if (activeBucket === '90' && x.days <= 60) return false;
                 if (activeTerm) {
-                    const q = activeTerm.toLowerCase();
-                    return String(x.partyName || '').toLowerCase().includes(q) || String(x.docLabel || '').toLowerCase().includes(q);
+                    return window.fuzzyMatch(activeTerm, `${x.partyName || ''} ${x.docLabel || ''}`);
                 }
                 return true;
             });
@@ -1125,6 +1125,9 @@ const app = {
             const o = document.getElementById('party-due-aging-overlay');
             if (s) s.remove();
             if (o) o.remove();
+            if (!document.querySelector('.bottom-sheet.open, .activity-screen.open')) {
+                document.body.style.overflow = '';
+            }
         };
         window._setPartyDueBucket = (b) => { activeBucket = b; refreshUI(); };
         window._filterPartyDueAging = (val) => { activeTerm = String(val || '').trim(); refreshUI(); };
@@ -1158,6 +1161,7 @@ const app = {
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
+        document.body.style.overflow = 'hidden';
     },
     openFulfillmentBucketModal: (statusKey, title) => {
         const buckets = window._fulfillmentBuckets || { Open: [], Shipped: [], Completed: [] };
@@ -1216,16 +1220,16 @@ const app = {
             const ul = document.getElementById('fulfillment-bucket-results');
             if (!ul) return;
             const term = String(q || '').trim().toLowerCase();
-            const filtered = !term ? list : list.filter(x => String(x.customerName || x.partyName || '').toLowerCase().includes(term) || String(x.orderNo || '').toLowerCase().includes(term) || String(x.invoiceNo || '').toLowerCase().includes(term));
+            const filtered = !term ? list : list.filter(x => window.fuzzyMatch(term, `${x.customerName || x.partyName || ''} ${x.orderNo || ''} ${x.invoiceNo || ''}`));
             ul.innerHTML = renderRows(filtered);
         };
         const _z = window._getTopZ ? window._getTopZ() : 5200;
-        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';"></div>
             <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
-                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
                         </button>
                     </div>
@@ -1243,6 +1247,7 @@ const app = {
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
+        document.body.style.overflow = 'hidden';
     },
     openOverdueBucketModal: (title = 'Overdue Collections') => {
         const rawList = Array.isArray(window._overdueBucketList) ? window._overdueBucketList : [];
@@ -1285,16 +1290,16 @@ const app = {
             const ul = document.getElementById('overdue-bucket-results');
             if (!ul) return;
             const term = String(q || '').trim().toLowerCase();
-            const filtered = !term ? list : list.filter(x => String(x.customerName || '').toLowerCase().includes(term) || String(x.docNo || '').toLowerCase().includes(term));
+            const filtered = !term ? list : list.filter(x => window.fuzzyMatch(term, `${x.customerName || ''} ${x.docNo || ''}`));
             ul.innerHTML = renderRows(filtered);
         };
         const _z = window._getTopZ ? window._getTopZ() : 5200;
-        const html = `<div id="overdue-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-overdue-bucket')?.remove(); this.remove();"></div>
+        const html = `<div id="overdue-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-overdue-bucket')?.remove(); this.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';"></div>
             <div id="sheet-overdue-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
-                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-overdue-bucket')?.remove(); document.getElementById('overdue-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-overdue-bucket')?.remove(); document.getElementById('overdue-bucket-overlay')?.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
                         </button>
                     </div>
@@ -1312,6 +1317,7 @@ const app = {
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
+        document.body.style.overflow = 'hidden';
     },
     openWarehouseCapitalModal: (title = 'Warehouse Capital') => {
         const rawList = Array.isArray(window._warehouseCapitalList) ? window._warehouseCapitalList : [];
@@ -1348,16 +1354,16 @@ const app = {
             const ul = document.getElementById('warehouse-capital-results');
             if (!ul) return;
             const term = String(q || '').trim().toLowerCase();
-            const filtered = !term ? list : list.filter(x => String(x.name || '').toLowerCase().includes(term));
+            const filtered = !term ? list : list.filter(x => window.fuzzyMatch(term, x.name || ''));
             ul.innerHTML = renderRows(filtered);
         };
         const _z = window._getTopZ ? window._getTopZ() : 5200;
-        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';"></div>
             <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
-                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
                         </button>
                     </div>
@@ -1375,6 +1381,7 @@ const app = {
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
+        document.body.style.overflow = 'hidden';
     },
     openNetProfitModal: (title = 'True Net Profit') => {
         const d = window._netProfitBreakdown || { totalSales: 0, outputGst: 0, indirectIncome: 0, netRevenue: 0, cogs: 0, stockGain: 0, grossMargin: 0, totalExpenses: 0, indirectExpense: 0, stockLoss: 0, totalOperatingCosts: 0, trueNetProfit: 0 };
@@ -1411,12 +1418,12 @@ const app = {
         if (d.stockLoss) rowsHtml += row('Less: Stock Loss', -Math.abs(d.stockLoss), { color: 'var(--md-error)' });
         rowsHtml += row('True Net Profit', d.trueNetProfit, { bold: true, highlight: true, color: profitColor });
         const _z = window._getTopZ ? window._getTopZ() : 5200;
-        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove();"></div>
+        const html = `<div id="fulfillment-bucket-overlay" class="sheet-overlay open" style="z-index: ${_z - 5};" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); this.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';"></div>
             <div id="sheet-fulfillment-bucket" class="bottom-sheet open" data-no-swipe="true" style="top: 16px; bottom: 16px; left: 16px; right: 16px; width: auto; height: calc(100% - 32px); max-height: none; border-radius: 14px; display: flex; flex-direction: column; padding: 0; z-index: ${_z}; box-shadow: 0 16px 48px rgba(0,0,0,0.32); border: 1px solid var(--md-outline-variant); background: var(--md-surface); overflow: hidden;">
                 <div style="background: var(--md-surface); position: sticky; top: 0; z-index: 10; flex-shrink: 0; padding: 14px 16px 0 16px; border-bottom: 1px solid var(--md-outline-variant);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <strong style="font-size: 17px; font-weight: 700; color: var(--md-on-surface); flex: 1; padding-right: 12px;">${esc(title)}</strong>
-                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove();" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
+                        <button type="button" class="tap-target" aria-label="Close" onclick="document.getElementById('sheet-fulfillment-bucket')?.remove(); document.getElementById('fulfillment-bucket-overlay')?.remove(); if(!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow='';" style="width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(0, 97, 164, 0.25); background: rgba(0, 97, 164, 0.12); color: var(--md-primary); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">
                             <span class="material-symbols-outlined" style="font-size: 20px; font-weight: 700;">close</span>
                         </button>
                     </div>
@@ -1435,6 +1442,7 @@ const app = {
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
+        document.body.style.overflow = 'hidden';
     },
 
     // ==========================================
@@ -2586,29 +2594,28 @@ const app = {
                 let displayRefs = '';
                 if (r.invoiceRef) {
                     const refs = String(r.invoiceRef).split(',').map(x => x.trim());
+                    const fmtS = (doc) => { const b = (doc.invoiceNo || '').trim(); const o = (doc.orderNo || '').trim(); return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || String(doc.id).slice(-4).toUpperCase()); };
+                    const fmtP = (doc) => { const b = (doc.invoiceNo || doc.poNo || '').trim(); const o = (doc.orderNo || '').trim(); return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || String(doc.id).slice(-4).toUpperCase()); };
                     const names = refs.map(ref => {
                         const s = UI.state.rawData.sales.find(doc => doc.id === ref || doc.invoiceNo === ref || doc.orderNo === ref);
-                        if (s) return s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
-                        
+                        if (s) return fmtS(s);
                         const p = UI.state.rawData.purchases.find(doc => doc.id === ref || doc.invoiceNo === ref || doc.poNo === ref || doc.orderNo === ref);
-                        if (p) return p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
-                        
+                        if (p) return fmtP(p);
                         const e = UI.state.rawData.expenses.find(doc => doc.id === ref || doc.expenseNo === ref);
                         if (e) {
                             if (e.linkedInvoice) {
-                                const eLinks = String(e.linkedInvoice).split(',').map(x => x.trim());
+                                const eLinks = String(e.linkedInvoice).split(',').map(x => x.trim()).filter(Boolean);
                                 const eNames = eLinks.map(el => {
-                                    const s = UI.state.rawData.sales.find(doc => doc.id === el || doc.invoiceNo === el || doc.orderNo === el);
-                                    if (s) return s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
-                                    const p = UI.state.rawData.purchases.find(doc => doc.id === el || doc.invoiceNo === el || doc.poNo === el || doc.orderNo === el);
-                                    if (p) return p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
+                                    const ls = UI.state.rawData.sales.find(doc => doc.id === el || doc.invoiceNo === el || doc.orderNo === el);
+                                    if (ls) return fmtS(ls);
+                                    const lp = UI.state.rawData.purchases.find(doc => doc.id === el || doc.invoiceNo === el || doc.poNo === el || doc.orderNo === el);
+                                    if (lp) return fmtP(lp);
                                     return el.startsWith('sollo-') ? el.slice(-4).toUpperCase() : el;
                                 });
-                                return (e.expenseNo || String(e.id).slice(-4).toUpperCase()) + ' (🔗 ' + eNames.join(', ') + ')';
+                                return (e.expenseNo || String(e.id).slice(-4).toUpperCase()) + ' (Linked: ' + eNames.join(', ') + ')';
                             }
                             return e.expenseNo || String(e.id).slice(-4).toUpperCase();
                         }
-                        
                         return ref.startsWith('sollo-') ? ref.slice(-4).toUpperCase() : ref;
                     });
                     displayRefs = [...new Set(names)].join(', ');
@@ -7611,23 +7618,116 @@ if (data.id && splitConfirmed) {
         } else if (range === 'month') {
             from = `${y}-${String(m + 1).padStart(2, '0')}-01`;
             to = safeToday;
+        } else if (range === 'last_month') {
+            let lm = m - 1, ly = y;
+            if (lm < 0) { lm = 11; ly -= 1; }
+            const lastDay = new Date(ly, lm + 1, 0).getDate();
+            from = `${ly}-${String(lm + 1).padStart(2, '0')}-01`;
+            to = `${ly}-${String(lm + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
         } else if (range === 'year') {
             const fyStartYear = m < 3 ? y - 1 : y;
             from = `${fyStartYear}-04-01`;
             to = safeToday;
+        } else if (range === 'all') {
+            from = '2000-01-01';
+            to = safeToday;
         }
-
-        // Apply to ALL THREE report UIs automatically
+        app.state.dedDateRange = range;
         const ids = ['tax-report-from', 'tax-report-to', 'item-profit-from', 'item-profit-to', 'expense-report-from', 'expense-report-to'];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = (id.includes('from') ? from : to);
         });
-
-        // Trigger the math engines to recalculate with the new dates
+        const shFrom = document.getElementById('ded-filter-from');
+        const shTo = document.getElementById('ded-filter-to');
+        if (shFrom && from) shFrom.value = from;
+        if (shTo && to) shTo.value = to;
+        if (app.updateDedFilterBadges) app.updateDedFilterBadges();
         if (typeof app.generatePartyTaxReport === 'function') app.generatePartyTaxReport();
         if (typeof app.generateItemProfitReport === 'function') app.generateItemProfitReport();
         if (typeof app.generateExpenseReport === 'function') app.generateExpenseReport();
+    },
+    updateDedFilterBadges: () => {
+        const labels = { today: 'Today', month: 'This Month', last_month: 'Last Month', year: 'This Year', all: 'All Time', custom: 'Custom' };
+        const r = app.state.dedDateRange || 'month';
+        const txt = labels[r] || 'This Month';
+        const isFiltered = r !== 'month';
+        ['exp-period-badge', 'item-profit-period-badge', 'tax-report-period-badge'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = txt;
+        });
+        ['exp-tune-btn', 'item-profit-tune-btn', 'tax-report-tune-btn'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('has-filter', isFiltered);
+        });
+    },
+    openDedReportFilter: (reportKey) => {
+        app.state._activeDedReport = reportKey || 'itemprofit';
+        if (!document.getElementById('sheet-ded-report-filter')) {
+            const html = `<div id="sheet-ded-report-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+                <div style="padding: 20px 20px 14px 20px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                    <span style="font-size: 17px; font-weight: 800; color: var(--md-on-surface);">Filter Report Period</span>
+                    <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px; cursor: pointer;" onclick="if(window.UI) UI.closeBottomSheet('sheet-ded-report-filter')">close</span>
+                </div>
+                <div style="padding: 16px 20px 20px 20px; flex: 1; overflow-y: auto; overflow-x: hidden;">
+                    <label class="erp-section-label" style="margin-top: 0;">Timeframe</label>
+                    <div id="ded-report-date-btns" class="erp-segmented-track ded-date-track">
+                        <div class="erp-segment-btn" data-range="today" onclick="app.selectDedDateBtn('today')">Today</div>
+                        <div class="erp-segment-btn active" data-range="month" onclick="app.selectDedDateBtn('month')">This Month</div>
+                        <div class="erp-segment-btn" data-range="last_month" onclick="app.selectDedDateBtn('last_month')">Last Month</div>
+                        <div class="erp-segment-btn" data-range="year" onclick="app.selectDedDateBtn('year')">This Year</div>
+                        <div class="erp-segment-btn" data-range="all" onclick="app.selectDedDateBtn('all')">All Time</div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-bottom: 8px;">
+                        <div style="flex: 1;"><label class="erp-section-label">Start Date</label><input type="date" id="ded-filter-from" class="erp-date-input" onchange="app.applyDedCustomDates()"></div>
+                        <div style="flex: 1;"><label class="erp-section-label">End Date</label><input type="date" id="ded-filter-to" class="erp-date-input" onchange="app.applyDedCustomDates()"></div>
+                    </div>
+                </div>
+                <div style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 0px)) 20px; border-top: 1px solid var(--md-outline-variant); display: flex; flex-shrink: 0;">
+                    <button type="button" class="btn-primary tap-target" style="flex: 1; margin: 0; min-height: 46px; border-radius: 12px; font-size: 14px; font-weight: 800;" onclick="app.selectDedDateBtn('month')">Reset</button>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+        const pairMap = { expense: ['expense-report-from', 'expense-report-to'], itemprofit: ['item-profit-from', 'item-profit-to'], partytax: ['tax-report-from', 'tax-report-to'] };
+        const [fId, tId] = pairMap[app.state._activeDedReport] || pairMap.itemprofit;
+        const shFrom = document.getElementById('ded-filter-from');
+        const shTo = document.getElementById('ded-filter-to');
+        if (shFrom) shFrom.value = document.getElementById(fId)?.value || '';
+        if (shTo) shTo.value = document.getElementById(tId)?.value || '';
+        const curRange = app.state.dedDateRange || 'month';
+        document.querySelectorAll('#ded-report-date-btns .erp-segment-btn').forEach(b => b.classList.toggle('active', b.dataset.range === curRange));
+        if (window.UI && typeof UI.openBottomSheet === 'function') UI.openBottomSheet('sheet-ded-report-filter');
+    },
+    selectDedDateBtn: (range) => {
+        document.querySelectorAll('#ded-report-date-btns .erp-segment-btn').forEach(b => b.classList.toggle('active', b.dataset.range === range));
+        app.setReportDates(range);
+    },
+    applyDedCustomDates: () => {
+        const from = document.getElementById('ded-filter-from')?.value || '';
+        const to = document.getElementById('ded-filter-to')?.value || '';
+        if (!from || !to) return;
+        app.state.dedDateRange = 'custom';
+        document.querySelectorAll('#ded-report-date-btns .erp-segment-btn').forEach(b => b.classList.remove('active'));
+        ['tax-report-from', 'item-profit-from', 'expense-report-from'].forEach(id => { const el = document.getElementById(id); if (el) el.value = from; });
+        ['tax-report-to', 'item-profit-to', 'expense-report-to'].forEach(id => { const el = document.getElementById(id); if (el) el.value = to; });
+        if (app.updateDedFilterBadges) app.updateDedFilterBadges();
+        if (typeof app.generatePartyTaxReport === 'function') app.generatePartyTaxReport();
+        if (typeof app.generateItemProfitReport === 'function') app.generateItemProfitReport();
+        if (typeof app.generateExpenseReport === 'function') app.generateExpenseReport();
+    },
+    filterDedReportList: (containerId, query) => {
+        const host = document.getElementById(containerId);
+        if (!host) return;
+        const q = String(query || '').trim();
+        const tableRows = host.querySelectorAll('tbody tr:not(.total-row)');
+        const targets = tableRows.length > 0 ? tableRows : host.children;
+        Array.from(targets).forEach(el => {
+            if (!q) { el.style.display = ''; return; }
+            const txt = el.textContent || '';
+            const hit = window.fuzzyMatch ? window.fuzzyMatch(q, txt) : txt.toLowerCase().includes(q.toLowerCase());
+            el.style.display = hit ? '' : 'none';
+        });
     },
 
     // ==========================================
@@ -8199,7 +8299,7 @@ if (data.id && splitConfirmed) {
                 footer: function (currentPage, pageCount) {
                     return {
                         columns: [
-                            { text: `Generated on ${window.Utils.formatDateDisplay(new Date().toISOString().split('T')[0])} • SOLLO ERP`, fontSize: 8, color: '#94a3b8' },
+                            { text: `Generated on ${window.Utils.formatDateDisplay((window.Utils && window.Utils.getLocalDate) ? window.Utils.getLocalDate() : new Date().toISOString().split('T')[0])} • SOLLO ERP`, fontSize: 8, color: '#94a3b8' },
                             { text: `Page ${currentPage} of ${pageCount}`, alignment: 'right', fontSize: 8, bold: true, color: '#64748b' }
                         ],
                         margin: [32, 10, 32, 0]
@@ -8365,8 +8465,11 @@ if (data.id && splitConfirmed) {
                 const rowCust = row.customer || row.customerName || 'Unknown Party';
                 totalLoss += rowLoss;
                 const rowBg = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+                const docStack = [{text: row.invoiceNo, bold: true, color: '#0f172a'}];
+                if (row.orderNo && row.orderNo !== row.invoiceNo) docStack.push({text: 'Ord: ' + row.orderNo, fontSize: 8, color: '#475569'});
+                docStack.push({text: row.date, fontSize: 8, color: '#64748b'});
                 tableBody.push([
-                    {stack: [{text: row.invoiceNo, bold: true, color: '#0f172a'}, {text: row.date, fontSize: 8, color: '#64748b'}], margin: [0, 6, 0, 6], fillColor: rowBg},
+                    {stack: docStack, margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: rowCust, margin: [0, 6, 0, 6], fillColor: rowBg},
                     {text: row.itemName + ` (x${row.qty})`, margin: [0, 6, 0, 6], fillColor: rowBg},
                     {stack: [{text: 'Buy: ' + fmt(row.buyPrice), color: '#64748b'}, {text: 'Sell: ' + fmt(rowSell), color: '#0f172a', bold: true}], alignment: 'center', margin: [0, 6, 0, 6], fillColor: rowBg},
@@ -9032,6 +9135,7 @@ if (data.id && splitConfirmed) {
                                 id: s.id,
                                 docType: s.documentType || 'invoice',
                                 invoiceNo: s.invoiceNo || s.orderNo || 'Draft',
+                                orderNo: (s.orderNo || '').trim(),
                                 date: window.Utils.formatDateDisplay(s.date),
                                 customerName: s.customerName || 'Unknown Party',
                                 itemName: item.name,
@@ -9062,7 +9166,7 @@ if (data.id && splitConfirmed) {
             leakageItems.forEach((item) => {
                 rows += `<tr class="tap-target ded-clickable-row" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${item.id}', '${item.docType}'); else app.openForm('sales', '${item.id}', '${item.docType}');">
                     <td class="ded-date-col">${item.date}</td>
-                    <td class="ded-doc-col"><strong>${item.invoiceNo}</strong><br><span class="ded-sub-ref">${item.customerName}</span></td>
+                    <td class="ded-doc-col"><strong>${item.invoiceNo}</strong>${item.orderNo && item.orderNo !== item.invoiceNo ? `<br><span class="ded-sub-ref">Ord: ${item.orderNo}</span>` : ''}<br><span class="ded-sub-ref">${item.customerName}</span></td>
                     <td class="ded-name-col"><strong>${item.itemName}</strong></td>
                     <td class="number-col">${item.qty} <span class="ded-uom">${item.uom}</span></td>
                     <td class="number-col"><span class="ded-sub-ref">Buy: ${fmt(item.buyPrice)}</span><br><strong>Sold: ${fmt(item.effectiveRate)}</strong></td>
@@ -9110,14 +9214,17 @@ if (data.id && splitConfirmed) {
         const reportNames = {
             'sales_register': 'Sales Register (Bill-wise)',
             'customer_sales': 'Customer-wise Sales Analysis',
+            'customer_profit': 'Customer-wise Profit & Margin',
+            'customer_collection': 'Customer Payment Speed & Collection',
             'purchase_register': 'Purchase Register (Bill-wise)',
-            'supplier_purchases': 'Supplier-wise Spend Analysis',
+            'supplier_purchases': 'Supplier-wise Purchase & Payable',
             'item_purchases': 'Item-wise Purchase Volume',
             'job_costing': 'Job Costing & Linked Expenses',
             'receivables_aging': 'Receivables Aging (Debtors)',
             'payables_aging': 'Payables Aging (Creditors)',
             'gstr2_purchases': 'GSTR-2 (Input Tax Credit)',
-            'cashbook_summary': 'Cashbook Summary (All Accounts)'
+            'cashbook_summary': 'Cashbook Summary (All Accounts)',
+            'monthly_pnl': 'Monthly P&L & Margin Trend'
         };
         const title = reportNames[reportType] || 'Financial Report';
         app.state.currentUniversalReport = reportType;
@@ -9155,36 +9262,11 @@ if (data.id && splitConfirmed) {
                 </div>
                 <div class="activity-content" style="background: var(--md-background); padding: 16px;">
                     
-                    <!-- Compact Edge-to-Edge Report Toolbar -->
-                    <div id="uni-report-toolbar" class="m3-card">
-                        <div id="uni-report-date-btns">
-                            <button type="button" class="tap-target uni-seg-btn" data-range="month" onclick="app.selectUniversalDateBtn('month', this)">This Month</button>
-                            <button type="button" class="tap-target uni-seg-btn" data-range="last_month" onclick="app.selectUniversalDateBtn('last_month', this)">Last Month</button>
-                            <button type="button" class="tap-target uni-seg-btn active" data-range="year" onclick="app.selectUniversalDateBtn('year', this)">This Year</button>
-                            <button type="button" class="tap-target uni-seg-btn" data-range="all" onclick="app.selectUniversalDateBtn('all', this)">All Time</button>
-                        </div>
-                        <div class="uni-date-row">
-                            <div class="uni-date-field">
-                                <label for="uni-report-from">From</label>
-                                <input type="date" id="uni-report-from" onchange="app.renderUniversalReport()">
-                            </div>
-                            <span class="uni-date-sep">to</span>
-                            <div class="uni-date-field">
-                                <label for="uni-report-to">To</label>
-                                <input type="date" id="uni-report-to" onchange="app.renderUniversalReport()">
-                            </div>
-                        </div>
-                        <div id="uni-report-register-controls" class="hidden">
-                            <div id="uni-tax-filter-btns" class="uni-tax-pills">
-                                <button type="button" class="tap-target uni-tax-btn active" data-tax="all" onclick="app.setUniversalTaxFilter('all', this)">All Bills</button>
-                                <button type="button" class="tap-target uni-tax-btn" data-tax="gst" onclick="app.setUniversalTaxFilter('gst', this)">GST Only</button>
-                                <button type="button" class="tap-target uni-tax-btn" data-tax="nongst" onclick="app.setUniversalTaxFilter('nongst', this)">Non-GST</button>
-                            </div>
-                            <div class="uni-search-wrap">
-                                <span class="material-symbols-outlined">search</span>
-                                <input type="search" id="uni-report-search" placeholder="Search Bill No, Order No, Party or GSTIN..." oninput="app.scheduleUniversalReportRender()">
-                            </div>
-                        </div>
+                    <div id="uni-report-searchbar" class="search-bar ws-trans-search-bar uni-edge-searchbar">
+                        <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                        <input type="search" id="uni-report-search" enterkeyhint="search" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="app.scheduleUniversalReportRender()">
+                        <div id="uni-report-period-badge" class="ws-trans-sum-badge tap-target" onclick="app.openUniversalFilterSheet()">This Year</div>
+                        <span id="uni-report-tune-btn" class="material-symbols-outlined tap-target uni-tune-btn" onclick="app.openUniversalFilterSheet()">tune</span>
                     </div>
                     <!-- KPIs -->
                     <div id="uni-report-kpis"></div>
@@ -9202,6 +9284,66 @@ if (data.id && splitConfirmed) {
                 </div>
             </div>`;
             document.body.insertAdjacentHTML('beforeend', html);
+            if (!document.getElementById('sheet-uni-report-filter')) {
+                const filterSheetHtml = `<div id="sheet-uni-report-filter" class="bottom-sheet centered-modal" style="display: flex; flex-direction: column; padding: 0;">
+                    <div style="padding: 20px 20px 14px 20px; border-bottom: 1px solid var(--md-outline-variant); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                        <span style="font-size: 17px; font-weight: 800; color: var(--md-on-surface);">Filter & Sort Report</span>
+                        <span class="material-symbols-outlined tap-target" style="color: var(--md-outline, #94a3b8); font-size: 24px; cursor: pointer;" onclick="if(window.UI) UI.closeBottomSheet('sheet-uni-report-filter')">close</span>
+                    </div>
+                    <div style="padding: 16px 20px 20px 20px; flex: 1; overflow-y: auto; overflow-x: hidden;">
+                        <label class="erp-section-label" style="margin-top: 0;">Timeframe</label>
+                        <div id="uni-report-date-btns" class="erp-segmented-track">
+                            <div class="erp-segment-btn uni-seg-btn" data-range="month" onclick="app.selectUniversalDateBtn('month', this)">This Month</div>
+                            <div class="erp-segment-btn uni-seg-btn" data-range="last_month" onclick="app.selectUniversalDateBtn('last_month', this)">Last Month</div>
+                            <div class="erp-segment-btn uni-seg-btn active" data-range="year" onclick="app.selectUniversalDateBtn('year', this)">This Year</div>
+                            <div class="erp-segment-btn uni-seg-btn" data-range="all" onclick="app.selectUniversalDateBtn('all', this)">All Time</div>
+                        </div>
+                        <div style="display: flex; gap: 12px; margin-bottom: 18px;">
+                            <div style="flex: 1;"><label class="erp-section-label">Start Date</label><input type="date" id="uni-report-from" class="erp-date-input" onchange="app.onUniversalCustomDateChange()"></div>
+                            <div style="flex: 1;"><label class="erp-section-label">End Date</label><input type="date" id="uni-report-to" class="erp-date-input" onchange="app.onUniversalCustomDateChange()"></div>
+                        </div>
+                        <div id="uni-tax-filter-section" class="hidden" style="margin-bottom: 18px;">
+                            <label class="erp-section-label">Bill Type</label>
+                            <div id="uni-tax-filter-btns" class="erp-segmented-track">
+                                <div class="erp-segment-btn uni-tax-btn active" data-tax="all" onclick="app.setUniversalTaxFilter('all', this)">All Bills</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-tax="gst" onclick="app.setUniversalTaxFilter('gst', this)">GST Only</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-tax="nongst" onclick="app.setUniversalTaxFilter('nongst', this)">Non-GST</div>
+                            </div>
+                        </div>
+                        <div id="uni-profit-sort-section" class="hidden" style="margin-bottom: 8px;">
+                            <label class="erp-section-label">Sort Customers By</label>
+                            <div id="uni-profit-sort-btns" class="erp-segmented-track uni-sort-track">
+                                <div class="erp-segment-btn uni-tax-btn active" data-sort="profit_desc" onclick="app.setUniversalProfitSort('profit_desc', this)">Profit ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="margin_desc" onclick="app.setUniversalProfitSort('margin_desc', this)">Margin ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="sales_desc" onclick="app.setUniversalProfitSort('sales_desc', this)">Sales ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="margin_asc" onclick="app.setUniversalProfitSort('margin_asc', this)">Low Margin ↑</div>
+                            </div>
+                        </div>
+                        <div id="uni-supplier-sort-section" class="hidden" style="margin-bottom: 8px;">
+                            <label class="erp-section-label">Sort Suppliers By</label>
+                            <div id="uni-supplier-sort-btns" class="erp-segmented-track uni-sort-track">
+                                <div class="erp-segment-btn uni-tax-btn active" data-sort="spend_desc" onclick="app.setUniversalSupplierSort('spend_desc', this)">Spend ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="payable_desc" onclick="app.setUniversalSupplierSort('payable_desc', this)">Payable ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="paid_desc" onclick="app.setUniversalSupplierSort('paid_desc', this)">Paid % ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="bills_desc" onclick="app.setUniversalSupplierSort('bills_desc', this)">Bills ↓</div>
+                            </div>
+                        </div>
+                        <div id="uni-collection-sort-section" class="hidden" style="margin-bottom: 8px;">
+                            <label class="erp-section-label">Sort Customers By</label>
+                            <div id="uni-collection-sort-btns" class="erp-segmented-track uni-sort-track">
+                                <div class="erp-segment-btn uni-tax-btn active" data-sort="days_desc" onclick="app.setUniversalCollectionSort('days_desc', this)">Slowest ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="overdue_desc" onclick="app.setUniversalCollectionSort('overdue_desc', this)">Overdue ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="due_desc" onclick="app.setUniversalCollectionSort('due_desc', this)">Due ↓</div>
+                                <div class="erp-segment-btn uni-tax-btn" data-sort="days_asc" onclick="app.setUniversalCollectionSort('days_asc', this)">Fastest ↑</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 0px)) 20px; border-top: 1px solid var(--md-outline-variant); display: flex; gap: 10px; flex-shrink: 0;">
+                        <button type="button" class="btn-primary tap-target" style="flex: 1; margin: 0; min-height: 46px; border-radius: 12px; font-size: 14px; font-weight: 800;" onclick="app.resetUniversalFilters()">Reset</button>
+                    </div>
+                </div>`;
+                document.body.insertAdjacentHTML('beforeend', filterSheetHtml);
+            }
             if (typeof flatpickr !== 'undefined') {
                 const nativeDesc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
                 ['uni-report-from', 'uni-report-to'].forEach(id => {
@@ -9231,32 +9373,804 @@ if (data.id && splitConfirmed) {
             }
         }
         app.state.uniTaxFilter = 'all';
-        const regCtrl = document.getElementById('uni-report-register-controls');
-        if (regCtrl) regCtrl.classList.toggle('hidden', reportType !== 'sales_register' && reportType !== 'purchase_register');
+        app.state.uniProfitSort = 'profit_desc';
+        app.state.uniSupplierSort = 'spend_desc';
+        app.state.uniCollectionSort = 'days_desc';
+        app.state.uniDateRange = 'year';
+        const taxSec = document.getElementById('uni-tax-filter-section');
+        if (taxSec) taxSec.classList.toggle('hidden', reportType !== 'sales_register' && reportType !== 'purchase_register' && reportType !== 'customer_profit' && reportType !== 'supplier_purchases' && reportType !== 'customer_collection' && reportType !== 'monthly_pnl');
+        const sortSec = document.getElementById('uni-profit-sort-section');
+        if (sortSec) sortSec.classList.toggle('hidden', reportType !== 'customer_profit');
+        const supSortSec = document.getElementById('uni-supplier-sort-section');
+        if (supSortSec) supSortSec.classList.toggle('hidden', reportType !== 'supplier_purchases');
+        const colSortSec = document.getElementById('uni-collection-sort-section');
+        if (colSortSec) colSortSec.classList.toggle('hidden', reportType !== 'customer_collection');
         document.querySelectorAll('#uni-tax-filter-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.tax === 'all'));
+        document.querySelectorAll('#uni-profit-sort-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === 'profit_desc'));
+        document.querySelectorAll('#uni-supplier-sort-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === 'spend_desc'));
+        document.querySelectorAll('#uni-collection-sort-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === 'days_desc'));
         const uniSearch = document.getElementById('uni-report-search');
-        if (uniSearch) uniSearch.value = '';
+        if (uniSearch) {
+            uniSearch.value = '';
+            uniSearch.placeholder = reportType === 'monthly_pnl' ? 'Search Month (e.g. Oct, Nov)...' : ((reportType === 'customer_profit' || reportType === 'customer_collection') ? 'Search Customer, Phone, City...' : (reportType === 'supplier_purchases' ? 'Search Supplier, Phone, City...' : (reportType === 'sales_register' || reportType === 'purchase_register' ? 'Search Bill, Party, GSTIN...' : 'Search...')));
+        }
         document.getElementById('uni-report-title').innerText = title;
         document.querySelectorAll('#uni-report-date-btns .uni-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.range === 'year'));
         app.setUniversalDates('year');
+        if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
         if(window.UI) UI.openActivity('activity-universal-report');
     },
+    openUniversalFilterSheet: () => {
+        if (window.UI && typeof UI.openBottomSheet === 'function') {
+            UI.openBottomSheet('sheet-uni-report-filter');
+        }
+    },
+    onUniversalCustomDateChange: () => {
+        app.state.uniDateRange = 'custom';
+        document.querySelectorAll('#uni-report-date-btns .uni-seg-btn').forEach(b => b.classList.remove('active'));
+        if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
+        app.renderUniversalReport();
+    },
+    resetUniversalFilters: () => {
+        app.state.uniTaxFilter = 'all';
+        app.state.uniProfitSort = 'profit_desc';
+        app.state.uniSupplierSort = 'spend_desc';
+        app.state.uniCollectionSort = 'days_desc';
+        app.state.uniDateRange = 'year';
+        document.querySelectorAll('#uni-tax-filter-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.tax === 'all'));
+        document.querySelectorAll('#uni-profit-sort-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === 'profit_desc'));
+        document.querySelectorAll('#uni-supplier-sort-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === 'spend_desc'));
+        document.querySelectorAll('#uni-collection-sort-btns .uni-tax-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === 'days_desc'));
+        document.querySelectorAll('#uni-report-date-btns .uni-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.range === 'year'));
+        const uniSearch = document.getElementById('uni-report-search');
+        if (uniSearch) uniSearch.value = '';
+        app.setUniversalDates('year');
+        if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
+    },
+    updateUniversalFilterBadge: () => {
+        const badge = document.getElementById('uni-report-period-badge');
+        const tuneBtn = document.getElementById('uni-report-tune-btn');
+        const rangeLabels = { month: 'This Month', last_month: 'Last Month', year: 'This Year', all: 'All Time', custom: 'Custom' };
+        const r = app.state.uniDateRange || 'year';
+        const tax = app.state.uniTaxFilter || 'all';
+        const sort = app.state.uniProfitSort || 'profit_desc';
+        const supSort = app.state.uniSupplierSort || 'spend_desc';
+        const colSort = app.state.uniCollectionSort || 'days_desc';
+        const parts = [rangeLabels[r] || 'This Year'];
+        if (tax === 'gst') parts.push('GST');
+        else if (tax === 'nongst') parts.push('Non-GST');
+        if (badge) badge.textContent = parts.join(' • ');
+        const isFiltered = (r !== 'year') || (tax !== 'all') || (sort !== 'profit_desc') || (supSort !== 'spend_desc') || (colSort !== 'days_desc');
+        if (tuneBtn) tuneBtn.classList.toggle('has-filter', isFiltered);
+    },
+    setUniversalSupplierSort: (mode, btn) => {
+        app.state.uniSupplierSort = mode || 'spend_desc';
+        document.querySelectorAll('#uni-supplier-sort-btns .uni-tax-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
+        app.renderUniversalReport();
+    },
+    setUniversalCollectionSort: (mode, btn) => {
+        app.state.uniCollectionSort = mode || 'days_desc';
+        document.querySelectorAll('#uni-collection-sort-btns .uni-tax-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
+        app.renderUniversalReport();
+    },
     selectUniversalDateBtn: (range, btn) => {
+        app.state.uniDateRange = range;
         document.querySelectorAll('#uni-report-date-btns .uni-seg-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
+        if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
         app.setUniversalDates(range);
     },
     setUniversalTaxFilter: (mode, btn) => {
         app.state.uniTaxFilter = mode || 'all';
         document.querySelectorAll('#uni-tax-filter-btns .uni-tax-btn').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
+        if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
+        app.renderUniversalReport();
+    },
+    setUniversalProfitSort: (mode, btn) => {
+        app.state.uniProfitSort = mode || 'profit_desc';
+        document.querySelectorAll('#uni-profit-sort-btns .uni-tax-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
         app.renderUniversalReport();
     },
     scheduleUniversalReportRender: () => {
         clearTimeout(app.state._uniSearchTimer);
-        app.state._uniSearchTimer = setTimeout(() => app.renderUniversalReport(), 180);
+        app.state._uniSearchTimer = setTimeout(() => app.renderUniversalReport(), 120);
+    },
+    openCustomerProfitDetail: (partyKey) => {
+        const store = app.state._customerProfitData;
+        const c = store && store.map ? store.map[partyKey] : null;
+        if (!c) return;
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        let screen = document.getElementById('activity-customer-profit-detail');
+        if (!screen) {
+            const shell = `<div id="activity-customer-profit-detail" class="activity-screen hidden">
+                <div class="activity-header cpd-header">
+                    <div class="cpd-header-left">
+                        <span class="material-symbols-outlined tap-target" onclick="if(window.UI) UI.closeActivity('activity-customer-profit-detail')" style="padding:4px;margin-left:-4px;">arrow_back</span>
+                        <div class="cpd-title-wrap">
+                            <strong id="cpd-title">Customer Profit</strong>
+                            <small id="cpd-subtitle"></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-content cpd-content">
+                    <div id="cpd-period-bar" class="cpd-period-bar"></div>
+                    <div id="cpd-kpis" class="cpd-kpi-grid"></div>
+                    <div class="cpd-toolbar">
+                        <div class="cpd-tabs">
+                            <button type="button" id="cpd-tab-bills" class="tap-target cpd-tab-btn active" onclick="app.switchCustomerProfitTab('bills')">Bills</button>
+                            <button type="button" id="cpd-tab-items" class="tap-target cpd-tab-btn" onclick="app.switchCustomerProfitTab('items')">Items</button>
+                        </div>
+                        <div class="cpd-search-wrap">
+                            <span class="material-symbols-outlined">search</span>
+                            <input type="search" id="cpd-search" enterkeyhint="search" placeholder="Search bill no or item..." oninput="app.renderCustomerProfitDetailList()">
+                        </div>
+                    </div>
+                    <div id="cpd-list-wrap" class="cpd-list-wrap"></div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', shell);
+            screen = document.getElementById('activity-customer-profit-detail');
+        }
+        app.state._cpdActive = { customer: c, tab: 'bills' };
+        document.getElementById('cpd-title').textContent = c.name;
+        const metaParts = [c.city, c.phone, c.gst].filter(Boolean);
+        document.getElementById('cpd-subtitle').textContent = metaParts.length ? metaParts.join(' • ') : 'Customer Margin Drill-down';
+        const periodEl = document.getElementById('cpd-period-bar');
+        const fDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(store.fromDate) : store.fromDate;
+        const tDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(store.toDate) : store.toDate;
+        const taxTag = store.taxFilter === 'gst' ? 'GST Only' : (store.taxFilter === 'nongst' ? 'Non-GST' : 'All Bills');
+        periodEl.innerHTML = `<span>${esc(fDisp)} – ${esc(tDisp)}</span><span class="cpd-tag">${taxTag}</span>`;
+        const marginPct = c.revenue > 0 ? ((c.profit / c.revenue) * 100).toFixed(1) : '0.0';
+        const avgProfit = c.count > 0 ? (c.profit / c.count) : 0;
+        const isLoss = c.profit < 0;
+        const pColor = isLoss ? 'var(--md-error)' : (parseFloat(marginPct) < 5 ? '#d97706' : 'var(--md-success)');
+        document.getElementById('cpd-kpis').innerHTML = `
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Net Sales</span><strong class="cpd-kpi-val">${fmt(c.revenue)}</strong><small>${c.count} Bill${c.count === 1 ? '' : 's'}${c.returns > 0 ? ` • ${c.returns} Ret` : ''}</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Cost (COGS)</span><strong class="cpd-kpi-val">${fmt(c.cost)}</strong><small>${Object.keys(c.items).length} Unique Items</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Net Profit</span><strong class="cpd-kpi-val" style="color:${pColor};">${isLoss ? '' : '+'}${fmt(c.profit)}</strong><small>Avg ${fmt(avgProfit)} / bill</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Net Margin</span><strong class="cpd-kpi-val" style="color:${pColor};">${marginPct}%</strong><small>${isLoss ? 'Loss Account' : (parseFloat(marginPct) >= 15 ? 'Healthy Margin' : 'Thin Margin')}</small></div>`;
+        document.getElementById('cpd-tab-bills').textContent = `Bills (${c.bills.length})`;
+        document.getElementById('cpd-tab-items').textContent = `Items (${Object.keys(c.items).length})`;
+        const sInput = document.getElementById('cpd-search');
+        if (sInput) sInput.value = '';
+        app.switchCustomerProfitTab('bills');
+        if (window.UI) UI.openActivity('activity-customer-profit-detail');
+    },
+    switchCustomerProfitTab: (tab) => {
+        if (!app.state._cpdActive) return;
+        app.state._cpdActive.tab = tab;
+        const cpdHeader = document.querySelector('#activity-customer-profit-detail .cpd-header');
+        if (cpdHeader && !document.getElementById('cpd-pdf-btn')) {
+            cpdHeader.insertAdjacentHTML('beforeend', `<span id="cpd-pdf-btn" class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportCpdDetailPDF()" style="color:var(--md-primary);padding:4px;flex-shrink:0;margin-left:8px;cursor:pointer;">picture_as_pdf</span>`);
+        }
+        document.getElementById('cpd-tab-bills')?.classList.toggle('active', tab === 'bills');
+        document.getElementById('cpd-tab-items')?.classList.toggle('active', tab === 'items');
+        const sInput = document.getElementById('cpd-search');
+        if (sInput) {
+            if (app.state._cpdActive.mode === 'pnl') {
+                sInput.placeholder = tab === 'bills' ? 'Search customer name...' : 'Search expense category...';
+            } else {
+                sInput.placeholder = tab === 'bills' ? 'Search bill no, order no or status...' : 'Search item name...';
+            }
+        }
+        app.renderCustomerProfitDetailList();
+    },
+    renderCustomerProfitDetailList: () => {
+        const ctx = app.state._cpdActive;
+        const wrap = document.getElementById('cpd-list-wrap');
+        if (!ctx || !wrap) return;
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        const q = (document.getElementById('cpd-search')?.value || '').trim();
+        const match = (hay) => !q || (window.fuzzyMatch ? window.fuzzyMatch(q, hay) : hay.toLowerCase().includes(q.toLowerCase()));
+        if (ctx.mode === 'pnl') {
+            if (ctx.tab === 'bills') {
+                const rows = Object.entries(ctx.month.customers).filter(([, c]) => match(c.name)).sort((a, b) => b[1].profit - a[1].profit);
+                if (!rows.length) {
+                    wrap.innerHTML = '<div class="cpd-empty">No customer sales recorded in this month.</div>';
+                    return;
+                }
+                wrap.innerHTML = rows.map(([cKey, c]) => {
+                    const mPct = c.revenue > 0 ? ((c.profit / c.revenue) * 100) : 0;
+                    const isLoss = c.profit < 0;
+                    const pColor = isLoss ? 'var(--md-error)' : (mPct < 5 ? '#d97706' : 'var(--md-success)');
+                    const pBg = isLoss ? 'rgba(186,26,26,0.12)' : (mPct < 5 ? 'rgba(217,119,6,0.12)' : 'rgba(22,163,74,0.12)');
+                    const safeKey = String(cKey).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return `<div class="cpd-row tap-target" style="cursor:pointer;" onclick="app.openMonthlyPnlSubDetail('customer', '${safeKey}')">
+                        <div class="cpd-row-main">
+                            <div class="cpd-row-top"><strong>${esc(c.name)}</strong></div>
+                            <div class="cpd-row-sub">${c.bills} ${c.bills === 1 ? 'Bill' : 'Bills'} • Sales ${fmt(c.revenue)}</div>
+                        </div>
+                        <div class="cpd-row-right">
+                            <strong style="color:${pColor};">${isLoss ? '' : '+'}${fmt(c.profit)}</strong>
+                            <span class="cpd-margin-badge" style="background:${pBg};color:${pColor};">${mPct.toFixed(1)}%</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                const rows = Object.entries(ctx.month.expCats).filter(([, e]) => match(e.name)).sort((a, b) => b[1].amt - a[1].amt);
+                if (!rows.length) {
+                    wrap.innerHTML = '<div class="cpd-empty">No expenses recorded in this month.</div>';
+                    return;
+                }
+                wrap.innerHTML = rows.map(([eKey, e]) => {
+                    const share = ctx.month.expenses > 0 ? ((e.amt / ctx.month.expenses) * 100).toFixed(1) : '0.0';
+                    const safeKey = String(eKey).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return `<div class="cpd-row tap-target" style="cursor:pointer;" onclick="app.openMonthlyPnlSubDetail('expense', '${safeKey}')">
+                        <div class="cpd-row-main">
+                            <div class="cpd-row-top"><strong>${esc(e.name)}</strong></div>
+                            <div class="cpd-row-sub">${e.count} ${e.count === 1 ? 'Entry' : 'Entries'}</div>
+                        </div>
+                        <div class="cpd-row-right">
+                            <strong style="color:var(--md-error);">${fmt(e.amt)}</strong>
+                            <span class="cpd-margin-badge" style="background:rgba(186,26,26,0.12);color:var(--md-error);">${share}%</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            return;
+        }
+        if (ctx.mode === 'collection') {
+            const baseList = ctx.tab === 'bills' ? ctx.customer.bills : ctx.customer.bills.filter(b => b.due > 0.01).sort((a, b) => b.days - a.days);
+            const rows = baseList.filter(b => match(`${b.billNo} ${b.orderNo} ${b.date} ${b.statusLabel} ${b.typeLabel}`));
+            if (!rows.length) {
+                wrap.innerHTML = `<div class="cpd-empty">${ctx.tab === 'bills' ? 'No matching invoices found.' : 'No pending or overdue invoices.'}</div>`;
+                return;
+            }
+            wrap.innerHTML = rows.map(b => {
+                const isOver = b.isOverdue;
+                const isPaid = b.due <= 0.01;
+                const sColor = isPaid ? 'var(--md-success)' : (isOver ? 'var(--md-error)' : '#d97706');
+                const sBg = isPaid ? 'rgba(22,163,74,0.12)' : (isOver ? 'rgba(186,26,26,0.12)' : 'rgba(217,119,6,0.12)');
+                const dDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(b.date) : b.date;
+                const safeId = String(b.id).replace(/'/g, "\\'");
+                const rightTop = isPaid ? `${b.days}d` : fmt(b.due);
+                const rightSub = isPaid ? 'Paid' : (isOver ? `Overdue • ${b.days}d` : `${b.paid > 0.01 ? 'Partial' : 'Open'} • ${b.days}d`);
+                return `<div class="cpd-row tap-target" onclick="if(window.app){ window.app.state.currentEditId='${safeId}'; window.app.generatePDF('sales'); }">
+                    <div class="cpd-row-main">
+                        <div class="cpd-row-top">
+                            <strong>${esc(b.billNo)}</strong>
+                            <span class="cpd-pill ${b.isNonGst ? 'cpd-pill-nongst' : 'cpd-pill-gst'}">${b.typeLabel}</span>
+                        </div>
+                        <div class="cpd-row-sub">${b.orderNo && b.orderNo !== b.billNo ? `Ord: ${esc(b.orderNo)} • ` : ''}${esc(dDisp)} • Bill ${fmt(b.netAmt)} • Paid ${fmt(b.paid)}</div>
+                    </div>
+                    <div class="cpd-row-right">
+                        <strong style="color:${sColor};">${rightTop}</strong>
+                        <span class="cpd-margin-badge" style="background:${sBg};color:${sColor};">${rightSub}</span>
+                    </div>
+                </div>`;
+            }).join('');
+            return;
+        }
+        if (ctx.mode === 'supplier') {
+            if (ctx.tab === 'bills') {
+                const rows = ctx.supplier.bills.filter(b => match(`${b.billNo} ${b.orderNo} ${b.date} ${b.typeLabel}`));
+                if (!rows.length) {
+                    wrap.innerHTML = '<div class="cpd-empty">No matching purchase bills found.</div>';
+                    return;
+                }
+                wrap.innerHTML = rows.map(b => {
+                    const isDue = !b.isReturn && b.balance > 0.01;
+                    const sColor = b.isReturn ? 'var(--md-error)' : (isDue ? 'var(--md-error)' : 'var(--md-success)');
+                    const sBg = b.isReturn ? 'rgba(186,26,26,0.12)' : (isDue ? 'rgba(186,26,26,0.12)' : 'rgba(22,163,74,0.12)');
+                    const dDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(b.date) : b.date;
+                    const safeId = String(b.id).replace(/'/g, "\\'");
+                    const rightTop = b.isReturn ? `-${fmt(Math.abs(b.amount))}` : (isDue ? fmt(b.balance) : fmt(b.amount));
+                    const rightBadge = b.isReturn ? 'Return' : (isDue ? 'Due' : 'Paid');
+                    return `<div class="cpd-row tap-target" onclick="if(window.app){ window.app.state.currentEditId='${safeId}'; window.app.generatePDF('purchase'); }">
+                        <div class="cpd-row-main">
+                            <div class="cpd-row-top">
+                                <strong>${esc(b.billNo)}</strong>
+                                <span class="cpd-pill ${b.isReturn ? 'cpd-pill-ret' : (b.isNonGst ? 'cpd-pill-nongst' : 'cpd-pill-gst')}">${b.typeLabel}</span>
+                            </div>
+                            <div class="cpd-row-sub">${b.orderNo && b.orderNo !== b.billNo ? `PO: ${esc(b.orderNo)} • ` : ''}${esc(dDisp)} • Bill ${fmt(Math.abs(b.amount))}${b.isReturn ? '' : ` • Paid ${fmt(b.paid)}`}</div>
+                        </div>
+                        <div class="cpd-row-right">
+                            <strong style="color:${sColor};">${rightTop}</strong>
+                            <span class="cpd-margin-badge" style="background:${sBg};color:${sColor};">${rightBadge}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                const rows = Object.values(ctx.supplier.items).filter(it => match(it.name)).sort((a, b) => b.spend - a.spend);
+                if (!rows.length) {
+                    wrap.innerHTML = '<div class="cpd-empty">No matching items found.</div>';
+                    return;
+                }
+                wrap.innerHTML = rows.map(it => {
+                    const avgRate = it.qty > 0 ? (it.spend / it.qty) : 0;
+                    const sharePct = ctx.supplier.netSpend > 0 ? ((it.spend / ctx.supplier.netSpend) * 100).toFixed(1) : '0.0';
+                    return `<div class="cpd-row">
+                        <div class="cpd-row-main">
+                            <div class="cpd-row-top"><strong>${esc(it.name)}</strong></div>
+                            <div class="cpd-row-sub">${it.qty} ${esc(it.uom || '')} • Avg Rate ${fmt(avgRate)}</div>
+                        </div>
+                        <div class="cpd-row-right">
+                            <strong style="color:var(--md-on-surface);">${fmt(it.spend)}</strong>
+                            <span class="cpd-margin-badge" style="background:rgba(0,97,164,0.12);color:var(--md-primary);">${sharePct}%</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+            return;
+        }
+        if (ctx.tab === 'bills') {
+            const rows = ctx.customer.bills.filter(b => match(`${b.billNo} ${b.orderNo} ${b.date} ${b.typeLabel}`));
+            if (!rows.length) {
+                wrap.innerHTML = '<div class="cpd-empty">No matching bills found.</div>';
+                return;
+            }
+            wrap.innerHTML = rows.map(b => {
+                const isLoss = b.profit < 0;
+                const pColor = isLoss ? 'var(--md-error)' : (b.marginPct < 5 ? '#d97706' : 'var(--md-success)');
+                const pBg = isLoss ? 'rgba(186,26,26,0.12)' : (b.marginPct < 5 ? 'rgba(217,119,6,0.12)' : 'rgba(22,163,74,0.12)');
+                const dDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(b.date) : b.date;
+                const safeId = String(b.id).replace(/'/g, "\\'");
+                return `<div class="cpd-row tap-target" onclick="if(window.app){ window.app.state.currentEditId='${safeId}'; window.app.generatePDF('sales'); }">
+                    <div class="cpd-row-main">
+                        <div class="cpd-row-top">
+                            <strong>${esc(b.billNo)}</strong>
+                            <span class="cpd-pill ${b.isReturn ? 'cpd-pill-ret' : (b.isNonGst ? 'cpd-pill-nongst' : 'cpd-pill-gst')}">${b.typeLabel}</span>
+                        </div>
+                        <div class="cpd-row-sub">${b.orderNo && b.orderNo !== b.billNo ? `Ord: ${esc(b.orderNo)} • ` : ''}${esc(dDisp)} • Sales ${fmt(b.revenue)} • Cost ${fmt(b.cost)}</div>
+                    </div>
+                    <div class="cpd-row-right">
+                        <strong style="color:${pColor};">${isLoss ? '' : '+'}${fmt(b.profit)}</strong>
+                        <span class="cpd-margin-badge" style="background:${pBg};color:${pColor};">${b.marginPct.toFixed(1)}%</span>
+                    </div>
+                </div>`;
+            }).join('');
+        } else {
+            const rows = Object.values(ctx.customer.items)
+                .filter(it => match(it.name))
+                .sort((a, b) => b.profit - a.profit);
+            if (!rows.length) {
+                wrap.innerHTML = '<div class="cpd-empty">No matching items found.</div>';
+                return;
+            }
+            wrap.innerHTML = rows.map(it => {
+                const mPct = it.revenue > 0 ? (it.profit / it.revenue) * 100 : 0;
+                const isLoss = it.profit < 0;
+                const pColor = isLoss ? 'var(--md-error)' : (mPct < 5 ? '#d97706' : 'var(--md-success)');
+                const pBg = isLoss ? 'rgba(186,26,26,0.12)' : (mPct < 5 ? 'rgba(217,119,6,0.12)' : 'rgba(22,163,74,0.12)');
+                const avgSell = it.qty > 0 ? (it.revenue / it.qty) : 0;
+                const avgCost = it.qty > 0 ? (it.cost / it.qty) : 0;
+                return `<div class="cpd-row">
+                    <div class="cpd-row-main">
+                        <div class="cpd-row-top"><strong>${esc(it.name)}</strong></div>
+                        <div class="cpd-row-sub">${it.qty} ${esc(it.uom || '')} • Avg Sell ${fmt(avgSell)} vs Cost ${fmt(avgCost)}</div>
+                    </div>
+                    <div class="cpd-row-right">
+                        <strong style="color:${pColor};">${isLoss ? '' : '+'}${fmt(it.profit)}</strong>
+                        <span class="cpd-margin-badge" style="background:${pBg};color:${pColor};">${mPct.toFixed(1)}%</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
     },
 
+    openSupplierPayableDetail: (partyKey) => {
+        const store = app.state._supplierPayableData;
+        const s = store && store.map ? store.map[partyKey] : null;
+        if (!s) return;
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        let screen = document.getElementById('activity-customer-profit-detail');
+        if (!screen) {
+            const shell = `<div id="activity-customer-profit-detail" class="activity-screen hidden">
+                <div class="activity-header cpd-header">
+                    <div class="cpd-header-left">
+                        <span class="material-symbols-outlined tap-target" onclick="if(window.UI) UI.closeActivity('activity-customer-profit-detail')" style="padding:4px;margin-left:-4px;">arrow_back</span>
+                        <div class="cpd-title-wrap">
+                            <strong id="cpd-title">Supplier Payable</strong>
+                            <small id="cpd-subtitle"></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-content cpd-content">
+                    <div id="cpd-period-bar" class="cpd-period-bar"></div>
+                    <div id="cpd-kpis" class="cpd-kpi-grid"></div>
+                    <div class="cpd-toolbar">
+                        <div class="cpd-tabs">
+                            <button type="button" id="cpd-tab-bills" class="tap-target cpd-tab-btn active" onclick="app.switchCustomerProfitTab('bills')">Bills</button>
+                            <button type="button" id="cpd-tab-items" class="tap-target cpd-tab-btn" onclick="app.switchCustomerProfitTab('items')">Items</button>
+                        </div>
+                        <div class="cpd-search-wrap">
+                            <span class="material-symbols-outlined">search</span>
+                            <input type="search" id="cpd-search" enterkeyhint="search" placeholder="Search bill no or item..." oninput="app.renderCustomerProfitDetailList()">
+                        </div>
+                    </div>
+                    <div id="cpd-list-wrap" class="cpd-list-wrap"></div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', shell);
+        }
+        app.state._cpdActive = { mode: 'supplier', supplier: s, tab: 'bills' };
+        document.getElementById('cpd-title').textContent = s.name;
+        const metaParts = [s.city, s.phone, s.gst].filter(Boolean);
+        document.getElementById('cpd-subtitle').textContent = metaParts.length ? metaParts.join(' • ') : 'Supplier Purchase & Payable Drill-down';
+        const periodEl = document.getElementById('cpd-period-bar');
+        const fDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(store.fromDate) : store.fromDate;
+        const tDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(store.toDate) : store.toDate;
+        const taxTag = store.taxFilter === 'gst' ? 'GST Only' : (store.taxFilter === 'nongst' ? 'Non-GST' : 'All Bills');
+        periodEl.innerHTML = `<span>${esc(fDisp)} – ${esc(tDisp)}</span><span class="cpd-tag">${taxTag}</span>`;
+        const paidPct = s.netSpend > 0 ? ((s.paidAmt / s.netSpend) * 100).toFixed(1) : '100.0';
+        const dueColor = s.payableAmt > 0.01 ? 'var(--md-error)' : 'var(--md-success)';
+        document.getElementById('cpd-kpis').innerHTML = `
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Net Purchases</span><strong class="cpd-kpi-val">${fmt(s.netSpend)}</strong><small>${s.count} Bill${s.count === 1 ? '' : 's'}${s.returns > 0 ? ` • ${s.returns} Ret` : ''}</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Total Paid</span><strong class="cpd-kpi-val" style="color:var(--md-success);">${fmt(s.paidAmt)}</strong><small>${paidPct}% Settled</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Pending Payable</span><strong class="cpd-kpi-val" style="color:${dueColor};">${fmt(s.payableAmt)}</strong><small>${s.payableAmt > 0.01 ? 'Balance Due' : 'All Cleared'}</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Returns & Items</span><strong class="cpd-kpi-val">${fmt(s.returnsAmt)}</strong><small>${Object.keys(s.items).length} Unique Items</small></div>`;
+        document.getElementById('cpd-tab-bills').textContent = `Bills (${s.bills.length})`;
+        document.getElementById('cpd-tab-items').textContent = `Items (${Object.keys(s.items).length})`;
+        const sInput = document.getElementById('cpd-search');
+        if (sInput) sInput.value = '';
+        app.switchCustomerProfitTab('bills');
+        if (window.UI) UI.openActivity('activity-customer-profit-detail');
+    },
+    openCollectionDetail: (partyKey) => {
+        const store = app.state._customerCollectionData;
+        const c = store && store.map ? store.map[partyKey] : null;
+        if (!c) return;
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+        let screen = document.getElementById('activity-customer-profit-detail');
+        if (!screen) {
+            const shell = `<div id="activity-customer-profit-detail" class="activity-screen hidden">
+                <div class="activity-header cpd-header">
+                    <div class="cpd-header-left">
+                        <span class="material-symbols-outlined tap-target" onclick="if(window.UI) UI.closeActivity('activity-customer-profit-detail')" style="padding:4px;margin-left:-4px;">arrow_back</span>
+                        <div class="cpd-title-wrap">
+                            <strong id="cpd-title">Payment Speed</strong>
+                            <small id="cpd-subtitle"></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-content cpd-content">
+                    <div id="cpd-period-bar" class="cpd-period-bar"></div>
+                    <div id="cpd-kpis" class="cpd-kpi-grid"></div>
+                    <div class="cpd-toolbar">
+                        <div class="cpd-tabs">
+                            <button type="button" id="cpd-tab-bills" class="tap-target cpd-tab-btn active" onclick="app.switchCustomerProfitTab('bills')">All Bills</button>
+                            <button type="button" id="cpd-tab-items" class="tap-target cpd-tab-btn" onclick="app.switchCustomerProfitTab('items')">Pending</button>
+                        </div>
+                        <div class="cpd-search-wrap">
+                            <span class="material-symbols-outlined">search</span>
+                            <input type="search" id="cpd-search" enterkeyhint="search" placeholder="Search bill no or status..." oninput="app.renderCustomerProfitDetailList()">
+                        </div>
+                    </div>
+                    <div id="cpd-list-wrap" class="cpd-list-wrap"></div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', shell);
+        }
+        app.state._cpdActive = { mode: 'collection', customer: c, tab: 'bills' };
+        document.getElementById('cpd-title').textContent = c.name;
+        const metaParts = [c.city, c.phone, c.gst].filter(Boolean);
+        document.getElementById('cpd-subtitle').textContent = metaParts.length ? metaParts.join(' • ') : 'Payment Speed & Collection Drill-down';
+        const periodEl = document.getElementById('cpd-period-bar');
+        const fDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(store.fromDate) : store.fromDate;
+        const tDisp = (window.Utils && window.Utils.formatDateDisplay) ? window.Utils.formatDateDisplay(store.toDate) : store.toDate;
+        const taxTag = store.taxFilter === 'gst' ? 'GST Only' : (store.taxFilter === 'nongst' ? 'Non-GST' : 'All Bills');
+        periodEl.innerHTML = `<span>${esc(fDisp)} – ${esc(tDisp)}</span><span class="cpd-tag">${taxTag}</span>`;
+        const speedColor = c.speedLabel === 'Fast' ? 'var(--md-success)' : (c.speedLabel === 'Moderate' ? '#d97706' : 'var(--md-error)');
+        const pendingCount = c.bills.filter(b => b.due > 0.01).length;
+        document.getElementById('cpd-kpis').innerHTML = `
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Avg Pay Speed</span><strong class="cpd-kpi-val" style="color:${speedColor};">${c.avgDays} Days</strong><small>${c.speedLabel} Payer • ${c.paidCount} Paid</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Collection Rate</span><strong class="cpd-kpi-val">${c.collectionPct.toFixed(1)}%</strong><small>${c.partialCount} Partial • ${c.overdueCount} Overdue</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Collected</span><strong class="cpd-kpi-val" style="color:var(--md-success);">${fmt(c.collectedAmt)}</strong><small>of ${fmt(c.billedAmt)} Billed</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Pending / Overdue</span><strong class="cpd-kpi-val" style="color:${c.dueAmt > 0.01 ? 'var(--md-error)' : 'var(--md-success)'};">${fmt(c.dueAmt)}</strong><small>${c.overdueAmt > 0.01 ? `${fmt(c.overdueAmt)} Overdue` : 'No Overdue'}</small></div>`;
+        document.getElementById('cpd-tab-bills').textContent = `All Bills (${c.bills.length})`;
+        document.getElementById('cpd-tab-items').textContent = `Pending (${pendingCount})`;
+        const sInput = document.getElementById('cpd-search');
+        if (sInput) sInput.value = '';
+        app.switchCustomerProfitTab('bills');
+        if (window.UI) UI.openActivity('activity-customer-profit-detail');
+    },
+    openMonthlyPnlDetail: (monthKey) => {
+        const store = app.state._monthlyPnlData;
+        const m = store && store.map ? store.map[monthKey] : null;
+        if (!m) return;
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        let screen = document.getElementById('activity-customer-profit-detail');
+        if (!screen) {
+            const shell = `<div id="activity-customer-profit-detail" class="activity-screen hidden">
+                <div class="activity-header cpd-header">
+                    <div class="cpd-header-left">
+                        <span class="material-symbols-outlined tap-target" onclick="if(window.UI) UI.closeActivity('activity-customer-profit-detail')" style="padding:4px;margin-left:-4px;">arrow_back</span>
+                        <div class="cpd-title-wrap">
+                            <strong id="cpd-title">Monthly P&L</strong>
+                            <small id="cpd-subtitle"></small>
+                        </div>
+                    </div>
+                </div>
+                <div class="activity-content cpd-content">
+                    <div id="cpd-period-bar" class="cpd-period-bar"></div>
+                    <div id="cpd-kpis" class="cpd-kpi-grid"></div>
+                    <div class="cpd-toolbar">
+                        <div class="cpd-tabs">
+                            <button type="button" id="cpd-tab-bills" class="tap-target cpd-tab-btn active" onclick="app.switchCustomerProfitTab('bills')">Expenses</button>
+                            <button type="button" id="cpd-tab-items" class="tap-target cpd-tab-btn" onclick="app.switchCustomerProfitTab('items')">Customers</button>
+                        </div>
+                        <div class="cpd-search-wrap">
+                            <span class="material-symbols-outlined">search</span>
+                            <input type="search" id="cpd-search" enterkeyhint="search" placeholder="Search category or customer..." oninput="app.renderCustomerProfitDetailList()">
+                        </div>
+                    </div>
+                    <div id="cpd-list-wrap" class="cpd-list-wrap"></div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', shell);
+        }
+        app.state._cpdActive = { mode: 'pnl', month: m, tab: 'bills' };
+        document.getElementById('cpd-title').textContent = m.label;
+        document.getElementById('cpd-subtitle').textContent = `${m.billCount} Sales Bills • ${m.expCount} Expense Entries`;
+        const periodEl = document.getElementById('cpd-period-bar');
+        const taxTag = store.taxFilter === 'gst' ? 'GST Only' : (store.taxFilter === 'nongst' ? 'Non-GST' : 'All Bills');
+        periodEl.innerHTML = `<span>Monthly Profit & Loss Breakdown</span><span class="cpd-tag">${taxTag}</span>`;
+        const grossPct = m.revenue > 0 ? ((m.grossProfit / m.revenue) * 100).toFixed(1) : '0.0';
+        const netPct = m.revenue > 0 ? ((m.netProfit / m.revenue) * 100).toFixed(1) : '0.0';
+        const gpClr = m.grossProfit < 0 ? 'var(--md-error)' : 'var(--md-success)';
+        const npClr = m.netProfit < 0 ? 'var(--md-error)' : (parseFloat(netPct) < 5 ? '#d97706' : 'var(--md-success)');
+        document.getElementById('cpd-kpis').innerHTML = `
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Net Sales</span><strong class="cpd-kpi-val">${fmt(m.revenue)}</strong><small>COGS ${fmt(m.cost)}</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Gross Profit</span><strong class="cpd-kpi-val" style="color:${gpClr};">${m.grossProfit < 0 ? '' : '+'}${fmt(m.grossProfit)}</strong><small>${grossPct}% Gross Margin</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Expenses</span><strong class="cpd-kpi-val" style="color:var(--md-error);">${fmt(m.expenses)}</strong><small>${Object.keys(m.expCats).length} Categories</small></div>
+            <div class="cpd-kpi"><span class="cpd-kpi-lbl">Net Profit</span><strong class="cpd-kpi-val" style="color:${npClr};">${m.netProfit < 0 ? '' : '+'}${fmt(m.netProfit)}</strong><small>${netPct}% Net Margin</small></div>`;
+        document.getElementById('cpd-tab-bills').textContent = `Customers (${Object.keys(m.customers).length})`;
+        document.getElementById('cpd-tab-items').textContent = `Expenses (${Object.keys(m.expCats).length})`;
+        const sInput = document.getElementById('cpd-search');
+        if (sInput) sInput.value = '';
+        app.switchCustomerProfitTab('bills');
+        if (window.UI) UI.openActivity('activity-customer-profit-detail');
+    },
+    openMonthlyPnlSubDetail: (kind, key) => {
+        const ctx = app.state._cpdActive;
+        if (!ctx || ctx.mode !== 'pnl' || !ctx.month) return;
+        const m = ctx.month;
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        const fmtDate = (d) => (window.Utils && window.Utils.formatDateDisplay && d) ? window.Utils.formatDateDisplay(d) : (d || '-');
+        const oldAct = document.getElementById('activity-pnl-subdetail');
+        if (oldAct) oldAct.remove();
+        let sheet = document.getElementById('sheet-pnl-subdetail');
+        if (!sheet) {
+            const shell = `<div id="sheet-pnl-subdetail" class="bottom-sheet hidden" data-no-swipe="true" style="top:16px;bottom:16px;left:16px;right:16px;width:auto;height:calc(100% - 32px);max-height:none;border-radius:12px;display:flex;flex-direction:column;padding:0;box-shadow:0 12px 40px rgba(0,0,0,0.3);border:1px solid var(--md-outline-variant);background:var(--md-surface);overflow:hidden;">
+                <div style="background:var(--md-surface);position:sticky;top:0;z-index:10;flex-shrink:0;padding:12px 16px 0 16px;border-bottom:1px solid var(--md-outline-variant);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:12px;">
+                        <div style="min-width:0;flex:1;">
+                            <strong id="pnl-sub-title" style="display:block;font-size:16px;font-weight:700;color:var(--md-on-surface);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></strong>
+                            <small id="pnl-sub-subtitle" style="display:block;font-size:12px;color:var(--md-text-muted);margin-top:2px;"></small>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                            <span id="pnl-sub-pdf-btn" class="material-symbols-outlined tap-target" style="color:var(--md-primary);font-size:22px;cursor:pointer;padding:2px;" onclick="if(window.app) window.app.exportPnlSubDetailPDF()">picture_as_pdf</span>
+                            <span class="material-symbols-outlined tap-target" style="color:var(--md-outline, #94a3b8);font-size:24px;cursor:pointer;" onclick="if(window.UI) window.UI.closeBottomSheet('sheet-pnl-subdetail')">close</span>
+                        </div>
+                    </div>
+                    <div id="pnl-sub-summary" style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;margin:0 -16px 12px -16px;background:var(--md-surface-variant);border-top:1px solid var(--md-outline-variant);border-bottom:1px solid var(--md-outline-variant);"></div>
+                    <div class="search-container" style="position:relative;margin-bottom:12px;flex-shrink:0;">
+                        <span class="material-symbols-outlined" style="position:absolute;left:12px;top:12px;color:var(--md-outline);">search</span>
+                        <input type="text" id="pnl-sub-search" placeholder="Search..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="if(window._filterPnlSubList) window._filterPnlSubList(this.value)" style="width:100%;padding:12px;border:none;font-size:16px;background:transparent;outline:none;">
+                    </div>
+                </div>
+                <div style="flex:1 1 auto;overflow-y:auto;background:var(--md-surface);position:relative;padding:0;">
+                    <ul id="pnl-sub-list" style="margin:0;padding:0 0 16px 0;border:none;list-style:none;display:flex;flex-direction:column;"></ul>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', shell);
+        }
+        const titleEl = document.getElementById('pnl-sub-title');
+        const subEl = document.getElementById('pnl-sub-subtitle');
+        const sumEl = document.getElementById('pnl-sub-summary');
+        const listEl = document.getElementById('pnl-sub-list');
+        const searchEl = document.getElementById('pnl-sub-search');
+        if (searchEl) searchEl.value = '';
+        if (kind === 'customer') {
+            const c = m.customers[key];
+            if (!c) return;
+            const bills = (c.billList || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            titleEl.textContent = c.name;
+            subEl.textContent = `${m.label} • ${bills.length} ${bills.length === 1 ? 'Bill' : 'Bills'}`;
+            if (searchEl) searchEl.placeholder = 'Search bill no or date...';
+            const isLoss = c.profit < 0;
+            const pClr = isLoss ? 'var(--md-error)' : 'var(--md-success)';
+            sumEl.innerHTML = `<span style="font-size:12px;color:var(--md-text-muted);font-weight:600;">Sales ${fmt(c.revenue)}</span><strong style="font-size:14px;font-weight:800;color:${pClr};font-variant-numeric:tabular-nums;">Profit ${isLoss ? '' : '+'}${fmt(c.profit)}</strong>`;
+            const renderBills = (rows) => !rows.length
+                ? '<li style="padding:36px 16px;text-align:center;color:var(--md-text-muted);font-size:13px;">No matching bills found.</li>'
+                : rows.map(b => {
+                    const safeId = String(b.id || '').replace(/'/g, "\\'");
+                    const bLoss = b.profit < 0;
+                    const bClr = bLoss ? 'var(--md-error)' : 'var(--md-success)';
+                    const mPct = b.revenue > 0 ? ((b.profit / b.revenue) * 100).toFixed(1) : '0.0';
+                    return `<li class="tap-target" onclick="if(window.openInvoiceOverview) window.openInvoiceOverview('sales', '${safeId}')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;margin:0;border-radius:0;background:transparent;border:none;border-bottom:1px solid var(--md-outline-variant);cursor:pointer;">
+                        <div style="min-width:0;flex:1;padding-right:12px;">
+                            <div style="font-size:14px;font-weight:700;color:var(--md-on-surface);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(b.billNo)}${b.isReturn ? ' <span style="color:var(--md-error);font-size:11px;">(Return)</span>' : ''}</div>
+                            <div style="font-size:12px;font-weight:600;color:var(--md-text-muted);margin-top:3px;">${b.orderNo && b.orderNo !== b.billNo ? `Ord: ${esc(b.orderNo)} • ` : ''}${esc(fmtDate(b.date))} • ${esc(b.invoiceType)} • Net ${fmt(b.revenue)}</div>
+                        </div>
+                        <div style="text-align:right;flex-shrink:0;">
+                            <div style="font-size:14px;font-weight:800;color:${bClr};font-variant-numeric:tabular-nums;">${bLoss ? '' : '+'}${fmt(b.profit)}</div>
+                            <div style="font-size:11px;font-weight:700;color:var(--md-text-muted);margin-top:2px;">${mPct}%</div>
+                        </div>
+                    </li>`;
+                }).join('');
+            listEl.innerHTML = renderBills(bills);
+            window._filterPnlSubList = (q) => {
+                const t = String(q || '').trim().toLowerCase();
+                const filtered = !t ? bills : bills.filter(b => (window.fuzzyMatch ? window.fuzzyMatch(t, `${b.billNo} ${b.orderNo || ''} ${fmtDate(b.date)} ${b.invoiceType}`) : `${b.billNo} ${b.orderNo || ''} ${fmtDate(b.date)}`.toLowerCase().includes(t)));
+                listEl.innerHTML = renderBills(filtered);
+            };
+        } else {
+            const e = m.expCats[key];
+            if (!e) return;
+            const entries = (e.entries || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            titleEl.textContent = e.name;
+            subEl.textContent = `${m.label} • ${entries.length} ${entries.length === 1 ? 'Entry' : 'Entries'}`;
+            if (searchEl) searchEl.placeholder = 'Search note, bill/order no or party...';
+            sumEl.innerHTML = `<span style="font-size:12px;color:var(--md-text-muted);font-weight:600;">Category Total</span><strong style="font-size:14px;font-weight:800;color:var(--md-error);font-variant-numeric:tabular-nums;">${fmt(e.amt)}</strong>`;
+            const renderEntries = (rows) => !rows.length
+                ? '<li style="padding:36px 16px;text-align:center;color:var(--md-text-muted);font-size:13px;">No matching entries found.</li>'
+                : rows.map(en => {
+                    const useNoteAsTitle = (!en.label || en.label === e.name) && en.note;
+                    const mainTitle = useNoteAsTitle ? en.note : (en.label || en.expNo || e.name);
+                    const subParts = [fmtDate(en.date), en.expNo, en.mode, (!useNoteAsTitle && en.note) ? en.note : ''].filter(Boolean);
+                    const subText = subParts.join(' • ');
+                    const linkTags = Array.isArray(en.linkedDocs) && en.linkedDocs.length
+                        ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;">${en.linkedDocs.map(ld => {
+                            const txt = typeof ld === 'string' ? ld : (ld.label || '');
+                            const docId = (ld && ld.id) ? String(ld.id).replace(/'/g, "\\'") : '';
+                            const docTp = (ld && ld.docType) ? ld.docType : '';
+                            const chipClick = (docId && docTp) ? ` onclick="event.stopPropagation(); if(window.openInvoiceOverview) window.openInvoiceOverview('${docTp}', '${docId}')"` : '';
+                            return `<span class="tap-target"${chipClick} style="display:inline-block;background:var(--md-surface-variant);color:var(--md-primary);padding:2px 6px;border-radius:4px;font-size:11px;font-weight:700;border:1px solid var(--md-outline-variant);cursor:${chipClick ? 'pointer' : 'default'};">${esc(txt)}</span>`;
+                        }).join('')}</div>`
+                        : '';
+                    const safeId = String(en.id || '').replace(/'/g, "\\'");
+                    const clickAttr = (en.src === 'expense' && safeId)
+                        ? `class="tap-target" onclick="if(window.app) window.app.openForm('expense', '${safeId}')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;margin:0;border-radius:0;background:transparent;border:none;border-bottom:1px solid var(--md-outline-variant);cursor:pointer;"`
+                        : ((en.src === 'receipt' && safeId)
+                            ? `class="tap-target" onclick="if(window.app) window.app.openReceipt('${safeId}', 'out')" style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;margin:0;border-radius:0;background:transparent;border:none;border-bottom:1px solid var(--md-outline-variant);cursor:pointer;"`
+                            : `style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;margin:0;border-radius:0;background:transparent;border:none;border-bottom:1px solid var(--md-outline-variant);"`);
+                    return `<li ${clickAttr}>
+                        <div style="min-width:0;flex:1;padding-right:12px;">
+                            <div style="font-size:14px;font-weight:700;color:var(--md-on-surface);">${esc(mainTitle)}</div>
+                            <div style="font-size:12px;font-weight:600;color:var(--md-text-muted);margin-top:3px;">${esc(subText)}</div>
+                            ${linkTags}
+                        </div>
+                        <strong style="font-size:14px;font-weight:800;color:var(--md-error);flex-shrink:0;font-variant-numeric:tabular-nums;">${fmt(en.amt)}</strong>
+                    </li>`;
+                }).join('');
+            listEl.innerHTML = renderEntries(entries);
+            window._filterPnlSubList = (q) => {
+                const t = String(q || '').trim().toLowerCase();
+                const filtered = !t ? entries : entries.filter(en => {
+                    const linkTxt = (en.linkedDocs || []).map(ld => typeof ld === 'string' ? ld : (ld.label || '')).join(' ');
+                    const hay = `${en.label || ''} ${en.note || ''} ${en.expNo || ''} ${en.mode || ''} ${linkTxt} ${fmtDate(en.date)}`;
+                    return window.fuzzyMatch ? window.fuzzyMatch(t, hay) : hay.toLowerCase().includes(t);
+                });
+                listEl.innerHTML = renderEntries(filtered);
+            };
+        }
+        app.state._pnlSubActive = { kind, key };
+        if (window.UI) UI.openBottomSheet('sheet-pnl-subdetail');
+    },
+    exportPnlSubDetailPDF: async () => {
+        const ctx = app.state._cpdActive;
+        const sub = app.state._pnlSubActive;
+        if (!ctx || ctx.mode !== 'pnl' || !ctx.month || !sub) return;
+        const m = ctx.month;
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        const fmtDate = (d) => (window.Utils && window.Utils.formatDateDisplay && d) ? window.Utils.formatDateDisplay(d) : (d || '-');
+        let title = '';
+        let headers = [];
+        let rowsHtml = '';
+        if (sub.kind === 'customer') {
+            const c = m.customers[sub.key];
+            if (!c) return;
+            const bills = (c.billList || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            title = `${c.name} - ${m.label}`;
+            headers = ['Bill / Order No', 'Date', 'Type', 'Net Sales', 'Gross Profit', 'Margin %'];
+            rowsHtml = bills.map(b => {
+                const bLoss = b.profit < 0;
+                const mPct = b.revenue > 0 ? ((b.profit / b.revenue) * 100).toFixed(1) : '0.0';
+                const ordLine = (b.orderNo && b.orderNo !== b.billNo) ? `<br><small style="color:#64748b;">Ord: ${esc(b.orderNo)}</small>` : '';
+                return `<tr><td><strong>${esc(b.billNo)}</strong>${b.isReturn ? ' (Return)' : ''}${ordLine}</td><td>${esc(fmtDate(b.date))}</td><td>${esc(b.invoiceType)}</td><td class="number-col">${fmt(b.revenue)}</td><td class="number-col" style="color:${bLoss ? '#dc2626' : '#16a34a'};font-weight:bold;">${bLoss ? '' : '+'}${fmt(b.profit)}</td><td class="number-col">${mPct}%</td></tr>`;
+            }).join('');
+            const totPct = c.revenue > 0 ? ((c.profit / c.revenue) * 100).toFixed(1) : '0.0';
+            rowsHtml += `<tr><td colspan="3"><strong>TOTAL (${bills.length} ${bills.length === 1 ? 'Bill' : 'Bills'})</strong></td><td class="number-col"><strong>${fmt(c.revenue)}</strong></td><td class="number-col" style="color:${c.profit < 0 ? '#dc2626' : '#16a34a'};font-weight:bold;">${c.profit < 0 ? '' : '+'}${fmt(c.profit)}</td><td class="number-col"><strong>${totPct}%</strong></td></tr>`;
+        } else {
+            const e = m.expCats[sub.key];
+            if (!e) return;
+            const entries = (e.entries || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            title = `${e.name} Expenses - ${m.label}`;
+            headers = ['Date', 'Voucher No', 'Description / Mode', 'Linked Docs', 'Amount'];
+            rowsHtml = entries.map(en => {
+                const desc = [en.note || en.label || e.name, en.mode || ''].filter(Boolean).join(' • ');
+                const links = (en.linkedDocs || []).map(ld => typeof ld === 'string' ? ld : (ld.label || '')).filter(Boolean).join(', ') || '-';
+                return `<tr><td>${esc(fmtDate(en.date))}</td><td><strong>${esc(en.expNo || '-')}</strong></td><td>${esc(desc)}</td><td style="color:#0061a4;">${esc(links)}</td><td class="number-col" style="color:#dc2626;font-weight:bold;">${fmt(en.amt)}</td></tr>`;
+            }).join('');
+            rowsHtml += `<tr><td colspan="4"><strong>TOTAL (${entries.length} ${entries.length === 1 ? 'Entry' : 'Entries'})</strong></td><td class="number-col" style="color:#dc2626;font-weight:bold;">${fmt(e.amt)}</td></tr>`;
+        }
+        const prevH = app.state.currentReportHeaders;
+        const prevR = app.state.currentReportRows;
+        const prevT = app.state.currentReportTitle;
+        app.state.currentReportHeaders = headers;
+        app.state.currentReportRows = rowsHtml;
+        app.state.currentReportTitle = title;
+        try {
+            await app.exportUniversalReportPDF();
+        } finally {
+            app.state.currentReportHeaders = prevH;
+            app.state.currentReportRows = prevR;
+            app.state.currentReportTitle = prevT;
+        }
+    },
+    exportCpdDetailPDF: async () => {
+        const ctx = app.state._cpdActive;
+        if (!ctx) return;
+        const fmt = (n) => `₹${(parseFloat(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        let title = document.getElementById('cpd-title')?.textContent || 'Detail Report';
+        let headers = [];
+        let rowsHtml = '';
+        if (ctx.mode === 'pnl' && ctx.month) {
+            const m = ctx.month;
+            title = `Monthly P&L Breakdown - ${m.label}`;
+            if (ctx.tab === 'bills') {
+                headers = ['Customer Name', 'Bills', 'Net Sales', 'Gross Profit', 'Margin %'];
+                const list = Object.values(m.customers).sort((a, b) => b.profit - a.profit);
+                rowsHtml = list.map(c => {
+                    const pct = c.revenue > 0 ? ((c.profit / c.revenue) * 100).toFixed(1) : '0.0';
+                    return `<tr><td><strong>${esc(c.name)}</strong></td><td class="number-col">${c.bills}</td><td class="number-col">${fmt(c.revenue)}</td><td class="number-col" style="color:${c.profit < 0 ? '#dc2626' : '#16a34a'};font-weight:bold;">${c.profit < 0 ? '' : '+'}${fmt(c.profit)}</td><td class="number-col">${pct}%</td></tr>`;
+                }).join('');
+                rowsHtml += `<tr><td><strong>SUMMARY (${esc(m.label)})</strong></td><td class="number-col"><strong>${m.billCount}</strong></td><td class="number-col"><strong>${fmt(m.revenue)}</strong></td><td class="number-col"><strong>GP: ${fmt(m.grossProfit)} | Exp: ${fmt(m.expenses)}</strong></td><td class="number-col"><strong>Net: ${fmt(m.netProfit)}</strong></td></tr>`;
+            } else {
+                headers = ['Expense Category', 'Entries', 'Amount', '% Share'];
+                const list = Object.values(m.expCats).sort((a, b) => b.amt - a.amt);
+                rowsHtml = list.map(e => {
+                    const share = m.expenses > 0 ? ((e.amt / m.expenses) * 100).toFixed(1) : '0.0';
+                    return `<tr><td><strong>${esc(e.name)}</strong></td><td class="number-col">${e.count}</td><td class="number-col" style="color:#dc2626;font-weight:bold;">${fmt(e.amt)}</td><td class="number-col">${share}%</td></tr>`;
+                }).join('');
+                rowsHtml += `<tr><td><strong>TOTAL EXPENSES</strong></td><td class="number-col"><strong>${m.expCount}</strong></td><td class="number-col"><strong>${fmt(m.expenses)}</strong></td><td class="number-col"><strong>100.0%</strong></td></tr>`;
+            }
+        } else {
+            const rows = Array.from(document.querySelectorAll('#cpd-list-wrap .cpd-row'));
+            if (!rows.length) {
+                if (window.Utils) window.Utils.showToast('No rows to export.');
+                return;
+            }
+            const activeTabText = document.querySelector('#activity-customer-profit-detail .cpd-tab-btn.active')?.textContent || 'Details';
+            title = `${title} - ${activeTabText}`;
+            headers = ['Item / Bill', 'Details', 'Amount / Status'];
+            rowsHtml = rows.map(r => {
+                const top = esc(r.querySelector('.cpd-row-top')?.textContent?.trim() || '');
+                const sub = esc(r.querySelector('.cpd-row-sub')?.textContent?.trim() || '');
+                const right = esc(r.querySelector('.cpd-row-right')?.textContent?.trim() || '');
+                return `<tr><td><strong>${top}</strong></td><td>${sub}</td><td class="number-col"><strong>${right}</strong></td></tr>`;
+            }).join('');
+        }
+        const prevH = app.state.currentReportHeaders;
+        const prevR = app.state.currentReportRows;
+        const prevT = app.state.currentReportTitle;
+        app.state.currentReportHeaders = headers;
+        app.state.currentReportRows = rowsHtml;
+        app.state.currentReportTitle = title;
+        try {
+            await app.exportUniversalReportPDF();
+        } finally {
+            app.state.currentReportHeaders = prevH;
+            app.state.currentReportRows = prevR;
+            app.state.currentReportTitle = prevT;
+        }
+    },
     setUniversalDates: (range) => {
         const d = new Date();
         const y = d.getFullYear();
@@ -9319,7 +10233,7 @@ if (data.id && splitConfirmed) {
                         const pObj = allLedgers.find(l => String(l.id) === String(isSale ? s.customerId : s.supplierId));
                         const gstStr = s.customerGst || s.supplierGst || s.gstin || (pObj && pObj.gst) || '';
                         const hay = `${s.invoiceNo || ''} ${s.orderNo || ''} ${s.poNo || ''} ${pName} ${gstStr} ${s.status || ''}`.toLowerCase();
-                        if (!hay.includes(searchQ)) return false;
+                        if (!window.fuzzyMatch(searchQ, hay)) return false;
                     }
                     return true;
                 });
@@ -9377,44 +10291,755 @@ if (data.id && splitConfirmed) {
                     </tr>`;
                 }
             }
-            else if (reportType === 'customer_sales' || reportType === 'supplier_purchases') {
-                const isSale = reportType === 'customer_sales';
-                tableHeaders = ['Rank', isSale ? 'Customer Name' : 'Supplier Name', 'Total Docs', 'Gross Volume', '% of Total'];
-                
-                const docs = (await window.getAllRecords(isSale ? 'sales' : 'purchases', 'firmId', firmId) || []).filter(s => s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromDate && s.date <= toDate);
+            else if (reportType === 'customer_sales') {
+                tableHeaders = ['Rank', 'Customer Name', 'Total Docs', 'Gross Volume', '% of Total'];
+                const docs = (await window.getAllRecords('sales', 'firmId', firmId) || []).filter(s => s.status !== 'Open' && s.status !== 'Cancelled' && s.date >= fromDate && s.date <= toDate);
                 const pMap = {};
                 let globalVol = 0;
-
                 docs.forEach(s => {
-                    const pId = isSale ? s.customerId : s.supplierId;
-                    const pName = isSale ? s.customerName : s.supplierName;
+                    const pId = s.customerId;
+                    const pName = s.customerName;
                     const mult = s.documentType === 'return' ? -1 : 1;
                     const grand = Math.abs(parseFloat(s.grandTotal) || 0) * mult;
-                    
-                    if(!pMap[pId]) pMap[pId] = { name: pName, count: 0, total: 0 };
+                    if (!pMap[pId]) pMap[pId] = { name: pName, count: 0, total: 0 };
                     pMap[pId].total += grand;
                     globalVol += grand;
-                    if(mult > 0) pMap[pId].count += 1;
+                    if (mult > 0) pMap[pId].count += 1;
                 });
-                
-                const pArr = Object.values(pMap).filter(p => p.total > 0).sort((a,b) => b.total - a.total);
-                
+                const pArr = Object.values(pMap).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
                 pArr.forEach((c, idx) => {
                     const pct = globalVol > 0 ? ((c.total / globalVol) * 100).toFixed(1) : 0;
                     tableRowsHTML += `
                     <tr>
-                        <td style="text-align:center;"><strong>#${idx+1}</strong></td>
+                        <td style="text-align:center;"><strong>#${idx + 1}</strong></td>
                         <td><strong>${c.name}</strong></td>
                         <td style="text-align:center;">${c.count}</td>
                         <td class="number-col"><strong>${formatMoney(c.total)}</strong></td>
                         <td class="number-col"><span style="background: var(--md-surface-variant); padding: 2px 6px; border-radius: 4px; font-weight: 800; font-size: 10px;">${pct}%</span></td>
                     </tr>`;
                 });
-
                 kpiCardsHTML = `
-                    <div class="kpi-box"><div class="kpi-label">Active ${isSale ? 'Customers' : 'Suppliers'}</div><div class="kpi-value">${pArr.length}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Active Customers</div><div class="kpi-value">${pArr.length}</div></div>
                     <div class="kpi-box"><div class="kpi-label">Average Deal Size</div><div class="kpi-value">${formatMoney(docs.length > 0 ? (globalVol / docs.length) : 0)}</div></div>
-                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-success);">Total ${isSale ? 'Revenue' : 'Spend'}</div><div class="kpi-value" style="color: var(--md-success);">${formatMoney(globalVol)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-success);">Total Revenue</div><div class="kpi-value" style="color: var(--md-success);">${formatMoney(globalVol)}</div></div>
+                `;
+            }
+            else if (reportType === 'supplier_purchases') {
+                tableHeaders = ['Rank', 'Supplier (Tap for Details)', 'Bills', 'Net Spend', 'Paid', 'Payable', 'Paid %'];
+                const taxFilter = app.state.uniTaxFilter || 'all';
+                const sortMode = app.state.uniSupplierSort || 'spend_desc';
+                const searchQ = (document.getElementById('uni-report-search')?.value || '').trim();
+                const allLedgers = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.ledgers) || [];
+                const ledgerMap = {};
+                allLedgers.forEach(l => { ledgerMap[String(l.id)] = l; });
+                const allPurchases = (await window.getAllRecords('purchases', 'firmId', firmId) || []).filter(p => p.status !== 'Open' && p.status !== 'Cancelled');
+                const docs = allPurchases.filter(p => {
+                    if (p.date < fromDate || p.date > toDate) return false;
+                    const isNonGst = p.invoiceType === 'Non-GST';
+                    if (taxFilter === 'gst' && isNonGst) return false;
+                    if (taxFilter === 'nongst' && !isNonGst) return false;
+                    return true;
+                });
+                const allReceipts = await window.getAllRecords('receipts', 'firmId', firmId) || [];
+                const paymentMap = {};
+                allReceipts.forEach(r => {
+                    if (r.type === 'out' && r.invoiceRef) {
+                        const refs = String(r.invoiceRef).split(',').map(x => x.trim()).filter(Boolean);
+                        let rem = parseFloat(r.amount) || 0;
+                        refs.forEach(ref => {
+                            let apply = 0;
+                            if (r.allocationMap && r.allocationMap[ref] !== undefined) {
+                                apply = parseFloat(r.allocationMap[ref]) || 0;
+                                if (apply > 0) rem = Math.max(0, rem - apply);
+                            } else {
+                                const innerDoc = allPurchases.find(d => String(d.id) === ref || String(d.invoiceNo) === ref || String(d.poNo) === ref || String(d.orderNo) === ref);
+                                const docTot = innerDoc ? Math.abs(parseFloat(innerDoc.grandTotal) || 0) : (rem / refs.length);
+                                apply = Math.min(docTot, rem);
+                                if (apply > 0) rem -= apply;
+                            }
+                            if (apply > 0) paymentMap[`${r.ledgerId}_${ref}`] = (paymentMap[`${r.ledgerId}_${ref}`] || 0) + apply;
+                        });
+                        if (rem > 0.01 && refs[0]) paymentMap[`${r.ledgerId}_${refs[0]}`] = (paymentMap[`${r.ledgerId}_${refs[0]}`] || 0) + rem;
+                    }
+                });
+                const sMap = {};
+                docs.forEach(p => {
+                    const pId = String(p.supplierId || p.supplierName || 'unknown');
+                    const lObj = ledgerMap[String(p.supplierId)] || {};
+                    const pName = p.supplierName || lObj.name || 'Unknown Supplier';
+                    const isReturn = p.documentType === 'return';
+                    const isNonGst = p.invoiceType === 'Non-GST';
+                    const grand = Math.abs(parseFloat(p.grandTotal) || 0);
+                    const uniqueRefs = [...new Set([p.orderNo, p.invoiceNo, p.poNo, p.id].filter(Boolean).map(String))];
+                    const rawPaid = isReturn ? 0 : uniqueRefs.reduce((sum, ref) => sum + (paymentMap[`${p.supplierId}_${ref}`] || 0), 0);
+                    const billPaid = isReturn ? 0 : Math.min(grand, rawPaid);
+                    const billBal = isReturn ? 0 : Math.max(0, grand - billPaid);
+                    if (!sMap[pId]) {
+                        sMap[pId] = {
+                            key: pId,
+                            name: pName,
+                            phone: lObj.phone || '',
+                            city: lObj.city || '',
+                            gst: lObj.gst || '',
+                            count: 0,
+                            returns: 0,
+                            grossSpend: 0,
+                            returnsAmt: 0,
+                            netSpend: 0,
+                            paidAmt: 0,
+                            payableAmt: 0,
+                            bills: [],
+                            items: {}
+                        };
+                    }
+                    const rec = sMap[pId];
+                    if (isReturn) {
+                        rec.returns += 1;
+                        rec.returnsAmt += grand;
+                        rec.netSpend -= grand;
+                    } else {
+                        rec.count += 1;
+                        rec.grossSpend += grand;
+                        rec.netSpend += grand;
+                        rec.paidAmt += billPaid;
+                    }
+                    rec.bills.push({
+                        id: p.id,
+                        billNo: p.invoiceNo || p.poNo || p.orderNo || 'N/A',
+                        orderNo: p.orderNo || '',
+                        date: p.date || '',
+                        isReturn,
+                        isNonGst,
+                        typeLabel: isReturn ? 'Return' : (isNonGst ? 'Non-GST' : 'GST'),
+                        amount: isReturn ? -grand : grand,
+                        paid: billPaid,
+                        balance: billBal
+                    });
+                    const mult = isReturn ? -1 : 1;
+                    (p.items || []).forEach(it => {
+                        const qty = Math.abs(parseFloat(it.qty) || 0) * mult;
+                        const rate = Math.abs(parseFloat(it.rate) || 0);
+                        const lineSpend = qty * rate;
+                        const iKey = String(it.itemId || it.name || 'Item');
+                        if (!rec.items[iKey]) rec.items[iKey] = { name: it.name || 'Item', uom: it.uom || '', qty: 0, spend: 0 };
+                        rec.items[iKey].qty += qty;
+                        rec.items[iKey].spend += lineSpend;
+                    });
+                });
+                let sArr = Object.values(sMap).map(r => {
+                    r.payableAmt = Math.max(0, r.netSpend - r.paidAmt);
+                    r.paidPct = r.netSpend > 0 ? Math.min(100, (r.paidAmt / r.netSpend) * 100) : 100;
+                    r.bills.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+                    return r;
+                }).filter(r => r.count > 0 || r.returns > 0);
+                if (searchQ) {
+                    sArr = sArr.filter(r => {
+                        const hay = `${r.name} ${r.phone} ${r.city} ${r.gst}`;
+                        return window.fuzzyMatch ? window.fuzzyMatch(searchQ, hay) : hay.toLowerCase().includes(searchQ.toLowerCase());
+                    });
+                }
+                if (sortMode === 'payable_desc') sArr.sort((a, b) => b.payableAmt - a.payableAmt || b.netSpend - a.netSpend);
+                else if (sortMode === 'paid_desc') sArr.sort((a, b) => b.paidPct - a.paidPct || b.netSpend - a.netSpend);
+                else if (sortMode === 'bills_desc') sArr.sort((a, b) => b.count - a.count || b.netSpend - a.netSpend);
+                else sArr.sort((a, b) => b.netSpend - a.netSpend);
+                app.state._supplierPayableData = { map: sMap, fromDate, toDate, taxFilter };
+                let totBills = 0, totSpend = 0, totPaid = 0, totPayable = 0;
+                const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '');
+                sArr.forEach((s, idx) => {
+                    totBills += s.count;
+                    totSpend += s.netSpend;
+                    totPaid += s.paidAmt;
+                    totPayable += s.payableAmt;
+                    const pColor = s.payableAmt > 0.01 ? 'var(--md-error)' : 'var(--md-success)';
+                    const bBg = s.paidPct >= 99.9 ? 'rgba(22,163,74,0.12)' : (s.paidPct >= 50 ? 'rgba(217,119,6,0.12)' : 'rgba(186,26,26,0.12)');
+                    const bClr = s.paidPct >= 99.9 ? 'var(--md-success)' : (s.paidPct >= 50 ? '#d97706' : 'var(--md-error)');
+                    const safeKey = String(s.key).replace(/'/g, "\\'");
+                    const subMeta = [s.city, s.returns > 0 ? `${s.returns} Ret` : ''].filter(Boolean).join(' • ');
+                    tableRowsHTML += `
+                    <tr class="tap-target" style="cursor:pointer;" onclick="app.openSupplierPayableDetail('${safeKey}')">
+                        <td style="text-align:center;"><strong>#${idx + 1}</strong></td>
+                        <td><strong>${esc(s.name)}</strong>${subMeta ? `<br><small style="color:var(--md-text-muted);">${esc(subMeta)}</small>` : ''}</td>
+                        <td style="text-align:center;">${s.count}</td>
+                        <td class="number-col"><strong>${formatMoney(s.netSpend)}</strong></td>
+                        <td class="number-col" style="color:var(--md-success);">${formatMoney(s.paidAmt)}</td>
+                        <td class="number-col" style="color:${pColor};font-weight:800;">${formatMoney(s.payableAmt)}</td>
+                        <td class="number-col"><span style="background:${bBg};color:${bClr};padding:2px 6px;border-radius:4px;font-weight:800;font-size:10px;">${s.paidPct.toFixed(0)}%</span></td>
+                    </tr>`;
+                });
+                if (sArr.length > 0) {
+                    const totPaidPct = totSpend > 0 ? Math.min(100, (totPaid / totSpend) * 100).toFixed(0) : '100';
+                    tableRowsHTML += `<tr class="total-row">
+                        <td colspan="2" style="text-align:right;">TOTAL (${sArr.length} ${sArr.length === 1 ? 'Supplier' : 'Suppliers'}):</td>
+                        <td style="text-align:center;">${totBills}</td>
+                        <td class="number-col">${formatMoney(totSpend)}</td>
+                        <td class="number-col" style="color:var(--md-success);">${formatMoney(totPaid)}</td>
+                        <td class="number-col" style="color:${totPayable > 0.01 ? 'var(--md-error)' : 'var(--md-success)'};">${formatMoney(totPayable)}</td>
+                        <td class="number-col">${totPaidPct}%</td>
+                    </tr>`;
+                }
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Active Suppliers</div><div class="kpi-value">${sArr.length}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Net Purchases</div><div class="kpi-value">${formatMoney(totSpend)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: var(--md-success);">Total Paid</div><div class="kpi-value" style="color: var(--md-success);">${formatMoney(totPaid)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color: ${totPayable > 0.01 ? 'var(--md-error)' : 'var(--md-success)'};">Pending Payable</div><div class="kpi-value" style="color: ${totPayable > 0.01 ? 'var(--md-error)' : 'var(--md-success)'};">${formatMoney(totPayable)}</div></div>
+                `;
+            }
+            else if (reportType === 'monthly_pnl') {
+                tableHeaders = ['Month (Tap for Details)', 'Net Sales', 'COGS', 'Gross Profit', 'Expenses', 'Net Profit', 'Net %'];
+                const taxFilter = app.state.uniTaxFilter || 'all';
+                const searchQ = (document.getElementById('uni-report-search')?.value || '').trim();
+                const allItems = await window.getAllRecords('items', 'firmId', firmId) || [];
+                const itemCostMap = {};
+                allItems.forEach(p => { itemCostMap[String(p.id)] = Math.abs(parseFloat(p.buyPrice) || 0); });
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const getMonthRec = (map, dateStr) => {
+                    const ym = String(dateStr || '').slice(0, 7);
+                    if (!ym || ym.length < 7) return null;
+                    if (!map[ym]) {
+                        const parts = ym.split('-');
+                        const mIdx = Math.max(0, Math.min(11, (parseInt(parts[1], 10) || 1) - 1));
+                        map[ym] = {
+                            key: ym,
+                            label: `${monthNames[mIdx]} ${parts[0]}`,
+                            revenue: 0,
+                            cost: 0,
+                            stockGain: 0,
+                            grossProfit: 0,
+                            expenses: 0,
+                            netProfit: 0,
+                            billCount: 0,
+                            expCount: 0,
+                            expCats: {},
+                            customers: {}
+                        };
+                    }
+                    return map[ym];
+                };
+                const mMap = {};
+                const allSalesRaw = await window.getAllRecords('sales', 'firmId', firmId) || [];
+                const salesDocs = allSalesRaw.filter(s => {
+                    if (s.status === 'Open' || s.status === 'Cancelled' || s.date < fromDate || s.date > toDate) return false;
+                    const isNonGst = s.invoiceType === 'Non-GST';
+                    if (taxFilter === 'gst' && isNonGst) return false;
+                    if (taxFilter === 'nongst' && !isNonGst) return false;
+                    return true;
+                });
+                salesDocs.forEach(s => {
+                    const rec = getMonthRec(mMap, s.date);
+                    if (!rec) return;
+                    const isReturn = s.documentType === 'return';
+                    const mult = isReturn ? -1 : 1;
+                    const billRev = ((parseFloat(s.grandTotal) || 0) - (parseFloat(s.totalGst) || 0)) * mult;
+                    let billCost = 0;
+                    (s.items || []).forEach(it => {
+                        const qty = Math.abs(parseFloat(it.qty) || 0);
+                        const unitCost = Math.abs(parseFloat(it.buyPrice) || itemCostMap[String(it.itemId)] || 0);
+                        billCost += (qty * unitCost) * mult;
+                    });
+                    rec.revenue += billRev;
+                    rec.cost += billCost;
+                    if (!isReturn) rec.billCount += 1;
+                    const cKey = String(s.customerId || s.customerName || 'Walk-in');
+                    if (!rec.customers[cKey]) rec.customers[cKey] = { name: s.customerName || 'Walk-in Customer', bills: 0, revenue: 0, profit: 0, billList: [] };
+                    if (!isReturn) rec.customers[cKey].bills += 1;
+                    rec.customers[cKey].revenue += billRev;
+                    rec.customers[cKey].profit += (billRev - billCost);
+                    rec.customers[cKey].billList.push({
+                        id: s.id,
+                        billNo: s.invoiceNo || s.orderNo || 'Invoice',
+                        orderNo: (s.orderNo || '').trim(),
+                        date: s.date,
+                        isReturn,
+                        invoiceType: s.invoiceType || 'GST',
+                        revenue: billRev,
+                        profit: billRev - billCost
+                    });
+                });
+                const allPurchasesRaw = await window.getAllRecords('purchases', 'firmId', firmId) || [];
+                const resolveLinkedDocs = (rawLink) => String(rawLink || '').split(',').map(x => x.trim()).filter(Boolean).map(link => {
+                    const sDoc = allSalesRaw.find(s => s.id === link || s.invoiceNo === link || s.orderNo === link || (s.id && String(s.id).endsWith(link)));
+                    if (sDoc) {
+                        const b = (sDoc.invoiceNo || '').trim();
+                        const o = (sDoc.orderNo || '').trim();
+                        const lbl = (b && o && b !== o) ? `${b} • Ord: ${o}` : (b || o || String(sDoc.id).slice(-4).toUpperCase());
+                        return { label: `${lbl}${sDoc.customerName ? ` (${sDoc.customerName})` : ''}`, docType: 'sales', id: sDoc.id };
+                    }
+                    const pDoc = allPurchasesRaw.find(p => p.id === link || p.poNo === link || p.invoiceNo === link || p.orderNo === link || (p.id && String(p.id).endsWith(link)));
+                    if (pDoc) {
+                        const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                        const o = (pDoc.orderNo || '').trim();
+                        const lbl = (b && o && b !== o) ? `${b} • PO: ${o}` : (b || o || String(pDoc.id).slice(-4).toUpperCase());
+                        return { label: `${lbl}${pDoc.supplierName ? ` (${pDoc.supplierName})` : ''}`, docType: 'purchase', id: pDoc.id };
+                    }
+                    return { label: link.startsWith('sollo-') ? link.slice(-4).toUpperCase() : link, docType: '', id: '' };
+                });
+                const expDocs = (await window.getAllRecords('expenses', 'firmId', firmId) || []).filter(e => e.date >= fromDate && e.date <= toDate);
+                expDocs.forEach(e => {
+                    const rec = getMonthRec(mMap, e.date);
+                    if (!rec) return;
+                    const amt = parseFloat(e.amount) || 0;
+                    const cat = e.category || 'Uncategorized';
+                    rec.expenses += amt;
+                    rec.expCount += 1;
+                    if (!rec.expCats[cat]) rec.expCats[cat] = { name: cat, count: 0, amt: 0, entries: [] };
+                    rec.expCats[cat].count += 1;
+                    rec.expCats[cat].amt += amt;
+                    rec.expCats[cat].entries.push({
+                        id: e.id,
+                        src: 'expense',
+                        date: e.date,
+                        expNo: (e.expenseNo || '').trim(),
+                        mode: (e.paymentMode || '').trim(),
+                        label: e.title || e.description || e.paidTo || cat,
+                        note: (e.notes || '').trim(),
+                        linkedDocs: resolveLinkedDocs(e.linkedInvoice),
+                        amt
+                    });
+                });
+                if (taxFilter === 'all') {
+                    const allLedgers = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.ledgers) || [];
+                    const partyIdSet = new Set([
+                        ...allLedgers.map(l => String(l.id)),
+                        ...allSalesRaw.map(s => String(s.customerId || '')),
+                        ...allPurchasesRaw.map(p => String(p.supplierId || ''))
+                    ].filter(Boolean));
+                    const cashbookDocs = (await window.getAllRecords('receipts', 'firmId', firmId) || []).filter(c => c.date >= fromDate && c.date <= toDate && !c.invoiceRef && !c.linkedInvoice);
+                    cashbookDocs.forEach(c => {
+                        const lName = (c.ledgerName || '').toLowerCase();
+                        if (!partyIdSet.has(String(c.ledgerId || '')) && !lName.includes('cash drawer') && !lName.includes('advance')) {
+                            const rec = getMonthRec(mMap, c.date);
+                            if (!rec) return;
+                            const amt = parseFloat(c.amount) || 0;
+                            if (c.type === 'in') {
+                                rec.revenue += amt;
+                            } else if (c.type === 'out') {
+                                rec.expenses += amt;
+                                rec.expCount += 1;
+                                const cat = 'Indirect Cashbook Out';
+                                if (!rec.expCats[cat]) rec.expCats[cat] = { name: cat, count: 0, amt: 0, entries: [] };
+                                rec.expCats[cat].count += 1;
+                                rec.expCats[cat].amt += amt;
+                                rec.expCats[cat].entries.push({ id: c.id, src: 'receipt', date: c.date, label: c.ledgerName || 'Cashbook Out', note: c.notes || c.mode || '', amt });
+                            }
+                        }
+                    });
+                    const adjDocs = ((window.UI && UI.state && UI.state.rawData && UI.state.rawData.adjustments) || []).filter(adj => (!firmId || adj.firmId === firmId) && adj.date >= fromDate && adj.date <= toDate);
+                    adjDocs.forEach(adj => {
+                        const rec = getMonthRec(mMap, adj.date);
+                        if (!rec) return;
+                        const histCost = Math.abs(parseFloat(adj.buyPrice) || itemCostMap[String(adj.itemId)] || 0);
+                        const val = Math.abs(parseFloat(adj.qty) || 0) * histCost;
+                        if (adj.type === 'add') {
+                            rec.stockGain += val;
+                        } else if (adj.type === 'reduce') {
+                            rec.expenses += val;
+                            rec.expCount += 1;
+                            const cat = 'Stock Loss (Adjustment)';
+                            if (!rec.expCats[cat]) rec.expCats[cat] = { name: cat, count: 0, amt: 0, entries: [] };
+                            rec.expCats[cat].count += 1;
+                            rec.expCats[cat].amt += val;
+                            rec.expCats[cat].entries.push({ date: adj.date, label: adj.itemName || 'Stock Adjustment', note: `Qty: ${Math.abs(parseFloat(adj.qty) || 0)}`, amt: val });
+                        }
+                    });
+                }
+                let mArr = Object.values(mMap).map(m => {
+                    m.grossProfit = (m.revenue - m.cost) + m.stockGain;
+                    m.netProfit = m.grossProfit - m.expenses;
+                    m.netMarginPct = m.revenue > 0 ? (m.netProfit / m.revenue) * 100 : 0;
+                    return m;
+                }).sort((a, b) => b.key.localeCompare(a.key));
+                if (searchQ) {
+                    mArr = mArr.filter(m => {
+                        const hay = `${m.label} ${m.key} ${m.netProfit < 0 ? 'Loss' : 'Profit'}`;
+                        return window.fuzzyMatch ? window.fuzzyMatch(searchQ, hay) : hay.toLowerCase().includes(searchQ.toLowerCase());
+                    });
+                }
+                app.state._monthlyPnlData = { map: mMap, fromDate, toDate, taxFilter };
+                let totRev = 0, totCost = 0, totGross = 0, totExp = 0, totNet = 0, totBills = 0;
+                const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '');
+                mArr.forEach(m => {
+                    totRev += m.revenue;
+                    totCost += m.cost;
+                    totGross += m.grossProfit;
+                    totExp += m.expenses;
+                    totNet += m.netProfit;
+                    totBills += m.billCount;
+                    const isLoss = m.netProfit < 0;
+                    const nClr = isLoss ? 'var(--md-error)' : (m.netMarginPct < 5 ? '#d97706' : 'var(--md-success)');
+                    const nBg = isLoss ? 'rgba(186,26,26,0.12)' : (m.netMarginPct < 5 ? 'rgba(217,119,6,0.12)' : 'rgba(22,163,74,0.12)');
+                    const safeKey = String(m.key).replace(/'/g, "\\'");
+                    tableRowsHTML += `
+                    <tr class="tap-target" style="cursor:pointer;" onclick="app.openMonthlyPnlDetail('${safeKey}')">
+                        <td><strong>${esc(m.label)}</strong><br><small style="color:var(--md-text-muted);">${m.billCount} Bills • ${m.expCount} Exp</small></td>
+                        <td class="number-col">${formatMoney(m.revenue)}</td>
+                        <td class="number-col" style="color:var(--md-text-muted);">${formatMoney(m.cost)}</td>
+                        <td class="number-col" style="color:${m.grossProfit < 0 ? 'var(--md-error)' : 'var(--md-success)'};">${formatMoney(m.grossProfit)}</td>
+                        <td class="number-col" style="color:var(--md-error);">${formatMoney(m.expenses)}</td>
+                        <td class="number-col" style="color:${nClr};font-weight:800;">${isLoss ? '' : '+'}${formatMoney(m.netProfit)}</td>
+                        <td class="number-col"><span style="background:${nBg};color:${nClr};padding:2px 6px;border-radius:4px;font-weight:800;font-size:10px;">${m.netMarginPct.toFixed(1)}%</span></td>
+                    </tr>`;
+                });
+                const totGrossPct = totRev > 0 ? ((totGross / totRev) * 100).toFixed(1) : '0.0';
+                const totNetPct = totRev > 0 ? ((totNet / totRev) * 100).toFixed(1) : '0.0';
+                if (mArr.length > 0) {
+                    tableRowsHTML += `<tr class="total-row">
+                        <td style="text-align:right;">TOTAL (${mArr.length} ${mArr.length === 1 ? 'Month' : 'Months'}):</td>
+                        <td class="number-col">${formatMoney(totRev)}</td>
+                        <td class="number-col">${formatMoney(totCost)}</td>
+                        <td class="number-col" style="color:${totGross < 0 ? 'var(--md-error)' : 'var(--md-success)'};">${formatMoney(totGross)}</td>
+                        <td class="number-col" style="color:var(--md-error);">${formatMoney(totExp)}</td>
+                        <td class="number-col" style="color:${totNet < 0 ? 'var(--md-error)' : 'var(--md-success)'};">${totNet < 0 ? '' : '+'}${formatMoney(totNet)}</td>
+                        <td class="number-col">${totNetPct}%</td>
+                    </tr>`;
+                }
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Net Sales (${totBills} Bills)</div><div class="kpi-value">${formatMoney(totRev)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color:${totGross < 0 ? 'var(--md-error)' : 'var(--md-success)'};">Gross Profit (${totGrossPct}%)</div><div class="kpi-value" style="color:${totGross < 0 ? 'var(--md-error)' : 'var(--md-success)'};">${formatMoney(totGross)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color:var(--md-error);">Total Expenses</div><div class="kpi-value" style="color:var(--md-error);">${formatMoney(totExp)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color:${totNet < 0 ? 'var(--md-error)' : 'var(--md-success)'};">Net Profit (${totNetPct}%)</div><div class="kpi-value" style="color:${totNet < 0 ? 'var(--md-error)' : 'var(--md-success)'};">${totNet < 0 ? '' : '+'}${formatMoney(totNet)}</div></div>
+                `;
+            }
+            else if (reportType === 'customer_collection') {
+                tableHeaders = ['Rank', 'Customer (Tap for Details)', 'Avg Days', 'Billed', 'Collected', 'Due', 'Speed'];
+                const taxFilter = app.state.uniTaxFilter || 'all';
+                const sortMode = app.state.uniCollectionSort || 'days_desc';
+                const searchQ = (document.getElementById('uni-report-search')?.value || '').trim();
+                const allLedgers = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.ledgers) || [];
+                const ledgerMap = {};
+                allLedgers.forEach(l => { ledgerMap[String(l.id)] = l; });
+                const allSales = (await window.getAllRecords('sales', 'firmId', firmId) || []).filter(s => s.status !== 'Open' && s.status !== 'Cancelled');
+                const returnMap = {};
+                allSales.filter(s => s.documentType === 'return').forEach(r => {
+                    if (r.orderNo) returnMap[String(r.orderNo)] = (returnMap[String(r.orderNo)] || 0) + Math.abs(parseFloat(r.grandTotal) || 0);
+                });
+                const docs = allSales.filter(s => {
+                    if (s.documentType === 'return' || s.date < fromDate || s.date > toDate) return false;
+                    const isNonGst = s.invoiceType === 'Non-GST';
+                    if (taxFilter === 'gst' && isNonGst) return false;
+                    if (taxFilter === 'nongst' && !isNonGst) return false;
+                    return true;
+                });
+                const allReceipts = await window.getAllRecords('receipts', 'firmId', firmId) || [];
+                const payAmtMap = {};
+                const payDateMap = {};
+                const parseDt = (str) => (window.Utils && window.Utils.safeDate) ? window.Utils.safeDate(str) : new Date(str || Date.now());
+                allReceipts.forEach(r => {
+                    if (r.type === 'in' && r.invoiceRef) {
+                        const refs = String(r.invoiceRef).split(',').map(x => x.trim()).filter(Boolean);
+                        let rem = parseFloat(r.amount) || 0;
+                        const rTime = parseDt(r.date).getTime();
+                        refs.forEach(ref => {
+                            let apply = 0;
+                            if (r.allocationMap && r.allocationMap[ref] !== undefined) {
+                                apply = parseFloat(r.allocationMap[ref]) || 0;
+                                if (apply > 0) rem = Math.max(0, rem - apply);
+                            } else {
+                                const innerDoc = allSales.find(d => d.documentType !== 'return' && (String(d.id) === ref || String(d.invoiceNo) === ref || String(d.orderNo) === ref));
+                                const docTot = innerDoc ? Math.abs(parseFloat(innerDoc.grandTotal) || 0) : (rem / refs.length);
+                                apply = Math.min(docTot, rem);
+                                if (apply > 0) rem -= apply;
+                            }
+                            if (apply > 0) {
+                                const k = `${r.ledgerId}_${ref}`;
+                                payAmtMap[k] = (payAmtMap[k] || 0) + apply;
+                                if (!payDateMap[k] || rTime > payDateMap[k]) payDateMap[k] = rTime;
+                            }
+                        });
+                        if (rem > 0.01 && refs[0]) {
+                            const k = `${r.ledgerId}_${refs[0]}`;
+                            payAmtMap[k] = (payAmtMap[k] || 0) + rem;
+                            if (!payDateMap[k] || rTime > payDateMap[k]) payDateMap[k] = rTime;
+                        }
+                    }
+                });
+                const todayMs = Date.now();
+                const dayMs = 86400000;
+                const cMap = {};
+                docs.forEach(s => {
+                    const pId = String(s.customerId || s.customerName || 'unknown');
+                    const lObj = ledgerMap[String(s.customerId)] || {};
+                    const pName = s.customerName || lObj.name || 'Walk-in Customer';
+                    const isNonGst = s.invoiceType === 'Non-GST';
+                    const uniqueRefs = [...new Set([s.orderNo, s.invoiceNo, s.id].filter(Boolean).map(String))];
+                    const retAmt = uniqueRefs.reduce((sum, ref) => sum + (returnMap[ref] || 0), 0);
+                    const netAmt = Math.max(0, Math.abs(parseFloat(s.grandTotal) || 0) - retAmt);
+                    if (netAmt <= 0.01) return;
+                    const rawPaid = uniqueRefs.reduce((sum, ref) => sum + (payAmtMap[`${s.customerId}_${ref}`] || 0), 0);
+                    const paid = Math.min(netAmt, rawPaid);
+                    const due = Math.max(0, netAmt - paid);
+                    const billMs = parseDt(s.date).getTime();
+                    let lastPayMs = 0;
+                    uniqueRefs.forEach(ref => {
+                        const t = payDateMap[`${s.customerId}_${ref}`] || 0;
+                        if (t > lastPayMs) lastPayMs = t;
+                    });
+                    const isPaid = due <= 0.01;
+                    const isPartial = paid > 0.01 && due > 0.01;
+                    const refEndMs = isPaid ? (lastPayMs || billMs) : todayMs;
+                    const days = Math.max(0, Math.round((refEndMs - billMs) / dayMs));
+                    const isOverdue = !isPaid && (s.dueDate ? todayMs > parseDt(s.dueDate).getTime() : days > 30);
+                    if (!cMap[pId]) {
+                        cMap[pId] = {
+                            key: pId,
+                            name: pName,
+                            phone: lObj.phone || '',
+                            city: lObj.city || '',
+                            gst: lObj.gst || '',
+                            billedAmt: 0,
+                            collectedAmt: 0,
+                            dueAmt: 0,
+                            overdueAmt: 0,
+                            paidCount: 0,
+                            partialCount: 0,
+                            overdueCount: 0,
+                            totalDays: 0,
+                            billCount: 0,
+                            bills: []
+                        };
+                    }
+                    const rec = cMap[pId];
+                    rec.billedAmt += netAmt;
+                    rec.collectedAmt += paid;
+                    rec.dueAmt += due;
+                    if (isOverdue) { rec.overdueAmt += due; rec.overdueCount += 1; }
+                    if (isPaid) rec.paidCount += 1;
+                    else if (isPartial) rec.partialCount += 1;
+                    rec.totalDays += days;
+                    rec.billCount += 1;
+                    rec.bills.push({
+                        id: s.id,
+                        billNo: s.invoiceNo || s.orderNo || 'N/A',
+                        orderNo: s.orderNo || '',
+                        date: s.date || '',
+                        isNonGst,
+                        typeLabel: isNonGst ? 'Non-GST' : 'GST',
+                        netAmt,
+                        paid,
+                        due,
+                        days,
+                        isOverdue,
+                        statusLabel: isPaid ? 'Paid' : (isOverdue ? 'Overdue' : (isPartial ? 'Partial' : 'Open'))
+                    });
+                });
+                let cArr = Object.values(cMap).map(r => {
+                    r.avgDays = r.billCount > 0 ? Math.round(r.totalDays / r.billCount) : 0;
+                    r.collectionPct = r.billedAmt > 0 ? Math.min(100, (r.collectedAmt / r.billedAmt) * 100) : 100;
+                    if (r.avgDays <= 15 && r.overdueAmt <= 0.01) r.speedLabel = 'Fast';
+                    else if (r.avgDays <= 35 && r.overdueAmt <= r.billedAmt * 0.25) r.speedLabel = 'Moderate';
+                    else r.speedLabel = 'Slow';
+                    r.bills.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+                    return r;
+                }).filter(r => r.billCount > 0);
+                if (searchQ) {
+                    cArr = cArr.filter(r => {
+                        const hay = `${r.name} ${r.phone} ${r.city} ${r.gst} ${r.speedLabel}`;
+                        return window.fuzzyMatch ? window.fuzzyMatch(searchQ, hay) : hay.toLowerCase().includes(searchQ.toLowerCase());
+                    });
+                }
+                if (sortMode === 'overdue_desc') cArr.sort((a, b) => b.overdueAmt - a.overdueAmt || b.avgDays - a.avgDays);
+                else if (sortMode === 'due_desc') cArr.sort((a, b) => b.dueAmt - a.dueAmt || b.avgDays - a.avgDays);
+                else if (sortMode === 'days_asc') cArr.sort((a, b) => a.avgDays - b.avgDays || b.billedAmt - a.billedAmt);
+                else cArr.sort((a, b) => b.avgDays - a.avgDays || b.dueAmt - a.dueAmt);
+                app.state._customerCollectionData = { map: cMap, fromDate, toDate, taxFilter };
+                let totBilled = 0, totCollected = 0, totDue = 0, totOverdue = 0, totDaysSum = 0, totBills = 0;
+                const esc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '');
+                cArr.forEach((c, idx) => {
+                    totBilled += c.billedAmt;
+                    totCollected += c.collectedAmt;
+                    totDue += c.dueAmt;
+                    totOverdue += c.overdueAmt;
+                    totDaysSum += c.totalDays;
+                    totBills += c.billCount;
+                    const sClr = c.speedLabel === 'Fast' ? 'var(--md-success)' : (c.speedLabel === 'Moderate' ? '#d97706' : 'var(--md-error)');
+                    const sBg = c.speedLabel === 'Fast' ? 'rgba(22,163,74,0.12)' : (c.speedLabel === 'Moderate' ? 'rgba(217,119,6,0.12)' : 'rgba(186,26,26,0.12)');
+                    const safeKey = String(c.key).replace(/'/g, "\\'");
+                    const habits = [c.partialCount > 0 ? `${c.partialCount} Partial` : '', c.overdueCount > 0 ? `${c.overdueCount} Overdue` : ''].filter(Boolean).join(' • ');
+                    tableRowsHTML += `
+                    <tr class="tap-target" style="cursor:pointer;" onclick="app.openCollectionDetail('${safeKey}')">
+                        <td style="text-align:center;"><strong>#${idx + 1}</strong></td>
+                        <td><strong>${esc(c.name)}</strong>${habits ? `<br><small style="color:var(--md-error);">${esc(habits)}</small>` : (c.city ? `<br><small style="color:var(--md-text-muted);">${esc(c.city)}</small>` : '')}</td>
+                        <td class="number-col" style="font-weight:800;color:${sClr};">${c.avgDays}d</td>
+                        <td class="number-col">${formatMoney(c.billedAmt)}</td>
+                        <td class="number-col" style="color:var(--md-success);">${formatMoney(c.collectedAmt)}</td>
+                        <td class="number-col" style="color:${c.dueAmt > 0.01 ? 'var(--md-error)' : 'var(--md-success)'};font-weight:800;">${formatMoney(c.dueAmt)}</td>
+                        <td class="number-col"><span style="background:${sBg};color:${sClr};padding:2px 6px;border-radius:4px;font-weight:800;font-size:10px;">${c.speedLabel}</span></td>
+                    </tr>`;
+                });
+                const globalAvgDays = totBills > 0 ? Math.round(totDaysSum / totBills) : 0;
+                const globalColPct = totBilled > 0 ? Math.min(100, (totCollected / totBilled) * 100) : 100;
+                if (cArr.length > 0) {
+                    tableRowsHTML += `<tr class="total-row">
+                        <td colspan="2" style="text-align:right;">TOTAL (${cArr.length} ${cArr.length === 1 ? 'Customer' : 'Customers'}):</td>
+                        <td class="number-col">${globalAvgDays}d</td>
+                        <td class="number-col">${formatMoney(totBilled)}</td>
+                        <td class="number-col" style="color:var(--md-success);">${formatMoney(totCollected)}</td>
+                        <td class="number-col" style="color:${totDue > 0.01 ? 'var(--md-error)' : 'var(--md-success)'};">${formatMoney(totDue)}</td>
+                        <td class="number-col">${globalColPct.toFixed(0)}%</td>
+                    </tr>`;
+                }
+                const colClr = globalColPct >= 80 ? 'var(--md-success)' : (globalColPct >= 50 ? '#d97706' : 'var(--md-error)');
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Avg Pay Speed</div><div class="kpi-value">${globalAvgDays} Days</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color:${colClr};">Collection Rate</div><div class="kpi-value" style="color:${colClr};">${globalColPct.toFixed(1)}%</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color:var(--md-success);">Total Collected</div><div class="kpi-value" style="color:var(--md-success);">${formatMoney(totCollected)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color:${totOverdue > 0.01 ? 'var(--md-error)' : 'var(--md-success)'};">Overdue Balance</div><div class="kpi-value" style="color:${totOverdue > 0.01 ? 'var(--md-error)' : 'var(--md-success)'};">${formatMoney(totOverdue)}</div></div>
+                `;
+            }
+            else if (reportType === 'customer_profit') {
+                tableHeaders = ['Rank', 'Customer (Tap for Details)', 'Bills', 'Net Sales', 'Cost (COGS)', 'Net Profit', 'Margin %'];
+                const taxFilter = app.state.uniTaxFilter || 'all';
+                const sortMode = app.state.uniProfitSort || 'profit_desc';
+                const searchQ = (document.getElementById('uni-report-search')?.value || '').trim();
+                const allProducts = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.items) || [];
+                const allLedgers = (window.UI && UI.state && UI.state.rawData && UI.state.rawData.ledgers) || [];
+                const prodCostMap = {};
+                allProducts.forEach(p => { prodCostMap[String(p.id)] = Math.abs(parseFloat(p.buyPrice) || 0); });
+                const ledgerMap = {};
+                allLedgers.forEach(l => { ledgerMap[String(l.id)] = l; });
+                const docs = (await window.getAllRecords('sales', 'firmId', firmId) || []).filter(s => {
+                    if (s.status === 'Open' || s.status === 'Cancelled' || s.date < fromDate || s.date > toDate) return false;
+                    const isNonGst = s.invoiceType === 'Non-GST';
+                    if (taxFilter === 'gst' && isNonGst) return false;
+                    if (taxFilter === 'nongst' && !isNonGst) return false;
+                    return true;
+                });
+                const pMap = {};
+                docs.forEach(s => {
+                    const pId = String(s.customerId || s.customerName || 'unknown');
+                    const lObj = ledgerMap[String(s.customerId)] || {};
+                    const pName = s.customerName || lObj.name || 'Walk-in Customer';
+                    const isReturn = s.documentType === 'return';
+                    const mult = isReturn ? -1 : 1;
+                    let rawSubtotal = 0;
+                    (s.items || []).forEach(item => {
+                        rawSubtotal += Math.abs(parseFloat(item.qty) || 0) * Math.abs(parseFloat(item.rate) || 0);
+                    });
+                    let discountAmt = 0;
+                    if (s.discountType === '%') {
+                        discountAmt = Math.round((rawSubtotal * ((parseFloat(s.discount) || 0) / 100)) * 100) / 100;
+                    } else {
+                        discountAmt = parseFloat(s.discount) || 0;
+                    }
+                    if (rawSubtotal < 0 && discountAmt > 0) discountAmt = -discountAmt;
+                    if (Math.abs(discountAmt) > Math.abs(rawSubtotal)) discountAmt = rawSubtotal;
+                    const discountRatio = rawSubtotal !== 0 ? (Math.abs(discountAmt) / Math.abs(rawSubtotal)) : 0;
+                    if (!pMap[pId]) {
+                        pMap[pId] = {
+                            key: pId,
+                            name: pName,
+                            phone: lObj.phone || '',
+                            city: lObj.city || '',
+                            gst: s.customerGst || s.gstin || lObj.gst || '',
+                            count: 0,
+                            returns: 0,
+                            revenue: 0,
+                            cost: 0,
+                            profit: 0,
+                            bills: [],
+                            items: {}
+                        };
+                    }
+                    if (isReturn) pMap[pId].returns += 1;
+                    else pMap[pId].count += 1;
+                    let billRev = 0, billCost = 0;
+                    (s.items || []).forEach(item => {
+                        const qty = Math.abs(parseFloat(item.qty) || 0);
+                        const rate = Math.abs(parseFloat(item.rate) || 0);
+                        const buyPrice = (parseFloat(item.buyPrice) || prodCostMap[String(item.itemId)] || 0);
+                        const grossRev = qty * rate;
+                        const netRev = grossRev - (grossRev * discountRatio);
+                        const itemCost = qty * buyPrice;
+                        billRev += (netRev * mult);
+                        billCost += (itemCost * mult);
+                        const itKey = String(item.itemId || item.name || 'item');
+                        if (!pMap[pId].items[itKey]) {
+                            pMap[pId].items[itKey] = { name: item.name || 'Item', uom: item.uom || '', qty: 0, revenue: 0, cost: 0, profit: 0 };
+                        }
+                        pMap[pId].items[itKey].qty += (qty * mult);
+                        pMap[pId].items[itKey].revenue += (netRev * mult);
+                        pMap[pId].items[itKey].cost += (itemCost * mult);
+                        pMap[pId].items[itKey].profit += ((netRev - itemCost) * mult);
+                    });
+                    const billProfit = billRev - billCost;
+                    const billMargin = Math.abs(billRev) > 0.001 ? ((billProfit / Math.abs(billRev)) * 100) : 0;
+                    pMap[pId].revenue += billRev;
+                    pMap[pId].cost += billCost;
+                    pMap[pId].profit += billProfit;
+                    const isNonGst = s.invoiceType === 'Non-GST';
+                    pMap[pId].bills.push({
+                        id: s.id,
+                        date: s.date || '',
+                        billNo: s.invoiceNo || s.orderNo || 'Bill',
+                        orderNo: s.orderNo || '',
+                        isReturn: isReturn,
+                        isNonGst: isNonGst,
+                        typeLabel: isReturn ? 'RETURN' : (isNonGst ? 'NON-GST' : 'GST'),
+                        revenue: billRev,
+                        cost: billCost,
+                        profit: billProfit,
+                        marginPct: billMargin
+                    });
+                });
+                Object.values(pMap).forEach(c => {
+                    c.margin = c.revenue > 0 ? ((c.profit / c.revenue) * 100) : (c.profit < 0 ? -100 : 0);
+                    c.bills.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+                });
+                app.state._customerProfitData = { map: pMap, fromDate: fromDate, toDate: toDate, taxFilter: taxFilter };
+                let pArr = Object.values(pMap).filter(c => Math.abs(c.revenue) > 0.001 || Math.abs(c.profit) > 0.001);
+                if (searchQ) {
+                    pArr = pArr.filter(c => {
+                        const hay = `${c.name} ${c.phone} ${c.city} ${c.gst}`;
+                        return window.fuzzyMatch ? window.fuzzyMatch(searchQ, hay) : hay.toLowerCase().includes(searchQ.toLowerCase());
+                    });
+                }
+                if (sortMode === 'margin_desc') pArr.sort((a, b) => b.margin - a.margin || b.profit - a.profit);
+                else if (sortMode === 'margin_asc') pArr.sort((a, b) => a.margin - b.margin || a.profit - b.profit);
+                else if (sortMode === 'sales_desc') pArr.sort((a, b) => b.revenue - a.revenue);
+                else pArr.sort((a, b) => b.profit - a.profit);
+                let totRev = 0, totCost = 0, totProfit = 0, totBills = 0;
+                const safeEsc = (t) => (window.Utils && window.Utils.sanitizeHTML) ? window.Utils.sanitizeHTML(t) : String(t || '');
+                pArr.forEach((c, idx) => {
+                    totRev += c.revenue;
+                    totCost += c.cost;
+                    totProfit += c.profit;
+                    totBills += c.count;
+                    const isLoss = c.profit < 0;
+                    const mVal = c.revenue > 0 ? ((c.profit / c.revenue) * 100) : 0;
+                    const pColor = isLoss ? 'var(--md-error)' : (mVal < 5 ? '#d97706' : 'var(--md-success)');
+                    const pBg = isLoss ? 'rgba(186, 26, 26, 0.12)' : (mVal < 5 ? 'rgba(217, 119, 6, 0.12)' : 'rgba(22, 163, 74, 0.12)');
+                    const subInfo = [c.city, c.gst].filter(Boolean).join(' • ');
+                    const safeKey = String(c.key).replace(/'/g, "\\'");
+                    tableRowsHTML += `
+                    <tr class="tap-target cpd-click-row" onclick="app.openCustomerProfitDetail('${safeKey}')">
+                        <td style="text-align:center;"><strong>#${idx + 1}</strong></td>
+                        <td><strong>${safeEsc(c.name)}</strong>${subInfo ? `<br><span class="uni-gstin">${safeEsc(subInfo)}</span>` : ''}</td>
+                        <td style="text-align:center;">${c.count}${c.returns > 0 ? `<br><span class="uni-pill uni-pill-ret">${c.returns} Ret</span>` : ''}</td>
+                        <td class="number-col">${formatMoney(c.revenue)}</td>
+                        <td class="number-col">${formatMoney(c.cost)}</td>
+                        <td class="number-col"><strong style="color:${pColor};">${isLoss ? '' : '+'}${formatMoney(c.profit)}</strong></td>
+                        <td class="number-col"><span style="background:${pBg}; color:${pColor}; padding: 2px 6px; border-radius: 4px; font-weight: 800; font-size: 10px;">${mVal.toFixed(1)}%</span></td>
+                    </tr>`;
+                });
+                if (pArr.length > 0) {
+                    const totMargin = totRev > 0 ? ((totProfit / totRev) * 100).toFixed(1) : '0.0';
+                    const totColor = totProfit < 0 ? 'var(--md-error)' : 'var(--md-success)';
+                    tableRowsHTML += `
+                    <tr class="total-row">
+                        <td colspan="2">TOTAL (${pArr.length})</td>
+                        <td style="text-align:center;">${totBills}</td>
+                        <td class="number-col">${formatMoney(totRev)}</td>
+                        <td class="number-col">${formatMoney(totCost)}</td>
+                        <td class="number-col" style="color:${totColor};">${totProfit < 0 ? '' : '+'}${formatMoney(totProfit)}</td>
+                        <td class="number-col" style="color:${totColor};">${totMargin}%</td>
+                    </tr>`;
+                }
+                const overallMargin = totRev > 0 ? ((totProfit / totRev) * 100).toFixed(1) : '0.0';
+                const kpiColor = totProfit < 0 ? 'var(--md-error)' : 'var(--md-success)';
+                kpiCardsHTML = `
+                    <div class="kpi-box"><div class="kpi-label">Customers</div><div class="kpi-value">${pArr.length}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Net Sales</div><div class="kpi-value">${formatMoney(totRev)}</div></div>
+                    <div class="kpi-box"><div class="kpi-label">Avg Margin</div><div class="kpi-value" style="color:${kpiColor};">${overallMargin}%</div></div>
+                    <div class="kpi-box"><div class="kpi-label" style="color:${kpiColor};">Net Profit</div><div class="kpi-value" style="color:${kpiColor};">${formatMoney(totProfit)}</div></div>
                 `;
             }
             else if (reportType === 'receivables_aging' || reportType === 'payables_aging') {
@@ -9622,8 +11247,9 @@ if (data.id && splitConfirmed) {
                         const cleanLink = link.startsWith('sollo-') ? link.slice(-4).toUpperCase() : link;
                         return `<span style="display:inline-block; background: var(--md-surface-variant); color: var(--md-primary); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; margin: 1px 4px 1px 0;">🔗 ${cleanLink}</span>`;
                     }).join('');
+                    const safeJcExpId = String(e.id || '').replace(/'/g, "\\'");
                     tableRowsHTML += `
-                    <tr>
+                    <tr class="tap-target" style="cursor:pointer;" onclick="if(window.app) window.app.openForm('expense', '${safeJcExpId}')">
                         <td>${window.Utils.formatDateDisplay(e.date)}</td>
                         <td><strong>${e.expenseNo || String(e.id).slice(-6).toUpperCase()}</strong></td>
                         <td>${e.category} ${e.notes ? `<br><span style="font-size:10px; color:var(--md-text-muted);">${e.notes}</span>` : ''}</td>
@@ -9700,22 +11326,46 @@ if (data.id && splitConfirmed) {
                 tableHeaders = ['Date', 'Voucher No.', 'Party / Description', 'Account', 'Money In', 'Money Out'];
                 
                 const receipts = (await window.getAllRecords('receipts', 'firmId', firmId) || []).filter(r => r.date >= fromDate && r.date <= toDate);
+                const cbSales = await window.getAllRecords('sales', 'firmId', firmId) || [];
+                const cbPurch = await window.getAllRecords('purchases', 'firmId', firmId) || [];
+                const cbExpenses = await window.getAllRecords('expenses', 'firmId', firmId) || [];
                 receipts.sort((a,b) => window.Utils.safeDate(b.date) - window.Utils.safeDate(a.date));
-                
                 let tIn = 0, tOut = 0;
-                
                 receipts.forEach(r => {
                     const amt = parseFloat(r.amount) || 0;
                     const isIn = r.type === 'in';
                     if (isIn) tIn += amt; else tOut += amt;
-                    
-                    const docLabel = r.receiptNo || String(r.id).slice(-6).toUpperCase();
-                    
+                    const isExpRec = String(r.id || '').startsWith('exp-rec-') || r.ledgerId === 'internal-expense' || r.mode === 'Expense';
+                    const expObj = isExpRec ? cbExpenses.find(e => e.id === r.invoiceRef || String(r.id) === `exp-rec-${e.id}`) : null;
+                    const docLabel = (expObj && expObj.expenseNo) || r.receiptNo || String(r.id).slice(-6).toUpperCase();
+                    const rawLinkStr = expObj ? (expObj.linkedInvoice || '') : (isExpRec ? '' : (r.invoiceRef || r.linkedInvoice || ''));
+                    const rawRefs = String(rawLinkStr).split(',').map(x => x.trim()).filter(Boolean);
+                    const refBadges = rawRefs.map(ref => {
+                        const sDoc = cbSales.find(s => s.id === ref || s.invoiceNo === ref || s.orderNo === ref || (s.id && String(s.id).endsWith(ref)));
+                        if (sDoc) {
+                            const b = (sDoc.invoiceNo || '').trim();
+                            const o = (sDoc.orderNo || '').trim();
+                            return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || ref);
+                        }
+                        const pDoc = cbPurch.find(p => p.id === ref || p.poNo === ref || p.invoiceNo === ref || p.orderNo === ref || (p.id && String(p.id).endsWith(ref)));
+                        if (pDoc) {
+                            const b = (pDoc.invoiceNo || pDoc.poNo || '').trim();
+                            const o = (pDoc.orderNo || '').trim();
+                            return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || ref);
+                        }
+                        if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(ref)) return '';
+                        return ref.startsWith('sollo-') ? ref.slice(-4).toUpperCase() : ref;
+                    }).filter(Boolean).join(', ');
+                    const rowTitle = expObj ? (expObj.category || 'Internal Expense') : (r.ledgerName || 'General');
+                    const baseDesc = expObj ? (expObj.notes || expObj.paymentMode || '') : (r.desc || '');
+                    const descLine = [baseDesc, refBadges ? `Linked: ${refBadges}` : ''].filter(Boolean).join(' • ') || '-';
+                    const safeCbId = String(expObj ? expObj.id : r.id).replace(/'/g, "\\'");
+                    const cbClick = expObj ? `if(window.app) window.app.openForm('expense', '${safeCbId}')` : `if(window.app) window.app.openReceipt('${safeCbId}', '${isIn ? 'in' : 'out'}')`;
                     tableRowsHTML += `
-                    <tr>
+                    <tr class="tap-target" style="cursor:pointer;" onclick="${cbClick}">
                         <td>${window.Utils.formatDateDisplay(r.date)}</td>
                         <td><strong>${docLabel}</strong></td>
-                        <td><strong style="color: var(--md-on-surface);">${r.ledgerName || 'General'}</strong><br><span style="font-size: 10px; color: var(--md-text-muted);">${r.desc || '-'}</span></td>
+                        <td><strong style="color: var(--md-on-surface);">${rowTitle}</strong><br><span style="font-size: 10px; color: var(--md-text-muted);">${descLine}</span></td>
                         <td>${r.accountId === 'cash' || !r.accountId ? 'Cash Drawer' : (((UI.state.rawData.accounts || []).find(a => a.id === r.accountId) || {}).name || 'Bank / Digital')}</td>
                         <td class="number-col" style="color:var(--md-success); font-weight: bold;">${isIn ? formatMoney(amt) : '-'}</td>
                         <td class="number-col" style="color:var(--md-error); font-weight: bold;">${!isIn ? formatMoney(amt) : '-'}</td>
@@ -9742,8 +11392,18 @@ if (data.id && splitConfirmed) {
             // INJECT INTO MOBILE SCREEN
             // =====================================
             if (renderSeq !== app.state._uniRenderSeq) return;
-            document.getElementById('uni-report-thead').innerHTML = tableHeaders.map(th => `<th class="${th.includes('₹') || th.includes('Val') || th.includes('Amt') || th.includes('Total') || th.includes('Spend') || th.includes('Volume') || th.includes('CGST') || th.includes('SGST') || th.includes('ITC') || th.includes('Avg') || th.includes('Days') || th.includes('Money') ? 'number-col' : ''}">${th}</th>`).join('');
-            document.getElementById('uni-report-tbody').innerHTML = tableRowsHTML || `<tr><td colspan="${tableHeaders.length}" style="text-align:center; padding: 40px; color: var(--md-text-muted); font-weight: 600;">No records found for the selected period.</td></tr>`;
+            document.getElementById('uni-report-thead').innerHTML = tableHeaders.map(th => `<th class="${th.includes('₹') || th.includes('Val') || th.includes('Amt') || th.includes('Total') || th.includes('Spend') || th.includes('Volume') || th.includes('CGST') || th.includes('SGST') || th.includes('ITC') || th.includes('Avg') || th.includes('Days') || th.includes('Money') || th.includes('Sales') || th.includes('Cost') || th.includes('Profit') || th.includes('Margin') || th.includes('Paid') || th.includes('Payable') || th.includes('Billed') || th.includes('Collected') || th.includes('Due') || th.includes('Speed') || th.includes('COGS') || th.includes('Expenses') || th.includes('Net') ? 'number-col' : ''}">${th}</th>`).join('');
+            const tbodyEl = document.getElementById('uni-report-tbody');
+            tbodyEl.innerHTML = tableRowsHTML || `<tr><td colspan="${tableHeaders.length}" style="text-align:center; padding: 40px; color: var(--md-text-muted); font-weight: 600;">No records found for the selected period.</td></tr>`;
+            const genericSearchQ = (document.getElementById('uni-report-search')?.value || '').trim();
+            if (genericSearchQ && reportType !== 'sales_register' && reportType !== 'purchase_register' && reportType !== 'customer_profit' && reportType !== 'supplier_purchases' && reportType !== 'customer_collection' && reportType !== 'monthly_pnl') {
+                tbodyEl.querySelectorAll('tr:not(.total-row)').forEach(tr => {
+                    const txt = tr.textContent || '';
+                    const hit = window.fuzzyMatch ? window.fuzzyMatch(genericSearchQ, txt) : txt.toLowerCase().includes(genericSearchQ.toLowerCase());
+                    tr.style.display = hit ? '' : 'none';
+                });
+            }
+            if (app.updateUniversalFilterBadge) app.updateUniversalFilterBadge();
             const kpiContainer = document.getElementById('uni-report-kpis');
             if (kpiContainer) {
                 kpiContainer.style.cssText = 'display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; margin-bottom: 12px;';
@@ -9815,6 +11475,11 @@ if (data.id && splitConfirmed) {
                 .replace(/var\(--md-surface-variant\)/g, '#f1f5f9')
                 .replace(/var\(--md-on-surface\)/g, '#0f172a')
                 .replace(/var\(--md-text-muted\)/g, '#64748b')
+                .replace(/rgba\(\s*22\s*,\s*163\s*,\s*74\s*,[^)]+\)/gi, '#dcfce7')
+                .replace(/rgba\(\s*217\s*,\s*119\s*,\s*6\s*,[^)]+\)/gi, '#fef3c7')
+                .replace(/rgba\(\s*186\s*,\s*26\s*,\s*26\s*,[^)]+\)/gi, '#fee2e2')
+                .replace(/rgba\([^)]+\)/gi, '#f1f5f9')
+                .replace(/class="number-col"\s+style="/g, 'style="text-align: right; ')
                 .replace(/class="number-col"/g, 'style="text-align: right;"');
 
             let pdfTableContent;
@@ -9906,8 +11571,12 @@ if (data.id && splitConfirmed) {
             }
 
             pdfDocGenerator.getBlob(async (blob) => {
-                document.getElementById('pdf-status-text').innerText = "Share PDF or Download"; 
-                document.getElementById('pdf-status-text').style.color = '#64748b';
+                if (!document.getElementById('in-app-pdf-viewer')) return;
+                const statusEl = document.getElementById('pdf-status-text');
+                if (statusEl) {
+                    statusEl.innerText = "Share PDF or Download";
+                    statusEl.style.color = '#64748b';
+                }
 
                 const file = new File([blob], safeFilename, { type: 'application/pdf' });
 
@@ -10157,29 +11826,28 @@ window.executeAccountReport = async (accountId) => {
         let displayRefs = '';
         if (r.invoiceRef) {
             const refs = String(r.invoiceRef).split(',').map(x => x.trim());
+            const fmtS = (doc) => { const b = (doc.invoiceNo || '').trim(); const o = (doc.orderNo || '').trim(); return (b && o && b !== o) ? `${b} | Ord: ${o}` : (b || o || String(doc.id).slice(-4).toUpperCase()); };
+            const fmtP = (doc) => { const b = (doc.invoiceNo || doc.poNo || '').trim(); const o = (doc.orderNo || '').trim(); return (b && o && b !== o) ? `${b} | PO: ${o}` : (b || o || String(doc.id).slice(-4).toUpperCase()); };
             const names = refs.map(ref => {
                 const s = UI.state.rawData.sales.find(doc => doc.id === ref || doc.invoiceNo === ref || doc.orderNo === ref);
-                if (s) return s.orderNo || s.invoiceNo || String(s.id).slice(-4).toUpperCase();
-                
+                if (s) return fmtS(s);
                 const p = UI.state.rawData.purchases.find(doc => doc.id === ref || doc.invoiceNo === ref || doc.poNo === ref || doc.orderNo === ref);
-                if (p) return p.orderNo || p.poNo || p.invoiceNo || String(p.id).slice(-4).toUpperCase();
-                
+                if (p) return fmtP(p);
                 const e = UI.state.rawData.expenses.find(doc => doc.id === ref || doc.expenseNo === ref);
                 if (e) {
                     if (e.linkedInvoice) {
-                        const eLinks = String(e.linkedInvoice).split(',').map(x => x.trim());
+                        const eLinks = String(e.linkedInvoice).split(',').map(x => x.trim()).filter(Boolean);
                         const eNames = eLinks.map(el => {
                             const ls = UI.state.rawData.sales.find(doc => doc.id === el || doc.invoiceNo === el || doc.orderNo === el);
-                            if (ls) return ls.orderNo || ls.invoiceNo || String(ls.id).slice(-4).toUpperCase();
+                            if (ls) return fmtS(ls);
                             const lp = UI.state.rawData.purchases.find(doc => doc.id === el || doc.invoiceNo === el || doc.poNo === el || doc.orderNo === el);
-                            if (lp) return lp.orderNo || lp.poNo || lp.invoiceNo || String(lp.id).slice(-4).toUpperCase();
+                            if (lp) return fmtP(lp);
                             return el.startsWith('sollo-') ? el.slice(-4).toUpperCase() : el;
                         });
-                        return (e.expenseNo || String(e.id).slice(-4).toUpperCase()) + ' (🔗 ' + eNames.join(', ') + ')';
+                        return (e.expenseNo || String(e.id).slice(-4).toUpperCase()) + ' (Linked: ' + eNames.join(', ') + ')';
                     }
                     return e.expenseNo || String(e.id).slice(-4).toUpperCase();
                 }
-                
                 return ref.startsWith('sollo-') ? ref.slice(-4).toUpperCase() : ref;
             });
             displayRefs = [...new Set(names)].join(', ');
@@ -10357,41 +12025,36 @@ if (document.readyState === 'loading') {
    ========================================== */
 // Mathematically calculates if a word is a typo of another word (Max 2 mistakes)
 window.fuzzyMatch = function(searchQuery, targetText) {
-    if (!searchQuery) return true; // Empty search shows everything
-    if (!targetText) return false; // ENTERPRISE FIX: Prevent crashes if an SKU or Name is empty!
-    
-    // Remove spaces and make lowercase for easy comparison
-    const search = String(searchQuery).toLowerCase().replace(/\s+/g, '');
-    const target = String(targetText).toLowerCase().replace(/\s+/g, '');
-    
-    // 1. If it's a perfect match or a perfect partial match, instant win!
-    if (target.includes(search)) return true; 
-    
-    // 2. If the search is less than 3 letters, don't guess typos (too risky)
-    if (search.length < 3) return false; 
-    
-    // 3. Typo Tolerance Math (Allows up to 2 mistakes)
-    let mistakes = 0;
-    let s = 0, t = 0;
-    
-    while (s < search.length && t < target.length) {
-        if (search[s] === target[t]) {
-            s++; t++; // Letters match, move forward
-        } else {
-            mistakes++;
-            if (mistakes > 2) return false; // Too many mistakes, reject it
-            
-            // Guess what kind of typo the user made:
-            if (search[s + 1] === target[t]) {
-                s++; // User typed an extra letter (e.g. Sammsung)
-            } else if (search[s] === target[t + 1]) {
-                t++; // User missed a letter (e.g. Sasung)
-            } else {
-                s++; t++; // User typed the wrong letter (e.g. Samsing)
+    const rawQuery = String(searchQuery || '').trim().toLowerCase();
+    if (!rawQuery) return true;
+    if (!targetText) return false;
+    const rawTarget = String(targetText).toLowerCase();
+    const normTarget = rawTarget.replace(/[^a-z0-9]+/g, ' ').trim();
+    const compactTarget = normTarget.replace(/\s+/g, '');
+    const tokens = rawQuery.replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return rawTarget.includes(rawQuery);
+    const targetWords = normTarget ? normTarget.split(/\s+/) : [];
+    const oneEditApart = (a, b) => {
+        if (Math.abs(a.length - b.length) > 1) return false;
+        let i = 0, j = 0, edits = 0;
+        while (i < a.length && j < b.length) {
+            if (a[i] === b[j]) { i++; j++; }
+            else {
+                if (++edits > 1) return false;
+                if (a.length > b.length) i++;
+                else if (b.length > a.length) j++;
+                else { i++; j++; }
             }
         }
-    }
-    return true; // If it survives with 2 or fewer mistakes, it's a match!
+        return edits + (a.length - i) + (b.length - j) <= 1;
+    };
+    return tokens.every(tok => {
+        if (normTarget.includes(tok) || compactTarget.includes(tok)) return true;
+        if (tok.length >= 5) {
+            return targetWords.some(w => w.length >= 4 && oneEditApart(tok, w));
+        }
+        return false;
+    });
 };
 
 // ==========================================
@@ -10400,6 +12063,7 @@ window.fuzzyMatch = function(searchQuery, targetText) {
 document.addEventListener('input', (e) => {
     const sheet = e.target.closest('.bottom-sheet');
     if (e.target.tagName === 'INPUT' && sheet) {
+        if (['smart-search-input', 'search-products', 'search-linked-docs'].includes(e.target.id)) return;
         const isSearch = (e.target.placeholder || '').toLowerCase().includes('search') || (e.target.id || '').toLowerCase().includes('search');
         
         if (isSearch) {
@@ -10428,6 +12092,7 @@ document.addEventListener('input', (e) => {
     let startY = 0;
 
     document.addEventListener('touchstart', (e) => {
+        if (!window.UI || typeof window.UI.showContextMenu !== 'function') return;
         const target = e.target.closest('.m3-card.tap-target');
         if (!target) return;
         

@@ -407,7 +407,7 @@
                             let visibleCount = 0;
                             list.querySelectorAll('.report-btn').forEach(card => {
                                 const text = ((card.innerText || '') + ' ' + (card.getAttribute('title') || '') + ' ' + (card.getAttribute('subtitle') || '')).toLowerCase();
-                                const match = !q || text.includes(q);
+                                const match = !q || (window.fuzzyMatch ? window.fuzzyMatch(q, text) : text.includes(q));
                                 card.style.display = match ? '' : 'none';
                                 if (match) visibleCount++;
                             });
@@ -464,6 +464,11 @@
                             <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Cashbook Summary</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Total Money In vs Out</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="monthly_pnl">
+                            <div class="icon-circle" style="background: rgba(22, 163, 74, 0.12); color: #16a34a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">monitoring</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Monthly P&L & Margin Trend</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Sales, COGS, expenses & net profit by month</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
                         <div class="m3-card tap-target report-btn" data-action="bankledger">
                             <div class="icon-circle" style="background: rgba(0, 97, 164, 0.1); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">account_balance</span></div>
                             <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Bank / Cash Ledger</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Individual passbooks</small></div>
@@ -483,6 +488,16 @@
                         <div class="m3-card tap-target report-btn" data-action="universal" data-type="customer_sales">
                             <div class="icon-circle" style="background: rgba(20, 108, 46, 0.1); color: #146c2e; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">groups</span></div>
                             <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Customer-wise Sales</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by sales volume</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="customer_profit">
+                            <div class="icon-circle" style="background: rgba(22, 163, 74, 0.12); color: #16a34a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">leaderboard</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Customer-wise Profit & Margin</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by net profit & margin %</small></div>
+                            <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
+                        </div>
+                        <div class="m3-card tap-target report-btn" data-action="universal" data-type="customer_collection">
+                            <div class="icon-circle" style="background: rgba(0, 97, 164, 0.12); color: var(--md-primary); width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">speed</span></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Customer Payment Speed & Collection</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Avg days to pay, overdue & partial habits</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>
                         <div class="m3-card tap-target report-btn" data-action="itemprofit">
@@ -508,7 +523,7 @@
                         </div>
                         <div class="m3-card tap-target report-btn" data-action="universal" data-type="supplier_purchases">
                             <div class="icon-circle" style="background: rgba(106, 27, 154, 0.1); color: #6a1b9a; width: 40px; height: 40px;"><span class="material-symbols-outlined" style="font-size: 20px;">store</span></div>
-                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Supplier-wise Purchases</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Ranked by spend volume</small></div>
+                            <div style="flex: 1;"><strong style="font-size:15px; color: var(--md-on-surface);">Supplier-wise Purchase & Payable</strong><small style="display:block; color: var(--md-text-muted); margin-top: 2px;">Spend, returns, paid & payable drill-down</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>
                         <div class="m3-card tap-target report-btn" data-action="universal" data-type="item_purchases">
@@ -1325,7 +1340,7 @@ Data & Security</strong>
                 clearAnyStuckBlur();
                 setTimeout(() => {
                     lockScreen.style.display = 'none';
-                    if (window.UI && window.UI.chartInstance) window.UI.chartInstance.resize();
+                    if (window.UI && window.UI.safeResizeChart) window.UI.safeResizeChart();
                 }, 300);
             } else {
                 if (window.Utils) window.Utils.showToast('Incorrect PIN');
@@ -1346,7 +1361,7 @@ Data & Security</strong>
                 clearAnyStuckBlur();
                 setTimeout(() => {
                     lockScreen.style.display = 'none';
-                    if (window.UI && window.UI.chartInstance) window.UI.chartInstance.resize();
+                    if (window.UI && window.UI.safeResizeChart) window.UI.safeResizeChart();
                 }, 300);
             } else {
                 window.verifyAppLockPin();
@@ -4517,26 +4532,15 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Expense Leakage</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportExpenseReportPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            
-            <div style="display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;">
-                <button type="button" onclick="app.setReportDates('today'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
-                <button type="button" onclick="app.setReportDates('month'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Month</button>
-                <button type="button" onclick="app.setReportDates('year'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
+        <div class="activity-content" style="background-color: var(--md-background); padding: 0 16px 16px 16px; overflow-y: auto;">
+            <div class="search-bar ws-trans-search-bar ded-edge-searchbar">
+                <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                <input type="search" id="search-expense-report" enterkeyhint="search" placeholder="Search expense category..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="app.filterDedReportList('expense-report-list', this.value)">
+                <div id="exp-period-badge" class="ws-trans-sum-badge tap-target" onclick="app.openDedReportFilter('expense')">This Month</div>
+                <span id="exp-tune-btn" class="material-symbols-outlined tap-target ded-tune-btn" onclick="app.openDedReportFilter('expense')">tune</span>
             </div>
-
-            <div class="m3-card" style="margin-bottom: 20px; padding: 12px 16px;">
-                <div style="display: flex; gap: 12px;">
-                    <div style="flex: 1;">
-                        <label style="font-weight: 500; color: var(--md-on-surface); display: block; margin-bottom: 8px;">From Date:</label>
-                        <input type="date" id="expense-report-from" onchange="app.generateExpenseReport()" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                    <div style="flex: 1;">
-                        <label style="font-weight: 500; color: var(--md-on-surface); display: block; margin-bottom: 8px;">To Date:</label>
-                        <input type="date" id="expense-report-to" onchange="app.generateExpenseReport()" style="width: 100%; padding: 8px; border: 1px solid var(--md-outline-variant); border-radius: 4px; font-size: 16px; background: var(--md-surface); color: var(--md-on-surface); outline: none;">
-                    </div>
-                </div>
-            </div>
+            <input type="hidden" id="expense-report-from">
+            <input type="hidden" id="expense-report-to">
 
             <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
                 <span style="color: var(--md-error); font-weight: bold;">Total Expenses (Selected Dates)</span>
@@ -4554,9 +4558,12 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Auto Reorder List</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportReorderReportPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            
-            <div class="m3-card" style="background: rgba(245, 127, 23, 0.05); border: 1px solid rgba(245, 127, 23, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
+        <div class="activity-content" style="background-color: var(--md-background); padding: 0 16px 16px 16px; overflow-y: auto;">
+            <div class="search-bar ws-trans-search-bar ded-edge-searchbar">
+                <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                <input type="search" id="search-reorder-report" enterkeyhint="search" placeholder="Search item to reorder..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="app.filterDedReportList('reorder-report-list', this.value)">
+            </div>
+            <div class="m3-card" style="background: rgba(245, 127, 23, 0.05); border: 1px solid rgba(245, 127, 23, 0.3); padding: 16px; text-align: center; margin-top: 12px; margin-bottom: 16px;">
                 <span style="color: #f57f17; font-weight: bold;">Estimated Restock Cost</span>
                 <div id="reorder-report-total" style="font-size: 24px; font-weight: 900; color: #f57f17; margin-top: 4px;">&#8377;0.00</div>
                 <small style="color: #f57f17;">Cost to bring all items back to minimum stock</small>
@@ -4573,9 +4580,12 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Dead Stock Scanner</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportDeadStockPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-
-            <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
+        <div class="activity-content" style="background-color: var(--md-background); padding: 0 16px 16px 16px; overflow-y: auto;">
+            <div class="search-bar ws-trans-search-bar ded-edge-searchbar">
+                <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                <input type="search" id="search-dead-stock" enterkeyhint="search" placeholder="Search unsold item..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="app.filterDedReportList('dead-stock-list', this.value)">
+            </div>
+            <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-top: 12px; margin-bottom: 16px;">
                 <span style="color: var(--md-error); font-weight: bold;">Total Trapped Capital (90+ Days)</span>
                 <div id="dead-stock-total" style="font-size: 24px; font-weight: 900; color: var(--md-error); margin-top: 4px;">&#8377;0.00</div>
                 <small style="color: var(--md-text-muted);">Money locked in unsold inventory</small>
@@ -4593,9 +4603,12 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Profit Leakage Audit</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportProfitLeakagePDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-
-            <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-bottom: 16px;">
+        <div class="activity-content" style="background-color: var(--md-background); padding: 0 16px 16px 16px; overflow-y: auto;">
+            <div class="search-bar ws-trans-search-bar ded-edge-searchbar">
+                <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                <input type="search" id="search-profit-leakage" enterkeyhint="search" placeholder="Search item, customer or bill..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="app.filterDedReportList('profit-leakage-list', this.value)">
+            </div>
+            <div class="m3-card" style="background: rgba(186, 26, 26, 0.05); border: 1px solid rgba(186, 26, 26, 0.3); padding: 16px; text-align: center; margin-top: 12px; margin-bottom: 16px;">
                 <span style="color: var(--md-error); font-weight: bold;">Total Lost Revenue</span>
                 <div id="profit-leakage-total" style="font-size: 24px; font-weight: 900; color: var(--md-error); margin-top: 4px;">&#8377;0.00</div>
                 <small style="color: var(--md-text-muted);">Money lost by selling items below cost</small>
@@ -4613,25 +4626,15 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Item Profitability</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportItemProfitPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content ded-report-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            <div class="ded-quick-btns" style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;">
-                <button type="button" onclick="app.setReportDates('today'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
-                <button type="button" onclick="app.setReportDates('month'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Month</button>
-                <button type="button" onclick="app.setReportDates('year'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
+        <div class="activity-content ded-report-content" style="background-color: var(--md-background); padding: 0 16px 16px 16px; overflow-y: auto;">
+            <div class="search-bar ws-trans-search-bar ded-edge-searchbar">
+                <span class="material-symbols-outlined" style="color: var(--md-outline); margin-right: 4px;">search</span>
+                <input type="search" id="search-item-profit" enterkeyhint="search" placeholder="Search product..." autocomplete="off" autocorrect="off" spellcheck="false" oninput="app.filterDedReportList('item-profit-list', this.value)">
+                <div id="item-profit-period-badge" class="ws-trans-sum-badge tap-target" onclick="app.openDedReportFilter('itemprofit')">This Month</div>
+                <span id="item-profit-tune-btn" class="material-symbols-outlined tap-target ded-tune-btn" onclick="app.openDedReportFilter('itemprofit')">tune</span>
             </div>
-            <div class="m3-card ded-filter-bar">
-                <div class="ded-date-row">
-                    <div class="ded-date-field">
-                        <label for="item-profit-from">From</label>
-                        <input type="date" id="item-profit-from" onchange="app.generateItemProfitReport()">
-                    </div>
-                    <span class="ded-date-sep">to</span>
-                    <div class="ded-date-field">
-                        <label for="item-profit-to">To</label>
-                        <input type="date" id="item-profit-to" onchange="app.generateItemProfitReport()">
-                    </div>
-                </div>
-            </div>
+            <input type="hidden" id="item-profit-from">
+            <input type="hidden" id="item-profit-to">
             <div class="ded-kpi-strip">
                 <div class="ded-kpi-cell">
                     <div class="ded-kpi-label">Item Gross Profit (Selected Period)</div>
@@ -4648,33 +4651,16 @@ Data & Security</strong>
             <span style="font-size: 18px; font-weight: 600; letter-spacing: 0.5px;">Party-Wise Tax Report</span>
             <span class="material-symbols-outlined tap-target" onclick="if(window.app) window.app.exportPartyTaxPDF()" style="position: absolute; right: 16px; color: var(--md-primary); padding: 4px;">picture_as_pdf</span>
         </div>
-        <div class="activity-content ded-report-content" style="background-color: var(--md-background); padding: 16px; overflow-y: auto;">
-            <div class="ded-quick-btns" style="display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none;">
-                <button type="button" onclick="app.setReportDates('today'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">Today</button>
-                <button type="button" onclick="app.setReportDates('month'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-primary); color: white; font-size: 12px; font-weight: bold; box-shadow: 0 2px 6px rgba(0, 97, 164, 0.2);">This Month</button>
-                <button type="button" onclick="app.setReportDates('year'); window.setActiveFilterButton(this);" style="white-space: nowrap; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--md-primary); background: var(--md-surface); color: var(--md-primary); font-size: 12px; font-weight: bold;">This Year</button>
+        <div class="activity-content ded-report-content" style="background-color: var(--md-background); padding: 0 16px 16px 16px; overflow-y: auto;">
+            <div class="search-bar ws-trans-search-bar ded-edge-searchbar">
+                <span class="material-symbols-outlined tap-target" style="color: var(--md-outline); margin-right: 4px;" onclick="if(window.UI) UI.openSmartSearch('party', 'tax-report')">search</span>
+                <div id="tax-report-display" class="tap-target ded-party-search-trigger" onclick="if(window.UI) UI.openSmartSearch('party', 'tax-report')">Select Party...</div>
+                <input type="hidden" id="tax-report-id">
+                <div id="tax-report-period-badge" class="ws-trans-sum-badge tap-target" onclick="app.openDedReportFilter('partytax')">This Month</div>
+                <span id="tax-report-tune-btn" class="material-symbols-outlined tap-target ded-tune-btn" onclick="app.openDedReportFilter('partytax')">tune</span>
             </div>
-            <div class="m3-card ded-filter-bar">
-                <div class="ded-party-picker tap-target" onclick="if(window.UI) UI.openSmartSearch('party', 'tax-report')">
-                    <div>
-                        <small>Select Party</small>
-                        <div id="tax-report-display" class="large-text" style="color: var(--md-text-muted);">Select Party</div>
-                        <input type="hidden" id="tax-report-id">
-                    </div>
-                    <span class="material-symbols-outlined" style="color: var(--md-primary);">search</span>
-                </div>
-                <div class="ded-date-row">
-                    <div class="ded-date-field">
-                        <label for="tax-report-from">From</label>
-                        <input type="date" id="tax-report-from" onchange="app.generatePartyTaxReport()">
-                    </div>
-                    <span class="ded-date-sep">to</span>
-                    <div class="ded-date-field">
-                        <label for="tax-report-to">To</label>
-                        <input type="date" id="tax-report-to" onchange="app.generatePartyTaxReport()">
-                    </div>
-                </div>
-            </div>
+            <input type="hidden" id="tax-report-from">
+            <input type="hidden" id="tax-report-to">
             <div class="ded-section-title">Tax Summary</div>
             <div class="ded-table-card">
                 <div class="ded-scroll-wrap">
@@ -6504,10 +6490,13 @@ Data & Security</strong>
                     let html = '';
                     results.slice(0, 30).forEach(i => {
                         const safeName = (i.name || '').replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                        const rawGst = parseFloat(i.stockGst);
+                        const rawNon = parseFloat(i.stockNonGst);
+                        const totalStock = (isNaN(rawGst) && isNaN(rawNon)) ? (parseFloat(i.stock) || 0) : ((isNaN(rawGst) ? 0 : rawGst) + (isNaN(rawNon) ? 0 : rawNon));
                         html += `
                         <div class="tap-target" onclick="window.UI.closeBottomSheet('sheet-smart-search'); window.triggerItemLedgerFromForm('${i.id}', '${safeName}');" style="padding: 16px; border-bottom: 1px solid var(--md-surface-variant); display: flex; align-items: center; gap: 16px; cursor: pointer;">
                             <div class="icon-circle" style="width: 40px; height: 40px; background: rgba(106, 27, 154, 0.1); color: #6a1b9a;"><span class="material-symbols-outlined" style="font-size: 20px;">inventory_2</span></div>
-                            <div style="flex:1; min-width:0;"><strong style="display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${window.UI.highlightText(i.name, query)}</strong><small style="color: var(--md-text-muted);">Stock: ${i.stock} ${i.uom || ''}</small></div>
+                            <div style="flex:1; min-width:0;"><strong style="display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${window.UI.highlightText(i.name, query)}</strong><small style="color: var(--md-text-muted);">Stock: ${totalStock} ${i.uom || ''}</small></div>
                             <span class="material-symbols-outlined" style="color: var(--md-outline-variant);">chevron_right</span>
                         </div>`;
                     });
@@ -6721,7 +6710,8 @@ Data & Security</strong>
 
         let filtered = fullTimeline.filter(t => {
             // 1. Check Search (Ref & Desc)
-            if (searchText && !String(t.ref || '').toLowerCase().includes(searchText) && !String(t.desc || '').toLowerCase().includes(searchText)) return false;
+            const advSearchStr = `${t.ref || ''} ${t.desc || ''}`;
+            if (searchText && !(window.fuzzyMatch ? window.fuzzyMatch(searchText, advSearchStr) : advSearchStr.toLowerCase().includes(searchText))) return false;
             
             // 2. Check Type
             if (typeFilter === 'IN' && t.impact <= 0) return false;

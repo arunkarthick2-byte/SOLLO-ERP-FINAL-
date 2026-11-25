@@ -646,10 +646,16 @@ const UI = {
                     mainContainer.scrollTop = (tabId === 'tab-dashboard' && typeof window._savedDashScroll === 'number') ? window._savedDashScroll : 0;
                     if (tabId === 'tab-dashboard') window._savedDashScroll = null;
                 }
+                if (tabId === 'tab-dashboard' && UI.safeResizeChart) {
+                    requestAnimationFrame(() => UI.safeResizeChart());
+                }
             });
         } else {
             doSwitch();
-            if (tabId === 'tab-dashboard') window._savedDashScroll = null;
+            if (tabId === 'tab-dashboard') {
+                window._savedDashScroll = null;
+                if (UI.safeResizeChart) requestAnimationFrame(() => UI.safeResizeChart());
+            }
         }
     },
 
@@ -665,7 +671,7 @@ const UI = {
 
         const applyOpen = () => {
             let highestZ = 4000;
-            document.querySelectorAll('.activity-screen.open, .bottom-sheet.open').forEach(el => {
+            document.querySelectorAll('.activity-screen.open, .bottom-sheet.open, #sheet-party-due-aging').forEach(el => {
                 const z = parseInt(window.getComputedStyle(el).zIndex, 10);
                 if (!isNaN(z) && z > highestZ) highestZ = z;
             });
@@ -709,7 +715,7 @@ const UI = {
                 
                 // 3. Instantly snap the screen open for the "After" snapshot
                 let highestZ = 4000;
-                document.querySelectorAll('.activity-screen.open, .bottom-sheet.open').forEach(el => {
+                document.querySelectorAll('.activity-screen.open, .bottom-sheet.open, #sheet-party-due-aging').forEach(el => {
                     const z = parseInt(window.getComputedStyle(el).zIndex, 10);
                     if (!isNaN(z) && z > highestZ) highestZ = z;
                 });
@@ -843,6 +849,11 @@ const UI = {
                 
                 if (activityId === 'activity-sales-form' || activityId === 'activity-purchase-form') {
                     UI.state.activeActivity = null;
+                    window.salesObservableItems = null;
+                    window.purchaseObservableItems = null;
+                }
+                if ((activityId === 'activity-payment-in-form' || activityId === 'activity-payment-out-form') && window.app && window.app.state) {
+                    window.app.state.currentReceiptId = null;
                 }
             });
             
@@ -1620,10 +1631,8 @@ const UI = {
                 // 🚨 ENTERPRISE FIX: Apply Dashboard Date Filter if Active!
                 if (!isDateInRange(s.date)) return false;
 
-                // 🚀 O(1) ULTRA-FAST INDEXER: Pre-built Search Strings completely eliminate layout thrashing!
-                if (s._searchIndex === undefined) s._searchIndex = `${s.customerName || ''} ${s.invoiceNo || ''} ${s.orderNo || ''} ${s.id || ''}`.toLowerCase();
-                const searchWords = searchTerm.trim().split(/\s+/);
-                const matchSearch = !searchTerm || searchWords.every(word => s._searchIndex.includes(word) || (window.fuzzyMatch && window.fuzzyMatch(word, s._searchIndex)));
+                const saleSearchText = `${s.customerName || ''} ${s.invoiceNo || ''} ${s.orderNo || ''} ${s.grandTotal || ''} ${s.id || ''}`;
+                const matchSearch = !searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, saleSearchText) : saleSearchText.toLowerCase().includes(searchTerm));
                 let matchFilter = true;
                 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -1828,10 +1837,8 @@ const UI = {
                 // 🚨 ENTERPRISE FIX: Apply Dashboard Date Filter if Active!
                 if (!isDateInRange(p.date)) return false;
 
-                // 🚀 O(1) ULTRA-FAST INDEXER: Pre-built Search Strings completely eliminate layout thrashing!
-                if (p._searchIndex === undefined) p._searchIndex = `${p.supplierName || ''} ${p.invoiceNo || ''} ${p.poNo || ''} ${p.orderNo || ''}`.toLowerCase();
-                const searchWords = searchTerm.trim().split(/\s+/);
-                const matchSearch = !searchTerm || searchWords.every(word => p._searchIndex.includes(word) || (window.fuzzyMatch && window.fuzzyMatch(word, p._searchIndex)));
+                const purchSearchText = `${p.supplierName || ''} ${p.invoiceNo || ''} ${p.poNo || ''} ${p.orderNo || ''} ${p.grandTotal || ''}`;
+                const matchSearch = !searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, purchSearchText) : purchSearchText.toLowerCase().includes(searchTerm));
                 let matchFilter = true;
 
                 // FIX: Check ALL references to catch cross-linked payments, and respect FIFO completion!
@@ -2089,11 +2096,8 @@ const UI = {
 
             if (activeTab === 'products') {
                 data = UI.state.rawData.items.filter(i => {
-                    // 🚀 O(1) ULTRA-FAST INDEXER: Native cached strings bypass CPU-heavy fuzzy math!
-                    if (i._searchIndex === undefined) i._searchIndex = `${i.name || ''} ${i.sku || ''}`.toLowerCase();
-                    const searchWords = searchTerm.trim().split(/\s+/);
-                    // 🚀 HYBRID ENGINE: Fast exact match first, fallback to typo-tolerant fuzzy match!
-                    const matchSearch = !searchTerm || searchWords.every(word => i._searchIndex.includes(word) || (window.fuzzyMatch && window.fuzzyMatch(word, i._searchIndex)));
+                    const itemSearchText = `${i.name || ''} ${i.sku || ''} ${i.hsn || ''}`;
+                    const matchSearch = !searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, itemSearchText) : itemSearchText.toLowerCase().includes(searchTerm));
                     let matchFilter = true;
                     
                     // Bulletproof Math
@@ -2195,10 +2199,8 @@ const UI = {
 
                 data = UI.state.rawData.ledgers.filter(l => {
                     const safeType = String(l.type).toLowerCase();
-                    // 🚀 O(1) ULTRA-FAST INDEXER: Memory-cached search strings!
-                    if (l._searchIndex === undefined) l._searchIndex = `${l.name || ''} ${l.phone || ''}`.toLowerCase();
-                    const searchWords = searchTerm.trim().split(/\s+/);
-                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && (!searchTerm || searchWords.every(word => l._searchIndex.includes(word) || (window.fuzzyMatch && window.fuzzyMatch(word, l._searchIndex))));
+                    const partySearchText = `${l.name || ''} ${l.phone || ''} ${l.city || ''} ${l.gst || ''}`;
+                    const matchSearch = (typeFilter === 'all' || safeType === typeFilter) && (!searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, partySearchText) : partySearchText.toLowerCase().includes(searchTerm)));
                     let matchFilter = true;
                     const bal = getBal(l.id, l.type);
 
@@ -2324,7 +2326,8 @@ const UI = {
             else if (activeTab === 'pay-in' || activeTab === 'pay-out') {
                 const targetType = activeTab === 'pay-in' ? 'in' : 'out';
                 data = UI.state.rawData.cashbook.filter(c => {
-                    const matchSearch = c.type === targetType && ((c.desc || '').toLowerCase().includes(searchTerm));
+                    const paySearchText = `${c.desc || ''} ${c.ledgerName || ''} ${c.mode || ''} ${c.receiptNo || ''} ${c.amount || ''}`;
+                    const matchSearch = c.type === targetType && (!searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, paySearchText) : paySearchText.toLowerCase().includes(searchTerm)));
                     let matchFilter = true;
                     if (activeMasterFilter === 'Cash') matchFilter = (c.mode || '').toLowerCase() === 'cash';
                     if (activeMasterFilter === 'Bank') matchFilter = (c.mode || '').toLowerCase() !== 'cash';
@@ -2345,7 +2348,10 @@ const UI = {
             }
             else if (activeTab === 'trash') {
                 const trashData = UI.state.rawData.trash || [];
-                data = trashData.filter(t => (t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.customerName || t.supplierName || t.category || t.amount || '').toString().toLowerCase().includes(searchTerm));
+                data = trashData.filter(t => {
+                    const trashText = `${t.name || ''} ${t.desc || ''} ${t.invoiceNo || ''} ${t.poNo || ''} ${t.expenseNo || ''} ${t.customerName || ''} ${t.supplierName || ''} ${t.category || ''} ${t.amount || ''}`;
+                    return !searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, trashText) : trashText.toLowerCase().includes(searchTerm));
+                });
                 
                 UI.renderVirtualList(container, data, (t) => {
                     const displayTitle = t.name || t.desc || t.invoiceNo || t.poNo || t.expenseNo || t.category || 'Deleted Item';
@@ -2357,9 +2363,8 @@ const UI = {
                 const products = (UI.state.rawData.items || []).filter(p => !activeFirmIdForMaster || p.firmId === activeFirmIdForMaster);
                 data = adjList.filter(adj => {
                     const prod = products.find(p => p.id === adj.itemId);
-                    const prodName = (prod ? prod.name : '').toLowerCase();
-                    const notesStr = (adj.notes || '').toLowerCase();
-                    return !searchTerm || prodName.includes(searchTerm) || notesStr.includes(searchTerm);
+                    const adjSearchText = `${prod ? prod.name : ''} ${adj.notes || ''} ${adj.reason || ''}`;
+                    return !searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, adjSearchText) : adjSearchText.toLowerCase().includes(searchTerm));
                 });
                 data.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
                 UI.renderVirtualList(container, data, (adj) => {
@@ -2416,7 +2421,8 @@ const UI = {
             const eEnd = eEndEl ? eEndEl.value : '';
 
             data = UI.state.rawData.expenses.filter(e => {
-                const matchSearch = (e.category || '').toLowerCase().includes(searchTerm) || (e.notes || '').toLowerCase().includes(searchTerm);
+                const expSearchText = `${e.category || ''} ${e.notes || ''} ${e.mode || ''} ${e.expenseNo || ''} ${e.amount || ''}`;
+                const matchSearch = !searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, expSearchText) : expSearchText.toLowerCase().includes(searchTerm));
                 let matchFilter = true;
                 if (activeFilter !== 'All') matchFilter = e.category === activeFilter;
                 
@@ -2551,11 +2557,8 @@ const UI = {
             };
 
             data = UI.state.rawData.cashbook.filter(c => {
-                const matchSearch = (c.desc || '').toLowerCase().includes(searchTerm) || 
-                                    (c.mode || '').toLowerCase().includes(searchTerm) ||
-                                    (c.ledgerName || '').toLowerCase().includes(searchTerm) ||
-                                    (c.receiptNo || '').toLowerCase().includes(searchTerm) ||
-                                    String(c.amount).includes(searchTerm);
+                const cbSearchText = `${c.desc || ''} ${c.mode || ''} ${c.ledgerName || ''} ${c.receiptNo || ''} ${c.amount || ''}`;
+                const matchSearch = !searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, cbSearchText) : cbSearchText.toLowerCase().includes(searchTerm));
                 let matchFilter = true;
                 
                 const safeMode = String(c.mode || '').toLowerCase();
@@ -2752,7 +2755,8 @@ const UI = {
             data = UI.state.rawData.timeline.filter(t => {
                 const descStr = t.desc || (t.type === 'IN' ? 'Sale / Receipt' : (t.type === 'OUT' ? 'Purchase / Payment' : ''));
                 // STRICT ERP LOGIC: Allow accountants to instantly search the global timeline by exact Transaction Amount or Balance!
-                const matchSearch = descStr.toLowerCase().includes(searchTerm) || String(t.amount || 0).includes(searchTerm) || String(t.runningBalance || 0).includes(searchTerm);
+                const tlSearchText = `${descStr} ${t.amount || 0} ${t.runningBalance || 0}`;
+                const matchSearch = !searchTerm || (window.fuzzyMatch ? window.fuzzyMatch(searchTerm, tlSearchText) : tlSearchText.toLowerCase().includes(searchTerm));
                 let matchFilter = true;
                 let matchDate = true;
 
@@ -3457,10 +3461,13 @@ const UI = {
                     const diffDays = Math.floor((todayDate - invoiceDate) / (1000 * 60 * 60 * 24));
                     const customer = window.UI.state.rawData.ledgers.find(l => l.id === s.customerId);
                     const phone = customer ? customer.phone : '';
+                    const ovBill = (s.invoiceNo || '').trim();
+                    const ovOrd = (s.orderNo || '').trim();
+                    const ovDocNo = (ovBill && ovOrd && ovBill !== ovOrd) ? `${ovBill} • Ord: ${ovOrd}` : (ovBill || ovOrd || 'Draft');
                     return {
                         id: s.id,
                         customerName: s.customerName || 'Unknown Party',
-                        docNo: s.orderNo || s.invoiceNo || 'Draft',
+                        docNo: ovDocNo,
                         date: s.date || '',
                         dateDisplay: (window.Utils && window.Utils.formatDateDisplay ? window.Utils.formatDateDisplay(s.date) : s.date) || 'Unknown Date',
                         diffDays,
@@ -3528,11 +3535,19 @@ const UI = {
                 Chart.register(...Chart.registerables);
             }
 
+            const container = canvas.parentElement;
+            const cWidth = container ? container.clientWidth : 0;
+            const cHeight = container ? container.clientHeight : 0;
+            if (cWidth < 50 || cHeight < 50) {
+                UI._pendingChartData = [salesAmt, purchaseAmt, expenseAmt];
+                return;
+            }
+            UI._pendingChartData = null;
             const isDarkNow = document.body.classList.contains('dark-mode');
             if (UI.chartInstance && UI.chartInstance.canvas === canvas && UI._chartDarkMode === isDarkNow) {
                 UI.chartInstance.data.datasets[0].data = [salesAmt, purchaseAmt, expenseAmt];
                 UI.chartInstance.update('none');
-                UI.chartInstance.resize();
+                UI.chartInstance.resize(cWidth, cHeight);
                 return;
             }
             const ctx = canvas.getContext('2d');
@@ -3543,8 +3558,8 @@ const UI = {
             UI._chartDarkMode = isDarkNow;
             canvas.removeAttribute('width');
             canvas.removeAttribute('height');
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
+            canvas.style.width = '';
+            canvas.style.height = '';
 
             // 🚨 ENTERPRISE UPGRADE: Detect active theme for the Chart!
             const isDark = document.body.classList.contains('dark-mode');
@@ -3625,13 +3640,29 @@ const UI = {
                 }
             });
             requestAnimationFrame(() => {
-                if (UI.chartInstance) UI.chartInstance.resize();
+                if (UI.safeResizeChart) UI.safeResizeChart();
             });
             setTimeout(() => {
-                if (UI.chartInstance) UI.chartInstance.resize();
+                if (UI.safeResizeChart) UI.safeResizeChart();
             }, 250);
         } catch (error) {
             console.error("Chart Rendering Error:", error);
+        }
+    },
+    safeResizeChart: () => {
+        const canvas = document.getElementById('dashboard-chart');
+        const container = canvas ? canvas.parentElement : null;
+        if (!canvas || !container) return;
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        if (w < 50 || h < 50) return;
+        if (UI._pendingChartData) {
+            const [s, p, e] = UI._pendingChartData;
+            UI.updateChart(s, p, e);
+            return;
+        }
+        if (UI.chartInstance) {
+            UI.chartInstance.resize(w, h);
         }
     },
     // ==========================================
@@ -3652,7 +3683,7 @@ const UI = {
         if (sheet) {
             // ENTERPRISE UPGRADE: Z-Index Auto-Incrementer for Stacked Sheets!
             let highestZ = 5100; // Base sheet level
-            document.querySelectorAll('.bottom-sheet.open, .activity-screen.open').forEach(el => {
+            document.querySelectorAll('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging').forEach(el => {
                 const z = parseInt(window.getComputedStyle(el).zIndex, 10);
                 if (!isNaN(z) && z > highestZ) highestZ = z;
             });
@@ -3799,8 +3830,8 @@ const UI = {
 
         if (remainingSheets.length === 0 && overlay) {
             overlay.classList.remove('open');
-            UI.resetStatusBarColor(); 
-            UI.awaitAnim(overlay, 350).then(() => { overlay.style.zIndex = ''; });
+            UI.resetStatusBarColor();
+            UI.awaitAnim(overlay, 350).then(() => { if (!overlay.classList.contains('open')) overlay.style.zIndex = ''; });
         } else if (remainingSheets.length > 0 && overlay) {
             let highestZ = 5100;
             remainingSheets.forEach(el => {
@@ -3951,7 +3982,7 @@ const UI = {
                 const safeType = String(l.type).toLowerCase();
                 if (isCust && safeType !== 'customer') return false;
                 if (isSupp && safeType !== 'supplier') return false;
-                return window.fuzzyMatch(query, l.name);
+                return window.fuzzyMatch(query, `${l.name || ''} ${l.phone || ''} ${l.city || ''} ${l.gst || ''}`);
             });
             
             const emptyHTML = `
@@ -4304,7 +4335,7 @@ const UI = {
 
     closeAllBottomSheets: () => {
         let closedSomething = false;
-        document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket):not(#sheet-bs-breakdown)').forEach(sheet => {
+        document.querySelectorAll('.bottom-sheet.open:not(#sheet-aging-bucket):not(#sheet-fulfillment-bucket):not(#sheet-overdue-bucket):not(#sheet-bs-breakdown):not(#sheet-pnl-subdetail):not([data-keep-open="true"])').forEach(sheet => {
             sheet.classList.remove('open');
             setTimeout(() => sheet.classList.add('hidden'), 300);
             closedSomething = true;
@@ -4312,8 +4343,8 @@ const UI = {
         document.getElementById('bank-ledger-overlay')?.remove();
         document.getElementById('khata-overlay')?.remove();
         const overlay = document.getElementById('sheet-overlay');
-        const bsOpen = document.querySelector('#sheet-bs-breakdown.open');
-        if (overlay && overlay.classList.contains('open') && !bsOpen) {
+        const keptSheets = Array.from(document.querySelectorAll('#sheet-bs-breakdown.open, #sheet-pnl-subdetail.open, .bottom-sheet.open[data-keep-open="true"]'));
+        if (overlay && overlay.classList.contains('open') && keptSheets.length === 0) {
             overlay.classList.remove('open');
             setTimeout(() => {
                 // STRICT ERP LOGIC: Re-check dynamically so rapid tapping doesn't break the background!
@@ -4324,9 +4355,13 @@ const UI = {
                 }
             }, 300);
             closedSomething = true;
-        } else if (overlay && bsOpen) {
-            const bsZ = parseInt(window.getComputedStyle(bsOpen).zIndex, 10) || 5110;
-            overlay.style.zIndex = bsZ - 5;
+        } else if (overlay && keptSheets.length > 0) {
+            let maxKeptZ = 5110;
+            keptSheets.forEach(el => {
+                const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+                if (!isNaN(z) && z > maxKeptZ) maxKeptZ = z;
+            });
+            overlay.style.zIndex = maxKeptZ - 5;
         }
         
         // ENTERPRISE FIX: Removed manual history pop! index.html handles this automatically.
@@ -5887,8 +5922,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     ['sales', 'purchases', 'expenses', 'cashbook', 'timeline'].forEach(tab => {
         const searchInput = document.getElementById(`search-${tab}`);
-        // UPGRADE: 300ms Debounce prevents keyboard lag when typing fast
-        if(searchInput) searchInput.addEventListener('input', window.Utils.debounce(() => UI.applyFilters(tab), 300));
+        // UPGRADE: 120ms Debounce keeps search crisp and responsive while typing
+        if(searchInput) searchInput.addEventListener('input', window.Utils.debounce(() => UI.applyFilters(tab), 120));
         
         // FIX: Bind the Sort dropdowns so they actually update the lists!
         const sortSelect = document.getElementById(`sort-${tab}`);
@@ -5897,8 +5932,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Master View Hook
     const searchMasterView = document.getElementById('search-master-view');
-    // UPGRADE: 300ms Debounce for the massive Master List
-    if(searchMasterView) searchMasterView.addEventListener('input', window.Utils.debounce(() => UI.applyFilters('masters'), 300));
+    // UPGRADE: 120ms Debounce for crisp Master List search
+    if(searchMasterView) searchMasterView.addEventListener('input', window.Utils.debounce(() => UI.applyFilters('masters'), 120));
 
     // FIX: Bind the Filter and Sort dropdowns for the Master Views!
     const filterMasterView = document.getElementById('filter-master-view');
@@ -5979,7 +6014,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     li.style.display = window.fuzzyMatch(term, li.innerText) ? '' : 'none';
                 });
             }
-        }, 300)); 
+        }, 120));
     });
 
     // (Swipe Gesture Engine Removed to prevent accidental deletions)
@@ -6226,6 +6261,7 @@ const closeTopmostView = () => {
                 const ov = document.getElementById(ovId);
                 if (ov) ov.remove();
                 topLayer.remove();
+                if (!document.querySelector('.bottom-sheet.open, .activity-screen.open, #sheet-party-due-aging')) document.body.style.overflow = '';
             } else if (window.UI) {
                 window.UI.closeBottomSheet(topLayer.id);
             }
@@ -6264,6 +6300,9 @@ document.addEventListener('click', (e) => {
             action.includes('openNetProfitModal') || action.includes('openPartyDueAgingModal') || action.includes('downloadStatementPDF') ||
             action.includes('generatePDF') || action.includes('generateReceiptPDF') || action.includes('generateExpenseVoucherPDF') ||
             action.includes('executeExpenseLedgerPDF') || action.includes('executeItemLedgerReport') || action.includes('exportUniversalReportPDF') ||
+            action.includes('openCustomerProfitDetail') || action.includes('openSupplierPayableDetail') || action.includes('openCollectionDetail') ||
+            action.includes('openMonthlyPnlDetail') || action.includes('openMonthlyPnlSubDetail') || action.includes('exportCpdDetailPDF') ||
+            action.includes('exportPnlSubDetailPDF') || action.includes('openUniversalFilterSheet') || action.includes('openDedReportFilter') ||
             action.includes('processPDFExport')) {
             shouldPush = true;
         }
@@ -6275,6 +6314,60 @@ document.addEventListener('click', (e) => {
         window.history.pushState({ internalRoute: true }, '');
     }
 });
+(function initBackToTop() {
+    let activeScroller = null;
+    let hideTimer = null;
+    const getBtn = () => {
+        let b = document.getElementById('sollo-back-to-top');
+        if (!b) {
+            b = document.createElement('button');
+            b.id = 'sollo-back-to-top';
+            b.type = 'button';
+            b.className = 'tap-target';
+            b.setAttribute('aria-label', 'Back to top');
+            b.innerHTML = '<span class="material-symbols-outlined" style="font-size:22px;font-weight:700;">arrow_upward</span>';
+            b.onclick = (ev) => {
+                ev.stopPropagation();
+                if (activeScroller) activeScroller.scrollTo({ top: 0, behavior: 'smooth' });
+                b.classList.remove('visible');
+            };
+            document.body.appendChild(b);
+        }
+        return b;
+    };
+    document.addEventListener('scroll', (e) => {
+        const el = e.target;
+        if (!el || el === document || el === window) return;
+        if (el.closest && (el.closest('#in-app-pdf-viewer') || el.closest('#custom-numpad') || el.closest('#app-lock-screen'))) return;
+        const btn = getBtn();
+        if (el.scrollTop > 320) {
+            activeScroller = el;
+            const hostLayer = el.closest('.activity-screen, .bottom-sheet, #sheet-party-due-aging');
+            const hostZ = hostLayer ? (parseInt(window.getComputedStyle(hostLayer).zIndex, 10) || 4500) : 4500;
+            btn.style.zIndex = hostZ + 2;
+            btn.classList.add('visible');
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                if (!activeScroller || !activeScroller.isConnected || activeScroller.scrollTop <= 320) {
+                    btn.classList.remove('visible');
+                }
+            }, 3500);
+        } else if (el === activeScroller) {
+            btn.classList.remove('visible');
+        }
+    }, true);
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.closest && e.target.closest('#sollo-back-to-top')) return;
+        const btn = document.getElementById('sollo-back-to-top');
+        if (btn && btn.classList.contains('visible')) {
+            setTimeout(() => {
+                if (!activeScroller || !activeScroller.isConnected || activeScroller.offsetParent === null || activeScroller.scrollTop <= 320) {
+                    btn.classList.remove('visible');
+                }
+            }, 150);
+        }
+    }, true);
+})();
 // 2. INTERCEPT HARDWARE BACK BUTTON
 if (window.navigation) {
     window.navigation.addEventListener('navigate', (event) => {
@@ -6499,7 +6592,7 @@ document.addEventListener('visibilitychange', () => {
                     window.UI.renderDashboard();
                 }, 150);
                 setTimeout(() => {
-                    if (window.UI.chartInstance) window.UI.chartInstance.resize();
+                    if (window.UI.safeResizeChart) window.UI.safeResizeChart();
                 }, 450);
             }
         }

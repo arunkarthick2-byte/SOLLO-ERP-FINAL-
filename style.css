@@ -5883,11 +5883,11 @@ body.dark-mode #app-shell div.screen-section .search-bar {
     height: 200px;
     width: 100%;
     position: relative;
+    overflow: hidden;
 }
 #dashboard-chart {
-    width: 100% !important;
-    height: 100% !important;
-    display: block !important;
+    display: block;
+    max-width: 100%;
 }
 .dash-fulfillment-header {
     padding: 16px;
@@ -10506,7 +10506,7 @@ html body #activity-universal-report #uni-report-register-controls:not(#_):not(#
   border-top: 1px solid var(--md-outline-variant) !important;
   display: flex !important;
   flex-direction: column !important;
-  gap: 8px !important;
+  gap: 10px !important;
 }
 html body #activity-universal-report #uni-report-register-controls.hidden:not(#_):not(#__):not(#___) {
   display: none !important;
@@ -10514,10 +10514,16 @@ html body #activity-universal-report #uni-report-register-controls.hidden:not(#_
 html body #activity-universal-report .uni-tax-pills:not(#_):not(#__):not(#___) {
   display: grid !important;
   grid-template-columns: repeat(3, 1fr) !important;
-  gap: 3px !important;
-  padding: 3px !important;
+  gap: 4px !important;
+  padding: 4px !important;
   background: var(--md-surface-variant) !important;
-  border-radius: 8px !important;
+  border-radius: 10px !important;
+}
+html body #activity-universal-report #uni-profit-sort-btns.uni-tax-pills:not(#_):not(#__):not(#___) {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+html body #activity-universal-report #uni-profit-sort-btns.hidden:not(#_):not(#__):not(#___) {
+  display: none !important;
 }
 html body #activity-universal-report .uni-tax-btn:not(#_):not(#__):not(#___) {
   border: none !important;
@@ -10525,8 +10531,8 @@ html body #activity-universal-report .uni-tax-btn:not(#_):not(#__):not(#___) {
   color: var(--md-text-muted) !important;
   font-size: 11.5px !important;
   font-weight: 700 !important;
-  padding: 6px 6px !important;
-  border-radius: 6px !important;
+  padding: 8px 6px !important;
+  border-radius: 7px !important;
   white-space: nowrap !important;
   min-height: 0 !important;
   height: auto !important;
@@ -10540,13 +10546,20 @@ html body #activity-universal-report .uni-tax-btn.active:not(#_):not(#__):not(#_
 html body #activity-universal-report .uni-search-wrap:not(#_):not(#__):not(#___) {
   display: flex !important;
   align-items: center !important;
-  gap: 8px !important;
-  background: var(--md-surface-variant) !important;
-  border: 1px solid var(--md-outline-variant) !important;
-  border-radius: 8px !important;
-  padding: 0 10px !important;
-  height: 38px !important;
+  gap: 10px !important;
+  background: var(--md-surface) !important;
+  border: none !important;
+  border-top: 1px solid var(--md-outline-variant) !important;
+  border-radius: 0 !important;
+  margin: 2px -16px -12px -16px !important;
+  width: calc(100% + 32px) !important;
+  padding: 0 16px !important;
+  height: 44px !important;
   box-sizing: border-box !important;
+}
+html body.dark-mode #activity-universal-report .uni-search-wrap:not(#_):not(#__):not(#___) {
+  background: #000000 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 html body #activity-universal-report .uni-search-wrap .material-symbols-outlined:not(#_):not(#__):not(#___) {
   font-size: 18px !important;
@@ -10789,6 +10802,7 @@ html body #activity-universal-report #uni-report-table-card[data-report-type="ca
   word-break: break-word !important;
 }
 html body #activity-universal-report #uni-report-table-card[data-report-type="customer_sales"] .report-table tbody tr:not(.total-row) td:nth-child(2):not(#_):not(#__):not(#___),
+html body #activity-universal-report #uni-report-table-card[data-report-type="customer_profit"] .report-table tbody tr:not(.total-row) td:nth-child(2):not(#_):not(#__):not(#___),
 html body #activity-universal-report #uni-report-table-card[data-report-type="supplier_purchases"] .report-table tbody tr:not(.total-row) td:nth-child(2):not(#_):not(#__):not(#___),
 html body #activity-universal-report #uni-report-table-card[data-report-type="item_purchases"] .report-table tbody tr:not(.total-row) td:nth-child(2):not(#_):not(#__):not(#___) {
   white-space: normal !important;
@@ -10891,6 +10905,9 @@ html body.dark-mode #activity-universal-report .uni-seg-btn.active:not(#_):not(#
   background: #2c2c2e !important;
   color: #9ecaff !important;
   box-shadow: none !important;
+}
+html body.dark-mode #activity-universal-report .uni-tax-btn.active:not(#_):not(#__):not(#___) {
+  color: #000000 !important;
 }
 html body.dark-mode #activity-universal-report #uni-report-kpis:not(#_):not(#__):not(#___) {
   background: rgba(255, 255, 255, 0.08) !important;
@@ -11377,6 +11394,7 @@ html body.dark-mode .ded-ledger-table .ded-pill-paid:not(#_):not(#__):not(#___) 
   html body #activity-universal-report #uni-report-table-card[data-report-type="gstr2_purchases"] .report-table tbody tr:not(.total-row) td:nth-child(3):not(#_):not(#__):not(#___),
   html body #activity-universal-report #uni-report-table-card[data-report-type="cashbook_summary"] .report-table tbody tr:not(.total-row) td:nth-child(3):not(#_):not(#__):not(#___),
   html body #activity-universal-report #uni-report-table-card[data-report-type="customer_sales"] .report-table tbody tr:not(.total-row) td:nth-child(2):not(#_):not(#__):not(#___),
+  html body #activity-universal-report #uni-report-table-card[data-report-type="customer_profit"] .report-table tbody tr:not(.total-row) td:nth-child(2):not(#_):not(#__):not(#___),
   html body #activity-universal-report #uni-report-table-card[data-report-type="supplier_purchases"] .report-table tbody tr:not(.total-row) td:nth-child(2):not(#_):not(#__):not(#___),
   html body #activity-universal-report #uni-report-table-card[data-report-type="item_purchases"] .report-table tbody tr:not(.total-row) td:nth-child(2):not(#_):not(#__):not(#___),
   html body #activity-universal-report #uni-report-table-card[data-report-type="job_costing"] .report-table tbody tr:not(.total-row) td:nth-child(3):not(#_):not(#__):not(#___),
@@ -11850,4 +11868,468 @@ html body.dark-mode #form-account > div:has(> button[type="submit"]),
 html body.dark-mode #form-payment-in > div:has(> button[type="submit"]),
 html body.dark-mode #form-payment-out > div:has(> button[type="submit"]) {
     background: #000000 !important;
+}
+@media screen {
+    #sales-history-container > .m3-card,
+    #purchase-history-container > .m3-card,
+    #cashbook-container > .m3-card,
+    #expense-history-container > .m3-card,
+    #master-list-container > .m3-card,
+    #timeline-list > .m3-card,
+    #item-ledger-list > .m3-card,
+    .list-view > li {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 84px;
+    }
+}
+html body #activity-universal-report .cpd-click-row {
+    cursor: pointer;
+}
+html body #activity-universal-report .cpd-click-row:active td {
+    background: var(--md-surface-variant) !important;
+}
+html body #activity-customer-profit-detail {
+    background: var(--md-background, #F7F9FC) !important;
+}
+html body.dark-mode #activity-customer-profit-detail {
+    background: #000000 !important;
+}
+html body #activity-customer-profit-detail .cpd-header {
+    display: flex !important;
+    align-items: center !important;
+    padding: 12px 16px !important;
+    background: var(--md-surface, #ffffff) !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-header {
+    background: #000000 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #activity-customer-profit-detail .cpd-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+html body #activity-customer-profit-detail .cpd-title-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+html body #activity-customer-profit-detail .cpd-title-wrap strong {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--md-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+html body #activity-customer-profit-detail .cpd-title-wrap small {
+    font-size: 11px;
+    color: var(--md-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+html body #activity-customer-profit-detail .cpd-content {
+    padding: 0 0 24px 0 !important;
+    background: var(--md-background, #F7F9FC) !important;
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-content {
+    background: #000000 !important;
+}
+html body #activity-customer-profit-detail .cpd-period-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--md-text-muted);
+    background: var(--md-surface, #ffffff);
+    border-bottom: 1px solid var(--md-outline-variant);
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-period-bar {
+    background: #121212;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+html body #activity-customer-profit-detail .cpd-tag {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    background: rgba(0, 97, 164, 0.12);
+    color: var(--md-primary);
+}
+html body #activity-customer-profit-detail .cpd-kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--md-outline-variant);
+    border-bottom: 1px solid var(--md-outline-variant);
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-kpi-grid {
+    background: rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+html body #activity-customer-profit-detail .cpd-kpi {
+    background: var(--md-surface, #ffffff);
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-kpi {
+    background: #121212;
+}
+html body #activity-customer-profit-detail .cpd-kpi-lbl {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--md-text-muted);
+}
+html body #activity-customer-profit-detail .cpd-kpi-val {
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--md-on-surface);
+    font-variant-numeric: tabular-nums;
+}
+html body #activity-customer-profit-detail .cpd-kpi small {
+    font-size: 11px;
+    color: var(--md-text-muted);
+}
+html body #activity-customer-profit-detail .cpd-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    padding: 0;
+    background: var(--md-surface, #ffffff);
+    border-bottom: 1px solid var(--md-outline-variant);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-toolbar {
+    background: #000000;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+html body #activity-customer-profit-detail .cpd-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin: 10px 16px;
+    background: var(--md-surface-variant);
+    padding: 4px;
+    border-radius: 10px;
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-tabs {
+    background: #18181b;
+}
+html body #activity-customer-profit-detail .cpd-tab-btn {
+    border: none;
+    background: transparent;
+    color: var(--md-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 6px;
+    border-radius: 7px;
+    cursor: pointer;
+}
+html body #activity-customer-profit-detail .cpd-tab-btn.active {
+    background: var(--md-primary);
+    color: #ffffff;
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-tab-btn.active {
+    color: #000000;
+}
+html body #activity-customer-profit-detail .cpd-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    height: 44px;
+    border-radius: 0;
+    background: var(--md-surface, #ffffff);
+    border: none;
+    border-top: 1px solid var(--md-outline-variant);
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-search-wrap {
+    background: #000000;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+html body #activity-customer-profit-detail .cpd-search-wrap .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--md-text-muted);
+}
+html body #activity-customer-profit-detail #cpd-search {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    width: 100%;
+    font-size: 13px;
+    color: var(--md-on-surface);
+    outline: none;
+}
+html body #activity-customer-profit-detail .cpd-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--md-surface, #ffffff);
+    border-bottom: 1px solid var(--md-outline-variant);
+}
+html body.dark-mode #activity-customer-profit-detail .cpd-row {
+    background: #121212;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+html body #activity-customer-profit-detail .cpd-row-main {
+    flex: 1;
+    min-width: 0;
+}
+html body #activity-customer-profit-detail .cpd-row-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+html body #activity-customer-profit-detail .cpd-row-top strong {
+    font-size: 13.5px;
+    color: var(--md-on-surface);
+}
+html body #activity-customer-profit-detail .cpd-row-sub {
+    font-size: 11.5px;
+    color: var(--md-text-muted);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+}
+html body #activity-customer-profit-detail .cpd-row-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+html body #activity-customer-profit-detail .cpd-row-right strong {
+    font-size: 13.5px;
+    font-weight: 800;
+}
+html body #activity-customer-profit-detail .cpd-margin-badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 800;
+}
+html body #activity-customer-profit-detail .cpd-pill {
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 9.5px;
+    font-weight: 800;
+}
+html body #activity-customer-profit-detail .cpd-pill-gst {
+    background: rgba(0, 97, 164, 0.12);
+    color: var(--md-primary);
+}
+html body #activity-customer-profit-detail .cpd-pill-nongst {
+    background: var(--md-surface-variant);
+    color: var(--md-text-muted);
+}
+html body #activity-customer-profit-detail .cpd-pill-ret {
+    background: rgba(186, 26, 26, 0.14);
+    color: var(--md-error);
+}
+html body #activity-customer-profit-detail .cpd-pdf-ic {
+    font-size: 18px;
+    color: var(--md-primary);
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+html body #activity-customer-profit-detail .cpd-empty {
+    padding: 36px 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--md-text-muted);
+}
+html body #activity-universal-report .uni-edge-searchbar:not(#_):not(#__):not(#___) {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 40 !important;
+    display: flex !important;
+    align-items: center !important;
+    margin: 0 -16px 0 -16px !important;
+    width: calc(100% + 32px) !important;
+    padding: 4px 12px 4px 16px !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    background: var(--md-surface, #ffffff) !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+}
+html body.dark-mode #activity-universal-report .uni-edge-searchbar:not(#_):not(#__):not(#___) {
+    background: #000000 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body #activity-universal-report .uni-edge-searchbar #uni-report-search:not(#_):not(#__):not(#___) {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 40px !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+    color: var(--md-on-surface) !important;
+    padding: 0 6px !important;
+    margin: 0 !important;
+    outline: none !important;
+}
+html body #activity-universal-report .uni-tune-btn:not(#_):not(#__):not(#___) {
+    position: relative !important;
+    color: var(--md-primary) !important;
+    padding: 6px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
+}
+html body #activity-universal-report .uni-tune-btn.has-filter::after {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--md-error, #ba1a1a);
+}
+html body #sheet-uni-report-filter .uni-sort-track {
+    grid-template-columns: repeat(4, 1fr) !important;
+}
+html body #sheet-uni-report-filter .erp-segment-btn {
+    padding: 8px 4px !important;
+    font-size: 11px !important;
+    text-align: center !important;
+}
+html body .ded-edge-searchbar:not(#_):not(#__):not(#___) {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 40 !important;
+    display: flex !important;
+    align-items: center !important;
+    margin: 0 -16px 0 -16px !important;
+    width: calc(100% + 32px) !important;
+    padding: 4px 12px 4px 16px !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: none !important;
+    border-bottom: 1px solid var(--md-outline-variant) !important;
+    background: var(--md-surface, #ffffff) !important;
+    box-shadow: none !important;
+    box-sizing: border-box !important;
+}
+html body.dark-mode .ded-edge-searchbar:not(#_):not(#__):not(#___) {
+    background: #000000 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+html body .ded-edge-searchbar input[type="search"]:not(#_):not(#__):not(#___) {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 40px !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+    color: var(--md-on-surface) !important;
+    padding: 0 6px !important;
+    margin: 0 !important;
+    outline: none !important;
+}
+html body .ded-party-search-trigger {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--md-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+html body .ded-tune-btn:not(#_):not(#__):not(#___) {
+    position: relative !important;
+    color: var(--md-primary) !important;
+    padding: 6px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
+}
+html body .ded-tune-btn.has-filter::after {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--md-error, #ba1a1a);
+}
+html body #sheet-ded-report-filter .ded-date-track {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+}
+html body #sheet-ded-report-filter .erp-segment-btn {
+    padding: 8px 4px !important;
+    font-size: 11px !important;
+    text-align: center !important;
+}
+html body.dark-mode #sheet-uni-report-filter .erp-segment-btn.active,
+html body.dark-mode #sheet-ded-report-filter .erp-segment-btn.active {
+    background: rgba(96, 165, 250, 0.18) !important;
+    color: var(--md-primary) !important;
+}
+html body #sollo-back-to-top:not(#_) {
+    position: fixed !important;
+    left: auto !important;
+    right: 16px !important;
+    bottom: 84px !important;
+    width: 42px !important;
+    height: 42px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 50% !important;
+    border: 1px solid var(--md-outline-variant) !important;
+    background: var(--md-surface) !important;
+    color: var(--md-primary) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(12px) scale(0.9) !important;
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+    z-index: 4500;
+}
+html body #sollo-back-to-top.visible:not(#_) {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateY(0) scale(1) !important;
+}
+html body #sollo-back-to-top:active:not(#_) {
+    transform: scale(0.92) !important;
+}
+html body.dark-mode #sollo-back-to-top:not(#_) {
+    background: #1c1c1e !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55) !important;
 }
